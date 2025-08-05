@@ -1,7 +1,8 @@
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
 import { ref, onMounted, watch, nextTick } from "vue";
-
+import { toast } from 'vue3-toastify';
+import { usePage } from '@inertiajs/vue3';
 const form = useForm({
     email: "",
     password: "",
@@ -77,6 +78,18 @@ watch(() => form.email, (val) => {
         form.pin = '';
     }
 });
+const page = usePage();
+function handleFlashMessages() {
+    const flash = usePage().props.flash || {};
+    if (flash.message) toast.success(flash.message);
+    if (flash.error) toast.error(flash.error);
+}
+onMounted(() => {
+    handleFlashMessages();
+});
+
+
+
 
 </script>
 

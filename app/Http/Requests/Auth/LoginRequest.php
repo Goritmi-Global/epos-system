@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Mail\VerifyAccountMail;
+use Illuminate\Support\Facades\Mail;
 
 class LoginRequest extends FormRequest
 {
@@ -56,7 +58,7 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // ✅ If logging in with email + password
+        // ✅ Login with email/password
         if ($this->filled('email')) {
             $credentials = $this->only('email', 'password');
 
@@ -68,11 +70,28 @@ class LoginRequest extends FormRequest
                 ]);
             }
 
+            $user = Auth::user();
+
+            // ✅ Check if account is verified
+            if (is_null($user->email_verified_at)) {
+                Auth::logout(); // Logout just in case it logs in
+                RateLimiter::hit($this->throttleKey());
+
+                // ✅ Resend verification email
+                $rawPassword = '[hidden]'; // Don't know the password here — optional
+                $rawPin = '[hidden]';      // You can modify if you store temporary plaintext values
+                Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin));
+
+                throw ValidationException::withMessages([
+                    'email' => 'Please verify your account first. A verification email has been sent again to the registered email.',
+                ]);
+            }
+
             RateLimiter::clear($this->throttleKey());
             return;
         }
 
-        // ✅ If logging in with PIN
+        // ✅ Login with PIN
         if ($this->filled('pin')) {
             $user = \App\Models\User::whereNotNull('pin')->get()->first(function ($user) {
                 return \Hash::check($this->pin, $user->pin);
@@ -86,12 +105,22 @@ class LoginRequest extends FormRequest
                 ]);
             }
 
+            // ✅ Check if account is verified
+            if (is_null($user->email_verified_at)) {
+                RateLimiter::hit($this->throttleKey());
+
+                Mail::to($user->email)->send(new VerifyAccountMail($user, '[hidden]', '[hidden]'));
+
+                throw ValidationException::withMessages([
+                    'pin' => 'Please verify your account first. A verification email has been sent again to the registered email.',
+                ]);
+            }
+
             Auth::login($user, $this->boolean('remember'));
             RateLimiter::clear($this->throttleKey());
             return;
         }
 
-        // ✅ Nothing filled at all
         throw ValidationException::withMessages([
             'email' => 'Please enter email/password or PIN to login.',
         ]);

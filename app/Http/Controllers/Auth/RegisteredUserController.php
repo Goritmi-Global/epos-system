@@ -12,6 +12,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Mail\VerifyAccountMail;
+use Illuminate\Support\Facades\Mail;
+ 
+ 
+ 
+    
+
 
 class RegisteredUserController extends Controller
 {
@@ -30,24 +37,27 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        // dd($request);
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'email' => 'required|string|lowercase|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'pin' => 'required|digits:4|unique:users,pin',
-        ]); 
+        ]);
+
+        $rawPassword = $request->password;
+        $rawPin = $request->pin;
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'pin' => Hash::make($request->pin),
+            'password' => Hash::make($rawPassword),
+            'pin' => Hash::make($rawPin),
         ]);
 
-        event(new Registered($user));
+        // Send a custom verification email (Laravel Recommended via Mailable)
+        Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin));
 
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->route('login')->with('message', 'Account created! Please check your email to verify your account.');
     }
+
 }

@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
+use Inertia\Inertia; 
+
+
 
 Route::get('/', function () {
     return Inertia::render('Auth/Login');
@@ -14,6 +17,9 @@ Route::get('/', function () {
     //     'phpVersion' => PHP_VERSION,
     // ]);
 });
+// Auth::routes(['verify' => true]);
+Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
+
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
