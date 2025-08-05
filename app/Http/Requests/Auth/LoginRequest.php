@@ -11,101 +11,95 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
+            'email' => [
+                'required_without:pin',
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                        $fail('The email field must be a valid email address.');
+                    }
+                }
+            ],
+            'password' => ['required_with:email'],
+            'pin' => [
+                'nullable',
+                'required_without:email',
+                function ($attribute, $value, $fail) {
+                    if (!$this->filled('email') && (!is_numeric($value) || strlen((string) $value) !== 4)) {
+                        $fail('PIN must be exactly 4 digits.');
+                    }
+                }
+            ],
         ];
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    // public function authenticate(): void
-    // {
-    //     $this->ensureIsNotRateLimited();
 
-    //     if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-    //         RateLimiter::hit($this->throttleKey());
-
-    //         throw ValidationException::withMessages([
-    //             'email' => trans('auth.failed'),
-    //         ]);
-    //     }
-
-    //     RateLimiter::clear($this->throttleKey());
-    // }
-   public function authenticate()
-{
-    $this->ensureIsNotRateLimited();
-
-    // ✅ STEP 1: If email & password are provided, use them
-    if ($this->filled('email') && $this->filled('password')) {
-        $credentials = $this->only('email', 'password');
-
-        if (!Auth::attempt($credentials, $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
-
-            throw ValidationException::withMessages([
-                'email' => __('The provided credentials are incorrect.'),
-            ]);
-        }
-
-        RateLimiter::clear($this->throttleKey());
-        return;
+    public function messages(): array
+    {
+        return [
+            'email.required_without' => 'Email is required unless logging in with PIN.',
+            'password.required_with' => 'Password is required when using email.',
+            'pin.required_without' => 'PIN is required unless logging in with email.',
+            'pin.digits' => 'PIN must be exactly 4 digits.',
+        ];
     }
 
-    // ✅ STEP 2: If email/password are NOT provided, check for pin
-    if ($this->filled('pin')) {
-        $user = \App\Models\User::whereNotNull('pin')->get()->first(function ($user) {
-            return \Hash::check($this->pin, $user->pin);
-        });
+    public function authenticate()
+    {
+        $this->ensureIsNotRateLimited();
 
-        if (!$user) {
-            RateLimiter::hit($this->throttleKey());
+        // ✅ If logging in with email + password
+        if ($this->filled('email')) {
+            $credentials = $this->only('email', 'password');
 
-            throw ValidationException::withMessages([
-                'pin' => __('The provided PIN is incorrect.'),
-            ]);
+            if (!Auth::attempt($credentials, $this->boolean('remember'))) {
+                RateLimiter::hit($this->throttleKey());
+
+                throw ValidationException::withMessages([
+                    'email' => __('The provided credentials are incorrect.'),
+                ]);
+            }
+
+            RateLimiter::clear($this->throttleKey());
+            return;
         }
 
-        Auth::login($user, $this->boolean('remember'));
-        RateLimiter::clear($this->throttleKey());
-        return;
+        // ✅ If logging in with PIN
+        if ($this->filled('pin')) {
+            $user = \App\Models\User::whereNotNull('pin')->get()->first(function ($user) {
+                return \Hash::check($this->pin, $user->pin);
+            });
+
+            if (!$user) {
+                RateLimiter::hit($this->throttleKey());
+
+                throw ValidationException::withMessages([
+                    'pin' => __('The provided PIN is incorrect.'),
+                ]);
+            }
+
+            Auth::login($user, $this->boolean('remember'));
+            RateLimiter::clear($this->throttleKey());
+            return;
+        }
+
+        // ✅ Nothing filled at all
+        throw ValidationException::withMessages([
+            'email' => 'Please enter email/password or PIN to login.',
+        ]);
     }
 
-    // ✅ STEP 3: If neither is filled, throw general error
-    throw ValidationException::withMessages([
-        'email' => 'Please enter email/password or PIN to login.',
-    ]);
-}
-
-
-
-    /**
-     * Ensure the login request is not rate limited.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
 
@@ -121,11 +115,10 @@ class LoginRequest extends FormRequest
         ]);
     }
 
-    /**
-     * Get the rate limiting throttle key for the request.
-     */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        $key = $this->filled('email') ? $this->string('email') : $this->string('pin');
+        return Str::transliterate(Str::lower($key) . '|' . $this->ip());
     }
 }
+

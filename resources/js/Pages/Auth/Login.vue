@@ -65,6 +65,19 @@ watch([() => form.email, () => form.pin], () => {
 onMounted(() => {
     initializeTooltips();
 });
+watch(() => form.pin, (val) => {
+    if (val.length === 4) {
+        form.email = '';
+        form.password = '';
+    }
+});
+
+watch(() => form.email, (val) => {
+    if (val.length > 0) {
+        form.pin = '';
+    }
+});
+
 </script>
 
 <template>
@@ -182,9 +195,8 @@ onMounted(() => {
                                             "
                                         />
                                     </div>
-                                    <span class="text-danger text-sm">{{
-                                        form.errors.pin
-                                    }}</span>
+                                    <span class="text-danger text-sm">{{ form.errors.pin }}</span>
+
                                 </div>
 
                                 <div class="form-login">

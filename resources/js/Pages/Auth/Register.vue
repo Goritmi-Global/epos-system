@@ -30,8 +30,8 @@ const submit = () => {
                 <div class="login-wrapper">
                     <div class="login-content">
                         <div class="login-userset">
-                            <div class="login-logo">
-                                <img src="/assets/img/logo.png" alt="img" />
+                            <div class="login-logo d-flex justify-content-center">
+                                <img src="/assets/img/10x Global.png" alt="img" />
                             </div>
                             <div class="login-userheading">
                                 <h3>Create Super Admin Account</h3> 
