@@ -1,6 +1,6 @@
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, onMounted, watch, nextTick } from "vue";
 
 const form = useForm({
     email: "",
@@ -12,11 +12,59 @@ const form = useForm({
 const showPassword = ref(false);
 const showPin = ref(false);
 
+// Reactive read-only controls
+const emailReadonly = ref(false);
+const passwordReadonly = ref(false);
+const pinReadonly = ref(false);
+
+// Watchers to toggle read-only states
+watch(
+    () => form.email,
+    (val) => {
+        if (val.trim()) {
+            pinReadonly.value = true;
+        } else if (!form.pin) {
+            pinReadonly.value = false;
+        }
+    }
+);
+
+watch(
+    () => form.pin,
+    (val) => {
+        if (val.trim()) {
+            emailReadonly.value = true;
+            passwordReadonly.value = true;
+        } else if (!form.email) {
+            emailReadonly.value = false;
+            passwordReadonly.value = false;
+        }
+    }
+);
+
 const submit = () => {
     form.post(route("login"), {
         onFinish: () => form.reset("password", "pin"),
     });
 };
+
+const initializeTooltips = () => {
+    const tooltipTriggerList = document.querySelectorAll(
+        '[data-bs-toggle="tooltip"]'
+    );
+    tooltipTriggerList.forEach((el) => {
+        new bootstrap.Tooltip(el);
+    });
+};
+
+// Re-init tooltips whenever form fields change
+watch([() => form.email, () => form.pin], () => {
+    nextTick(() => initializeTooltips());
+});
+
+onMounted(() => {
+    initializeTooltips();
+});
 </script>
 
 <template>
@@ -41,14 +89,24 @@ const submit = () => {
                                         <input
                                             type="email"
                                             v-model="form.email"
+                                            :readonly="emailReadonly"
+                                            :title="
+                                                emailReadonly
+                                                    ? 'You’re logging in using your PIN Code.'
+                                                    : ''
+                                            "
+                                            :data-bs-toggle="
+                                                emailReadonly ? 'tooltip' : null
+                                            "
                                             placeholder="Enter your email address"
                                         />
+
                                         <img
                                             src="/assets/img/icons/mail.svg"
                                             alt="img"
                                         />
                                     </div>
-                                     <span class="text-danger text-sm">{{
+                                    <span class="text-danger text-sm">{{
                                         form.errors.email
                                     }}</span>
                                 </div>
@@ -63,8 +121,20 @@ const submit = () => {
                                             "
                                             v-model="form.password"
                                             class="pass-input"
+                                            :readonly="passwordReadonly"
+                                            :title="
+                                                passwordReadonly
+                                                    ? 'You’re logging in using your PIN Code.'
+                                                    : ''
+                                            "
+                                            :data-bs-toggle="
+                                                passwordReadonly
+                                                    ? 'tooltip'
+                                                    : null
+                                            "
                                             placeholder="Enter your password"
                                         />
+
                                         <span
                                             class="fas toggle-password"
                                             :class="
@@ -77,7 +147,7 @@ const submit = () => {
                                             "
                                         ></span>
                                     </div>
-                                      <span class="text-danger text-sm">{{
+                                    <span class="text-danger text-sm">{{
                                         form.errors.password
                                     }}</span>
                                 </div>
@@ -92,6 +162,15 @@ const submit = () => {
                                             type="text"
                                             v-model="form.pin"
                                             class="pass-input text-center"
+                                            :readonly="pinReadonly"
+                                            :title="
+                                                pinReadonly
+                                                    ? 'You’re logging in using Email & Password.'
+                                                    : ''
+                                            "
+                                            :data-bs-toggle="
+                                                pinReadonly ? 'tooltip' : null
+                                            "
                                             placeholder="••••"
                                             maxlength="4"
                                             inputmode="numeric"
@@ -103,7 +182,7 @@ const submit = () => {
                                             "
                                         />
                                     </div>
-                                     <span class="text-danger text-sm">{{
+                                    <span class="text-danger text-sm">{{
                                         form.errors.pin
                                     }}</span>
                                 </div>
@@ -116,8 +195,9 @@ const submit = () => {
                                                     route('password.request')
                                                 "
                                                 class="hover-a"
-                                                >Forgot Password?</a
                                             >
+                                                Forgot Password?
+                                            </a>
                                         </h4>
                                     </div>
                                 </div>
@@ -133,6 +213,8 @@ const submit = () => {
                             </form>
                         </div>
                     </div>
+
+                    <!-- Right Side Image & Overlay -->
                     <div class="login-img position-relative">
                         <img
                             src="/assets/img/login.jpg"
