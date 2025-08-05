@@ -18,11 +18,9 @@ class VerifyAccountMail extends Mailable
     public $pin;
     public $otp;
 
-    public function __construct(User $user, $password, $pin, $otp)
+    public function __construct(User $user, $otp)
     {
         $this->user = $user;
-        $this->password = $password;
-        $this->pin = $pin;
         $this->otp = $otp;
     }
 
@@ -39,8 +37,6 @@ class VerifyAccountMail extends Mailable
             markdown: 'emails.verify-account',
             with: [
                 'user' => $this->user,
-                'password' => $this->password,
-                'pin' => $this->pin,
                 'otp' => $this->otp,
             ],
         );

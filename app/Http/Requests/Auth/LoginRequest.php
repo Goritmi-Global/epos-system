@@ -74,16 +74,19 @@ class LoginRequest extends FormRequest
 
             // ✅ Check if account is verified
             if (is_null($user->email_verified_at)) {
-                Auth::logout(); // Logout just in case it logs in
+                Auth::logout();
                 RateLimiter::hit($this->throttleKey());
 
-                // ✅ Resend verification email
-                $rawPassword = '[hidden]'; // Don't know the password here — optional
-                $rawPin = '[hidden]';      // You can modify if you store temporary plaintext values
-                Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin));
+                $otp = rand(100000, 999999);
+                $user->verifying_otp = $otp;
+                $user->save();
+
+                
+                Mail::to($user->email)->send(new VerifyAccountMail($user,$otp));
 
                 throw ValidationException::withMessages([
-                    'email' => 'Please verify your account first. A verification email has been sent again to the registered email.',
+                    'unverified' => 'Account not verified. A new OTP has been sent to your email.',
+                    'email_address' => $user->email,
                 ]);
             }
 
@@ -109,10 +112,16 @@ class LoginRequest extends FormRequest
             if (is_null($user->email_verified_at)) {
                 RateLimiter::hit($this->throttleKey());
 
-                Mail::to($user->email)->send(new VerifyAccountMail($user, '[hidden]', '[hidden]'));
+                $otp = rand(100000, 999999);
+                $user->verifying_otp = $otp;
+                $user->save();
+
+                // Mail::to($user->email)->send(new OtpVerificationMail($user, $otp));
+                Mail::to($user->email)->send(new VerifyAccountMail($user,$otp));
 
                 throw ValidationException::withMessages([
-                    'pin' => 'Please verify your account first. A verification email has been sent again to the registered email.',
+                    'unverified' => 'Account not verified. A new OTP has been sent to your email.',
+                    'email_address' => $user->email,
                 ]);
             }
 
@@ -125,6 +134,7 @@ class LoginRequest extends FormRequest
             'email' => 'Please enter email/password or PIN to login.',
         ]);
     }
+
 
     public function ensureIsNotRateLimited(): void
     {
