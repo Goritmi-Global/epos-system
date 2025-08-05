@@ -13,7 +13,7 @@ const props = defineProps({
     closeable: {
         type: Boolean,
         default: true,
-    },
+    },  
 });
 
 const emit = defineEmits(['close']);

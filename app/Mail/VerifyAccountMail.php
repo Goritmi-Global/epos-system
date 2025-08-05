@@ -16,12 +16,14 @@ class VerifyAccountMail extends Mailable
     public $user;
     public $password;
     public $pin;
+    public $otp;
 
-    public function __construct(User $user, $password, $pin)
+    public function __construct(User $user, $password, $pin, $otp)
     {
         $this->user = $user;
         $this->password = $password;
         $this->pin = $pin;
+        $this->otp = $otp;
     }
 
     public function envelope(): Envelope
@@ -35,8 +37,15 @@ class VerifyAccountMail extends Mailable
     {
         return new Content(
             markdown: 'emails.verify-account',
+            with: [
+                'user' => $this->user,
+                'password' => $this->password,
+                'pin' => $this->pin,
+                'otp' => $this->otp,
+            ],
         );
     }
+
 
     public function attachments(): array
     {

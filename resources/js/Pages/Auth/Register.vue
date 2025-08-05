@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
+import VerifyOtpModal from "@/Components/VerifyOtpModal.vue";
 
 const form = useForm({
     name: "",
@@ -16,9 +17,21 @@ const showPin = ref(false);
 
 const submit = () => {
     form.post(route("register"), {
+        onSuccess: (res) => {
+            // Open modal on success and get email from props (Inertia will pass it)
+            if (res.props?.showOtpModal && res.props?.email) {
+                showOtpModal.value = true;
+                registeredEmail.value = res.props.email;
+            }
+        },
         onFinish: () => form.reset("password", "password_confirmation", "pin"),
     });
 };
+
+// OTP Modal state
+const showOtpModal = ref(false);
+const registeredEmail = ref('');
+
 </script>
 
 <template>
@@ -208,6 +221,13 @@ const submit = () => {
             </div>
         </div>
     </div>
+    <VerifyOtpModal
+  :open="showOtpModal"
+  :email="registeredEmail"
+  @verified="() => { showOtpModal = false; window.location.href = route('login') }"
+  @closed="showOtpModal = false"
+/>
+
 </template>
 
 <style scoped>

@@ -19,6 +19,7 @@ Route::get('/', function () {
 });
 // Auth::routes(['verify' => true]);
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
+Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
 
 
 Route::get('/dashboard', function () {

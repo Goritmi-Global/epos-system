@@ -18,6 +18,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('pin')->unique();
+            $table->string('verifying_otp', 6)->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
