@@ -12,11 +12,16 @@ class VerifyAccountController extends Controller
     {
         $user = User::findOrFail($id);
 
-        if (!$user->email_verified_at) {
-            $user->email_verified_at = now();
-            $user->save();
+        // 🚫 If already verified, abort with 404
+        if ($user->email_verified_at) {
+            abort(404); // or: return abort(404, 'Already verified');
         }
+
+        // ✅ Mark as verified
+        $user->email_verified_at = now();
+        $user->save();
 
         return redirect()->route('login')->with('message', '✅ Your account has been verified. You can now log in.');
     }
+
 }
