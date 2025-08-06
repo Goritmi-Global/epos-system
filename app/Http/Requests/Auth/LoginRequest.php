@@ -54,7 +54,7 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    public function authenticate()
+   public function authenticate()
     {
         $this->ensureIsNotRateLimited();
 
@@ -81,8 +81,7 @@ class LoginRequest extends FormRequest
                 $user->verifying_otp = $otp;
                 $user->save();
 
-                
-                Mail::to($user->email)->send(new VerifyAccountMail($user,$otp));
+                Mail::to($user->email)->send(new VerifyAccountMail($user, '', '', $otp)); 
 
                 throw ValidationException::withMessages([
                     'unverified' => 'Account not verified. A new OTP has been sent to your email.',
@@ -91,6 +90,7 @@ class LoginRequest extends FormRequest
             }
 
             RateLimiter::clear($this->throttleKey());
+            Auth::login($user, $this->boolean('remember'));
             return;
         }
 
@@ -116,8 +116,7 @@ class LoginRequest extends FormRequest
                 $user->verifying_otp = $otp;
                 $user->save();
 
-                // Mail::to($user->email)->send(new OtpVerificationMail($user, $otp));
-                Mail::to($user->email)->send(new VerifyAccountMail($user,$otp));
+                Mail::to($user->email)->send(new VerifyAccountMail($user, '', '', $otp));
 
                 throw ValidationException::withMessages([
                     'unverified' => 'Account not verified. A new OTP has been sent to your email.',
@@ -134,6 +133,7 @@ class LoginRequest extends FormRequest
             'email' => 'Please enter email/password or PIN to login.',
         ]);
     }
+
 
 
     public function ensureIsNotRateLimited(): void
@@ -160,4 +160,3 @@ class LoginRequest extends FormRequest
         return Str::transliterate(Str::lower($key) . '|' . $this->ip());
     }
 }
-

@@ -1,8 +1,9 @@
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
 import { ref, onMounted, watch, nextTick } from "vue";
-import { toast } from 'vue3-toastify';
-import { usePage } from '@inertiajs/vue3';
+import { toast } from "vue3-toastify";
+import { usePage } from "@inertiajs/vue3";
+import VerifyOtpModal from "@/Components/VerifyOtpModal.vue";
 const form = useForm({
     email: "",
     password: "",
@@ -45,9 +46,33 @@ watch(
 
 const submit = () => {
     form.post(route("login"), {
+        preserveScroll: true,
+
+        // ✅ Success: go to dashboard
+        onSuccess: () => {
+            window.location.href = route("dashboard");
+        },
+
+        // ✅ Error: check if it's unverified and show modal
+        onError: (errors) => {
+            if (errors.unverified && errors.email_address) {
+                registeredEmail.value = errors.email_address;
+                showOtpModal.value = true;
+
+                toast.warning(errors.unverified);
+            }
+
+            // Keep form field errors too
+            form.errors.email = errors.email;
+            form.errors.password = errors.password;
+            form.errors.pin = errors.pin;
+        },
+
         onFinish: () => form.reset("password", "pin"),
     });
 };
+
+
 
 const initializeTooltips = () => {
     const tooltipTriggerList = document.querySelectorAll(
@@ -66,18 +91,24 @@ watch([() => form.email, () => form.pin], () => {
 onMounted(() => {
     initializeTooltips();
 });
-watch(() => form.pin, (val) => {
-    if (val.length === 4) {
-        form.email = '';
-        form.password = '';
+watch(
+    () => form.pin,
+    (val) => {
+        if (val.length === 4) {
+            form.email = "";
+            form.password = "";
+        }
     }
-});
+);
 
-watch(() => form.email, (val) => {
-    if (val.length > 0) {
-        form.pin = '';
+watch(
+    () => form.email,
+    (val) => {
+        if (val.length > 0) {
+            form.pin = "";
+        }
     }
-});
+);
 const page = usePage();
 function handleFlashMessages() {
     const flash = usePage().props.flash || {};
@@ -87,10 +118,9 @@ function handleFlashMessages() {
 onMounted(() => {
     handleFlashMessages();
 });
-
-
-
-
+// OTP Modal state
+const showOtpModal = ref(false);
+const registeredEmail = ref("");
 </script>
 
 <template>
@@ -208,8 +238,9 @@ onMounted(() => {
                                             "
                                         />
                                     </div>
-                                    <span class="text-danger text-sm">{{ form.errors.pin }}</span>
-
+                                    <span class="text-danger text-sm">{{
+                                        form.errors.pin
+                                    }}</span>
                                 </div>
 
                                 <div class="form-login">
@@ -260,6 +291,20 @@ onMounted(() => {
             </div>
         </div>
     </div>
+    <VerifyOtpModal
+    v-if="showOtpModal"
+    :open="showOtpModal"
+    :email="registeredEmail"
+    @verified="() => {
+        showOtpModal = false;
+        window.location.href = route('dashboard');
+    }"
+    @closed="() => {
+        showOtpModal = false;
+    }"
+/>
+
+
 </template>
 
 <style scoped>

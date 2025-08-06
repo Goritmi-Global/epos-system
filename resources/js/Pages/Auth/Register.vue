@@ -2,6 +2,7 @@
 import { Head, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 import VerifyOtpModal from "@/Components/VerifyOtpModal.vue";
+import { toast } from "vue3-toastify";
 
 const form = useForm({
     name: "",
@@ -17,21 +18,38 @@ const showPin = ref(false);
 
 const submit = () => {
     form.post(route("register"), {
-        onSuccess: (res) => {
-            // Open modal on success and get email from props (Inertia will pass it)
-            if (res.props?.showOtpModal && res.props?.email) {
-                showOtpModal.value = true;
-                registeredEmail.value = res.props.email;
-            }
+        preserveScroll: true,
+
+        // ✅ Success: go to dashboard
+        onSuccess: () => {
+            window.location.href = route("login");
         },
-        onFinish: () => form.reset("password", "password_confirmation", "pin"),
+
+        // ✅ Error: check if it's unverified and show modal
+        onError: (errors) => {
+            if (errors.unverified && errors.email_address) {
+                registeredEmail.value = errors.email_address;
+                showOtpModal.value = true;
+
+                
+                toast.warning(errors.unverified);
+            }
+
+            // Keep form field errors too
+            if (errors.email) form.errors.email = errors.email;
+            if (errors.password) form.errors.password = errors.password;
+            if (errors.pin) form.errors.pin = errors.pin;
+        },
+
+       onFinish: () => form.reset("password", "password_confirmation", "pin"),
     });
 };
+ 
+
 
 // OTP Modal state
 const showOtpModal = ref(false);
-const registeredEmail = ref('');
-
+const registeredEmail = ref("");
 </script>
 
 <template>
@@ -43,11 +61,16 @@ const registeredEmail = ref('');
                 <div class="login-wrapper">
                     <div class="login-content">
                         <div class="login-userset">
-                            <div class="login-logo d-flex justify-content-center">
-                                <img src="/assets/img/10x Global.png" alt="img" />
+                            <div
+                                class="login-logo d-flex justify-content-center"
+                            >
+                                <img
+                                    src="/assets/img/10x Global.png"
+                                    alt="img"
+                                />
                             </div>
                             <div class="login-userheading">
-                                <h3>Create Super Admin Account</h3> 
+                                <h3>Create Super Admin Account</h3>
                             </div>
 
                             <form @submit.prevent="submit">
@@ -58,7 +81,6 @@ const registeredEmail = ref('');
                                             type="text"
                                             v-model="form.name"
                                             placeholder="Enter your full name"
-                                             
                                         />
                                         <img
                                             src="/assets/img/icons/users1.svg"
@@ -77,7 +99,6 @@ const registeredEmail = ref('');
                                             type="email"
                                             v-model="form.email"
                                             placeholder="Enter your email address"
-                                             
                                         />
                                         <img
                                             src="/assets/img/icons/mail.svg"
@@ -101,7 +122,6 @@ const registeredEmail = ref('');
                                             v-model="form.password"
                                             class="pass-input"
                                             placeholder="Enter your password"
-                                             
                                         />
                                         <span
                                             class="fas toggle-password"
@@ -132,7 +152,6 @@ const registeredEmail = ref('');
                                             v-model="form.password_confirmation"
                                             class="pass-input"
                                             placeholder="Confirm your password"
-                                             
                                         />
                                         <span
                                             class="fas toggle-password"
@@ -171,7 +190,6 @@ const registeredEmail = ref('');
                                                     .replace(/\D/g, '')
                                                     .slice(0, 4)
                                             "
-                                             
                                         />
                                         <span
                                             class="fas toggle-password"
@@ -221,12 +239,24 @@ const registeredEmail = ref('');
             </div>
         </div>
     </div>
+
     <VerifyOtpModal
-  :open="showOtpModal"
-  :email="registeredEmail"
-  @verified="() => { showOtpModal = false; window.location.href = route('login') }"
-  @closed="showOtpModal = false"
-/>
+        v-if="showOtpModal"
+        :open="showOtpModal"
+        :email="registeredEmail"
+        @verified="
+            () => {
+                showOtpModal = false;
+                window.location.href = route('login');
+            }
+        "
+        @closed="
+            () => {
+                showOtpModal = false;
+            }
+        "
+    />
+        <p v-if="showOtpModal" style="color:red;">Modal is open for {{ registeredEmail }}</p>
 
 </template>
 

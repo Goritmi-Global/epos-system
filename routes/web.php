@@ -5,8 +5,11 @@ use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia; 
+use App\Http\Controllers\Auth\RegisteredUserController;
 
 
+
+Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
 
 Route::get('/', function () {
     return Inertia::render('Auth/Login');

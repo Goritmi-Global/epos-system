@@ -14,6 +14,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 use App\Mail\VerifyAccountMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
+
  
  
  
@@ -35,15 +37,15 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request): RedirectResponse
-    {
+    public function store(Request $request) 
+    { 
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'pin' => 'required|digits:4|unique:users,pin',
         ]);
-
+ 
         $rawPassword = $request->password;
         $rawPin = $request->pin;
         $otp = rand(100000, 999999);
@@ -55,15 +57,11 @@ class RegisteredUserController extends Controller
             'pin' => Hash::make($rawPin),
             'verifying_otp' => $otp,
         ]);
-
         // Send a custom verification email (Laravel Recommended via Mailable)
-        Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin,$otp));
-        // Mail::to($user->email)->send(new OtpVerificationMail($user, $otp));
-
-        return Inertia::render('Auth/Register', [
-            'showOtpModal' => true,
-            'email' => $user->email,
-
+        // Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin,$otp));
+        throw ValidationException::withMessages([
+            'unverified' => 'Account not verified. A new OTP has been sent to your email.',
+            'email_address' => $user->email,
         ]);
     }
 
@@ -83,6 +81,8 @@ class RegisteredUserController extends Controller
         $user->email_verified_at = now();
         $user->verifying_otp = null;
         $user->save();
+        // ✅ Automatically log the user in
+        Auth::login($user);
 
         return response()->json(['message' => 'Verified successfully']);
     }
