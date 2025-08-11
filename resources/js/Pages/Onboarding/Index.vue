@@ -2,6 +2,7 @@
 import { onMounted, ref, computed } from 'vue'
 import axios from 'axios'
 import Step1 from './steps/Step1.vue'
+
 // import Step2 from './steps/Step2.vue'
 // ... Step3..Step10 imports
 
@@ -29,7 +30,7 @@ const comp = computed(() => ({
 }[current.value]))
 
 async function load() {
-    alert("called");
+    // alert("called");
   loading.value = true
   const { data } = await axios.get('/onboarding/data')
   profile.value = data.profile

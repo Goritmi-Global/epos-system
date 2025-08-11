@@ -25,9 +25,10 @@ Route::get('/', function () {
     // ]);
 });
 // Auth::routes(['verify' => true]);
+
+
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
-Route::get('/api/geo', [GeoController::class, 'info']);
 
 
 // Dashboard -> Controller@index
@@ -48,5 +49,10 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/onboarding/step/{step}', [OnboardingController::class, 'saveStep'])->name('onboarding.saveStep');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 });
+
+// routes/web.php
+Route::get('/settings/locations', [\App\Http\Controllers\IndexController::class, 'index'])
+     ->name('locations.index');
+
 
 require __DIR__.'/auth.php';

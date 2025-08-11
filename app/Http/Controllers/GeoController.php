@@ -1,24 +1,31 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Stevebauman\Location\Facades\Location;
+use DateTime;
+use DateTimeZone;
 
 class GeoController extends Controller
 {
     public function info(Request $request)
     {
-        // Useful in dev behind proxies
-        // $ip = $request->query('ip', $request->ip());
-         $ip = '8.8.8.8'; 
-        $pos = Location::get($ip); // countryName, countryCode, timezone (if provider returns it)
+        // Force UK for now
+        $countryName = 'United Kingdom';
+        $countryCode = 'GB';
+        $timezoneName = 'Europe/London';
 
-        // dd($pos);
+        // Convert to "GMT (UTC±HH:MM)"
+        $dateTime = new DateTime('now', new DateTimeZone($timezoneName));
+        $offsetInHours = $dateTime->format('P'); // e.g. "+00:00"
+        $formattedTimezone = "GMT (UTC{$offsetInHours})";
+
         return response()->json([
-            'ip'            => $ip,
-            'country_name'  => $pos?->countryName,
-            'country_code'  => $pos?->countryCode, // e.g. GB, PK
-            'timezone'      => $pos?->timezone,    // may be null from some providers
+            'ip'              => 'STATIC-UK',
+            'country_name'    => $countryName,
+            'country_code'    => $countryCode,
+            'timezone'        => $formattedTimezone,
+            'timezone_name'   => $timezoneName,
         ]);
     }
 }
