@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\GeoController;
 
 
 
@@ -26,6 +27,7 @@ Route::get('/', function () {
 // Auth::routes(['verify' => true]);
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
+Route::get('/api/geo', [GeoController::class, 'info']);
 
 
 // Dashboard -> Controller@index
