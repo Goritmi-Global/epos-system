@@ -73,6 +73,5 @@ onMounted(load)
         <component :is="comp" :model="profile" @save="saveStep" @next="() => current++" @back="() => current--" />
       </div>
     </div>
-  </div>
-  <h1>Testing</h1>
+  </div> 
 </template>

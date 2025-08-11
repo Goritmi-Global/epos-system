@@ -17,15 +17,21 @@ class IndexController extends Controller
             ->get(['iso2 as code', 'name']);
     }
 
-    public function countries_pluck()
-    {
-        $countries = Country::orderBy('name')
-            ->pluck('name', 'id')
-            ->map(fn ($name, $id) => ['label' => $name, 'value' => (string)$id])
-            ->values();
+     public function countries_pluck()
+{
+    return Country::orderBy('name')
+        ->get(['name', 'iso2'])
+        ->map(fn ($c) => [
+            'label' => $c->name,
+            'value' => strtoupper($c->iso2),
+            'flag'  => "https://flagcdn.com/w20/".strtolower($c->iso2).".png",
+        ])
+        ->values();
+}
 
-        return response()->json($countries);
-    }
+
+
+
  
  
 public function countryDetails(Request $request, $country_code)
