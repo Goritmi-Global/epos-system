@@ -23,8 +23,7 @@ class IndexController extends Controller
         ->get(['name', 'iso2'])
         ->map(fn ($c) => [
             'label' => $c->name,
-            'value' => strtoupper($c->iso2),
-            'flag'  => "https://flagcdn.com/w20/".strtolower($c->iso2).".png",
+            'value' => strtoupper($c->iso2)
         ])
         ->values();
 }

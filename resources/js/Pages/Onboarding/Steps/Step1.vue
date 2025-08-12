@@ -1,17 +1,26 @@
 <script setup>
-import { reactive, ref, onMounted, watch } from "vue";
+import { reactive, ref, onMounted, watch, computed } from "vue";
 import axios from "axios";
-import Multiselect from "@vueform/multiselect";
-import "@vueform/multiselect/themes/default.css";
+import Select from "primevue/select";
 import { toast } from "vue3-toastify";
 
+const selectedCountry = ref(null);   // object { name, code }
+const selectedLanguage = ref(null);  // object { name, code, flag }
 const countries = ref([]);
 
-// Predefined languages with flags
+// Your existing languages source (only English right now)
 const languages = ref([
-   
-  { label: 'English', value: 'en', flag: 'https://flagcdn.com/w20/gb.png' }
+  { label: "English", value: "en", flag: "https://flagcdn.com/w20/gb.png" },
 ]);
+
+// Map languages -> { name, code, flag } for PrimeVue Select
+const languagesOptions = computed(() =>
+  languages.value.map((l) => ({
+    name: l.label,
+    code: l.value,
+    flag: l.flag,
+  }))
+);
 
 const form = reactive({
   country_code: "",
@@ -21,63 +30,74 @@ const form = reactive({
   languages_supported: [],
 });
 
-// Load all countries for dropdown
+// Helpers
+const flagUrl = (code, size = "24x18") =>
+  `https://flagcdn.com/${size}/${String(code || "").toLowerCase()}.png`;
+
+// Load all countries -> shape { name, code }
 async function fetchCountries() {
-  const { data } = await axios.get('/api/countries');
-  countries.value = data.map(c => ({
-    label: c.label ?? c.name,
-    value: (c.value ?? c.code ?? c.iso2 ?? '').toUpperCase(),
-    flag:  c.flag  ?? `https://flagcdn.com/w20/${(c.code ?? c.iso2 ?? '').toLowerCase()}.png`
+  const { data } = await axios.get("/api/countries");
+  countries.value = data.map((c) => ({
+    name: c.name ?? c.label,
+    code: String(c.code ?? c.iso2 ?? c.value ?? "").toUpperCase(),
   }));
 }
 
-
-// Load details (languages & timezone) for a country
+// Load details (timezone etc.)
 async function fetchCountryDetails(code) {
   if (!code) return;
   try {
     const { data } = await axios.get(`/api/country/${code}`);
     form.timezone = data.timezone;
   } catch (error) {
-    toast.warning(
-      error.response?.data?.message || "Failed to fetch country details"
-    );
+    toast.warning(error.response?.data?.message || "Failed to fetch country details");
   }
 }
 
-// Auto-detect country on first load
+// Detect country and prefill
 async function detectCountry() {
   try {
     const { data } = await axios.get("/api/geo");
-    form.country_code = data.country_code;
-    form.country_name = data.country_name;
-    if (data.timezone) {
-      form.timezone = data.timezone;
-    }
+    form.country_code = data.country_code || "";
+    form.country_name = data.country_name || "";
+    if (data.timezone) form.timezone = data.timezone;
   } catch (error) {
-    toast.warning(
-      error.response?.data?.message || "Failed to detect country"
-    );
+    toast.warning(error.response?.data?.message || "Failed to detect country");
   }
+}
+
+// Sync the Selects from form values
+function syncSelectedCountry() {
+  selectedCountry.value = countries.value.find((o) => o.code === form.country_code) || null;
+}
+function syncSelectedLanguage() {
+  selectedLanguage.value =
+    languagesOptions.value.find((o) => o.code === form.language) ||
+    languagesOptions.value[0] ||
+    null;
 }
 
 onMounted(async () => {
   await fetchCountries();
   await detectCountry();
+  syncSelectedCountry();
+  syncSelectedLanguage();
+  if (form.country_code) await fetchCountryDetails(form.country_code);
 });
 
-watch(
-  () => form.country_code,
-  async (newCode, oldCode) => {
-    if (newCode && oldCode) {
-      await fetchCountryDetails(newCode);
-    }
-  }
-);
+// Update form when user changes selects
+watch(selectedCountry, (opt) => {
+  if (!opt) return;
+  form.country_code = opt.code;
+  form.country_name = opt.name;
+  fetchCountryDetails(opt.code);
+});
+watch(selectedLanguage, (opt) => {
+  if (!opt) return;
+  form.language = opt.code; // 'en'
+});
 
-function submit() {
-  console.log(form);
-}
+ 
 </script>
 
 <template>
@@ -85,36 +105,35 @@ function submit() {
     <h5 class="mb-3">Welcome & Language Selection</h5>
 
     <div class="row g-3">
-      <!-- Country -->
+      <!-- Country (full width) -->
       <div class="col-12">
         <label class="form-label">Country</label>
-       
-        <Multiselect
-          v-model="form.country_code"
+
+        <Select
+          v-model="selectedCountry"
           :options="countries"
-          placeholder="Select country"
-          track-by="value"
-          label="label"
-          value-prop="value"
-          searchable
+          optionLabel="name"
+          :filter="true"
+          placeholder="Select a Country"
+          class="w-100"
         >
-        
-          <!-- Dropdown items -->
-          <template #option="{ option }">
-            <span class="d-flex align-items-center">
-              <img v-if="option?.flag" :src="option.flag" class="me-2" style="width:20px; height:14px;" />
-              {{ option?.label || '' }}
-            </span>
+          <!-- Selected value -->
+          <template #value="{ value, placeholder }">
+            <div v-if="value" class="d-flex align-items-center gap-2">
+              <img :alt="value.name" :src="flagUrl(value.code)" width="18" height="14" style="object-fit:cover" />
+              <span>{{ value.name }}</span>
+            </div>
+            <span v-else>{{ placeholder }}</span>
           </template>
 
-          <!-- Selected item display -->
-          <template #singlelabel="{ option }">
-            <span class="d-flex align-items-center">
-              <img v-if="option?.flag" :src="option.flag" class="me-2" style="width:20px; height:14px;" />
-              {{ option?.label || '' }}
-            </span>
+          <!-- Options -->
+          <template #option="{ option }">
+            <div class="d-flex align-items-center gap-2">
+              <img :alt="option.name" :src="flagUrl(option.code)" width="18" height="14" style="object-fit:cover" />
+              <span>{{ option.name }}</span>
+            </div>
           </template>
-        </Multiselect>
+        </Select>
       </div>
 
       <!-- Timezone -->
@@ -123,41 +142,38 @@ function submit() {
         <input type="text" class="form-control" v-model="form.timezone" />
       </div>
 
-      <!-- Language -->
+      <!-- Language (same Select as countries; only English option) -->
       <div class="col-md-6">
         <label class="form-label">Language</label>
-        <Multiselect
-          v-model="form.language"
-          :options="languages"
-          placeholder="Select language"
-          track-by="value"
-          label="label"
-          value-prop="value"
-          searchable
+
+        <Select
+          v-model="selectedLanguage"
+          :options="languagesOptions"
+          optionLabel="name"
+          :filter="false"
+          placeholder="Select a Language"
+          class="w-100"
         >
-          <!-- Dropdown items -->
-          <template #option="{ option }">
-            <span class="d-flex align-items-center">
-              <img v-if="option?.flag" :src="option.flag" class="me-2" style="width:20px; height:14px;" />
-              {{ option?.label || '' }}
-            </span>
+          <!-- Selected value -->
+          <template #value="{ value, placeholder }">
+            <div v-if="value" class="d-flex align-items-center gap-2">
+              <img :alt="value.name" :src="value.flag" width="18" height="14" style="object-fit:cover" />
+              <span>{{ value.name }}</span>
+            </div>
+            <span v-else>{{ placeholder }}</span>
           </template>
 
-          <!-- Selected item display -->
-          <template #singlelabel="{ option }">
-            <span class="d-flex align-items-center">
-              <img v-if="option?.flag" :src="option.flag" class="me-2" style="width:20px; height:14px;" />
-              {{ option?.label || '' }}
-            </span>
+          <!-- Options -->
+          <template #option="{ option }">
+            <div class="d-flex align-items-center gap-2">
+              <img :alt="option.name" :src="option.flag" width="18" height="14" style="object-fit:cover" />
+              <span>{{ option.name }}</span>
+            </div>
           </template>
-        </Multiselect>
+        </Select>
       </div>
     </div>
 
-    <div class="d-flex justify-content-end gap-2 mt-4">
-      <button type="button" class="btn btn-primary" @click="submit">
-        Save
-      </button>
-    </div>
+    
   </div>
 </template>

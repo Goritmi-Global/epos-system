@@ -42,6 +42,13 @@ import { createApp, h, nextTick } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import PrimeVue from 'primevue/config';
+import Aura from '@primeuix/themes/aura';
+
+import ConfirmModal from "@/Components/ConfirmModal.vue";
+import ImageCropperModal from "@/Components/ImageCropperModal.vue";
+import ImageZoomModal from "@/Components/ImageZoomModal.vue";
+
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -52,8 +59,18 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const vueApp = createApp({ render: () => h(App, props) });
 
+        //  Global components
+        vueApp.component("ConfirmModal", ConfirmModal);
+        vueApp.component("ImageCropperModal", ImageCropperModal);
+        vueApp.component("ImageZoomModal", ImageZoomModal);
+        
         vueApp.use(plugin);
         vueApp.use(ZiggyVue);
+        vueApp.use(PrimeVue,{
+            theme:{
+                preset:Aura,
+            }
+        });
         vueApp.use(Toast, {
             autoClose: 3000,
             position: 'top-right',
