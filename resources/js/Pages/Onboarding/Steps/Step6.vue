@@ -1,25 +1,49 @@
 <script setup>
-import { reactive, toRaw, watch } from "vue"
+import { reactive, ref, toRaw, watch } from "vue"
+
 const props = defineProps({ model: Object })
-const emit = defineEmits(["save"])
+const emit  = defineEmits(["save"])
 
 const form = reactive({
-  receipt_header: props.model.receipt_header ?? "",
-  receipt_footer: props.model.receipt_footer ?? "",
-  receipt_logo: props.model.receipt_logo ?? null,
-  receipt_logo_file: null,
-  show_qr: props.model.show_qr ?? "yes",
-  tax_breakdown: props.model.tax_breakdown ?? "yes",
-  kitchen_printer: props.model.kitchen_printer ?? "yes",
-  store_phone: props.model.store_phone ?? "03101186261",
-  store_name: props.model.store_name ?? "Enter store name"
+  receipt_header:   props.model?.receipt_header   ?? "",
+  receipt_footer:   props.model?.receipt_footer   ?? "",
+  receipt_logo:     props.model?.receipt_logo     ?? null, // preview (URL or base64)
+  receipt_logo_file:null,                                   // file for backend
+  show_qr:          props.model?.show_qr          ?? "yes",
+  tax_breakdown:    props.model?.tax_breakdown    ?? "yes",
+  kitchen_printer:  props.model?.kitchen_printer  ?? "yes",
+  store_phone:      props.model?.store_phone      ?? "03101186261",
+  store_name:       props.model?.store_name       ?? "Enter store name"
 })
-watch(form, () => emit("save",{ step:6, data: toRaw(form) }), { deep:true })
 
-function onLogo(e){
-  const f = e.target.files?.[0]
-  form.receipt_logo_file = f || null
-  if (f) form.receipt_logo = URL.createObjectURL(f)
+watch(form, () => emit("save", { step: 6, data: toRaw(form) }), { deep:true })
+
+/* --- Image crop/zoom like Step 2 --- */
+const showCropper    = ref(false)
+const showImageModal = ref(false)
+const previewImage   = ref(null)
+
+function openCropper() { showCropper.value = true }
+function openImageZoom(src) {
+  previewImage.value = src || form.receipt_logo
+  if (previewImage.value) showImageModal.value = true
+}
+function handleCropped(payload) {
+  if (payload instanceof Blob) {
+    const file = new File([payload], "receipt-logo.jpg", { type: payload.type || "image/jpeg" })
+    form.receipt_logo_file = file
+    form.receipt_logo      = URL.createObjectURL(file)
+  } else if (payload?.file instanceof File) {
+    form.receipt_logo_file = payload.file
+    form.receipt_logo      = URL.createObjectURL(payload.file)
+  } else if (typeof payload === "string") {
+    form.receipt_logo_file = null
+    form.receipt_logo      = payload
+  } else if (payload?.dataUrl) {
+    form.receipt_logo_file = null
+    form.receipt_logo      = payload.dataUrl
+  }
+  showCropper.value = false
 }
 </script>
 
@@ -28,78 +52,195 @@ function onLogo(e){
     <h5 class="fw-bold mb-3">Step 6 of 9 - Receipt & Printer Setup</h5>
 
     <div class="row g-4">
+      <!-- Left side -->
       <div class="col-lg-7">
         <label class="form-label">Receipt header</label>
-        <input class="form-control" v-model="form.receipt_header"/>
+        <input class="form-control" v-model="form.receipt_header" />
 
-        <label class="form-label mt-3">Upload Receipt Logo</label>
-        <div class="d-flex align-items-center gap-3">
-          <div class="border rounded-4 p-2 text-center" style="height:120px; width:120px;">
-            <img v-if="form.receipt_logo" :src="form.receipt_logo" alt="" style="max-height:100%; max-width:100%;"/>
-            <div v-else class="h-100 d-flex align-items-center justify-content-center text-muted">
-              <i class="bi bi-upload fs-2"></i>
+        <div class="row g-3 align-items-start mt-2">
+          <!-- Upload / crop card -->
+          <div class="col-md-4">
+            <div class="logo-card">
+              <div
+                class="logo-box"
+                :class="{ 'logo-box--has': !!form.receipt_logo }"
+                @click="form.receipt_logo ? openImageZoom(form.receipt_logo) : openCropper()"
+                role="button"
+                :title="form.receipt_logo ? 'Click to zoom' : 'Click to upload & crop'"
+              >
+                <img v-if="form.receipt_logo" :src="form.receipt_logo" alt="Receipt logo" />
+                <div v-else class="logo-empty"><i class="bi bi-image"></i></div>
+              </div>
+
+              <div class="text-center mt-2 text-muted small">Upload Receipt Logo</div>
+              <div class="d-grid mt-2">
+                <button type="button" class="btn btn-primary rounded-pill" @click="openCropper">
+                  Upload & Crop Image
+                </button>
+              </div>
             </div>
           </div>
-          <input type="file" class="form-control" accept="image/*" @change="onLogo">
-        </div>
 
-        <label class="form-label mt-3">Receipt Footer</label>
-        <input class="form-control" v-model="form.receipt_footer"/>
+          <!-- Text fields + radios -->
+          <div class="col-md-8">
+            <label class="form-label">Receipt Footer</label>
+            <input class="form-control" v-model="form.receipt_footer" />
 
-        <div class="mt-3 d-flex align-items-center justify-content-between">
-          <span>Show QR Code on Receipt</span>
-          <div>
-            <label class="me-3"><input class="form-check-input me-1" type="radio" value="yes" v-model="form.show_qr"> Yes</label>
-            <label><input class="form-check-input me-1" type="radio" value="no" v-model="form.show_qr"> No</label>
-          </div>
-        </div>
+            <div class="mt-3">
+              <label class="form-label d-block mb-2">Show QR Code on Receipt</label>
+              <div class="segmented">
+                <input class="segmented__input" type="radio" id="qr-yes" value="yes" v-model="form.show_qr">
+                <label class="segmented__btn" :class="{ 'is-active': form.show_qr==='yes' }" for="qr-yes">YES</label>
 
-        <div class="mt-2 d-flex align-items-center justify-content-between">
-          <span>Tax Breakdown</span>
-          <div>
-            <label class="me-3"><input class="form-check-input me-1" type="radio" value="yes" v-model="form.tax_breakdown"> Yes</label>
-            <label><input class="form-check-input me-1" type="radio" value="no" v-model="form.tax_breakdown"> No</label>
-          </div>
-        </div>
+                <input class="segmented__input" type="radio" id="qr-no" value="no" v-model="form.show_qr">
+                <label class="segmented__btn" :class="{ 'is-active': form.show_qr==='no' }" for="qr-no">NO</label>
+              </div>
+            </div>
 
-        <div class="mt-2 d-flex align-items-center justify-content-between">
-          <span>Add Kitchen Printer</span>
-          <div>
-            <label class="me-3"><input class="form-check-input me-1" type="radio" value="yes" v-model="form.kitchen_printer"> Yes</label>
-            <label><input class="form-check-input me-1" type="radio" value="no" v-model="form.kitchen_printer"> No</label>
+            <div class="mt-3">
+              <label class="form-label d-block mb-2">Tax Breakdown</label>
+              <div class="segmented">
+                <input class="segmented__input" type="radio" id="tb-yes" value="yes" v-model="form.tax_breakdown">
+                <label class="segmented__btn" :class="{ 'is-active': form.tax_breakdown==='yes' }" for="tb-yes">YES</label>
+
+                <input class="segmented__input" type="radio" id="tb-no" value="no" v-model="form.tax_breakdown">
+                <label class="segmented__btn" :class="{ 'is-active': form.tax_breakdown==='no' }" for="tb-no">NO</label>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <label class="form-label d-block mb-2">Add Kitchen Printer</label>
+              <div class="segmented">
+                <input class="segmented__input" type="radio" id="kp-yes" value="yes" v-model="form.kitchen_printer">
+                <label class="segmented__btn" :class="{ 'is-active': form.kitchen_printer==='yes' }" for="kp-yes">YES</label>
+
+                <input class="segmented__input" type="radio" id="kp-no" value="no" v-model="form.kitchen_printer">
+                <label class="segmented__btn" :class="{ 'is-active': form.kitchen_printer==='no' }" for="kp-no">NO</label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Preview -->
+      <!-- Right: receipt preview -->
       <div class="col-lg-5">
-        <div class="border rounded-4 p-3" style="background:#fff">
-          <h6 class="text-center">{{ form.store_name }}</h6>
-          <div class="text-center text-muted small">{{ new Date().toLocaleString() }}</div>
-          <div class="text-center my-2">
-            <div class="border rounded-pill px-3 py-1 d-inline-block">{{ form.store_phone }}</div>
+        <div class="receipt-card">
+          <div class="text-center">
+            <div v-if="form.receipt_logo" class="mb-2">
+              <img :src="form.receipt_logo" alt class="logo-preview" />
+            </div>
+            <h6 class="mb-1">{{ form.store_name }}</h6>
+            <div class="text-muted small">{{ new Date().toLocaleString() }}</div>
+            <div class="text-center my-2">
+              <div class="badge-pill">{{ form.store_phone }}</div>
+            </div>
           </div>
-          <hr/>
+
+          <hr class="my-2" />
+
           <div class="small">
             <div class="d-flex justify-content-between"><span>Payment Type:</span><span>Credit</span></div>
             <div class="d-flex justify-content-between"><span>Customer Name:</span><span>Lorem Ipsum</span></div>
             <div class="d-flex justify-content-between"><span>Address:</span><span>abc</span></div>
           </div>
-          <hr/>
+
+          <hr class="my-2" />
+
           <div class="small">
-            <div class="d-flex justify-content-between"><strong>Name</strong><strong>Qty</strong><strong>Price</strong></div>
+            <div class="d-flex justify-content-between fw-semibold">
+              <span>Name</span><span>Qty</span><span>Price</span>
+            </div>
             <div class="d-flex justify-content-between"><span>Item A</span><span>1</span><span>Rs 950</span></div>
             <div class="d-flex justify-content-between"><span>Item B</span><span>2</span><span>Rs 50</span></div>
           </div>
-          <hr/>
+
+          <hr class="my-2" />
+
           <div class="small">
             <div class="d-flex justify-content-between"><span>Total Price:</span><span>Rs 2000</span></div>
             <div class="d-flex justify-content-between"><span>Tax:</span><span>23%</span></div>
           </div>
-          <hr/>
+
+          <div v-if="form.show_qr === 'yes'" class="d-flex justify-content-center my-2">
+            <div class="qr-box" aria-hidden="true"></div>
+          </div>
+
+          <hr class="my-2" />
           <div class="text-center small">{{ form.receipt_footer || 'Thank you!' }}</div>
         </div>
       </div>
     </div>
+
+    <!-- Global modals -->
+    <ImageCropperModal
+      :show="showCropper"
+      @close="showCropper = false"
+      @cropped="handleCropped"
+    />
+    <ImageZoomModal
+      :show="showImageModal"
+      :image="previewImage"
+      @close="showImageModal = false"
+    />
   </div>
 </template>
+
+<style scoped>
+:root { --brand:#1C0D82; }
+
+/* -------- Match Step 5 segmented style -------- */
+.segmented{
+  display:inline-flex;
+  border-radius:999px;
+  background:#f4f6fb;
+  border:1px solid #e3e8f2;
+  box-shadow:0 2px 6px rgba(25,28,90,.05);
+  overflow:hidden;
+}
+.segmented__input{ position:absolute; opacity:0; pointer-events:none; }
+.segmented__btn{
+  padding:0.3rem 0.8rem;
+  font-size:0.8rem;
+  color:#2b2f3b; background:transparent;
+  cursor:pointer; user-select:none;
+  transition:all .15s ease;
+}
+.segmented__btn:hover{ background:rgba(28,13,130,.08); }
+.segmented__btn.is-active{
+  background:#1C0D82; color:#fff;
+  box-shadow:0 2px 6px rgba(28,13,130,.25);
+}
+.segmented__btn:active{ transform:translateY(1px); }
+
+/* -------- Upload card -------- */
+.logo-card { text-align:center; }
+.logo-box{
+  width:140px; height:140px; border-radius:16px;
+  border:2px dashed #d9deea; background:#fafbff;
+  display:flex; align-items:center; justify-content:center; margin:0 auto;
+  transition:border-color .15s ease, background .15s ease;
+}
+.logo-box:hover{ border-color:#c6cbe1; background:#f7f8ff; }
+.logo-box img{ max-width:100%; max-height:100%; border-radius:12px; }
+.logo-empty{ color:#9aa3b2; font-size:28px; }
+.logo-box--has{ border-style:solid; border-color:#e7ebf5; background:#fff; }
+
+/* -------- Receipt preview -------- */
+.receipt-card{
+  background:#fff; border:1px solid #edf0f6; border-radius:16px;
+  padding:16px; box-shadow:0 6px 20px rgba(17,38,146,.06);
+}
+.badge-pill{ border:1px solid #e3e7f2; border-radius:999px; padding:.35rem .9rem; display:inline-block; }
+.logo-preview{ max-height:48px; width:auto; }
+
+/* Simple QR placeholder */
+.qr-box{
+  width:84px; height:84px; border:4px solid #222; background:
+    repeating-linear-gradient(90deg,#222 0 6px,transparent 6px 12px),
+    repeating-linear-gradient(0deg,#222 0 6px,transparent 6px 12px);
+  background-blend-mode:multiply;
+}
+
+/* Compact labels */
+.form-label{ margin-bottom:.35rem; }
+</style>
