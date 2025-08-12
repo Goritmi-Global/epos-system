@@ -1,15 +1,17 @@
 <script setup>
 import { reactive, toRaw, watch } from "vue"
+
 const props = defineProps({ model: Object })
-const emit = defineEmits(["save"])
+const emit  = defineEmits(["save"])
 
 const form = reactive({
-  cash_enabled: props.model.cash_enabled ?? "yes",
-  card_enabled: props.model.card_enabled ?? "yes",
-  card_provider: props.model.card_provider ?? "Stripe Terminal",
-  provider_key: props.model.provider_key ?? ""
+  cash_enabled:  props.model?.cash_enabled  ?? "yes",
+  card_enabled:  props.model?.card_enabled  ?? "yes",
+  // card_provider: props.model?.card_provider ?? "Stripe Terminal",
+  // provider_key:  props.model?.provider_key  ?? ""
 })
-watch(form, () => emit("save",{ step:7, data: toRaw(form) }), { deep:true })
+
+watch(form, () => emit("save", { step: 7, data: toRaw(form) }), { deep:true })
 
 const providers = ["Stripe Terminal","Square","SumUp","Ingenico"]
 </script>
@@ -18,33 +20,74 @@ const providers = ["Stripe Terminal","Square","SumUp","Ingenico"]
   <div>
     <h5 class="fw-bold mb-4">Step 7 of 9 - Payment Method</h5>
 
+    <!-- Cash -->
     <div class="mb-3 d-flex align-items-center justify-content-between">
       <span><i class="bi bi-wallet2 me-2"></i>Enable Cash Payment</span>
-      <div>
-        <label class="me-3"><input class="form-check-input me-1" type="radio" value="yes" v-model="form.cash_enabled"> Yes</label>
-        <label><input class="form-check-input me-1" type="radio" value="no" v-model="form.cash_enabled"> No</label>
+      <div class="segmented">
+        <input class="segmented__input" type="radio" id="cash-yes" value="yes" v-model="form.cash_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.cash_enabled==='yes' }" for="cash-yes">YES</label>
+
+        <input class="segmented__input" type="radio" id="cash-no" value="no" v-model="form.cash_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.cash_enabled==='no' }" for="cash-no">NO</label>
       </div>
     </div>
 
+    <!-- Card -->
     <div class="mb-3 d-flex align-items-center justify-content-between">
       <span><i class="bi bi-credit-card me-2"></i>Enable Card Payment</span>
-      <div>
-        <label class="me-3"><input class="form-check-input me-1" type="radio" value="yes" v-model="form.card_enabled"> Yes</label>
-        <label><input class="form-check-input me-1" type="radio" value="no" v-model="form.card_enabled"> No</label>
+      <div class="segmented">
+        <input class="segmented__input" type="radio" id="card-yes" value="yes" v-model="form.card_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.card_enabled==='yes' }" for="card-yes">YES</label>
+
+        <input class="segmented__input" type="radio" id="card-no" value="no" v-model="form.card_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.card_enabled==='no' }" for="card-no">NO</label>
       </div>
     </div>
 
-    <div v-if="form.card_enabled==='yes'" class="row g-3 mt-1" style="max-width:560px">
-      <div class="col-md-6">
-        <label class="form-label">Provider</label>
+    <!-- Provider details -->
+    <!-- <div v-if="form.card_enabled==='yes'" class="row g-3 mt-1" style="max-width:560px">
+      <div class="col-12">
+        <label class="form-label">Card Provider</label>
         <select class="form-select" v-model="form.card_provider">
           <option v-for="p in providers" :key="p" :value="p">{{ p }}</option>
         </select>
       </div>
-      <div class="col-md-6">
-        <label class="form-label">API / Terminal Key</label>
-        <input class="form-control" v-model="form.provider_key">
+      <div class="col-12">
+        <label class="form-label">Provider Key</label>
+        <input class="form-control" v-model="form.provider_key" placeholder="Enter public/terminal key" />
+        <small class="text-muted">Keep your secret keys on the server; never in the browser.</small>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
+
+<style scoped>
+:root { --brand:#1C0D82; }
+
+/* Segmented YES/NO — same as Steps 5 & 6 (compact) */
+.segmented{
+  display:inline-flex;
+  border-radius:999px;
+  background:#f4f6fb;
+  border:1px solid #e3e8f2;
+  box-shadow:0 2px 6px rgba(25,28,90,.05);
+  overflow:hidden;
+}
+.segmented__input{ position:absolute; opacity:0; pointer-events:none; }
+.segmented__btn{
+  padding:0.3rem 0.8rem;
+  font-size:0.8rem;
+  color:#2b2f3b;
+  background:transparent;
+  cursor:pointer;
+  user-select:none;
+  transition:all .15s ease;
+}
+.segmented__btn:hover{ background:rgba(28,13,130,.08); }
+.segmented__btn.is-active{
+  background:#1C0D82;
+  color:#fff;
+  box-shadow:0 2px 6px rgba(28,13,130,.25);
+}
+.segmented__btn:active{ transform:translateY(1px); }
+</style>
