@@ -1,193 +1,243 @@
 <script setup>
-import { ref, watch } from "vue";
+import {
+    ref,
+    watch,
+    onMounted,
+    onBeforeUnmount,
+    computed,
+    nextTick,
+} from "vue";
 import VueCropper from "vue-cropperjs";
 import "cropperjs/dist/cropper.css";
 
 const props = defineProps({
-    show: Boolean,
-    image: String,
+    show: { type: Boolean, default: false },
+    image: { type: String, default: "" }, // optional initial image
 });
-
 const emit = defineEmits(["close", "cropped"]);
 
 const cropper = ref(null);
+const fileInput = ref(null);
+const uploadedImage = ref(props.image || null);
 const scaleX = ref(-1);
 const scaleY = ref(-1);
-const uploadedImage = ref(props.image);
+const hasImage = computed(() => !!uploadedImage.value);
+
+function openPicker() {
+    // allow re-choosing the same file
+    if (fileInput.value) fileInput.value.value = "";
+    fileInput.value?.click();
+}
+
+function clearState() {
+    uploadedImage.value = null;
+    scaleX.value = -1;
+    scaleY.value = -1;
+    // cropper instance will unmount due to v-if
+}
 
 watch(
     () => props.show,
-    (visible) => {
-        if (visible) {
-            // wait for DOM to render, then auto-click input
-            setTimeout(() => {
-                fileInput.value?.click();
-            }, 100);
+    async (v) => {
+        if (v) {
+            // Always prompt for a new image right away
+            await nextTick();
+            openPicker();
+        } else {
+            // When closed, wipe previous session
+            clearState();
         }
     }
 );
 
-const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+watch(
+    () => props.image,
+    (val) => {
+        if (val) uploadedImage.value = val;
+    }
+);
+
+function handleFileUpload(e) {
+    const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-        uploadedImage.value = reader.result;
+        uploadedImage.value = String(reader.result || "");
     };
     reader.readAsDataURL(file);
-};
+}
 
-const cropImage = () => {
-    const canvas = cropper.value?.getCroppedCanvas();
-    if (canvas) {
-        const cropped = canvas.toDataURL("image/webp");
-        emit("cropped", cropped);
-        emit("close");
-    }
-};
-const fileInput = ref(null);
+function cropImage() {
+    const c = cropper.value?.getCroppedCanvas?.({ willReadFrequently: true });
+    if (!c) return;
+    // Emit dataURL; swap to toBlob if you prefer File/Blob
+    const dataUrl = c.toDataURL("image/webp", 0.92);
+    emit("cropped", dataUrl);
+    closeModal();
+}
 
-const reset = () => cropper.value?.reset();
-const zoom = (step) => cropper.value?.relativeZoom(step);
-const move = (x, y) => cropper.value?.move(x, y);
-const rotate = (deg) => cropper.value?.rotate(deg);
+function closeModal() {
+    clearState();
+    emit("close");
+}
+
+const reset = () => hasImage.value && cropper.value?.reset?.();
+
+const rotate = (deg) => hasImage.value && cropper.value?.rotate?.(deg);
 const flipX = () => {
-    cropper.value?.scaleX(scaleX.value);
+    if (!hasImage.value) return;
+    cropper.value?.scaleX?.(scaleX.value);
     scaleX.value = -scaleX.value;
 };
 const flipY = () => {
-    cropper.value?.scaleY(scaleY.value);
+    if (!hasImage.value) return;
+    cropper.value?.scaleY?.(scaleY.value);
     scaleY.value = -scaleY.value;
 };
+
+// Close on ESC
+function onKey(e) {
+    if (e.key === "Escape" && props.show) closeModal();
+}
+onMounted(() => document.addEventListener("keydown", onKey));
+onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
 </script>
 
 <template>
     <transition name="fade">
         <div
             v-if="show"
-            class="fixed inset-0 z-50 bg-black bg-opacity-40 flex justify-end"
+            class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+            role="dialog"
+            aria-modal="true"
+            @click.self="closeModal"
         >
             <div
-                class="w-full max-w-xl h-full bg-white shadow-lg p-5 overflow-y-auto relative"
+                class="w-full max-w-4xl max-h-[92vh] bg-white rounded-xl shadow-2xl p-5 overflow-auto relative"
             >
                 <!-- Header -->
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-xl font-semibold">Upload and Crop Image</h2>
-                     <button
-                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                    @click="$emit('close')"
-                    title="Close"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-6 w-6 text-red-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M6 18L18 6M6 6l12 12"
-                        />
-                    </svg>
-                </button>
+                    <div class="flex items-center gap-2">
+                        <button
+                            class="btn btn-outline-secondary"
+                            @click="openPicker"
+                        >
+                            Change Image
+                        </button>
+                        <button
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            @click="$emit('close')"
+                            title="Close"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-6 w-6 text-red-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Cropper Preview -->
+                <!-- Hidden file input -->
                 <input
+                    ref="fileInput"
                     type="file"
                     class="hidden"
-                    @change="handleFileUpload"
                     accept="image/*"
-                    ref="fileInput"
+                    @change="handleFileUpload"
                 />
 
-                <vue-cropper
-                    v-if="uploadedImage"
-                    ref="cropper"
-                    :src="uploadedImage"
-                    :aspect-ratio="1"
-                    :view-mode="1"
-                    class="w-full h-80 border rounded"
-                />
+                <div class="grid grid-cols-12 gap-4">
+                    <!-- Cropper -->
+                    <div class="col-span-12 md:col-span-9">
+                        <VueCropper
+                            v-if="uploadedImage"
+                            ref="cropper"
+                            :src="uploadedImage"
+                            :aspect-ratio="1"
+                            :view-mode="1"
+                            :auto-crop-area="1"
+                            :background="false"
+                            :responsive="true"
+                            :check-cross-origin="false"
+                            :preview="'.cropper-preview'"
+                            class="w-full h-[60vh] min-h-[320px] border rounded"
+                        />
+                        <div
+                            v-else
+                            class="w-full h-[60vh] min-h-[320px] border rounded bg-gray-50 flex items-center justify-center text-gray-500"
+                        >
+                            Select an image to start…
+                        </div>
+                    </div>
+
+                    <!-- Live preview -->
+                    <div class="col-span-12 md:col-span-3">
+                        <label class="block text-sm font-medium mb-2"
+                            >Preview</label
+                        >
+                        <div
+                            class="cropper-preview border rounded overflow-hidden bg-gray-100"
+                            style="width: 100%; max-width: 220px; height: 220px"
+                        ></div>
+                    </div>
+                </div>
 
                 <!-- Tools -->
-                <div class="grid grid-cols-2 gap-2 mt-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
                     <button
                         class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
-                        @click="zoom(0.2)"
-                    >
-                        Zoom In
-                    </button>
-                    <button
-                        class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
-                        @click="zoom(-0.2)"
-                    >
-                        Zoom Out
-                    </button>
-                    <button
-                        class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
-                        @click="move(-10, 0)"
-                    >
-                        Left
-                    </button>
-                    <button
-                        class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
-                        @click="move(10, 0)"
-                    >
-                        Right
-                    </button>
-                    <button
-                        class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
-                        @click="move(0, -10)"
-                    >
-                        Up
-                    </button>
-                    <button
-                        class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
-                        @click="move(0, 10)"
-                    >
-                        Down
-                    </button>
-                    <button
-                        class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
+                        :disabled="!hasImage"
                         @click="rotate(90)"
                     >
                         Rotate +90°
                     </button>
                     <button
                         class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
+                        :disabled="!hasImage"
                         @click="rotate(-90)"
                     >
                         Rotate -90°
                     </button>
                     <button
                         class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
+                        :disabled="!hasImage"
                         @click="flipX"
                     >
                         Flip X
                     </button>
                     <button
                         class="bg-blue-600 text-white text-sm py-1.5 px-4 rounded"
+                        :disabled="!hasImage"
                         @click="flipY"
                     >
                         Flip Y
                     </button>
                 </div>
 
-                <!-- Action Buttons -->
+                <!-- Actions -->
                 <div class="flex justify-end mt-6 gap-2">
                     <button
-                        @click="reset"
                         class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+                        :disabled="!hasImage"
+                        @click="reset"
                     >
                         Reset
                     </button>
                     <button
-                        @click="cropImage"
                         class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                        :disabled="!hasImage"
+                        @click="cropImage"
                     >
                         Crop & Save
                     </button>
