@@ -1,5 +1,7 @@
 <script setup>
-import { computed, ref } from "vue"
+import { computed, ref } from "vue";
+import axios from "axios";
+
 import Step1 from "./steps/Step1.vue"
 import Step2 from "./steps/Step2.vue"
 import Step3 from "./steps/Step3.vue"
@@ -34,8 +36,55 @@ const comp = computed(() => ({
 const progressPercent = computed(() => (current.value / steps.length) * 100)
 
 function gotoStep(n){ current.value = n }
-function saveStep(payload){ Object.assign(profile.value, payload.data) }
-function finish(){ console.log("FINAL PROFILE:", profile.value) }
+ 
+const saveStep = (payload) => {
+  try {
+    // Merge the step data into the main profile
+    Object.assign(profile.value, payload?.data || {})
+
+    // Log full payload
+    console.log("Full Payload Received:", payload)
+
+    // Log just the data from the payload
+    console.log("Step Data:", payload?.data)
+
+    // Log the profile after merge
+    console.log("Profile After Merge:", profile.value)
+
+    // optionally debounce draft save here
+  } catch (e) {
+    console.error("saveStep error:", e)
+  }
+}
+
+
+
+// // stays the same: gather everything locally
+// const finish = (payload) => {
+//   try {
+//     Object.assign(profile.value, payload?.data || {})
+//     // (optional) localStorage.setItem('onboarding_draft', JSON.stringify(profile.value))
+//   } catch (e) { console.error(e) }
+// }
+
+ 
+
+async function finish () {
+  try {
+    // send ONE payload with everything
+    const { data: res } = await axios.post('/onboarding/complete', {
+      profile: profile.value,     // all steps merged here
+      completed_steps: progress.value.completed_steps,
+    })
+    console.log('Saved!', res)
+    // navigate / toast etc.
+  } catch (e) {
+    console.error('final save error:', e)
+  }
+}
+
+
+// function finish(){ console.log("FINAL PROFILE:", profile.value) }
 </script>
 
 <template>

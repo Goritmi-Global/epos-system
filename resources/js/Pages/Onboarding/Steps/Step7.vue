@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, toRaw, watch } from "vue"
 
+const STEP_NUMBER = 7;
 const props = defineProps({ model: Object })
 const emit  = defineEmits(["save"])
 
@@ -11,9 +12,18 @@ const form = reactive({
   // provider_key:  props.model?.provider_key  ?? ""
 })
 
-watch(form, () => emit("save", { step: 7, data: toRaw(form) }), { deep:true })
+const emitSave = () => {
+  try {
+    emit("save", { step: STEP_NUMBER, data: toRaw(form) })
+  } catch (e) {
+    console.error(`Step ${STEP_NUMBER} emitSave error:`, e)
+  }
+}
+// sync parent profile whenever something in this step changes
+watch(form, emitSave, { deep: true })
 
-const providers = ["Stripe Terminal","Square","SumUp","Ingenico"]
+
+// const providers = ["Stripe Terminal","Square","SumUp","Ingenico"]
 </script>
 
 <template>

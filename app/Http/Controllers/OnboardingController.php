@@ -36,6 +36,7 @@ class OnboardingController extends Controller
 
     public function saveStep(Request $request, int $step)
     {
+        dd($request);
         $user = $request->user();
         $profile = RestaurantProfile::firstOrCreate(['user_id' => $user->id]);
 
@@ -122,16 +123,34 @@ class OnboardingController extends Controller
     }
 
     public function complete(Request $request)
-    {
-        $user = $request->user();
-        $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
-        $progress->is_completed = true;
-        $progress->completed_at = now();
-        $progress->save();
+{
+    // 1. Grab everything
+    $profile = $request->input('profile', []);
+    $completed = $request->input('completed_steps', []);
 
-        $profile = RestaurantProfile::where('user_id', $user->id)->first();
-        if ($profile) $profile->update(['status' => 'complete']);
+    // 2. Debug / inspect
+    dd($profile, $completed);
 
-        return response()->json(['ok' => true]);
-    }
+    // 3. Example: validate & save
+    $validated = validator($profile, [
+        'business_name' => 'required|string|max:255',
+        'email'         => 'nullable|email',
+        'order_types'   => 'required|array|min:1',
+        'hours'         => 'required|array|size:7',
+        // … add rules for other fields
+    ])->validate();
+
+    $user = $request->user();
+
+    // store JSON on user (or in its own table)
+    $user->onboarding_profile      = $validated;
+    $user->onboarding_completed_at = now();
+    $user->save();
+
+    return response()->json([
+        'ok'      => true,
+        'profile' => $user->onboarding_profile,
+    ]);
+}
+
 }

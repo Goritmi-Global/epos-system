@@ -132,7 +132,7 @@ const registeredEmail = ref("");
                     <div class="login-content">
                         <div class="login-userset">
                             <div class="login-logo">
-                                <img src="/assets/img/logo.png" alt="img" />
+                                <img src="/assets/img/logo-trans.png" alt="img" />
                             </div>
                             <div class="login-userheading">
                                 <h3>Sign In</h3>

@@ -48,7 +48,7 @@ onUpdated(() => {
         <div class="header">
             <div class="header-left active">
                 <a href="index.html" class="logo">
-                    <img src="assets/img/logo.png" alt="" />
+                    <img src="assets/img/logo-trans.png" alt="" />
                 </a>
                 <a href="index.html" class="logo-small">
                     <img src="assets/img/logo-small.png" alt="" />

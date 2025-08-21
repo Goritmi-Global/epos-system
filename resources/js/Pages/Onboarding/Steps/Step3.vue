@@ -1,7 +1,8 @@
 <script setup>
-import { reactive, toRaw } from "vue"
+import { reactive, toRaw,watch } from "vue"
 import Select from "primevue/select"
 
+const STEP_NUMBER = 3;
 const props = defineProps({ model: Object })
 const emit = defineEmits(["save"])
 
@@ -22,7 +23,18 @@ const dateFormats    = ["dd/MM/yyyy","MM/dd/yyyy","yyyy-MM-dd"]
 const numberFormats  = ["1,000","1.000","1 000"]
 const timeFormats    = ["12 Hour","24 Hour"]
 
-function emitSave(){ emit("save", { step:3, data: toRaw(form) }) }
+ 
+// sync parent profile whenever something in this step changes
+const emitSave = () => {
+  try {
+    emit("save", { step: STEP_NUMBER, data: toRaw(form) })
+  } catch (e) {
+    console.error(`Step ${STEP_NUMBER} emitSave error:`, e)
+  }
+}
+
+watch(form, emitSave, { deep: true })
+
 </script>
 
 <template>

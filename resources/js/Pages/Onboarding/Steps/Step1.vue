@@ -4,8 +4,10 @@ import axios from "axios"
 import Select from "primevue/select"
 import { toast } from "vue3-toastify"
 
-const selectedCountry = ref(null)   // { name, code }
-const selectedLanguage = ref(null)  // { name, code, flag }
+const emit = defineEmits(["save"])
+
+const selectedCountry = ref(null)
+const selectedLanguage = ref(null)
 const countries = ref([])
 
 const languages = ref([
@@ -27,65 +29,97 @@ const form = reactive({
 const flagUrl = (code, size = "24x18") =>
   `https://flagcdn.com/${size}/${String(code || "").toLowerCase()}.png`
 
-async function fetchCountries() {
-  const { data } = await axios.get("/api/countries")
-  countries.value = data.map(c => ({
-    name: c.name ?? c.label,
-    code: String(c.code ?? c.iso2 ?? c.value ?? "").toUpperCase(),
-  }))
+const emitSave = () => {
+  try {
+    emit("save", { step: 1, data: { ...form } })
+  } catch (e) {
+    console.error("Step1 emitSave error:", e)
+  }
 }
 
-async function fetchCountryDetails(code) {
+const fetchCountries = async () => {
+  try {
+    const { data } = await axios.get("/api/countries")
+    countries.value = data.map(c => ({
+      name: c.name ?? c.label,
+      code: String(c.code ?? c.iso2 ?? c.value ?? "").toUpperCase(),
+    }))
+  } catch (error) {
+    console.error("fetchCountries error:", error)
+    toast.warning(error.response?.data?.message || "Failed to load countries")
+  }
+}
+
+const fetchCountryDetails = async (code) => {
   if (!code) return
   try {
     const { data } = await axios.get(`/api/country/${code}`)
     form.timezone = data.timezone
+    emitSave()
   } catch (error) {
+    console.error("fetchCountryDetails error:", error)
     toast.warning(error.response?.data?.message || "Failed to fetch country details")
   }
 }
 
-async function detectCountry() {
+const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
     form.country_code = data.country_code || ""
     form.country_name = data.country_name || ""
     if (data.timezone) form.timezone = data.timezone
+    emitSave()
   } catch (error) {
+    console.error("detectCountry error:", error)
     toast.warning(error.response?.data?.message || "Failed to detect country")
   }
 }
 
-function syncSelectedCountry() {
-  selectedCountry.value =
-    countries.value.find(o => o.code === form.country_code) || null
+const syncSelectedCountry = () => {
+  try {
+    selectedCountry.value =
+      countries.value.find(o => o.code === form.country_code) || null
+  } catch (e) { console.error("syncSelectedCountry error:", e) }
 }
-function syncSelectedLanguage() {
-  selectedLanguage.value =
-    languagesOptions.value.find(o => o.code === form.language) ||
-    languagesOptions.value[0] ||
-    null
+const syncSelectedLanguage = () => {
+  try {
+    selectedLanguage.value =
+      languagesOptions.value.find(o => o.code === form.language) ||
+      languagesOptions.value[0] || null
+  } catch (e) { console.error("syncSelectedLanguage error:", e) }
 }
 
 onMounted(async () => {
-  await fetchCountries()
-  await detectCountry()
-  syncSelectedCountry()
-  syncSelectedLanguage()
-  if (form.country_code) await fetchCountryDetails(form.country_code)
+  try {
+    await fetchCountries()
+    await detectCountry()
+    syncSelectedCountry()
+    syncSelectedLanguage()
+    if (form.country_code) await fetchCountryDetails(form.country_code)
+  } catch (e) {
+    console.error("Step1 onMounted error:", e)
+  }
 })
 
 watch(selectedCountry, (opt) => {
-  if (!opt) return
-  form.country_code = opt.code
-  form.country_name = opt.name
-  fetchCountryDetails(opt.code)
+  try {
+    if (!opt) return
+    form.country_code = opt.code
+    form.country_name = opt.name
+    fetchCountryDetails(opt.code)
+    emitSave()
+  } catch (e) { console.error("selectedCountry watch error:", e) }
 })
+
 watch(selectedLanguage, (opt) => {
-  if (!opt) return
-  form.language = opt.code
+  try {
+    if (!opt) return
+    form.language = opt.code
+    emitSave()
+  } catch (e) { console.error("selectedLanguage watch error:", e) }
 })
 </script>
+
 
 <template>
   <div>
