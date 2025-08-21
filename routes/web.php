@@ -36,6 +36,39 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+     // POS Management
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/', fn () => Inertia::render('Inventory/Index'))->name('index');
+    });
+
+    Route::prefix('menu')->name('menu.')->group(function () {
+        Route::get('/', fn () => Inertia::render('Menu/Index'))->name('index');
+    });
+
+    // POS Order (kept as a single named route like your sidebar uses)
+    Route::get('/pos/order', fn () => Inertia::render('POS/Order'))
+        ->name('pos.order');
+
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/', fn () => Inertia::render('Orders/Index'))->name('index');
+    });
+
+    Route::prefix('payment')->name('payment.')->group(function () {
+        Route::get('/', fn () => Inertia::render('Payment/Index'))->name('index');
+    });
+
+    Route::prefix('analytics')->name('analytics.')->group(function () {
+        Route::get('/', fn () => Inertia::render('Analytics/Index'))->name('index');
+    });
+
+    // Other Menu
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/', fn () => Inertia::render('Settings/Index'))->name('index');
+    });
+
+
+    
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
