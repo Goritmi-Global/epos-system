@@ -9,8 +9,17 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 
 use App\Http\Controllers\OnboardingController;
-use App\Http\Controllers\GeoController;
+use App\Http\Controllers\GeoController; 
 
+use App\Http\Controllers\POS\{
+    InventoryController,
+    MenuController,
+    PosOrderController,
+    OrdersController,
+    PaymentController,
+    AnalyticsController,
+    SettingsController
+};
 
 
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
@@ -35,44 +44,65 @@ Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
-
-     // POS Management
-    Route::prefix('inventory')->name('inventory.')->group(function () {
-        Route::get('/', fn () => Inertia::render('Inventory/Index'))->name('index');
-    });
-
-    Route::prefix('menu')->name('menu.')->group(function () {
-        Route::get('/', fn () => Inertia::render('Menu/Index'))->name('index');
-    });
-
-    // POS Order (kept as a single named route like your sidebar uses)
-    Route::get('/pos/order', fn () => Inertia::render('POS/Order'))
-        ->name('pos.order');
-
-    Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/', fn () => Inertia::render('Orders/Index'))->name('index');
-    });
-
-    Route::prefix('payment')->name('payment.')->group(function () {
-        Route::get('/', fn () => Inertia::render('Payment/Index'))->name('index');
-    });
-
-    Route::prefix('analytics')->name('analytics.')->group(function () {
-        Route::get('/', fn () => Inertia::render('Analytics/Index'))->name('index');
-    });
-
-    // Other Menu
-    Route::prefix('settings')->name('settings.')->group(function () {
-        Route::get('/', fn () => Inertia::render('Settings/Index'))->name('index');
-    });
-
-
     
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+ 
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+
+    // Inventory
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/', [InventoryController::class, 'index'])->name('index');
+        Route::get('/create', [InventoryController::class, 'create'])->name('create');
+        Route::post('/', [InventoryController::class, 'store'])->name('store');
+        Route::get('/{inventory}/edit', [InventoryController::class, 'edit'])->name('edit');
+        Route::put('/{inventory}', [InventoryController::class, 'update'])->name('update');
+        Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
+    });
+
+    // Menu
+    Route::prefix('menu')->name('menu.')->group(function () {
+        Route::get('/', [MenuController::class, 'index'])->name('index');
+        Route::get('/create', [MenuController::class, 'create'])->name('create');
+        Route::post('/', [MenuController::class, 'store'])->name('store');
+        Route::get('/{menu}/edit', [MenuController::class, 'edit'])->name('edit');
+        Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
+        Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
+    });
+
+    // POS Order live screen
+    Route::get('/pos/order', [PosOrderController::class, 'screen'])->name('pos.order');
+
+    // Orders
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/', [OrdersController::class, 'index'])->name('index');
+        Route::get('/{order}', [OrdersController::class, 'show'])->name('show');
+    });
+
+    // Payment
+    Route::prefix('payment')->name('payment.')->group(function () {
+        Route::get('/', [PaymentController::class, 'index'])->name('index');
+        Route::post('/', [PaymentController::class, 'store'])->name('store');
+    });
+
+    // Analytics
+    Route::prefix('analytics')->name('analytics.')->group(function () {
+        Route::get('/', [AnalyticsController::class, 'index'])->name('index');
+    });
+
+    // Settings
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/', [SettingsController::class, 'index'])->name('index');
+        Route::post('/', [SettingsController::class, 'update'])->name('update');
+    });
+ 
+
 });
 
 // onboarding routes
@@ -82,6 +112,9 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/onboarding/step/{step}', [OnboardingController::class, 'saveStep'])->name('onboarding.saveStep');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 });
+
+
+
 
 // routes/web.php
 Route::get('/settings/locations', [\App\Http\Controllers\IndexController::class, 'index'])
