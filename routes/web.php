@@ -13,12 +13,17 @@ use App\Http\Controllers\GeoController;
 
 use App\Http\Controllers\POS\{
     InventoryController,
+    InventoryCategoryController,
+    StockLogController,
+    PurchaseOrderController,
+    ReferenceManagementController,
     MenuController,
+    MenuCategoryController,
     PosOrderController,
     OrdersController,
     PaymentController,
     AnalyticsController,
-    SettingsController
+    SettingsController,
 };
 
 
@@ -66,6 +71,43 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
     });
 
+    // Inventory Categories
+Route::prefix('inventory-categories')->name('inventory.categories.')->group(function () {
+    Route::get('/', [InventoryCategoryController::class, 'index'])->name('index');
+    Route::post('/', [InventoryCategoryController::class, 'store'])->name('store');
+    Route::get('/{id}/edit', [InventoryCategoryController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [InventoryCategoryController::class, 'update'])->name('update');
+    Route::delete('/{id}', [InventoryCategoryController::class, 'destroy'])->name('destroy');
+});
+
+// Stock Logs
+Route::prefix('stock-logs')->name('stock.logs.')->group(function () {
+    Route::get('/', [StockLogController::class, 'index'])->name('index');
+    Route::post('/', [StockLogController::class, 'store'])->name('store');
+    Route::get('/{id}', [StockLogController::class, 'show'])->name('show');
+});
+
+// Purchase Orders
+Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
+    Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+    Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
+    Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
+    Route::get('/{id}/edit', [PurchaseOrderController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [PurchaseOrderController::class, 'update'])->name('update');
+    Route::delete('/{id}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
+});
+
+// Reference Management
+Route::prefix('reference')->name('reference.')->group(function () {
+    Route::get('/', [ReferenceManagementController::class, 'index'])->name('index');
+    Route::post('/', [ReferenceManagementController::class, 'store'])->name('store');
+    Route::get('/{id}/edit', [ReferenceManagementController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [ReferenceManagementController::class, 'update'])->name('update');
+    Route::delete('/{id}', [ReferenceManagementController::class, 'destroy'])->name('destroy');
+});
+
+
+
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');
@@ -75,6 +117,17 @@ Route::middleware('auth')->group(function () {
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
+
+    // Menu Categories
+    Route::prefix('menu-categories')->name('menu.categories.')->group(function () {
+        Route::get('/', [MenuCategoryController::class, 'index'])->name('index');
+        Route::get('/create', [MenuCategoryController::class, 'create'])->name('create');
+        Route::post('/', [MenuCategoryController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [MenuCategoryController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [MenuCategoryController::class, 'update'])->name('update');
+        Route::delete('/{id}', [MenuCategoryController::class, 'destroy'])->name('destroy');
+    });
+
 
     // POS Order live screen
     Route::get('/pos/order', [PosOrderController::class, 'screen'])->name('pos.order');
