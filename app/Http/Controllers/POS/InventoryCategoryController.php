@@ -9,6 +9,6 @@ class InventoryCategoryController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Backend/Inventory/Index');
+        return Inertia::render('Backend/Inventory/Category/Index');
     }
 }
