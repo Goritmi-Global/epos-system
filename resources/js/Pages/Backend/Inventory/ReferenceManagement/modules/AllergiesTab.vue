@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed } from "vue";
-import Select from "primevue/select";
+import MultiSelect from "primevue/multiselect";
+import Button from "primevue/button";
 
 const rows = ref([
     { id: 1, name: "Milk" },
     { id: 2, name: "Eggs" },
 ]);
 
+// Select options
 const options = ref([
     { label: "Crustaceans", value: "Crustaceans" },
     { label: "Eggs", value: "Eggs" },
@@ -25,30 +27,42 @@ const options = ref([
     { label: "Tree nuts", value: "Tree nuts" },
 ]);
 
-const selected = ref([]);
-const filterText = ref("");
+const selected = ref([]); // array of option values (strings)
+const filterText = ref(""); // what user types in the filter box
 
 const selectAll = () => {
     selected.value = options.value.map((o) => o.value);
 };
+const removeAll = () => (selected.value = []);
+
 const addCustom = () => {
-    const name = filterText.value?.trim();
+    const name = (filterText.value || "").trim();
     if (!name) return;
     if (
         !options.value.some((o) => o.label.toLowerCase() === name.toLowerCase())
     ) {
         options.value.push({ label: name, value: name });
     }
-    if (!selected.value.includes(name))
+    if (!selected.value.includes(name)) {
         selected.value = [...selected.value, name];
+    }
     filterText.value = "";
 };
 
 const onAdd = () => {
-    const names = new Set(rows.value.map((r) => r.name));
+    const existing = new Set(rows.value.map((r) => r.name));
+    const added = [];
     selected.value.forEach((v) => {
-        if (!names.has(v))
-            rows.value.push({ id: Date.now() + Math.random(), name: v });
+        if (!existing.has(v)) {
+            const row = { id: Date.now() + Math.random(), name: v };
+            rows.value.push(row);
+            added.push(row);
+        }
+    });
+    // 👇 Required: just show data in console
+    console.log("[Allergies] Submitted:", {
+        added,
+        allRows: rows.value.map((r) => ({ id: r.id, name: r.name })),
     });
     selected.value = [];
 };
@@ -60,6 +74,7 @@ const filtered = computed(() => {
         ? rows.value.filter((r) => r.name.toLowerCase().includes(t))
         : rows.value;
 });
+
 const removeRow = (row) => {
     rows.value = rows.value.filter((r) => r !== row);
 };
@@ -124,6 +139,7 @@ const removeRow = (row) => {
         </div>
     </div>
 
+    <!-- Modal -->
     <div
         class="modal fade"
         id="modalAddAllergy"
@@ -137,46 +153,63 @@ const removeRow = (row) => {
                     <button class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <Select
+                    <MultiSelect
                         v-model="selected"
                         :options="options"
                         optionLabel="label"
                         optionValue="value"
-                        :multiple="true"
-                        :filter="true"
-                        :showSelectAll="true"
+                        filter
                         display="chip"
                         placeholder="Choose allergies or type to add"
                         class="w-100"
+                        appendTo="body"
+                        :pt="{ panel: { class: 'pv-overlay-fg' } }"
                         @filter="(e) => (filterText = e.value || '')"
                     >
+                        <template #option="{ option }">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-shield-exclamation me-2"></i>
+                                <span>{{ option.label }}</span>
+                            </div>
+                        </template>
+
                         <template #header>
-                            <div class="w-100 d-flex justify-content-end">
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-link text-primary"
-                                    @click.stop="selectAll"
-                                >
-                                    Select All
-                                </button>
+                            <div class="font-medium px-3 py-2">
+                                Common Allergens
                             </div>
                         </template>
+
                         <template #footer>
-                            <div
-                                v-if="filterText?.trim()"
-                                class="p-2 border-top d-flex justify-content-between align-items-center"
-                            >
-                                <small class="text-muted">Not found?</small>
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-outline-primary rounded-pill"
+                            <div class="p-3 d-flex justify-content-between">
+                                <Button
+                                    label="Add New"
+                                    severity="secondary"
+                                    variant="text"
+                                    size="small"
+                                    icon="pi pi-plus"
                                     @click="addCustom"
-                                >
-                                    Add “{{ filterText.trim() }}”
-                                </button>
+                                />
+                                <div class="d-flex gap-2">
+                                    <Button
+                                        label="Select All"
+                                        severity="secondary"
+                                        variant="text"
+                                        size="small"
+                                        icon="pi pi-check"
+                                        @click="selectAll"
+                                    />
+                                    <Button
+                                        label="Remove All"
+                                        severity="danger"
+                                        variant="text"
+                                        size="small"
+                                        icon="pi pi-times"
+                                        @click="removeAll"
+                                    />
+                                </div>
                             </div>
                         </template>
-                    </Select>
+                    </MultiSelect>
 
                     <button
                         class="btn btn-primary rounded-pill w-100 mt-4"
@@ -199,6 +232,7 @@ const removeRow = (row) => {
     background: var(--brand);
     border-color: var(--brand);
 }
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
@@ -214,10 +248,15 @@ const removeRow = (row) => {
     padding-left: 38px;
     border-radius: 9999px;
 }
-:deep(.p-select) {
+
+/* PrimeVue overlay above Bootstrap modal/backdrop */
+.pv-overlay-fg {
+    z-index: 2000 !important;
+}
+:deep(.p-multiselect) {
     width: 100%;
 }
-:deep(.p-select-token) {
+:deep(.p-multiselect-token) {
     margin: 0.15rem;
 }
 </style>

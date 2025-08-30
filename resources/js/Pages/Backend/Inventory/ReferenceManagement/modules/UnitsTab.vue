@@ -128,80 +128,7 @@ const filteredRows = computed(() => {
             </div>
         </div>
     </div>
-    <div class="modal-body">
-        <MultiSelect
-            v-model="selected"
-            :options="options"
-            optionLabel="name"
-            optionValue="name"
-            filter
-            display="chip"
-            placeholder="Choose units or type to add"
-            class="w-100"
-            appendTo="body"
-            :pt="{ panel: { style: 'z-index:1085' } }"
-            @filter="(e) => (filterText = e.value || '')"
-        >
-            <!-- row template (you can style like your pills or add icons) -->
-            <template #option="{ option }">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-basket3 me-2"></i>
-                    <span>{{ option.name }}</span>
-                </div>
-            </template>
-
-            <template #dropdownicon>
-                <i class="pi pi-box"></i>
-            </template>
-
-            <template #filtericon>
-                <i class="pi pi-search"></i>
-            </template>
-
-            <template #header>
-                <div class="font-medium px-3 py-2">Common Units</div>
-            </template>
-
-            <template #footer>
-                <div class="p-3 d-flex justify-content-between">
-                    <Button
-                        label="Add New"
-                        severity="secondary"
-                        variant="text"
-                        size="small"
-                        icon="pi pi-plus"
-                        @click="addCustom"
-                    />
-                    <div class="d-flex gap-2">
-                        <Button
-                            label="Select All"
-                            severity="secondary"
-                            variant="text"
-                            size="small"
-                            icon="pi pi-check"
-                            @click="selectAll"
-                        />
-                        <Button
-                            label="Remove All"
-                            severity="danger"
-                            variant="text"
-                            size="small"
-                            icon="pi pi-times"
-                            @click="removeAll"
-                        />
-                    </div>
-                </div>
-            </template>
-        </MultiSelect>
-
-        <button
-            class="btn btn-primary rounded-pill w-100 mt-4"
-            @click="onAdd"
-            data-bs-dismiss="modal"
-        >
-            Add Unit(s)
-        </button>
-    </div>
+    
     <!-- Modal -->
     <div class="modal fade" id="modalAddUnit" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -289,6 +216,83 @@ const filteredRows = computed(() => {
             </div>
         </div>
     </div>
+
+
+    <div class="modal-body">
+        <MultiSelect
+            v-model="selected"
+            :options="options"
+            optionLabel="name"
+            optionValue="name"
+            filter
+            display="chip"
+            placeholder="Choose units or type to add"
+            class="w-100"
+            appendTo="body"
+            :pt="{ panel: { style: 'z-index:1085' } }"
+            @filter="(e) => (filterText = e.value || '')"
+        >
+            <!-- row template (you can style like your pills or add icons) -->
+            <template #option="{ option }">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-basket3 me-2"></i>
+                    <span>{{ option.name }}</span>
+                </div>
+            </template>
+
+            <template #dropdownicon>
+                <i class="pi pi-box"></i>
+            </template>
+
+            <template #filtericon>
+                <i class="pi pi-search"></i>
+            </template>
+
+            <template #header>
+                <div class="font-medium px-3 py-2">Common Units</div>
+            </template>
+
+            <template #footer>
+                <div class="p-3 d-flex justify-content-between">
+                    <Button
+                        label="Add New"
+                        severity="secondary"
+                        variant="text"
+                        size="small"
+                        icon="pi pi-plus"
+                        @click="addCustom"
+                    />
+                    <div class="d-flex gap-2">
+                        <Button
+                            label="Select All"
+                            severity="secondary"
+                            variant="text"
+                            size="small"
+                            icon="pi pi-check"
+                            @click="selectAll"
+                        />
+                        <Button
+                            label="Remove All"
+                            severity="danger"
+                            variant="text"
+                            size="small"
+                            icon="pi pi-times"
+                            @click="removeAll"
+                        />
+                    </div>
+                </div>
+            </template>
+        </MultiSelect>
+
+        <button
+            class="btn btn-primary rounded-pill w-100 mt-4"
+            @click="onAdd"
+            data-bs-dismiss="modal"
+        >
+            Add Unit(s)
+        </button>
+    </div>
+    
 </template>
 
 <style scoped>

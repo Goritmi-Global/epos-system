@@ -339,7 +339,7 @@ onUpdated(() => window.feather?.replace());
                                         "
                                     >
                                         <button
-                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent"
+                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
                                             :class="{
                                                 active:
                                                     openGroups.has(
@@ -378,8 +378,9 @@ onUpdated(() => window.feather?.replace());
                                             ></i>
                                         </button>
 
+                                         <!-- class="list-unstyled ms-4 my-1" -->
                                         <ul
-                                            class="list-unstyled ms-4 my-1"
+                                            class="list-unstyled my-1"
                                             v-show="
                                                 openGroups.has(item.label) ||
                                                 isAnyChildActive(item.children)
@@ -483,7 +484,7 @@ onUpdated(() => window.feather?.replace());
     --header-h: 64px;
     --sidebar-w: 260px;
     --sidebar-w-collapsed: 72px;
-    --brand: #1c0d82;
+    --brand: #1B2850;
     --bg-muted: #f5f6f8;
     --border: #eef0f3;
 }
@@ -605,17 +606,18 @@ onUpdated(() => window.feather?.replace());
 /* Links */
 .side-link {
     text-decoration: none;
-    color: #444;
+    color: var(--brand);
     border-radius: 10px;
     transition: background 0.15s ease, color 0.15s ease;
 }
 .side-link:hover {
-    background: var(--bg-muted);
+    background: var(--brand);
+    color: #fff;
 }
 .side-link.active,
 li.active > .side-link {
-    background: #eef2ff;
-    color: var(--brand);
+    background: var(--brand);
+    color: #eef2ff;
     font-weight: 600;
 }
 
