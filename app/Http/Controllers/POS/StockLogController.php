@@ -10,6 +10,6 @@ class StockLogController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Backend/Inventory/Index');
+        return Inertia::render('Backend/Inventory/StockMomentLogs/Index');
     }
 }

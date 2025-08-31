@@ -2,69 +2,71 @@
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
 
-/* ---- Demo data (swap with API) ---- */
+import Select from "primevue/select";
+
+/* ===================== Demo Data (swap with API later) ===================== */
 const items = ref([
-  {
-    id: 1,
-    name: "Basmati Rice",
-    image: "https://picsum.photos/seed/rice/64",
-    unitPrice: 2.2,
-    category: "Grains",
-    unit: "kilogram (kg)",
-    availableStock: 120.0,
-    stockValue: 264.0,
-    enteredBy: "Bilal",
-  },
-  {
-    id: 2,
-    name: "Chicken Breast",
-    image: "https://picsum.photos/seed/chicken/64",
-    unitPrice: 5.5,
-    category: "Meat",
-    unit: "kilogram (kg)",
-    availableStock: 80.0,
-    stockValue: 440.0,
-    enteredBy: "Admin",
-  },
-  {
-    id: 3,
-    name: "Fresh Tomatoes",
-    image: "https://picsum.photos/seed/tomato/64",
-    unitPrice: 1.8,
-    category: "Vegetables",
-    unit: "kilogram (kg)",
-    availableStock: 200.0,
-    stockValue: 360.0,
-    enteredBy: "Shakir",
-  },
-  {
-    id: 4,
-    name: "Olive Oil",
-    image: "https://picsum.photos/seed/oliveoil/64",
-    unitPrice: 10.0,
-    category: "Grocery",
-    unit: "liter (L)",
-    availableStock: 50.0,
-    stockValue: 500.0,
-    enteredBy: "Jamal",
-  },
-  {
-    id: 5,
-    name: "Cheddar Cheese",
-    image: "https://picsum.photos/seed/cheese/64",
-    unitPrice: 4.5,
-    category: "Dairy",
-    unit: "kilogram (kg)",
-    availableStock: 60.0,
-    stockValue: 270.0,
-    enteredBy: "Saf",
-  },
-  
+    {
+        id: 1,
+        name: "Basmati Rice",
+        image: "https://picsum.photos/seed/rice/64",
+        unitPrice: 2.2,
+        category: "Grains",
+        unit: "gram (g)",
+        availableStock: 120.0,
+        stockValue: 264.0,
+        enteredBy: "Bilal",
+    },
+    {
+        id: 2,
+        name: "Chicken Breast",
+        image: "https://picsum.photos/seed/chicken/64",
+        unitPrice: 5.5,
+        category: "Poultry",
+        unit: "gram (g)",
+        availableStock: 80.0,
+        stockValue: 440.0,
+        enteredBy: "Admin",
+    },
+    {
+        id: 3,
+        name: "Fresh Tomatoes",
+        image: "https://picsum.photos/seed/tomato/64",
+        unitPrice: 1.8,
+        category: "Produce",
+        unit: "gram (g)",
+        availableStock: 200.0,
+        stockValue: 360.0,
+        enteredBy: "Shakir",
+    },
+    {
+        id: 4,
+        name: "Olive Oil",
+        image: "https://picsum.photos/seed/oliveoil/64",
+        unitPrice: 10.0,
+        category: "Grocery",
+        unit: "liter (L)",
+        availableStock: 50.0,
+        stockValue: 500.0,
+        enteredBy: "Jamal",
+    },
+    {
+        id: 5,
+        name: "Cheddar Cheese",
+        image: "https://picsum.photos/seed/cheese/64",
+        unitPrice: 4.5,
+        category: "Dairy",
+        unit: "gram (g)",
+        availableStock: 60.0,
+        stockValue: 270.0,
+        enteredBy: "Saf",
+    },
 ]);
 
-
-/* ---- Search ---- */
+/* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
+const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
+
 const filteredItems = computed(() => {
     const term = q.value.trim().toLowerCase();
     if (!term) return items.value;
@@ -75,7 +77,23 @@ const filteredItems = computed(() => {
     );
 });
 
-/* ---- KPIs ---- */
+const sortedItems = computed(() => {
+    const arr = [...filteredItems.value];
+    switch (sortBy.value) {
+        case "stock_desc":
+            return arr.sort((a, b) => b.stockValue - a.stockValue); // High→Low
+        case "stock_asc":
+            return arr.sort((a, b) => a.stockValue - b.stockValue); // Low→High
+        case "name_asc":
+            return arr.sort((a, b) => a.name.localeCompare(b.name)); // A→Z
+        case "name_desc":
+            return arr.sort((a, b) => b.name.localeCompare(a.name)); // Z→A
+        default:
+            return arr;
+    }
+});
+
+/* ===================== KPIs ===================== */
 const categoriesCount = computed(
     () => new Set(items.value.map((i) => i.category)).size
 );
@@ -92,28 +110,190 @@ const kpis = computed(() => [
     { label: "Low Stock", value: lowStockCount.value, icon: "alert-triangle" },
     { label: "Out of Stock", value: outOfStockCount.value, icon: "slash" },
 ]);
-// Ensure Feather replaces <i data-feather> after render:
+
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 
-/* ---- Helpers ---- */
+/* ===================== Helpers ===================== */
 const money = (amount, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         amount
     );
 
-/* ---- Actions (wire later) ---- */
-const onStockIn = (it) => {};
-const onStockOut = (it) => {};
-const onViewItem = (it) => {};
-const onEditItem = (it) => {};
-const onDownload = (type) => {}; // 'pdf' | 'excel'
+/* ===================== Add New Product Modal ===================== */
+const categoryOptions = ref([
+    "Poultry",
+    "Produce",
+    "Grains",
+    "Grocery",
+    "Dairy",
+    "Meat",
+]);
+const subcatMap = ref({
+    Poultry: ["Chicken", "Broiler", "Wings", "Breast"],
+    Produce: ["Tomatoes", "Onions", "Potatoes"],
+    Grains: ["Rice", "Wheat", "Oats"],
+    Grocery: ["Oil", "Spices", "Sugar"],
+    // Dairy: ["Cheese", "Milk", "Butter"],
+    Meat: ["Beef", "Mutton", "Veal"],
+});
+const unitOptions = ref([
+    "gram (g)",
+    "kilogram (kg)",
+    "millilitre (ml)",
+    "liter (L)",
+    "piece (pc)",
+]);
+const supplierOptions = ref(["Noor", "Metro", "ChaseUp", "Al-Fatah"]);
+// computed subcategory options based on selected category
+const subcatOptions = computed(() =>
+    (subcatMap.value[form.value.category] || []).map((s) => ({
+        name: s,
+        value: s,
+    }))
+);
+const form = ref({
+    name: "",
+    category: "Poultry",
+    subcategory: "",
+    unit: "gram (g)",
+    minAlert: "",
+    supplier: "Noor",
+    sku: "",
+    description: "",
+    nutrition: { calories: "", fat: "", protein: "", carbs: "" },
+    allergies: [],
+    tags: [],
+    imageFile: null,
+    imagePreview: "",
+});
+
+const selectableAllergies = [
+    "Milk",
+    "Eggs",
+    "Peanuts",
+    "Tree Nuts",
+    "Soy",
+    "Wheat",
+    "Fish",
+    "Shellfish",
+];
+const selectableTags = [
+    "Halal",
+    "Haram",
+    "Vegan",
+    "Vegetarian",
+    "Gluten-Free",
+    "Keto",
+];
+
+const toggleSelect = (list, value) => {
+    const i = list.indexOf(value);
+    if (i === -1) list.push(value);
+    else list.splice(i, 1);
+};
+
+function handleImage(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    form.value.imageFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) =>
+        (form.value.imagePreview = String(ev.target?.result || ""));
+    reader.readAsDataURL(file);
+}
+
+const submitting = ref(false);
+function submitProduct() {
+    const payload = {
+        name: form.value.name.trim(),
+        category: form.value.category,
+        subcategory: form.value.subcategory,
+        unit: form.value.unit,
+        minAlert: form.value.minAlert ? Number(form.value.minAlert) : null,
+        supplier: form.value.supplier,
+        sku: form.value.sku || null,
+        description: form.value.description || null,
+        nutrition: { ...form.value.nutrition },
+        allergies: [...form.value.allergies],
+        tags: [...form.value.tags],
+        hasImage: !!form.value.imageFile,
+    };
+
+    console.log("[Inventory] Submitting product payload:", payload);
+
+    submitting.value = true;
+    fakeApi(payload)
+        .then((res) => {
+            console.log("✅ then():", res.message);
+            // push into list as a new row (demo)
+            items.value.unshift({
+                id: Date.now(),
+                name: payload.name || "Untitled",
+                image:
+                    form.value.imagePreview ||
+                    "https://picsum.photos/seed/new/64",
+                unitPrice: 0,
+                category: payload.category || "-",
+                unit: payload.unit || "-",
+                availableStock: 0,
+                stockValue: 0,
+                enteredBy: "You",
+            });
+        })
+        .catch((err) => {
+            console.error("❌ catch():", err?.message || err);
+            alert("Failed to add product (demo). Check console.");
+        })
+        .finally(() => {
+            submitting.value = false;
+            const m = bootstrap.Modal.getInstance(
+                document.getElementById("addItemModal")
+            );
+            m?.hide();
+            resetForm();
+        });
+}
+
+function resetForm() {
+    form.value = {
+        name: "",
+        category: "Poultry",
+        subcategory: "",
+        unit: "gram (g)",
+        minAlert: "",
+        supplier: "Noor",
+        sku: "",
+        description: "",
+        nutrition: { calories: "", fat: "", protein: "", carbs: "" },
+        allergies: [],
+        tags: [],
+        imageFile: null,
+        imagePreview: "",
+    };
+}
+
+function fakeApi(data) {
+    return new Promise((resolve) => {
+        setTimeout(
+            () => resolve({ ok: true, message: "Saved (demo)", data }),
+            800
+        );
+    });
+}
+
+/* ===================== Row Actions (stubs) ===================== */
+const onStockIn = (it) => console.log("Stock In:", it);
+const onStockOut = (it) => console.log("Stock Out:", it);
+const onViewItem = (it) => console.log("View:", it);
+const onEditItem = (it) => console.log("Edit:", it);
+const onDownload = (type) => console.log("Download:", type);
 </script>
 
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
+            <div class="container-fluid py-1">
                 <!-- Title -->
                 <h4 class="fw-semibold mb-3">Overall Inventory</h4>
 
@@ -124,9 +304,7 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                         :key="c.label"
                         class="col-6 col-md-3"
                     >
-                        <div
-                            class="kpi-card card border-0 shadow-sm rounded-4"
-                        >
+                        <div class="card border-0 shadow-sm rounded-4">
                             <div
                                 class="card-body d-flex flex-column justify-content-center text-center"
                             >
@@ -143,7 +321,7 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                 </div>
 
                 <!-- Stock Table -->
-                <div class="card border-0 shadow-lg rounded-4 mt-0">
+                <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
                         <div
@@ -164,16 +342,79 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                     />
                                 </div>
 
-                                <!-- Add Item -> open modal -->
+                                <!-- Filter By -->
+                                <div class="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
+                                        Filter By
+                                        <span
+                                            v-if="sortBy"
+                                            class="ms-1 text-muted small"
+                                        >
+                                            {{
+                                                sortBy === "stock_desc"
+                                                    ? "High→Low"
+                                                    : sortBy === "stock_asc"
+                                                    ? "Low→High"
+                                                    : sortBy === "name_asc"
+                                                    ? "A→Z"
+                                                    : sortBy === "name_desc"
+                                                    ? "Z→A"
+                                                    : ""
+                                            }}
+                                        </span>
+                                    </button>
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'stock_desc'"
+                                                >From High to Low</a
+                                            >
+                                        </li>
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'stock_asc'"
+                                                >From Low to High</a
+                                            >
+                                        </li>
+                                        <li><hr class="dropdown-divider" /></li>
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'name_asc'"
+                                                >Ascending</a
+                                            >
+                                        </li>
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'name_desc'"
+                                                >Descending</a
+                                            >
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <!-- Add Item -->
                                 <button
                                     class="btn btn-primary rounded-pill px-4"
                                     data-bs-toggle="modal"
-                                    data-bs-target="#createItemModal"
+                                    data-bs-target="#addItemModal"
                                 >
                                     Add Item
                                 </button>
 
-                                <!-- Download all dropdown -->
+                                <!-- Download all -->
                                 <div class="dropdown">
                                     <button
                                         class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
@@ -189,18 +430,16 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                                 class="dropdown-item py-2"
                                                 href="javascript:void(0)"
                                                 @click="onDownload('pdf')"
+                                                >Download as PDF</a
                                             >
-                                                Download as PDF
-                                            </a>
                                         </li>
                                         <li>
                                             <a
                                                 class="dropdown-item py-2"
                                                 href="javascript:void(0)"
                                                 @click="onDownload('excel')"
+                                                >Download as Excel</a
                                             >
-                                                Download as Excel
-                                            </a>
                                         </li>
                                     </ul>
                                 </div>
@@ -209,7 +448,10 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle" style="min-height: 320px;">
+                            <table
+                                class="table table-hover align-middle"
+                                style="min-height: 320px"
+                            >
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>
@@ -227,7 +469,7 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                 </thead>
                                 <tbody>
                                     <tr
-                                        v-for="(item, idx) in filteredItems"
+                                        v-for="(item, idx) in sortedItems"
                                         :key="item.id"
                                     >
                                         <td>{{ idx + 1 }}</td>
@@ -275,7 +517,6 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                         </td>
                                         <td>{{ item.enteredBy }}</td>
 
-                                        <!-- 3-dots menu -->
                                         <td class="text-end">
                                             <div class="dropdown">
                                                 <button
@@ -296,12 +537,11 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                                             @click="
                                                                 onStockIn(item)
                                                             "
-                                                        >
-                                                            <i
+                                                            ><i
                                                                 class="bi bi-box-arrow-in-down-right me-2"
-                                                            ></i>
-                                                            Stock In
-                                                        </a>
+                                                            ></i
+                                                            >Stock In</a
+                                                        >
                                                     </li>
                                                     <li>
                                                         <a
@@ -310,12 +550,11 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                                             @click="
                                                                 onStockOut(item)
                                                             "
-                                                        >
-                                                            <i
+                                                            ><i
                                                                 class="bi bi-box-arrow-up-right me-2"
-                                                            ></i>
-                                                            Stock Out
-                                                        </a>
+                                                            ></i
+                                                            >Stock Out</a
+                                                        >
                                                     </li>
                                                     <li>
                                                         <a
@@ -324,12 +563,11 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                                             @click="
                                                                 onViewItem(item)
                                                             "
-                                                        >
-                                                            <i
+                                                            ><i
                                                                 class="bi bi-eye me-2"
-                                                            ></i>
-                                                            View Item
-                                                        </a>
+                                                            ></i
+                                                            >View Item</a
+                                                        >
                                                     </li>
                                                     <li>
                                                         <a
@@ -338,19 +576,18 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                                                             @click="
                                                                 onEditItem(item)
                                                             "
-                                                        >
-                                                            <i
+                                                            ><i
                                                                 class="bi bi-pencil-square me-2"
-                                                            ></i>
-                                                            Edit
-                                                        </a>
+                                                            ></i
+                                                            >Edit</a
+                                                        >
                                                     </li>
                                                 </ul>
                                             </div>
                                         </td>
                                     </tr>
 
-                                    <tr v-if="filteredItems.length === 0">
+                                    <tr v-if="sortedItems.length === 0">
                                         <td
                                             colspan="11"
                                             class="text-center text-muted py-4"
@@ -363,86 +600,382 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- ===== Add Item Modal (your provided form, wrapped in Bootstrap modal) ===== -->
-        <div
-            class="modal fade"
-            id="createItemModal"
-            tabindex="-1"
-            aria-labelledby="createItemModal"
-            aria-hidden="true"
-        >
-            <div
-                class="modal-dialog modal-lg modal-dialog-centered"
-                role="document"
-            >
-                <div class="modal-content rounded-4">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-semibold">Create</h5>
-                        <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                        ></button>
-                    </div>
+                <!-- ===================== Add New Product Modal ===================== -->
+                <div
+                    class="modal fade"
+                    id="addItemModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <div
+                        class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"
+                        role="document"
+                    >
+                        <div class="modal-content rounded-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title fw-semibold">
+                                    Add New Inventory Item
+                                </h5>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    @click="resetForm"
+                                ></button>
+                            </div>
 
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-lg-6 col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label"
-                                        >Customer Name</label
+                            <div class="modal-body">
+                                <!-- top row -->
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label"
+                                            >Product Name</label
+                                        >
+                                        <input
+                                            v-model="form.name"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="e.g., Chicken Breast"
+                                        />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label"
+                                            >Category</label
+                                        >
+                                        <Select
+                                            v-model="form.category"
+                                            :options="categoryOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Category"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            @update:modelValue="
+                                                form.subcategory = ''
+                                            "
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
+                                                <span v-if="value">{{
+                                                    value
+                                                }}</span>
+                                                <span v-else>{{
+                                                    placeholder
+                                                }}</span>
+                                            </template>
+                                        </Select>
+                                    </div>
+
+                                    <!-- Subcategory (only if exists) -->
+                                    <div
+                                        class="col-md-6"
+                                        v-if="subcatOptions.length"
                                     >
-                                    <input type="text" class="form-control" />
-                                </div>
-                            </div>
-                            <div class="col-lg-6 col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label">Email</label>
-                                    <input type="text" class="form-control" />
-                                </div>
-                            </div>
-                            <div class="col-lg-6 col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label">Phone</label>
-                                    <input type="text" class="form-control" />
-                                </div>
-                            </div>
-                            <div class="col-lg-6 col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label">Country</label>
-                                    <input type="text" class="form-control" />
-                                </div>
-                            </div>
-                            <div class="col-lg-6 col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label">City</label>
-                                    <input type="text" class="form-control" />
-                                </div>
-                            </div>
-                            <div class="col-lg-6 col-sm-12">
-                                <div class="form-group">
-                                    <label class="form-label">Address</label>
-                                    <input type="text" class="form-control" />
-                                </div>
-                            </div>
-                        </div>
+                                        <label class="form-label"
+                                            >Subcategory</label
+                                        >
+                                        <Select
+                                            v-model="form.subcategory"
+                                            :options="subcatOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Subcategory"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
+                                                <span v-if="value">{{
+                                                    value
+                                                }}</span>
+                                                <span v-else>{{
+                                                    placeholder
+                                                }}</span>
+                                            </template>
+                                        </Select>
+                                    </div>
 
-                        <div class="d-flex gap-2 mt-4">
-                            <a class="btn btn-primary rounded-pill px-4"
-                                >Submit</a
-                            >
-                            <a
-                                class="btn btn-secondary rounded-pill px-4"
-                                data-bs-dismiss="modal"
-                                >Cancel</a
-                            >
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block"
+                                            >Minimum Stock Alert Level</label
+                                        >
+                                        <input
+                                            v-model="form.minAlert"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                            placeholder="e.g., 5"
+                                        />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label"
+                                            >Unit Type</label
+                                        >
+                                        <Select
+                                            v-model="form.unit"
+                                            :options="unitOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Unit"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
+                                                <span v-if="value">{{
+                                                    value
+                                                }}</span>
+                                                <span v-else>{{
+                                                    placeholder
+                                                }}</span>
+                                            </template>
+                                        </Select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label"
+                                            >Preferred Supplier</label
+                                        >
+                                        <Select
+                                            v-model="form.supplier"
+                                            :options="supplierOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Supplier"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
+                                                <span v-if="value">{{
+                                                    value
+                                                }}</span>
+                                                <span v-else>{{
+                                                    placeholder
+                                                }}</span>
+                                            </template>
+                                        </Select>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label class="form-label"
+                                            >SKU (Optional)</label
+                                        >
+                                        <input
+                                            v-model="form.sku"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="Stock Keeping Unit"
+                                        />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label"
+                                            >Description</label
+                                        >
+                                        <textarea
+                                            v-model="form.description"
+                                            rows="4"
+                                            class="form-control"
+                                            placeholder="Notes about this product"
+                                        ></textarea>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+
+                                <!-- Nutrition -->
+                                <h6 class="mb-3">
+                                    Nutrition Information (per unit)
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label"
+                                            >Calories</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.calories"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label"
+                                            >Fat (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.fat"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label"
+                                            >Protein (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.protein"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label"
+                                            >Carbs (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.carbs"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="row g-4 mt-1">
+                                    <!-- Allergies -->
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block"
+                                            >Allergies</label
+                                        >
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <button
+                                                v-for="a in selectableAllergies"
+                                                :key="a"
+                                                type="button"
+                                                class="btn btn-sm rounded-pill"
+                                                :class="
+                                                    form.allergies.includes(a)
+                                                        ? 'btn-primary'
+                                                        : 'btn-outline-secondary'
+                                                "
+                                                @click="
+                                                    toggleSelect(
+                                                        form.allergies,
+                                                        a
+                                                    )
+                                                "
+                                            >
+                                                {{ a }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tags -->
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block"
+                                            >Tags (Halal, Haram, etc.)</label
+                                        >
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <button
+                                                v-for="t in selectableTags"
+                                                :key="t"
+                                                type="button"
+                                                class="btn btn-sm rounded-pill"
+                                                :class="
+                                                    form.tags.includes(t)
+                                                        ? 'btn-primary'
+                                                        : 'btn-outline-secondary'
+                                                "
+                                                @click="
+                                                    toggleSelect(form.tags, t)
+                                                "
+                                            >
+                                                {{ t }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Image -->
+                                <div class="row g-3 mt-2 align-items-center">
+                                    <div class="col-sm-6 col-md-4">
+                                        <div
+                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
+                                        >
+                                            <template v-if="!form.imagePreview">
+                                                <div class="text-center small">
+                                                    <div class="mb-2">
+                                                        <i
+                                                            class="bi bi-image fs-3"
+                                                        ></i>
+                                                    </div>
+                                                    <div>Drag image here</div>
+                                                    <div>
+                                                        or
+                                                        <label
+                                                            class="text-primary fw-semibold"
+                                                            style="
+                                                                cursor: pointer;
+                                                            "
+                                                        >
+                                                            Browse image
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                class="d-none"
+                                                                @change="
+                                                                    handleImage
+                                                                "
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <img
+                                                    :src="form.imagePreview"
+                                                    class="w-100 h-100 rounded-3"
+                                                    style="object-fit: cover"
+                                                />
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <button
+                                        class="btn btn-primary rounded-pill px-5 py-2"
+                                        :disabled="submitting"
+                                        @click="submitProduct"
+                                    >
+                                        <span v-if="!submitting"
+                                            >Add Product</span
+                                        >
+                                        <span v-else>Saving...</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-secondary rounded-pill px-4 ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetForm"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <!-- /modal -->
             </div>
         </div>
     </Master>
@@ -454,9 +987,6 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
 }
 
 /* KPI cards */
-.kpi-card {
-    background: #fff;
-}
 .icon-wrap {
     font-size: 2rem;
     color: var(--brand);
@@ -498,7 +1028,7 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
     filter: brightness(1.05);
 }
 
-/* Action menu look like screenshot */
+/* Action menu */
 .action-menu {
     min-width: 220px;
 }
@@ -512,6 +1042,18 @@ const onDownload = (type) => {}; // 'pdf' | 'excel'
 }
 .table tbody td {
     vertical-align: middle;
+}
+
+/* Image drop */
+.img-drop {
+    height: 160px;
+    border: 2px dashed #cbd5e1;
+    background: #f8fafc;
+}
+
+/* Optional hint styling */
+.dropdown-toggle .small {
+    opacity: 0.85;
 }
 
 /* Mobile tweaks */

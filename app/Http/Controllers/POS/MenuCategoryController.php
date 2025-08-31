@@ -10,6 +10,6 @@ class MenuCategoryController extends Controller
     public function index()
     {
         // return Inertia page with categories
-        return Inertia::render('Backend/Menu/Index');
+        return Inertia::render('Backend/Menu/Category');
     }
 }
