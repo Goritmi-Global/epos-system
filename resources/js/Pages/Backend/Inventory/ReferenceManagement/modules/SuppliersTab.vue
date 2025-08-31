@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUpdated } from "vue";
-
+import axios from "axios";
+import { toast } from "vue3-toastify";
 const suppliers = ref([
     {
         id: 1,
@@ -37,7 +38,73 @@ const onDownload = (type) => {
 const onView = (row) => {};
 const onEdit = (row) => {};
 const onRemove = (row) => {};
-const onAdd = () => {}; // submit inside modal
+
+const form = ref({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    items: "", // Preferred Items
+});
+const loading = ref(false);
+const errors = ref({});
+
+// helper to close a Bootstrap modal by id
+const closeModal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const modal =
+        window.bootstrap?.Modal.getInstance(el) ||
+        new window.bootstrap.Modal(el);
+    modal.hide();
+};
+
+// reset form after submit or when needed
+const resetForm = () => {
+    form.value = { name: "", email: "", phone: "", address: "", items: "" };
+    errors.value = {};
+};
+
+const submit = () => {
+    loading.value = true;
+    errors.value = {};
+
+    axios.post("/suppliers", form.value)
+        .then((res) => {
+            // optional: push into local table without refetch
+            // const created = res?.data?.data || {
+            //     id: Date.now(),
+            //     name: form.value.name,
+            //     phone: form.value.phone,
+            //     email: form.value.email,
+            //     address: form.value.address,
+            //     items: form.value.items,
+            // };
+            // suppliers.value.unshift(created);
+
+            toast.success("Supplier added successfully ✅", {
+                autoClose: 2500,
+            });
+            resetForm();
+            closeModal("modalAddSupplier");
+        })
+        .catch((err) => {
+            if (err?.response?.status === 422 && err.response.data?.errors) {
+                errors.value = err.response.data.errors;
+                toast.error("Validation failed. Please check the fields.", {
+                    autoClose: 3000,
+                });
+            } else {
+                toast.error("Something went wrong. Please try again.", {
+                    autoClose: 3000,
+                });
+                console.error(err);
+            }
+        })
+        .finally(() => {
+            loading.value = false;
+        });
+};
 
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
@@ -216,40 +283,75 @@ onUpdated(() => window.feather?.replace());
 
                 <div class="modal-body">
                     <div class="row g-3">
+                        <!-- Name -->
                         <div class="col-lg-6">
-                            <label class="form-label">Name</label
-                            ><input class="form-control" />
-                        </div>
-                        <div class="col-lg-6">
-                            <label class="form-label">Email</label
-                            ><input class="form-control" />
+                            <label class="form-label">Name</label>
+                            <input class="form-control" v-model="form.name" />
+                            <small v-if="errors.name" class="text-danger">{{
+                                errors.name[0]
+                            }}</small>
                         </div>
 
+                        <!-- Email -->
+                        <div class="col-lg-6">
+                            <label class="form-label">Email</label>
+                            <input class="form-control" v-model="form.email" />
+                            <small v-if="errors.email" class="text-danger">{{
+                                errors.email[0]
+                            }}</small>
+                        </div>
+
+                        <!-- Phone -->
                         <div class="col-lg-3">
-                            <label class="form-label">+44</label
-                            ><input class="form-control" disabled value="+44" />
+                            <label class="form-label">+44</label>
+                            <input class="form-control" disabled value="+44" />
                         </div>
                         <div class="col-lg-9">
-                            <label class="form-label">Phone*</label
-                            ><input class="form-control" />
+                            <label class="form-label">Phone*</label>
+                            <input class="form-control" v-model="form.phone" />
+                            <small v-if="errors.contact" class="text-danger">{{
+                                errors.contact[0]
+                            }}</small>
                         </div>
 
+                        <!-- Address -->
                         <div class="col-lg-6">
-                            <label class="form-label">Address</label
-                            ><textarea class="form-control" rows="4"></textarea>
+                            <label class="form-label">Address</label>
+                            <textarea
+                                class="form-control"
+                                rows="4"
+                                v-model="form.address"
+                            ></textarea>
+                            <small v-if="errors.address" class="text-danger">{{
+                                errors.address[0]
+                            }}</small>
                         </div>
+
+                        <!-- Preferred Items -->
                         <div class="col-lg-6">
-                            <label class="form-label">Preferred Items</label
-                            ><input class="form-control" />
+                            <label class="form-label">Preferred Items</label>
+                            <input class="form-control" v-model="form.items" />
+                            <small
+                                v-if="errors.preferred_items"
+                                class="text-danger"
+                            >
+                                {{ errors.preferred_items[0] }}
+                            </small>
                         </div>
+
+                        <!-- Submit -->
+                        <button
+                            class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading"
+                            @click="submit()"
+                        >
+                            <span
+                                v-if="loading"
+                                class="spinner-border spinner-border-sm me-2"
+                            ></span>
+                            Add Supplier
+                        </button>
                     </div>
-
-                    <button
-                        class="btn btn-primary rounded-pill w-100 mt-4"
-                        @click="onAdd"
-                    >
-                        Add Supplier
-                    </button>
                 </div>
             </div>
         </div>

@@ -114,6 +114,9 @@ Route::prefix('reference')->name('reference.')->group(function () {
 });
 
 
+Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+
+
 
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {
