@@ -482,8 +482,8 @@ onUpdated(() => window.feather?.replace());
 /* ========= CSS VARIABLES ========= */
 :root {
     --header-h: 64px;
-    --sidebar-w: 260px;
-    --sidebar-w-collapsed: 72px;
+    --sidebar-w: 280px;
+    --sidebar-w-collapsed: 0px;
     --brand: #1B2850;
     --bg-muted: #f5f6f8;
     --border: #eef0f3;
@@ -546,6 +546,7 @@ onUpdated(() => window.feather?.replace());
     outline: none;
     width: 100%;
 }
+
 .nav.user-menu {
     list-style: none;
     display: flex;
@@ -553,22 +554,63 @@ onUpdated(() => window.feather?.replace());
     gap: 16px;
     margin: 0;
 }
+.header .nav.user-menu {
+  height: var(--header-h);
+  align-items: center;
+}
+.header .nav.user-menu > li {
+  display: flex;
+  align-items: center;
+}
+
+/* Make the clickable area full header height and center the icon/text */
+.header .nav.user-menu .nav-link,
+.header .nav.user-menu .dropdown-toggle {
+  display: flex;
+  align-items: center;
+  height: var(--header-h);
+  padding: 0 10px;
+  line-height: 1;            /* kill anchor baseline drift */
+}
+
+
+/* Remove extra baseline gap caused by inline images */
+.header .nav.user-menu img {
+  display: block;            /* no inline baseline */
+}
+
+/* Notification bell + badge tidy */
+.header .nav.user-menu .nav-item.dropdown > .nav-link {
+  position: relative;
+}
+.header .nav.user-menu .badge.rounded-pill {
+  position: absolute;
+  top: 14px;                 /* tweak to taste */
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+/* Profile avatar + online dot alignment */
+.user-img {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+}
 .user-img img {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 .status.online {
-    position: relative;
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background: #16a34a;
-    border-radius: 50%;
-    margin-left: -10px;
-    margin-bottom: -10px;
-    border: 2px solid #fff;
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+  margin: 0;                 /* remove negative margins */
 }
 .nav .badge {
     background: var(--brand);
