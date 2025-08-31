@@ -115,7 +115,10 @@ Route::prefix('reference')->name('reference.')->group(function () {
 
 
 Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
-
+Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+Route::post('/suppliers/update', [SupplierController::class, 'update'])->name('suppliers.update');
+Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
 
 
     // Menu

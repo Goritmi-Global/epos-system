@@ -2,31 +2,44 @@
 import { ref, computed, onMounted, onUpdated } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
-const suppliers = ref([
-    {
-        id: 1,
-        name: "Noor",
-        phone: "+447444 444444",
-        email: "noor@test.example",
-        address: "Testing address",
-        items: "Pizza",
-    },
-    {
-        id: 2,
-        name: "Wali Khan",
-        phone: "+447888 888888",
-        email: "wali@kha.com",
-        address: "testing",
-        items: "tesing",
-    },
-]);
+import { nextTick } from "vue";
+const suppliers = ref([]);
+
+const page = ref(1);
+const perPage = ref(15);
+
+const fetchSuppliers = () => {
+    loading.value = true;
+
+    return axios
+        .get("/suppliers", {
+            params: { q: q.value, page: page.value, per_page: perPage.value },
+        })
+        .then(({ data }) => {
+            console.log("Fetched suppliers:", data);
+            // paginator or plain array—handle both
+            suppliers.value = data?.data ?? data?.suppliers?.data ?? data ?? [];
+            // wait for DOM to update, then refresh feather icons
+            return nextTick();
+        })
+        .then(() => {
+            window.feather?.replace();
+        })
+        .catch((err) => {
+            console.error(err);
+        })
+        .finally(() => {
+            loading.value = false;
+        });
+};
+
 const q = ref("");
 
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
     if (!t) return suppliers.value;
     return suppliers.value.filter((s) =>
-        [s.name, s.phone, s.email, s.address, s.items].some((v) =>
+        [s.name, s.phone, s.email, s.address, s.preferred_items].some((v) =>
             (v || "").toLowerCase().includes(t)
         )
     );
@@ -35,16 +48,13 @@ const filtered = computed(() => {
 const onDownload = (type) => {
     /* pdf|excel */
 };
-const onView = (row) => {};
-const onEdit = (row) => {};
-const onRemove = (row) => {};
 
 const form = ref({
     name: "",
     email: "",
     phone: "",
     address: "",
-    items: "", // Preferred Items
+    preferred_items: "", // Preferred Items
 });
 const loading = ref(false);
 const errors = ref({});
@@ -61,7 +71,13 @@ const closeModal = (id) => {
 
 // reset form after submit or when needed
 const resetForm = () => {
-    form.value = { name: "", email: "", phone: "", address: "", items: "" };
+    form.value = {
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        preferred_items: "",
+    };
     errors.value = {};
 };
 
@@ -69,7 +85,8 @@ const submit = () => {
     loading.value = true;
     errors.value = {};
 
-    axios.post("/suppliers", form.value)
+    axios
+        .post("/suppliers", form.value)
         .then((res) => {
             // optional: push into local table without refetch
             // const created = res?.data?.data || {
@@ -78,7 +95,7 @@ const submit = () => {
             //     phone: form.value.phone,
             //     email: form.value.email,
             //     address: form.value.address,
-            //     items: form.value.items,
+            //     preferred_items: form.value.preferred_items,
             // };
             // suppliers.value.unshift(created);
 
@@ -108,6 +125,137 @@ const submit = () => {
 
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
+// Run on page load
+onMounted(async () => {
+    await fetchSuppliers();
+    // Also safe to call once on mount (e.g., for static icons on the page)
+    window.feather?.replace();
+});
+
+// code for other functionalities
+// helpers (you already have closeModal)
+const openModal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const modal = new window.bootstrap.Modal(el);
+    modal.show();
+};
+
+const processStatus = ref();
+// Editing supplier record
+const selectedSupplier = ref(null);
+const onEdit = (row) => {
+    processStatus.value = "Edit";
+    selectedSupplier.value = row;
+    // map backend -> form fields
+    form.value = {
+        name: row.name || "",
+        email: row.email || "",
+        phone: row.phone ?? row.contact ?? "",
+        address: row.address || "",
+        preferred_items: row.preferred_items ?? row.preferred_items ?? "",
+    };
+    openModal("modalAddSupplier");
+};
+
+const updateSupplier = () => {
+    if (!selectedSupplier.value) return;
+    loading.value = true;
+    errors.value = {};
+
+    const payload = {
+        id: selectedSupplier.value.id,
+        name: form.value.name,
+        email: form.value.email,
+        contact: form.value.phone || null,
+        address: form.value.address || null,
+        preferred_items: form.value.preferred_items || null,
+    };
+
+    axios
+        .post("/suppliers/update", payload)
+        .then((res) => {
+            const updated = res?.data?.data ?? res?.data ?? payload;
+
+            const idx = suppliers.value.findIndex(
+                (x) => x.id === selectedSupplier.value.id
+            );
+            if (idx !== -1) {
+                suppliers.value[idx] = {
+                    ...suppliers.value[idx],
+                    ...updated,
+                    phone:
+                        updated.contact ??
+                        payload.contact ??
+                        suppliers.value[idx].phone,
+                    preferred_items:
+                        updated.preferred_items ??
+                        payload.preferred_items ??
+                        suppliers.value[idx].preferred_items,
+                };
+            }
+
+            toast.success("Supplier updated successfully ✅", {
+                autoClose: 2500,
+            });
+
+            // close whichever modal you're using for edit
+            closeModal("modalAddSupplier"); // or "modalAddSupplier" if reusing it
+            return nextTick();
+        })
+        .then(() => window.feather?.replace())
+        .catch((err) => {
+            if (err?.response?.status === 422 && err.response.data?.errors) {
+                errors.value = err.response.data.errors;
+                toast.error("Validation failed. Please check the fields.", {
+                    autoClose: 3000,
+                });
+            } else {
+                toast.error("Update failed. Please try again.", {
+                    autoClose: 3000,
+                });
+                console.error(err);
+            }
+        })
+        .finally(() => {
+            loading.value = false;
+        });
+};
+
+// ---- Deleting the supplier record----
+const toDelete = ref(null);
+
+const onRemove = (row) => {
+    toDelete.value = row;
+    openModal("modalDeleteSupplier");
+};
+
+const confirmDelete = () => {
+    if (!toDelete.value) return;
+    loading.value = true;
+
+    axios
+        .delete(`/suppliers/${toDelete.value.id}`)
+        .then(() => {
+            suppliers.value = suppliers.value.filter(
+                (s) => s.id !== toDelete.value.id
+            );
+            toast.success("Supplier deleted ✅", { autoClose: 2000 });
+            closeModal("modalDeleteSupplier");
+            toDelete.value = null;
+            return nextTick();
+        })
+        .then(() => window.feather?.replace())
+        .catch((err) => {
+            toast.error("Delete failed. Please try again.", {
+                autoClose: 3000,
+            });
+            console.error(err);
+        })
+        .finally(() => {
+            loading.value = false;
+        });
+};
 </script>
 
 <template>
@@ -193,7 +341,7 @@ onUpdated(() => window.feather?.replace());
                             <td class="text-truncate" style="max-width: 260px">
                                 {{ s.address }}
                             </td>
-                            <td>{{ s.items }}</td>
+                            <td>{{ s.preferred_items }}</td>
                             <td class="text-end">
                                 <div class="dropdown">
                                     <button
@@ -210,24 +358,9 @@ onUpdated(() => window.feather?.replace());
                                             <a
                                                 class="dropdown-item py-2"
                                                 href="javascript:;"
-                                                @click="onView(s)"
-                                                ><i
-                                                    data-feather="eye"
-                                                    class="me-2"
-                                                ></i
-                                                >View</a
-                                            >
-                                        </li>
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
                                                 @click="onEdit(s)"
-                                                ><i
-                                                    data-feather="edit-2"
-                                                    class="me-2"
-                                                ></i
-                                                >Edit</a
+                                            >
+                                                Edit</a
                                             >
                                         </li>
                                         <li><hr class="dropdown-divider" /></li>
@@ -236,11 +369,8 @@ onUpdated(() => window.feather?.replace());
                                                 class="dropdown-item py-2 text-danger"
                                                 href="javascript:;"
                                                 @click="onRemove(s)"
-                                                ><i
-                                                    data-feather="trash-2"
-                                                    class="me-2"
-                                                ></i
-                                                >Delete</a
+                                            >
+                                                Delete</a
                                             >
                                         </li>
                                     </ul>
@@ -330,7 +460,10 @@ onUpdated(() => window.feather?.replace());
                         <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
-                            <input class="form-control" v-model="form.items" />
+                            <input
+                                class="form-control"
+                                v-model="form.preferred_items"
+                            />
                             <small
                                 v-if="errors.preferred_items"
                                 class="text-danger"
@@ -341,6 +474,19 @@ onUpdated(() => window.feather?.replace());
 
                         <!-- Submit -->
                         <button
+                            v-if="processStatus === 'Edit'"
+                            class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading"
+                            @click="updateSupplier()"
+                        >
+                            <span
+                                v-if="loading"
+                                class="spinner-border spinner-border-sm me-2"
+                            ></span>
+                            Update Supplier
+                        </button>
+                        <button
+                            v-else
                             class="btn btn-primary rounded-pill w-100 mt-4"
                             :disabled="loading"
                             @click="submit()"

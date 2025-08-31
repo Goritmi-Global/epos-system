@@ -20,13 +20,9 @@ class SupplierController extends Controller
 {
     public function __construct(private SupplierService $service) {}
     public function index(Request $request)
-    {
-        // Optional: server-rendered list
-        // $suppliers = $this->service->list($request->only('q'));
-        return Inertia::render('Reference/Suppliers/Index', [
-            // 'suppliers' => $suppliers,
-            // 'filters'   => $request->only('q'),
-        ]);
+    {  
+        $suppliers = $this->service->list($request->only('q'));
+        return $suppliers;
     }
      
     
@@ -48,9 +44,12 @@ class SupplierController extends Controller
         ]);
     }
 
-    public function update(SupplierUpdateRequest $request, Supplier $supplier): JsonResponse
+    public function update(SupplierUpdateRequest $request)
     {
-        $updated = $this->service->update($supplier, $request->validated());
+        // dd($request);
+        $supplier = Supplier::findOrFail($request->input('id'));
+        $updated  = $this->service->update($supplier, $request->validated());
+
         return response()->json([
             'message' => 'Supplier updated successfully',
             'data'    => $updated,
