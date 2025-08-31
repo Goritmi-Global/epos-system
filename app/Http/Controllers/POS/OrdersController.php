@@ -14,8 +14,10 @@ class OrdersController extends Controller
 
     public function index(Request $request)
     {
-        $orders = $this->service->list($request->only('q','status'));
-        return Inertia::render('Orders/Index', ['orders'=>$orders]);
+        return Inertia::render('Backend/POS/Order');   
+    
+        // $orders = $this->service->list($request->only('q','status'));
+        // return Inertia::render('Orders/Index', ['orders'=>$orders]);
     }
 
     public function show(Order $order)
