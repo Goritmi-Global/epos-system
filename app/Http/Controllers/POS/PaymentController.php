@@ -13,8 +13,9 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
-        $payments = $this->service->list($request->only('q','method'));
-        return Inertia::render('Payment/Index', ['payments'=>$payments]);
+        return Inertia::render('Backend/Payment/Index');   
+        // $payments = $this->service->list($request->only('q','method'));
+        // return Inertia::render('Payment/Index', ['payments'=>$payments]);
     }
 
     public function store(Request $request)
