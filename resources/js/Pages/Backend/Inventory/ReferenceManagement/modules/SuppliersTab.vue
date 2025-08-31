@@ -16,7 +16,7 @@ const fetchSuppliers = () => {
             params: { q: q.value, page: page.value, per_page: perPage.value },
         })
         .then(({ data }) => {
-            console.log("Fetched suppliers:", data);
+            // console.log("Fetched suppliers:", data);
             // paginator or plain array—handle both
             suppliers.value = data?.data ?? data?.suppliers?.data ?? data ?? [];
             // wait for DOM to update, then refresh feather icons
@@ -225,12 +225,12 @@ const updateSupplier = () => {
 // ---- Deleting the supplier record----
 const toDelete = ref(null);
 
-const onRemove = (row) => {
-    toDelete.value = row;
-    openModal("modalDeleteSupplier");
-};
+// const onRemove = (row) => {
+//     toDelete.value = row;
+//     openModal("modalDeleteSupplier");
+// };
 
-const confirmDelete = () => {
+const onRemove = () => {
     if (!toDelete.value) return;
     loading.value = true;
 
@@ -365,13 +365,13 @@ const confirmDelete = () => {
                                         </li>
                                         <li><hr class="dropdown-divider" /></li>
                                         <li>
-                                            <a
+                                            <!-- <a
                                                 class="dropdown-item py-2 text-danger"
                                                 href="javascript:;"
                                                 @click="onRemove(s)"
-                                            >
-                                                Delete</a
-                                            >
+                                            > -->
+                                                Delete
+                                                <!-- </a> -->
                                         </li>
                                     </ul>
                                 </div>
