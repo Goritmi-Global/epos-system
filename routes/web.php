@@ -16,7 +16,7 @@ use App\Http\Controllers\POS\{
     InventoryCategoryController,
     StockLogController,
     PurchaseOrderController,
-    ReferenceManagementController,
+   
     MenuController,
     MenuCategoryController,
     PosOrderController,
@@ -24,6 +24,13 @@ use App\Http\Controllers\POS\{
     PaymentController,
     AnalyticsController,
     SettingsController,
+};
+use App\Http\Controllers\Reference\{
+    ReferenceManagementController,
+    SupplierController,
+    TagController,
+    AllergyController,
+    UnitController
 };
 
 
