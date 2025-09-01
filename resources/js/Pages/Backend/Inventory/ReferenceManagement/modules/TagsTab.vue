@@ -248,7 +248,9 @@ const onSubmit = () => {
                     <h5 class="modal-title">
                         {{ isEditing ? "Edit Tag" : "Add Tag(s)" }}
                     </h5>
-                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        ×
+                    </button>
                 </div>
                 <div class="modal-body">
                     <div v-if="isEditing">
@@ -270,6 +272,7 @@ const onSubmit = () => {
                             display="chip"
                             placeholder="Choose tags or type to add"
                             class="w-100"
+                            appendTo="self"
                             @filter="(e) => (filterText = e.value || '')"
                         >
                             <template #header>
@@ -338,10 +341,25 @@ const onSubmit = () => {
     border-radius: 9999px;
 }
 
+.table-responsive {
+    overflow: visible !important;
+}
+
+.dropdown-menu {
+    position: absolute !important;
+    z-index: 1050 !important;
+}
+
+/* Ensure the table container doesn't clip the dropdown */
+.table-container {
+    overflow: visible !important;
+}
+
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 </style>

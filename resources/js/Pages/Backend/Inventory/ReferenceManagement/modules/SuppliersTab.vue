@@ -261,56 +261,35 @@ const onRemove = () => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div
-                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-            >
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Suppliers</h4>
 
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input
-                            v-model="q"
-                            class="form-control search-input"
-                            placeholder="Search"
-                        />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" />
                     </div>
 
                     <!-- Add -->
-                    <button
-                        class="btn btn-primary rounded-pill px-4"
-                        data-bs-toggle="modal"
-                        data-bs-target="#modalAddSupplier"
-                    >
+                    <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
+                        data-bs-target="#modalAddSupplier">
                         Add Supplier
                     </button>
 
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button
-                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown"
-                        >
+                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown">
                             Download all
                         </button>
-                        <ul
-                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                        >
+                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('pdf')"
-                                    >Download as PDF</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
+                                    PDF</a>
                             </li>
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('excel')"
-                                    >Download as Excel</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
+                                    as Excel</a>
                             </li>
                         </ul>
                     </div>
@@ -344,34 +323,23 @@ const onRemove = () => {
                             <td>{{ s.preferred_items }}</td>
                             <td class="text-end">
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-link text-secondary p-0 fs-5"
-                                        data-bs-toggle="dropdown"
-                                        title="Actions"
-                                    >
+                                    <button class="btn btn-link text-secondary p-0 fs-5" data-bs-toggle="dropdown"
+                                        title="Actions">
                                         ⋮
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onEdit(s)"
-                                            >
-                                                Edit</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(s)">
+                                                Edit</a>
                                         </li>
-                                        <li><hr class="dropdown-divider" /></li>
                                         <li>
-                                            <!-- <a
-                                                class="dropdown-item py-2 text-danger"
-                                                href="javascript:;"
-                                                @click="onRemove(s)"
-                                            > -->
+                                            <hr class="dropdown-divider" />
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item py-2 text-danger" href="javascript:;"
+                                                @click="onRemove(s)">
                                                 Delete
-                                                <!-- </a> -->
+                                            </a>
                                         </li>
                                     </ul>
                                 </div>
@@ -389,26 +357,14 @@ const onRemove = () => {
     </div>
 
     <!-- Add Supplier Modal -->
-    <div
-        class="modal fade"
-        id="modalAddSupplier"
-        tabindex="-1"
-        aria-labelledby="modalAddSupplier"
-        aria-hidden="true"
-    >
-        <div
-            class="modal-dialog modal-lg modal-dialog-centered"
-            role="document"
-        >
+    <div class="modal fade" id="modalAddSupplier" tabindex="-1" aria-labelledby="modalAddSupplier" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">Add Supplier</h5>
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                    ></button>
+                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        ×
+                    </button>
                 </div>
 
                 <div class="modal-body">
@@ -447,11 +403,7 @@ const onRemove = () => {
                         <!-- Address -->
                         <div class="col-lg-6">
                             <label class="form-label">Address</label>
-                            <textarea
-                                class="form-control"
-                                rows="4"
-                                v-model="form.address"
-                            ></textarea>
+                            <textarea class="form-control" rows="4" v-model="form.address"></textarea>
                             <small v-if="errors.address" class="text-danger">{{
                                 errors.address[0]
                             }}</small>
@@ -460,41 +412,21 @@ const onRemove = () => {
                         <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
-                            <input
-                                class="form-control"
-                                v-model="form.preferred_items"
-                            />
-                            <small
-                                v-if="errors.preferred_items"
-                                class="text-danger"
-                            >
+                            <input class="form-control" v-model="form.preferred_items" />
+                            <small v-if="errors.preferred_items" class="text-danger">
                                 {{ errors.preferred_items[0] }}
                             </small>
                         </div>
 
                         <!-- Submit -->
-                        <button
-                            v-if="processStatus === 'Edit'"
-                            class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading"
-                            @click="updateSupplier()"
-                        >
-                            <span
-                                v-if="loading"
-                                class="spinner-border spinner-border-sm me-2"
-                            ></span>
+                        <button v-if="processStatus === 'Edit'" class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading" @click="updateSupplier()">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Update Supplier
                         </button>
-                        <button
-                            v-else
-                            class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading"
-                            @click="submit()"
-                        >
-                            <span
-                                v-if="loading"
-                                class="spinner-border spinner-border-sm me-2"
-                            ></span>
+                        <button v-else class="btn btn-primary rounded-pill w-100 mt-4" :disabled="loading"
+                            @click="submit()">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Add Supplier
                         </button>
                     </div>
@@ -508,14 +440,17 @@ const onRemove = () => {
 :root {
     --brand: #1c0d82;
 }
+
 .btn-primary {
     background: var(--brand);
     border-color: var(--brand);
 }
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -523,8 +458,23 @@ const onRemove = () => {
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
+}
+
+.table-responsive {
+    overflow: visible !important;
+}
+
+.dropdown-menu {
+    position: absolute !important;
+    z-index: 1050 !important;
+}
+
+/* Ensure the table container doesn't clip the dropdown */
+.table-container {
+    overflow: visible !important;
 }
 </style>
