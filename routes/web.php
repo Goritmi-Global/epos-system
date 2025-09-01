@@ -120,6 +120,13 @@ Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers
 Route::post('/suppliers/update', [SupplierController::class, 'update'])->name('suppliers.update');
 Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
 
+Route::prefix('tags')->group(function () {
+    Route::get('/', [TagController::class, 'index']);
+    Route::post('/', [TagController::class, 'store']);
+    Route::put('/{tag}', [TagController::class, 'update']);
+    Route::delete('/{tag}', [TagController::class, 'destroy']);
+});
+
 
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {

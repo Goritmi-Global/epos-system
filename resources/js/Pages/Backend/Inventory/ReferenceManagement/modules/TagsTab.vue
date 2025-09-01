@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from "vue";
-import Select from "primevue/select";
+import { ref, computed, onMounted, nextTick } from "vue";
+import { toast } from "vue3-toastify";
+import MultiSelect from "primevue/multiselect";
 
 const rows = ref([
     { id: 1, name: "Vegan" },
@@ -60,51 +61,199 @@ const openAdd = () => {
     isEditing.value = false;
     selected.value = [];
     filterText.value = "";
+    const modal = new bootstrap.Modal(document.getElementById("modalTagForm"));
+    modal.show();
 };
+
 const openEdit = (row) => {
     isEditing.value = true;
     editingRow.value = row;
     editName.value = row.name;
-};
-const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
-
-const runQuery = (payload) => {
-    console.log("[Tags] will run query with payload:", payload);
-    return new Promise((resolve) =>
-        setTimeout(() => resolve({ ok: true }), 600)
-    );
+    const modal = new bootstrap.Modal(document.getElementById("modalTagForm"));
+    modal.show();
 };
 
-const onSubmit = () => {
+const viewRow = ref(null);
+
+const openView = (row) => {
+    viewRow.value = row;
+    const modal = new bootstrap.Modal(document.getElementById("modalTagView"));
+    modal.show();
+};
+
+// const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
+
+const openRemove = async (row) => {
+    try {
+        await axios.delete(`/tags/${row.id}`);
+        tags.value = tags.value.filter((t) => t.id !== row.id);
+        toast.success("Tag deleted ✅");
+    } catch (e) {
+        toast.error("Delete failed ❌");
+    }
+};
+
+import axios from "axios";
+
+const runQuery = async (payload) => {
+    if (payload.action === "create") {
+        return axios.post("/tags", { tags: payload.added });
+    }
+    if (payload.action === "update") {
+        return axios.put(`/tags/${payload.row.id}`, { name: payload.row.name });
+    }
+    if (payload.action === "delete") {
+        return axios.delete(`/tags/${payload.row.id}`);
+    }
+};
+
+const onSubmit = async () => {
     if (isEditing.value) {
-        if (!editName.value?.trim()) return;
-        editingRow.value.name = editName.value.trim();
-        const payload = { action: "update", row: { ...editingRow.value } };
-        console.log("[Tags] Submitted:", payload);
-        runQuery(payload)
-            .then((r) => console.log("[Tags] query OK:", r))
-            .catch((e) => console.error("[Tags] query ERROR:", e));
-        return;
+        if (!editName.value.trim()) {
+            toast.warning("Name cannot be empty ⚠️");
+            return;
+        }
+        try {
+            const { data } = await axios.put(`/tags/${editingRow.value.id}`, {
+                name: editName.value.trim(),
+            });
+
+            const idx = tags.value.findIndex(
+                (t) => t.id === editingRow.value.id
+            );
+            if (idx !== -1) tags.value[idx] = data;
+
+            toast.success("Tag updated Successfully ✅");
+
+            // Hide the modal after successful update
+            hideModal();
+        } catch (e) {
+            if (e.response?.data?.errors) {
+                Object.values(e.response.data.errors).forEach((msgs) =>
+                    msgs.forEach((m) => toast.error(m))
+                );
+            } else toast.error("Update failed ❌");
+        }
+    } else {
+        // create
+        const newTags = selected.value
+            .filter((v) => !tags.value.some((t) => t.name === v))
+            .map((v) => ({ name: v }));
+
+        // Filter new tags and detect duplicates
+        const existingTags = selected.value.filter((v) =>
+            tags.value.some((t) => t.name === v)
+        );
+
+        if (newTags.length === 0) {
+            // Show which tags already exist
+            toast.info(
+                `Tag${
+                    existingTags.length > 1 ? "s" : ""
+                } already exist: ${existingTags.join(", ")}`
+            );
+            hideModal();
+            return;
+        }
+
+        try {
+            const response = await axios.post("/tags", { tags: newTags });
+
+            // If backend returns array directly
+            const createdTags = response.data?.tags ?? response.data;
+
+            if (Array.isArray(createdTags) && createdTags.length) {
+                tags.value = [...tags.value, ...createdTags];
+            }
+
+            toast.success("Tags added ✅");
+
+            // Hide the modal after successful creation
+            hideModal();
+            await fetchTags();
+        } catch (e) {
+            // Only show create failed if there is a real error
+            if (e.response?.data?.errors) {
+                Object.values(e.response.data.errors).forEach((msgs) =>
+                    msgs.forEach((m) => toast.error(m))
+                );
+            } else {
+                console.error(e); // log actual error for debugging
+                toast.error("Create failed ❌");
+            }
+        }
+    }
+};
+
+// Function to properly hide modal and clean up backdrop
+const hideModal = () => {
+    // Get the modal element
+    const modalElement = document.getElementById("modalTagForm");
+
+    if (modalElement) {
+        // Get existing modal instance or create new one
+        let modal = bootstrap.Modal.getInstance(modalElement);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalElement);
+        }
+
+        // Hide the modal
+        modal.hide();
     }
 
-    const existing = new Set(rows.value.map((r) => r.name));
-    const added = [];
-    selected.value.forEach((v) => {
-        if (!existing.has(v)) {
-            const row = { id: Date.now() + Math.random(), name: v };
-            rows.value.push(row);
-            added.push(row);
-        }
-    });
+    // Force cleanup after a short delay to ensure Bootstrap animations complete
+    setTimeout(() => {
+        // Remove all modal backdrops
+        const backdrops = document.querySelectorAll(".modal-backdrop");
+        backdrops.forEach((backdrop) => {
+            backdrop.remove();
+        });
 
-    const payload = { action: "create", added };
-    console.log("[Tags] Submitted:", payload);
-    runQuery(payload)
-        .then((r) => console.log("[Tags] query OK:", r))
-        .catch((e) => console.error("[Tags] query ERROR:", e));
+        // Clean up body classes and styles that Bootstrap adds
+        document.body.classList.remove("modal-open");
+        document.body.style.overflow = "";
+        document.body.style.paddingRight = "";
+        document.body.style.marginRight = "";
 
-    selected.value = [];
+        // Reset modal-related attributes
+        const body = document.body;
+        body.removeAttribute("data-bs-overflow");
+        body.removeAttribute("data-bs-padding-right");
+    }, 150); // Reduced timeout for quicker cleanup
 };
+
+// show Index page
+const tags = ref([]);
+const page = ref(1);
+const perPage = ref(15);
+const loading = ref(false);
+
+const fetchTags = () => {
+    loading.value = true;
+
+    return axios
+        .get("/tags", {
+            params: { q: q.value, page: page.value, per_page: perPage.value },
+        })
+        .then(({ data }) => {
+            tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
+            return nextTick();
+        })
+        .then(() => {
+            window.feather?.replace();
+        })
+        .catch((err) => {
+            console.error("Failed to fetch tags", err);
+        })
+        .finally(() => {
+            loading.value = false;
+        });
+};
+
+onMounted(async () => {
+    await fetchTags();
+    window.feather?.replace();
+});
 </script>
 
 <template>
@@ -173,7 +322,7 @@ const onSubmit = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(r, i) in filtered" :key="r.id">
+                        <tr v-for="(r, i) in tags" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
                             <td class="text-end">
@@ -192,44 +341,48 @@ const onSubmit = () => {
                                             <a
                                                 class="dropdown-item py-2"
                                                 href="javascript:;"
-                                                @click="openView(s)"
-                                                ><i
+                                                @click="openView(r)"
+                                            >
+                                                <i
                                                     data-feather="eye"
                                                     class="me-2"
                                                 ></i
-                                                >View</a
-                                            >
+                                                >View
+                                            </a>
                                         </li>
                                         <li>
                                             <a
                                                 class="dropdown-item py-2"
                                                 href="javascript:;"
-                                                @click="openEdit(s)"
-                                                ><i
+                                                @click="openEdit(r)"
+                                            >
+                                                <i
                                                     data-feather="edit-2"
                                                     class="me-2"
                                                 ></i
-                                                >Edit</a
-                                            >
+                                                >Edit
+                                            </a>
                                         </li>
                                         <li><hr class="dropdown-divider" /></li>
                                         <li>
                                             <a
                                                 class="dropdown-item py-2 text-danger"
                                                 href="javascript:;"
-                                                @click="openRemove(s)"
-                                                ><i
+                                                @click="openRemove(r)"
+                                            >
+                                                <i
                                                     data-feather="trash-2"
                                                     class="me-2"
                                                 ></i
-                                                >Delete</a
-                                            >
+                                                >Delete
+                                            </a>
                                         </li>
                                     </ul>
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="filtered.length === 0">
+
+                        <tr v-if="tags.length === 0">
                             <td colspan="3" class="text-center text-muted py-4">
                                 No tags found.
                             </td>
@@ -260,7 +413,7 @@ const onSubmit = () => {
                         />
                     </div>
                     <div v-else>
-                        <Select
+                        <MultiSelect
                             v-model="selected"
                             :options="options"
                             optionLabel="label"
@@ -270,6 +423,7 @@ const onSubmit = () => {
                             display="chip"
                             placeholder="Choose tags or type to add"
                             class="w-100"
+                            appendTo="self"
                             @filter="(e) => (filterText = e.value || '')"
                         >
                             <template #header>
@@ -298,7 +452,7 @@ const onSubmit = () => {
                                     </button>
                                 </div>
                             </template>
-                        </Select>
+                        </MultiSelect>
                     </div>
 
                     <button
@@ -307,6 +461,30 @@ const onSubmit = () => {
                         data-bs-dismiss="modal"
                     >
                         {{ isEditing ? "Save Changes" : "Add Tag(s)" }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- View Modal -->
+    <div class="modal fade" id="modalTagView" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <div class="modal-header">
+                    <h5 class="modal-title">View Tag</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>ID:</strong> {{ viewRow?.id }}</p>
+                    <p><strong>Name:</strong> {{ viewRow?.name }}</p>
+                    <!-- <p>
+                        <strong>Description:</strong>
+                        {{ viewRow?.description || "—" }}
+                    </p> -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">
+                        Close
                     </button>
                 </div>
             </div>
@@ -336,6 +514,10 @@ const onSubmit = () => {
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
+}
+.p-multiselect {
+    background-color: white !important;
+    color: black !important;
 }
 
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
