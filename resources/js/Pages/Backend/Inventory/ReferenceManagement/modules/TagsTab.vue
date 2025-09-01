@@ -28,18 +28,20 @@ const options = ref([
 ]);
 
 const selected = ref([]); // array of values
-const filterText = ref("");
+const filterText = ref(""); // Fixed: Added missing filterText ref
 
 const isEditing = ref(false);
 const editingRow = ref(null);
 const editName = ref("");
 
 const q = ref("");
-const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    return t
-        ? rows.value.filter((r) => r.name.toLowerCase().includes(t))
-        : rows.value;
+
+// Fixed: Create filtered computed property that works with tags array
+const filteredTags = computed(() => {
+    const searchTerm = q.value.trim().toLowerCase();
+    return searchTerm
+        ? tags.value.filter((tag) => tag.name.toLowerCase().includes(searchTerm))
+        : tags.value;
 });
 
 const selectAll = () => (selected.value = options.value.map((o) => o.value));
@@ -64,7 +66,11 @@ const openAdd = () => {
     const modal = new bootstrap.Modal(document.getElementById("modalTagForm"));
     modal.show();
 };
-
+const availableOptions = computed(() => {
+    return options.value.filter(option => 
+        !tags.value.some(tag => tag.name.toLowerCase() === option.value.toLowerCase())
+    );
+});
 const openEdit = (row) => {
     isEditing.value = true;
     editingRow.value = row;
@@ -250,6 +256,12 @@ const fetchTags = () => {
         });
 };
 
+// Fixed: Add missing onDownload function
+const onDownload = (format) => {
+    console.log(`Downloading tags as ${format}`);
+    // Add your download logic here
+};
+
 onMounted(async () => {
     await fetchTags();
     window.feather?.replace();
@@ -322,7 +334,8 @@ onMounted(async () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(r, i) in tags" :key="r.id">
+                        <!-- Fixed: Use filteredTags instead of tags for proper filtering -->
+                        <tr v-for="(r, i) in filteredTags" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
                             <td class="text-end">
@@ -382,9 +395,10 @@ onMounted(async () => {
                             </td>
                         </tr>
 
-                        <tr v-if="tags.length === 0">
+                        <!-- Fixed: Check filteredTags length instead of tags -->
+                        <tr v-if="filteredTags.length === 0">
                             <td colspan="3" class="text-center text-muted py-4">
-                                No tags found.
+                                {{ q.trim() ? 'No tags found matching your search.' : 'No tags found.' }}
                             </td>
                         </tr>
                     </tbody>
@@ -417,7 +431,7 @@ onMounted(async () => {
                     <div v-else>
                         <MultiSelect
                             v-model="selected"
-                            :options="options"
+                            :options="availableOptions"
                             optionLabel="label"
                             optionValue="value"
                             :multiple="true"
@@ -450,7 +464,7 @@ onMounted(async () => {
                                         class="btn btn-sm btn-outline-primary rounded-pill"
                                         @click="addCustom"
                                     >
-                                        Add “{{ filterText.trim() }}”
+                                        Add "{{ filterText.trim() }}"
                                     </button>
                                 </div>
                             </template>

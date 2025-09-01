@@ -97,6 +97,18 @@ const addCustom = () => {
     filterText.value = "";
 };
 
+// const availableOptions = computed(() => {
+//     return options.value.filter(option => 
+//         !units.value.some(unit => unit.name.toLowerCase() === option.value.toLowerCase())
+//     );
+// });
+
+const availableOptions = computed(() => {
+    return options.value.filter(option => 
+        !units.value.some(unit => unit.name.toLowerCase() === option.name.toLowerCase()) // ✅ Fixed: option.name instead of option.value
+    );
+});
+
 const openAdd = () => {
     isEditing.value = false;
     isViewing.value = false;
@@ -327,7 +339,7 @@ const onDownload = (format) => {
 
                     <!-- Add many -->
                     <div v-else>
-                        <MultiSelect v-model="selected" :options="options" optionLabel="name" optionValue="name" filter
+                        <MultiSelect v-model="selected" :options="availableOptions" optionLabel="name" optionValue="name" filter
                             display="chip" placeholder="Choose units or type to add" class="w-100" appendTo="self"
                             :pt="{ panel: { class: 'pv-overlay-fg' } }" @filter="(e) => (filterText = e.value || '')">
                             <template #option="{ option }">

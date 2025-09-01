@@ -3,29 +3,16 @@ import { ref, computed, onMounted } from "vue";
 import MultiSelect from "primevue/multiselect";
 import Button from "primevue/button";
 import { toast } from "vue3-toastify";
-import axios from 'axios'  // Add this import
+import axios from 'axios'
+
 const viewingRow = ref(null);
-
-const rows = ref([
-    { id: 1, name: "Milk" },
-    { id: 2, name: "Eggs" },
-]);
-
 const allergies = ref([]);
-const allergyLoading = ref(false);
-const allergyPage = ref(1);
-const allergyPerPage = ref(15);
-const allergyQ = ref("");
 const loading = ref(false);
 
 const fetchAllergies = async () => {
     loading.value = true;
     try {
-        const { data } = await axios.get("/allergies", {
-            params: { q: filterText.value } // optional search
-        });
-
-        // If paginated: data.data, else: data
+        const { data } = await axios.get("/allergies");
         allergies.value = data.data ?? data;
     } catch (err) {
         console.error("Error fetching allergies:", err);
@@ -35,9 +22,6 @@ const fetchAllergies = async () => {
 };
 
 onMounted(fetchAllergies);
-
-
-
 
 const options = ref([
     { label: "Crustaceans", value: "Crustaceans" },
@@ -59,73 +43,134 @@ const options = ref([
 
 const selected = ref([]);
 const filterText = ref("");
-
 const isEditing = ref(false);
 const editingRow = ref(null);
 const editName = ref("");
 
-const q = ref("");
+// Client-side filtering
 const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    return t
-        ? allergies.value.filter((a) => a.name.toLowerCase().includes(t))
-        : allergies.value;
+    const searchTerm = filterText.value.trim().toLowerCase();
+    if (!searchTerm) {
+        return allergies.value;
+    }
+    return allergies.value.filter((allergy) => 
+        allergy.name.toLowerCase().includes(searchTerm)
+    );
 });
-
 
 const selectAll = () => (selected.value = options.value.map((o) => o.value));
 const removeAll = () => (selected.value = []);
 
+// Track the current filter value from MultiSelect
+const currentFilterValue = ref("");
+
 const addCustom = () => {
-    const name = filterText.value?.trim();
-    if (!name) return;
-    if (
-        !options.value.some((o) => o.label.toLowerCase() === name.toLowerCase())
-    ) {
+    const name = currentFilterValue.value?.trim();
+    if (!name) {
+        toast.warning("⚠️ Please type in the search box first, then click 'Add Custom'", { autoClose: 3000 });
+        return;
+    }
+    
+    // Check if already exists in options
+    if (!options.value.some((o) => o.label.toLowerCase() === name.toLowerCase())) {
         options.value.push({ label: name, value: name });
     }
-    if (!selected.value.includes(name))
+    
+    // Check if already selected
+    if (!selected.value.includes(name)) {
         selected.value = [...selected.value, name];
-    filterText.value = "";
+    }
+    
+    currentFilterValue.value = "";
 };
+
+const availableOptions = computed(() => {
+    return options.value.filter(option => 
+        !allergies.value.some(allergie => allergie.name.toLowerCase() === option.value.toLowerCase())
+    );
+});
 
 const openAdd = () => {
     isEditing.value = false;
     selected.value = [];
     filterText.value = "";
+    currentFilterValue.value = "";
 };
+
 const openEdit = (row) => {
     isEditing.value = true;
     editingRow.value = row;
     editName.value = row.name;
 };
-const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
+
+
+const handleApiError = (error, defaultMessage = "Operation failed") => {
+    if (error.response?.status === 422) {
+        // Validation errors
+        const errors = error.response.data.errors;
+        if (errors) {
+            
+            Object.keys(errors).forEach(key => {
+                errors[key].forEach(message => {
+                    if (message.includes('already exists')) {
+                        toast.error(`❌ ${message}`, { autoClose: 4000 });
+                    } else {
+                        toast.error(`❌ ${message}`, { autoClose: 3000 });
+                    }
+                });
+            });
+            return;
+        }
+    }
+    
+    const message = error.response?.data?.message || defaultMessage;
+    toast.error(`❌ ${message}`, { autoClose: 3000 });
+};
 
 const runQuery = async (payload) => {
     try {
         console.log(payload);
         if (payload.action === "create") {
+            // Pre-check for existing allergies on frontend (optional optimization)
+            const existingNames = new Set(allergies.value.map(a => a.name.toLowerCase()));
+            const duplicates = payload.added.filter(row => existingNames.has(row.name.toLowerCase()));
+            
+            if (duplicates.length > 0) {
+                duplicates.forEach(dup => {
+                    toast.error(`❌ Allergy "${dup.name}" already exists`, { autoClose: 4000 });
+                });
+                return; // Don't proceed with API call
+            }
+
             await axios.post("/allergies", { names: payload.added.map(row => row.name) });
             await fetchAllergies();
-            toast.success("Allergy(s) created successfully ✅", { autoClose: 2000 });
+            toast.success("✅ Allergy(s) created successfully", { autoClose: 2000 });
 
         } else if (payload.action === "update") {
-            // Update existing allergy
+            // Check if name already exists (excluding current record)
+            const existingAllergy = allergies.value.find(a => 
+                a.name.toLowerCase() === payload.row.name.toLowerCase() && a.id !== payload.row.id
+            );
+            
+            if (existingAllergy) {
+                toast.error(`❌ Allergy "${payload.row.name}" already exists`, { autoClose: 4000 });
+                return;
+            }
+
             await axios.put(`/allergies/${payload.row.id}`, {
                 name: payload.row.name,
             });
             await fetchAllergies();
-            toast.success("Allergy updated successfully ✅", { autoClose: 2000 });
+            toast.success("✅ Allergy updated successfully", { autoClose: 2000 });
 
         } else if (payload.action === "delete") {
-            // Delete allergy
             await axios.delete(`/allergies/${payload.row.id}`);
             await fetchAllergies();
-            toast.success("Allergy deleted successfully ✅", { autoClose: 2000 });
+            toast.success("✅ Allergy deleted successfully", { autoClose: 2000 });
         }
     } catch (err) {
         console.error("[Allergies] query ERROR:", err.response?.data || err);
-        toast.error("Operation failed ❌", { autoClose: 2000 });
+        handleApiError(err, "Operation failed");
         throw err;
     }
 };
@@ -133,31 +178,48 @@ const runQuery = async (payload) => {
 const onSubmit = async () => {
     try {
         if (isEditing.value) {
-            if (!editName.value?.trim()) return;
+            if (!editName.value?.trim()) {
+                toast.error("❌ Allergy name is required", { autoClose: 3000 });
+                return;
+            }
 
             const updatedRow = { ...editingRow.value, name: editName.value.trim() };
             await runQuery({ action: "update", row: updatedRow });
 
-            // reset
+            // Reset editing state
             isEditing.value = false;
             editingRow.value = null;
             editName.value = "";
-        }
-        else {
-            // --- Add many ---
-            const existing = new Set(allergies.value.map((a) => a.name));
-            const added = [];
+        } else {
+            // Adding new allergies
+            if (selected.value.length === 0) {
+                toast.error("❌ Please select at least one allergy", { autoClose: 3000 });
+                return;
+            }
 
-            selected.value.forEach((n) => {
-                if (!existing.has(n)) {
-                    added.push({ name: n });
+            const existing = new Set(allergies.value.map((a) => a.name.toLowerCase()));
+            const added = [];
+            const duplicates = [];
+
+            selected.value.forEach((name) => {
+                if (existing.has(name.toLowerCase())) {
+                    duplicates.push(name);
+                } else {
+                    added.push({ name });
                 }
             });
 
-            if (added.length > 0) {
-                await runQuery({ action: "create", added });
+            // Show duplicates warning
+            if (duplicates.length > 0) {
+                duplicates.forEach(dup => {
+                    toast.warning(`⚠️ "${dup}" already exists, skipping...`, { autoClose: 4000 });
+                });
             }
 
+            // Add only new allergies
+            if (added.length > 0) {
+                await runQuery({ action: "create", added });
+            } 
             selected.value = [];
         }
     } catch (err) {
@@ -167,8 +229,8 @@ const onSubmit = async () => {
 
 const onEdit = (row) => {
     isEditing.value = true;
-    editingRow.value = { ...row }; // keep original row for id
-    editName.value = row.name;     // pre-fill input
+    editingRow.value = { ...row };
+    editName.value = row.name;
     const modal = new bootstrap.Modal(document.getElementById("modalAllergyForm"));
     modal.show();
 };
@@ -177,8 +239,6 @@ const onRemove = async (row) => {
     if (!confirm(`Delete allergy "${row.name}"?`)) return;
     await runQuery({ action: "delete", row });
 };
-
-
 
 const onView = (row) => {
     viewingRow.value = row;
@@ -195,29 +255,12 @@ const onView = (row) => {
                 <div class="d-flex gap-2">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" />
+                        <input v-model="filterText" class="form-control search-input" placeholder="Search allergies..." />
                     </div>
                     <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
                         data-bs-target="#modalAllergyForm" @click="openAdd">
                         Add Allergy
                     </button>
-                    <!-- Download all -->
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown">
-                            Download all
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                            <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
-                                    PDF</a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
-                                    as Excel</a>
-                            </li>
-                        </ul>
-                    </div>
                 </div>
             </div>
 
@@ -231,7 +274,7 @@ const onView = (row) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(r, i) in allergies" :key="r.id">
+                        <tr v-for="(r, i) in filtered" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
                             <td class="text-end">
@@ -242,20 +285,20 @@ const onView = (row) => {
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;" @click="onView(r)"><i
-                                                    data-feather="eye" class="me-2"></i>View</a>
+                                            <a class="dropdown-item py-2" href="javascript:;" @click="onView(r)">
+                                                <i data-feather="eye" class="me-2"></i>View
+                                            </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(r)"><i
-                                                    data-feather="edit-2" class="me-2"></i>Edit</a>
+                                            <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(r)">
+                                                <i data-feather="edit-2" class="me-2"></i>Edit
+                                            </a>
                                         </li>
+                                        <li><hr class="dropdown-divider" /></li>
                                         <li>
-                                            <hr class="dropdown-divider" />
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2 text-danger" href="javascript:;"
-                                                @click="onRemove(r)"><i data-feather="trash-2"
-                                                    class="me-2"></i>Delete</a>
+                                            <a class="dropdown-item py-2 text-danger" href="javascript:;" @click="onRemove(r)">
+                                                <i data-feather="trash-2" class="me-2"></i>Delete
+                                            </a>
                                         </li>
                                     </ul>
                                 </div>
@@ -263,7 +306,7 @@ const onView = (row) => {
                         </tr>
                         <tr v-if="filtered.length === 0">
                             <td colspan="3" class="text-center text-muted py-4">
-                                No allergies found.
+                                {{ filterText.trim() ? 'No allergies found matching your search.' : 'No allergies found.' }}
                             </td>
                         </tr>
                     </tbody>
@@ -280,20 +323,18 @@ const onView = (row) => {
                     <h5 class="modal-title">
                         {{ isEditing ? "Edit Allergy" : "Add Allergy(s)" }}
                     </h5>
-                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        ×
-                    </button>
+                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">×</button>
                 </div>
                 <div class="modal-body">
                     <div v-if="isEditing">
-                        <label class="form-label">Allergy</label>
-                        <input v-model="editName" class="form-control" placeholder="e.g., Milk" />
+                        <label class="form-label">Allergy Name</label>
+                        <input v-model="editName" class="form-control" placeholder="e.g., Milk" maxlength="100" />
                     </div>
                     <div v-else>
-                        <MultiSelect v-model="selected" :options="options" optionLabel="label" optionValue="value"
-                            filter display="chip" placeholder="Choose allergies or type to add" class="w-100"
+                        <MultiSelect v-model="selected" :options="availableOptions" optionLabel="label" optionValue="value"
+                            filter display="chip" placeholder="Choose allergies or type to add custom" class="w-100"
                             appendTo="self" :pt="{ panel: { class: 'pv-overlay-fg' } }"
-                            @filter="(e) => (filterText = e.value || '')">
+                            @filter="(e) => (currentFilterValue = e.value || '')">
                             <template #option="{ option }">
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-shield-exclamation me-2"></i>
@@ -301,18 +342,17 @@ const onView = (row) => {
                                 </div>
                             </template>
                             <template #header>
-                                <div class="font-medium px-3 py-2">
-                                    Common Allergens
-                                </div>
+                                <div class="font-medium px-3 py-2">Common Allergens</div>
                             </template>
                             <template #footer>
                                 <div class="p-3 d-flex justify-content-between">
-                                    <Button label="Add New" severity="secondary" variant="text" size="small"
-                                        icon="pi pi-plus" @click="addCustom" />
+                                    <Button label="Add Custom" severity="secondary" variant="text" size="small"
+                                        icon="pi pi-plus" @click="addCustom" 
+                                        :disabled="!currentFilterValue.trim()" />
                                     <div class="d-flex gap-2">
                                         <Button label="Select All" severity="secondary" variant="text" size="small"
                                             icon="pi pi-check" @click="selectAll" />
-                                        <Button label="Remove All" severity="danger" variant="text" size="small"
+                                        <Button label="Clear All" severity="danger" variant="text" size="small"
                                             icon="pi pi-times" @click="removeAll" />
                                     </div>
                                 </div>
@@ -327,7 +367,8 @@ const onView = (row) => {
             </div>
         </div>
     </div>
-    <!-- Allergy View Modal -->
+
+    <!-- View Modal -->
     <div class="modal fade" id="modalAllergyView" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content rounded-4">
@@ -348,7 +389,6 @@ const onView = (row) => {
             </div>
         </div>
     </div>
-
 </template>
 
 <style scoped>
@@ -379,7 +419,6 @@ const onView = (row) => {
     border-radius: 9999px;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 .pv-overlay-fg {
     z-index: 2000 !important;
 }
