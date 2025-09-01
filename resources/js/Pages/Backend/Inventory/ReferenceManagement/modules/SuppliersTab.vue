@@ -225,31 +225,15 @@ const updateSupplier = () => {
 // ---- Deleting the supplier record----
 const toDelete = ref(null);
 
-// const onRemove = (row) => {
-//     toDelete.value = row;
-//     openModal("modalDeleteSupplier");
-// };
-
-const onRemove = () => {
-    if (!toDelete.value) return;
+const onRemove = (row) => {
     loading.value = true;
-
-    axios
-        .delete(`/suppliers/${toDelete.value.id}`)
+    axios.delete(`/suppliers/${row.id}`)
         .then(() => {
-            suppliers.value = suppliers.value.filter(
-                (s) => s.id !== toDelete.value.id
-            );
+            suppliers.value = suppliers.value.filter((s) => s.id !== row.id);
             toast.success("Supplier deleted ✅", { autoClose: 2000 });
-            closeModal("modalDeleteSupplier");
-            toDelete.value = null;
-            return nextTick();
         })
-        .then(() => window.feather?.replace())
         .catch((err) => {
-            toast.error("Delete failed. Please try again.", {
-                autoClose: 3000,
-            });
+            toast.error("Delete failed. Please try again.", { autoClose: 3000 });
             console.error(err);
         })
         .finally(() => {
@@ -335,11 +319,15 @@ const onRemove = () => {
                                         <li>
                                             <hr class="dropdown-divider" />
                                         </li>
+                                        <li><hr class="dropdown-divider" /></li>
                                         <li>
-                                            <a class="dropdown-item py-2 text-danger" href="javascript:;"
-                                                @click="onRemove(s)">
+                                            <a
+                                                class="dropdown-item py-2 text-danger"
+                                                href="javascript:;"
+                                                @click="onRemove(s)"
+                                            > 
                                                 Delete
-                                            </a>
+                                                 </a>
                                         </li>
                                     </ul>
                                 </div>
@@ -362,9 +350,12 @@ const onRemove = () => {
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">Add Supplier</h5>
-                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        ×
-                    </button>
+                    <button
+                        type="button"
+                        class="btn-close "
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
                 </div>
 
                 <div class="modal-body">
@@ -464,17 +455,4 @@ const onRemove = () => {
     border-radius: 9999px;
 }
 
-.table-responsive {
-    overflow: visible !important;
-}
-
-.dropdown-menu {
-    position: absolute !important;
-    z-index: 1050 !important;
-}
-
-/* Ensure the table container doesn't clip the dropdown */
-.table-container {
-    overflow: visible !important;
-}
 </style>
