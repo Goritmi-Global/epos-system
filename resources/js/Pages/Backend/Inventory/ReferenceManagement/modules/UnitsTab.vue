@@ -17,7 +17,7 @@ const unitPerPage = ref(15);
 const unitQ = ref("");
 
 const fetchUnits = () => {
-    unitLoading.value = true;
+    // unitLoading.value = true;
 
     return axios
         .get("/units", {
@@ -141,9 +141,7 @@ const removeUnit = (unit) => {
 const runQuery = async (payload) => {
     try {
         if (payload.action === "create") {
-            for (const row of payload.added) {
-                await axios.post("/units", { name: row.name });
-            }
+            await axios.post("/units", { units: payload.added }); 
             await fetchUnits();
             toast.success("Unit(s) created successfully ✅", { autoClose: 2000 });
 
