@@ -144,6 +144,21 @@ Route::prefix('categories')->group(function () {
 });
 
 
+Route::prefix('units')->group(function () {
+    Route::get('/', [UnitController::class, 'index']);
+    Route::post('/', [UnitController::class, 'store']);
+    Route::put('/{unit}', [UnitController::class, 'update']);
+    Route::delete('/{unit}', [UnitController::class, 'destroy']);
+});
+
+Route::prefix('allergies')->group(function () {
+    Route::get('/', [AllergyController::class, 'index']);
+    Route::post('/', [AllergyController::class, 'store']);
+    Route::put('/{allergy}', [AllergyController::class, 'update']);
+    Route::delete('/{allergy}', [AllergyController::class, 'destroy']);
+});
+
+
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');

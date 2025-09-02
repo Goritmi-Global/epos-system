@@ -63,6 +63,7 @@ const items = ref([
     },
 ]);
 
+
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
 const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
@@ -92,6 +93,22 @@ const sortedItems = computed(() => {
             return arr;
     }
 });
+
+const props = defineProps({
+  allergies: {
+    type: Object,
+  },
+  suppliers: {
+    type: Object
+  },
+  units: {
+    type: Object
+  },
+  tags: {
+    type: Object
+  }
+});
+
 
 /* ===================== KPIs ===================== */
 const categoriesCount = computed(
@@ -859,7 +876,7 @@ const onDownload = (type) => console.log("Download:", type);
                                         >
                                         <div class="d-flex flex-wrap gap-2">
                                             <button
-                                                v-for="a in selectableAllergies"
+                                                v-for="a in allergies"
                                                 :key="a"
                                                 type="button"
                                                 class="btn btn-sm rounded-pill"
@@ -875,7 +892,7 @@ const onDownload = (type) => console.log("Download:", type);
                                                     )
                                                 "
                                             >
-                                                {{ a }}
+                                                {{ a.name }}
                                             </button>
                                         </div>
                                     </div>
@@ -887,7 +904,7 @@ const onDownload = (type) => console.log("Download:", type);
                                         >
                                         <div class="d-flex flex-wrap gap-2">
                                             <button
-                                                v-for="t in selectableTags"
+                                                v-for="t in tags"
                                                 :key="t"
                                                 type="button"
                                                 class="btn btn-sm rounded-pill"
@@ -900,7 +917,7 @@ const onDownload = (type) => console.log("Download:", type);
                                                     toggleSelect(form.tags, t)
                                                 "
                                             >
-                                                {{ t }}
+                                                {{ t.name }}
                                             </button>
                                         </div>
                                     </div>

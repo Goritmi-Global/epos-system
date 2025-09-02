@@ -3,8 +3,14 @@ import { ref, computed, onMounted, onUpdated } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
 import { nextTick } from "vue";
-const suppliers = ref([]);
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from 'xlsx';
 
+
+
+
+const suppliers = ref([]);
 const page = ref(1);
 const perPage = ref(15);
 
@@ -46,7 +52,157 @@ const filtered = computed(() => {
 });
 
 const onDownload = (type) => {
-    /* pdf|excel */
+    if (!suppliers.value || suppliers.value.length === 0) {
+        toast.error("No suppliers data to download", { autoClose: 3000 });
+        return;
+    }
+
+    // Use filtered data if there's a search query, otherwise use all suppliers
+    const dataToExport = q.value.trim() ? filtered.value : suppliers.value;
+
+    if (dataToExport.length === 0) {
+        toast.error("No suppliers found to download", { autoClose: 3000 });
+        return;
+    }
+
+    try {
+        if (type === 'pdf') {
+            downloadPDF(dataToExport);
+        } else if (type === 'excel') {
+            downloadExcel(dataToExport);
+        } else {
+            toast.error("Invalid download type", { autoClose: 3000 });
+        }
+    } catch (error) {
+        console.error('Download failed:', error);
+        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+    }
+};
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
+
+        // 🌟 Title
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text("Suppliers Report", 14, 20);
+
+        // 🗓️ Metadata
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Suppliers: ${data.length}`, 14, 34);
+
+        // 📋 Table Data
+        const tableColumns = ["Name", "Email", "Phone", "Address", "Preferred Items"];
+        const tableRows = data.map((s) => [
+            s.name || "",
+            s.email || "",
+            s.phone || s.contact || "",
+            s.address || "",
+            s.preferred_items || "",
+        ]);
+
+        // 📑 Styled table
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 9,
+                cellPadding: 3,
+                halign: "left",
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [240, 240, 240] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                // Footer with page numbers
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        // 💾 Save file
+        const fileName = `suppliers_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+
+const downloadExcel = (data) => {
+    try {
+        // Check if XLSX is available
+        if (typeof XLSX === 'undefined') {
+            throw new Error('XLSX library is not loaded');
+        }
+
+        // Prepare worksheet data
+        const worksheetData = data.map(supplier => ({
+            'Name': supplier.name || '',
+            'Email': supplier.email || '',
+            'Phone': supplier.phone || supplier.contact || '',
+            'Address': supplier.address || '',
+            'Preferred Items': supplier.preferred_items || '',
+            'ID': supplier.id || ''
+        }));
+
+        // Create workbook and worksheet
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths
+        const colWidths = [
+            { wch: 20 }, // Name
+            { wch: 25 }, // Email
+            { wch: 15 }, // Phone
+            { wch: 30 }, // Address
+            { wch: 25 }, // Preferred Items
+            { wch: 10 }  // ID
+        ];
+        worksheet['!cols'] = colWidths;
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Suppliers');
+
+        // Add metadata sheet
+        const metaData = [
+            { Info: 'Generated On', Value: new Date().toLocaleString() },
+            { Info: 'Total Records', Value: data.length },
+            { Info: 'Exported By', Value: 'Supplier Management System' }
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, 'Report Info');
+
+        // Generate file name
+        const fileName = `suppliers_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+        // Save the file
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
+
+    } catch (error) {
+        console.error('Excel generation error:', error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+    }
 };
 
 const form = ref({
@@ -84,24 +240,22 @@ const resetForm = () => {
 const submit = () => {
     loading.value = true;
     errors.value = {};
-
+    const payload = {
+        name: form.value.name,
+        email: form.value.email,
+        contact: form.value.phone || null,
+        address: form.value.address || null,
+        preferred_items: form.value.preferred_items || null,
+    };
     axios
-        .post("/suppliers", form.value)
+        .post("/suppliers", payload)
         .then((res) => {
-            // optional: push into local table without refetch
-            // const created = res?.data?.data || {
-            //     id: Date.now(),
-            //     name: form.value.name,
-            //     phone: form.value.phone,
-            //     email: form.value.email,
-            //     address: form.value.address,
-            //     preferred_items: form.value.preferred_items,
-            // };
-            // suppliers.value.unshift(created);
+            console.log(res, form.value);
 
             toast.success("Supplier added successfully ✅", {
                 autoClose: 2500,
             });
+            fetchSuppliers();
             resetForm();
             closeModal("modalAddSupplier");
         })
@@ -245,56 +399,35 @@ const onRemove = (row) => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div
-                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-            >
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Suppliers</h4>
 
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input
-                            v-model="q"
-                            class="form-control search-input"
-                            placeholder="Search"
-                        />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" />
                     </div>
 
                     <!-- Add -->
-                    <button
-                        class="btn btn-primary rounded-pill px-4"
-                        data-bs-toggle="modal"
-                        data-bs-target="#modalAddSupplier"
-                    >
+                    <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
+                        data-bs-target="#modalAddSupplier">
                         Add Supplier
                     </button>
 
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button
-                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown"
-                        >
+                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown">
                             Download all
                         </button>
-                        <ul
-                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                        >
+                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('pdf')"
-                                    >Download as PDF</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
+                                    PDF</a>
                             </li>
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('excel')"
-                                    >Download as Excel</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
+                                    as Excel</a>
                             </li>
                         </ul>
                     </div>
@@ -318,7 +451,7 @@ const onRemove = (row) => {
                         <tr v-for="(s, i) in filtered" :key="s.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ s.name }}</td>
-                            <td>{{ s.phone }}</td>
+                            <td>{{ s.contact }}</td>
                             <td class="text-break" style="max-width: 240px">
                                 {{ s.email }}
                             </td>
@@ -328,34 +461,26 @@ const onRemove = (row) => {
                             <td>{{ s.preferred_items }}</td>
                             <td class="text-end">
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-link text-secondary p-0 fs-5"
-                                        data-bs-toggle="dropdown"
-                                        title="Actions"
-                                    >
+                                    <button class="btn btn-link text-secondary p-0 fs-5" data-bs-toggle="dropdown"
+                                        title="Actions">
                                         ⋮
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onEdit(s)"
-                                            >
-                                                Edit</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(s)">
+                                                Edit</a>
                                         </li>
-                                        <li><hr class="dropdown-divider" /></li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2 text-danger"
-                                                href="javascript:;"
-                                                @click="onRemove(s)"
-                                            > 
+                                            <hr class="dropdown-divider" />
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider" />
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item py-2 text-danger" href="javascript:;"
+                                                @click="onRemove(s)">
                                                 Delete
-                                                 </a>
+                                            </a>
                                         </li>
                                     </ul>
                                 </div>
@@ -373,26 +498,16 @@ const onRemove = (row) => {
     </div>
 
     <!-- Add Supplier Modal -->
-    <div
-        class="modal fade"
-        id="modalAddSupplier"
-        tabindex="-1"
-        aria-labelledby="modalAddSupplier"
-        aria-hidden="true"
-    >
-        <div
-            class="modal-dialog modal-lg modal-dialog-centered"
-            role="document"
-        >
+    <div class="modal fade" id="modalAddSupplier" tabindex="-1" aria-labelledby="modalAddSupplier" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-semibold">Add Supplier</h5>
-                    <button
-                        type="button"
-                        class="btn-close "
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                    ></button>
+                    <h5 class="modal-title fw-semibold">
+                        {{ processStatus === 'Edit' ? 'Edit Supplier' : 'Add Supplier' }}
+                    </h5>
+                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        ×
+                    </button>
                 </div>
 
                 <div class="modal-body">
@@ -425,17 +540,14 @@ const onRemove = (row) => {
                             <input class="form-control" v-model="form.phone" />
                             <small v-if="errors.contact" class="text-danger">{{
                                 errors.contact[0]
-                            }}</small>
+                                }}</small>
                         </div>
+                       
 
                         <!-- Address -->
                         <div class="col-lg-6">
                             <label class="form-label">Address</label>
-                            <textarea
-                                class="form-control"
-                                rows="4"
-                                v-model="form.address"
-                            ></textarea>
+                            <textarea class="form-control" rows="4" v-model="form.address"></textarea>
                             <small v-if="errors.address" class="text-danger">{{
                                 errors.address[0]
                             }}</small>
@@ -444,41 +556,21 @@ const onRemove = (row) => {
                         <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
-                            <input
-                                class="form-control"
-                                v-model="form.preferred_items"
-                            />
-                            <small
-                                v-if="errors.preferred_items"
-                                class="text-danger"
-                            >
+                            <input class="form-control" v-model="form.preferred_items" />
+                            <small v-if="errors.preferred_items" class="text-danger">
                                 {{ errors.preferred_items[0] }}
                             </small>
                         </div>
 
                         <!-- Submit -->
-                        <button
-                            v-if="processStatus === 'Edit'"
-                            class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading"
-                            @click="updateSupplier()"
-                        >
-                            <span
-                                v-if="loading"
-                                class="spinner-border spinner-border-sm me-2"
-                            ></span>
+                        <button v-if="processStatus === 'Edit'" class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading" @click="updateSupplier()">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Update Supplier
                         </button>
-                        <button
-                            v-else
-                            class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading"
-                            @click="submit()"
-                        >
-                            <span
-                                v-if="loading"
-                                class="spinner-border spinner-border-sm me-2"
-                            ></span>
+                        <button v-else class="btn btn-primary rounded-pill w-100 mt-4" :disabled="loading"
+                            @click="submit()">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Add Supplier
                         </button>
                     </div>
@@ -492,14 +584,17 @@ const onRemove = (row) => {
 :root {
     --brand: #1c0d82;
 }
+
 .btn-primary {
     background: var(--brand);
     border-color: var(--brand);
 }
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -507,9 +602,9 @@ const onRemove = (row) => {
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
 }
-
 </style>

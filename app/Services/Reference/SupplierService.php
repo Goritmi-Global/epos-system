@@ -16,8 +16,8 @@ class SupplierService
             $s = $filters['q'];
             $q->where(function ($qq) use ($s) {
                 $qq->where('name', 'like', "%{$s}%")
-                   ->orWhere('email', 'like', "%{$s}%")
-                   ->orWhere('contact', 'like', "%{$s}%");
+                    ->orWhere('email', 'like', "%{$s}%")
+                    ->orWhere('contact', 'like', "%{$s}%");
             });
         }
 
@@ -28,13 +28,14 @@ class SupplierService
     //     $data['user_id'] = auth()->id();
     //     return Supplier::create($data);
     // }
-    public function create(array $data) {
-
+    public function create(array $data)
+    {
+      
         $supplier = new Supplier();
         $supplier->user_id         = Auth::id();
         $supplier->name            = $data['name'];
         $supplier->email           = $data['email'];
-        $supplier->contact         = $data['contact']         ?? null;
+        $supplier->contact         = $data['contact'] ?? null;
         $supplier->address         = $data['address']         ?? null;
         $supplier->preferred_items = $data['preferred_items'] ?? null;
 
@@ -43,7 +44,7 @@ class SupplierService
         return $supplier;
     }
 
-   public function update(Supplier $supplier, array $data)
+    public function update(Supplier $supplier, array $data)
     {
         // Never let user_id be changed from the request
         // unset($data['user_id']);
@@ -60,9 +61,8 @@ class SupplierService
         return $supplier;
     }
 
-   public function delete(Supplier $supplier)
-{
-    $supplier->delete();
-}
-
+    public function delete(Supplier $supplier)
+    {
+        $supplier->delete();
+    }
 }
