@@ -30,10 +30,7 @@
         "primevue": "^4.3.7",
         "vue-cropperjs": "^5.0.0",
         "vue3-apexcharts": "^1.8.0",
-<<<<<<< HEAD
-=======
         "vue3-tel-input": "^1.0.4",
->>>>>>> 187e17c7dbd44eda51054fdd4b82db168fa08c27
         "vue3-toastify": "^0.2.8",
         "xlsx": "^0.18.5"
     }

@@ -165,55 +165,97 @@ class CategoryService
      * @param array $data
      * @return array
      */
+    
     public function updateCategory(int $id, array $data): array
-    {
-        try {
-            $category = Category::find($id);
-            
-            if (!$category) {
-                return [
-                    'success' => false,
-                    'message' => 'Category not found',
-                    'data' => null
-                ];
-            }
-
-            // Validate parent category if updating to subcategory
-            if (isset($data['parent_id']) && $data['parent_id']) {
-                $parentCategory = Category::find($data['parent_id']);
-                if (!$parentCategory) {
-                    throw new Exception('Parent category not found');
-                }
-                
-                // Prevent circular reference
-                if ($data['parent_id'] == $id) {
-                    throw new Exception('Category cannot be its own parent');
-                }
-            }
-
-            $category->update([
-                'name' => $data['name'] ?? $category->name,
-                'icon' => $data['icon'] ?? $category->icon,
-                'active' => $data['active'] ?? $category->active,
-                'parent_id' => $data['parent_id'] ?? $category->parent_id,
-            ]);
-
-            return [
-                'success' => true,
-                'message' => 'Category updated successfully',
-                'data' => $category->fresh(['subcategories', 'parent'])
-            ];
-
-        } catch (Exception $e) {
-            Log::error('Category update failed: ' . $e->getMessage());
-            
+{
+    try {
+        $category = Category::find($id);
+        
+        if (!$category) {
             return [
                 'success' => false,
-                'message' => 'Failed to update category: ' . $e->getMessage(),
+                'message' => 'Category not found',
                 'data' => null
             ];
         }
+
+        // Validate parent category if updating to subcategory
+        if (isset($data['parent_id']) && $data['parent_id']) {
+            $parentCategory = Category::find($data['parent_id']);
+            if (!$parentCategory) {
+                throw new Exception('Parent category not found');
+            }
+            
+            // Prevent circular reference
+            if ($data['parent_id'] == $id) {
+                throw new Exception('Category cannot be its own parent');
+            }
+        }
+
+        // ✅ UPDATE THE MAIN CATEGORY FIRST
+        $category->update([
+            'name' => $data['name'] ?? $category->name,
+            'icon' => $data['icon'] ?? $category->icon,
+            'active' => $data['active'] ?? $category->active,
+            'parent_id' => $data['parent_id'] ?? $category->parent_id,
+        ]);
+
+        // ✅ THEN HANDLE SUBCATEGORIES IF PROVIDED
+        if (isset($data['subcategories']) && is_array($data['subcategories'])) {
+            // Get current subcategories
+            $currentSubcategoryIds = $category->subcategories()->pluck('id')->toArray();
+            $updatedSubcategoryIds = [];
+
+            foreach ($data['subcategories'] as $subData) {
+                if (isset($subData['id']) && $subData['id']) {
+                    // Update existing subcategory
+                    $subcategory = Category::find($subData['id']);
+                    if ($subcategory && $subcategory->parent_id == $category->id) {
+                        $subcategory->update([
+                            'name' => $subData['name'],
+                            'active' => $subData['active'] ?? true,
+                            'icon' => $data['icon'] ?? $subcategory->icon, // Inherit parent icon
+                        ]);
+                        $updatedSubcategoryIds[] = $subData['id'];
+                    }
+                } else {
+                    // Create new subcategory
+                    $newSubcategory = Category::create([
+                        'name' => $subData['name'],
+                        'parent_id' => $category->id,
+                        'icon' => $data['icon'] ?? null, // Inherit parent icon
+                        'active' => $subData['active'] ?? true,
+                    ]);
+                    $updatedSubcategoryIds[] = $newSubcategory->id;
+                }
+            }
+
+            // ✅ DELETE subcategories that were removed from the list
+            $subcategoriesToDelete = array_diff($currentSubcategoryIds, $updatedSubcategoryIds);
+            if (!empty($subcategoriesToDelete)) {
+                Category::whereIn('id', $subcategoriesToDelete)
+                    ->where('parent_id', $category->id) // Extra safety check
+                    ->delete();
+            }
+        }
+
+        // Reload category with subcategories
+        $updatedCategory = Category::with('subcategories')->find($id);
+
+        return [
+            'success' => true,
+            'message' => 'Category updated successfully',
+            'data' => $updatedCategory
+        ];
+
+    } catch (\Exception $e) {
+        return [
+            'success' => false,
+            'message' => $e->getMessage(),
+            'data' => null
+        ];
     }
+}
 
     /**
      * Delete category

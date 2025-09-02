@@ -62,8 +62,44 @@ class StoreCategoryRequest extends FormRequest
             $isSubCategory = $this->input('isSubCategory');
             $categories = $this->input('categories', []);
             
+            // ✅ CHECK FOR DUPLICATES WITHIN THE REQUEST
+            $categoryNames = [];
+            
             foreach ($categories as $index => $category) {
                 $parentId = $category['parent_id'] ?? null;
+                $categoryName = trim($category['name'] ?? '');
+                
+                // Skip empty names (will be caught by required validation)
+                if (empty($categoryName)) {
+                    continue;
+                }
+                
+                // ✅ CHECK FOR DUPLICATES IN THE CURRENT REQUEST
+                $duplicateKey = $parentId . '|' . strtolower($categoryName);
+                if (in_array($duplicateKey, $categoryNames)) {
+                    $validator->errors()->add(
+                        "categories.{$index}.name",
+                        "Duplicate category name '{$categoryName}' found in the request."
+                    );
+                    continue;
+                }
+                $categoryNames[] = $duplicateKey;
+                
+                // ✅ CHECK FOR DUPLICATES IN DATABASE
+                $existingCategory = \App\Models\Category::where('name', $categoryName)
+                    ->where('parent_id', $parentId)
+                    ->first();
+                    
+                if ($existingCategory) {
+                    $categoryType = $isSubCategory ? 'subcategory' : 'category';
+                    $parentInfo = $parentId ? ' under this parent category' : '';
+                    
+                    $validator->errors()->add(
+                        "categories.{$index}.name",
+                        "The {$categoryType} '{$categoryName}' already exists{$parentInfo}."
+                    );
+                    continue;
+                }
                 
                 if ($isSubCategory) {
                     // ✅ CREATING SUBCATEGORY - parent_id MUST exist

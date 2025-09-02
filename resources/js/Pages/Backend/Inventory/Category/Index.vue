@@ -8,6 +8,7 @@ import { toast } from "vue3-toastify";
 const manualCategories = ref([]);
 const categories = ref([]);
 const editingCategory = ref(null);
+const manualSubcategories = ref([]);
 
 const fetchCategories = async () => {
     try {
@@ -149,63 +150,105 @@ const submitCategory = async () => {
         return;
     }
 
-    let categoriesPayload = [];
-
-    if (isSub.value) {
-        if (!manualName.value.trim()) {
-            alert("Please enter a subcategory name.");
-            return;
-        }
-        categoriesPayload = [
-            {
-                id: editingCategory.value?.id || undefined, // Pass ID if editing
-                name: manualName.value.trim(),
-                icon: manualIcon.value.value,
-                active: manualActive.value,
-                parent_id: selectedParentId.value,
-            },
-        ];
-    } else {
-        if (manualCategories.value.length === 0) {
-            alert("Please add at least one category.");
-            return;
-        }
-        categoriesPayload = manualCategories.value.map((cat) => ({
-            id: editingCategory.value?.id || undefined, // Pass ID if editing
-            name: typeof cat === "string" ? cat : cat.label,
-            icon: manualIcon.value.value,
-            active: manualActive.value,
-            parent_id: null,
-        }));
-    }
-
-    const payload = {
-        isSubCategory: isSub.value,
-        categories: categoriesPayload,
-    };
-
     submitting.value = true;
+
     try {
         if (editingCategory.value) {
-            const payload = {
-                name: isSub.value
-                    ? manualName.value.trim() // subcategory name
-                    : manualCategories.value[0]?.label?.trim(), // parent category name
+            // UPDATE MODE - Handle both main category and subcategories
+
+            const updatePayload = {
+                name: manualCategories.value[0]?.label?.trim(),
                 icon: manualIcon.value.value,
                 active: manualActive.value,
-                parent_id: isSub.value ? selectedParentId.value : null,
+                parent_id: selectedParentId.value || null,
             };
 
-            if (!payload.name) {
+            // Only include subcategories if we're updating a main category (not a subcategory)
+            if (
+                !updatePayload.parent_id &&
+                manualSubcategories.value.length > 0
+            ) {
+                updatePayload.subcategories = manualSubcategories.value.map(
+                    (selectedValue) => {
+                        // Find the corresponding option to get the label
+                        const matchingOption = options.value.find(
+                            (opt) => opt.value === selectedValue
+                        );
+
+                        if (matchingOption) {
+                            // This is an existing subcategory from options
+                            const parsedId = selectedValue.startsWith("temp_")
+                                ? null
+                                : parseInt(selectedValue);
+                            return {
+                                id: isNaN(parsedId) ? null : parsedId,
+                                name: matchingOption.label,
+                                active: true,
+                            };
+                        } else {
+                            // This is a new subcategory added via custom input
+                            return {
+                                id: null,
+                                name: selectedValue,
+                                active: true,
+                            };
+                        }
+                    }
+                );
+            }
+
+            console.log("Updating category with payload:", updatePayload);
+
+            if (!updatePayload.name) {
                 alert("Category name cannot be empty.");
                 submitting.value = false;
                 return;
             }
 
-            await axios.put(`/categories/${editingCategory.value.id}`, payload);
+            await axios.put(
+                `/categories/${editingCategory.value.id}`,
+                updatePayload
+            );
             toast.success("Category updated successfully ✅");
         } else {
-            await axios.post("/categories", payload);
+            // CREATE MODE - Use the existing structure
+            let categoriesPayload = [];
+
+            if (isSub.value) {
+                if (manualSubcategories.value.length === 0) {
+                    alert("Please add at least one subcategory.");
+                    return;
+                }
+
+                categoriesPayload = manualSubcategories.value.map((cat) => ({
+                    id: undefined,
+                    name: typeof cat === "string" ? cat : cat.label,
+                    icon: manualIcon.value.value,
+                    active: manualActive.value,
+                    parent_id: selectedParentId.value,
+                }));
+            } else {
+                if (manualCategories.value.length === 0) {
+                    toast.warning("Please add at least one category.");
+                    return;
+                }
+
+                categoriesPayload = manualCategories.value.map((cat) => ({
+                    id: undefined,
+                    name: typeof cat === "string" ? cat : cat.label,
+                    icon: manualIcon.value.value,
+                    active: manualActive.value,
+                    parent_id: null,
+                }));
+            }
+
+            const createPayload = {
+                isSubCategory: isSub.value,
+                categories: categoriesPayload,
+            };
+
+            console.log("Creating categories with payload:", createPayload);
+            await axios.post("/categories", createPayload);
             toast.success("Category created successfully ✅");
         }
 
@@ -214,7 +257,34 @@ const submitCategory = async () => {
         await fetchCategories();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
-        toast.error("Failed to save category ❌");
+
+        // ✅ ENHANCED ERROR HANDLING FOR DUPLICATES
+        if (err.response?.status === 422 && err.response?.data?.errors) {
+            const errors = err.response.data.errors;
+            let errorMessages = [];
+
+            // Process validation errors
+            Object.keys(errors).forEach((key) => {
+                if (Array.isArray(errors[key])) {
+                    errors[key].forEach((message) => {
+                        errorMessages.push(message);
+                    });
+                }
+            });
+
+            if (errorMessages.length > 0) {
+                // Show specific validation errors
+                const errorText = errorMessages.join("\n");
+                toast.error(errorText);
+            } else {
+                toast.error("Validation failed. Please check your input.");
+            }
+        } else {
+            // Generic error message
+            const errorMessage =
+                err.response?.data?.message || "Failed to save category";
+            toast.error(errorMessage + " ❌");
+        }
     } finally {
         submitting.value = false;
         const m = bootstrap.Modal.getInstance(
@@ -224,32 +294,74 @@ const submitCategory = async () => {
     }
 };
 
-/* ---------------- Edit Categories ---------------- */
+// ✅ OPTIONAL: Add client-side duplicate check for better UX
+const checkForDuplicates = () => {
+    if (!editingCategory.value) {
+        // Only for create mode
+        const newNames = manualCategories.value.map((cat) =>
+            typeof cat === "string"
+                ? cat.toLowerCase()
+                : cat.label.toLowerCase()
+        );
+
+        const duplicates = newNames.filter(
+            (name, index) => newNames.indexOf(name) !== index
+        );
+
+        if (duplicates.length > 0) {
+            toast.warning("Duplicate category names detected in your input.");
+            return false;
+        }
+    }
+    return true;
+};
+
+// Also update your editRow function to better handle subcategory IDs
 const editRow = (row) => {
     console.log("Editing row:", row);
     editingCategory.value = row;
 
-    // Check if it's a subcategory
+    // Is sub
     isSub.value = !!row.parent_id;
-
-    // Set parent_id if subcategory
     selectedParentId.value = row.parent_id || null;
 
-    // Set icon
+    // Icon
     const iconOption = iconOptions.find((i) => i.value === row.icon);
     manualIcon.value = iconOption || iconOptions[0];
 
-    // Set category name
+    // Name
     if (isSub.value) {
-        manualName.value = row.name; // Subcategory input
+        manualName.value = row.name;
     } else {
-        // Single category selected for editing
         manualCategories.value = [
             { label: row.name, value: row.name, id: row.id },
         ];
     }
 
     manualActive.value = row.active;
+
+    // Handle subcategories - ensure proper ID mapping
+    if (row.subcategories && row.subcategories.length > 0) {
+        // Build options with proper IDs
+        options.value = row.subcategories.map((sub) => ({
+            label: sub.name,
+            value: sub.id
+                ? sub.id.toString()
+                : `temp_${Date.now()}_${Math.random()}`, // fallback for missing IDs
+        }));
+
+        // ✅ FIX: Preselect by VALUE only (not objects)
+        // Since optionValue="value", manualSubcategories should be an array of strings/values
+        manualSubcategories.value = row.subcategories.map((sub) =>
+            sub.id ? sub.id.toString() : `temp_${Date.now()}_${Math.random()}`
+        );
+    } else {
+        options.value = [];
+        manualSubcategories.value = [];
+    }
+
+    console.log("Options:", options.value);
+    console.log("Selected values:", manualSubcategories.value);
 
     // Show modal
     const modalEl = document.getElementById("addCatModal");
@@ -299,21 +411,54 @@ const deleteCategory = async (row) => {
 const viewingCategory = ref(null);
 
 const viewCategory = async (row) => {
-  viewingCategory.value = null;
+    viewingCategory.value = null;
 
-  try {
-    const { data } = await axios.get(`/categories/${row.id}`);
-    if (data.success) {
-      viewingCategory.value = data.data;
+    try {
+        const { data } = await axios.get(`/categories/${row.id}`);
+        if (data.success) {
+            viewingCategory.value = data.data;
 
-      // Show modal
-      const modalEl = document.getElementById("viewCatModal");
-      const bsModal = new bootstrap.Modal(modalEl);
-      bsModal.show();
+            // Show modal
+            const modalEl = document.getElementById("viewCatModal");
+            const bsModal = new bootstrap.Modal(modalEl);
+            bsModal.show();
+        }
+    } catch (err) {
+        console.error("Failed to fetch category:", err);
     }
-  } catch (err) {
-    console.error("Failed to fetch category:", err);
-  }
+};
+
+const options = ref([]); // all subcategory options
+const currentFilterValue = ref("");
+
+// Add custom subcategory
+const addCustomSubcategory = () => {
+    const name = currentFilterValue.value?.trim();
+    if (!name) return;
+
+    // Add to options if it doesn't exist
+    if (
+        !options.value.some((o) => o.value.toLowerCase() === name.toLowerCase())
+    ) {
+        options.value.push({ label: name, value: name });
+    }
+
+    // Add to selected if not already
+    if (!manualSubcategories.value.includes(name)) {
+        manualSubcategories.value.push(name);
+    }
+
+    currentFilterValue.value = "";
+};
+
+// Select all
+const selectAllSubcategories = () => {
+    manualSubcategories.value = options.value.map((o) => o.value);
+};
+
+// Clear all
+const removeAllSubcategories = () => {
+    manualSubcategories.value = [];
 };
 </script>
 
@@ -615,79 +760,93 @@ const viewCategory = async (row) => {
                                 <h5 class="modal-title fw-semibold">
                                     Add Raw Material Categories
                                 </h5>
-                                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        ×</button>
+                                <button
+                                    type="button"
+                                    class="btn btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                >
+                                    ×
+                                </button>
                             </div>
 
                             <div class="modal-body">
                                 <!-- Row 1 -->
                                 <div class="row g-3">
-                                    <div class="col-lg-6">
-                                        <label class="form-label d-block mb-2"
-                                            >Is this a subcategory?</label
-                                        >
-                                        <div
-                                            class="d-flex align-items-center gap-3"
-                                        >
-                                            <div class="form-check">
-                                                <input
-                                                    class="form-check-input"
-                                                    type="radio"
-                                                    :checked="isSub"
-                                                    @change="
-                                                        isSub = true;
-                                                        selectedParentId = null;
-                                                    "
-                                                    name="isSub"
-                                                />
-                                                <label class="form-check-label"
-                                                    >Yes</label
-                                                >
-                                            </div>
-                                            <div class="form-check">
-                                                <input
-                                                    class="form-check-input"
-                                                    type="radio"
-                                                    :checked="!isSub"
-                                                    @change="
-                                                        isSub = false;
-                                                        selectedParentId = null;
-                                                    "
-                                                    name="isSub"
-                                                />
-                                                <label class="form-check-label"
-                                                    >No</label
-                                                >
+                                    <!-- Show "Is this a subcategory?" only when creating -->
+                                    <template v-if="!editingCategory">
+                                        <div class="col-lg-6">
+                                            <label
+                                                class="form-label d-block mb-2"
+                                                >Is this a subcategory?</label
+                                            >
+                                            <div
+                                                class="d-flex align-items-center gap-3"
+                                            >
+                                                <div class="form-check">
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="radio"
+                                                        :checked="isSub"
+                                                        @change="
+                                                            isSub = true;
+                                                            selectedParentId =
+                                                                null;
+                                                        "
+                                                        name="isSub"
+                                                    />
+                                                    <label
+                                                        class="form-check-label"
+                                                        >Yes</label
+                                                    >
+                                                </div>
+                                                <div class="form-check">
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="radio"
+                                                        :checked="!isSub"
+                                                        @change="
+                                                            isSub = false;
+                                                            selectedParentId =
+                                                                null;
+                                                        "
+                                                        name="isSub"
+                                                    />
+                                                    <label
+                                                        class="form-check-label"
+                                                        >No</label
+                                                    >
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
-                                    <div class="col-lg-6" v-if="isSub">
-                                        <label class="form-label d-block mb-2"
-                                            >Select Parent Category</label
-                                        >
-                                        <select
-                                            v-model="selectedParentId"
-                                            class="form-select"
-                                            required
-                                        >
-                                            <option disabled :value="null">
-                                                -- Choose Parent Category --
-                                            </option>
-                                            <option
-                                                v-for="cat in parentCategories"
-                                                :key="cat.id"
-                                                :value="cat.id"
+                                        <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
+                                        <div class="col-lg-6" v-if="isSub">
+                                            <label
+                                                class="form-label d-block mb-2"
+                                                >Select Parent Category</label
                                             >
-                                                {{ cat.name }}
-                                            </option>
-                                        </select>
-                                    </div>
+                                            <select
+                                                v-model="selectedParentId"
+                                                class="form-select"
+                                                required
+                                            >
+                                                <option disabled :value="null">
+                                                    -- Choose Parent Category --
+                                                </option>
+                                                <option
+                                                    v-for="cat in parentCategories"
+                                                    :key="cat.id"
+                                                    :value="cat.id"
+                                                >
+                                                    {{ cat.name }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </template>
 
-                                    <div
-                                        :class="isSub ? 'col-lg-6' : 'col-lg-6'"
-                                    >
+                                    <!-- Manual Icon (always show) -->
+                                    <div class="col-lg-6">
                                         <label class="form-label d-block mb-2"
                                             >Manual Icon</label
                                         >
@@ -696,12 +855,12 @@ const viewCategory = async (row) => {
                                                 class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
                                                 data-bs-toggle="dropdown"
                                             >
-                                                <span
-                                                    ><span class="me-2">{{
+                                                <span>
+                                                    <span class="me-2">{{
                                                         manualIcon.value
                                                     }}</span>
-                                                    {{ manualIcon.label }}</span
-                                                >
+                                                    {{ manualIcon.label }}
+                                                </span>
                                                 <i
                                                     class="bi bi-caret-down-fill"
                                                 ></i>
@@ -730,14 +889,16 @@ const viewCategory = async (row) => {
                                         </div>
                                     </div>
 
-                                    <!-- Categories (Main Category) - show MultiSelect -->
-                                    <!-- Parent Category Input -->
-                                    <div class="col-12" v-if="!isSub">
+                                    <!-- Category Name -->
+                                    <div
+                                        class="col-12"
+                                        v-if="!isSub || editingCategory"
+                                    >
                                         <label class="form-label"
                                             >Category Name</label
                                         >
 
-                                        <!-- Single input in edit mode -->
+                                        <!-- Single input when editing -->
                                         <input
                                             v-if="editingCategory"
                                             type="text"
@@ -746,7 +907,7 @@ const viewCategory = async (row) => {
                                             placeholder="Enter category name"
                                         />
 
-                                        <!-- MultiSelect for new categories -->
+                                        <!-- MultiSelect when creating -->
                                         <MultiSelect
                                             v-else
                                             v-model="manualCategories"
@@ -772,22 +933,87 @@ const viewCategory = async (row) => {
                                         </MultiSelect>
                                     </div>
 
-                                    <!-- Subcategory - show simple input -->
-                                    <div class="col-12" v-else>
+                                    <!-- Subcategory MultiSelect (always in edit, only when isSub=false in create) -->
+                                    <div
+                                        class="col-12"
+                                        v-if="editingCategory || isSub"
+                                    >
                                         <label class="form-label"
-                                            >Subcategory Name</label
+                                            >Subcategory Name(s)</label
                                         >
-                                        <input
-                                            type="text"
-                                            v-model="manualName"
-                                            class="form-control"
-                                            placeholder="Enter subcategory name"
-                                        />
+
+                                        <MultiSelect
+                                            v-model="manualSubcategories"
+                                            :options="options"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            :filter="true"
+                                            display="chip"
+                                            placeholder="Select or add subcategories..."
+                                            class="w-100"
+                                            appendTo="self"
+                                            @filter="
+                                                (e) =>
+                                                    (currentFilterValue =
+                                                        e.value || '')
+                                            "
+                                            @keydown.enter.prevent="
+                                                addCustomSubcategory
+                                            "
+                                            @blur="addCustomSubcategory"
+                                        >
+                                            <template #option="{ option }">
+                                                <div>{{ option.label }}</div>
+                                            </template>
+
+                                            <template #footer>
+                                                <div
+                                                    class="p-3 d-flex justify-content-between"
+                                                >
+                                                    <Button
+                                                        label="Add Custom"
+                                                        severity="secondary"
+                                                        variant="text"
+                                                        size="small"
+                                                        icon="pi pi-plus"
+                                                        @click="
+                                                            addCustomSubcategory
+                                                        "
+                                                        :disabled="
+                                                            !currentFilterValue.trim()
+                                                        "
+                                                    />
+                                                    <div class="d-flex gap-2">
+                                                        <Button
+                                                            label="Select All"
+                                                            severity="secondary"
+                                                            variant="text"
+                                                            size="small"
+                                                            icon="pi pi-check"
+                                                            @click="
+                                                                selectAllSubcategories
+                                                            "
+                                                        />
+                                                        <Button
+                                                            label="Clear All"
+                                                            severity="danger"
+                                                            variant="text"
+                                                            size="small"
+                                                            icon="pi pi-times"
+                                                            @click="
+                                                                removeAllSubcategories
+                                                            "
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </MultiSelect>
                                     </div>
 
+                                    <!-- Active toggle -->
                                     <div class="col-12">
                                         <label class="form-label d-block mb-2"
-                                            >Active (for manual entry)</label
+                                            >Active</label
                                         >
                                         <div
                                             class="d-flex align-items-center gap-3"
@@ -832,9 +1058,13 @@ const viewCategory = async (row) => {
                                         :disabled="submitting"
                                         @click="submitCategory()"
                                     >
-                                        <span v-if="!submitting"
-                                            >Add Category(ies)</span
-                                        >
+                                        <span v-if="!submitting">
+                                            {{
+                                                editingCategory
+                                                    ? "Update Category"
+                                                    : "Add Category(ies)"
+                                            }}
+                                        </span>
                                         <span v-else>Saving...</span>
                                     </button>
                                     <button
