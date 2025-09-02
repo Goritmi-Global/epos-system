@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StoreInventoryRequest;
 use App\Http\Requests\Inventory\UpdateInventoryRequest;
 use App\Models\Allergy;
+use App\Models\Category;
 use App\Models\Inventory;
 use App\Models\Supplier;
 use App\Models\Tag;
@@ -21,6 +22,7 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
                 $allergies = Allergy::get();
+                $categories = Category::get();
                 $units = Unit::get();
                 $suppliers =Supplier::get();
                 $tags = Tag::get();
@@ -28,7 +30,8 @@ class InventoryController extends Controller
                     'allergies' => $allergies,
                     'units' => $units,
                     'suppliers' => $suppliers,
-                    'tags' => $tags
+                    'tags' => $tags,
+                    'categories' => $categories
                 ]);
 
         // $items = $this->service->list($request->only('q'));
