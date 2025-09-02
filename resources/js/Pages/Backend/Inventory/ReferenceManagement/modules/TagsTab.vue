@@ -2,7 +2,9 @@
 import { ref, computed, onMounted, nextTick } from "vue";
 import { toast } from "vue3-toastify";
 import MultiSelect from "primevue/multiselect";
-
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from 'xlsx';
 const rows = ref([
     { id: 1, name: "Vegan" },
     { id: 2, name: "Halal" },
@@ -26,6 +28,7 @@ const options = ref([
     { label: "Scottish Produce", value: "Scottish Produce" },
     { label: "Welsh Lamb", value: "Welsh Lamb" },
 ]);
+
 
 const selected = ref([]); // array of values
 const filterText = ref(""); // Fixed: Added missing filterText ref
@@ -191,6 +194,7 @@ const onSubmit = async () => {
     }
 };
 
+
 // Function to properly hide modal and clean up backdrop
 const hideModal = () => {
     // Get the modal element
@@ -256,10 +260,150 @@ const fetchTags = () => {
         });
 };
 
-// Fixed: Add missing onDownload function
-const onDownload = (format) => {
-    console.log(`Downloading tags as ${format}`);
-    // Add your download logic here
+const onDownload = (type) => {
+    if (!tags.value || tags.value.length === 0) {
+        toast.error("No Tags data to download", { autoClose: 3000 });
+        return;
+    }
+
+    // Use filtered data if there's a search query, otherwise use all suppliers
+    const dataToExport = q.value.trim() ? filtered.value : tags.value;
+
+    if (dataToExport.length === 0) {
+        toast.error("No Tags found to download", { autoClose: 3000 });
+        return;
+    }
+
+    try {
+        if (type === 'pdf') {
+            downloadPDF(dataToExport);
+        } else if (type === 'excel') {
+            downloadExcel(dataToExport);
+        } else {
+            toast.error("Invalid download type", { autoClose: 3000 });
+        }
+    } catch (error) {
+        console.error('Download failed:', error);
+        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+    }
+};
+
+const downloadPDF = (data) => {
+  try {
+    const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
+
+    // 🌟 Title
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Tags Report", 14, 20);
+
+    // 🗓️ Metadata
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const currentDate = new Date().toLocaleString();
+    doc.text(`Generated on: ${currentDate}`, 14, 28);
+    doc.text(`Total Tags: ${data.length}`, 14, 34);
+
+    // 📋 Table Data
+    const tableColumns = ["Name"];
+    const tableRows = data.map((s) => [
+      s.name || "",
+    ]);
+
+    // 📑 Styled table
+    autoTable(doc, {
+      head: [tableColumns],
+      body: tableRows,
+      startY: 40,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        halign: "left",
+      },
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { left: 14, right: 14 },
+      didDrawPage: (tableData) => {
+        // Footer with page numbers
+        const pageCount = doc.internal.getNumberOfPages();
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${tableData.pageNumber} of ${pageCount}`,
+          tableData.settings.margin.left,
+          pageHeight - 10
+        );
+      },
+    });
+
+    // 💾 Save file
+    const fileName = `Tags_${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(fileName);
+
+    toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+  }
+};
+
+
+const downloadExcel = (data) => {
+    try {
+        // Check if XLSX is available
+        if (typeof XLSX === 'undefined') {
+            throw new Error('XLSX library is not loaded');
+        }
+        
+        // Prepare worksheet data
+        const worksheetData = data.map(tag => ({
+            'Name': tag.name || '',
+            
+        }));
+
+        // Create workbook and worksheet
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths
+        const colWidths = [
+            { wch: 20 }, // Name
+            { wch: 25 }, // Email
+            { wch: 15 }, // Phone
+            { wch: 30 }, // Address
+            { wch: 25 }, // Preferred Items
+            { wch: 10 }  // ID
+        ];
+        worksheet['!cols'] = colWidths;
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Tags');
+
+        // Add metadata sheet
+        const metaData = [
+            { Info: 'Generated On', Value: new Date().toLocaleString() },
+            { Info: 'Total Records', Value: data.length },
+            { Info: 'Exported By', Value: 'Tags Management System' }
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, 'Report Info');
+
+        // Generate file name
+        const fileName = `Tags_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // Save the file
+        XLSX.writeFile(workbook, fileName);
+        
+        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
+        
+    } catch (error) {
+        console.error('Excel generation error:', error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+    }
 };
 
 onMounted(async () => {

@@ -5,7 +5,11 @@ namespace App\Http\Controllers\POS;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StoreInventoryRequest;
 use App\Http\Requests\Inventory\UpdateInventoryRequest;
+use App\Models\Allergy;
 use App\Models\Inventory;
+use App\Models\Supplier;
+use App\Models\Tag;
+use App\Models\Unit;
 use App\Services\POS\InventoryService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,8 +20,16 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
-        // dd("test");
-                return Inertia::render('Backend/Inventory/Index');
+                $allergies = Allergy::get();
+                $units = Unit::get();
+                $suppliers =Supplier::get();
+                $tags = Tag::get();
+                return Inertia::render('Backend/Inventory/Index',[
+                    'allergies' => $allergies,
+                    'units' => $units,
+                    'suppliers' => $suppliers,
+                    'tags' => $tags
+                ]);
 
         // $items = $this->service->list($request->only('q'));
         // return Inertia::render('Inventory/Index', ['items' => $items]);
