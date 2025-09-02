@@ -352,7 +352,7 @@ const updateSupplier = () => {
             toast.success("Supplier updated successfully ✅", {
                 autoClose: 2500,
             });
-
+            resetForm();
             // close whichever modal you're using for edit
             closeModal("modalAddSupplier"); // or "modalAddSupplier" if reusing it
             return nextTick();
@@ -518,7 +518,7 @@ const onRemove = (row) => {
                             <input class="form-control" v-model="form.name" />
                             <small v-if="errors.name" class="text-danger">{{
                                 errors.name[0]
-                            }}</small>
+                                }}</small>
                         </div>
 
                         <!-- Email -->
@@ -527,7 +527,7 @@ const onRemove = (row) => {
                             <input class="form-control" v-model="form.email" />
                             <small v-if="errors.email" class="text-danger">{{
                                 errors.email[0]
-                            }}</small>
+                                }}</small>
                         </div>
 
                         <!-- Phone -->
@@ -540,9 +540,9 @@ const onRemove = (row) => {
                             <input class="form-control" v-model="form.phone" />
                             <small v-if="errors.contact" class="text-danger">{{
                                 errors.contact[0]
-                                }}</small>
+                            }}</small>
                         </div>
-                       
+
 
                         <!-- Address -->
                         <div class="col-lg-6">
@@ -550,7 +550,7 @@ const onRemove = (row) => {
                             <textarea class="form-control" rows="4" v-model="form.address"></textarea>
                             <small v-if="errors.address" class="text-danger">{{
                                 errors.address[0]
-                            }}</small>
+                                }}</small>
                         </div>
 
                         <!-- Preferred Items -->

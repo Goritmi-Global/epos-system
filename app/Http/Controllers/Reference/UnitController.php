@@ -28,15 +28,23 @@ class UnitController extends Controller
     /**
      * Store a new unit
      */
-    public function store(StoreUnitRequest $request): JsonResponse
-    {
+   public function store(Request $request): JsonResponse
+{
+    $unitsData = $request->input('units');
 
-        $unit = $this->service->create($request->validated());
-        return response()->json([
-            'message' => 'unit created successfully',
-            'data'    => $unit,
-        ], 201);
+    // If it's a single request, wrap into array
+    if (!is_array($unitsData)) {
+        $unitsData = [ ['name' => $request->input('name')] ];
     }
+
+    // Insert all at once
+    $created = Unit::insert($unitsData);
+
+    return response()->json([
+        'message' => 'Units created successfully',
+        'data'    => $unitsData,
+    ], 201);
+}
 
     /**
      * Update an existing unit
