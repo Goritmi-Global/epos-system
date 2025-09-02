@@ -89,6 +89,7 @@ onUpdated(() => window.feather?.replace());
 const isSub = ref(false);
 const manualName = ref("");
 const manualActive = ref(true);
+const selectedParentId = ref("");
 const manualIcon = ref({ label: "Produce (Veg/Fruit)", value: "🥬" });
 
 const iconOptions = [
@@ -165,6 +166,7 @@ const submitCategory = () => {
     const selectedCommons = commonChips.value.filter((c) => c.selected);
     const payload = {
         isSubCategory: isSub.value,
+        parent_id: isSub.value ? selectedParentId.value : null,
         manual: manualName.value
             ? [
                   {
@@ -561,6 +563,27 @@ const editRow = (row) => {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                                <!-- if sub category is yes -->
+                                <div class="col-lg-6" v-if="isSub">
+                                    <label class="form-label d-block mb-2"
+                                        >Select Parent Category</label
+                                    >
+                                    <select
+                                        v-model="selectedParentId"
+                                        class="form-select"
+                                    >
+                                        <option disabled value="">
+                                            -- Choose Parent Category --
+                                        </option>
+                                        <option
+                                            v-for="cat in categories"
+                                            :key="cat.id"
+                                            :value="cat.id"
+                                        >
+                                            {{ cat.name }}
+                                        </option>
+                                    </select>
                                 </div>
 
                                 <hr class="my-4" />

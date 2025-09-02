@@ -28,6 +28,7 @@ use App\Http\Controllers\POS\{
 use App\Http\Controllers\Reference\{
     ReferenceManagementController,
     SupplierController,
+    CategoryController,
     TagController,
     AllergyController,
     UnitController
@@ -125,6 +126,21 @@ Route::prefix('tags')->group(function () {
     Route::post('/', [TagController::class, 'store']);
     Route::put('/{tag}', [TagController::class, 'update']);
     Route::delete('/{tag}', [TagController::class, 'destroy']);
+});
+
+// Category Management Routes
+Route::prefix('categories')->group(function () {
+    // CRUD Operations
+    Route::get('/', [CategoryController::class, 'index']);
+    Route::post('/', [CategoryController::class, 'store']);
+    Route::get('/{id}', [CategoryController::class, 'show']);
+    Route::put('/{id}', [CategoryController::class, 'update']);
+    Route::delete('/{id}', [CategoryController::class, 'destroy']);
+    
+    // Additional Operations
+    Route::get('/parents/list', [CategoryController::class, 'getParents']);
+    Route::get('/statistics/summary', [CategoryController::class, 'statistics']);
+    Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus']);
 });
 
 

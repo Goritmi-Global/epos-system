@@ -1,72 +1,45 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
+import MultiSelect from "primevue/multiselect";
+import { toast } from "vue3-toastify";
 
 /* ---------------- Demo data (swap with API later) ---------------- */
-const categories = ref([
-    {
-        id: 1,
-        name: "Poultry",
-        subCategoryText: "Sub Cat. of Poultry, Sub Cat. of ...",
-        icon: "🍗",
-        totalValue: 4038.4,
-        totalItem: 1,
-        outOfStock: 0,
-        lowStock: 0,
-        inStock: 1,
-    },
-    {
-        id: 2,
-        name: "Flour & Baking",
-        subCategoryText: "–",
-        icon: "🥯",
-        totalValue: 0,
-        totalItem: 0,
-        outOfStock: 0,
-        lowStock: 0,
-        inStock: 0,
-    },
-    {
-        id: 3,
-        name: "Category B",
-        subCategoryText: "–",
-        icon: "🌿",
-        totalValue: 0,
-        totalItem: 0,
-        outOfStock: 0,
-        lowStock: 0,
-        inStock: 0,
-    },
-    {
-        id: 4,
-        name: "Meat",
-        subCategoryText: "–",
-        icon: "🍔",
-        totalValue: 0,
-        totalItem: 0,
-        outOfStock: 0,
-        lowStock: 0,
-        inStock: 0,
-    },
-]);
+const manualCategories = ref([]);
+const categories = ref([]);
+const editingCategory = ref(null);
+
+const fetchCategories = async () => {
+    try {
+        const res = await axios.get("/categories");
+        categories.value = res.data.data;
+    } catch (err) {
+        console.error("Failed to fetch categories:", err);
+    }
+};
+
+onMounted(() => {
+    fetchCategories();
+});
+
+// Get only parent categories (main categories) for dropdown
+const parentCategories = computed(() => {
+    return categories.value.filter((cat) => cat.parent_id === null);
+});
 
 /* ---------------- KPI (fake) ---------------- */
-const kpi = computed(() => [
-    { label: "Categories", value: categories.value.length, icon: "layers" },
+const CategoriesDetails = computed(() => [
     {
-        label: "Total Items",
-        value: categories.value.reduce((a, c) => a + c.totalItem, 0),
-        icon: "package",
+        label: "Categories",
+        value: parentCategories.value.length, // total categories
     },
     {
-        label: "Low Stock",
-        value: categories.value.reduce((a, c) => a + c.lowStock, 0),
-        icon: "alert-triangle",
+        label: "Active Categories",
+        value: parentCategories.value.filter((c) => c.active).length, // count of active categories
     },
     {
-        label: "Out of Stock",
-        value: categories.value.reduce((a, c) => a + c.outOfStock, 0),
-        icon: "slash",
+        label: "Deactive Categories",
+        value: parentCategories.value.filter((c) => !c.active).length, // count of inactive categories
     },
 ]);
 
@@ -74,12 +47,14 @@ const kpi = computed(() => [
 const q = ref("");
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
-    if (!t) return categories.value;
-    return categories.value.filter((c) =>
-        [c.name, c.subCategoryText].some((v) =>
-            (v || "").toLowerCase().includes(t)
-        )
-    );
+    // First, get only parent categories
+    const parents = categories.value.filter((c) => c.parent_id === null);
+
+    // If no search term, return all parent categories
+    if (!t) return parents;
+
+    // Otherwise, filter parents by search term
+    return parents.filter((c) => c.name.toLowerCase().includes(t));
 });
 
 /* ---------------- Helpers ---------------- */
@@ -93,6 +68,7 @@ onUpdated(() => window.feather?.replace());
 const isSub = ref(false);
 const manualName = ref("");
 const manualActive = ref(true);
+const selectedParentId = ref(null); // Changed to null instead of empty string
 const manualIcon = ref({ label: "Produce (Veg/Fruit)", value: "🥬" });
 
 const iconOptions = [
@@ -152,8 +128,10 @@ const selectAll = () => {
 
 const resetModal = () => {
     isSub.value = false;
-    manualName.value = "";
+    manualCategories.value = [];
     manualActive.value = true;
+    selectedParentId.value = null;
+    manualName.value = "";
     manualIcon.value = iconOptions[0];
     commonChips.value = commonChips.value.map((c) => ({
         ...c,
@@ -163,80 +141,179 @@ const resetModal = () => {
 
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
+import axios from "axios";
 
-const submitCategory = () => {
-    // build payload
-    const selectedCommons = commonChips.value.filter((c) => c.selected);
+const submitCategory = async () => {
+    if (isSub.value && !selectedParentId.value) {
+        alert("Please select a parent category for subcategory.");
+        return;
+    }
+
+    let categoriesPayload = [];
+
+    if (isSub.value) {
+        if (!manualName.value.trim()) {
+            alert("Please enter a subcategory name.");
+            return;
+        }
+        categoriesPayload = [
+            {
+                id: editingCategory.value?.id || undefined, // Pass ID if editing
+                name: manualName.value.trim(),
+                icon: manualIcon.value.value,
+                active: manualActive.value,
+                parent_id: selectedParentId.value,
+            },
+        ];
+    } else {
+        if (manualCategories.value.length === 0) {
+            alert("Please add at least one category.");
+            return;
+        }
+        categoriesPayload = manualCategories.value.map((cat) => ({
+            id: editingCategory.value?.id || undefined, // Pass ID if editing
+            name: typeof cat === "string" ? cat : cat.label,
+            icon: manualIcon.value.value,
+            active: manualActive.value,
+            parent_id: null,
+        }));
+    }
+
     const payload = {
         isSubCategory: isSub.value,
-        manual: manualName.value
-            ? [
-                  {
-                      name: manualName.value,
-                      icon: manualIcon.value.value,
-                      active: manualActive.value,
-                  },
-              ]
-            : [],
-        selectedCommons: selectedCommons.map((c) => ({
-            name: c.label,
-            icon: c.icon,
-            active: true,
-        })),
+        categories: categoriesPayload,
     };
 
-    console.log("[InventoryCategory] Submit payload:", payload);
-
-    // fake API
     submitting.value = true;
-    fakeApi(payload)
-        .then((resp) => {
-            console.log("✅ then():", resp.message);
-            // mock add to table so user sees something change
-            const toAdd = [...payload.manual, ...payload.selectedCommons];
-            if (toAdd.length) {
-                toAdd.forEach((c) => {
-                    categories.value.push({
-                        id: Date.now() + Math.random(),
-                        name: c.name,
-                        subCategoryText: isSub.value ? "Sub Category" : "–",
-                        icon: c.icon || "🧰",
-                        totalValue: 0,
-                        totalItem: 0,
-                        outOfStock: 0,
-                        lowStock: 0,
-                        inStock: 0,
-                    });
-                });
+    try {
+        if (editingCategory.value) {
+            const payload = {
+                name: isSub.value
+                    ? manualName.value.trim() // subcategory name
+                    : manualCategories.value[0]?.label?.trim(), // parent category name
+                icon: manualIcon.value.value,
+                active: manualActive.value,
+                parent_id: isSub.value ? selectedParentId.value : null,
+            };
+
+            if (!payload.name) {
+                alert("Category name cannot be empty.");
+                submitting.value = false;
+                return;
             }
-        })
-        .catch((err) => {
-            console.error("❌ catch():", err?.message || err);
-            alert("Failed to add categories (demo). See console for details.");
-        })
-        .finally(() => {
-            submitting.value = false;
-            // close modal
-            const m = bootstrap.Modal.getInstance(
-                document.getElementById("addCatModal")
-            );
-            m?.hide();
-            resetModal();
-        });
+
+            await axios.put(`/categories/${editingCategory.value.id}`, payload);
+            toast.success("Category updated successfully ✅");
+        } else {
+            await axios.post("/categories", payload);
+            toast.success("Category created successfully ✅");
+        }
+
+        resetModal();
+        editingCategory.value = null;
+        await fetchCategories();
+    } catch (err) {
+        console.error("❌ Error:", err.response?.data || err.message);
+        toast.error("Failed to save category ❌");
+    } finally {
+        submitting.value = false;
+        const m = bootstrap.Modal.getInstance(
+            document.getElementById("addCatModal")
+        );
+        m?.hide();
+    }
 };
 
-function fakeApi(data) {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            // flip this to `reject(new Error("Network down"))` to test catch
-            resolve({ ok: true, message: "Saved (demo)", data });
-        }, 800);
-    });
-}
-
-/* ---------------- Row actions (wire later) ---------------- */
+/* ---------------- Edit Categories ---------------- */
 const editRow = (row) => {
-    console.log("Edit row:", row);
+    console.log("Editing row:", row);
+    editingCategory.value = row;
+
+    // Check if it's a subcategory
+    isSub.value = !!row.parent_id;
+
+    // Set parent_id if subcategory
+    selectedParentId.value = row.parent_id || null;
+
+    // Set icon
+    const iconOption = iconOptions.find((i) => i.value === row.icon);
+    manualIcon.value = iconOption || iconOptions[0];
+
+    // Set category name
+    if (isSub.value) {
+        manualName.value = row.name; // Subcategory input
+    } else {
+        // Single category selected for editing
+        manualCategories.value = [
+            { label: row.name, value: row.name, id: row.id },
+        ];
+    }
+
+    manualActive.value = row.active;
+
+    // Show modal
+    const modalEl = document.getElementById("addCatModal");
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+};
+
+// ==================== custom category ====================
+const filterText = ref("");
+
+const addCustomCategory = () => {
+    const name = (filterText.value || "").trim();
+    if (!name) return;
+
+    // Check if category already exists
+    if (
+        !commonChips.value.some(
+            (o) => o.label.toLowerCase() === name.toLowerCase()
+        )
+    ) {
+        commonChips.value.push({ label: name, value: name });
+    }
+
+    // Add it to selected categories if not already selected
+    if (!manualCategories.value.includes(name)) {
+        manualCategories.value = [...manualCategories.value, name];
+    }
+
+    filterText.value = "";
+};
+// ================= Delete Category ======================
+
+const deleteCategory = async (row) => {
+    if (!row?.id) return;
+
+    try {
+        await axios.delete(`/categories/${row.id}`);
+        toast.success("Category deleted successfully ✅");
+        await fetchCategories(); // refresh the table
+    } catch (err) {
+        console.error("❌ Delete error:", err.response?.data || err.message);
+        toast.error("Failed to delete category ❌");
+    }
+};
+
+// =================== View category ====================
+const viewingCategory = ref(null);
+
+const viewCategory = async (row) => {
+  viewingCategory.value = null;
+
+  try {
+    const { data } = await axios.get(`/categories/${row.id}`);
+    if (data.success) {
+      viewingCategory.value = data.data;
+
+      // Show modal
+      const modalEl = document.getElementById("viewCatModal");
+      const bsModal = new bootstrap.Modal(modalEl);
+      bsModal.show();
+    }
+  } catch (err) {
+    console.error("Failed to fetch category:", err);
+  }
 };
 </script>
 
@@ -244,11 +321,15 @@ const editRow = (row) => {
     <Master>
         <div class="page-wrapper">
             <div class="container-fluid py-3">
-                <h4 class="fw-semibold mb-3">Inventory Categories</h4>
+                <h4 class="fw-semibold mb-3">Manu Categories</h4>
 
                 <!-- KPI -->
                 <div class="row g-3">
-                    <div v-for="c in kpi" :key="c.label" class="col-6 col-md-3">
+                    <div
+                        v-for="c in CategoriesDetails"
+                        :key="c.label"
+                        class="col-6 col-md-4"
+                    >
                         <div class="card border-0 shadow-sm rounded-4">
                             <div
                                 class="card-body d-flex flex-column justify-content-center text-center"
@@ -352,22 +433,26 @@ const editRow = (row) => {
                                             class="text-truncate"
                                             style="max-width: 260px"
                                         >
-                                            {{ row.subCategoryText }}
+                                            {{
+                                                row.subcategories
+                                                    ?.map((sub) => sub.name)
+                                                    .join(", ") || "–"
+                                            }}
                                         </td>
                                         <td>
                                             <div
                                                 class="rounded d-inline-flex align-items-center justify-content-center img-chip"
                                             >
                                                 <span class="fs-5">{{
-                                                    row.icon
+                                                    row.icon || "📦"
                                                 }}</span>
                                             </div>
                                         </td>
-                                        <td>{{ money(row.totalValue) }}</td>
-                                        <td>{{ row.totalItem }}</td>
-                                        <td>{{ row.outOfStock }}</td>
-                                        <td>{{ row.lowStock }}</td>
-                                        <td>{{ row.inStock }}</td>
+                                        <td>{{ money(row.total_value) }}</td>
+                                        <td>{{ row.total_items }}</td>
+                                        <td>{{ row.out_of_stock }}</td>
+                                        <td>{{ row.low_stock }}</td>
+                                        <td>{{ row.in_stock }}</td>
                                         <td class="text-end">
                                             <div class="dropdown">
                                                 <button
@@ -385,6 +470,22 @@ const editRow = (row) => {
                                                             class="dropdown-item py-2"
                                                             href="javascript:void(0)"
                                                             @click="
+                                                                viewCategory(
+                                                                    row
+                                                                )
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-eye me-2"
+                                                            ></i>
+                                                            View
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
                                                                 editRow(row)
                                                             "
                                                         >
@@ -392,6 +493,22 @@ const editRow = (row) => {
                                                                 class="bi bi-pencil-square me-2"
                                                             ></i>
                                                             Edit
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a
+                                                            class="dropdown-item py-2 text-danger"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                deleteCategory(
+                                                                    row
+                                                                )
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-trash me-2"
+                                                            ></i>
+                                                            Delete
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -413,6 +530,78 @@ const editRow = (row) => {
                     </div>
                 </div>
 
+                <!-- =================== View Modal of Category =================== -->
+                <div
+                    class="modal fade"
+                    id="viewCatModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content rounded-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Category Details</h5>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                ></button>
+                            </div>
+                            <div class="modal-body" v-if="viewingCategory">
+                                <p>
+                                    <strong>Name:</strong>
+                                    {{ viewingCategory.name }}
+                                </p>
+                                <p>
+                                    <strong>Icon:</strong>
+                                    <span class="fs-4">{{
+                                        viewingCategory.icon
+                                    }}</span>
+                                </p>
+                                <p>
+                                    <strong>Status:</strong>
+                                    {{
+                                        viewingCategory.active
+                                            ? "Active"
+                                            : "Inactive"
+                                    }}
+                                </p>
+                                <p v-if="viewingCategory.parent">
+                                    <strong>Parent Category:</strong>
+                                    {{ viewingCategory.parent.name }}
+                                </p>
+                                <p>
+                                    <strong>Sub-Categories: </strong>
+                                    <span
+                                        v-if="
+                                            viewingCategory.subcategories.length
+                                        "
+                                    >
+                                        {{
+                                            viewingCategory.subcategories
+                                                .map((sub) => sub.name)
+                                                .join(", ")
+                                        }}
+                                    </span>
+                                    <span v-else>None</span>
+                                </p>
+                            </div>
+                            <div class="modal-body text-center" v-else>
+                                Loading category details...
+                            </div>
+                            <div class="modal-footer">
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ================== Add Category Modal ================== -->
                 <div
                     class="modal fade"
@@ -426,13 +615,8 @@ const editRow = (row) => {
                                 <h5 class="modal-title fw-semibold">
                                     Add Raw Material Categories
                                 </h5>
-                                <button
-                                    type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                    @click="resetModal"
-                                ></button>
+                                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        ×</button>
                             </div>
 
                             <div class="modal-body">
@@ -450,7 +634,10 @@ const editRow = (row) => {
                                                     class="form-check-input"
                                                     type="radio"
                                                     :checked="isSub"
-                                                    @change="isSub = true"
+                                                    @change="
+                                                        isSub = true;
+                                                        selectedParentId = null;
+                                                    "
                                                     name="isSub"
                                                 />
                                                 <label class="form-check-label"
@@ -462,7 +649,10 @@ const editRow = (row) => {
                                                     class="form-check-input"
                                                     type="radio"
                                                     :checked="!isSub"
-                                                    @change="isSub = false"
+                                                    @change="
+                                                        isSub = false;
+                                                        selectedParentId = null;
+                                                    "
                                                     name="isSub"
                                                 />
                                                 <label class="form-check-label"
@@ -472,7 +662,32 @@ const editRow = (row) => {
                                         </div>
                                     </div>
 
-                                    <div class="col-lg-6">
+                                    <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
+                                    <div class="col-lg-6" v-if="isSub">
+                                        <label class="form-label d-block mb-2"
+                                            >Select Parent Category</label
+                                        >
+                                        <select
+                                            v-model="selectedParentId"
+                                            class="form-select"
+                                            required
+                                        >
+                                            <option disabled :value="null">
+                                                -- Choose Parent Category --
+                                            </option>
+                                            <option
+                                                v-for="cat in parentCategories"
+                                                :key="cat.id"
+                                                :value="cat.id"
+                                            >
+                                                {{ cat.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div
+                                        :class="isSub ? 'col-lg-6' : 'col-lg-6'"
+                                    >
                                         <label class="form-label d-block mb-2"
                                             >Manual Icon</label
                                         >
@@ -515,16 +730,58 @@ const editRow = (row) => {
                                         </div>
                                     </div>
 
-                                    <div class="col-12">
+                                    <!-- Categories (Main Category) - show MultiSelect -->
+                                    <!-- Parent Category Input -->
+                                    <div class="col-12" v-if="!isSub">
                                         <label class="form-label"
-                                            >Category Name (manual
-                                            add/edit)</label
+                                            >Category Name</label
+                                        >
+
+                                        <!-- Single input in edit mode -->
+                                        <input
+                                            v-if="editingCategory"
+                                            type="text"
+                                            v-model="manualCategories[0].label"
+                                            class="form-control"
+                                            placeholder="Enter category name"
+                                        />
+
+                                        <!-- MultiSelect for new categories -->
+                                        <MultiSelect
+                                            v-else
+                                            v-model="manualCategories"
+                                            :options="commonChips"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            :filter="true"
+                                            display="chip"
+                                            placeholder="Select or add categories..."
+                                            class="w-100"
+                                            appendTo="self"
+                                            @keydown.enter.prevent="
+                                                addCustomCategory
+                                            "
+                                            @blur="addCustomCategory"
+                                            @filter="
+                                                (e) => (filterText = e.value)
+                                            "
+                                        >
+                                            <template #option="{ option }">
+                                                {{ option.label }}
+                                            </template>
+                                        </MultiSelect>
+                                    </div>
+
+                                    <!-- Subcategory - show simple input -->
+                                    <div class="col-12" v-else>
+                                        <label class="form-label"
+                                            >Subcategory Name</label
                                         >
                                         <input
-                                            v-model="manualName"
                                             type="text"
+                                            v-model="manualName"
                                             class="form-control"
-                                            placeholder="e.g., Produce (Veg/Fruit)"
+                                            placeholder="Enter subcategory name"
                                         />
                                     </div>
 
@@ -569,45 +826,11 @@ const editRow = (row) => {
 
                                 <hr class="my-4" />
 
-                                <!-- Common categories -->
-                                <div
-                                    class="d-flex align-items-center justify-content-between mb-2"
-                                >
-                                    <h6 class="mb-0">
-                                        Common Raw Material Categories:
-                                    </h6>
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-primary btn-sm rounded-pill"
-                                        @click="selectAll"
-                                    >
-                                        Select All
-                                    </button>
-                                </div>
-
-                                <div class="d-flex flex-wrap gap-2">
-                                    <button
-                                        v-for="chip in commonChips"
-                                        :key="chip.value"
-                                        type="button"
-                                        class="btn rounded-pill chip"
-                                        :class="
-                                            chip.selected
-                                                ? 'btn-primary'
-                                                : 'btn-outline-secondary'
-                                        "
-                                        @click="chip.selected = !chip.selected"
-                                    >
-                                        <span class="me-2">{{ chip.icon }}</span
-                                        >{{ chip.label }}
-                                    </button>
-                                </div>
-
                                 <div class="mt-4">
                                     <button
                                         class="btn btn-primary rounded-pill px-4"
                                         :disabled="submitting"
-                                        @click="submitCategory"
+                                        @click="submitCategory()"
                                     >
                                         <span v-if="!submitting"
                                             >Add Category(ies)</span
