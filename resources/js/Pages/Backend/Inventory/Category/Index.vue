@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx';
 const manualCategories = ref([]);
 const categories = ref([]);
 const editingCategory = ref(null);
+const manualSubcategories = ref([]);
 
 const fetchCategories = async () => {
     try {
@@ -153,63 +154,103 @@ const submitCategory = async () => {
         return;
     }
 
-    let categoriesPayload = [];
-
-    if (isSub.value) {
-        if (!manualName.value.trim()) {
-            alert("Please enter a subcategory name.");
-            return;
-        }
-        categoriesPayload = [
-            {
-                id: editingCategory.value?.id || undefined, // Pass ID if editing
-                name: manualName.value.trim(),
-                icon: manualIcon.value.value,
-                active: manualActive.value,
-                parent_id: selectedParentId.value,
-            },
-        ];
-    } else {
-        if (manualCategories.value.length === 0) {
-            alert("Please add at least one category.");
-            return;
-        }
-        categoriesPayload = manualCategories.value.map((cat) => ({
-            id: editingCategory.value?.id || undefined, // Pass ID if editing
-            name: typeof cat === "string" ? cat : cat.label,
-            icon: manualIcon.value.value,
-            active: manualActive.value,
-            parent_id: null,
-        }));
-    }
-
-    const payload = {
-        isSubCategory: isSub.value,
-        categories: categoriesPayload,
-    };
-
     submitting.value = true;
+
     try {
         if (editingCategory.value) {
-            const payload = {
-                name: isSub.value
-                    ? manualName.value.trim() // subcategory name
-                    : manualCategories.value[0]?.label?.trim(), // parent category name
+            // UPDATE MODE - Handle both main category and subcategories
+
+            const updatePayload = {
+                name: manualCategories.value[0]?.label?.trim(),
                 icon: manualIcon.value.value,
                 active: manualActive.value,
-                parent_id: isSub.value ? selectedParentId.value : null,
+                parent_id: selectedParentId.value || null,
             };
 
-            if (!payload.name) {
+            // Only include subcategories if we're updating a main category (not a subcategory)
+            if (
+                !updatePayload.parent_id &&
+                manualSubcategories.value.length > 0
+            ) {
+                updatePayload.subcategories = manualSubcategories.value.map(
+                    (selectedValue) => {
+                        // Find the corresponding option to get the label
+                        const matchingOption = options.value.find(
+                            (opt) => opt.value === selectedValue
+                        );
+
+                        if (matchingOption) {
+                            // This is an existing subcategory from options
+                            const parsedId = selectedValue.startsWith("temp_")
+                                ? null
+                                : parseInt(selectedValue);
+                            return {
+                                id: isNaN(parsedId) ? null : parsedId,
+                                name: matchingOption.label,
+                                active: true,
+                            };
+                        } else {
+                            // This is a new subcategory added via custom input
+                            return {
+                                id: null,
+                                name: selectedValue,
+                                active: true,
+                            };
+                        }
+                    }
+                );
+            }
+
+            if (!updatePayload.name) {
                 alert("Category name cannot be empty.");
                 submitting.value = false;
                 return;
             }
 
-            await axios.put(`/categories/${editingCategory.value.id}`, payload);
+            await axios.put(
+                `/categories/${editingCategory.value.id}`,
+                updatePayload
+            );
             toast.success("Category updated successfully ✅");
         } else {
-            await axios.post("/categories", payload);
+            // CREATE MODE - Use the existing structure
+            let categoriesPayload = [];
+
+            if (isSub.value) {
+                if (manualSubcategories.value.length === 0) {
+                    alert("Please add at least one subcategory.");
+                    return;
+                }
+
+                categoriesPayload = manualSubcategories.value.map((cat) => ({
+                    id: undefined,
+                    name: typeof cat === "string" ? cat : cat.label,
+                    icon: manualIcon.value.value,
+                    active: manualActive.value,
+                    parent_id: selectedParentId.value,
+                }));
+            } else {
+                if (manualCategories.value.length === 0) {
+                    toast.warning("Please add at least one category.");
+                    return;
+                }
+
+                categoriesPayload = manualCategories.value.map((cat) => ({
+                    id: undefined,
+                    name: typeof cat === "string" ? cat : cat.label,
+                    icon: manualIcon.value.value,
+                    active: manualActive.value,
+                    parent_id: null,
+                }));
+            }
+
+            const createPayload = {
+                isSubCategory: isSub.value,
+                categories: categoriesPayload,
+            };
+
+            console.log("Creating categories with payload:", createPayload);
+            await axios.post("/categories", createPayload);
             toast.success("Category created successfully ✅");
         }
 
@@ -218,7 +259,34 @@ const submitCategory = async () => {
         await fetchCategories();
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
-        toast.error("Failed to save category ❌");
+
+        // ✅ ENHANCED ERROR HANDLING FOR DUPLICATES
+        if (err.response?.status === 422 && err.response?.data?.errors) {
+            const errors = err.response.data.errors;
+            let errorMessages = [];
+
+            // Process validation errors
+            Object.keys(errors).forEach((key) => {
+                if (Array.isArray(errors[key])) {
+                    errors[key].forEach((message) => {
+                        errorMessages.push(message);
+                    });
+                }
+            });
+
+            if (errorMessages.length > 0) {
+                // Show specific validation errors
+                const errorText = errorMessages.join("\n");
+                toast.error(errorText);
+            } else {
+                toast.error("Validation failed. Please check your input.");
+            }
+        } else {
+            // Generic error message
+            const errorMessage =
+                err.response?.data?.message || "Failed to save category";
+            toast.error(errorMessage + " ❌");
+        }
     } finally {
         submitting.value = false;
         const m = bootstrap.Modal.getInstance(
@@ -228,32 +296,74 @@ const submitCategory = async () => {
     }
 };
 
-/* ---------------- Edit Categories ---------------- */
+// ✅ OPTIONAL: Add client-side duplicate check for better UX
+const checkForDuplicates = () => {
+    if (!editingCategory.value) {
+        // Only for create mode
+        const newNames = manualCategories.value.map((cat) =>
+            typeof cat === "string"
+                ? cat.toLowerCase()
+                : cat.label.toLowerCase()
+        );
+
+        const duplicates = newNames.filter(
+            (name, index) => newNames.indexOf(name) !== index
+        );
+
+        if (duplicates.length > 0) {
+            toast.warning("Duplicate category names detected in your input.");
+            return false;
+        }
+    }
+    return true;
+};
+
+// Also update your editRow function to better handle subcategory IDs
 const editRow = (row) => {
     console.log("Editing row:", row);
     editingCategory.value = row;
 
-    // Check if it's a subcategory
+    // Is sub
     isSub.value = !!row.parent_id;
-
-    // Set parent_id if subcategory
     selectedParentId.value = row.parent_id || null;
 
-    // Set icon
+    // Icon
     const iconOption = iconOptions.find((i) => i.value === row.icon);
     manualIcon.value = iconOption || iconOptions[0];
 
-    // Set category name
+    // Name
     if (isSub.value) {
-        manualName.value = row.name; // Subcategory input
+        manualName.value = row.name;
     } else {
-        // Single category selected for editing
         manualCategories.value = [
             { label: row.name, value: row.name, id: row.id },
         ];
     }
 
     manualActive.value = row.active;
+
+    // Handle subcategories - ensure proper ID mapping
+    if (row.subcategories && row.subcategories.length > 0) {
+        // Build options with proper IDs
+        options.value = row.subcategories.map((sub) => ({
+            label: sub.name,
+            value: sub.id
+                ? sub.id.toString()
+                : `temp_${Date.now()}_${Math.random()}`, // fallback for missing IDs
+        }));
+
+        // ✅ FIX: Preselect by VALUE only (not objects)
+        // Since optionValue="value", manualSubcategories should be an array of strings/values
+        manualSubcategories.value = row.subcategories.map((sub) =>
+            sub.id ? sub.id.toString() : `temp_${Date.now()}_${Math.random()}`
+        );
+    } else {
+        options.value = [];
+        manualSubcategories.value = [];
+    }
+
+    console.log("Options:", options.value);
+    console.log("Selected values:", manualSubcategories.value);
 
     // Show modal
     const modalEl = document.getElementById("addCatModal");
@@ -348,93 +458,93 @@ const onDownload = (type) => {
 };
 
 const downloadPDF = (data) => {
-  try {
-    const doc = new jsPDF("p", "mm", "a4");
+    try {
+        const doc = new jsPDF("p", "mm", "a4");
 
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text("Categories Report", 14, 20);
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text("Categories Report", 14, 20);
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    const currentDate = new Date().toLocaleString();
-    doc.text(`Generated on: ${currentDate}`, 14, 28);
-    doc.text(`Total Tags: ${data.length}`, 14, 34);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Tags: ${data.length}`, 14, 34);
 
-    // Create a map of parent ID to subcategory names
-    const parentMap = {};
-    data.forEach((parentCategories) => {
-      if (parentCategories.parent_id) {
-        if (!parentMap[parentCategories.parent_id]) parentMap[parentCategories.parent_id] = [];
-        parentMap[parentCategories.parent_id].push(parentCategories.name);
-      }
-    });
+        // Create a map of parent ID to subcategory names
+        const parentMap = {};
+        data.forEach((parentCategories) => {
+            if (parentCategories.parent_id) {
+                if (!parentMap[parentCategories.parent_id]) parentMap[parentCategories.parent_id] = [];
+                parentMap[parentCategories.parent_id].push(parentCategories.name);
+            }
+        });
 
-    // Table headers including Sub Category
-    const tableColumns = [
-      "Name",
-      "Sub Category",
-      "Total Value",
-      "Total Items",
-      "Out of Stock",
-      "Low Stock",
-      "In Stock",
-      "Created At",
-      "Updated At"
-    ];
+        // Table headers including Sub Category
+        const tableColumns = [
+            "Name",
+            "Sub Category",
+            "Total Value",
+            "Total Items",
+            "Out of Stock",
+            "Low Stock",
+            "In Stock",
+            "Created At",
+            "Updated At"
+        ];
 
-    // Prepare table rows
-    const tableRows = data.map((s) => [
-      s.name || "",
-      parentMap[s.id] ? parentMap[s.id].join(", ") : "",
-      s.total_value || "",
-      s.total_items || "",
-      s.out_of_stock || "",
-      s.low_stock || "",
-      s.in_stock || "",
-      s.created_at || "",
-      s.updated_at || ""
-    ]);
+        // Prepare table rows
+        const tableRows = data.map((s) => [
+            s.name || "",
+            parentMap[s.id] ? parentMap[s.id].join(", ") : "",
+            s.total_value || "",
+            s.total_items || "",
+            s.out_of_stock || "",
+            s.low_stock || "",
+            s.in_stock || "",
+            s.created_at || "",
+            s.updated_at || ""
+        ]);
 
-    autoTable(doc, {
-      head: [tableColumns],
-      body: tableRows,
-      startY: 40,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        halign: "left",
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1
-      },
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1
-      },
-      alternateRowStyles: { fillColor: [240, 240, 240] },
-      margin: { left: 14, right: 14 },
-      didDrawPage: (tableData) => {
-        const pageCount = doc.internal.getNumberOfPages();
-        const pageHeight = doc.internal.pageSize.height;
-        doc.setFontSize(8);
-        doc.text(
-          `Page ${tableData.pageNumber} of ${pageCount}`,
-          tableData.settings.margin.left,
-          pageHeight - 10
-        );
-      },
-    });
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1
+            },
+            alternateRowStyles: { fillColor: [240, 240, 240] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
 
-    const fileName = `Categories_${new Date().toISOString().split("T")[0]}.pdf`;
-    doc.save(fileName);
+        const fileName = `Categories_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
 
-    toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
-  } catch (error) {
-    console.error("PDF generation error:", error);
-    toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
-  }
+        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
 };
 
 
@@ -599,7 +709,7 @@ const downloadExcel = (data) => {
                                                 class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                                 <span class="fs-5">{{
                                                     row.icon || "📦"
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </td>
                                         <td>{{ money(row.total_value) }}</td>
@@ -677,7 +787,7 @@ const downloadExcel = (data) => {
                                     <strong>Icon:</strong>
                                     <span class="fs-4">{{
                                         viewingCategory.icon
-                                        }}</span>
+                                    }}</span>
                                 </p>
                                 <p>
                                     <strong>Status:</strong>
@@ -726,55 +836,66 @@ const downloadExcel = (data) => {
                                     Add Raw Material Categories
                                 </h5>
                                 <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                                    ×</button>
+                                    ×
+                                </button>
                             </div>
 
                             <div class="modal-body">
                                 <!-- Row 1 -->
                                 <div class="row g-3">
-                                    <div class="col-lg-6">
-                                        <label class="form-label d-block mb-2">Is this a subcategory?</label>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="isSub" @change="
-                                                    isSub = true;
-                                                selectedParentId = null;
-                                                " name="isSub" />
-                                                <label class="form-check-label">Yes</label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="!isSub" @change="
-                                                    isSub = false;
-                                                selectedParentId = null;
-                                                " name="isSub" />
-                                                <label class="form-check-label">No</label>
+                                    <!-- Show "Is this a subcategory?" only when creating -->
+                                    <template v-if="!editingCategory">
+                                        <div class="col-lg-6">
+                                            <label class="form-label d-block mb-2">Is this a subcategory?</label>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" :checked="isSub"
+                                                        @change="
+                                                            isSub = true;
+                                                        selectedParentId =
+                                                            null;
+                                                        " name="isSub" />
+                                                    <label class="form-check-label">Yes</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" :checked="!isSub"
+                                                        @change="
+                                                            isSub = false;
+                                                        selectedParentId =
+                                                            null;
+                                                        " name="isSub" />
+                                                    <label class="form-check-label">No</label>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
-                                    <div class="col-lg-6" v-if="isSub">
-                                        <label class="form-label d-block mb-2">Select Parent Category</label>
-                                        <select v-model="selectedParentId" class="form-select" required>
-                                            <option disabled :value="null">
-                                                -- Choose Parent Category --
-                                            </option>
-                                            <option v-for="cat in parentCategories" :key="cat.id" :value="cat.id">
-                                                {{ cat.name }}
-                                            </option>
-                                        </select>
-                                    </div>
+                                        <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
+                                        <div class="col-lg-6" v-if="isSub">
+                                            <label class="form-label d-block mb-2">Select Parent Category</label>
+                                            <select v-model="selectedParentId" class="form-select" required>
+                                                <option disabled :value="null">
+                                                    -- Choose Parent Category --
+                                                </option>
+                                                <option v-for="cat in parentCategories" :key="cat.id" :value="cat.id">
+                                                    {{ cat.name }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </template>
 
-                                    <div :class="isSub ? 'col-lg-6' : 'col-lg-6'">
+                                    <!-- Manual Icon (always show) -->
+                                    <div class="col-lg-6">
                                         <label class="form-label d-block mb-2">Manual Icon</label>
                                         <div class="dropdown w-100">
                                             <button
                                                 class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
                                                 data-bs-toggle="dropdown">
-                                                <span><span class="me-2">{{
-                                                    manualIcon.value
+                                                <span>
+                                                    <span class="me-2">{{
+                                                        manualIcon.value
                                                         }}</span>
-                                                    {{ manualIcon.label }}</span>
+                                                    {{ manualIcon.label }}
+                                                </span>
                                                 <i class="bi bi-caret-down-fill"></i>
                                             </button>
                                             <ul class="dropdown-menu w-100 shadow rounded-3">
@@ -784,7 +905,7 @@ const downloadExcel = (data) => {
                                                         ">
                                                         <span class="me-2">{{
                                                             opt.value
-                                                            }}</span>
+                                                        }}</span>
                                                         {{ opt.label }}
                                                     </a>
                                                 </li>
@@ -792,16 +913,15 @@ const downloadExcel = (data) => {
                                         </div>
                                     </div>
 
-                                    <!-- Categories (Main Category) - show MultiSelect -->
-                                    <!-- Parent Category Input -->
-                                    <div class="col-12" v-if="!isSub">
+                                    <!-- Category Name -->
+                                    <div class="col-12" v-if="!isSub || editingCategory">
                                         <label class="form-label">Category Name</label>
 
-                                        <!-- Single input in edit mode -->
+                                        <!-- Single input when editing -->
                                         <input v-if="editingCategory" type="text" v-model="manualCategories[0].label"
                                             class="form-control" placeholder="Enter category name" />
 
-                                        <!-- MultiSelect for new categories -->
+                                        <!-- MultiSelect when creating -->
                                         <MultiSelect v-else v-model="manualCategories" :options="commonChips"
                                             optionLabel="label" optionValue="value" :filter="true" display="chip"
                                             placeholder="Select or add categories..." class="w-100" appendTo="self"
@@ -816,15 +936,49 @@ const downloadExcel = (data) => {
                                         </MultiSelect>
                                     </div>
 
-                                    <!-- Subcategory - show simple input -->
-                                    <div class="col-12" v-else>
-                                        <label class="form-label">Subcategory Name</label>
-                                        <input type="text" v-model="manualName" class="form-control"
-                                            placeholder="Enter subcategory name" />
+                                    <!-- Subcategory MultiSelect (always in edit, only when isSub=false in create) -->
+                                    <div class="col-12" v-if="editingCategory || isSub">
+                                        <label class="form-label">Subcategory Name(s)</label>
+
+                                        <MultiSelect v-model="manualSubcategories" :options="options"
+                                            optionLabel="label" optionValue="value" :filter="true" display="chip"
+                                            placeholder="Select or add subcategories..." class="w-100" appendTo="self"
+                                            @filter="
+                                                (e) =>
+                                                (currentFilterValue =
+                                                    e.value || '')
+                                            " @keydown.enter.prevent="
+                                                addCustomSubcategory
+                                            " @blur="addCustomSubcategory">
+                                            <template #option="{ option }">
+                                                <div>{{ option.label }}</div>
+                                            </template>
+
+                                            <template #footer>
+                                                <div class="p-3 d-flex justify-content-between">
+                                                    <Button label="Add Custom" severity="secondary" variant="text"
+                                                        size="small" icon="pi pi-plus" @click="
+                                                            addCustomSubcategory
+                                                        " :disabled="!currentFilterValue.trim()
+                                                            " />
+                                                    <div class="d-flex gap-2">
+                                                        <Button label="Select All" severity="secondary" variant="text"
+                                                            size="small" icon="pi pi-check" @click="
+                                                                selectAllSubcategories
+                                                            " />
+                                                        <Button label="Clear All" severity="danger" variant="text"
+                                                            size="small" icon="pi pi-times" @click="
+                                                                removeAllSubcategories
+                                                            " />
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </MultiSelect>
                                     </div>
 
+                                    <!-- Active toggle -->
                                     <div class="col-12">
-                                        <label class="form-label d-block mb-2">Active (for manual entry)</label>
+                                        <label class="form-label d-block mb-2">Active</label>
                                         <div class="d-flex align-items-center gap-3">
                                             <div class="form-check">
                                                 <input class="form-check-input" type="radio" :checked="manualActive"
@@ -849,7 +1003,13 @@ const downloadExcel = (data) => {
                                 <div class="mt-4">
                                     <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
                                         @click="submitCategory()">
-                                        <span v-if="!submitting">Add Category(ies)</span>
+                                        <span v-if="!submitting">
+                                            {{
+                                                editingCategory
+                                                    ? "Update Category"
+                                                    : "Add Category(ies)"
+                                            }}
+                                        </span>
                                         <span v-else>Saving...</span>
                                     </button>
                                     <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
@@ -930,6 +1090,7 @@ const downloadExcel = (data) => {
     padding: 8px 14px;
     font-weight: 600;
 }
+
 .pv-overlay-fg {
     z-index: 2000 !important;
 }
@@ -947,6 +1108,7 @@ const downloadExcel = (data) => {
 :deep(.p-multiselect-token) {
     margin: 0.15rem;
 }
+
 /* Mobile */
 @media (max-width: 575.98px) {
     .kpi-value {

@@ -3,67 +3,64 @@ import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
 
 import Select from "primevue/select";
-
-/* ===================== Demo Data (swap with API later) ===================== */
-const items = ref([
-    {
-        id: 1,
-        name: "Basmati Rice",
-        image: "https://picsum.photos/seed/rice/64",
-        unitPrice: 2.2,
-        category: "Grains",
-        unit: "gram (g)",
-        availableStock: 120.0,
-        stockValue: 264.0,
-        enteredBy: "Bilal",
-    },
-    {
-        id: 2,
-        name: "Chicken Breast",
-        image: "https://picsum.photos/seed/chicken/64",
-        unitPrice: 5.5,
-        category: "Poultry",
-        unit: "gram (g)",
-        availableStock: 80.0,
-        stockValue: 440.0,
-        enteredBy: "Admin",
-    },
-    {
-        id: 3,
-        name: "Fresh Tomatoes",
-        image: "https://picsum.photos/seed/tomato/64",
-        unitPrice: 1.8,
-        category: "Produce",
-        unit: "gram (g)",
-        availableStock: 200.0,
-        stockValue: 360.0,
-        enteredBy: "Shakir",
-    },
-    {
-        id: 4,
-        name: "Olive Oil",
-        image: "https://picsum.photos/seed/oliveoil/64",
-        unitPrice: 10.0,
-        category: "Grocery",
-        unit: "liter (L)",
-        availableStock: 50.0,
-        stockValue: 500.0,
-        enteredBy: "Jamal",
-    },
-    {
-        id: 5,
-        name: "Cheddar Cheese",
-        image: "https://picsum.photos/seed/cheese/64",
-        unitPrice: 4.5,
-        category: "Dairy",
-        unit: "gram (g)",
-        availableStock: 60.0,
-        stockValue: 270.0,
-        enteredBy: "Saf",
-    },
-]);
+import MultiSelect from "primevue/multiselect";
+import { toast } from "vue3-toastify";
 
 
+const props = defineProps({
+    inventories: Array, 
+    allergies: {
+        type: Array,
+    },
+    suppliers: {
+        type: Object,
+    },
+    units: {
+        type: Object,
+    },
+    tags: {
+        type: Array,
+    },
+    categories: {
+        type: Object,
+    },
+});
+
+
+
+
+const inventories = ref(props.inventories?.data || []);
+const items = computed(() => inventories.value);
+
+
+const fetchInventories = async () => {
+  try {
+    const res = await axios.get("inventory/api-inventories");
+    console.log("Stock response data:", res.data);
+    
+   const apiItems = res.data.data || [];
+    
+    inventories.value = await Promise.all(
+  apiItems.map(async (item) => {
+    const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
+    const stockData = stockRes.data.total?.original || {};
+    return {
+      ...item,
+      availableStock: stockData.available || 0,
+      stockValue: stockData.stockValue || 0,
+      minAlert: stockData.minAlert || 0,
+    };
+  })
+);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+
+onMounted(() => {
+  fetchInventories(); // fetch inventories when the component mounts
+});
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
 const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
@@ -94,23 +91,6 @@ const sortedItems = computed(() => {
     }
 });
 
-const props = defineProps({
-    allergies: {
-        type: Object,
-    },
-    suppliers: {
-        type: Object
-    },
-    units: {
-        type: Object
-    },
-    tags: {
-        type: Object
-    },
-    categories: {
-        type: Object
-    }
-});
 
 
 /* ===================== KPIs ===================== */
@@ -140,15 +120,6 @@ const money = (amount, currency = "GBP") =>
         amount
     );
 
-/* ===================== Add New Product Modal ===================== */
-const categoryOptions = ref([
-    { value: "poultry", label: "Poultry" },
-    { value: "produce", label: "Produce" },
-    { value: "grains", label: "Grains" },
-    { value: "grocery", label: "Grocery" },
-    { value: "dairy", label: "Dairy" },
-    { value: "meat", label: "Meat" },
-]);
 
 const subcatMap = ref({
     Poultry: ["Chicken", "Broiler", "Wings", "Breast"],
@@ -158,15 +129,8 @@ const subcatMap = ref({
     // Dairy: ["Cheese", "Milk", "Butter"],
     Meat: ["Beef", "Mutton", "Veal"],
 });
-const unitOptions = ref([
-    "gram (g)",
-    "kilogram (kg)",
-    "millilitre (ml)",
-    "liter (L)",
-    "piece (pc)",
-]);
-// const supplierOptions = ref(["Noor", "Metro", "ChaseUp", "Al-Fatah"]);
-// computed subcategory options based on selected category
+
+
 const subcatOptions = computed(() =>
     (subcatMap.value[form.value.category] || []).map((s) => ({
         name: s,
@@ -189,31 +153,6 @@ const form = ref({
     imagePreview: "",
 });
 
-const selectableAllergies = [
-    "Milk",
-    "Eggs",
-    "Peanuts",
-    "Tree Nuts",
-    "Soy",
-    "Wheat",
-    "Fish",
-    "Shellfish",
-];
-const selectableTags = [
-    "Halal",
-    "Haram",
-    "Vegan",
-    "Vegetarian",
-    "Gluten-Free",
-    "Keto",
-];
-
-const toggleSelect = (list, value) => {
-    const i = list.indexOf(value);
-    if (i === -1) list.push(value);
-    else list.splice(i, 1);
-};
-
 function handleImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -225,56 +164,88 @@ function handleImage(e) {
 }
 
 const submitting = ref(false);
-function submitProduct() {
-    const payload = {
-        name: form.value.name.trim(),
-        category: form.value.category,
-        subcategory: form.value.subcategory,
-        unit: form.value.unit,
-        minAlert: form.value.minAlert ? Number(form.value.minAlert) : null,
-        supplier: form.value.supplier,
-        sku: form.value.sku || null,
-        description: form.value.description || null,
-        nutrition: { ...form.value.nutrition },
-        allergies: [...form.value.allergies],
-        tags: [...form.value.tags],
-        hasImage: !!form.value.imageFile,
-    };
 
-    console.log("[Inventory] Submitting product payload:", payload);
-
+const submitProduct = async () => {
     submitting.value = true;
-    fakeApi(payload)
-        .then((res) => {
-            console.log("✅ then():", res.message);
-            // push into list as a new row (demo)
-            items.value.unshift({
-                id: Date.now(),
-                name: payload.name || "Untitled",
-                image:
-                    form.value.imagePreview ||
-                    "https://picsum.photos/seed/new/64",
-                unitPrice: 0,
-                category: payload.category || "-",
-                unit: payload.unit || "-",
-                availableStock: 0,
-                stockValue: 0,
-                enteredBy: "You",
+
+    const formData = new FormData();
+    formData.append("name", form.value.name.trim());
+    formData.append("category", form.value.category);
+    formData.append("subcategory", form.value.subcategory || "");
+    formData.append("unit", form.value.unit);
+    formData.append("minAlert", form.value.minAlert || 0);
+    formData.append("supplier", form.value.supplier);
+    formData.append("sku", form.value.sku || "");
+    formData.append("description", form.value.description || "");
+
+    // nutrition
+    formData.append("nutrition[calories]", form.value.nutrition.calories || 0);
+    formData.append("nutrition[fat]", form.value.nutrition.fat || 0);
+    formData.append("nutrition[protein]", form.value.nutrition.protein || 0);
+    formData.append("nutrition[carbs]", form.value.nutrition.carbs || 0);
+
+    // allergies + tags
+    form.value.allergies.forEach((id, i) => formData.append(`allergies[${i}]`, id));
+    form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
+
+    // image
+    if (form.value.imageFile) {
+        formData.append("image", form.value.imageFile);
+    }
+
+    try {
+        if (form.value.id) {
+            // UPDATE
+            await axios.post(`/inventory/${form.value.id}?_method=PUT`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
             });
-        })
-        .catch((err) => {
-            console.error("❌ catch():", err?.message || err);
-            alert("Failed to add product (demo). Check console.");
-        })
-        .finally(() => {
-            submitting.value = false;
-            const m = bootstrap.Modal.getInstance(
-                document.getElementById("addItemModal")
-            );
-            m?.hide();
-            resetForm();
-        });
-}
+            toast.success("✅ Inventory Item updated successfully");
+        } else {
+            // CREATE
+            await axios.post("/inventory", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            toast.success("✅ Inventory Item created successfully");
+        }
+
+        resetForm();
+        await fetchInventories(); // refresh table
+        // close modal
+        const modalEl = document.getElementById("addItemModal");
+        bootstrap.Modal.getInstance(modalEl)?.hide();
+    } catch (err) {
+        console.error("❌ Error saving:", err.response?.data || err.message);
+        toast.error("Failed to save Inventory Item");
+    } finally {
+        submitting.value = false;
+    }
+};
+
+// ===============Edit item ==================
+const editItem = (item) => {
+    console.log(item);
+    form.value = {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        subcategory: item.subcategory,
+        unit: item.unit,
+        minAlert: item.minAlert,
+        supplier: item.supplier,
+        sku: item.sku,
+        description: item.description,
+        nutrition: item.nutrition || { calories: 0, fat: 0, protein: 0, carbs: 0 },
+        // Fix: Convert string values directly to numbers
+        allergies: item.allergies?.map(a => Number(a)) || [],
+        tags: item.tags?.map(t => Number(t)) || [],
+        imageFile: null,
+        imagePreview: item.image ? `/storage/${item.image}` : null,
+    };
+    console.log("Preselected allergies:", form.value);
+    const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
+    modal.show();
+};
+// ============================= reset form =========================
 
 function resetForm() {
     form.value = {
@@ -309,6 +280,105 @@ const onStockOut = (it) => console.log("Stock Out:", it);
 const onViewItem = (it) => console.log("View:", it);
 const onEditItem = (it) => console.log("Edit:", it);
 const onDownload = (type) => console.log("Download:", type);
+// =====================view item =========================
+const viewItemRef = ref({});
+
+const ViewItem = async (row) => {
+  try {
+    const res = await axios.get(`/inventory/${row.id}`);
+    viewItemRef.value = res.data;
+
+    const modal = new bootstrap.Modal(document.getElementById('viewItemModal'));
+    modal.show();
+  } catch (error) {
+    console.error("Error fetching item:", error);
+  }
+};
+
+// ===================== Stock Item Modal =========================
+function calculateValue() {
+  const q = Number(stockForm.value.quantity || 0);
+  const p = Number(stockForm.value.price || 0);
+  stockForm.value.value = q * p;
+}
+
+
+const stockForm = ref({
+  product_id: null,
+  name: "",
+  category_id: null,
+  supplier_id: null,
+  available_quantity: 0,
+  quantity: 0,
+  price: 0,
+  value: 0,
+  expiry_date: "",
+  description: "",
+  operation_type: "purchase",
+  stock_type: "stockin",
+  purchase_date: new Date().toISOString().slice(0, 10),
+  user_id: 1, // pass logged-in user id dynamically if needed
+});
+
+const submittingStock = ref(false);
+
+function openStockModal(item) {
+  const categoryObj = props.categories.find(c => c.name === item.category);
+  const supplierObj = props.suppliers.find(s => s.name === item.supplier);
+
+  axios.get(`/stock_entries/total/${item.id}`).then(res => {
+    const totalStock = res.data.total || 0;
+
+    stockForm.value = {
+      product_id: item.id,
+      name: item.name,
+      category_id: categoryObj ? categoryObj.id : null,
+      supplier_id: supplierObj ? supplierObj.id : null,
+      available_quantity: totalStock,
+      quantity: 0,
+      price: 0,
+      value: 0,
+      expiry_date: "",
+      description: "",
+      operation_type: "inventory_stockin",
+      stock_type: "stockin",
+      purchase_date: new Date().toISOString().slice(0, 10),
+      user_id: 1,
+    };
+
+    const modal = new bootstrap.Modal(document.getElementById("stockInModal"));
+    modal.show();
+  });
+}
+
+
+
+function resetStockForm() {
+  stockForm.value.quantity = 0;
+  stockForm.value.price = 0;
+  stockForm.value.value = 0;
+  stockForm.value.expiry_date = "";
+  stockForm.value.description = "";
+}
+
+async function submitStockIn() {
+  submittingStock.value = true;
+  calculateValue();
+  try {
+    await axios.post("/stock_entries", stockForm.value);
+    toast.success("✅ Stock In saved successfully");
+    resetStockForm();
+    bootstrap.Modal.getInstance(document.getElementById("stockInModal"))?.hide();
+    await fetchInventories(); // refresh inventory table if needed
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to save Stock In");
+  } finally {
+    submittingStock.value = false;
+  }
+}
+
+
 </script>
 
 <template>
@@ -320,9 +390,15 @@ const onDownload = (type) => console.log("Download:", type);
 
                 <!-- KPI Cards -->
                 <div class="row g-3">
-                    <div v-for="c in kpis" :key="c.label" class="col-6 col-md-3">
+                    <div
+                        v-for="c in kpis"
+                        :key="c.label"
+                        class="col-6 col-md-3"
+                    >
                         <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div
+                                class="card-body d-flex flex-column justify-content-center text-center"
+                            >
                                 <div class="icon-wrap mb-2">
                                     <i :class="c.icon"></i>
                                 </div>
@@ -339,78 +415,124 @@ const onDownload = (type) => console.log("Download:", type);
                 <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
-                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <div
+                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+                        >
                             <h5 class="mb-0 fw-semibold">Stock</h5>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div
+                                class="d-flex flex-wrap gap-2 align-items-center"
+                            >
                                 <div class="search-wrap">
                                     <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
+                                    <input
+                                        v-model="q"
+                                        type="text"
+                                        class="form-control search-input"
+                                        placeholder="Search"
+                                    />
                                 </div>
 
                                 <!-- Filter By -->
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Filter By
-                                        <span v-if="sortBy" class="ms-1 text-muted small">
+                                        <span
+                                            v-if="sortBy"
+                                            class="ms-1 text-muted small"
+                                        >
                                             {{
                                                 sortBy === "stock_desc"
                                                     ? "High→Low"
                                                     : sortBy === "stock_asc"
-                                                        ? "Low→High"
-                                                        : sortBy === "name_asc"
-                                                            ? "A→Z"
-                                                            : sortBy === "name_desc"
-                                                                ? "Z→A"
-                                                                : ""
+                                                    ? "Low→High"
+                                                    : sortBy === "name_asc"
+                                                    ? "A→Z"
+                                                    : sortBy === "name_desc"
+                                                    ? "Z→A"
+                                                    : ""
                                             }}
                                         </span>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'stock_desc'">From High to Low</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'stock_desc'"
+                                                >From High to Low</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'stock_asc'">From Low to High</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'stock_asc'"
+                                                >From Low to High</a
+                                            >
                                         </li>
                                         <li>
                                             <hr class="dropdown-divider" />
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'name_asc'">Ascending</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'name_asc'"
+                                                >Ascending</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'name_desc'">Descending</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'name_desc'"
+                                                >Descending</a
+                                            >
                                         </li>
                                     </ul>
                                 </div>
 
                                 <!-- Add Item -->
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addItemModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addItemModal"
+                                >
                                     Add Item
                                 </button>
 
                                 <!-- Download all -->
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Download all
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="onDownload('pdf')">Download as PDF</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="onDownload('pdf')"
+                                                >Download as PDF</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="onDownload('excel')">Download as Excel</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="onDownload('excel')"
+                                                >Download as Excel</a
+                                            >
                                         </li>
                                     </ul>
                                 </div>
@@ -419,7 +541,10 @@ const onDownload = (type) => console.log("Download:", type);
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle" style="min-height: 320px">
+                            <table
+                                class="table table-hover align-middle"
+                                style="min-height: 320px"
+                            >
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>
@@ -435,96 +560,115 @@ const onDownload = (type) => console.log("Download:", type);
                                         <th>Action</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
-                                        <td>{{ idx + 1 }}</td>
-                                        <td class="fw-semibold">
-                                            {{ item.name }}
-                                        </td>
-                                        <td>
-                                            <img :src="item.image" class="rounded" style="
-                                                    width: 40px;
-                                                    height: 40px;
-                                                    object-fit: cover;
-                                                " />
-                                        </td>
-                                        <td>
-                                            {{ money(item.unitPrice, "GBP") }}
-                                        </td>
-                                        <td class="text-truncate" style="max-width: 260px">
-                                            {{ item.category }}
-                                        </td>
-                                        <td>{{ item.unit }}</td>
-                                        <td>
-                                            {{ item.availableStock.toFixed(1) }}
-                                        </td>
-                                        <td>
-                                            {{ money(item.stockValue, "GBP") }}
-                                        </td>
-                                        <td>
-                                            <span v-if="item.availableStock > 0"
-                                                class="badge rounded-pill bg-success-subtle text-success fw-semibold px-3 py-2">In-stock</span>
-                                            <span v-else
-                                                class="badge rounded-pill bg-secondary-subtle text-secondary fw-semibold px-3 py-2">Out
-                                                of stock</span>
-                                        </td>
-                                        <td>{{ item.enteredBy }}</td>
+                            <tbody>
+                                <tr
+                                    v-for="(item, idx) in sortedItems"
+                                    :key="item.id"
+                                >
+                                    <td>{{ idx + 1 }}</td>
+                                    <td class="fw-semibold">
+                                    {{ item.name }}
+                                    </td>
+                                    <td>
+                                    <img
+                                        :src="item.image ? `/storage/${item.image}` : '/default.png'"
+                                        class="rounded"
+                                        style="width: 40px; height: 40px; object-fit: cover;"
+                                    />
 
-                                        <td class="text-end">
-                                            <div class="dropdown">
-                                                <button class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
-                                                    ⋮
-                                                </button>
-                                                <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            onStockIn(item)
-                                                            "><i class="bi bi-box-arrow-in-down-right me-2"></i>Stock
-                                                            In</a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            onStockOut(item)
-                                                            "><i class="bi bi-box-arrow-up-right me-2"></i>Stock
-                                                            Out</a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            onViewItem(item)
-                                                            "><i class="bi bi-eye me-2"></i>View Item</a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            onEditItem(item)
-                                                            "><i class="bi bi-pencil-square me-2"></i>Edit</a>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    </td>
+                                    <td>
+                                    {{ money(item.unitPrice || 0, "GBP") }}
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 260px">
+                                    {{ item.category }}
+                                    </td>
+                                    <td>{{ item.unit }}</td>
+                                    <td>
+                                    {{ item.availableStock ? item.availableStock.toFixed(1) : 0 }}
+                                    </td>
+                                    <td>
+                                    {{ money(item.stockValue || 0, "GBP") }}
+                                    </td>
+                                    <td>
+                                        <span v-if="item.availableStock === 0" class="badge bg-secondary">Out of stock</span>
+                                        <span v-else-if="item.availableStock <= item.minAlert" class="badge bg-warning">Low-stock</span>
+                                        <span v-else class="badge bg-success">In-stock</span>
+                                    </td>
 
-                                    <tr v-if="sortedItems.length === 0">
-                                        <td colspan="11" class="text-center text-muted py-4">
-                                            No items found.
-                                        </td>
-                                    </tr>
-                                </tbody>
+                                   
+                                   <td>{{ item.user?.name || 'N/A' }}</td>
+
+                                    <td class="text-end">
+                                    <div class="dropdown">
+                                        <button
+                                        class="btn btn-link text-secondary p-0 fs-5"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false"
+                                        title="Actions"
+                                        >
+                                        ⋮
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
+                                        <li>
+                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="openStockModal(item)">
+                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="onStockOut(item)">
+                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="ViewItem(item)">
+                                            <i class="bi bi-eye me-2"></i>View Item
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="editItem(item)">
+                                            <i class="bi bi-pencil-square me-2"></i>Edit
+                                            </a>
+                                        </li>
+                                        </ul>
+                                    </div>
+                                    </td>
+                                </tr>
+
+                                <tr v-if="sortedItems.length === 0">
+                                    <td colspan="11" class="text-center text-muted py-4">
+                                    No items found.
+                                    </td>
+                                </tr>
+                            </tbody>
+
                             </table>
                         </div>
                     </div>
                 </div>
 
                 <!-- ===================== Add New Product Modal ===================== -->
-                <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+                <div
+                    class="modal fade"
+                    id="addItemModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <div
+                        class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"
+                        role="document"
+                    >
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
                                     Add New Inventory Item
                                 </h5>
-                                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                <button
+                                    type="button"
+                                    class="btn btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                >
                                     ×
                                 </button>
                             </div>
@@ -533,94 +677,171 @@ const onDownload = (type) => console.log("Download:", type);
                                 <!-- top row -->
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label">Product Name</label>
-                                        <input v-model="form.name" type="text" class="form-control"
-                                            placeholder="e.g., Chicken Breast" />
+                                        <label class="form-label"
+                                            >Product Name</label
+                                        >
+                                        <input
+                                            v-model="form.name"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="e.g., Chicken Breast"
+                                        />
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="form.category" :options="categories" optionLabel="name"
-                                            optionValue="name" placeholder="Select Category" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000" @update:modelValue="
+                                        <label class="form-label"
+                                            >Category</label
+                                        >
+                                        <Select
+                                            v-model="form.category"
+                                            :options="categories"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Category"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            @update:modelValue="
                                                 form.subcategory = ''
-                                                ">
-                                            <template #value="{ value, placeholder }">
+                                            "
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <!-- Subcategory (only if exists) -->
-                                    <div class="col-md-6" v-if="subcatOptions.length">
-                                        <label class="form-label">Subcategory</label>
-                                        <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
-                                            optionValue="value" placeholder="Select Subcategory" class="w-100"
-                                            :appendTo="body" :autoZIndex="true" :baseZIndex="2000">
-                                            <template #value="{ value, placeholder }">
+                                    <div
+                                        class="col-md-6"
+                                        v-if="subcatOptions.length"
+                                    >
+                                        <label class="form-label"
+                                            >Subcategory</label
+                                        >
+                                        <Select
+                                            v-model="form.subcategory"
+                                            :options="subcatOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Subcategory"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Minimum Stock Alert Level</label>
-                                        <input v-model="form.minAlert" type="number" min="0" class="form-control"
-                                            placeholder="e.g., 5" />
+                                        <label class="form-label d-block"
+                                            >Minimum Stock Alert Level</label
+                                        >
+                                        <input
+                                            v-model="form.minAlert"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                            placeholder="e.g., 5"
+                                        />
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Unit Type</label>
-                                        <Select v-model="form.unit" :options="units" optionLabel="name"
-                                            optionValue="name" placeholder="Select Unit" class="w-100" appendTo="self"
-                                            :autoZIndex="true" :baseZIndex="2000">
-                                            <template #value="{ value, placeholder }">
+                                        <label class="form-label"
+                                            >Unit Type</label
+                                        >
+                                        <Select
+                                            v-model="form.unit"
+                                            :options="units"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Unit"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Preferred Supplier</label>
-                                        <Select v-model="form.supplier" :options="suppliers" optionLabel="name"
-                                            optionValue="name" placeholder="Select Supplier" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000">
-                                            <template #value="{ value, placeholder }">
+                                        <label class="form-label"
+                                            >Preferred Supplier</label
+                                        >
+                                        <Select
+                                            v-model="form.supplier"
+                                            :options="suppliers"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Supplier"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-12">
-                                        <label class="form-label">SKU (Optional)</label>
-                                        <input v-model="form.sku" type="text" class="form-control"
-                                            placeholder="Stock Keeping Unit" />
+                                        <label class="form-label"
+                                            >SKU (Optional)</label
+                                        >
+                                        <input
+                                            v-model="form.sku"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="Stock Keeping Unit"
+                                        />
                                     </div>
 
                                     <div class="col-12">
-                                        <label class="form-label">Description</label>
-                                        <textarea v-model="form.description" rows="4" class="form-control"
-                                            placeholder="Notes about this product"></textarea>
+                                        <label class="form-label"
+                                            >Description</label
+                                        >
+                                        <textarea
+                                            v-model="form.description"
+                                            rows="4"
+                                            class="form-control"
+                                            placeholder="Notes about this product"
+                                        ></textarea>
                                     </div>
                                 </div>
 
@@ -632,133 +853,150 @@ const onDownload = (type) => console.log("Download:", type);
                                 </h6>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label">Calories</label>
-                                        <input v-model="form.nutrition.calories" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Calories</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.calories"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Fat (g)</label>
-                                        <input v-model="form.nutrition.fat" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Fat (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.fat"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Protein (g)</label>
-                                        <input v-model="form.nutrition.protein" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Protein (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.protein"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Carbs (g)</label>
-                                        <input v-model="form.nutrition.carbs" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Carbs (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.carbs"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                 </div>
 
                                 <div class="row g-4 mt-1">
                                     <!-- Allergies -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Allergies</label>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <button v-for="a in allergies" :key="a" type="button"
-                                                class="btn btn-sm rounded-pill" :class="form.allergies.includes(a)
-                                                        ? 'btn-primary'
-                                                        : 'btn-outline-secondary'
-                                                    " @click="
-                                                    toggleSelect(
-                                                        form.allergies,
-                                                        a
-                                                    )
-                                                    ">
-                                                {{ a.name }}
-                                            </button>
-                                        </div>
+                                        <label class="form-label d-block"
+                                            >Allergies</label
+                                        >
+                                        <MultiSelect
+                                            v-model="form.allergies"
+                                            :options="allergies"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            filter
+                                            placeholder="Select Allergies"
+                                            class="w-full md:w-80"
+                                            appendTo="self"
+                                        />
                                     </div>
 
                                     <!-- Tags -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <button v-for="t in tags" :key="t" type="button"
-                                                class="btn btn-sm rounded-pill" :class="form.tags.includes(t)
-                                                        ? 'btn-primary'
-                                                        : 'btn-outline-secondary'
-                                                    " @click="
-                                                    toggleSelect(form.tags, t)
-                                                    ">
-                                                {{ t.name }}
-                                            </button>
-                                        </div>
+                                        <label class="form-label d-block"
+                                            >Tags (Halal, Haram, etc.)</label
+                                        >
+
+                                        <MultiSelect
+                                            v-model="form.tags"
+                                            :options="tags"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            filter
+                                            placeholder="Select Tags"
+                                            class="w-full md:w-80"
+                                            appendTo="self"
+                                        />
                                     </div>
                                 </div>
-
-                                <MultiSelect v-model="form.allergies" :options="allergyOptions" optionLabel="label"
-                                    optionValue="value" filter display="chip"
-                                    placeholder="Choose allergies or type to add custom" class="w-100" appendTo="self"
-                                    :pt="{ panel: { class: 'pv-overlay-fg' } }"
-                                    @filter="(e) => (currentFilterValue = e.value || '')">
-                                    <template #option="{ option }">
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-shield-exclamation me-2"></i>
-                                            <span>{{ option.label }}</span>
-                                        </div>
-                                    </template>
-                                    <template #header>
-                                        <div class="font-medium px-3 py-2">Common Allergens</div>
-                                    </template>
-                                    <template #footer>
-                                        <div class="p-3 d-flex justify-content-between">
-                                            <Button label="Add Custom" severity="secondary" variant="text" size="small"
-                                                icon="pi pi-plus" @click="addCustom"
-                                                :disabled="!currentFilterValue.trim()" />
-                                            <div class="d-flex gap-2">
-                                                <Button label="Select All" severity="secondary" variant="text"
-                                                    size="small" icon="pi pi-check" @click="selectAll" />
-                                                <Button label="Clear All" severity="danger" variant="text" size="small"
-                                                    icon="pi pi-times" @click="removeAll" />
-                                            </div>
-                                        </div>
-                                    </template>
-                                </MultiSelect>
 
                                 <!-- Image -->
                                 <div class="row g-3 mt-2 align-items-center">
                                     <div class="col-sm-6 col-md-4">
                                         <div
-                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center">
+                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
+                                        >
                                             <template v-if="!form.imagePreview">
                                                 <div class="text-center small">
                                                     <div class="mb-2">
-                                                        <i class="bi bi-image fs-3"></i>
+                                                        <i
+                                                            class="bi bi-image fs-3"
+                                                        ></i>
                                                     </div>
                                                     <div>Drag image here</div>
                                                     <div>
                                                         or
-                                                        <label class="text-primary fw-semibold" style="
+                                                        <label
+                                                            class="text-primary fw-semibold"
+                                                            style="
                                                                 cursor: pointer;
-                                                            ">
+                                                            "
+                                                        >
                                                             Browse image
-                                                            <input type="file" accept="image/*" class="d-none" @change="
-                                                                handleImage
-                                                            " />
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                class="d-none"
+                                                                @change="
+                                                                    handleImage
+                                                                "
+                                                            />
                                                         </label>
                                                     </div>
                                                 </div>
                                             </template>
                                             <template v-else>
-                                                <img :src="form.imagePreview" class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover" />
+                                                <img
+                                                    :src="form.imagePreview"
+                                                    class="w-100 h-100 rounded-3"
+                                                    style="object-fit: cover"
+                                                />
                                             </template>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
-                                        @click="submitProduct">
-                                        <span v-if="!submitting">Add Product</span>
-                                        <span v-else>Saving...</span>
+                                    <button
+                                        class="btn btn-primary rounded-pill px-5 py-2"
+                                        :disabled="submitting"
+                                        @click="submitProduct"
+                                    >
+                                        <span 
+                                            >Add Product</span
+                                        >
+                                        
                                     </button>
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetForm">
+                                    <button
+                                        class="btn btn-secondary rounded-pill px-4 ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetForm"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -767,6 +1005,206 @@ const onDownload = (type) => console.log("Download:", type);
                     </div>
                 </div>
                 <!-- /modal -->
+
+                <!-- View modal  -->
+                <div class="modal fade" id="viewItemModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content rounded-4">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-semibold">View Inventory Item</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- Your item data -->
+                        <div v-if="viewItemRef">
+                        <p>Item Name: {{ viewItemRef.name }}</p>
+                        <p>SKU: {{ viewItemRef.sku }}</p>
+                        <p>Category: {{ viewItemRef.category }}</p>
+                        <p>Unit: {{ viewItemRef.unit }}</p>
+                        <p>Description: {{ viewItemRef.description }}</p>
+
+                        <!-- <p>Allergies:</p>
+                        <ul>
+                            <li v-for="id in viewItemRef.allergies" :key="id">ID: {{ id }}</li>
+                        </ul> -->
+
+                        <!-- <p>Tags:</p>
+                        <ul>
+                            <li v-for="id in viewItemRef.tags" :key="id">ID: {{ id }}</li>
+                        </ul> -->
+
+                        <p>Nutrition:</p>
+                        <ul>
+                            <li>Calories: {{ viewItemRef.nutrition?.calories }}</li>
+                            <li>Fat: {{ viewItemRef.nutrition?.fat }}</li>
+                            <li>Protein: {{ viewItemRef.nutrition?.protein }}</li>
+                            <li>Carbs: {{ viewItemRef.nutrition?.carbs }}</li>
+                        </ul>
+
+                        <div v-if="viewItemRef.image">
+                            <img
+                            :src="`/storage/${viewItemRef.image}`"
+                            alt="Item Image"
+                            style="max-height: 200px; object-fit: cover;"
+                            />
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Stockin Modal -->
+                 <div
+  class="modal fade"
+  id="stockInModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Stock In: {{ stockForm.name }}</h5>
+        <button
+          type="button"
+          class="btn btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <!-- Item Name -->
+          <div class="col-md-6">
+            <label class="form-label">Product Name</label>
+            <input
+              type="text"
+              v-model="stockForm.name"
+              class="form-control"
+              readonly
+            />
+          </div>
+
+          <!-- Category -->
+          <div class="col-md-6">
+            <label class="form-label">Category</label>
+            <Select
+                v-model="stockForm.category_id"
+                :options="categories"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Select Category"
+                class="w-100"
+                appendTo="self"
+            />
+          </div>
+
+          <!-- Supplier -->
+          <div class="col-md-6">
+            <label class="form-label">Supplier</label>
+            <Select
+            v-model="stockForm.supplier_id"
+            :options="suppliers"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select Supplier"
+            class="w-100"
+            appendTo="self"
+        />
+          </div>
+
+          <!-- Available quantity -->
+          <div class="col-md-6">
+            <label class="form-label">Available Quantity</label>
+            <input
+              type="number"
+              v-model="stockForm.available_quantity"
+              class="form-control"
+            />
+          </div>
+
+          <!-- Stock In Quantity -->
+          <div class="col-md-4">
+            <label class="form-label">Quantity</label>
+            <input
+              type="number"
+              v-model="stockForm.quantity"
+              class="form-control"
+              min="0"
+              @input="calculateValue()"
+            />
+          </div>
+
+          <!-- Price -->
+          <div class="col-md-4">
+            <label class="form-label">Price</label>
+            <input
+              type="number"
+              v-model="stockForm.price"
+              class="form-control"
+              min="0"
+              @input="calculateValue()"
+            />
+          </div>
+
+          <!-- Value (auto-calculated) -->
+          <div class="col-md-4">
+            <label class="form-label">Value</label>
+            <input
+              type="text"
+              v-model="stockForm.value"
+              class="form-control"
+            />
+          </div>
+
+          <!-- Expiry Date -->
+          <div class="col-md-6">
+            <label class="form-label">Expiry Date</label>
+            <input
+              type="date"
+              v-model="stockForm.expiry_date"
+              class="form-control"
+            />
+          </div>
+
+          <!-- Notes / Reason -->
+          <div class="col-md-12">
+            <label class="form-label">Notes / Reason</label>
+            <textarea
+              v-model="stockForm.description"
+              rows="3"
+              class="form-control"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="mt-4 text-end">
+          <button
+            class="btn btn-primary"
+            :disabled="submittingStock"
+  @click="submitStockIn"
+          >
+            Stock In
+          </button>
+          <button
+            class="btn btn-secondary ms-2"
+            data-bs-dismiss="modal"
+            @click="resetStockForm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
             </div>
         </div>
     </Master>
@@ -852,6 +1290,28 @@ const onDownload = (type) => console.log("Download:", type);
 /* Optional hint styling */
 .dropdown-toggle .small {
     opacity: 0.85;
+}
+
+.modal-body .row:not(:last-child) {
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.4em 0.6em;
+}
+
+.form-label.text-muted {
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.fw-semibold {
+    font-size: 0.95rem;
+    color: #333;
 }
 
 /* Mobile tweaks */

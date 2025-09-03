@@ -16,6 +16,7 @@ use App\Http\Controllers\POS\{
     InventoryCategoryController,
     StockLogController,
     PurchaseOrderController,
+    StockEntryController,
    
     MenuController,
     MenuCategoryController,
@@ -72,12 +73,25 @@ Route::middleware('auth')->group(function () {
     // Inventory
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('index');
+        Route::get('/api-inventories', [InventoryController::class, 'apiList']);
         Route::get('/create', [InventoryController::class, 'create'])->name('create');
         Route::post('/', [InventoryController::class, 'store'])->name('store');
+        Route::get('/{inventory}', [InventoryController::class, 'show'])->name('show');
         Route::get('/{inventory}/edit', [InventoryController::class, 'edit'])->name('edit');
         Route::put('/{inventory}', [InventoryController::class, 'update'])->name('update');
         Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
     });
+
+    // Stock In/Out entries
+    Route::prefix('stock_entries')->name('stock_entries.')->group(function () {
+    Route::get('/', [StockEntryController::class, 'index'])->name('index'); 
+    Route::post('/', [StockEntryController::class, 'store'])->name('store'); 
+    Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show'); 
+    Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
+    Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
+    Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy'); 
+});
+
 
     // Inventory Categories
 Route::prefix('inventory-categories')->name('inventory.categories.')->group(function () {
