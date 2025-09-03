@@ -588,8 +588,8 @@ async function submitStockOut() {
                         <!-- Table -->
                         <div class="table-responsive">
                             <table
-                                class="table table-hover align-middle"
-                                style="min-height: 320px"
+                                class="table table-hover"
+                                
                             >
                                 <thead class="border-top small text-muted">
                                     <tr>
@@ -1482,6 +1482,26 @@ async function submitStockOut() {
 .fw-semibold {
     font-size: 0.95rem;
     color: #333;
+}
+.table-responsive {
+    overflow: visible !important;
+}
+
+.dropdown-menu {
+    position: absolute !important;
+    z-index: 1050 !important;
+}
+
+/* Ensure the table container doesn't clip the dropdown */
+.table-container {
+    overflow: visible !important;
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
 }
 
 /* Mobile tweaks */
