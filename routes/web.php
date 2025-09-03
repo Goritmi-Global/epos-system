@@ -86,9 +86,16 @@ Route::middleware('auth')->group(function () {
     Route::prefix('stock_entries')->name('stock_entries.')->group(function () {
     Route::get('/', [StockEntryController::class, 'index'])->name('index'); 
     Route::post('/', [StockEntryController::class, 'store'])->name('store'); 
+    
+    // Put specific routes BEFORE parameterized routes
+    Route::get('/stock-logs', [StockEntryController::class, 'stockLogs'])->name('stock.logs');
+    Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog']);
+    Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog']);
+    Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
+    
+    // Parameterized routes come last
     Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show'); 
     Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
-    Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
     Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy'); 
 });
 

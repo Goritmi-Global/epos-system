@@ -4,6 +4,7 @@ namespace App\Services\POS;
 
 use App\Models\Inventory;
 use App\Models\StockEntry;
+use Illuminate\Http\Request;
 
 class StockEntryService
 {
@@ -61,5 +62,47 @@ class StockEntryService
             'stockValue' => $stockValue,
             'minAlert' => $minAlert,
         ]);
+    }
+
+    // Get stock logs
+    public function getStockLogs(): array
+    {
+        return StockEntry::with('product')
+            ->latest()
+            ->get()
+            ->map(function ($entry) {
+                return [
+                    'id' => $entry->id,
+                    'itemName' => $entry->product->name ?? 'N/A',
+                    'totalPrice' => $entry->quantity * $entry->price,
+                    'category' => $entry->product->getAttribute('category') ?? 'N/A',
+                    'unitPrice' => $entry->price,
+                    'dateTime' => $entry->created_at->toIso8601String(),
+                    'expiryDate' => $entry->expiry_date,
+                    'quantity' => $entry->quantity,
+                    'operationType' => $entry->operation_type,
+                    'type' => $entry->stock_type,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
+    public function updateLog(Request $request, $id): bool
+    {
+        $entry = StockEntry::findOrFail($id);
+
+        $entry->quantity = $request->quantity;
+        $entry->price = $request->unitPrice;
+        $entry->expiry_date = $request->expiryDate;
+        $entry->operation_type = $request->operationType;
+
+        return $entry->save();
+    }
+    
+    public function deleteLog($id): bool
+    {
+        $entry = StockEntry::findOrFail($id);
+        return $entry->delete();
     }
 }

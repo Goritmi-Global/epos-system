@@ -1,73 +1,27 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
+import { toast } from "vue3-toastify";
 
-/* ---------------- Demo data (swap with API) ---------------- */
-const logs = ref([
-    {
-        id: 1,
-        itemName: "Basmati rice",
-        totalPrice: 44.0,
-        category: "Poultry",
-        unitPrice: 2.2,
-        dateTime: "2025-08-30T03:05:00",
-        expiryDate: null,
-        quantity: 20,
-        operationType: "pos_stockOut",
-        type: "stock_out",
-    },
-    {
-        id: 2,
-        itemName: "Basmati rice",
-        totalPrice: 26.4,
-        category: "Poultry",
-        unitPrice: 2.2,
-        dateTime: "2025-08-30T00:00:00",
-        expiryDate: "2025-08-30",
-        quantity: 12.0,
-        operationType: "purchase_stockin",
-        type: "stock_in",
-    },
-    {
-        id: 3,
-        itemName: "Basmati rice",
-        totalPrice: 44.0,
-        category: "Poultry",
-        unitPrice: 2.2,
-        dateTime: "2025-08-29T00:22:00",
-        expiryDate: null,
-        quantity: 20,
-        operationType: "pos_stockOut",
-        type: "stock_out",
-    },
-    {
-        id: 4,
-        itemName: "Basmati rice",
-        totalPrice: 1100.0,
-        category: "Poultry",
-        unitPrice: 2.2,
-        dateTime: "2025-08-28T00:00:00",
-        expiryDate: "2025-08-31",
-        quantity: 500,
-        operationType: "inventory_stockin",
-        type: "stock_in",
-    },
-    {
-        id: 5,
-        itemName: "Basmati rice",
-        totalPrice: 3000.0,
-        category: "Poultry",
-        unitPrice: 1.5,
-        dateTime: "2025-08-28T00:00:00",
-        expiryDate: "2025-09-30",
-        quantity: 2000.0,
-        operationType: "purchase_stockin",
-        type: "stock_in",
-    },
-]);
+const logs = ref([]);
+const q = ref("");
+
+const fetchLogs = async () => {
+  try {
+    const { data } = await axios.get("stock_entries/stock-logs");
+    logs.value = data;
+  } catch (e) {
+    console.error("Failed to fetch logs", e);
+  }
+};
+
+
+onMounted(() => {
+  fetchLogs(); 
+});
 
 /* ---------------- Search ---------------- */
-const q = ref("");
+// const q = ref("");
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
     if (!t) return logs.value;
@@ -122,6 +76,60 @@ const onDelete = (row) => console.log("Delete log:", row);
 
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
+
+/* ---------------- Logs view ---------------- */
+const selectedLog = ref(null);
+
+const View = (row) => {
+    selectedLog.value = row;
+
+    // Open modal manually
+    const modal = new bootstrap.Modal(document.getElementById("viewLogModal"));
+    modal.show();
+};
+
+/* ---------------- Logs Edit ---------------- */
+const editForm = ref({
+  id: null,
+  itemName: "",
+  quantity: "",
+  unitPrice: "",
+  expiryDate: "",
+  operationType: "",
+});
+
+function Edit(row) {
+  editForm.value = { ...row }; // copy log data
+  const modal = new bootstrap.Modal(document.getElementById("editLogModal"));
+  modal.show();
+}
+
+async function updateLog() {
+  try {
+    await axios.put(`stock_entries/stock-logs/${editForm.value.id}`, editForm.value);
+    await fetchLogs(); 
+    toast.success("Stock log updated successfully");
+    const modal = bootstrap.Modal.getInstance(document.getElementById("editLogModal"));
+    if (modal) modal.hide();
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to update log");
+  }
+}
+
+/* -------------------------- Delete Log ---------------------- */
+async function Delete(row) {
+  try {
+    await axios.delete(`stock_entries/stock-logs/${row.id}`);
+    await fetchLogs(); // refresh list
+    toast.success("Stock log deleted successfully");
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to delete log");
+  }
+}
+
+
 </script>
 
 <template>
@@ -231,7 +239,7 @@ onUpdated(() => window.feather?.replace());
                                                                 class="dropdown-item py-2"
                                                                 href="javascript:void(0)"
                                                                 @click="
-                                                                    onView(row)
+                                                                    View(row)
                                                                 "
                                                                 ><i
                                                                     class="bi bi-eye me-2"
@@ -244,7 +252,7 @@ onUpdated(() => window.feather?.replace());
                                                                 class="dropdown-item py-2"
                                                                 href="javascript:void(0)"
                                                                 @click="
-                                                                    onEdit(row)
+                                                                    Edit(row)
                                                                 "
                                                                 ><i
                                                                     class="bi bi-pencil-square me-2"
@@ -262,7 +270,7 @@ onUpdated(() => window.feather?.replace());
                                                                 class="dropdown-item py-2 text-danger"
                                                                 href="javascript:void(0)"
                                                                 @click="
-                                                                    onDelete(
+                                                                    Delete(
                                                                         row
                                                                     )
                                                                 "
@@ -293,6 +301,105 @@ onUpdated(() => window.feather?.replace());
                                 </tbody>
                             </table>
                         </div>
+
+
+                         <!-- View Log Modal -->
+                        <div
+                            class="modal fade"
+                            id="viewLogModal"
+                            tabindex="-1"
+                            aria-hidden="true"
+                        >
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content rounded-4 shadow-lg">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title fw-semibold">Log Details</h5>
+                                        <button
+                                            type="button"
+                                            class="btn-close"
+                                            data-bs-dismiss="modal"
+                                            aria-label="Close"
+                                        ></button>
+                                    </div>
+
+                                    <div class="modal-body">
+                                        <div v-if="selectedLog">
+                                            <p><strong>Item:</strong> {{ selectedLog.itemName }}</p>
+                                            <p><strong>Category:</strong> {{ selectedLog.category }}</p>
+                                            <p><strong>Quantity:</strong> {{ selectedLog.quantity }}</p>
+                                            <p><strong>Unit Price:</strong> {{ money(selectedLog.unitPrice) }}</p>
+                                            <p><strong>Total Price:</strong> {{ money(selectedLog.totalPrice) }}</p>
+                                            <p><strong>Operation:</strong> {{ selectedLog.operationType }}</p>
+                                            <p><strong>Type:</strong> {{ selectedLog.type }}</p>
+                                            <p><strong>Date:</strong> {{ fmtDateTime(selectedLog.dateTime) }}</p>
+                                            <p>
+                                                <strong>Expiry Date:</strong>
+                                                {{ selectedLog.expiryDate ? fmtDate(selectedLog.expiryDate) : "—" }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- ✅ Footer with Close button -->
+                                    <div class="modal-footer">
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary rounded-pill px-4"
+                                            data-bs-dismiss="modal"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Edit Log Modal -->
+                         <div class="modal fade" id="editLogModal" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content rounded-4">
+                                <div class="modal-header">
+                                    <h5 class="modal-title fw-semibold">Edit Stock Log</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form @submit.prevent="updateLog">
+                                    <div class="mb-3">
+                                        <label class="form-label">Item Name</label>
+                                        <input type="text" class="form-control" v-model="editForm.itemName" disabled>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Quantity</label>
+                                        <input type="number" class="form-control" v-model="editForm.quantity" required>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Unit Price</label>
+                                        <input type="number" class="form-control" v-model="editForm.unitPrice" required>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Expiry Date</label>
+                                        <input type="date" class="form-control" v-model="editForm.expiryDate">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Operation Type</label>
+                                        <select class="form-select" v-model="editForm.operationType">
+                                        <option value="purchase">Purchase</option>
+                                        <option value="sale">Sale</option>
+                                        <option value="adjustment">Adjustment</option>
+                                        </select>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                                    </form>
+                                </div>
+                                </div>
+                            </div>
+                            </div>
+
+
                     </div>
                 </div>
             </div>

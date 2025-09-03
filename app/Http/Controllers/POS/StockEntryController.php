@@ -5,6 +5,7 @@ namespace App\Http\Controllers\POS;
 use App\Http\Controllers\Controller;
 use App\Services\POS\StockEntryService;
 use App\Http\Requests\Inventory\StoreStockEntryRequest;
+use App\Models\StockEntry;
 use Illuminate\Http\Request;
 
 class StockEntryController extends Controller
@@ -41,5 +42,31 @@ class StockEntryController extends Controller
     {
         $total = $this->service->totalStock($productId);
         return response()->json(['total' => $total]);
+    }
+
+    public function stockLogs()
+    {
+        $logs = $this->service->getStockLogs();
+        return response()->json($logs);
+    }
+
+    public function updateLog(Request $request, $id)
+    {
+        $updated = $this->service->updateLog($request, $id);
+
+        if ($updated) {
+            return response()->json(['message' => 'Stock log updated successfully']);
+        }
+
+        return response()->json(['message' => 'Failed to update log'], 500);
+    }
+
+    public function deleteLog($id)
+    {
+        $deleted = $this->service->deleteLog($id);
+        if ($deleted) {
+            return response()->json(['message' => 'Stock log deleted successfully']);
+        }
+        return response()->json(['message' => 'Failed to delete log'], 500);
     }
 }
