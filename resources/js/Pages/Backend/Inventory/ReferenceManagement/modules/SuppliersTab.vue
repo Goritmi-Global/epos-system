@@ -6,8 +6,6 @@ import { nextTick } from "vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from 'xlsx';
-import { VueTelInput } from "vue-tel-input";
-import "vue-tel-input/vue-tel-input.css";
 
 
 

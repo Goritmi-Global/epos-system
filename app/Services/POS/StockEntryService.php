@@ -40,11 +40,20 @@ class StockEntryService
 
         $available = $totalIn - $totalOut;
 
-        $stockValue = StockEntry::where('product_id', $product)
+        // total stock-in value
+        $totalInValue = StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockin')
             ->sum(\DB::raw('quantity * price'));
 
-        $inventory = \App\Models\Inventory::find($product);
+        // total stock-out value
+        $totalOutValue = StockEntry::where('product_id', $product)
+            ->where('stock_type', 'stockout')
+            ->sum(\DB::raw('quantity * price'));
+
+        // net stock value
+        $stockValue = $totalInValue - $totalOutValue;
+
+        $inventory = Inventory::find($product);
         $minAlert = $inventory?->minAlert ?? 0;
 
         return response()->json([
