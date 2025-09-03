@@ -30,7 +30,7 @@ class SupplierService
     // }
     public function create(array $data)
     {
-      
+    
         $supplier = new Supplier();
         $supplier->user_id         = Auth::id();
         $supplier->name            = $data['name'];

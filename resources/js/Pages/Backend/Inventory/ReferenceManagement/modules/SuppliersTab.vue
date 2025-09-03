@@ -6,7 +6,8 @@ import { nextTick } from "vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from 'xlsx';
-
+import { VueTelInput } from "vue-tel-input";
+import "vue-tel-input/vue-tel-input.css";
 
 
 
@@ -70,6 +71,8 @@ const onDownload = (type) => {
             downloadPDF(dataToExport);
         } else if (type === 'excel') {
             downloadExcel(dataToExport);
+        } else if (type === 'csv') {
+            downloadCSV(dataToExport);
         } else {
             toast.error("Invalid download type", { autoClose: 3000 });
         }
@@ -79,28 +82,66 @@ const onDownload = (type) => {
     }
 };
 
+const downloadCSV = (data) => {
+    try {
+        // Define headers
+        const headers = ["Name", "Email", "Phone", "Address", "Preferred Items"];
+
+        // Build CSV rows
+        const rows = data.map(s => [
+            `"${s.name || ""}"`,
+            `"${s.email || ""}"`,
+            `"${s.contact || ""}"`,
+            `"${s.address || ""}"`,
+            `"${s.preferred_items || ""}"`
+        ]);
+
+        // Combine into CSV string
+        const csvContent = [
+            headers.join(","), // header row
+            ...rows.map(r => r.join(",")) // data rows
+        ].join("\n");
+
+        // Create blob
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `suppliers_${new Date().toISOString().split("T")[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
 
-        // 🌟 Title
+
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
-        doc.text("Suppliers Report", 14, 20);
+        doc.text("Suppliers Report", 70, 20);
 
-        // 🗓️ Metadata
+
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 14, 28);
-        doc.text(`Total Suppliers: ${data.length}`, 14, 34);
+        doc.text(`Generated on: ${currentDate}`, 70, 28);
+        doc.text(`Total Suppliers: ${data.length}`, 70, 34);
 
-        // 📋 Table Data
         const tableColumns = ["Name", "Email", "Phone", "Address", "Preferred Items"];
         const tableRows = data.map((s) => [
             s.name || "",
             s.email || "",
-            s.phone || s.contact || "",
+            s.contact || "",
             s.address || "",
             s.preferred_items || "",
         ]);
@@ -111,9 +152,11 @@ const downloadPDF = (data) => {
             body: tableRows,
             startY: 40,
             styles: {
-                fontSize: 9,
-                cellPadding: 3,
+                fontSize: 8,
+                cellPadding: 2,
                 halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1
             },
             headStyles: {
                 fillColor: [41, 128, 185],
@@ -149,12 +192,10 @@ const downloadPDF = (data) => {
 
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
+
         if (typeof XLSX === 'undefined') {
             throw new Error('XLSX library is not loaded');
         }
-
-        // Prepare worksheet data
         const worksheetData = data.map(supplier => ({
             'Name': supplier.name || '',
             'Email': supplier.email || '',
@@ -163,19 +204,15 @@ const downloadExcel = (data) => {
             'Preferred Items': supplier.preferred_items || '',
             'ID': supplier.id || ''
         }));
-
-        // Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // Set column widths
         const colWidths = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
-            { wch: 10 }  // ID
+            { wch: 20 },  // Name heading de
+            { wch: 25 },  // Email de
+            { wch: 15 },
+            { wch: 30 },
+            { wch: 25 },
+            { wch: 10 }
         ];
         worksheet['!cols'] = colWidths;
 
@@ -212,6 +249,16 @@ const form = ref({
     address: "",
     preferred_items: "", // Preferred Items
 });
+
+const phoneError = ref("");
+
+const checkPhone = ({ valid, number, country }) => {
+    if (!valid) {
+        phoneError.value = "Invalid number for " + (country?.name || "selected country");
+    } else {
+        phoneError.value = ""; // clear error if valid
+    }
+};
 const loading = ref(false);
 const errors = ref({});
 
@@ -238,6 +285,7 @@ const resetForm = () => {
 };
 
 const submit = () => {
+    console.log(typeof (form.value.phone));
     loading.value = true;
     errors.value = {};
     const payload = {
@@ -262,9 +310,13 @@ const submit = () => {
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 errors.value = err.response.data.errors;
-                toast.error("Validation failed. Please check the fields.", {
-                    autoClose: 3000,
+                // Loop over errors and show in toast
+                Object.values(err.response.data.errors).forEach((messages) => {
+                    messages.forEach((msg) => {
+                        toast.error(msg, { autoClose: 3000 });
+                    });
                 });
+
             } else {
                 toast.error("Something went wrong. Please try again.", {
                     autoClose: 3000,
@@ -422,14 +474,22 @@ const onRemove = (row) => {
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
-                                    PDF</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
+                                    Download as PDF
+                                </a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
-                                    as Excel</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
+                                    Download as Excel
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                    Download as CSV
+                                </a>
                             </li>
                         </ul>
+
                     </div>
                 </div>
             </div>
@@ -531,26 +591,13 @@ const onRemove = (row) => {
                         </div>
 
                         <!-- Phone -->
-                        <div class="col-lg-3">
-                            <label class="form-label">+44</label>
-                            <input class="form-control" disabled value="+44" />
-                        </div>
-                        <div class="col-lg-9">
-                            <label class="form-label">Phone*</label>
-                            <input class="form-control" v-model="form.phone" />
-                            <small v-if="errors.contact" class="text-danger">{{
-                                errors.contact[0]
-                            }}</small>
-                        </div>
-
-
-                        <!-- Address -->
                         <div class="col-lg-6">
-                            <label class="form-label">Address</label>
-                            <textarea class="form-control" rows="4" v-model="form.address"></textarea>
-                            <small v-if="errors.address" class="text-danger">{{
-                                errors.address[0]
-                                }}</small>
+                            <label class="form-label">Phone</label>
+                            <vue-tel-input v-model="form.phone" default-country="PK" mode="international"
+                                @validate="checkPhone" :auto-format="true" :enable-formatting="true"
+                                :input-options="{ showDialCode: true }" />
+
+                            <p v-if="phoneError" class="text-danger">{{ phoneError }}</p>
                         </div>
 
                         <!-- Preferred Items -->
@@ -560,6 +607,15 @@ const onRemove = (row) => {
                             <small v-if="errors.preferred_items" class="text-danger">
                                 {{ errors.preferred_items[0] }}
                             </small>
+                        </div>
+
+                        <!-- Address -->
+                        <div class="col-lg-6">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" rows="4" v-model="form.address"></textarea>
+                            <small v-if="errors.address" class="text-danger">{{
+                                errors.address[0]
+                                }}</small>
                         </div>
 
                         <!-- Submit -->

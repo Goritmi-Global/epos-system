@@ -270,7 +270,11 @@ const onDownload = (type) => {
             downloadPDF(dataToExport);
         } else if (type === 'excel') {
             downloadExcel(dataToExport);
-        } else {
+        }
+        else if(type === 'csv'){
+            downloadCSV(dataToExport);
+        }
+        else {
             toast.error("Invalid download type", { autoClose: 3000 });
         }
     } catch (error) {
@@ -278,6 +282,45 @@ const onDownload = (type) => {
         toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
     }
 };
+
+const downloadCSV = (data) => {
+    try {
+        // Define headers
+        const headers = ["Name", "Created At", "Updated At"];
+
+        // Build CSV rows
+        const rows = data.map(s => [
+            `"${s.name || ""}"`,
+            `"${s.created_at || ""}"`,
+            `"${s.updated_at || ""}"`,
+            
+        ]);
+
+        // Combine into CSV string
+        const csvContent = [
+            headers.join(","), // header row
+            ...rows.map(r => r.join(",")) // data rows
+        ].join("\n");
+
+        // Create blob
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `allergies_${new Date().toISOString().split("T")[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
 
 const downloadPDF = (data) => {
   try {
@@ -296,7 +339,7 @@ const downloadPDF = (data) => {
     doc.text(`Total Tags: ${data.length}`, 14, 34);
 
     // 📋 Table Data
-    const tableColumns = ["Name"];
+    const tableColumns = ["Name", "Created At", "Updated At"];
     const tableRows = data.map((s) => [
       s.name || "",
       s.created_at || "",
@@ -308,11 +351,13 @@ const downloadPDF = (data) => {
       head: [tableColumns],
       body: tableRows,
       startY: 40,
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-        halign: "left",
-      },
+       styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1
+            },
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: 255,
@@ -427,6 +472,11 @@ const downloadExcel = (data) => {
                             <li>
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
                                     as Excel</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                    Download as CSV
+                                </a>
                             </li>
                         </ul>
                     </div>

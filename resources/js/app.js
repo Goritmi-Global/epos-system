@@ -44,9 +44,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
-import VueTelInput from 'vue3-tel-input'
-import 'vue3-tel-input/dist/vue3-tel-input.css'
-
+import VueTelInput from "vue-tel-input";
+import "vue-tel-input/vue-tel-input.css";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
@@ -84,7 +83,7 @@ createInertiaApp({
             pauseOnHover: true,
             theme: 'light',
         });
-        vueApp.use(VueTelInput, VueTelInputOptions); 
+       vueApp.use(VueTelInput);
 
         const mountedApp = vueApp.mount(el);
 
