@@ -3,10 +3,6 @@ import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
 import MultiSelect from "primevue/multiselect";
 import { toast } from "vue3-toastify";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from 'xlsx';
-
 
 /* ---------------- Demo data (swap with API later) ---------------- */
 const manualCategories = ref([]);
@@ -429,190 +425,38 @@ const viewCategory = async (row) => {
         console.error("Failed to fetch category:", err);
     }
 };
-const onDownload = (type) => {
-    if (!parentCategories.value || parentCategories.value.length === 0) {
-        toast.error("No Categories data to download", { autoClose: 3000 });
-        return;
+
+const options = ref([]); // all subcategory options
+const currentFilterValue = ref("");
+
+// Add custom subcategory
+const addCustomSubcategory = () => {
+    const name = currentFilterValue.value?.trim();
+    if (!name) return;
+
+    // Add to options if it doesn't exist
+    if (
+        !options.value.some((o) => o.value.toLowerCase() === name.toLowerCase())
+    ) {
+        options.value.push({ label: name, value: name });
     }
 
-    // Use filtered data if there's a search query, otherwise use all suppliers
-    const dataToExport = q.value.trim() ? filtered.value : parentCategories.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No Categories found to download", { autoClose: 3000 });
-        return;
+    // Add to selected if not already
+    if (!manualSubcategories.value.includes(name)) {
+        manualSubcategories.value.push(name);
     }
 
-    try {
-        if (type === 'pdf') {
-            downloadPDF(dataToExport);
-        } else if (type === 'excel') {
-            downloadExcel(dataToExport);
-        } else {
-            toast.error("Invalid download type", { autoClose: 3000 });
-        }
-    } catch (error) {
-        console.error('Download failed:', error);
-        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
-    }
+    currentFilterValue.value = "";
 };
 
-const downloadPDF = (data) => {
-    try {
-        const doc = new jsPDF("p", "mm", "a4");
-
-        doc.setFontSize(20);
-        doc.setFont("helvetica", "bold");
-        doc.text("Categories Report", 14, 20);
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 14, 28);
-        doc.text(`Total Tags: ${data.length}`, 14, 34);
-
-        // Create a map of parent ID to subcategory names
-        const parentMap = {};
-        data.forEach((parentCategories) => {
-            if (parentCategories.parent_id) {
-                if (!parentMap[parentCategories.parent_id]) parentMap[parentCategories.parent_id] = [];
-                parentMap[parentCategories.parent_id].push(parentCategories.name);
-            }
-        });
-
-        // Table headers including Sub Category
-        const tableColumns = [
-            "Name",
-            "Sub Category",
-            "Total Value",
-            "Total Items",
-            "Out of Stock",
-            "Low Stock",
-            "In Stock",
-            "Created At",
-            "Updated At"
-        ];
-
-        // Prepare table rows
-        const tableRows = data.map((s) => [
-            s.name || "",
-            parentMap[s.id] ? parentMap[s.id].join(", ") : "",
-            s.total_value || "",
-            s.total_items || "",
-            s.out_of_stock || "",
-            s.low_stock || "",
-            s.in_stock || "",
-            s.created_at || "",
-            s.updated_at || ""
-        ]);
-
-        autoTable(doc, {
-            head: [tableColumns],
-            body: tableRows,
-            startY: 40,
-            styles: {
-                fontSize: 8,
-                cellPadding: 2,
-                halign: "left",
-                lineColor: [0, 0, 0],
-                lineWidth: 0.1
-            },
-            headStyles: {
-                fillColor: [41, 128, 185],
-                textColor: 255,
-                lineColor: [0, 0, 0],
-                lineWidth: 0.1
-            },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
-            margin: { left: 14, right: 14 },
-            didDrawPage: (tableData) => {
-                const pageCount = doc.internal.getNumberOfPages();
-                const pageHeight = doc.internal.pageSize.height;
-                doc.setFontSize(8);
-                doc.text(
-                    `Page ${tableData.pageNumber} of ${pageCount}`,
-                    tableData.settings.margin.left,
-                    pageHeight - 10
-                );
-            },
-        });
-
-        const fileName = `Categories_${new Date().toISOString().split("T")[0]}.pdf`;
-        doc.save(fileName);
-
-        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
-    } catch (error) {
-        console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
-    }
+// Select all
+const selectAllSubcategories = () => {
+    manualSubcategories.value = options.value.map((o) => o.value);
 };
 
-
-
-
-const downloadExcel = (data) => {
-    try {
-        if (typeof XLSX === 'undefined') {
-            throw new Error('XLSX library is not loaded');
-        }
-
-        const worksheetData = data.map(allergie => ({
-            'Name': allergie.name || '',
-            'Total Value': allergie.total_value || '',
-            'Total Items': allergie.total_items || '',
-            'Out of Stock': allergie.out_of_stock || '',
-            'Low Stock': allergie.low_stock || '',
-            'In Stock': allergie.in_stock || '',
-            'Created At': allergie.created_at || '',
-            'Updated At': allergie.updated_at || ''
-        }));
-
-        // Create workbook and worksheet
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // Set column widths
-        const colWidths = [
-            { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-            { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }
-        ];
-        worksheet['!cols'] = colWidths;
-
-        // Apply background color to header row (row 1)
-        const headerColor = { fgColor: { rgb: "F0F0F0" } }; // light gray
-        const headerRow = Object.keys(worksheetData[0] || {});
-        headerRow.forEach((key, index) => {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
-            if (worksheet[cellAddress]) {
-                worksheet[cellAddress].s = {
-                    fill: headerColor,
-                    font: { bold: true }
-                };
-            }
-        });
-
-        // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Categories');
-
-        // Add metadata sheet
-        const metaData = [
-            { Info: 'Generated On', Value: new Date().toLocaleString() },
-            { Info: 'Total Records', Value: data.length },
-            { Info: 'Exported By', Value: 'Allergies Management System' }
-        ];
-        const metaSheet = XLSX.utils.json_to_sheet(metaData);
-        XLSX.utils.book_append_sheet(workbook, metaSheet, 'Report Info');
-
-        // Save the file
-        const fileName = `Categories_${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-
-        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
-
-    } catch (error) {
-        console.error('Excel generation error:', error);
-        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
-    }
+// Clear all
+const removeAllSubcategories = () => {
+    manualSubcategories.value = [];
 };
 </script>
 
@@ -624,9 +468,15 @@ const downloadExcel = (data) => {
 
                 <!-- KPI -->
                 <div class="row g-3">
-                    <div v-for="c in CategoriesDetails" :key="c.label" class="col-6 col-md-4">
+                    <div
+                        v-for="c in CategoriesDetails"
+                        :key="c.label"
+                        class="col-6 col-md-4"
+                    >
                         <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div
+                                class="card-body d-flex flex-column justify-content-center text-center"
+                            >
                                 <div class="icon-wrap mb-2">
                                     <i :class="c.icon"></i>
                                 </div>
@@ -641,33 +491,55 @@ const downloadExcel = (data) => {
                 <div class="card border-0 shadow-lg rounded-4 mt-0">
                     <div class="card-body">
                         <!-- Toolbar -->
-                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <div
+                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+                        >
                             <h5 class="mb-0 fw-semibold">Categories</h5>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div
+                                class="d-flex flex-wrap gap-2 align-items-center"
+                            >
                                 <div class="search-wrap">
                                     <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
+                                    <input
+                                        v-model="q"
+                                        type="text"
+                                        class="form-control search-input"
+                                        placeholder="Search"
+                                    />
                                 </div>
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addCatModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addCatModal"
+                                >
                                     Add Category
                                 </button>
 
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Download all
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" @click="onDownload('pdf')">Download as PDF</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="#"
+                                                >Download as PDF</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" @click="onDownload('excel')">Download as
-                                                Excel</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="#"
+                                                >Download as Excel</a
+                                            >
                                         </li>
                                     </ul>
                                 </div>
@@ -692,12 +564,18 @@ const downloadExcel = (data) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(row, i) in filtered" :key="row.id">
+                                    <tr
+                                        v-for="(row, i) in filtered"
+                                        :key="row.id"
+                                    >
                                         <td>{{ i + 1 }}</td>
                                         <td class="fw-semibold">
                                             {{ row.name }}
                                         </td>
-                                        <td class="text-truncate" style="max-width: 260px">
+                                        <td
+                                            class="text-truncate"
+                                            style="max-width: 260px"
+                                        >
                                             {{
                                                 row.subcategories
                                                     ?.map((sub) => sub.name)
@@ -706,7 +584,8 @@ const downloadExcel = (data) => {
                                         </td>
                                         <td>
                                             <div
-                                                class="rounded d-inline-flex align-items-center justify-content-center img-chip">
+                                                class="rounded d-inline-flex align-items-center justify-content-center img-chip"
+                                            >
                                                 <span class="fs-5">{{
                                                     row.icon || "📦"
                                                 }}</span>
@@ -719,38 +598,59 @@ const downloadExcel = (data) => {
                                         <td>{{ row.in_stock }}</td>
                                         <td class="text-end">
                                             <div class="dropdown">
-                                                <button class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown" title="Actions">
+                                                <button
+                                                    class="btn btn-link text-secondary p-0 fs-5"
+                                                    data-bs-toggle="dropdown"
+                                                    title="Actions"
+                                                >
                                                     ⋮
                                                 </button>
                                                 <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
+                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden"
+                                                >
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:;" @click="
-                                                            viewCategory(
-                                                                row
-                                                            )
-                                                            ">
-                                                            <i class="bi bi-eye me-2"></i>
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                viewCategory(
+                                                                    row
+                                                                )
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-eye me-2"
+                                                            ></i>
                                                             View
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            editRow(row)
-                                                            ">
-                                                            <i class="bi bi-pencil-square me-2"></i>
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                editRow(row)
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-pencil-square me-2"
+                                                            ></i>
                                                             Edit
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a class="dropdown-item py-2 text-danger"
-                                                            href="javascript:void(0)" @click="
+                                                        <a
+                                                            class="dropdown-item py-2 text-danger"
+                                                            href="javascript:void(0)"
+                                                            @click="
                                                                 deleteCategory(
                                                                     row
                                                                 )
-                                                                ">
-                                                            <i class="bi bi-trash me-2"></i>
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-trash me-2"
+                                                            ></i>
                                                             Delete
                                                         </a>
                                                     </li>
@@ -760,7 +660,10 @@ const downloadExcel = (data) => {
                                     </tr>
 
                                     <tr v-if="filtered.length === 0">
-                                        <td colspan="10" class="text-center text-muted py-4">
+                                        <td
+                                            colspan="10"
+                                            class="text-center text-muted py-4"
+                                        >
                                             No categories found.
                                         </td>
                                     </tr>
@@ -771,12 +674,21 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- =================== View Modal of Category =================== -->
-                <div class="modal fade" id="viewCatModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="viewCatModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title">Category Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                ></button>
                             </div>
                             <div class="modal-body" v-if="viewingCategory">
                                 <p>
@@ -803,9 +715,11 @@ const downloadExcel = (data) => {
                                 </p>
                                 <p>
                                     <strong>Sub-Categories: </strong>
-                                    <span v-if="
-                                        viewingCategory.subcategories.length
-                                    ">
+                                    <span
+                                        v-if="
+                                            viewingCategory.subcategories.length
+                                        "
+                                    >
                                         {{
                                             viewingCategory.subcategories
                                                 .map((sub) => sub.name)
@@ -819,7 +733,11 @@ const downloadExcel = (data) => {
                                 Loading category details...
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    data-bs-dismiss="modal"
+                                >
                                     Close
                                 </button>
                             </div>
@@ -828,14 +746,24 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- ================== Add Category Modal ================== -->
-                <div class="modal fade" id="addCatModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="addCatModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
                                     Add Raw Material Categories
                                 </h5>
-                                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                <button
+                                    type="button"
+                                    class="btn btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                >
                                     ×
                                 </button>
                             </div>
@@ -846,37 +774,69 @@ const downloadExcel = (data) => {
                                     <!-- Show "Is this a subcategory?" only when creating -->
                                     <template v-if="!editingCategory">
                                         <div class="col-lg-6">
-                                            <label class="form-label d-block mb-2">Is this a subcategory?</label>
-                                            <div class="d-flex align-items-center gap-3">
+                                            <label
+                                                class="form-label d-block mb-2"
+                                                >Is this a subcategory?</label
+                                            >
+                                            <div
+                                                class="d-flex align-items-center gap-3"
+                                            >
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="radio" :checked="isSub"
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="radio"
+                                                        :checked="isSub"
                                                         @change="
                                                             isSub = true;
-                                                        selectedParentId =
-                                                            null;
-                                                        " name="isSub" />
-                                                    <label class="form-check-label">Yes</label>
+                                                            selectedParentId =
+                                                                null;
+                                                        "
+                                                        name="isSub"
+                                                    />
+                                                    <label
+                                                        class="form-check-label"
+                                                        >Yes</label
+                                                    >
                                                 </div>
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="radio" :checked="!isSub"
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="radio"
+                                                        :checked="!isSub"
                                                         @change="
                                                             isSub = false;
-                                                        selectedParentId =
-                                                            null;
-                                                        " name="isSub" />
-                                                    <label class="form-check-label">No</label>
+                                                            selectedParentId =
+                                                                null;
+                                                        "
+                                                        name="isSub"
+                                                    />
+                                                    <label
+                                                        class="form-check-label"
+                                                        >No</label
+                                                    >
                                                 </div>
                                             </div>
                                         </div>
 
                                         <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
                                         <div class="col-lg-6" v-if="isSub">
-                                            <label class="form-label d-block mb-2">Select Parent Category</label>
-                                            <select v-model="selectedParentId" class="form-select" required>
+                                            <label
+                                                class="form-label d-block mb-2"
+                                                >Select Parent Category</label
+                                            >
+                                            <select
+                                                v-model="selectedParentId"
+                                                class="form-select"
+                                                required
+                                            >
                                                 <option disabled :value="null">
                                                     -- Choose Parent Category --
                                                 </option>
-                                                <option v-for="cat in parentCategories" :key="cat.id" :value="cat.id">
+                                                <option
+                                                    v-for="cat in parentCategories"
+                                                    :key="cat.id"
+                                                    :value="cat.id"
+                                                >
                                                     {{ cat.name }}
                                                 </option>
                                             </select>
@@ -885,24 +845,38 @@ const downloadExcel = (data) => {
 
                                     <!-- Manual Icon (always show) -->
                                     <div class="col-lg-6">
-                                        <label class="form-label d-block mb-2">Manual Icon</label>
+                                        <label class="form-label d-block mb-2"
+                                            >Manual Icon</label
+                                        >
                                         <div class="dropdown w-100">
                                             <button
                                                 class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
-                                                data-bs-toggle="dropdown">
+                                                data-bs-toggle="dropdown"
+                                            >
                                                 <span>
                                                     <span class="me-2">{{
                                                         manualIcon.value
-                                                        }}</span>
+                                                    }}</span>
                                                     {{ manualIcon.label }}
                                                 </span>
-                                                <i class="bi bi-caret-down-fill"></i>
+                                                <i
+                                                    class="bi bi-caret-down-fill"
+                                                ></i>
                                             </button>
-                                            <ul class="dropdown-menu w-100 shadow rounded-3">
-                                                <li v-for="opt in iconOptions" :key="opt.label">
-                                                    <a class="dropdown-item" href="javascript:void(0)" @click="
-                                                        manualIcon = opt
-                                                        ">
+                                            <ul
+                                                class="dropdown-menu w-100 shadow rounded-3"
+                                            >
+                                                <li
+                                                    v-for="opt in iconOptions"
+                                                    :key="opt.label"
+                                                >
+                                                    <a
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        @click="
+                                                            manualIcon = opt
+                                                        "
+                                                    >
                                                         <span class="me-2">{{
                                                             opt.value
                                                         }}</span>
@@ -914,22 +888,43 @@ const downloadExcel = (data) => {
                                     </div>
 
                                     <!-- Category Name -->
-                                    <div class="col-12" v-if="!isSub || editingCategory">
-                                        <label class="form-label">Category Name</label>
+                                    <div
+                                        class="col-12"
+                                        v-if="!isSub || editingCategory"
+                                    >
+                                        <label class="form-label"
+                                            >Category Name</label
+                                        >
 
                                         <!-- Single input when editing -->
-                                        <input v-if="editingCategory" type="text" v-model="manualCategories[0].label"
-                                            class="form-control" placeholder="Enter category name" />
+                                        <input
+                                            v-if="editingCategory"
+                                            type="text"
+                                            v-model="manualCategories[0].label"
+                                            class="form-control"
+                                            placeholder="Enter category name"
+                                        />
 
                                         <!-- MultiSelect when creating -->
-                                        <MultiSelect v-else v-model="manualCategories" :options="commonChips"
-                                            optionLabel="label" optionValue="value" :filter="true" display="chip"
-                                            placeholder="Select or add categories..." class="w-100" appendTo="self"
+                                        <MultiSelect
+                                            v-else
+                                            v-model="manualCategories"
+                                            :options="commonChips"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            :filter="true"
+                                            display="chip"
+                                            placeholder="Select or add categories..."
+                                            class="w-100"
+                                            appendTo="self"
                                             @keydown.enter.prevent="
                                                 addCustomCategory
-                                            " @blur="addCustomCategory" @filter="
+                                            "
+                                            @blur="addCustomCategory"
+                                            @filter="
                                                 (e) => (filterText = e.value)
-                                            ">
+                                            "
+                                        >
                                             <template #option="{ option }">
                                                 {{ option.label }}
                                             </template>
@@ -937,39 +932,76 @@ const downloadExcel = (data) => {
                                     </div>
 
                                     <!-- Subcategory MultiSelect (always in edit, only when isSub=false in create) -->
-                                    <div class="col-12" v-if="editingCategory || isSub">
-                                        <label class="form-label">Subcategory Name(s)</label>
+                                    <div
+                                        class="col-12"
+                                        v-if="editingCategory || isSub"
+                                    >
+                                        <label class="form-label"
+                                            >Subcategory Name(s)</label
+                                        >
 
-                                        <MultiSelect v-model="manualSubcategories" :options="options"
-                                            optionLabel="label" optionValue="value" :filter="true" display="chip"
-                                            placeholder="Select or add subcategories..." class="w-100" appendTo="self"
+                                        <MultiSelect
+                                            v-model="manualSubcategories"
+                                            :options="options"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            :filter="true"
+                                            display="chip"
+                                            placeholder="Select or add subcategories..."
+                                            class="w-100"
+                                            appendTo="self"
                                             @filter="
                                                 (e) =>
-                                                (currentFilterValue =
-                                                    e.value || '')
-                                            " @keydown.enter.prevent="
+                                                    (currentFilterValue =
+                                                        e.value || '')
+                                            "
+                                            @keydown.enter.prevent="
                                                 addCustomSubcategory
-                                            " @blur="addCustomSubcategory">
+                                            "
+                                            @blur="addCustomSubcategory"
+                                        >
                                             <template #option="{ option }">
                                                 <div>{{ option.label }}</div>
                                             </template>
 
                                             <template #footer>
-                                                <div class="p-3 d-flex justify-content-between">
-                                                    <Button label="Add Custom" severity="secondary" variant="text"
-                                                        size="small" icon="pi pi-plus" @click="
+                                                <div
+                                                    class="p-3 d-flex justify-content-between"
+                                                >
+                                                    <Button
+                                                        label="Add Custom"
+                                                        severity="secondary"
+                                                        variant="text"
+                                                        size="small"
+                                                        icon="pi pi-plus"
+                                                        @click="
                                                             addCustomSubcategory
-                                                        " :disabled="!currentFilterValue.trim()
-                                                            " />
+                                                        "
+                                                        :disabled="
+                                                            !currentFilterValue.trim()
+                                                        "
+                                                    />
                                                     <div class="d-flex gap-2">
-                                                        <Button label="Select All" severity="secondary" variant="text"
-                                                            size="small" icon="pi pi-check" @click="
+                                                        <Button
+                                                            label="Select All"
+                                                            severity="secondary"
+                                                            variant="text"
+                                                            size="small"
+                                                            icon="pi pi-check"
+                                                            @click="
                                                                 selectAllSubcategories
-                                                            " />
-                                                        <Button label="Clear All" severity="danger" variant="text"
-                                                            size="small" icon="pi pi-times" @click="
+                                                            "
+                                                        />
+                                                        <Button
+                                                            label="Clear All"
+                                                            severity="danger"
+                                                            variant="text"
+                                                            size="small"
+                                                            icon="pi pi-times"
+                                                            @click="
                                                                 removeAllSubcategories
-                                                            " />
+                                                            "
+                                                        />
                                                     </div>
                                                 </div>
                                             </template>
@@ -978,21 +1010,39 @@ const downloadExcel = (data) => {
 
                                     <!-- Active toggle -->
                                     <div class="col-12">
-                                        <label class="form-label d-block mb-2">Active</label>
-                                        <div class="d-flex align-items-center gap-3">
+                                        <label class="form-label d-block mb-2"
+                                            >Active</label
+                                        >
+                                        <div
+                                            class="d-flex align-items-center gap-3"
+                                        >
                                             <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="manualActive"
+                                                <input
+                                                    class="form-check-input"
+                                                    type="radio"
+                                                    :checked="manualActive"
                                                     @change="
                                                         manualActive = true
-                                                        " name="active" />
-                                                <label class="form-check-label">Yes</label>
+                                                    "
+                                                    name="active"
+                                                />
+                                                <label class="form-check-label"
+                                                    >Yes</label
+                                                >
                                             </div>
                                             <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="!manualActive"
+                                                <input
+                                                    class="form-check-input"
+                                                    type="radio"
+                                                    :checked="!manualActive"
                                                     @change="
                                                         manualActive = false
-                                                        " name="active" />
-                                                <label class="form-check-label">No</label>
+                                                    "
+                                                    name="active"
+                                                />
+                                                <label class="form-check-label"
+                                                    >No</label
+                                                >
                                             </div>
                                         </div>
                                     </div>
@@ -1001,8 +1051,11 @@ const downloadExcel = (data) => {
                                 <hr class="my-4" />
 
                                 <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
-                                        @click="submitCategory()">
+                                    <button
+                                        class="btn btn-primary rounded-pill px-4"
+                                        :disabled="submitting"
+                                        @click="submitCategory()"
+                                    >
                                         <span v-if="!submitting">
                                             {{
                                                 editingCategory
@@ -1012,8 +1065,11 @@ const downloadExcel = (data) => {
                                         </span>
                                         <span v-else>Saving...</span>
                                     </button>
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetModal">
+                                    <button
+                                        class="btn btn-secondary rounded-pill px-4 ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetModal"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -1031,12 +1087,10 @@ const downloadExcel = (data) => {
 :root {
     --brand: #1c0d82;
 }
-
 .icon-wrap {
     font-size: 2rem;
     color: var(--brand);
 }
-
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
@@ -1048,7 +1102,6 @@ const downloadExcel = (data) => {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
-
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -1056,8 +1109,6 @@ const downloadExcel = (data) => {
     transform: translateY(-50%);
     color: #6b7280;
 }
-
-
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -1069,7 +1120,6 @@ const downloadExcel = (data) => {
     background-color: var(--brand);
     border-color: var(--brand);
 }
-
 .btn-primary:hover {
     filter: brightness(1.05);
 }
@@ -1078,7 +1128,6 @@ const downloadExcel = (data) => {
 .table thead th {
     font-weight: 600;
 }
-
 .img-chip {
     width: 40px;
     height: 40px;
@@ -1091,30 +1140,11 @@ const downloadExcel = (data) => {
     font-weight: 600;
 }
 
-.pv-overlay-fg {
-    z-index: 2000 !important;
-}
-
-:deep(.p-multiselect-panel),
-:deep(.p-select-panel),
-:deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
-}
-
-:deep(.p-multiselect) {
-    width: 100%;
-}
-
-:deep(.p-multiselect-token) {
-    margin: 0.15rem;
-}
-
 /* Mobile */
 @media (max-width: 575.98px) {
     .kpi-value {
         font-size: 1.45rem;
     }
-
     .search-wrap {
         width: 100%;
     }
