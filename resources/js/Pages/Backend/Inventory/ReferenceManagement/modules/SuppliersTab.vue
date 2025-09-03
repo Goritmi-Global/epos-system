@@ -522,24 +522,22 @@ const onRemove = (row) => {
                             <td class="text-end">
                                 <div class="dropdown">
                                     <button class="btn btn-link text-secondary p-0 fs-5" data-bs-toggle="dropdown"
-                                        title="Actions">
+                                     title="Actions">
                                         ⋮
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
                                         <li>
                                             <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(s)">
-                                                Edit</a>
+                                                <i data-feather="edit-2" class="me-2"></i>Edit</a>
                                         </li>
-                                        <li>
-                                            <hr class="dropdown-divider" />
-                                        </li>
+                                        
                                         <li>
                                             <hr class="dropdown-divider" />
                                         </li>
                                         <li>
                                             <a class="dropdown-item py-2 text-danger" href="javascript:;"
                                                 @click="onRemove(s)">
-                                                Delete
+                                                 <i data-feather="trash-2" class="me-2"></i>Delete
                                             </a>
                                         </li>
                                     </ul>
@@ -662,5 +660,31 @@ const onRemove = (row) => {
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
+}
+
+.p-multiselect {
+    background-color: white !important;
+    color: black !important;
+}
+
+.table-responsive {
+    overflow: visible !important;
+}
+
+.dropdown-menu {
+    position: absolute !important;
+    z-index: 1050 !important;
+}
+
+/* Ensure the table container doesn't clip the dropdown */
+.table-container {
+    overflow: visible !important;
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
 }
 </style>

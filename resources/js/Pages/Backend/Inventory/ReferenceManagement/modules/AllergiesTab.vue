@@ -505,7 +505,7 @@ const downloadExcel = (data) => {
                                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
                                         <li>
                                             <a class="dropdown-item py-2" href="javascript:;" @click="onView(r)">
-                                                <i data-feather="eye" class="me-2"></i>View
+                                               <i data-feather="eye" class="me-2"></i>View
                                             </a>
                                         </li>
                                         <li>
