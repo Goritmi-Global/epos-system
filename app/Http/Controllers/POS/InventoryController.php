@@ -21,22 +21,28 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
-                $allergies = Allergy::get();
-                $categories = Category::get();
-                $units = Unit::get();
-                $suppliers =Supplier::get();
-                $tags = Tag::get();
-                return Inertia::render('Backend/Inventory/Index',[
-                    'allergies' => $allergies,
-                    'units' => $units,
-                    'suppliers' => $suppliers,
-                    'tags' => $tags,
-                    'categories' => $categories
-                ]);
-
-        // $items = $this->service->list($request->only('q'));
-        // return Inertia::render('Inventory/Index', ['items' => $items]);
+        $inventories = $this->service->list($request->only('q'));
+        $allergies = Allergy::get();
+        $categories = Category::get();
+        $units = Unit::get();
+        $suppliers = Supplier::get();
+        $tags = Tag::get();
+        return Inertia::render('Backend/Inventory/Index', [
+            'inventories' => $inventories,
+            'allergies' => $allergies,
+            'units' => $units,
+            'suppliers' => $suppliers,
+            'tags' => $tags,
+            'categories' => $categories
+        ]);
     }
+    public function apiList(Request $request)
+    {
+        $inventories = $this->service->list($request->only('q'));
+        // Return only JSON data, no Inertia
+        return response()->json($inventories);
+    }
+
 
     public function create()
     {
@@ -45,24 +51,32 @@ class InventoryController extends Controller
 
     public function store(StoreInventoryRequest $request)
     {
-        $this->service->create($request->validated());
-        return redirect()->route('inventory.index')->with('success','Item created');
+        $inventory = $this->service->create($request->validated());
+        return response()->json([
+            'message' => 'Inventory created successfully',
+            'data' => $inventory
+        ], 201);
+    }
+
+    public function show(Inventory $inventory)
+    {
+        return response()->json($inventory->load(['user'])); // add relations like 'user' if needed
     }
 
     public function edit(Inventory $inventory)
     {
-        return Inertia::render('Inventory/Form', ['mode' => 'edit','item' => $inventory]);
+        return Inertia::render('Inventory/Form', ['mode' => 'edit', 'item' => $inventory]);
     }
 
     public function update(UpdateInventoryRequest $request, Inventory $inventory)
     {
         $this->service->update($inventory, $request->validated());
-        return redirect()->route('inventory.index')->with('success','Item updated');
+        return redirect()->route('inventory.index')->with('success', 'Item updated');
     }
 
     public function destroy(Inventory $inventory)
     {
         $this->service->delete($inventory);
-        return back()->with('success','Item deleted');
+        return back()->with('success', 'Item deleted');
     }
 }

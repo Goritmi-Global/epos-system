@@ -197,8 +197,6 @@ const submitCategory = async () => {
                 );
             }
 
-            console.log("Updating category with payload:", updatePayload);
-
             if (!updatePayload.name) {
                 alert("Category name cannot be empty.");
                 submitting.value = false;
