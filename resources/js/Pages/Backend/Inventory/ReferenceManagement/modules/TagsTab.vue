@@ -27,13 +27,7 @@ const options = ref([
     { label: "Welsh Lamb", value: "Welsh Lamb" },
 ]);
 
-<<<<<<< HEAD
 const commonTags = ref([]); // array of values
-=======
-
-
-const selected = ref([]); // array of values
->>>>>>> 0ac51ea8d899d17bd5b4a588750d64692bc587a5
 const filterText = ref(""); // Fixed: Added missing filterText ref
 
 const isEditing = ref(false);
@@ -101,23 +95,7 @@ const deleteTag = async (row) => {
         tags.value = tags.value.filter((t) => t.id !== row.id);
         toast.success("Tag deleted");
     } catch (e) {
-<<<<<<< HEAD
         toast.error("Delete failed");
-=======
-        toast.error("Delete failed ❌");
-    }
-};
-
-const runQuery = async (payload) => {
-    if (payload.action === "create") {
-        return axios.post("/tags", { tags: payload.added });
-    }
-    if (payload.action === "update") {
-        return axios.put(`/tags/${payload.row.id}`, { name: payload.row.name });
-    }
-    if (payload.action === "delete") {
-        return axios.delete(`/tags/${payload.row.id}`);
->>>>>>> 0ac51ea8d899d17bd5b4a588750d64692bc587a5
     }
 };
 
