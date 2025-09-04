@@ -720,4 +720,22 @@ li.active > .side-link {
     background: #e5e7eb;
     border-radius: 8px;
 }
+
+/* Edit delete icon */
+.icon-action {
+  cursor: pointer;            /* hand cursor */
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.icon-action:hover {
+  transform: scale(1.2);      /* slight zoom on hover */
+  opacity: 0.8;               /* subtle fade effect */
+}
+
+
+/* Form field errors */
+.is-invalid {
+  background-color: #f8d7da !important;  
+  border-color: #dc3545 !important;    
+}
 </style>
