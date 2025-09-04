@@ -97,8 +97,8 @@ const fetchSuppliers = async () => {
 };
 
 // =========================================================================
-
-// =========================================================================
+// Inventory retrieval for Add Purchase modal
+// ========================================================================
 
 const inventoryItems = ref([]); // holds API data
 const p_search = ref("");
@@ -141,22 +141,22 @@ const statusFilter = ref(""); // optional status filter
 
 // Fetch orders from API
 async function fetchOrders() {
-  loading.value = true;
-  try {
-    const res = await axios.get("/purchase-orders", {
-      params: {
-        q: q.value,
-        status: statusFilter.value || undefined,
-      },
-    });
-    orders.value = res.data;
-    
-  } catch (err) {
-    console.error("Failed to fetch orders:", err);
-    orders.value = [];
-  } finally {
-    loading.value = false;
-  }
+    loading.value = true;
+    try {
+        const res = await axios.get("/purchase-orders", {
+            params: {
+                q: q.value,
+                status: statusFilter.value || undefined,
+            },
+        });
+        orders.value = res.data;
+
+    } catch (err) {
+        console.error("Failed to fetch orders:", err);
+        orders.value = [];
+    } finally {
+        loading.value = false;
+    }
 }
 
 // Computed filteredOrders for search
@@ -269,20 +269,8 @@ async function quickPurchaseSubmit() {
 /* =========================================================================
    ADD ORDER (later delivery) — MERGE on same product+unitPrice+expiry
    =======================================================================*/
-const o_supplier = ref("Noor");
+const o_supplier = ref(null);
 const o_search = ref("");
-const o_filteredInv = computed(() => {
-    const t = o_search.value.trim().toLowerCase();
-    if (!t) return inventory.value;
-    return inventory.value.filter((i) =>
-        [i.name, i.category, i.unit].join(" ").toLowerCase().includes(t)
-    );
-});
-
-// card inputs
-const o_qty = ref(1);
-const o_price = ref(""); // unit price
-const o_expiry = ref(""); // expiry date
 
 // cart rows: {id,name,category,qty,unitPrice,expiry,cost}
 const o_cart = ref([]);
@@ -291,12 +279,12 @@ const o_total = computed(() =>
 );
 
 function addOrderItem(item) {
-    const qty = Number(o_qty.value || 0);
+    const qty = Number(item.qty || 0);
     const price =
-        o_price.value !== ""
-            ? Number(o_price.value)
-            : Number(item.defaultPrice);
-    const expiry = o_expiry.value || null;
+        item.unitPrice !== "" && item.unitPrice != null
+            ? Number(item.unitPrice)
+            : Number(item.defaultPrice || 0);
+    const expiry = item.expiry || null;
 
     if (!qty || qty <= 0) return alert("Enter a valid quantity.");
     if (!price || price <= 0) return alert("Enter a valid unit price.");
@@ -305,6 +293,7 @@ function addOrderItem(item) {
     const found = o_cart.value.find(
         (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
     );
+
     if (found) {
         found.qty = round2(found.qty + qty);
         found.cost = round2(found.qty * found.unitPrice);
@@ -320,45 +309,155 @@ function addOrderItem(item) {
         });
     }
 
-    o_qty.value = 1;
-    o_price.value = "";
-    o_expiry.value = "";
+    // reset only this item's fields
+    item.qty = null;
+    item.unitPrice = null;
+    item.expiry = null;
 }
+
 function delOrderRow(idx) {
     o_cart.value.splice(idx, 1);
 }
 
+// ============================================================================
+// Submitting Order
+// ============================================================================
+// Add these to your Vue component's setup() function
+
+// Add these to your Vue component's setup() function
+
+const selectedOrder = ref(null);
+const editingOrder = ref(null);
+const editItems = ref([]);
+const isEditing = ref(false);
+
+// Open modal function
+async function openModal(order) {
+    try {
+        // Fetch full order details with items
+        const response = await axios.get(`/purchase-orders/${order.id}`);
+        selectedOrder.value = response.data;
+        
+        if (order.status === 'pending') {
+            // For pending orders, make items editable
+            isEditing.value = true;
+            editItems.value = selectedOrder.value.items.map(item => ({
+                id: item.id,
+                product_id: item.product_id,
+                name: item.product?.name || 'Unknown Product',
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                expiry: item.expiry || '',
+                sub_total: item.sub_total
+            }));
+            
+            // Show edit modal
+            const modal = new bootstrap.Modal(document.getElementById('editOrderModal'));
+            modal.show();
+        } else {
+            // For completed orders, show view-only modal
+            isEditing.value = false;
+            const modal = new bootstrap.Modal(document.getElementById('viewOrderModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error fetching order details:', error);
+        alert('Failed to load order details');
+    }
+}
+
+// Update order function
+const updating = ref(false);
+
+async function updateOrder() {
+    if (!selectedOrder.value) return;
+    
+    updating.value = true;
+    try {
+        const payload = {
+            status: 'completed',
+            items: editItems.value.map(item => ({
+                purchase_id: selectedOrder.value.id,
+                product_id: item.product_id,
+                qty: item.quantity,  // Changed from 'quantity' to 'qty'
+                unit_price: item.unit_price,
+                expiry: item.expiry || null
+            }))
+        };
+        console.log('Update payload:', payload);
+        await axios.put(`/purchase-orders/${selectedOrder.value.id}`, payload);
+        
+        // Close modal and refresh orders
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editOrderModal'));
+        modal?.hide();
+        
+        // Refresh the orders list
+        await fetchOrders();
+        
+        alert('Order updated successfully and stock entries created!');
+    } catch (error) {
+        console.error('Error updating order:', error);
+        alert('Failed to update order');
+    } finally {
+        updating.value = false;
+    }
+}
+
+// Calculate subtotal for editing
+function calculateSubtotal(item) {
+    const quantity = parseFloat(item.quantity) || 0;
+    const unitPrice = parseFloat(item.unit_price) || 0;
+    item.sub_total = (quantity * unitPrice).toFixed(2);
+}
+
+
+
+
+
+// ===========================================================
+
+// ===========================================================
+
 const o_submitting = ref(false);
+
 function orderSubmit() {
+    if (!p_supplier.value) return alert("Please select a supplier.");
+    if (!o_cart.value.length) return alert("No items in the order.");
+
     const payload = {
-        supplier: o_supplier.value,
+        supplier_id: p_supplier.value.id,
+        purchase_date: new Date().toISOString().split("T")[0],
+        status: "pending",
         items: o_cart.value.map(({ id, qty, unitPrice, expiry }) => ({
-            id,
-            qty,
-            unitPrice,
-            expiry,
+            product_id: id,
+            quantity: qty,
+            unit_price: unitPrice,
+            expiry: expiry || null,
         })),
-        total: o_total.value,
-        kind: "order_later",
     };
-    console.log("[Order] payload:", payload);
 
     o_submitting.value = true;
-    fakeApi(payload)
-        .then((res) => console.log("✅ then():", res.message))
-        .catch((err) => {
-            console.error("❌ catch():", err?.message || err);
-            alert("Failed (demo).");
+
+    axios.post("/purchase-orders", payload)
+        .then(res => {
+            console.log("✅ Order created:", res.data);
+            // reset
+            o_cart.value = [];
+            p_supplier.value = null;
+            const m = bootstrap.Modal.getInstance(document.getElementById("addOrderModal"));
+            m?.hide();
+        })
+        .catch(err => {
+            console.error("❌ Failed to create order:", err.response?.data || err.message);
+            alert("Failed to create order.");
         })
         .finally(() => {
             o_submitting.value = false;
-            const m = bootstrap.Modal.getInstance(
-                document.getElementById("addOrderModal")
-            );
-            m?.hide();
-            o_cart.value = [];
         });
 }
+
+
+// ===========================================================
 
 /* =============== Fake API =============== */
 function fakeApi(data) {
@@ -444,39 +543,43 @@ onUpdated(() => window.feather?.replace());
                                 <tbody>
                                     <template v-for="(row, i) in orderData" :key="row.id">
                                         <tr>
-                                        <td>{{ i + 1 }}</td>
-                                        <td>{{ row.supplier }}</td>
-                                        <td class="text-nowrap">
-                                            {{
-                                            fmtDateTime(row.purchasedAt).split(",")[0]
-                                            }},
-                                            <div class="small text-muted">
-                                            {{
-                                                fmtDateTime(row.purchasedAt).split(",")[1]?.trim()
-                                            }}
-                                            </div>
-                                        </td>
-                                        <td class="fw-semibold text-success">{{ row.status }}</td>
-                                        <td>{{ money(row.total) }}</td>
-                                        <td class="text-end">
-                                            <div class="dropdown">
-                                            <button class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
-                                            <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
-                                                <li><a class="dropdown-item py-2" href="javascript:void(0)">View</a></li>
-                                            </ul>
-                                            </div>
-                                        </td>
+                                            <td>{{ i + 1 }}</td>
+                                            <td>{{ row.supplier }}</td>
+                                            <td class="text-nowrap">
+                                                {{
+                                                    fmtDateTime(row.purchasedAt).split(",")[0]
+                                                }},
+                                                <div class="small text-muted">
+                                                    {{
+                                                        fmtDateTime(row.purchasedAt).split(",")[1]?.trim()
+                                                    }}
+                                                </div>
+                                            </td>
+                                            <td class="fw-semibold text-success">{{ row.status }}</td>
+                                            <td>{{ money(row.total) }}</td>
+                                            <td class="text-end">
+                                                <div class="dropdown">
+                                                    <button class="btn btn-link text-secondary p-0 fs-5"
+                                                        data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
+                                                    <ul
+                                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
+                                                        <li>
+                                                            <a class="dropdown-item py-2 " href="javascript:void(0)"
+                                                                @click="openModal(row)">View</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </td>
                                         </tr>
                                         <tr class="sep-row">
-                                        <td colspan="6"></td>
+                                            <td colspan="6"></td>
                                         </tr>
                                     </template>
 
                                     <!-- Fix this line -->
                                     <tr v-if="orderData.length === 0">
                                         <td colspan="6" class="text-center text-muted py-4">
-                                        No purchase orders found.
+                                            No purchase orders found.
                                         </td>
                                     </tr>
                                 </tbody>
@@ -693,17 +796,23 @@ onUpdated(() => window.feather?.replace());
                                             <button
                                                 class="btn btn-light border rounded-3 w-100 d-flex justify-content-between align-items-center"
                                                 data-bs-toggle="dropdown">
-                                                {{ o_supplier }}
+                                                {{
+                                                    p_supplier
+                                                        ? p_supplier.name
+                                                        : "Select Supplier"
+                                                }}
                                                 <i class="bi bi-caret-down-fill"></i>
                                             </button>
                                             <ul class="dropdown-menu w-100 shadow rounded-3">
-                                                <li v-for="s in supplierOptions" :key="s">
+                                                <li v-for="s in supplierOptions" :key="s.id">
                                                     <a class="dropdown-item" href="javascript:void(0)"
-                                                        @click="o_supplier = s">{{ s
-                                                        }}</a>
+                                                        @click="p_supplier = s">
+                                                        {{ s.name }}
+                                                    </a>
                                                 </li>
                                             </ul>
                                         </div>
+
                                     </div>
                                 </div>
 
@@ -716,11 +825,14 @@ onUpdated(() => window.feather?.replace());
                                                 placeholder="Search..." />
                                         </div>
 
-                                        <div v-for="it in o_filteredInv" :key="it.id"
+                                        <div v-for="it in p_filteredInv" :key="it.id"
                                             class="card shadow-sm border-0 rounded-4 mb-3">
                                             <div class="card-body">
                                                 <div class="d-flex align-items-start gap-3">
-                                                    <img :src="it.image" class="rounded" style="
+                                                    <img :src="it.image
+                                                        ? `/storage/${it.image}`
+                                                        : '/default.png'
+                                                        " class="rounded" style="
                                                             width: 56px;
                                                             height: 56px;
                                                             object-fit: cover;
@@ -751,19 +863,19 @@ onUpdated(() => window.feather?.replace());
                                                 <div class="row g-2 mt-3">
                                                     <div class="col-4">
                                                         <label class="small text-muted">Quantity</label>
-                                                        <input v-model.number="o_qty
+                                                        <input v-model.number="it.qty
                                                             " type="number" min="0"
                                                             class="form-control form-control-lg" />
                                                     </div>
                                                     <div class="col-4">
                                                         <label class="small text-muted">Unit Price</label>
-                                                        <input v-model.number="o_price
+                                                        <input v-model.number="it.unitPrice
                                                             " type="number" min="0"
                                                             class="form-control form-control-lg" />
                                                     </div>
                                                     <div class="col-4">
                                                         <label class="small text-muted">Expiry Date</label>
-                                                        <input v-model="o_expiry" type="date"
+                                                        <input v-model="it.expiry" type="date"
                                                             class="form-control form-control-lg" />
                                                     </div>
                                                 </div>
@@ -853,6 +965,205 @@ onUpdated(() => window.feather?.replace());
                         </div>
                     </div>
                 </div>
+
+                <!-- ====================View Modal either Purchase or Order ==================== -->
+                <!-- View Order Modal (Read-only) -->
+<div class="modal fade" id="viewOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header">
+                <h5 class="modal-title fw-semibold">
+                    Purchase Order Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body" v-if="selectedOrder">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p><strong>Supplier:</strong> {{ selectedOrder.supplier?.name || 'N/A' }}</p>
+                        <p><strong>Purchase Date:</strong> {{ fmtDateTime(selectedOrder.purchase_date).split(',')[0] }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-success">{{ selectedOrder.status }}</span>
+                        </p>
+                        <p><strong>Total:</strong> {{ money(selectedOrder.total_amount) }}</p>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Subtotal</th>
+                                <th>Expiry Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in selectedOrder.items" :key="item.id">
+                                <td>{{ item.product?.name || 'Unknown Product' }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ money(item.unit_price) }}</td>
+                                <td>{{ money(item.sub_total) }}</td>
+                                <td>{{ item.expiry || '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Edit Order Modal (Editable) -->
+<div class="modal fade" id="editOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header">
+                <h5 class="modal-title fw-semibold">
+                    Edit Purchase Order
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body" v-if="selectedOrder">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p><strong>Supplier:</strong> {{ selectedOrder.supplier?.name || 'N/A' }}</p>
+                        <p><strong>Purchase Date:</strong> {{ fmtDateTime(selectedOrder.purchase_date).split(',')[0] }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Current Status:</strong> 
+                            <span class="badge bg-warning text-dark">{{ selectedOrder.status }}</span>
+                        </p>
+                        <p><strong>Total:</strong> {{ money(selectedOrder.total_amount) }}</p>
+                    </div>
+                </div>
+
+                <!-- Editable Items Table -->
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%">Product Name</th>
+                                <th style="width: 15%">Quantity</th>
+                                <th style="width: 15%">Unit Price</th>
+                                <th style="width: 15%">Subtotal</th>
+                                <th style="width: 20%">Expiry Date</th>
+                                <th style="width: 10%">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(item, index) in editItems" :key="item.id || index">
+                                <td>
+                                    <input 
+                                        v-model="item.name" 
+                                        type="text" 
+                                        class="form-control" 
+                                        readonly
+                                        style="background-color: #f8f9fa;"
+                                    >
+                                </td>
+                                <td>
+                                    <input 
+                                        v-model.number="item.quantity" 
+                                        type="number" 
+                                        min="0" 
+                                        step="0.01"
+                                        class="form-control" 
+                                        @input="calculateSubtotal(item)"
+                                    >
+                                </td>
+                                <td>
+                                    <input 
+                                        v-model.number="item.unit_price" 
+                                        type="number" 
+                                        min="0" 
+                                        step="0.01"
+                                        class="form-control" 
+                                        @input="calculateSubtotal(item)"
+                                    >
+                                </td>
+                                <td>
+                                    <input 
+                                        v-model="item.sub_total" 
+                                        type="text" 
+                                        class="form-control" 
+                                        readonly
+                                        style="background-color: #f8f9fa;"
+                                    >
+                                </td>
+                                <td>
+                                    <input 
+                                        v-model="item.expiry" 
+                                        type="date" 
+                                        class="form-control"
+                                    >
+                                </td>
+                                <td>
+                                    <button 
+                                        class="btn btn-danger btn-sm" 
+                                        @click="editItems.splice(index, 1)"
+                                        type="button"
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr v-if="editItems.length === 0">
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    No items found
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Total:</td>
+                                <td class="fw-bold">
+                                    {{ money(editItems.reduce((sum, item) => sum + parseFloat(item.sub_total || 0), 0)) }}
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Note:</strong> Updating this order will change its status to "completed" and create stock entries for all items.
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button 
+                    type="button" 
+                    class="btn btn-success"
+                    @click="updateOrder"
+                    :disabled="updating || editItems.length === 0"
+                >
+                    <span v-if="updating">
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        Updating...
+                    </span>
+                    <span v-else>Complete Order & Update Stock</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
             </div>
         </div>
     </Master>
