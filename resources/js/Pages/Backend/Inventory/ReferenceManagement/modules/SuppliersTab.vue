@@ -530,7 +530,7 @@ const deleteSupplier = (id) => {
                             <th>Email</th>
                             <th>Address</th>
                             <th>Items Linked</th>
-                            <th class="text-end">Action</th>
+                            <th class="text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -545,7 +545,7 @@ const deleteSupplier = (id) => {
                                 {{ s.address }}
                             </td>
                             <td>{{ s.preferred_items }}</td>
-                            <td class="text-end">
+                            <td class="text-center">
                                 <div
                                     class="d-inline-flex align-items-center gap-3"
                                 >

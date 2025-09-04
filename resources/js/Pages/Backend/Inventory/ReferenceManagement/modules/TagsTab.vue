@@ -538,7 +538,7 @@ watch(commonTags, (newVal) => {
                         <tr>
                             <th>S. #</th>
                             <th>Tag Name</th>
-                            <th class="text-end">Action</th>
+                            <th class="text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -547,7 +547,7 @@ watch(commonTags, (newVal) => {
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
 
-                            <td class="text-end">
+                            <td class="text-center">
                                 <div
                                     class="d-inline-flex align-items-center gap-3"
                                 >

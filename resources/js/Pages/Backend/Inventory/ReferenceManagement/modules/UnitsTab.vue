@@ -316,7 +316,7 @@ const downloadCSV = (data) => {
         link.click();
         document.body.removeChild(link);
 
-        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+        toast.success("CSV downloaded successfully");
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -380,7 +380,7 @@ const downloadPDF = (data) => {
         const fileName = `Units_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully");
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -547,7 +547,7 @@ watch(commonUnits, (newVal) => {
                         <tr>
                             <th>S. #</th>
                             <th>Unit Name</th>
-                            <th class="text-end">Action</th>
+                            <th class="text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -556,7 +556,7 @@ watch(commonUnits, (newVal) => {
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
 
-                            <td class="text-end">
+                            <td class="text-center">
                                 <div
                                     class="d-inline-flex align-items-center gap-3"
                                 >
