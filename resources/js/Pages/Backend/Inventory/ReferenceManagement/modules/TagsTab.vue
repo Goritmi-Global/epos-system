@@ -4,13 +4,9 @@ import { toast } from "vue3-toastify";
 import MultiSelect from "primevue/multiselect";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 import axios from "axios";
-const rows = ref([
-    { id: 1, name: "Vegan" },
-    { id: 2, name: "Halal" },
-]);
-
+import { Pencil, Plus } from "lucide-vue-next";
 
 const options = ref([
     { label: "Vegan", value: "Vegan" },
@@ -31,24 +27,32 @@ const options = ref([
     { label: "Welsh Lamb", value: "Welsh Lamb" },
 ]);
 
-const selected = ref([]); // array of values
+const commonTags = ref([]); // array of values
 const filterText = ref(""); // Fixed: Added missing filterText ref
 
 const isEditing = ref(false);
 const editingRow = ref(null);
-const editName = ref("");
+const customTag = ref("");
 
 const q = ref("");
+
+const resetForm = () => {
+    customTag.value = "";
+    commonTags.value = [];
+    formErrors.value = {};
+};
 
 // Fixed: Create filtered computed property that works with tags array
 const filteredTags = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
     return searchTerm
-        ? tags.value.filter((tag) => tag.name.toLowerCase().includes(searchTerm))
+        ? tags.value.filter((tag) =>
+              tag.name.toLowerCase().includes(searchTerm)
+          )
         : tags.value;
 });
 
-const selectAll = () => (selected.value = options.value.map((o) => o.value));
+const selectAll = () => (commonTags.value = options.value.map((o) => o.value));
 
 const addCustom = () => {
     const name = (filterText.value || "").trim();
@@ -58,75 +62,53 @@ const addCustom = () => {
     ) {
         options.value.push({ label: name, value: name });
     }
-    if (!selected.value.includes(name))
-        selected.value = [...selected.value, name];
+    if (!commonTags.value.includes(name))
+        commonTags.value = [...commonTags.value, name];
     filterText.value = "";
 };
 
 const openAdd = () => {
     isEditing.value = false;
-    selected.value = [];
+    commonTags.value = [];
     filterText.value = "";
-    const modal = new bootstrap.Modal(document.getElementById("modalTagForm"));
-    modal.show();
 };
 
 const availableOptions = computed(() => {
-    return options.value.filter(option =>
-        !tags.value.some(tag => tag.name.toLowerCase() === option.value.toLowerCase())
+    return options.value.filter(
+        (option) =>
+            !tags.value.some(
+                (tag) => tag.name.toLowerCase() === option.value.toLowerCase()
+            )
     );
 });
 const openEdit = (row) => {
     isEditing.value = true;
     editingRow.value = row;
-    editName.value = row.name;
-    const modal = new bootstrap.Modal(document.getElementById("modalTagForm"));
-    modal.show();
-};
-
-const viewRow = ref(null);
-
-const openView = (row) => {
-    viewRow.value = row;
-    const modal = new bootstrap.Modal(document.getElementById("modalTagView"));
-    modal.show();
+    customTag.value = row.name;
 };
 
 // const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
 
-const openRemove = async (row) => {
+const deleteTag = async (row) => {
     try {
         await axios.delete(`/tags/${row.id}`);
         tags.value = tags.value.filter((t) => t.id !== row.id);
-        toast.success("Tag deleted ✅");
+        toast.success("Tag deleted");
     } catch (e) {
-        toast.error("Delete failed ❌");
-    }
-};
-
-
-
-const runQuery = async (payload) => {
-    if (payload.action === "create") {
-        return axios.post("/tags", { tags: payload.added });
-    }
-    if (payload.action === "update") {
-        return axios.put(`/tags/${payload.row.id}`, { name: payload.row.name });
-    }
-    if (payload.action === "delete") {
-        return axios.delete(`/tags/${payload.row.id}`);
+        toast.error("Delete failed");
     }
 };
 
 const onSubmit = async () => {
     if (isEditing.value) {
-        if (!editName.value.trim()) {
-            toast.warning("Name cannot be empty ⚠️");
+        if (!customTag.value.trim()) {
+            toast.error("Please fill out the field can't save an empty field.");
+            formErrors.value = { customTag: ["Please fill out the field can't save an empty field"] };
             return;
         }
         try {
             const { data } = await axios.put(`/tags/${editingRow.value.id}`, {
-                name: editName.value.trim(),
+                name: customTag.value.trim(),
             });
 
             const idx = tags.value.findIndex(
@@ -134,39 +116,45 @@ const onSubmit = async () => {
             );
             if (idx !== -1) tags.value[idx] = data;
 
-            toast.success("Tag updated Successfully ✅");
+            toast.success("Tag updated Successfully");
 
             // Hide the modal after successful update
-            hideModal();
+            resetForm();
+            closeModal("modalTagForm");
         } catch (e) {
             if (e.response?.data?.errors) {
                 Object.values(e.response.data.errors).forEach((msgs) =>
                     msgs.forEach((m) => toast.error(m))
                 );
-            } else toast.error("Update failed ❌");
+            } else toast.error("Update failed");
         }
     } else {
-        if (selected.value.length === 0) {
-            toast.error("❌ Please select at least one Tag", { autoClose: 3000 });
+        if (commonTags.value.length === 0) {
+            formErrors.value = { tags: ["Please select at least one Tag"] };
+            toast.error("Please select at least one Tag", {
+                autoClose: 3000,
+            });
             return;
         }
         // create
-        const newTags = selected.value
+        const newTags = commonTags.value
             .filter((v) => !tags.value.some((t) => t.name === v))
             .map((v) => ({ name: v }));
 
         // Filter new tags and detect duplicates
-        const existingTags = selected.value.filter((v) =>
+        const existingTags = commonTags.value.filter((v) =>
             tags.value.some((t) => t.name === v)
         );
 
         if (newTags.length === 0) {
             // Show which tags already exist
             toast.info(
-                `Tag${existingTags.length > 1 ? "s" : ""
+                `Tag${
+                    existingTags.length > 1 ? "s" : ""
                 } already exist: ${existingTags.join(", ")}`
             );
-            hideModal();
+
+            // closeModal("modalTagForm");
             return;
         }
 
@@ -180,10 +168,13 @@ const onSubmit = async () => {
                 tags.value = [...tags.value, ...createdTags];
             }
 
-            toast.success("Tags added ✅");
+            toast.success("Tags added");
+
+            resetForm();
+            closeModal("modalTagForm");
 
             // Hide the modal after successful creation
-            hideModal();
+
             await fetchTags();
         } catch (e) {
             // Only show create failed if there is a real error
@@ -193,55 +184,20 @@ const onSubmit = async () => {
                 );
             } else {
                 console.error(e); // log actual error for debugging
-                toast.error("Create failed ❌");
+                toast.error("Create failed");
             }
         }
     }
 };
 
-
 // Function to properly hide modal and clean up backdrop
-const hideModal = () => {
-    // Get all modal elements (to handle both modalTagForm and modalTagView)
-    const modalElements = [
-        document.getElementById("modalTagForm"),
-        document.getElementById("modalTagView"),
-    ].filter(Boolean);
-
-    modalElements.forEach((modalElement) => {
-        if (modalElement) {
-            // Get or create modal instance
-            let modal = bootstrap.Modal.getInstance(modalElement);
-            if (!modal) {
-                modal = new bootstrap.Modal(modalElement);
-            }
-
-            // Hide the modal
-            modal.hide();
-        }
-    });
-
-    // Clean up after Bootstrap's animation (increased timeout for reliability)
-    setTimeout(() => {
-        // Remove all modal backdrops
-        const backdrops = document.querySelectorAll(".modal-backdrop");
-        backdrops.forEach((backdrop) => backdrop.remove());
-
-        // Clean up body classes and styles
-        document.body.classList.remove("modal-open");
-        document.body.style.overflow = "";
-        document.body.style.paddingRight = "";
-        document.body.style.marginRight = "";
-
-
-        document.body.removeAttribute("data-bs-overflow");
-        document.body.removeAttribute("data-bs-padding-right");
-
-        // Ensure no residual inline styles remain
-        if (document.body.style.length === 0) {
-            document.body.removeAttribute("style");
-        }
-    }, 150);
+const closeModal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const modal =
+        window.bootstrap?.Modal.getInstance(el) ||
+        new window.bootstrap.Modal(el);
+    modal.hide();
 };
 
 // show Index page
@@ -249,7 +205,7 @@ const tags = ref([]);
 const page = ref(1);
 const perPage = ref(15);
 const loading = ref(false);
-
+const formErrors = ref({});
 const fetchTags = () => {
     // loading.value = true;
 
@@ -287,19 +243,17 @@ const onDownload = (type) => {
     }
 
     try {
-        if (type === 'pdf') {
+        if (type === "pdf") {
             downloadPDF(dataToExport);
-        } else if (type === 'excel') {
+        } else if (type === "excel") {
             downloadExcel(dataToExport);
-        }
-        else if (type === 'csv') {
+        } else if (type === "csv") {
             downloadCSV(dataToExport);
-        }
-        else {
+        } else {
             toast.error("Invalid download type", { autoClose: 3000 });
         }
     } catch (error) {
-        console.error('Download failed:', error);
+        console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
     }
 };
@@ -310,7 +264,7 @@ const downloadCSV = (data) => {
         const headers = ["Name", "Created At", "Created By"];
 
         // Build CSV rows
-        const rows = data.map(s => [
+        const rows = data.map((s) => [
             `"${s.name || ""}"`,
             `"${s.created_at || ""}"`,
             `"${s.updated_at || ""}"`,
@@ -319,33 +273,38 @@ const downloadCSV = (data) => {
         // Combine into CSV string
         const csvContent = [
             headers.join(","), // header row
-            ...rows.map(r => r.join(",")) // data rows
+            ...rows.map((r) => r.join(",")), // data rows
         ].join("\n");
 
         // Create blob
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
 
         // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `tags_${new Date().toISOString().split("T")[0]}.csv`);
+        link.setAttribute(
+            "download",
+            `tags_${new Date().toISOString().split("T")[0]}.csv`
+        );
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("CSV downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
-        toast.error(`CSV generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
-
 
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
-
 
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
@@ -357,14 +316,12 @@ const downloadPDF = (data) => {
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Tags: ${data.length}`, 14, 34);
 
-
         const tableColumns = ["Name", "Created At", "Created By"];
         const tableRows = data.map((s) => [
             s.name || "",
             s.created_at || "",
-            s.updated_at || ""
+            s.updated_at || "",
         ]);
-
 
         autoTable(doc, {
             head: [tableColumns],
@@ -375,7 +332,7 @@ const downloadPDF = (data) => {
                 cellPadding: 2,
                 halign: "left",
                 lineColor: [0, 0, 0],
-                lineWidth: 0.1
+                lineWidth: 0.1,
             },
             headStyles: {
                 fillColor: [41, 128, 185],
@@ -385,7 +342,6 @@ const downloadPDF = (data) => {
             alternateRowStyles: { fillColor: [240, 240, 240] },
             margin: { left: 14, right: 14 },
             didDrawPage: (tableData) => {
-
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
@@ -401,25 +357,25 @@ const downloadPDF = (data) => {
         const fileName = `Tags_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`PDF generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
-
 
 const downloadExcel = (data) => {
     try {
         // Check if XLSX is available
-        if (typeof XLSX === 'undefined') {
-            throw new Error('XLSX library is not loaded');
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
         }
 
         // Prepare worksheet data
-        const worksheetData = data.map(tag => ({
-            'Name': tag.name || '',
-
+        const worksheetData = data.map((tag) => ({
+            Name: tag.name || "",
         }));
 
         // Create workbook and worksheet
@@ -433,33 +389,36 @@ const downloadExcel = (data) => {
             { wch: 15 }, // Phone
             { wch: 30 }, // Address
             { wch: 25 }, // Preferred Items
-            { wch: 10 }  // ID
+            { wch: 10 }, // ID
         ];
-        worksheet['!cols'] = colWidths;
+        worksheet["!cols"] = colWidths;
 
         // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Tags');
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
 
         // Add metadata sheet
         const metaData = [
-            { Info: 'Generated On', Value: new Date().toLocaleString() },
-            { Info: 'Total Records', Value: data.length },
-            { Info: 'Exported By', Value: 'Tags Management System' }
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Tags Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
-        XLSX.utils.book_append_sheet(workbook, metaSheet, 'Report Info');
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `Tags_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const fileName = `Tags_${new Date().toISOString().split("T")[0]}.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
-
+        toast.success("Excel file downloaded successfully", {
+            autoClose: 2500,
+        });
     } catch (error) {
-        console.error('Excel generation error:', error);
-        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
 
@@ -472,35 +431,62 @@ onMounted(async () => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <div
+                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+            >
                 <h4 class="mb-0">Tags</h4>
                 <div class="d-flex gap-2">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" />
+                        <input
+                            v-model="q"
+                            class="form-control search-input"
+                            placeholder="Search"
+                        />
                     </div>
-                    <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                        data-bs-target="#modalTagForm" @click="openAdd">
-                        Add Tag
-                    </button>
+                   <button
+  class="btn btn-primary rounded-pill px-4"
+  data-bs-toggle="modal"
+  data-bs-target="#modalTagForm"
+  @click="openAdd(); formErrors = []"
+>
+  Add Tag
+</button>
+
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown">
+                        <button
+                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown"
+                        >
                             Download all
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                        <ul
+                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                        >
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
-                                    PDF</a>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('pdf')"
+                                    >Download as PDF</a
+                                >
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
-                                    as Excel</a>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('excel')"
+                                    >Download as Excel</a
+                                >
                             </li>
 
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('csv')"
+                                >
                                     Download as CSV
                                 </a>
                             </li>
@@ -523,33 +509,37 @@ onMounted(async () => {
                         <tr v-for="(r, i) in filteredTags" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
+
                             <td class="text-end">
-                                <div class="dropdown">
-                                    <button class="btn btn-link text-secondary p-0 fs-5" data-bs-toggle="dropdown"
-                                        title="Actions">
-                                        ⋮
+                                <div
+                                    class="d-inline-flex align-items-center gap-3"
+                                >
+                                    <button
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalTagForm"
+                                        @click="
+                                            () => {
+                                                openEdit(r);
+                                                formErrors = {};
+                                            }
+                                        "
+                                        title="Edit"
+                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                    >
+                                        <Pencil class="w-4 h-4" />
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;" @click="openView(r)">
-                                                <i data-feather="eye" class="me-2"></i>View
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;" @click="openEdit(r)">
-                                                <i data-feather="edit-2" class="me-2"></i>Edit
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <hr class="dropdown-divider" />
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2 text-danger" href="javascript:;"
-                                                @click="openRemove(r)">
-                                                <i data-feather="trash-2" class="me-2"></i>Delete
-                                            </a>
-                                        </li>
-                                    </ul>
+
+                                    <ConfirmModal
+                                        :title="'Confirm Delete'"
+                                        :message="`Are you sure you want to delete ${r.name}?`"
+                                        :showDeleteButton="true"
+                                        @confirm="
+                                            () => {
+                                                deleteTag(r);
+                                            }
+                                        "
+                                        @cancel="() => {}"
+                                    />
                                 </div>
                             </td>
                         </tr>
@@ -557,7 +547,11 @@ onMounted(async () => {
                         <!-- Fixed: Check filteredTags length instead of tags -->
                         <tr v-if="filteredTags.length === 0">
                             <td colspan="3" class="text-center text-muted py-4">
-                                {{ q.trim() ? 'No tags found matching your search.' : 'No tags found.' }}
+                                {{
+                                    q.trim()
+                                        ? "No tags found matching your search."
+                                        : "No tags found."
+                                }}
                             </td>
                         </tr>
                     </tbody>
@@ -574,71 +568,90 @@ onMounted(async () => {
                     <h5 class="modal-title">
                         {{ isEditing ? "Edit Tag" : "Add Tag(s)" }}
                     </h5>
-                    <button type="button" class="btn btn-close" @click="hideModal()" data-bs-dismiss="modal"
-                        aria-label="Close">
-                        ×
+
+                    <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
                     </button>
                 </div>
                 <div class="modal-body">
                     <div v-if="isEditing">
                         <label class="form-label">Tag Name</label>
-                        <input v-model="editName" class="form-control" placeholder="e.g., Vegan" />
+                        <input
+                            v-model="customTag"
+                            class="form-control"
+                            placeholder="e.g., Vegan"
+                             :class="{ 'is-invalid': formErrors.customTag }"
+                        />
+                         <span class="text-danger" v-if="formErrors.customTag">{{ formErrors.customTag[0] }}</span>
                     </div>
                     <div v-else>
-
-                        <MultiSelect v-model="selected" :options="availableOptions" optionLabel="label"
-                            optionValue="value" :multiple="true" :filter="true" display="chip"
-                            placeholder="Choose tags or type to add" class="w-100" appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')">
+                        <MultiSelect
+                            v-model="commonTags"
+                            :options="availableOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            :multiple="true"
+                            :filter="true"
+                            display="chip"
+                            placeholder="Choose tags or type to add"
+                            class="w-100"
+                            appendTo="self"
+                            @filter="(e) => (filterText = e.value || '')"
+                             :class="{ 'is-invalid': formErrors.tags }"
+                        >
                             <template #header>
                                 <div class="w-100 d-flex justify-content-end">
-                                    <button type="button" class="btn btn-sm btn-link text-primary"
-                                        @click.stop="selectAll">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-link text-primary"
+                                        @click.stop="selectAll"
+                                    >
                                         Select All
                                     </button>
                                 </div>
                             </template>
                             <template #footer>
-                                <div v-if="filterText?.trim()"
-                                    class="p-2 border-top d-flex justify-content-between align-items-center">
+                                <div
+                                    v-if="filterText?.trim()"
+                                    class="p-2 border-top d-flex justify-content-between align-items-center"
+                                >
                                     <small class="text-muted">Not found?</small>
-                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
-                                        @click="addCustom">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary rounded-pill"
+                                        @click="addCustom"
+                                    >
                                         Add "{{ filterText.trim() }}"
                                     </button>
                                 </div>
                             </template>
                         </MultiSelect>
+                        <span class="text-danger" v-if="formErrors.tags">{{ formErrors.tags[0] }}</span>
                     </div>
 
-                    <button class="btn btn-primary rounded-pill w-100 mt-4" @click="onSubmit" data-bs-dismiss="modal">
+                    <button
+                        class="btn btn-primary rounded-pill w-100 mt-4"
+                        @click="onSubmit"
+                    >
                         {{ isEditing ? "Save Changes" : "Add Tag(s)" }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- View Modal -->
-    <div class="modal fade" id="modalTagView" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-md modal-dialog-centered">
-            <div class="modal-content rounded-4">
-                <div class="modal-header">
-                    <h5 class="modal-title">View Tag</h5>
-                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        ×
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>ID:</strong> {{ viewRow?.id }}</p>
-                    <p><strong>Name:</strong> {{ viewRow?.name }}</p>
-                    <!-- <p>
-                        <strong>Description:</strong>
-                        {{ viewRow?.description || "—" }}
-                    </p> -->
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">
-                        Close
                     </button>
                 </div>
             </div>
