@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Reference;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateUnitRequest extends FormRequest
 {
@@ -13,8 +14,23 @@ class UpdateUnitRequest extends FormRequest
 
     public function rules(): array
     {
+        $unitId = $this->route('unit')?->id;
+
         return [
-            'name' => 'required|string|max:100|unique:units,name,' . $this->unit->id,
+            'name'        => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('units', 'name')->ignore($unitId),
+            ],
+            'description' => 'nullable|string',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.unique' => 'The ":input" unit is already exists.',
         ];
     }
 }

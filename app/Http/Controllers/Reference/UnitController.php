@@ -14,15 +14,14 @@ use Illuminate\Http\Request;
 class UnitController extends Controller
 {
     public function __construct(private UnitsService $service) {}
-
-    /**
-     * List all units with optional search
-     */
+ 
     public function index(Request $request)
     {
         $units = $this->service->list($request->only('q'));
-        return response()->json($units);
+        return $units;
     }
+
+    
 
 
     /**

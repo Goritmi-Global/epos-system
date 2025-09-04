@@ -22,6 +22,7 @@ class UnitsService
         return $q->latest()->paginate(15);
     }
 
+    
     /**
      * Create a new unit
      */
