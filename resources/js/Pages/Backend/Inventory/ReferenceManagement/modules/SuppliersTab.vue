@@ -20,15 +20,9 @@ const fetchSuppliers = () => {
             params: { q: q.value, page: page.value, per_page: perPage.value },
         })
         .then(({ data }) => {
-            // console.log("Fetched suppliers:", data);
-            // paginator or plain array—handle both
             suppliers.value = data?.data ?? data?.suppliers?.data ?? data ?? [];
-            // wait for DOM to update, then refresh feather icons
-            return nextTick();
         })
-        .then(() => {
-            window.feather?.replace();
-        })
+
         .catch((err) => {
             console.error(err);
         })
@@ -355,13 +349,9 @@ const submit = () => {
         });
 };
 
-onMounted(() => window.feather?.replace());
-onUpdated(() => window.feather?.replace());
 // Run on page load
 onMounted(async () => {
     await fetchSuppliers();
-    // Also safe to call once on mount (e.g., for static icons on the page)
-    window.feather?.replace();
 });
 
 // code for other functionalities
@@ -416,7 +406,6 @@ const updateSupplier = () => {
             closeModal("modalAddSupplier");
             return nextTick();
         })
-        .then(() => window.feather?.replace())
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
@@ -477,7 +466,12 @@ const deleteSupplier = (id) => {
                     <button
                         data-bs-toggle="modal"
                         data-bs-target="#modalAddSupplier"
-                        @click="resetForm()"
+                        @click="
+                            () => {
+                                resetForm();
+                                formErrors = {};
+                            }
+                        "
                         class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
                     >
                         <Plus class="w-4 h-4" /> Add Supplier
@@ -556,7 +550,12 @@ const deleteSupplier = (id) => {
                                     class="d-inline-flex align-items-center gap-3"
                                 >
                                     <button
-                                        @click="() => onEdit(s)"
+                                        @click="
+                                            () => {
+                                                onEdit(s);
+                                                formErrors = {};
+                                            }
+                                        "
                                         title="Edit"
                                         class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
                                     >
