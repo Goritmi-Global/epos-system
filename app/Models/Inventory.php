@@ -55,4 +55,7 @@ class Inventory extends Model
     {
         return $this->hasMany(PurchaseItem::class, 'product_id');
     }
+    public function allergies(){
+        return $this->belongsTo(Allergy::class);
+    }
 }
