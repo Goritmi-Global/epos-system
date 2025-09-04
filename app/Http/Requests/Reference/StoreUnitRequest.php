@@ -8,24 +8,21 @@ class StoreUnitRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; 
+        return true;
     }
 
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:100|unique:units,name',
-            'units' => 'required|array|min:1', 
-            'units.*' => 'string|max:100'     
+            'units'        => 'required|array',
+            'units.*.name' => 'required|string|max:100|unique:units,name',
+            'units.*.description' => 'nullable|string',
         ];
     }
-
     public function messages(): array
     {
         return [
-            'units.required' => 'Please select at least one unit.',
-            'units.min' => 'Please select at least one unit.',
+            'units.*.name.unique' => 'The ":input" is allergy already exists.',
         ];
     }
 }
-

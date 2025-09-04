@@ -20,11 +20,12 @@ class AllergiesService
     }
 
     public function create(array $data)
-    {
+    { 
+        // dd($data);
         // Loop through each allergy name
-        foreach ($data['names'] as $name) {
+        foreach ($data['allergies'] as $name) { 
             $allergy = new Allergy();
-            $allergy->name = $name;
+            $allergy->name = $name['name'];
             $allergy->save();
         }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { toast } from "vue3-toastify";
 import MultiSelect from "primevue/multiselect";
 import { jsPDF } from "jspdf";
@@ -118,7 +118,11 @@ const onSubmit = async () => {
     if (isEditing.value) {
         if (!customTag.value.trim()) {
             toast.error("Please fill out the field can't save an empty field.");
-            formErrors.value = { customTag: ["Please fill out the field can't save an empty field"] };
+            formErrors.value = {
+                customTag: [
+                    "Please fill out the field can't save an empty field",
+                ],
+            };
             return;
         }
         try {
@@ -132,16 +136,27 @@ const onSubmit = async () => {
             if (idx !== -1) tags.value[idx] = data;
 
             toast.success("Tag updated Successfully");
-
+            await fetchTags();
             // Hide the modal after successful update
             resetForm();
             closeModal("modalTagForm");
         } catch (e) {
             if (e.response?.data?.errors) {
-                Object.values(e.response.data.errors).forEach((msgs) =>
-                    msgs.forEach((m) => toast.error(m))
+                // Reset errors object
+                formErrors.value = {};  
+                // Loop through backend errors
+                Object.entries(e.response.data.errors).forEach(
+                    ([field, msgs]) => {
+                        // Show toast(s)
+                        msgs.forEach((m) => toast.error(m));
+
+                        // Attach to formErrors so it shows below inputs
+                        formErrors.value = { customTag: msgs };
+                    }
                 );
-            } else toast.error("Update failed");
+            } else {
+                toast.error("Update failed");
+            }
         }
     } else {
         if (commonTags.value.length === 0) {
@@ -163,11 +178,12 @@ const onSubmit = async () => {
 
         if (newTags.length === 0) {
             // Show which tags already exist
-            toast.info(
-                `Tag${
-                    existingTags.length > 1 ? "s" : ""
-                } already exist: ${existingTags.join(", ")}`
-            );
+            const msg = `Tag${
+                existingTags.length > 1 ? "s" : ""
+            } already exist: ${existingTags.join(", ")}`;
+
+            toast.error(msg);
+            formErrors.value = { tags: [msg] };
 
             // closeModal("modalTagForm");
             return;
@@ -221,31 +237,29 @@ const page = ref(1);
 const perPage = ref(15);
 const loading = ref(false);
 const formErrors = ref({});
-const fetchTags = () => {
-    // loading.value = true;
 
-    return axios
-        .get("/tags", {
+const fetchTags = async () => {
+    loading.value = true;
+    try {
+        const { data } = await axios.get("/tags", {
             params: { q: q.value, page: page.value, per_page: perPage.value },
-        })
-        .then(({ data }) => {
-            tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
-            return nextTick();
-        })
-        .then(() => {
-            window.feather?.replace();
-        })
-        .catch((err) => {
-            console.error("Failed to fetch tags", err);
-        })
-        .finally(() => {
-            loading.value = false;
         });
+
+        tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
+
+        // wait for DOM update before replacing icons
+        await nextTick();
+        window.feather?.replace();
+    } catch (err) {
+        console.error("Failed to fetch tags", err);
+    } finally {
+        loading.value = false;
+    }
 };
 
 const onDownload = (type) => {
     if (!tags.value || tags.value.length === 0) {
-        toast.error("No Tags data to download", { autoClose: 3000 });
+        toast.error("No Tags data to download");
         return;
     }
 
@@ -253,7 +267,7 @@ const onDownload = (type) => {
     const dataToExport = q.value.trim() ? filtered.value : tags.value;
 
     if (dataToExport.length === 0) {
-        toast.error("No Tags found to download", { autoClose: 3000 });
+        toast.error("No Tags found to download");
         return;
     }
 
@@ -265,11 +279,11 @@ const onDownload = (type) => {
         } else if (type === "csv") {
             downloadCSV(dataToExport);
         } else {
-            toast.error("Invalid download type", { autoClose: 3000 });
+            toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
-        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+        toast.error(`Download failed: ${error.message}`);
     }
 };
 
@@ -440,7 +454,22 @@ const downloadExcel = (data) => {
 onMounted(async () => {
     await fetchTags();
     window.feather?.replace();
+});
 
+// 🟢 Watch customTag input
+watch(customTag, (newVal) => {
+    if (newVal && formErrors.value.customTag) {
+        // Clear only this field’s error
+        delete formErrors.value.customTag;
+    }
+});
+
+// 🟢 Watch commonTags multi-select
+watch(commonTags, (newVal) => {
+    if (newVal.length > 0 && formErrors.value.tags) {
+        // Clear only tags error
+        delete formErrors.value.tags;
+    }
 });
 </script>
 
@@ -460,14 +489,21 @@ onMounted(async () => {
                             placeholder="Search"
                         />
                     </div>
-                   <button
-  class="btn btn-primary rounded-pill px-4"
-  data-bs-toggle="modal"
-  data-bs-target="#modalTagForm"
-  @click="openAdd(); formErrors = []"
->
-  Add Tag
-</button>
+
+                    <button
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalTagForm"
+                        @click="
+                            () => {
+                                openAdd();
+                                resetForm();
+                                formErrors = {};
+                            }
+                        "
+                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                    >
+                        <Plus class="w-4 h-4" /> Add Tag
+                    </button>
 
                     <!-- Download all -->
                     <div class="dropdown">
@@ -614,9 +650,11 @@ onMounted(async () => {
                             v-model="customTag"
                             class="form-control"
                             placeholder="e.g., Vegan"
-                             :class="{ 'is-invalid': formErrors.customTag }"
+                            :class="{ 'is-invalid': formErrors.customTag }"
                         />
-                         <span class="text-danger" v-if="formErrors.customTag">{{ formErrors.customTag[0] }}</span>
+                        <span class="text-danger" v-if="formErrors.customTag">{{
+                            formErrors.customTag[0]
+                        }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect
@@ -625,13 +663,14 @@ onMounted(async () => {
                             optionLabel="label"
                             optionValue="value"
                             :multiple="true"
+                            showClear
                             :filter="true"
                             display="chip"
-                            placeholder="Choose tags or type to add"
+                            placeholder="Choose common  tags or add new one"
                             class="w-100"
                             appendTo="self"
                             @filter="(e) => (filterText = e.value || '')"
-                             :class="{ 'is-invalid': formErrors.tags }"
+                            :invalid="formErrors.tags?.length"
                         >
                             <template #header>
                                 <div class="w-100 d-flex justify-content-end">
@@ -644,12 +683,16 @@ onMounted(async () => {
                                     </button>
                                 </div>
                             </template>
+
                             <template #footer>
                                 <div
                                     v-if="filterText?.trim()"
                                     class="p-2 border-top d-flex justify-content-between align-items-center"
                                 >
-                                    <small class="text-muted">Not found?</small>
+                                    <small class="text-muted"
+                                        >Not found in the list? Add it as a
+                                        custom tag</small
+                                    >
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-outline-primary rounded-pill"
@@ -660,7 +703,9 @@ onMounted(async () => {
                                 </div>
                             </template>
                         </MultiSelect>
-                        <span class="text-danger" v-if="formErrors.tags">{{ formErrors.tags[0] }}</span>
+                        <span class="text-danger" v-if="formErrors.tags">{{
+                            formErrors.tags[0]
+                        }}</span>
                     </div>
 
                     <button
