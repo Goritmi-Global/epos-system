@@ -6,6 +6,7 @@ use App\Models\Inventory;
 use App\Models\StockEntry;
 use Illuminate\Http\Request;
 
+
 class StockEntryService
 {
     public function create(array $data): StockEntry
@@ -67,7 +68,7 @@ class StockEntryService
     // Get stock logs
     public function getStockLogs(): array
     {
-        return StockEntry::with('product')
+        return StockEntry::with('product', 'supplier')
             ->latest()
             ->get()
             ->map(function ($entry) {
@@ -75,18 +76,21 @@ class StockEntryService
                     'id' => $entry->id,
                     'itemName' => $entry->product->name ?? 'N/A',
                     'totalPrice' => $entry->quantity * $entry->price,
-                    'category' => $entry->product->getAttribute('category') ?? 'N/A',
+                    'category' => $entry->product->getAttribute('category') ?? '',
                     'unitPrice' => $entry->price,
                     'dateTime' => $entry->created_at->toIso8601String(),
                     'expiryDate' => $entry->expiry_date,
                     'quantity' => $entry->quantity,
                     'operationType' => $entry->operation_type,
                     'type' => $entry->stock_type,
+                    // 👇 Add supplier name instead of ID
+                    'supplier' => $entry->supplier->name ?? '',
                 ];
             })
             ->values()
             ->toArray();
     }
+
 
     public function updateLog(Request $request, $id): bool
     {
@@ -99,7 +103,7 @@ class StockEntryService
 
         return $entry->save();
     }
-    
+
     public function deleteLog($id): bool
     {
         $entry = StockEntry::findOrFail($id);

@@ -510,7 +510,7 @@ const downloadExcel = (data) => {
                                         </li>
                                         <li>
                                             <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(r)">
-                                                <i data-feather="edit-2" class="me-2"></i>Edit
+                                                 <i data-feather="edit-2" class="me-2"></i>Edit
                                             </a>
                                         </li>
                                         <li><hr class="dropdown-divider" /></li>

@@ -65,7 +65,7 @@ const options = ref([
 
 // select state
 const selected = ref([]); // array of strings (option.name)
-const filterText = ref(""); // typed text in the filter box
+const filterText = ref(""); // typed text in the filonDoter box
 
 // form mode
 const isEditing = ref(false);
