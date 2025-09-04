@@ -36,9 +36,12 @@ class PurchaseOrderController extends Controller
     }
 
     public function show(PurchaseOrder $purchaseOrder)
-    {
-        return $purchaseOrder->load('items');
-    }
+{
+    return response()->json($purchaseOrder->load([
+        'supplier',
+        'items.product' // Load product details for each item
+    ]));
+}
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder)
     {

@@ -57,14 +57,12 @@ class InventoryService
                     "allergies" => $allergyNames,
                     "tags" => $tagNames,
                     "user" => $item->user?->name,
+                    "image" => $item->image,
                     "created_at" => $item->created_at,
                     "updated_at" => $item->updated_at,
                 ];
             });
     }
-
-
-
 
     public function create(array $data): Inventory
     {
