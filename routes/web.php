@@ -121,8 +121,8 @@ Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
     Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
     Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
     Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
-    Route::get('/{id}/edit', [PurchaseOrderController::class, 'edit'])->name('edit');
-    Route::put('/{id}', [PurchaseOrderController::class, 'update'])->name('update');
+    // Route::get('/{id}/edit', [PurchaseOrderController::class, 'edit'])->name('edit');
+    // Route::put('/{id}', [PurchaseOrderController::class, 'update'])->name('update');
     Route::delete('/{id}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
 });
 
