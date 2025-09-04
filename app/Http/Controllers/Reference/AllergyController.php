@@ -21,7 +21,7 @@ class AllergyController extends Controller
     }
 
     public function store(StoreAllergyRequest $request): JsonResponse
-    {
+    { 
         $allergy = $this->service->create($request->validated());
         return response()->json([
             'message' => 'Allergy created successfully',
@@ -29,6 +29,7 @@ class AllergyController extends Controller
         ], 201);
     }
 
+    
     public function update(UpdateAllergyRequest $request, Allergy $allergy): JsonResponse
     {
         $allergy = $this->service->update($allergy, $request->validated());

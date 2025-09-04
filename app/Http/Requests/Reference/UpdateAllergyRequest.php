@@ -14,18 +14,23 @@ class UpdateAllergyRequest extends FormRequest
 
     public function rules(): array
     {
+        $tagId = $this->route('allergy')?->id;
+
         return [
-            // Expect "name" to be an array
-            'name' => 'required|string',
-            'name.*' => [
+            'name'        => [
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('allergies', 'name')->ignore($this->allergy->id),
+                Rule::unique('allergies', 'name')->ignore($tagId),
             ],
+            'description' => 'nullable|string',
+        ];
+    }
 
-            'description' => 'nullable|string|max:255',
+    public function messages(): array
+    {
+        return [
+            'name.unique' => 'The ":input" allergy is already exists.',
         ];
     }
 }
-

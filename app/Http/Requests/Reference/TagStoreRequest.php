@@ -22,7 +22,7 @@ class TagStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tags.*.name.unique' => 'The ":input" is tag already exists.',
+            'tags.*.name.unique' => 'The ":input" tag is already exists.',
         ];
     }
 }

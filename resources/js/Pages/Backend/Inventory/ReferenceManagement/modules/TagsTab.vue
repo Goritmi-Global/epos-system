@@ -121,16 +121,14 @@ const onSubmit = async () => {
             if (idx !== -1) tags.value[idx] = data;
 
             toast.success("Tag updated Successfully");
-
+            await fetchTags();
             // Hide the modal after successful update
             resetForm();
             closeModal("modalTagForm");
         } catch (e) {
             if (e.response?.data?.errors) {
                 // Reset errors object
-                formErrors.value = {};
-                console.log(e.response.data.errors);
-
+                formErrors.value = {};  
                 // Loop through backend errors
                 Object.entries(e.response.data.errors).forEach(
                     ([field, msgs]) => {
@@ -224,31 +222,29 @@ const page = ref(1);
 const perPage = ref(15);
 const loading = ref(false);
 const formErrors = ref({});
-const fetchTags = () => {
-    // loading.value = true;
 
-    return axios
-        .get("/tags", {
+const fetchTags = async () => {
+    loading.value = true;
+    try {
+        const { data } = await axios.get("/tags", {
             params: { q: q.value, page: page.value, per_page: perPage.value },
-        })
-        .then(({ data }) => {
-            tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
-            return nextTick();
-        })
-        .then(() => {
-            window.feather?.replace();
-        })
-        .catch((err) => {
-            console.error("Failed to fetch tags", err);
-        })
-        .finally(() => {
-            loading.value = false;
         });
+
+        tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
+
+        // wait for DOM update before replacing icons
+        await nextTick();
+        window.feather?.replace();
+    } catch (err) {
+        console.error("Failed to fetch tags", err);
+    } finally {
+        loading.value = false;
+    }
 };
 
 const onDownload = (type) => {
     if (!tags.value || tags.value.length === 0) {
-        toast.error("No Tags data to download", { autoClose: 3000 });
+        toast.error("No Tags data to download");
         return;
     }
 
@@ -256,7 +252,7 @@ const onDownload = (type) => {
     const dataToExport = q.value.trim() ? filtered.value : tags.value;
 
     if (dataToExport.length === 0) {
-        toast.error("No Tags found to download", { autoClose: 3000 });
+        toast.error("No Tags found to download");
         return;
     }
 
@@ -268,11 +264,11 @@ const onDownload = (type) => {
         } else if (type === "csv") {
             downloadCSV(dataToExport);
         } else {
-            toast.error("Invalid download type", { autoClose: 3000 });
+            toast.error("Invalid download type");
         }
     } catch (error) {
         console.error("Download failed:", error);
-        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+        toast.error(`Download failed: ${error.message}`);
     }
 };
 

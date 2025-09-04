@@ -30,7 +30,7 @@ class TagUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.unique' => 'The tag ":input" already exists.',
+            'name.unique' => 'The ":input" tag is already exists.',
         ];
     }
 }

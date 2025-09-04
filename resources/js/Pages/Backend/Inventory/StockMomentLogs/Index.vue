@@ -135,7 +135,7 @@ async function Delete(row) {
 
 const onDownload = (type) => {
     if (!logs.value || logs.value.length === 0) {
-        toast.error("No Allergies data to download", { autoClose: 3000 });
+        toast.error("No Allergies data to download");
         return;
     }
 
@@ -143,7 +143,7 @@ const onDownload = (type) => {
     const dataToExport = q.value.trim() ? filtered.value : logs.value;
 
     if (dataToExport.length === 0) {
-        toast.error("No Logs Moment found to download", { autoClose: 3000 });
+        toast.error("No Logs Moment found to download");
         return;
     }
 
@@ -157,11 +157,11 @@ const onDownload = (type) => {
             downloadCSV(dataToExport);
         }
         else {
-            toast.error("Invalid download type", { autoClose: 3000 });
+            toast.error("Invalid download type");
         }
     } catch (error) {
         console.error('Download failed:', error);
-        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+        toast.error(`Download failed: ${error.message}`);
     }
 };
 

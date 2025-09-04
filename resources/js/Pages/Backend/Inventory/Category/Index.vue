@@ -465,7 +465,7 @@ const removeAllSubcategories = () => {
 
 const onDownload = (type) => {
     if (!parentCategories.value || parentCategories.value.length === 0) {
-        toast.error("No Units data to download", { autoClose: 3000 });
+        toast.error("No Units data to download");
         return;
     }
 
@@ -473,7 +473,7 @@ const onDownload = (type) => {
     const dataToExport = q.value.trim() ? filtered.value : parentCategories.value;
 
     if (dataToExport.length === 0) {
-        toast.error("No Units found to download", { autoClose: 3000 });
+        toast.error("No Units found to download");
         return;
     }
 
@@ -487,11 +487,11 @@ const onDownload = (type) => {
             downloadCSV(dataToExport);
         }
         else {
-            toast.error("Invalid download type", { autoClose: 3000 });
+            toast.error("Invalid download type");
         }
     } catch (error) {
         console.error('Download failed:', error);
-        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+        toast.error(`Download failed: ${error.message}`);
     }
 };
 
