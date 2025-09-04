@@ -31,6 +31,8 @@ const options = ref([
     { label: "Welsh Lamb", value: "Welsh Lamb" },
 ]);
 
+
+
 const selected = ref([]); // array of values
 const filterText = ref(""); // Fixed: Added missing filterText ref
 
@@ -103,8 +105,6 @@ const openRemove = async (row) => {
         toast.error("Delete failed ❌");
     }
 };
-
-
 
 const runQuery = async (payload) => {
     if (payload.action === "create") {
@@ -466,6 +466,7 @@ const downloadExcel = (data) => {
 onMounted(async () => {
     await fetchTags();
     window.feather?.replace();
+
 });
 </script>
 
