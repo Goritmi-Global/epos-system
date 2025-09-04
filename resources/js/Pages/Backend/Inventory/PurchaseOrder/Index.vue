@@ -78,6 +78,12 @@ const showHelp = ref(false);
 //     );
 // });
 
+const props = defineProps({
+    orders: Array,
+});
+const orderData = computed(() => props.orders.data);
+console.log("Props:", orderData.value);
+
 const supplierOptions = ref([]);
 const p_supplier = ref(null);
 
@@ -154,13 +160,13 @@ async function fetchOrders() {
 }
 
 // Computed filteredOrders for search
-const filteredOrders = computed(() => {
-  const t = q.value.trim().toLowerCase();
-  return orders.value.filter((o) => {
-    const str = [o.supplier, o.status, String(o.total), o.purchasedAt].join(" ").toLowerCase();
-    return str.includes(t);
-  });
-});
+// const filteredOrders = computed(() => {
+//   const t = q.value.trim().toLowerCase();
+//   return props.orders.value.filter((o) => {
+//     const str = [o.supplier, o.status, String(o.total), o.purchasedAt].join(" ").toLowerCase();
+//     return str.includes(t);
+//   });
+// });
 
 
 
@@ -436,57 +442,45 @@ onUpdated(() => window.feather?.replace());
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template v-for="(row, i) in filteredOrders" :key="row.id">
+                                    <template v-for="(row, i) in orderData" :key="row.id">
                                         <tr>
-                                            <td>{{ i + 1 }}</td>
-                                            <td>{{ row.supplier }}</td>
-                                            <td class="text-nowrap">
-                                                {{
-                                                    fmtDateTime(
-                                                        row.purchasedAt
-                                                    ).split(",")[0]
-                                                }},
-                                                <div class="small text-muted">
-                                                    {{
-                                                        fmtDateTime(
-                                                            row.purchasedAt
-                                                        )
-                                                            .split(",")[1]
-                                                            ?.trim()
-                                                    }}
-                                                </div>
-                                            </td>
-                                            <td class="fw-semibold text-success">
-                                                {{ row.status }}
-                                            </td>
-                                            <td>{{ money(row.total) }}</td>
-                                            <td class="text-end">
-                                                <div class="dropdown">
-                                                    <button class="btn btn-link text-secondary p-0 fs-5"
-                                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                                        ⋮
-                                                    </button>
-                                                    <ul
-                                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
-                                                        <li>
-                                                            <a class="dropdown-item py-2"
-                                                                href="javascript:void(0)">View</a>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </td>
+                                        <td>{{ i + 1 }}</td>
+                                        <td>{{ row.supplier }}</td>
+                                        <td class="text-nowrap">
+                                            {{
+                                            fmtDateTime(row.purchasedAt).split(",")[0]
+                                            }},
+                                            <div class="small text-muted">
+                                            {{
+                                                fmtDateTime(row.purchasedAt).split(",")[1]?.trim()
+                                            }}
+                                            </div>
+                                        </td>
+                                        <td class="fw-semibold text-success">{{ row.status }}</td>
+                                        <td>{{ money(row.total) }}</td>
+                                        <td class="text-end">
+                                            <div class="dropdown">
+                                            <button class="btn btn-link text-secondary p-0 fs-5"
+                                                    data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
+                                                <li><a class="dropdown-item py-2" href="javascript:void(0)">View</a></li>
+                                            </ul>
+                                            </div>
+                                        </td>
                                         </tr>
                                         <tr class="sep-row">
-                                            <td colspan="6"></td>
+                                        <td colspan="6"></td>
                                         </tr>
                                     </template>
 
-                                    <tr v-if="filteredOrders.length === 0">
+                                    <!-- Fix this line -->
+                                    <tr v-if="orderData.length === 0">
                                         <td colspan="6" class="text-center text-muted py-4">
-                                            No purchase orders found.
+                                        No purchase orders found.
                                         </td>
                                     </tr>
                                 </tbody>
+
                             </table>
                         </div>
                     </div>

@@ -8,6 +8,7 @@ use App\Models\PurchaseOrder;
 use App\Services\POS\PurchaseOrderService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller
 {
@@ -21,7 +22,10 @@ class PurchaseOrderController extends Controller
     public function index(Request $request)
     {
         $orders = $this->service->list($request->only(['q', 'status']));
-        return response()->json($orders);
+        // Instead of JSON response, use Inertia:
+        return Inertia::render('Backend/Inventory/PurchaseOrder/Index', [
+            'orders' => $orders
+        ]);
     }
 
 
