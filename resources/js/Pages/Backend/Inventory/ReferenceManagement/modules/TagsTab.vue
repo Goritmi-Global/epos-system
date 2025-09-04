@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { toast } from "vue3-toastify";
 import MultiSelect from "primevue/multiselect";
 import { jsPDF } from "jspdf";
@@ -444,6 +444,22 @@ onMounted(async () => {
     await fetchTags();
     window.feather?.replace();
 });
+
+// 🟢 Watch customTag input
+watch(customTag, (newVal) => {
+    if (newVal && formErrors.value.customTag) {
+        // Clear only this field’s error
+        delete formErrors.value.customTag;
+    }
+});
+
+// 🟢 Watch commonTags multi-select
+watch(commonTags, (newVal) => {
+    if (newVal.length > 0 && formErrors.value.tags) {
+        // Clear only tags error
+        delete formErrors.value.tags;
+    }
+});
 </script>
 
 <template>
@@ -462,16 +478,20 @@ onMounted(async () => {
                             placeholder="Search"
                         />
                     </div>
+
                     <button
-                        class="btn btn-primary rounded-pill px-4"
                         data-bs-toggle="modal"
                         data-bs-target="#modalTagForm"
                         @click="
-                            openAdd();
-                            formErrors = [];
+                            () => {
+                                openAdd();
+                                resetForm();
+                                formErrors = {};
+                            }
                         "
+                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
                     >
-                        Add Tag
+                        <Plus class="w-4 h-4" /> Add Tag
                     </button>
 
                     <!-- Download all -->
