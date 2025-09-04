@@ -116,9 +116,12 @@ const onSubmit = async () => {
             return;
         }
         try {
-            const { data } = await axios.put(`/allergies/${editingRow.value.id}`, {
-                name: customAllergy.value.trim(),
-            });
+            const { data } = await axios.put(
+                `/allergies/${editingRow.value.id}`,
+                {
+                    name: customAllergy.value.trim(),
+                }
+            );
 
             const idx = allergies.value.findIndex(
                 (t) => t.id === editingRow.value.id
@@ -127,15 +130,15 @@ const onSubmit = async () => {
 
             toast.success("Allergy updated Successfully");
 
-             await fetchAllergies();
-             
+            await fetchAllergies();
+
             // Hide the modal after successful update
             resetForm();
             closeModal("modalAllergyForm");
         } catch (e) {
             if (e.response?.data?.errors) {
                 // Reset errors object
-                formErrors.value = {};  
+                formErrors.value = {};
                 // Loop through backend errors
                 Object.entries(e.response.data.errors).forEach(
                     ([field, msgs]) => {
@@ -152,7 +155,9 @@ const onSubmit = async () => {
         }
     } else {
         if (commonAllergies.value.length === 0) {
-            formErrors.value = { allergies: ["Please select at least one Allergy Item"] };
+            formErrors.value = {
+                allergies: ["Please select at least one Allergy Item"],
+            };
             toast.error("Please select at least one Allergy");
             return;
         }
@@ -180,7 +185,9 @@ const onSubmit = async () => {
         }
 
         try {
-            const response = await axios.post("/allergies", { allergies: newAllergy });
+            const response = await axios.post("/allergies", {
+                allergies: newAllergy,
+            });
 
             // If backend returns array directly
             const createdTags = response.data?.allergies ?? response.data;
@@ -210,7 +217,6 @@ const onSubmit = async () => {
         }
     }
 };
-
 
 // Function to properly hide modal and clean up backdrop
 const closeModal = (id) => {
