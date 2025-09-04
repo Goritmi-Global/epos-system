@@ -1,14 +1,15 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
-
 import Select from "primevue/select";
 import MultiSelect from "primevue/multiselect";
 import { toast } from "vue3-toastify";
-
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from 'xlsx';
 
 const props = defineProps({
-    inventories: Array, 
+    inventories: Array,
     allergies: {
         type: Array,
     },
@@ -34,32 +35,32 @@ const items = computed(() => inventories.value);
 
 
 const fetchInventories = async () => {
-  try {
-    const res = await axios.get("inventory/api-inventories");
-    console.log("Stock response data:", res.data);
-    
-   const apiItems = res.data.data || [];
-    
-    inventories.value = await Promise.all(
-  apiItems.map(async (item) => {
-    const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
-    const stockData = stockRes.data.total?.original || {};
-    return {
-      ...item,
-      availableStock: stockData.available || 0,
-      stockValue: stockData.stockValue || 0,
-      minAlert: stockData.minAlert || 0,
-    };
-  })
-);
-  } catch (err) {
-    console.error(err);
-  }
+    try {
+        const res = await axios.get("inventory/api-inventories");
+        console.log("Stock response data:", res.data);
+
+        const apiItems = res.data.data || [];
+
+        inventories.value = await Promise.all(
+            apiItems.map(async (item) => {
+                const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
+                const stockData = stockRes.data.total?.original || {};
+                return {
+                    ...item,
+                    availableStock: stockData.available || 0,
+                    stockValue: stockData.stockValue || 0,
+                    minAlert: stockData.minAlert || 0,
+                };
+            })
+        );
+    } catch (err) {
+        console.error(err);
+    }
 };
 
 
 onMounted(() => {
-  fetchInventories(); // fetch inventories when the component mounts
+    fetchInventories(); // fetch inventories when the component mounts
 });
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
@@ -99,10 +100,10 @@ const categoriesCount = computed(
 );
 const totalItems = computed(() => items.value.length);
 const lowStockCount = computed(
-  () =>
-    items.value.filter(
-      (i) => i.availableStock > 0 && i.availableStock < (i.minAlert || 5) // fallback to 5 if minAlert missing
-    ).length
+    () =>
+        items.value.filter(
+            (i) => i.availableStock > 0 && i.availableStock < (i.minAlert || 5) // fallback to 5 if minAlert missing
+        ).length
 );
 const outOfStockCount = computed(
     () => items.value.filter((i) => i.availableStock <= 0).length
@@ -282,147 +283,411 @@ const onStockIn = (it) => console.log("Stock In:", it);
 const onStockOut = (it) => console.log("Stock Out:", it);
 const onViewItem = (it) => console.log("View:", it);
 const onEditItem = (it) => console.log("Edit:", it);
-const onDownload = (type) => console.log("Download:", type);
+// const onDownload = (type) => console.log("Download:", type);
 // =====================view item =========================
 const viewItemRef = ref({});
 
 const ViewItem = async (row) => {
-  try {
-    const res = await axios.get(`/inventory/${row.id}`);
-    viewItemRef.value = res.data;
+    try {
+        const res = await axios.get(`/inventory/${row.id}`);
+        viewItemRef.value = res.data;
 
-    const modal = new bootstrap.Modal(document.getElementById('viewItemModal'));
-    modal.show();
-  } catch (error) {
-    console.error("Error fetching item:", error);
-  }
+        const modal = new bootstrap.Modal(document.getElementById('viewItemModal'));
+        modal.show();
+    } catch (error) {
+        console.error("Error fetching item:", error);
+    }
 };
 
 // ===================== Stock Item Modal =========================
 function calculateValue() {
-  const q = Number(stockForm.value.quantity || 0);
-  const p = Number(stockForm.value.price || 0);
-  stockForm.value.value = q * p;
+    const q = Number(stockForm.value.quantity || 0);
+    const p = Number(stockForm.value.price || 0);
+    stockForm.value.value = q * p;
 }
 
 
 const stockForm = ref({
-  product_id: null,
-  name: "",
-  category_id: null,
-  supplier_id: null,
-  available_quantity: 0,
-  quantity: 0,
-  price: 0,
-  value: 0,
-  expiry_date: "",
-  description: "",
-  operation_type: "purchase",
-  stock_type: "stockin",
-  purchase_date: new Date().toISOString().slice(0, 10),
-  user_id: 1, // pass logged-in user id dynamically if needed
+    product_id: null,
+    name: "",
+    category_id: null,
+    supplier_id: null,
+    available_quantity: 0,
+    quantity: 0,
+    price: 0,
+    value: 0,
+    expiry_date: "",
+    description: "",
+    operation_type: "purchase",
+    stock_type: "stockin",
+    purchase_date: new Date().toISOString().slice(0, 10),
+    user_id: 1, // pass logged-in user id dynamically if needed
 });
 
 const submittingStock = ref(false);
 
 function openStockModal(item) {
-  const categoryObj = props.categories.find(c => c.name === item.category);
-  const supplierObj = props.suppliers.find(s => s.name === item.supplier);
+    const categoryObj = props.categories.find(c => c.name === item.category);
+    const supplierObj = props.suppliers.find(s => s.name === item.supplier);
 
-  axios.get(`/stock_entries/total/${item.id}`).then(res => {
-    const totalStock = res.data.total?.original || {};
-    stockForm.value = {
-      product_id: item.id,
-      name: item.name,
-      category_id: categoryObj ? categoryObj.id : null,
-      supplier_id: supplierObj ? supplierObj.id : null,
-      available_quantity: totalStock.available || 0,   
-      quantity: 0,
-      price: 0,
-      value: 0,
-      expiry_date: "",
-      description: "",
-      operation_type: "inventory_stockin",
-      stock_type: "stockin",
-      purchase_date: new Date().toISOString().slice(0, 10),
-      user_id: 1,
-    };
+    axios.get(`/stock_entries/total/${item.id}`).then(res => {
+        const totalStock = res.data.total?.original || {};
+        stockForm.value = {
+            product_id: item.id,
+            name: item.name,
+            category_id: categoryObj ? categoryObj.id : null,
+            supplier_id: supplierObj ? supplierObj.id : null,
+            available_quantity: totalStock.available || 0,
+            quantity: 0,
+            price: 0,
+            value: 0,
+            expiry_date: "",
+            description: "",
+            operation_type: "inventory_stockin",
+            stock_type: "stockin",
+            purchase_date: new Date().toISOString().slice(0, 10),
+            user_id: 1,
+        };
 
-    const modal = new bootstrap.Modal(document.getElementById("stockInModal"));
-    modal.show();
-  });
+        const modal = new bootstrap.Modal(document.getElementById("stockInModal"));
+        modal.show();
+    });
 }
 
 
 
 function resetStockForm() {
-  stockForm.value.quantity = 0;
-  stockForm.value.price = 0;
-  stockForm.value.value = 0;
-  stockForm.value.expiry_date = "";
-  stockForm.value.description = "";
+    stockForm.value.quantity = 0;
+    stockForm.value.price = 0;
+    stockForm.value.value = 0;
+    stockForm.value.expiry_date = "";
+    stockForm.value.description = "";
 }
 
 async function submitStockIn() {
-  submittingStock.value = true;
-  calculateValue();
-  try {
-    await axios.post("/stock_entries", stockForm.value);
-    toast.success("✅ Stock In saved successfully");
-    resetStockForm();
-    bootstrap.Modal.getInstance(document.getElementById("stockInModal"))?.hide();
-    await fetchInventories(); // refresh inventory table if needed
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to save Stock In");
-  } finally {
-    submittingStock.value = false;
-  }
+    submittingStock.value = true;
+    calculateValue();
+    try {
+        await axios.post("/stock_entries", stockForm.value);
+        toast.success("✅ Stock In saved successfully");
+        resetStockForm();
+        bootstrap.Modal.getInstance(document.getElementById("stockInModal"))?.hide();
+        await fetchInventories(); // refresh inventory table if needed
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to save Stock In");
+    } finally {
+        submittingStock.value = false;
+    }
 }
 // =========================== Stockout Modal ===========================
 function openStockOutModal(item) {
-  const categoryObj = props.categories.find(c => c.name === item.category);
+    const categoryObj = props.categories.find(c => c.name === item.category);
 
-  axios.get(`/stock_entries/total/${item.id}`).then(res => {
-    const totalStock = res.data.total?.original || {};
+    axios.get(`/stock_entries/total/${item.id}`).then(res => {
+        const totalStock = res.data.total?.original || {};
 
-    stockForm.value = {
-      product_id: item.id,
-      name: item.name,
-      category_id: categoryObj ? categoryObj.id : null,
-      available_quantity: totalStock.available || 0,
-      quantity: 0,
-      price: 0,
-      value: 0,
-      description: "",
-      operation_type: "inventory_stockout",
-      stock_type: "stockout",
-      purchase_date: new Date().toISOString().slice(0, 10),
-      user_id: 1,
-    };
+        stockForm.value = {
+            product_id: item.id,
+            name: item.name,
+            category_id: categoryObj ? categoryObj.id : null,
+            available_quantity: totalStock.available || 0,
+            quantity: 0,
+            price: 0,
+            value: 0,
+            description: "",
+            operation_type: "inventory_stockout",
+            stock_type: "stockout",
+            purchase_date: new Date().toISOString().slice(0, 10),
+            user_id: 1,
+        };
 
-    const modal = new bootstrap.Modal(document.getElementById("stockOutModal"));
-    modal.show();
-  });
+        const modal = new bootstrap.Modal(document.getElementById("stockOutModal"));
+        modal.show();
+    });
 }
 
 async function submitStockOut() {
-  submittingStock.value = true;
-  calculateValue();
+    submittingStock.value = true;
+    calculateValue();
 
-  try {
-    await axios.post("/stock_entries", stockForm.value);
-    toast.success("✅ Stock Out saved successfully");
-    resetStockForm();
-    bootstrap.Modal.getInstance(document.getElementById("stockOutModal"))?.hide();
-    await fetchInventories(); // refresh inventory table
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to save Stock Out");
-  } finally {
-    submittingStock.value = false;
-  }
+    try {
+        await axios.post("/stock_entries", stockForm.value);
+        toast.success("✅ Stock Out saved successfully");
+        resetStockForm();
+        bootstrap.Modal.getInstance(document.getElementById("stockOutModal"))?.hide();
+        await fetchInventories(); // refresh inventory table
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to save Stock Out");
+    } finally {
+        submittingStock.value = false;
+    }
 }
+
+// code fo download files like  PDF, Excel and CSV
+
+const onDownload = (type) => {
+    if (!inventories.value || inventories.value.length === 0) {
+        toast.error("No Allergies data to download", { autoClose: 3000 });
+        return;
+    }
+
+    // Use filtered data if there's a search query, otherwise use all suppliers
+    const dataToExport = q.value.trim() ? filtered.value : inventories.value;
+
+    if (dataToExport.length === 0) {
+        toast.error("No Inventory Item found to download", { autoClose: 3000 });
+        return;
+    }
+
+    try {
+        if (type === 'pdf') {
+            downloadPDF(dataToExport);
+        } else if (type === 'excel') {
+            downloadExcel(dataToExport);
+        }
+        else if (type === 'csv') {
+            downloadCSV(dataToExport);
+        }
+        else {
+            toast.error("Invalid download type", { autoClose: 3000 });
+        }
+    } catch (error) {
+        console.error('Download failed:', error);
+        toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
+    }
+};
+
+const downloadCSV = (data) => {
+    try {
+        // Define headers
+        const headers = [
+            "Item Name", "Category", "Min Alert", "Unit",
+            "Supplier", "Sku", "Description", "Nutrition",
+            "Allergies", "Tags", "Created At", "Updated At"
+        ];
+
+        // Build CSV rows
+        const rows = data.map(s => {
+            // ✅ Format nutrition into key:value pairs
+            let nutritionStr = "";
+            if (s.nutrition && typeof s.nutrition === "object") {
+                nutritionStr = Object.entries(s.nutrition)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join("; ");
+            } else if (typeof s.nutrition === "string") {
+                nutritionStr = s.nutrition;
+            }
+
+            return [
+                `"${s.name || ""}"`,
+                `"${s.category || ""}"`,
+                `"${s.minAlert || ""}"`,
+                `"${s.unit || ""}"`,
+                `"${s.supplier || ""}"`,
+                `"${s.sku || ""}"`,
+                `"${s.description || ""}"`,
+                `"${nutritionStr}"`,
+                `"${Array.isArray(s.allergies) ? s.allergies.join(", ") : (s.allergies || "")}"`,
+                `"${Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || "")}"`,
+                `"${s.created_at || ""}"`,
+                `"${s.updated_at || ""}"`
+            ];
+        });
+
+        // Combine into CSV string
+        const csvContent = [
+            headers.join(","), // header row
+            ...rows.map(r => r.join(",")) // data rows
+        ].join("\n");
+
+        // Create blob
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `inventory_items_${new Date().toISOString().split("T")[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("p", "mm", "a4");
+
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text("Inventory Item Report", 70, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 70, 28);
+        doc.text(`Total Inventory Items: ${data.length}`, 70, 34);
+
+        const tableColumns = [
+            "Item Name", "Category", "Min Alert", "Unit",
+            "Supplier", "SKU", "Description", "Nutrition",
+            "Allergies", "Tags"
+        ];
+
+        const formatNutrition = (nutri) => {
+            if (!nutri) return "";
+            if (typeof nutri === "string") {
+                try { nutri = JSON.parse(nutri); } catch { return nutri; }
+            }
+            if (Array.isArray(nutri)) return nutri.join(", ");
+            if (typeof nutri === "object") {
+                return Object.entries(nutri)
+                    .map(([k, v]) => `${k.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${v}`)
+                    .join(", ");
+            }
+            return String(nutri ?? "");
+        };
+
+        const tableRows = data.map((s) => [
+            s.name || "",
+            s.category || "",
+            s.minAlert ?? "",
+            s.unit || "",
+            s.supplier || "",
+            s.sku || "",
+            s.description || "",
+            s.nutrition_text || formatNutrition(s.nutrition),
+            Array.isArray(s.allergies) ? s.allergies.join(", ") : (s.allergies || ""),
+            Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || ""),
+        ]);
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: { fontSize: 8, cellPadding: 2, halign: "left", lineColor: [0, 0, 0], lineWidth: 0.1 },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+            alternateRowStyles: { fillColor: [240, 240, 240] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (td) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(`Page ${td.pageNumber} of ${pageCount}`, td.settings.margin.left, pageHeight - 10);
+            },
+        });
+
+        const fileName = `Inventory_items_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+
+// Helper function for safe JSON parsing
+function safeParse(value) {
+    try {
+        return typeof value === "string" ? JSON.parse(value) : value;
+    } catch (e) {
+        return value;
+    }
+}
+
+
+const downloadExcel = (data) => {
+    try {
+        // Check if XLSX is available
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        // Prepare worksheet data
+        const worksheetData = data.map((s) => {
+            // ✅ Format nutrition into key:value pairs
+            let nutritionStr = "";
+            if (s.nutrition && typeof s.nutrition === "object") {
+                nutritionStr = Object.entries(s.nutrition)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join("; ");
+            } else if (typeof s.nutrition === "string") {
+                nutritionStr = s.nutrition;
+            }
+
+            return {
+                "Item Name": s.name || "",
+                "Category": s.category || "",
+                "Min Alert": s.minAlert || "",
+                "Unit": s.unit || "",
+                "Supplier": s.supplier || "",
+                "Sku": s.sku || "",
+                "Description": s.description || "",
+                "Nutrition": nutritionStr,
+                "Allergies": Array.isArray(s.allergies)
+                    ? s.allergies.join(", ")
+                    : s.allergies || "",
+                "Tags": Array.isArray(s.tags)
+                    ? s.tags.join(", ")
+                    : s.tags || "",
+                "Created At": s.created_at || "",
+                "Updated At": s.updated_at || "",
+            };
+        });
+
+        // Create workbook and worksheet
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths
+        worksheet["!cols"] = [
+            { wch: 20 }, // Item Name
+            { wch: 15 }, // Category
+            { wch: 10 }, // Min Alert
+            { wch: 12 }, // Unit
+            { wch: 20 }, // Supplier
+            { wch: 15 }, // Sku
+            { wch: 30 }, // Description
+            { wch: 40 }, // Nutrition
+            { wch: 25 }, // Allergies
+            { wch: 25 }, // Tags
+            { wch: 20 }, // Created At
+            { wch: 20 }, // Updated At
+        ];
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Items");
+
+        // Add metadata sheet
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        // Generate file name
+        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+        // Save the file
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
 
 
 </script>
@@ -436,15 +701,9 @@ async function submitStockOut() {
 
                 <!-- KPI Cards -->
                 <div class="row g-3">
-                    <div
-                        v-for="c in kpis"
-                        :key="c.label"
-                        class="col-6 col-md-3"
-                    >
+                    <div v-for="c in kpis" :key="c.label" class="col-6 col-md-3">
                         <div class="card border-0 shadow-sm rounded-4">
-                            <div
-                                class="card-body d-flex flex-column justify-content-center text-center"
-                            >
+                            <div class="card-body d-flex flex-column justify-content-center text-center">
                                 <div class="icon-wrap mb-2">
                                     <i :class="c.icon"></i>
                                 </div>
@@ -461,124 +720,86 @@ async function submitStockOut() {
                 <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
-                        <div
-                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-                        >
+                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                             <h5 class="mb-0 fw-semibold">Stock</h5>
 
-                            <div
-                                class="d-flex flex-wrap gap-2 align-items-center"
-                            >
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <div class="search-wrap">
                                     <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="q"
-                                        type="text"
-                                        class="form-control search-input"
-                                        placeholder="Search"
-                                    />
+                                    <input v-model="q" type="text" class="form-control search-input"
+                                        placeholder="Search" />
                                 </div>
 
                                 <!-- Filter By -->
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
+                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown">
                                         Filter By
-                                        <span
-                                            v-if="sortBy"
-                                            class="ms-1 text-muted small"
-                                        >
+                                        <span v-if="sortBy" class="ms-1 text-muted small">
                                             {{
                                                 sortBy === "stock_desc"
                                                     ? "High→Low"
                                                     : sortBy === "stock_asc"
-                                                    ? "Low→High"
-                                                    : sortBy === "name_asc"
-                                                    ? "A→Z"
-                                                    : sortBy === "name_desc"
-                                                    ? "Z→A"
-                                                    : ""
+                                                        ? "Low→High"
+                                                        : sortBy === "name_asc"
+                                                            ? "A→Z"
+                                                            : sortBy === "name_desc"
+                                                                ? "Z→A"
+                                                                : ""
                                             }}
                                         </span>
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'stock_desc'"
-                                                >From High to Low</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'stock_desc'">From High to Low</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'stock_asc'"
-                                                >From Low to High</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'stock_asc'">From Low to High</a>
                                         </li>
                                         <li>
                                             <hr class="dropdown-divider" />
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'name_asc'"
-                                                >Ascending</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'name_asc'">Ascending</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'name_desc'"
-                                                >Descending</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'name_desc'">Descending</a>
                                         </li>
                                     </ul>
                                 </div>
 
                                 <!-- Add Item -->
-                                <button
-                                    class="btn btn-primary rounded-pill px-4"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#addItemModal"
-                                >
+                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
+                                    data-bs-target="#addItemModal">
                                     Add Item
                                 </button>
 
                                 <!-- Download all -->
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
+                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown">
                                         Download all
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="onDownload('pdf')"
-                                                >Download as PDF</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                @click="onDownload('pdf')">Download as
+                                                PDF</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="onDownload('excel')"
-                                                >Download as Excel</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                @click="onDownload('excel')">Download
+                                                as Excel</a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                @click="onDownload('csv')">
+                                                Download as CSV
+                                            </a>
                                         </li>
                                     </ul>
                                 </div>
@@ -587,10 +808,7 @@ async function submitStockOut() {
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table
-                                class="table table-hover"
-                                
-                            >
+                            <table class="table table-hover">
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>
@@ -606,87 +824,84 @@ async function submitStockOut() {
                                         <th>Action</th>
                                     </tr>
                                 </thead>
-                            <tbody>
-                                <tr
-                                    v-for="(item, idx) in sortedItems"
-                                    :key="item.id"
-                                >
-                                    <td>{{ idx + 1 }}</td>
-                                    <td class="fw-semibold">
-                                    {{ item.name }}
-                                    </td>
-                                    <td>
-                                    <img
-                                        :src="item.image ? `/storage/${item.image}` : '/default.png'"
-                                        class="rounded"
-                                        style="width: 40px; height: 40px; object-fit: cover;"
-                                    />
+                                <tbody>
+                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                        <td>{{ idx + 1 }}</td>
+                                        <td class="fw-semibold">
+                                            {{ item.name }}
+                                        </td>
+                                        <td>
+                                            <img :src="item.image ? `/storage/${item.image}` : '/default.png'"
+                                                class="rounded" style="width: 40px; height: 40px; object-fit: cover;" />
 
-                                    </td>
-                                    <td>
-                                    {{ money(item.unitPrice || 0, "GBP") }}
-                                    </td>
-                                    <td class="text-truncate" style="max-width: 260px">
-                                    {{ item.category }}
-                                    </td>
-                                    <td>{{ item.unit }}</td>
-                                    <td>
-                                    {{ item.availableStock ? item.availableStock.toFixed(1) : 0 }}
-                                    </td>
-                                    <td>
-                                    {{ money(item.stockValue || 0, "GBP") }}
-                                    </td>
-                                    <td>
-                                        <span v-if="item.availableStock === 0" class="badge bg-red-600">Out of stock</span>
-                                        <span v-else-if="item.availableStock <= item.minAlert" class="badge bg-warning">Low-stock</span>
-                                        <span v-else class="badge bg-success">In-stock</span>
-                                    </td>
+                                        </td>
+                                        <td>
+                                            {{ money(item.unitPrice || 0, "GBP") }}
+                                        </td>
+                                        <td class="text-truncate" style="max-width: 260px">
+                                            {{ item.category }}
+                                        </td>
+                                        <td>{{ item.unit }}</td>
+                                        <td>
+                                            {{ item.availableStock ? item.availableStock.toFixed(1) : 0 }}
+                                        </td>
+                                        <td>
+                                            {{ money(item.stockValue || 0, "GBP") }}
+                                        </td>
+                                        <td>
+                                            <span v-if="item.availableStock === 0" class="badge bg-red-600">Out of
+                                                stock</span>
+                                            <span v-else-if="item.availableStock <= item.minAlert"
+                                                class="badge bg-warning">Low-stock</span>
+                                            <span v-else class="badge bg-success">In-stock</span>
+                                        </td>
 
-                                   
-                                   <td>{{ item.user?.name || 'N/A' }}</td>
 
-                                    <td class="text-end">
-                                    <div class="dropdown">
-                                        <button
-                                        class="btn btn-link text-secondary p-0 fs-5"
-                                        data-bs-toggle="dropdown"
-                                        aria-expanded="false"
-                                        title="Actions"
-                                        >
-                                        ⋮
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="openStockModal(item)">
-                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="openStockOutModal(item)">
-                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="ViewItem(item)">
-                                            <i class="bi bi-eye me-2"></i>View Item
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="editItem(item)">
-                                            <i class="bi bi-pencil-square me-2"></i>Edit
-                                            </a>
-                                        </li>
-                                        </ul>
-                                    </div>
-                                    </td>
-                                </tr>
+                                        <td>{{ item.user?.name || 'N/A' }}</td>
 
-                                <tr v-if="sortedItems.length === 0">
-                                    <td colspan="11" class="text-center text-muted py-4">
-                                    No items found.
-                                    </td>
-                                </tr>
-                            </tbody>
+                                        <td class="text-end">
+                                            <div class="dropdown">
+                                                <button class="btn btn-link text-secondary p-0 fs-5"
+                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
+                                                    ⋮
+                                                </button>
+                                                <ul
+                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
+                                                    <li>
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                            @click="openStockModal(item)">
+                                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                            @click="openStockOutModal(item)">
+                                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                            @click="ViewItem(item)">
+                                                            <i class="bi bi-eye me-2"></i>View Item
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                            @click="editItem(item)">
+                                                            <i class="bi bi-pencil-square me-2"></i>Edit
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <tr v-if="sortedItems.length === 0">
+                                        <td colspan="11" class="text-center text-muted py-4">
+                                            No items found.
+                                        </td>
+                                    </tr>
+                                </tbody>
 
                             </table>
                         </div>
@@ -694,27 +909,14 @@ async function submitStockOut() {
                 </div>
 
                 <!-- ===================== Add New Product Modal ===================== -->
-                <div
-                    class="modal fade"
-                    id="addItemModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
-                    <div
-                        class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"
-                        role="document"
-                    >
+                <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
                                     Add New Inventory Item
                                 </h5>
-                                <button
-                                    type="button"
-                                    class="btn btn-close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                >
+                                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
                                     ×
                                 </button>
                             </div>
@@ -723,171 +925,94 @@ async function submitStockOut() {
                                 <!-- top row -->
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Product Name</label
-                                        >
-                                        <input
-                                            v-model="form.name"
-                                            type="text"
-                                            class="form-control"
-                                            placeholder="e.g., Chicken Breast"
-                                        />
+                                        <label class="form-label">Product Name</label>
+                                        <input v-model="form.name" type="text" class="form-control"
+                                            placeholder="e.g., Chicken Breast" />
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Category</label
-                                        >
-                                        <Select
-                                            v-model="form.category"
-                                            :options="categories"
-                                            optionLabel="name"
-                                            optionValue="name"
-                                            placeholder="Select Category"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                            @update:modelValue="
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="form.category" :options="categories" optionLabel="name"
+                                            optionValue="name" placeholder="Select Category" class="w-100"
+                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000" @update:modelValue="
                                                 form.subcategory = ''
-                                            "
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
+                                                ">
+                                            <template #value="{ value, placeholder }">
                                                 <span v-if="value">{{
                                                     value
-                                                }}</span>
+                                                    }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                }}</span>
+                                                    }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <!-- Subcategory (only if exists) -->
-                                    <div
-                                        class="col-md-6"
-                                        v-if="subcatOptions.length"
-                                    >
-                                        <label class="form-label"
-                                            >Subcategory</label
-                                        >
-                                        <Select
-                                            v-model="form.subcategory"
-                                            :options="subcatOptions"
-                                            optionLabel="name"
-                                            optionValue="value"
-                                            placeholder="Select Subcategory"
-                                            class="w-100"
-                                            :appendTo="body"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
+                                    <div class="col-md-6" v-if="subcatOptions.length">
+                                        <label class="form-label">Subcategory</label>
+                                        <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
+                                            optionValue="value" placeholder="Select Subcategory" class="w-100"
+                                            :appendTo="body" :autoZIndex="true" :baseZIndex="2000">
+                                            <template #value="{ value, placeholder }">
                                                 <span v-if="value">{{
                                                     value
-                                                }}</span>
+                                                    }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                }}</span>
+                                                    }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Minimum Stock Alert Level</label
-                                        >
-                                        <input
-                                            v-model="form.minAlert"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                            placeholder="e.g., 5"
-                                        />
+                                        <label class="form-label d-block">Minimum Stock Alert Level</label>
+                                        <input v-model="form.minAlert" type="number" min="0" class="form-control"
+                                            placeholder="e.g., 5" />
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Unit Type</label
-                                        >
-                                        <Select
-                                            v-model="form.unit"
-                                            :options="units"
-                                            optionLabel="name"
-                                            optionValue="name"
-                                            placeholder="Select Unit"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
+                                        <label class="form-label">Unit Type</label>
+                                        <Select v-model="form.unit" :options="units" optionLabel="name"
+                                            optionValue="name" placeholder="Select Unit" class="w-100" appendTo="self"
+                                            :autoZIndex="true" :baseZIndex="2000">
+                                            <template #value="{ value, placeholder }">
                                                 <span v-if="value">{{
                                                     value
-                                                }}</span>
+                                                    }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                }}</span>
+                                                    }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Preferred Supplier</label
-                                        >
-                                        <Select
-                                            v-model="form.supplier"
-                                            :options="suppliers"
-                                            optionLabel="name"
-                                            optionValue="name"
-                                            placeholder="Select Supplier"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
+                                        <label class="form-label">Preferred Supplier</label>
+                                        <Select v-model="form.supplier" :options="suppliers" optionLabel="name"
+                                            optionValue="name" placeholder="Select Supplier" class="w-100"
+                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000">
+                                            <template #value="{ value, placeholder }">
                                                 <span v-if="value">{{
                                                     value
-                                                }}</span>
+                                                    }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                }}</span>
+                                                    }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-12">
-                                        <label class="form-label"
-                                            >SKU (Optional)</label
-                                        >
-                                        <input
-                                            v-model="form.sku"
-                                            type="text"
-                                            class="form-control"
-                                            placeholder="Stock Keeping Unit"
-                                        />
+                                        <label class="form-label">SKU (Optional)</label>
+                                        <input v-model="form.sku" type="text" class="form-control"
+                                            placeholder="Stock Keeping Unit" />
                                     </div>
 
                                     <div class="col-12">
-                                        <label class="form-label"
-                                            >Description</label
-                                        >
-                                        <textarea
-                                            v-model="form.description"
-                                            rows="4"
-                                            class="form-control"
-                                            placeholder="Notes about this product"
-                                        ></textarea>
+                                        <label class="form-label">Description</label>
+                                        <textarea v-model="form.description" rows="4" class="form-control"
+                                            placeholder="Notes about this product"></textarea>
                                     </div>
                                 </div>
 
@@ -899,85 +1024,43 @@ async function submitStockOut() {
                                 </h6>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Calories</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.calories"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
+                                        <label class="form-label">Calories</label>
+                                        <input v-model="form.nutrition.calories" type="number" min="0"
+                                            class="form-control" />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Fat (g)</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.fat"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
+                                        <label class="form-label">Fat (g)</label>
+                                        <input v-model="form.nutrition.fat" type="number" min="0"
+                                            class="form-control" />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Protein (g)</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.protein"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
+                                        <label class="form-label">Protein (g)</label>
+                                        <input v-model="form.nutrition.protein" type="number" min="0"
+                                            class="form-control" />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Carbs (g)</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.carbs"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
+                                        <label class="form-label">Carbs (g)</label>
+                                        <input v-model="form.nutrition.carbs" type="number" min="0"
+                                            class="form-control" />
                                     </div>
                                 </div>
 
                                 <div class="row g-4 mt-1">
                                     <!-- Allergies -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Allergies</label
-                                        >
-                                        <MultiSelect
-                                            v-model="form.allergies"
-                                            :options="allergies"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            filter
-                                            placeholder="Select Allergies"
-                                            class="w-full md:w-80"
-                                            appendTo="self"
-                                        />
+                                        <label class="form-label d-block">Allergies</label>
+                                        <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
+                                            optionValue="id" filter placeholder="Select Allergies"
+                                            class="w-full md:w-80" appendTo="self" />
                                     </div>
 
                                     <!-- Tags -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Tags (Halal, Haram, etc.)</label
-                                        >
+                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
 
-                                        <MultiSelect
-                                            v-model="form.tags"
-                                            :options="tags"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            filter
-                                            placeholder="Select Tags"
-                                            class="w-full md:w-80"
-                                            appendTo="self"
-                                        />
+                                        <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
+                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                            appendTo="self" />
                                     </div>
                                 </div>
 
@@ -985,64 +1068,42 @@ async function submitStockOut() {
                                 <div class="row g-3 mt-2 align-items-center">
                                     <div class="col-sm-6 col-md-4">
                                         <div
-                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                                        >
+                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center">
                                             <template v-if="!form.imagePreview">
                                                 <div class="text-center small">
                                                     <div class="mb-2">
-                                                        <i
-                                                            class="bi bi-image fs-3"
-                                                        ></i>
+                                                        <i class="bi bi-image fs-3"></i>
                                                     </div>
                                                     <div>Drag image here</div>
                                                     <div>
                                                         or
-                                                        <label
-                                                            class="text-primary fw-semibold"
-                                                            style="
+                                                        <label class="text-primary fw-semibold" style="
                                                                 cursor: pointer;
-                                                            "
-                                                        >
+                                                            ">
                                                             Browse image
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                class="d-none"
-                                                                @change="
-                                                                    handleImage
-                                                                "
-                                                            />
+                                                            <input type="file" accept="image/*" class="d-none" @change="
+                                                                handleImage
+                                                            " />
                                                         </label>
                                                     </div>
                                                 </div>
                                             </template>
                                             <template v-else>
-                                                <img
-                                                    :src="form.imagePreview"
-                                                    class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover"
-                                                />
+                                                <img :src="form.imagePreview" class="w-100 h-100 rounded-3"
+                                                    style="object-fit: cover" />
                                             </template>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="mt-4">
-                                    <button
-                                        class="btn btn-primary rounded-pill px-5 py-2"
-                                        :disabled="submitting"
-                                        @click="submitProduct"
-                                    >
-                                        <span 
-                                            >Add Product</span
-                                        >
-                                        
+                                    <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
+                                        @click="submitProduct">
+                                        <span>Add Product</span>
+
                                     </button>
-                                    <button
-                                        class="btn btn-secondary rounded-pill px-4 ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetForm"
-                                    >
+                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                        @click="resetForm">
                                         Cancel
                                     </button>
                                 </div>
@@ -1054,324 +1115,215 @@ async function submitStockOut() {
 
                 <!-- View modal  -->
                 <div class="modal fade" id="viewItemModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-                    <div class="modal-content rounded-4">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-semibold">View Inventory Item</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content rounded-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title fw-semibold">View Inventory Item</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
 
-                    <div class="modal-body">
-                        <!-- Your item data -->
-                        <div v-if="viewItemRef">
-                        <p>Item Name: {{ viewItemRef.name }}</p>
-                        <p>SKU: {{ viewItemRef.sku }}</p>
-                        <p>Category: {{ viewItemRef.category }}</p>
-                        <p>Unit: {{ viewItemRef.unit }}</p>
-                        <p>Description: {{ viewItemRef.description }}</p>
+                            <div class="modal-body">
+                                <!-- Your item data -->
+                                <div v-if="viewItemRef">
+                                    <p>Item Name: {{ viewItemRef.name }}</p>
+                                    <p>SKU: {{ viewItemRef.sku }}</p>
+                                    <p>Category: {{ viewItemRef.category }}</p>
+                                    <p>Unit: {{ viewItemRef.unit }}</p>
+                                    <p>Description: {{ viewItemRef.description }}</p>
 
-                        <!-- <p>Allergies:</p>
+                                    <!-- <p>Allergies:</p>
                         <ul>
                             <li v-for="id in viewItemRef.allergies" :key="id">ID: {{ id }}</li>
                         </ul> -->
 
-                        <!-- <p>Tags:</p>
+                                    <!-- <p>Tags:</p>
                         <ul>
                             <li v-for="id in viewItemRef.tags" :key="id">ID: {{ id }}</li>
                         </ul> -->
 
-                        <p>Nutrition:</p>
-                        <ul>
-                            <li>Calories: {{ viewItemRef.nutrition?.calories }}</li>
-                            <li>Fat: {{ viewItemRef.nutrition?.fat }}</li>
-                            <li>Protein: {{ viewItemRef.nutrition?.protein }}</li>
-                            <li>Carbs: {{ viewItemRef.nutrition?.carbs }}</li>
-                        </ul>
+                                    <p>Nutrition:</p>
+                                    <ul>
+                                        <li>Calories: {{ viewItemRef.nutrition?.calories }}</li>
+                                        <li>Fat: {{ viewItemRef.nutrition?.fat }}</li>
+                                        <li>Protein: {{ viewItemRef.nutrition?.protein }}</li>
+                                        <li>Carbs: {{ viewItemRef.nutrition?.carbs }}</li>
+                                    </ul>
 
-                        <div v-if="viewItemRef.image">
-                            <img
-                            :src="`/storage/${viewItemRef.image}`"
-                            alt="Item Image"
-                            style="max-height: 200px; object-fit: cover;"
-                            />
-                        </div>
-                        </div>
-                    </div>
+                                    <div v-if="viewItemRef.image">
+                                        <img :src="`/storage/${viewItemRef.image}`" alt="Item Image"
+                                            style="max-height: 200px; object-fit: cover;" />
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
                     </div>
-                    </div>
-                </div>
                 </div>
 
                 <!-- Stockin Modal -->
-                 <div
-                    class="modal fade"
-                    id="stockInModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                    >
+                <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Stock In: {{ stockForm.name }}</h5>
-                            <button
-                            type="button"
-                            class="btn btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            ></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                            <!-- Item Name -->
-                            <div class="col-md-6">
-                                <label class="form-label">Product Name</label>
-                                <input
-                                type="text"
-                                v-model="stockForm.name"
-                                class="form-control"
-                                readonly
-                                />
+                            <div class="modal-header">
+                                <h5 class="modal-title">Stock In: {{ stockForm.name }}</h5>
+                                <button type="button" class="btn btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
                             </div>
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <!-- Item Name -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Product Name</label>
+                                        <input type="text" v-model="stockForm.name" class="form-control" readonly />
+                                    </div>
 
-                            <!-- Category -->
-                            <div class="col-md-6">
-                                <label class="form-label">Category</label>
-                                <Select
-                                    v-model="stockForm.category_id"
-                                    :options="categories"
-                                    optionLabel="name"
-                                    optionValue="id"
-                                    placeholder="Select Category"
-                                    class="w-100"
-                                    appendTo="self"
-                                />
-                            </div>
+                                    <!-- Category -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="stockForm.category_id" :options="categories" optionLabel="name"
+                                            optionValue="id" placeholder="Select Category" class="w-100"
+                                            appendTo="self" />
+                                    </div>
 
-                            <!-- Supplier -->
-                            <div class="col-md-6">
-                                <label class="form-label">Supplier</label>
-                                <Select
-                                v-model="stockForm.supplier_id"
-                                :options="suppliers"
-                                optionLabel="name"
-                                optionValue="id"
-                                placeholder="Select Supplier"
-                                class="w-100"
-                                appendTo="self"
-                            />
-                            </div>
+                                    <!-- Supplier -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Supplier</label>
+                                        <Select v-model="stockForm.supplier_id" :options="suppliers" optionLabel="name"
+                                            optionValue="id" placeholder="Select Supplier" class="w-100"
+                                            appendTo="self" />
+                                    </div>
 
-                            <!-- Available quantity -->
-                            <div class="col-md-6">
-                                <label class="form-label">Available Quantity</label>
-                                <input
-                                type="number"
-                                v-model="stockForm.available_quantity"
-                                class="form-control"
-                                readonly
-                                />
-                            </div>
+                                    <!-- Available quantity -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Available Quantity</label>
+                                        <input type="number" v-model="stockForm.available_quantity" class="form-control"
+                                            readonly />
+                                    </div>
 
-                            <!-- Stock In Quantity -->
-                            <div class="col-md-4">
-                                <label class="form-label">Quantity</label>
-                                <input
-                                type="number"
-                                v-model="stockForm.quantity"
-                                class="form-control"
-                                min="0"
-                                @input="calculateValue()"
-                                />
-                            </div>
+                                    <!-- Stock In Quantity -->
+                                    <div class="col-md-4">
+                                        <label class="form-label">Quantity</label>
+                                        <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
+                                            @input="calculateValue()" />
+                                    </div>
 
-                            <!-- Price -->
-                            <div class="col-md-4">
-                                <label class="form-label">Price</label>
-                                <input
-                                type="number"
-                                v-model="stockForm.price"
-                                class="form-control"
-                                min="0"
-                                @input="calculateValue()"
-                                />
-                            </div>
+                                    <!-- Price -->
+                                    <div class="col-md-4">
+                                        <label class="form-label">Price</label>
+                                        <input type="number" v-model="stockForm.price" class="form-control" min="0"
+                                            @input="calculateValue()" />
+                                    </div>
 
-                            <!-- Value (auto-calculated) -->
-                            <div class="col-md-4">
-                                <label class="form-label">Value</label>
-                                <input
-                                type="text"
-                                v-model="stockForm.value"
-                                class="form-control"
-                                />
-                            </div>
+                                    <!-- Value (auto-calculated) -->
+                                    <div class="col-md-4">
+                                        <label class="form-label">Value</label>
+                                        <input type="text" v-model="stockForm.value" class="form-control" />
+                                    </div>
 
-                            <!-- Expiry Date -->
-                            <div class="col-md-6">
-                                <label class="form-label">Expiry Date</label>
-                                <input
-                                type="date"
-                                v-model="stockForm.expiry_date"
-                                class="form-control"
-                                />
-                            </div>
+                                    <!-- Expiry Date -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Expiry Date</label>
+                                        <input type="date" v-model="stockForm.expiry_date" class="form-control" />
+                                    </div>
 
-                            <!-- Notes / Reason -->
-                            <div class="col-md-12">
-                                <label class="form-label">Notes / Reason</label>
-                                <textarea
-                                v-model="stockForm.description"
-                                rows="3"
-                                class="form-control"
-                                ></textarea>
-                            </div>
-                            </div>
+                                    <!-- Notes / Reason -->
+                                    <div class="col-md-12">
+                                        <label class="form-label">Notes / Reason</label>
+                                        <textarea v-model="stockForm.description" rows="3"
+                                            class="form-control"></textarea>
+                                    </div>
+                                </div>
 
-                            <div class="mt-4 text-end">
-                            <button
-                                class="btn btn-primary"
-                                :disabled="submittingStock"
-                    @click="submitStockIn"
-                            >
-                                Stock In
-                            </button>
-                            <button
-                                class="btn btn-secondary ms-2"
-                                data-bs-dismiss="modal"
-                                @click="resetStockForm"
-                            >
-                                Cancel
-                            </button>
+                                <div class="mt-4 text-end">
+                                    <button class="btn btn-primary" :disabled="submittingStock" @click="submitStockIn">
+                                        Stock In
+                                    </button>
+                                    <button class="btn btn-secondary ms-2" data-bs-dismiss="modal"
+                                        @click="resetStockForm">
+                                        Cancel
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        </div>
-                    </div>
-                    </div>
-
-                <!-- Stockout Modal -->
-                <div
-                class="modal fade"
-                id="stockOutModal"
-                tabindex="-1"
-                aria-hidden="true"
-                >
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content rounded-4">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Stock Out: {{ stockForm.name }}</h5>
-                        <button
-                        type="button"
-                        class="btn btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        ></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row g-3">
-                        <!-- Item Name -->
-                        <div class="col-md-6">
-                            <label class="form-label">Product Name</label>
-                            <input
-                            type="text"
-                            v-model="stockForm.name"
-                            class="form-control"
-                            readonly
-                            />
-                        </div>
-
-                        <!-- Category -->
-                        <div class="col-md-6">
-                            <label class="form-label">Category</label>
-                            <Select
-                            v-model="stockForm.category_id"
-                            :options="categories"
-                            optionLabel="name"
-                            optionValue="id"
-                            placeholder="Select Category"
-                            class="w-100"
-                            appendTo="self"
-                            />
-                        </div>
-
-                        <!-- Available Quantity -->
-                        <div class="col-md-6">
-                            <label class="form-label">Available Quantity</label>
-                            <input
-                            type="number"
-                            v-model="stockForm.available_quantity"
-                            class="form-control"
-                            readonly
-                            />
-                        </div>
-
-                        <!-- Stock Out Quantity -->
-                        <div class="col-md-6">
-                            <label class="form-label">Quantity</label>
-                            <input
-                            type="number"
-                            v-model="stockForm.quantity"
-                            class="form-control"
-                            min="0"
-                            @input="calculateValue()"
-                            />
-                        </div>
-
-                        <!-- Price -->
-                        <div class="col-md-6">
-                            <label class="form-label">Price</label>
-                            <input
-                            type="number"
-                            v-model="stockForm.price"
-                            class="form-control"
-                            min="0"
-                            @input="calculateValue()"
-                            />
-                        </div>
-
-                        <!-- Value (auto-calculated) -->
-                        <div class="col-md-6">
-                            <label class="form-label">Value</label>
-                            <input
-                            type="text"
-                            v-model="stockForm.value"
-                            class="form-control"
-                            readonly
-                            />
-                        </div>
-
-                        <!-- Notes / Reason -->
-                        <div class="col-md-12">
-                            <label class="form-label">Notes / Reason</label>
-                            <textarea
-                            v-model="stockForm.description"
-                            rows="3"
-                            class="form-control"
-                            ></textarea>
-                        </div>
-                        </div>
-
-                        <div class="mt-4 text-end">
-                        <button
-                            class="btn btn-danger"
-                            :disabled="submittingStock"
-                            @click="submitStockOut"
-                        >
-                            Stock Out
-                        </button>
-                        <button
-                            class="btn btn-secondary ms-2"
-                            data-bs-dismiss="modal"
-                            @click="resetStockForm"
-                        >
-                            Cancel
-                        </button>
-                        </div>
-                    </div>
                     </div>
                 </div>
+
+                <!-- Stockout Modal -->
+                <div class="modal fade" id="stockOutModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content rounded-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Stock Out: {{ stockForm.name }}</h5>
+                                <button type="button" class="btn btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <!-- Item Name -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Product Name</label>
+                                        <input type="text" v-model="stockForm.name" class="form-control" readonly />
+                                    </div>
+
+                                    <!-- Category -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="stockForm.category_id" :options="categories" optionLabel="name"
+                                            optionValue="id" placeholder="Select Category" class="w-100"
+                                            appendTo="self" />
+                                    </div>
+
+                                    <!-- Available Quantity -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Available Quantity</label>
+                                        <input type="number" v-model="stockForm.available_quantity" class="form-control"
+                                            readonly />
+                                    </div>
+
+                                    <!-- Stock Out Quantity -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Quantity</label>
+                                        <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
+                                            @input="calculateValue()" />
+                                    </div>
+
+                                    <!-- Price -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Price</label>
+                                        <input type="number" v-model="stockForm.price" class="form-control" min="0"
+                                            @input="calculateValue()" />
+                                    </div>
+
+                                    <!-- Value (auto-calculated) -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Value</label>
+                                        <input type="text" v-model="stockForm.value" class="form-control" readonly />
+                                    </div>
+
+                                    <!-- Notes / Reason -->
+                                    <div class="col-md-12">
+                                        <label class="form-label">Notes / Reason</label>
+                                        <textarea v-model="stockForm.description" rows="3"
+                                            class="form-control"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 text-end">
+                                    <button class="btn btn-danger" :disabled="submittingStock" @click="submitStockOut">
+                                        Stock Out
+                                    </button>
+                                    <button class="btn btn-secondary ms-2" data-bs-dismiss="modal"
+                                        @click="resetStockForm">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
 
@@ -1483,6 +1435,7 @@ async function submitStockOut() {
     font-size: 0.95rem;
     color: #333;
 }
+
 .table-responsive {
     overflow: visible !important;
 }

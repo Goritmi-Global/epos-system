@@ -36,4 +36,8 @@ class Inventory extends Model
     {
         return $this->belongsTo(Category::class, 'category_id');
     }
+
+    public function allergies(){
+        return $this->belongsTo(Allergy::class);
+    }
 }
