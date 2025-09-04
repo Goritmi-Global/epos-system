@@ -5,9 +5,8 @@ import { toast } from "vue3-toastify";
 import { nextTick } from "vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from 'xlsx';
-
-
+import * as XLSX from "xlsx";
+import { Pencil, Plus } from "lucide-vue-next";
 
 const suppliers = ref([]);
 const page = ref(1);
@@ -21,15 +20,9 @@ const fetchSuppliers = () => {
             params: { q: q.value, page: page.value, per_page: perPage.value },
         })
         .then(({ data }) => {
-            // console.log("Fetched suppliers:", data);
-            // paginator or plain array—handle both
             suppliers.value = data?.data ?? data?.suppliers?.data ?? data ?? [];
-            // wait for DOM to update, then refresh feather icons
-            return nextTick();
         })
-        .then(() => {
-            window.feather?.replace();
-        })
+
         .catch((err) => {
             console.error(err);
         })
@@ -65,17 +58,17 @@ const onDownload = (type) => {
     }
 
     try {
-        if (type === 'pdf') {
+        if (type === "pdf") {
             downloadPDF(dataToExport);
-        } else if (type === 'excel') {
+        } else if (type === "excel") {
             downloadExcel(dataToExport);
-        } else if (type === 'csv') {
+        } else if (type === "csv") {
             downloadCSV(dataToExport);
         } else {
             toast.error("Invalid download type", { autoClose: 3000 });
         }
     } catch (error) {
-        console.error('Download failed:', error);
+        console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`, { autoClose: 3000 });
     }
 };
@@ -83,39 +76,52 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         // Define headers
-        const headers = ["Name", "Email", "Phone", "Address", "Preferred Items"];
+        const headers = [
+            "Name",
+            "Email",
+            "Phone",
+            "Address",
+            "Preferred Items",
+        ];
 
         // Build CSV rows
-        const rows = data.map(s => [
+        const rows = data.map((s) => [
             `"${s.name || ""}"`,
             `"${s.email || ""}"`,
             `"${s.contact || ""}"`,
             `"${s.address || ""}"`,
-            `"${s.preferred_items || ""}"`
+            `"${s.preferred_items || ""}"`,
         ]);
 
         // Combine into CSV string
         const csvContent = [
             headers.join(","), // header row
-            ...rows.map(r => r.join(",")) // data rows
+            ...rows.map((r) => r.join(",")), // data rows
         ].join("\n");
 
         // Create blob
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
 
         // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `suppliers_${new Date().toISOString().split("T")[0]}.csv`);
+        link.setAttribute(
+            "download",
+            `suppliers_${new Date().toISOString().split("T")[0]}.csv`
+        );
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("CSV downloaded successfully .", { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
-        toast.error(`CSV generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
 
@@ -123,11 +129,9 @@ const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
 
-
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
         doc.text("Suppliers Report", 70, 20);
-
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
@@ -135,7 +139,13 @@ const downloadPDF = (data) => {
         doc.text(`Generated on: ${currentDate}`, 70, 28);
         doc.text(`Total Suppliers: ${data.length}`, 70, 34);
 
-        const tableColumns = ["Name", "Email", "Phone", "Address", "Preferred Items"];
+        const tableColumns = [
+            "Name",
+            "Email",
+            "Phone",
+            "Address",
+            "Preferred Items",
+        ];
         const tableRows = data.map((s) => [
             s.name || "",
             s.email || "",
@@ -154,7 +164,7 @@ const downloadPDF = (data) => {
                 cellPadding: 2,
                 halign: "left",
                 lineColor: [0, 0, 0],
-                lineWidth: 0.1
+                lineWidth: 0.1,
             },
             headStyles: {
                 fillColor: [41, 128, 185],
@@ -177,66 +187,73 @@ const downloadPDF = (data) => {
         });
 
         // 💾 Save file
-        const fileName = `suppliers_${new Date().toISOString().split("T")[0]}.pdf`;
+        const fileName = `suppliers_${
+            new Date().toISOString().split("T")[0]
+        }.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully .", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`PDF generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
 
-
 const downloadExcel = (data) => {
     try {
-
-        if (typeof XLSX === 'undefined') {
-            throw new Error('XLSX library is not loaded');
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
         }
-        const worksheetData = data.map(supplier => ({
-            'Name': supplier.name || '',
-            'Email': supplier.email || '',
-            'Phone': supplier.phone || supplier.contact || '',
-            'Address': supplier.address || '',
-            'Preferred Items': supplier.preferred_items || '',
-            'ID': supplier.id || ''
+        const worksheetData = data.map((supplier) => ({
+            Name: supplier.name || "",
+            Email: supplier.email || "",
+            Phone: supplier.phone || supplier.contact || "",
+            Address: supplier.address || "",
+            "Preferred Items": supplier.preferred_items || "",
+            ID: supplier.id || "",
         }));
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
         const colWidths = [
-            { wch: 20 },  // Name heading de
-            { wch: 25 },  // Email de
+            { wch: 20 }, // Name heading de
+            { wch: 25 }, // Email de
             { wch: 15 },
             { wch: 30 },
             { wch: 25 },
-            { wch: 10 }
+            { wch: 10 },
         ];
-        worksheet['!cols'] = colWidths;
+        worksheet["!cols"] = colWidths;
 
         // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Suppliers');
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Suppliers");
 
         // Add metadata sheet
         const metaData = [
-            { Info: 'Generated On', Value: new Date().toLocaleString() },
-            { Info: 'Total Records', Value: data.length },
-            { Info: 'Exported By', Value: 'Supplier Management System' }
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Supplier Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
-        XLSX.utils.book_append_sheet(workbook, metaSheet, 'Report Info');
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `suppliers_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const fileName = `suppliers_${
+            new Date().toISOString().split("T")[0]
+        }.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
-
+        toast.success("Excel file downloaded successfully .", {
+            autoClose: 2500,
+        });
     } catch (error) {
-        console.error('Excel generation error:', error);
-        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
 
@@ -252,13 +269,14 @@ const phoneError = ref("");
 
 const checkPhone = ({ valid, number, country }) => {
     if (!valid) {
-        phoneError.value = "Invalid number for " + (country?.name || "selected country");
+        phoneError.value =
+            "Invalid number for " + (country?.name || "selected country");
     } else {
         phoneError.value = ""; // clear error if valid
     }
 };
 const loading = ref(false);
-const errors = ref({});
+const formErrors = ref({});
 
 // helper to close a Bootstrap modal by id
 const closeModal = (id) => {
@@ -279,13 +297,12 @@ const resetForm = () => {
         address: "",
         preferred_items: "",
     };
-    errors.value = {};
+    formErrors.value = {};
 };
 
 const submit = () => {
-    console.log(typeof (form.value.phone));
     loading.value = true;
-    errors.value = {};
+    formErrors.value = {};
     const payload = {
         name: form.value.name,
         email: form.value.email,
@@ -296,26 +313,31 @@ const submit = () => {
     axios
         .post("/suppliers", payload)
         .then((res) => {
-            console.log(res, form.value);
+            // console.log(res, form.value);
 
-            toast.success("Supplier added successfully ✅", {
-                autoClose: 2500,
-            });
             fetchSuppliers();
+            toast.success("Supplier added successfully.", {
+                autoClose: 1500,
+            });
             resetForm();
             closeModal("modalAddSupplier");
         })
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
-                errors.value = err.response.data.errors;
-                // Loop over errors and show in toast
-                Object.values(err.response.data.errors).forEach((messages) => {
-                    messages.forEach((msg) => {
-                        toast.error(msg, { autoClose: 3000 });
-                    });
-                });
+                formErrors.value = err.response.data.errors;
 
+                const list = [
+                    ...new Set(Object.values(err.response.data.errors).flat()),
+                ];
+                const msg = list.join("<br>");
+
+                // toast.dismiss();
+                toast.error(`Validation failed:<br>${msg}`, {
+                    autoClose: 3500,
+                    dangerouslyHTMLString: true, // for vue-toastification
+                });
             } else {
+                // toast.dismiss();
                 toast.error("Something went wrong. Please try again.", {
                     autoClose: 3000,
                 });
@@ -327,13 +349,9 @@ const submit = () => {
         });
 };
 
-onMounted(() => window.feather?.replace());
-onUpdated(() => window.feather?.replace());
 // Run on page load
 onMounted(async () => {
     await fetchSuppliers();
-    // Also safe to call once on mount (e.g., for static icons on the page)
-    window.feather?.replace();
 });
 
 // code for other functionalities
@@ -365,7 +383,7 @@ const onEdit = (row) => {
 const updateSupplier = () => {
     if (!selectedSupplier.value) return;
     loading.value = true;
-    errors.value = {};
+    formErrors.value = {};
 
     const payload = {
         id: selectedSupplier.value.id,
@@ -379,38 +397,18 @@ const updateSupplier = () => {
     axios
         .post("/suppliers/update", payload)
         .then((res) => {
-            const updated = res?.data?.data ?? res?.data ?? payload;
-
-            const idx = suppliers.value.findIndex(
-                (x) => x.id === selectedSupplier.value.id
-            );
-            if (idx !== -1) {
-                suppliers.value[idx] = {
-                    ...suppliers.value[idx],
-                    ...updated,
-                    phone:
-                        updated.contact ??
-                        payload.contact ??
-                        suppliers.value[idx].phone,
-                    preferred_items:
-                        updated.preferred_items ??
-                        payload.preferred_items ??
-                        suppliers.value[idx].preferred_items,
-                };
-            }
-
-            toast.success("Supplier updated successfully ✅", {
-                autoClose: 2500,
+            fetchSuppliers();
+            toast.success("Supplier updated successfully .", {
+                autoClose: 500,
             });
             resetForm();
-            // close whichever modal you're using for edit
-            closeModal("modalAddSupplier"); // or "modalAddSupplier" if reusing it
+            // close modal
+            closeModal("modalAddSupplier");
             return nextTick();
         })
-        .then(() => window.feather?.replace())
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
-                errors.value = err.response.data.errors;
+                formErrors.value = err.response.data.errors;
                 toast.error("Validation failed. Please check the fields.", {
                     autoClose: 3000,
                 });
@@ -427,17 +425,18 @@ const updateSupplier = () => {
 };
 
 // ---- Deleting the supplier record----
-const toDelete = ref(null);
-
-const onRemove = (row) => {
+const deleteSupplier = (id) => {
     loading.value = true;
-    axios.delete(`/suppliers/${row.id}`)
+    axios
+        .delete(`/suppliers/${id}`)
         .then(() => {
-            suppliers.value = suppliers.value.filter((s) => s.id !== row.id);
-            toast.success("Supplier deleted ✅", { autoClose: 2000 });
+            suppliers.value = suppliers.value.filter((s) => s.id !== id);
+            toast.success("Supplier deleted .");
         })
         .catch((err) => {
-            toast.error("Delete failed. Please try again.", { autoClose: 3000 });
+            toast.error("Delete failed. Please try again.", {
+                autoClose: 3000,
+            });
             console.error(err);
         })
         .finally(() => {
@@ -449,45 +448,74 @@ const onRemove = (row) => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <div
+                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+            >
                 <h4 class="mb-0">Suppliers</h4>
 
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" />
+                        <input
+                            v-model="q"
+                            class="form-control search-input"
+                            placeholder="Search"
+                        />
                     </div>
 
-                    <!-- Add -->
-                    <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                        data-bs-target="#modalAddSupplier">
-                        Add Supplier
+                    <button
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalAddSupplier"
+                        @click="
+                            () => {
+                                resetForm();
+                                formErrors = {};
+                            }
+                        "
+                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                    >
+                        <Plus class="w-4 h-4" /> Add Supplier
                     </button>
 
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown">
+                        <button
+                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown"
+                        >
                             Download all
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                        <ul
+                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                        >
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('pdf')"
+                                >
                                     Download as PDF
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('excel')"
+                                >
                                     Download as Excel
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('csv')"
+                                >
                                     Download as CSV
                                 </a>
                             </li>
                         </ul>
-
                     </div>
                 </div>
             </div>
@@ -518,27 +546,33 @@ const onRemove = (row) => {
                             </td>
                             <td>{{ s.preferred_items }}</td>
                             <td class="text-end">
-                                <div class="dropdown">
-                                    <button class="btn btn-link text-secondary p-0 fs-5" data-bs-toggle="dropdown"
-                                     title="Actions">
-                                        ⋮
+                                <div
+                                    class="d-inline-flex align-items-center gap-3"
+                                >
+                                    <button
+                                        @click="
+                                            () => {
+                                                onEdit(s);
+                                                formErrors = {};
+                                            }
+                                        "
+                                        title="Edit"
+                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                    >
+                                        <Pencil class="w-4 h-4" />
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden">
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;" @click="onEdit(s)">
-                                                <i data-feather="edit-2" class="me-2"></i>Edit</a>
-                                        </li>
-                                        
-                                        <li>
-                                            <hr class="dropdown-divider" />
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2 text-danger" href="javascript:;"
-                                                @click="onRemove(s)">
-                                                 <i data-feather="trash-2" class="me-2"></i>Delete
-                                            </a>
-                                        </li>
-                                    </ul>
+
+                                    <ConfirmModal
+                                        :title="'Confirm Delete'"
+                                        :message="`Are you sure you want to delete ${s.name}?`"
+                                        :showDeleteButton="true"
+                                        @confirm="
+                                            () => {
+                                                deleteSupplier(s.id);
+                                            }
+                                        "
+                                        @cancel="() => {}"
+                                    />
                                 </div>
                             </td>
                         </tr>
@@ -554,15 +588,46 @@ const onRemove = (row) => {
     </div>
 
     <!-- Add Supplier Modal -->
-    <div class="modal fade" id="modalAddSupplier" tabindex="-1" aria-labelledby="modalAddSupplier" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div
+        class="modal fade"
+        id="modalAddSupplier"
+        tabindex="-1"
+        aria-labelledby="modalAddSupplier"
+        aria-hidden="true"
+    >
+        <div
+            class="modal-dialog modal-lg modal-dialog-centered"
+            role="document"
+        >
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">
-                        {{ processStatus === 'Edit' ? 'Edit Supplier' : 'Add Supplier' }}
+                        {{
+                            processStatus === "Edit"
+                                ? "Edit Supplier"
+                                : "Add Supplier"
+                        }}
                     </h5>
-                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        ×
+                    <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
                     </button>
                 </div>
 
@@ -571,58 +636,107 @@ const onRemove = (row) => {
                         <!-- Name -->
                         <div class="col-lg-6">
                             <label class="form-label">Name</label>
-                            <input class="form-control" v-model="form.name" />
-                            <small v-if="errors.name" class="text-danger">{{
-                                errors.name[0]
-                                }}</small>
+                            <input
+                                class="form-control"
+                                v-model="form.name"
+                                :class="{ 'is-invalid': formErrors.name }"
+                            />
+                            <small v-if="formErrors.name" class="text-danger">
+                                {{ formErrors.name[0] }}
+                            </small>
                         </div>
 
                         <!-- Email -->
                         <div class="col-lg-6">
                             <label class="form-label">Email</label>
-                            <input class="form-control" v-model="form.email" />
-                            <small v-if="errors.email" class="text-danger">{{
-                                errors.email[0]
-                                }}</small>
+                            <input
+                                class="form-control"
+                                v-model="form.email"
+                                :class="{ 'is-invalid': formErrors.email }"
+                            />
+                            <small v-if="formErrors.email" class="text-danger">
+                                {{ formErrors.email[0] }}
+                            </small>
                         </div>
 
-                        <!-- Phone -->
+                        <!-- Phone (vue-tel-input) -->
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
-                            <vue-tel-input v-model="form.phone" default-country="PK" mode="international"
-                                @validate="checkPhone" :auto-format="true" :enable-formatting="true"
-                                :input-options="{ showDialCode: true }" />
-
-                            <p v-if="phoneError" class="text-danger">{{ phoneError }}</p>
+                            <vue-tel-input
+                                v-model="form.phone"
+                                default-country="PK"
+                                mode="international"
+                                @validate="checkPhone"
+                                :auto-format="true"
+                                :enable-formatting="true"
+                                :input-options="{ showDialCode: true }"
+                                :class="{ 'is-invalid': formErrors.phone }"
+                            />
+                            <small v-if="formErrors.phone" class="text-danger">
+                                {{ formErrors.phone[0] }}
+                            </small>
+                            <small v-else-if="phoneError" class="text-danger">
+                                {{ phoneError }}
+                            </small>
                         </div>
 
                         <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
-                            <input class="form-control" v-model="form.preferred_items" />
-                            <small v-if="errors.preferred_items" class="text-danger">
-                                {{ errors.preferred_items[0] }}
+                            <input
+                                class="form-control"
+                                v-model="form.preferred_items"
+                                :class="{
+                                    'is-invalid': formErrors.preferred_items,
+                                }"
+                            />
+                            <small
+                                v-if="formErrors.preferred_items"
+                                class="text-danger"
+                            >
+                                {{ formErrors.preferred_items[0] }}
                             </small>
                         </div>
 
                         <!-- Address -->
-                        <div class="col-lg-6">
+                        <div class="col-lg-12">
                             <label class="form-label">Address</label>
-                            <textarea class="form-control" rows="4" v-model="form.address"></textarea>
-                            <small v-if="errors.address" class="text-danger">{{
-                                errors.address[0]
-                                }}</small>
+                            <textarea
+                                class="form-control"
+                                rows="4"
+                                v-model="form.address"
+                                :class="{ 'is-invalid': formErrors.address }"
+                            ></textarea>
+                            <small
+                                v-if="formErrors.address"
+                                class="text-danger"
+                            >
+                                {{ formErrors.address[0] }}
+                            </small>
                         </div>
 
-                        <!-- Submit -->
-                        <button v-if="processStatus === 'Edit'" class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading" @click="updateSupplier()">
-                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                        <button
+                            v-if="processStatus === 'Edit'"
+                            class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading"
+                            @click="updateSupplier()"
+                        >
+                            <span
+                                v-if="loading"
+                                class="spinner-border spinner-border-sm me-2"
+                            ></span>
                             Update Supplier
                         </button>
-                        <button v-else class="btn btn-primary rounded-pill w-100 mt-4" :disabled="loading"
-                            @click="submit()">
-                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                        <button
+                            v-else
+                            class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading"
+                            @click="submit()"
+                        >
+                            <span
+                                v-if="loading"
+                                class="spinner-border spinner-border-sm me-2"
+                            ></span>
                             Add Supplier
                         </button>
                     </div>

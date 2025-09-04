@@ -720,4 +720,49 @@ li.active > .side-link {
     background: #e5e7eb;
     border-radius: 8px;
 }
+
+/* Edit delete icon */
+.icon-action {
+  cursor: pointer;            /* hand cursor */
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.icon-action:hover {
+  transform: scale(1.2);      /* slight zoom on hover */
+  opacity: 0.8;               /* subtle fade effect */
+}
+
+
+/* Form field errors */
+.is-invalid {
+  background-color: #f8d7da !important;  
+  border-color: #dc3545 !important;    
+}
+
+/* Submenu styling */
+.sidebar .list-unstyled li .side-link {
+  padding-left: 2.5rem;   /* indent compared to parent */
+  font-size: 0.9rem;      /* slightly smaller */
+  color: #6c757d;         /* muted text */
+}
+
+.sidebar .list-unstyled li .side-link:hover {
+  color: #1B2850;         /* your brand color */
+  background: #f3f4f6;    /* light hover */
+}
+
+.sidebar .list-unstyled li.active > .side-link {
+  background: #1B2850;    /* brand background */
+  color: #fff;
+  font-weight: 500;
+}
+
+.sidebar .list-unstyled {
+  border-left: 2px solid #e5e7eb;
+  margin-left: 1rem;
+  padding-left: 0.5rem;
+}
+
+
+
 </style>

@@ -21,6 +21,7 @@ class TagController extends Controller
     public function store(TagStoreRequest $request): JsonResponse
     {
 
+        // dd($request);
         $tag = $this->service->create($request->validated());
         return response()->json([
             'message' => 'Tag created successfully',
