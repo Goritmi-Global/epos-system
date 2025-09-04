@@ -6,8 +6,16 @@ import MultiSelect from "primevue/multiselect";
 import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from 'xlsx';
-
+import * as XLSX from "xlsx";
+import {
+    Package,
+    XCircle,
+    AlertTriangle,
+    CalendarX2,
+    CalendarClock,
+    Plus,
+    Menu,
+} from "lucide-vue-next";
 const props = defineProps({
     inventories: Array,
     allergies: {
@@ -27,12 +35,11 @@ const props = defineProps({
     },
 });
 
-
-
+const expiredCount = 7;
+const nearExpireCount = 3;
 
 const inventories = ref(props.inventories?.data || []);
 const items = computed(() => inventories.value);
-
 
 const fetchInventories = async () => {
     try {
@@ -43,7 +50,9 @@ const fetchInventories = async () => {
 
         inventories.value = await Promise.all(
             apiItems.map(async (item) => {
-                const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
+                const stockRes = await axios.get(
+                    `/stock_entries/total/${item.id}`
+                );
                 const stockData = stockRes.data.total?.original || {};
                 return {
                     ...item,
@@ -57,7 +66,6 @@ const fetchInventories = async () => {
         console.error(err);
     }
 };
-
 
 onMounted(() => {
     fetchInventories(); // fetch inventories when the component mounts
@@ -92,8 +100,6 @@ const sortedItems = computed(() => {
     }
 });
 
-
-
 /* ===================== KPIs ===================== */
 const categoriesCount = computed(
     () => new Set(items.value.map((i) => i.category)).size
@@ -109,10 +115,41 @@ const outOfStockCount = computed(
     () => items.value.filter((i) => i.availableStock <= 0).length
 );
 const kpis = computed(() => [
-    { label: "Categories", value: categoriesCount.value, icon: "layers" },
-    { label: "Total Items", value: totalItems.value, icon: "package" },
-    { label: "Low Stock", value: lowStockCount.value, icon: "alert-triangle" },
-    { label: "Out of Stock", value: outOfStockCount.value, icon: "slash" },
+    {
+        label: "Total Items",
+        value: totalItems.value ?? 0,
+        icon: Package,
+        iconBg: "bg-soft-success",
+        iconColor: "text-success",
+    },
+    {
+        label: "Out of Stock",
+        value: outOfStockCount.value ?? 0,
+        icon: XCircle,
+        iconBg: "bg-soft-danger",
+        iconColor: "text-danger",
+    },
+    {
+        label: "Low Stock",
+        value: lowStockCount.value ?? 0,
+        icon: AlertTriangle,
+        iconBg: "bg-soft-warning",
+        iconColor: "text-warning",
+    },
+    {
+        label: "Expired Stock",
+        value: expiredCount.value ?? 0,
+        icon: CalendarX2,
+        iconBg: "bg-soft-danger",
+        iconColor: "text-danger",
+    },
+    {
+        label: "Near Expire Stock",
+        value: nearExpireCount.value ?? 0,
+        icon: CalendarClock,
+        iconBg: "bg-soft-info",
+        iconColor: "text-info",
+    },
 ]);
 
 onMounted(() => window.feather?.replace());
@@ -124,7 +161,6 @@ const money = (amount, currency = "GBP") =>
         amount
     );
 
-
 const subcatMap = ref({
     Poultry: ["Chicken", "Broiler", "Wings", "Breast"],
     Produce: ["Tomatoes", "Onions", "Potatoes"],
@@ -133,7 +169,6 @@ const subcatMap = ref({
     // Dairy: ["Cheese", "Milk", "Butter"],
     Meat: ["Beef", "Mutton", "Veal"],
 });
-
 
 const subcatOptions = computed(() =>
     (subcatMap.value[form.value.category] || []).map((s) => ({
@@ -189,7 +224,9 @@ const submitProduct = async () => {
     formData.append("nutrition[carbs]", form.value.nutrition.carbs || 0);
 
     // allergies + tags
-    form.value.allergies.forEach((id, i) => formData.append(`allergies[${i}]`, id));
+    form.value.allergies.forEach((id, i) =>
+        formData.append(`allergies[${i}]`, id)
+    );
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // image
@@ -200,9 +237,13 @@ const submitProduct = async () => {
     try {
         if (form.value.id) {
             // UPDATE
-            await axios.post(`/inventory/${form.value.id}?_method=PUT`, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
+            await axios.post(
+                `/inventory/${form.value.id}?_method=PUT`,
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                }
+            );
             toast.success("✅ Inventory Item updated successfully");
         } else {
             // CREATE
@@ -238,10 +279,15 @@ const editItem = (item) => {
         supplier: item.supplier,
         sku: item.sku,
         description: item.description,
-        nutrition: item.nutrition || { calories: 0, fat: 0, protein: 0, carbs: 0 },
+        nutrition: item.nutrition || {
+            calories: 0,
+            fat: 0,
+            protein: 0,
+            carbs: 0,
+        },
         // Fix: Convert string values directly to numbers
-        allergies: item.allergies?.map(a => Number(a)) || [],
-        tags: item.tags?.map(t => Number(t)) || [],
+        allergies: item.allergies?.map((a) => Number(a)) || [],
+        tags: item.tags?.map((t) => Number(t)) || [],
         imageFile: null,
         imagePreview: item.image ? `/storage/${item.image}` : null,
     };
@@ -292,7 +338,9 @@ const ViewItem = async (row) => {
         const res = await axios.get(`/inventory/${row.id}`);
         viewItemRef.value = res.data;
 
-        const modal = new bootstrap.Modal(document.getElementById('viewItemModal'));
+        const modal = new bootstrap.Modal(
+            document.getElementById("viewItemModal")
+        );
         modal.show();
     } catch (error) {
         console.error("Error fetching item:", error);
@@ -305,7 +353,6 @@ function calculateValue() {
     const p = Number(stockForm.value.price || 0);
     stockForm.value.value = q * p;
 }
-
 
 const stockForm = ref({
     product_id: null,
@@ -327,10 +374,10 @@ const stockForm = ref({
 const submittingStock = ref(false);
 
 function openStockModal(item) {
-    const categoryObj = props.categories.find(c => c.name === item.category);
-    const supplierObj = props.suppliers.find(s => s.name === item.supplier);
+    const categoryObj = props.categories.find((c) => c.name === item.category);
+    const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
 
-    axios.get(`/stock_entries/total/${item.id}`).then(res => {
+    axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};
         stockForm.value = {
             product_id: item.id,
@@ -349,12 +396,12 @@ function openStockModal(item) {
             user_id: 1,
         };
 
-        const modal = new bootstrap.Modal(document.getElementById("stockInModal"));
+        const modal = new bootstrap.Modal(
+            document.getElementById("stockInModal")
+        );
         modal.show();
     });
 }
-
-
 
 function resetStockForm() {
     stockForm.value.quantity = 0;
@@ -371,7 +418,9 @@ async function submitStockIn() {
         await axios.post("/stock_entries", stockForm.value);
         toast.success("✅ Stock In saved successfully");
         resetStockForm();
-        bootstrap.Modal.getInstance(document.getElementById("stockInModal"))?.hide();
+        bootstrap.Modal.getInstance(
+            document.getElementById("stockInModal")
+        )?.hide();
         await fetchInventories(); // refresh inventory table if needed
     } catch (err) {
         console.error(err);
@@ -382,9 +431,9 @@ async function submitStockIn() {
 }
 // =========================== Stockout Modal ===========================
 function openStockOutModal(item) {
-    const categoryObj = props.categories.find(c => c.name === item.category);
+    const categoryObj = props.categories.find((c) => c.name === item.category);
 
-    axios.get(`/stock_entries/total/${item.id}`).then(res => {
+    axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};
 
         stockForm.value = {
@@ -402,7 +451,9 @@ function openStockOutModal(item) {
             user_id: 1,
         };
 
-        const modal = new bootstrap.Modal(document.getElementById("stockOutModal"));
+        const modal = new bootstrap.Modal(
+            document.getElementById("stockOutModal")
+        );
         modal.show();
     });
 }
@@ -415,7 +466,9 @@ async function submitStockOut() {
         await axios.post("/stock_entries", stockForm.value);
         toast.success("✅ Stock Out saved successfully");
         resetStockForm();
-        bootstrap.Modal.getInstance(document.getElementById("stockOutModal"))?.hide();
+        bootstrap.Modal.getInstance(
+            document.getElementById("stockOutModal")
+        )?.hide();
         await fetchInventories(); // refresh inventory table
     } catch (err) {
         console.error(err);
@@ -442,19 +495,17 @@ const onDownload = (type) => {
     }
 
     try {
-        if (type === 'pdf') {
+        if (type === "pdf") {
             downloadPDF(dataToExport);
-        } else if (type === 'excel') {
+        } else if (type === "excel") {
             downloadExcel(dataToExport);
-        }
-        else if (type === 'csv') {
+        } else if (type === "csv") {
             downloadCSV(dataToExport);
-        }
-        else {
+        } else {
             toast.error("Invalid download type");
         }
     } catch (error) {
-        console.error('Download failed:', error);
+        console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
     }
 };
@@ -463,13 +514,22 @@ const downloadCSV = (data) => {
     try {
         // Define headers
         const headers = [
-            "Item Name", "Category", "Min Alert", "Unit",
-            "Supplier", "Sku", "Description", "Nutrition",
-            "Allergies", "Tags", "Created At", "Updated At"
+            "Item Name",
+            "Category",
+            "Min Alert",
+            "Unit",
+            "Supplier",
+            "Sku",
+            "Description",
+            "Nutrition",
+            "Allergies",
+            "Tags",
+            "Created At",
+            "Updated At",
         ];
 
         // Build CSV rows
-        const rows = data.map(s => {
+        const rows = data.map((s) => {
             // ✅ Format nutrition into key:value pairs
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
@@ -489,27 +549,36 @@ const downloadCSV = (data) => {
                 `"${s.sku || ""}"`,
                 `"${s.description || ""}"`,
                 `"${nutritionStr}"`,
-                `"${Array.isArray(s.allergies) ? s.allergies.join(", ") : (s.allergies || "")}"`,
-                `"${Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || "")}"`,
+                `"${
+                    Array.isArray(s.allergies)
+                        ? s.allergies.join(", ")
+                        : s.allergies || ""
+                }"`,
+                `"${Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || ""}"`,
                 `"${s.created_at || ""}"`,
-                `"${s.updated_at || ""}"`
+                `"${s.updated_at || ""}"`,
             ];
         });
 
         // Combine into CSV string
         const csvContent = [
             headers.join(","), // header row
-            ...rows.map(r => r.join(",")) // data rows
+            ...rows.map((r) => r.join(",")), // data rows
         ].join("\n");
 
         // Create blob
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
 
         // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `inventory_items_${new Date().toISOString().split("T")[0]}.csv`);
+        link.setAttribute(
+            "download",
+            `inventory_items_${new Date().toISOString().split("T")[0]}.csv`
+        );
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -517,10 +586,11 @@ const downloadCSV = (data) => {
         toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
-        toast.error(`CSV generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
-
 
 const downloadPDF = (data) => {
     try {
@@ -537,20 +607,38 @@ const downloadPDF = (data) => {
         doc.text(`Total Inventory Items: ${data.length}`, 70, 34);
 
         const tableColumns = [
-            "Item Name", "Category", "Min Alert", "Unit",
-            "Supplier", "SKU", "Description", "Nutrition",
-            "Allergies", "Tags"
+            "Item Name",
+            "Category",
+            "Min Alert",
+            "Unit",
+            "Supplier",
+            "SKU",
+            "Description",
+            "Nutrition",
+            "Allergies",
+            "Tags",
         ];
 
         const formatNutrition = (nutri) => {
             if (!nutri) return "";
             if (typeof nutri === "string") {
-                try { nutri = JSON.parse(nutri); } catch { return nutri; }
+                try {
+                    nutri = JSON.parse(nutri);
+                } catch {
+                    return nutri;
+                }
             }
             if (Array.isArray(nutri)) return nutri.join(", ");
             if (typeof nutri === "object") {
                 return Object.entries(nutri)
-                    .map(([k, v]) => `${k.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${v}`)
+                    .map(
+                        ([k, v]) =>
+                            `${k
+                                .replace(/[_-]/g, " ")
+                                .replace(/\b\w/g, (c) =>
+                                    c.toUpperCase()
+                                )}: ${v}`
+                    )
                     .join(", ");
             }
             return String(nutri ?? "");
@@ -565,35 +653,54 @@ const downloadPDF = (data) => {
             s.sku || "",
             s.description || "",
             s.nutrition_text || formatNutrition(s.nutrition),
-            Array.isArray(s.allergies) ? s.allergies.join(", ") : (s.allergies || ""),
-            Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || ""),
+            Array.isArray(s.allergies)
+                ? s.allergies.join(", ")
+                : s.allergies || "",
+            Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
         ]);
 
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
             startY: 40,
-            styles: { fontSize: 8, cellPadding: 2, halign: "left", lineColor: [0, 0, 0], lineWidth: 0.1 },
-            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
             alternateRowStyles: { fillColor: [240, 240, 240] },
             margin: { left: 14, right: 14 },
             didDrawPage: (td) => {
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
-                doc.text(`Page ${td.pageNumber} of ${pageCount}`, td.settings.margin.left, pageHeight - 10);
+                doc.text(
+                    `Page ${td.pageNumber} of ${pageCount}`,
+                    td.settings.margin.left,
+                    pageHeight - 10
+                );
             },
         });
 
-        const fileName = `Inventory_items_${new Date().toISOString().split("T")[0]}.pdf`;
+        const fileName = `Inventory_items_${
+            new Date().toISOString().split("T")[0]
+        }.pdf`;
         doc.save(fileName);
         toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`PDF generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
-
 
 // Helper function for safe JSON parsing
 function safeParse(value) {
@@ -603,7 +710,6 @@ function safeParse(value) {
         return value;
     }
 }
-
 
 const downloadExcel = (data) => {
     try {
@@ -626,19 +732,17 @@ const downloadExcel = (data) => {
 
             return {
                 "Item Name": s.name || "",
-                "Category": s.category || "",
+                Category: s.category || "",
                 "Min Alert": s.minAlert || "",
-                "Unit": s.unit || "",
-                "Supplier": s.supplier || "",
-                "Sku": s.sku || "",
-                "Description": s.description || "",
-                "Nutrition": nutritionStr,
-                "Allergies": Array.isArray(s.allergies)
+                Unit: s.unit || "",
+                Supplier: s.supplier || "",
+                Sku: s.sku || "",
+                Description: s.description || "",
+                Nutrition: nutritionStr,
+                Allergies: Array.isArray(s.allergies)
                     ? s.allergies.join(", ")
                     : s.allergies || "",
-                "Tags": Array.isArray(s.tags)
-                    ? s.tags.join(", ")
-                    : s.tags || "",
+                Tags: Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
                 "Created At": s.created_at || "",
                 "Updated At": s.updated_at || "",
             };
@@ -677,40 +781,55 @@ const downloadExcel = (data) => {
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]}.xlsx`;
+        const fileName = `inventory_items_${
+            new Date().toISOString().split("T")[0]
+        }.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("Excel file downloaded successfully ✅", {
+            autoClose: 2500,
+        });
     } catch (error) {
         console.error("Excel generation error:", error);
-        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+        toast.error(`Excel generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
     }
 };
-
-
 </script>
 
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-1">
+            <div class="container-fluid py-3">
                 <!-- Title -->
                 <h4 class="fw-semibold mb-3">Overall Inventory</h4>
-
                 <!-- KPI Cards -->
                 <div class="row g-3">
-                    <div v-for="c in kpis" :key="c.label" class="col-6 col-md-3">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body d-flex flex-column justify-content-center text-center">
-                                <div class="icon-wrap mb-2">
-                                    <i :class="c.icon"></i>
+                    <div v-for="c in kpis" :key="c.label" class="col">
+                        <div class="card border-0 shadow-sm rounded-4 h-100">
+                            <div
+                                class="card-body d-flex align-items-center justify-content-between"
+                            >
+                                <!-- left: value + label -->
+                                <div>
+                                    <div class="fw-bold fs-4">
+                                        {{ c.value }}
+                                    </div>
+                                    <div class="text-muted fs-6">
+                                        {{ c.label }}
+                                    </div>
                                 </div>
-                                <div class="kpi-label text-muted">
-                                    {{ c.label }}
+                                <!-- right: soft icon chip -->
+                                <div :class="['icon-chip', c.iconBg]">
+                                    <component
+                                        :is="c.icon"
+                                        :class="c.iconColor"
+                                        size="26"
+                                    />
                                 </div>
-                                <div class="kpi-value">{{ c.value }}</div>
                             </div>
                         </div>
                     </div>
@@ -720,84 +839,131 @@ const downloadExcel = (data) => {
                 <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
-                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <div
+                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+                        >
                             <h5 class="mb-0 fw-semibold">Stock</h5>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div
+                                class="d-flex flex-wrap gap-2 align-items-center"
+                            >
                                 <div class="search-wrap">
                                     <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
+                                    <input
+                                        v-model="q"
+                                        type="text"
+                                        class="form-control search-input"
+                                        placeholder="Search"
+                                    />
                                 </div>
 
                                 <!-- Filter By -->
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Filter By
-                                        <span v-if="sortBy" class="ms-1 text-muted small">
+                                        <span
+                                            v-if="sortBy"
+                                            class="ms-1 text-muted small"
+                                        >
                                             {{
                                                 sortBy === "stock_desc"
                                                     ? "High→Low"
                                                     : sortBy === "stock_asc"
-                                                        ? "Low→High"
-                                                        : sortBy === "name_asc"
-                                                            ? "A→Z"
-                                                            : sortBy === "name_desc"
-                                                                ? "Z→A"
-                                                                : ""
+                                                    ? "Low→High"
+                                                    : sortBy === "name_asc"
+                                                    ? "A→Z"
+                                                    : sortBy === "name_desc"
+                                                    ? "Z→A"
+                                                    : ""
                                             }}
                                         </span>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'stock_desc'">From High to Low</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'stock_desc'"
+                                                >From High to Low</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'stock_asc'">From Low to High</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'stock_asc'"
+                                                >From Low to High</a
+                                            >
                                         </li>
                                         <li>
                                             <hr class="dropdown-divider" />
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'name_asc'">Ascending</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'name_asc'"
+                                                >Ascending</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'name_desc'">Descending</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:void(0)"
+                                                @click="sortBy = 'name_desc'"
+                                                >Descending</a
+                                            >
                                         </li>
                                     </ul>
                                 </div>
 
                                 <!-- Add Item -->
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addItemModal">
-                                    Add Item
+                                <button
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addItemModal"
+                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                                >
+                                    <Plus class="w-4 h-4" /> Add Item
                                 </button>
 
                                 <!-- Download all -->
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Download all
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('pdf')">Download as
-                                                PDF</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('pdf')"
+                                                >Download as PDF</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('excel')">Download
-                                                as Excel</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('excel')"
+                                                >Download as Excel</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('csv')">
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('csv')"
+                                            >
                                                 Download as CSV
                                             </a>
                                         </li>
@@ -820,75 +986,158 @@ const downloadExcel = (data) => {
                                         <th>Available Stock</th>
                                         <th>Stock Value</th>
                                         <th>Availability</th>
-                                        <th>Entered By</th>
+
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                    <tr
+                                        v-for="(item, idx) in sortedItems"
+                                        :key="item.id"
+                                    >
                                         <td>{{ idx + 1 }}</td>
                                         <td class="fw-semibold">
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            <img :src="item.image ? `/storage/${item.image}` : '/default.png'"
-                                                class="rounded" style="width: 40px; height: 40px; object-fit: cover;" />
-
+                                            <img
+                                                :src="
+                                                    item.image
+                                                        ? `/storage/${item.image}`
+                                                        : '/default.png'
+                                                "
+                                                class="rounded"
+                                                style="
+                                                    width: 40px;
+                                                    height: 40px;
+                                                    object-fit: cover;
+                                                "
+                                            />
                                         </td>
                                         <td>
-                                            {{ money(item.unitPrice || 0, "GBP") }}
+                                            {{
+                                                money(
+                                                    item.unitPrice || 0,
+                                                    "GBP"
+                                                )
+                                            }}
                                         </td>
-                                        <td class="text-truncate" style="max-width: 260px">
+                                        <td
+                                            class="text-truncate"
+                                            style="max-width: 260px"
+                                        >
                                             {{ item.category }}
                                         </td>
                                         <td>{{ item.unit }}</td>
                                         <td>
-                                            {{ item.availableStock ? item.availableStock.toFixed(1) : 0 }}
+                                            {{
+                                                item.availableStock
+                                                    ? item.availableStock.toFixed(
+                                                          1
+                                                      )
+                                                    : 0
+                                            }}
                                         </td>
                                         <td>
-                                            {{ money(item.stockValue || 0, "GBP") }}
+                                            {{
+                                                money(
+                                                    item.stockValue || 0,
+                                                    "GBP"
+                                                )
+                                            }}
                                         </td>
                                         <td>
-                                            <span v-if="item.availableStock === 0" class="badge bg-red-600">Out of
-                                                stock</span>
-                                            <span v-else-if="item.availableStock <= item.minAlert"
-                                                class="badge bg-warning">Low-stock</span>
-                                            <span v-else class="badge bg-success">In-stock</span>
+                                            <span
+                                                v-if="item.availableStock === 0"
+                                                class="badge bg-red-600"
+                                                >Out of stock</span
+                                            >
+                                            <span
+                                                v-else-if="
+                                                    item.availableStock <=
+                                                    item.minAlert
+                                                "
+                                                class="badge bg-warning"
+                                                >Low-stock</span
+                                            >
+                                            <span
+                                                v-else
+                                                class="badge bg-success"
+                                                >In-stock</span
+                                            >
                                         </td>
-
-
-                                        <td>{{ item.user?.name || 'N/A' }}</td>
 
                                         <td class="text-end">
                                             <div class="dropdown">
-                                                <button class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
-                                                    ⋮
+                                                <button
+                                                    class="btn btn-link text-secondary p-0 fs-5"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    title="Actions"
+                                                >
+                                                    <Menu size="20" />
                                                 </button>
                                                 <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
+                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu"
+                                                >
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="openStockModal(item)">
-                                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                openStockModal(
+                                                                    item
+                                                                )
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-box-arrow-in-down-right me-2"
+                                                            ></i
+                                                            >Stock In
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="openStockOutModal(item)">
-                                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                openStockOutModal(
+                                                                    item
+                                                                )
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-box-arrow-up-right me-2"
+                                                            ></i
+                                                            >Stock Out
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="ViewItem(item)">
-                                                            <i class="bi bi-eye me-2"></i>View Item
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                ViewItem(item)
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-eye me-2"
+                                                            ></i
+                                                            >View Item
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="editItem(item)">
-                                                            <i class="bi bi-pencil-square me-2"></i>Edit
+                                                        <a
+                                                            class="dropdown-item py-2"
+                                                            href="javascript:void(0)"
+                                                            @click="
+                                                                editItem(item)
+                                                            "
+                                                        >
+                                                            <i
+                                                                class="bi bi-pencil-square me-2"
+                                                            ></i
+                                                            >Edit
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -897,27 +1146,55 @@ const downloadExcel = (data) => {
                                     </tr>
 
                                     <tr v-if="sortedItems.length === 0">
-                                        <td colspan="11" class="text-center text-muted py-4">
+                                        <td
+                                            colspan="11"
+                                            class="text-center text-muted py-4"
+                                        >
                                             No items found.
                                         </td>
                                     </tr>
                                 </tbody>
-
                             </table>
                         </div>
                     </div>
                 </div>
 
                 <!-- ===================== Add New Product Modal ===================== -->
-                <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+                <div
+                    class="modal fade"
+                    id="addItemModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <div
+                        class="modal-dialog modal-lg modal-dialog-centered"
+                        role="document"
+                    >
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
                                     Add New Inventory Item
                                 </h5>
-                                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close">
-                                    ×
+                                <button
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
                                 </button>
                             </div>
 
@@ -925,94 +1202,171 @@ const downloadExcel = (data) => {
                                 <!-- top row -->
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label">Product Name</label>
-                                        <input v-model="form.name" type="text" class="form-control"
-                                            placeholder="e.g., Chicken Breast" />
+                                        <label class="form-label"
+                                            >Product Name</label
+                                        >
+                                        <input
+                                            v-model="form.name"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="e.g., Chicken Breast"
+                                        />
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="form.category" :options="categories" optionLabel="name"
-                                            optionValue="name" placeholder="Select Category" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000" @update:modelValue="
+                                        <label class="form-label"
+                                            >Category</label
+                                        >
+                                        <Select
+                                            v-model="form.category"
+                                            :options="categories"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Category"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            @update:modelValue="
                                                 form.subcategory = ''
-                                                ">
-                                            <template #value="{ value, placeholder }">
+                                            "
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <!-- Subcategory (only if exists) -->
-                                    <div class="col-md-6" v-if="subcatOptions.length">
-                                        <label class="form-label">Subcategory</label>
-                                        <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
-                                            optionValue="value" placeholder="Select Subcategory" class="w-100"
-                                            :appendTo="body" :autoZIndex="true" :baseZIndex="2000">
-                                            <template #value="{ value, placeholder }">
+                                    <div
+                                        class="col-md-6"
+                                        v-if="subcatOptions.length"
+                                    >
+                                        <label class="form-label"
+                                            >Subcategory</label
+                                        >
+                                        <Select
+                                            v-model="form.subcategory"
+                                            :options="subcatOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Subcategory"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Minimum Stock Alert Level</label>
-                                        <input v-model="form.minAlert" type="number" min="0" class="form-control"
-                                            placeholder="e.g., 5" />
+                                        <label class="form-label d-block"
+                                            >Minimum Stock Alert Level</label
+                                        >
+                                        <input
+                                            v-model="form.minAlert"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                            placeholder="e.g., 5"
+                                        />
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Unit Type</label>
-                                        <Select v-model="form.unit" :options="units" optionLabel="name"
-                                            optionValue="name" placeholder="Select Unit" class="w-100" appendTo="self"
-                                            :autoZIndex="true" :baseZIndex="2000">
-                                            <template #value="{ value, placeholder }">
+                                        <label class="form-label"
+                                            >Unit Type</label
+                                        >
+                                        <Select
+                                            v-model="form.unit"
+                                            :options="units"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Unit"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Preferred Supplier</label>
-                                        <Select v-model="form.supplier" :options="suppliers" optionLabel="name"
-                                            optionValue="name" placeholder="Select Supplier" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000">
-                                            <template #value="{ value, placeholder }">
+                                        <label class="form-label"
+                                            >Preferred Supplier</label
+                                        >
+                                        <Select
+                                            v-model="form.supplier"
+                                            :options="suppliers"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Supplier"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                        >
+                                            <template
+                                                #value="{ value, placeholder }"
+                                            >
                                                 <span v-if="value">{{
                                                     value
-                                                    }}</span>
+                                                }}</span>
                                                 <span v-else>{{
                                                     placeholder
-                                                    }}</span>
+                                                }}</span>
                                             </template>
                                         </Select>
                                     </div>
 
                                     <div class="col-md-12">
-                                        <label class="form-label">SKU (Optional)</label>
-                                        <input v-model="form.sku" type="text" class="form-control"
-                                            placeholder="Stock Keeping Unit" />
+                                        <label class="form-label"
+                                            >SKU (Optional)</label
+                                        >
+                                        <input
+                                            v-model="form.sku"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="Stock Keeping Unit"
+                                        />
                                     </div>
 
                                     <div class="col-12">
-                                        <label class="form-label">Description</label>
-                                        <textarea v-model="form.description" rows="4" class="form-control"
-                                            placeholder="Notes about this product"></textarea>
+                                        <label class="form-label"
+                                            >Description</label
+                                        >
+                                        <textarea
+                                            v-model="form.description"
+                                            rows="4"
+                                            class="form-control"
+                                            placeholder="Notes about this product"
+                                        ></textarea>
                                     </div>
                                 </div>
 
@@ -1024,43 +1378,85 @@ const downloadExcel = (data) => {
                                 </h6>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label">Calories</label>
-                                        <input v-model="form.nutrition.calories" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Calories</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.calories"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Fat (g)</label>
-                                        <input v-model="form.nutrition.fat" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Fat (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.fat"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Protein (g)</label>
-                                        <input v-model="form.nutrition.protein" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Protein (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.protein"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Carbs (g)</label>
-                                        <input v-model="form.nutrition.carbs" type="number" min="0"
-                                            class="form-control" />
+                                        <label class="form-label"
+                                            >Carbs (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.carbs"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
                                     </div>
                                 </div>
 
                                 <div class="row g-4 mt-1">
                                     <!-- Allergies -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Allergies</label>
-                                        <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Allergies"
-                                            class="w-full md:w-80" appendTo="self" />
+                                        <label class="form-label d-block"
+                                            >Allergies</label
+                                        >
+                                        <MultiSelect
+                                            v-model="form.allergies"
+                                            :options="allergies"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            filter
+                                            placeholder="Select Allergies"
+                                            class="w-full md:w-80"
+                                            appendTo="self"
+                                        />
                                     </div>
 
                                     <!-- Tags -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                        <label class="form-label d-block"
+                                            >Tags (Halal, Haram, etc.)</label
+                                        >
 
-                                        <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
-                                            appendTo="self" />
+                                        <MultiSelect
+                                            v-model="form.tags"
+                                            :options="tags"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            filter
+                                            placeholder="Select Tags"
+                                            class="w-full md:w-80"
+                                            appendTo="self"
+                                        />
                                     </div>
                                 </div>
 
@@ -1068,42 +1464,61 @@ const downloadExcel = (data) => {
                                 <div class="row g-3 mt-2 align-items-center">
                                     <div class="col-sm-6 col-md-4">
                                         <div
-                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center">
+                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
+                                        >
                                             <template v-if="!form.imagePreview">
                                                 <div class="text-center small">
                                                     <div class="mb-2">
-                                                        <i class="bi bi-image fs-3"></i>
+                                                        <i
+                                                            class="bi bi-image fs-3"
+                                                        ></i>
                                                     </div>
                                                     <div>Drag image here</div>
                                                     <div>
                                                         or
-                                                        <label class="text-primary fw-semibold" style="
+                                                        <label
+                                                            class="text-primary fw-semibold"
+                                                            style="
                                                                 cursor: pointer;
-                                                            ">
+                                                            "
+                                                        >
                                                             Browse image
-                                                            <input type="file" accept="image/*" class="d-none" @change="
-                                                                handleImage
-                                                            " />
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                class="d-none"
+                                                                @change="
+                                                                    handleImage
+                                                                "
+                                                            />
                                                         </label>
                                                     </div>
                                                 </div>
                                             </template>
                                             <template v-else>
-                                                <img :src="form.imagePreview" class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover" />
+                                                <img
+                                                    :src="form.imagePreview"
+                                                    class="w-100 h-100 rounded-3"
+                                                    style="object-fit: cover"
+                                                />
                                             </template>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
-                                        @click="submitProduct">
+                                    <button
+                                        class="btn btn-primary rounded-pill px-5 py-2"
+                                        :disabled="submitting"
+                                        @click="submitProduct"
+                                    >
                                         <span>Add Product</span>
-
                                     </button>
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetForm">
+                                    <button
+                                        class="btn btn-secondary rounded-pill px-4 ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetForm"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -1114,136 +1529,542 @@ const downloadExcel = (data) => {
                 <!-- /modal -->
 
                 <!-- View modal  -->
-                <div class="modal fade" id="viewItemModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">View Inventory Item</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
+                <div
+                    class="modal fade"
+                    id="viewItemModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div
+                            class="modal-content border-0 shadow-lg rounded-4 overflow-hidden"
+                        >
+                            <!-- Header -->
+                            <div class="modal-header bg-light">
+                                <div class="d-flex align-items-center gap-2">
+                                    <!-- Optional icon (Lucide/Bootstrap icon) -->
+                                    <i
+                                        class="bi bi-box-seam text-primary fs-4"
+                                    ></i>
+                                    <div>
+                                        <h5
+                                            class="modal-title fw-semibold mb-0"
+                                        >
+                                            View Inventory Item
+                                        </h5>
+                                        <small
+                                            class="text-muted"
+                                            v-if="viewItemRef?.sku"
+                                            >SKU: {{ viewItemRef.sku }}</small
+                                        >
+                                    </div>
+                                </div>
+
+                                <!-- Close -->
+                                <button
+                                    type="button"
+                                    class="btn btn-light btn-sm rounded-circle p-2"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
 
+                            <!-- Body -->
                             <div class="modal-body">
-                                <!-- Your item data -->
-                                <div v-if="viewItemRef">
-                                    <p>Item Name: {{ viewItemRef.name }}</p>
-                                    <p>SKU: {{ viewItemRef.sku }}</p>
-                                    <p>Category: {{ viewItemRef.category }}</p>
-                                    <p>Unit: {{ viewItemRef.unit }}</p>
-                                    <p>Description: {{ viewItemRef.description }}</p>
+                                <div v-if="viewItemRef" class="row g-4">
+                                    <!-- Left: Details -->
+                                    <div class="col-12 col-md-7">
+                                        <div
+                                            class="card border-0 shadow-sm rounded-4"
+                                        >
+                                            <div class="card-body">
+                                                <h5 class="fw-semibold mb-3">
+                                                    {{ viewItemRef.name }}
+                                                </h5>
+                                                <p
+                                                    class="text-muted small mb-2"
+                                                >
+                                                    SKU: {{ viewItemRef.sku }}
+                                                </p>
 
-                                    <!-- <p>Allergies:</p>
-                        <ul>
-                            <li v-for="id in viewItemRef.allergies" :key="id">ID: {{ id }}</li>
-                        </ul> -->
+                                                <div class="row g-3 small">
+                                                    <div class="col-6">
+                                                        <div class="text-muted">
+                                                            Category
+                                                        </div>
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                viewItemRef.category ||
+                                                                "—"
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="text-muted">
+                                                            Subcategory
+                                                        </div>
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                viewItemRef.subcategory ||
+                                                                "—"
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="text-muted">
+                                                            Unit
+                                                        </div>
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                viewItemRef.unit
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="text-muted">
+                                                            Min Alert
+                                                        </div>
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                viewItemRef.minAlert
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="text-muted">
+                                                            Supplier
+                                                        </div>
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                viewItemRef.supplier
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="text-muted">
+                                                            Description
+                                                        </div>
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                viewItemRef.description ||
+                                                                "—"
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                                    <!-- <p>Tags:</p>
-                        <ul>
-                            <li v-for="id in viewItemRef.tags" :key="id">ID: {{ id }}</li>
-                        </ul> -->
+                                                <!-- Nutrition -->
+                                                <hr />
+                                                <h6 class="fw-semibold">
+                                                    Nutrition (per 100g)
+                                                </h6>
+                                                <div
+                                                    class="d-flex flex-wrap gap-2 mt-2"
+                                                >
+                                                    <span
+                                                        class="badge rounded-pill bg-soft-primary text-primary"
+                                                        >Calories:
+                                                        {{
+                                                            viewItemRef
+                                                                .nutrition
+                                                                ?.calories ??
+                                                            "—"
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        class="badge rounded-pill bg-soft-success text-success"
+                                                        >Protein:
+                                                        {{
+                                                            viewItemRef
+                                                                .nutrition
+                                                                ?.protein ?? "—"
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        class="badge rounded-pill bg-soft-warning text-warning"
+                                                        >Fat:
+                                                        {{
+                                                            viewItemRef
+                                                                .nutrition
+                                                                ?.fat ?? "—"
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        class="badge rounded-pill bg-soft-secondary text-secondary"
+                                                        >Carbs:
+                                                        {{
+                                                            viewItemRef
+                                                                .nutrition
+                                                                ?.carbs ?? "—"
+                                                        }}</span
+                                                    >
+                                                </div>
 
-                                    <p>Nutrition:</p>
-                                    <ul>
-                                        <li>Calories: {{ viewItemRef.nutrition?.calories }}</li>
-                                        <li>Fat: {{ viewItemRef.nutrition?.fat }}</li>
-                                        <li>Protein: {{ viewItemRef.nutrition?.protein }}</li>
-                                        <li>Carbs: {{ viewItemRef.nutrition?.carbs }}</li>
-                                    </ul>
+                                                <!-- Tags -->
+                                                <hr />
+                                                <h6 class="fw-semibold">
+                                                    Tags
+                                                </h6>
+                                                <div
+                                                    class="d-flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        v-for="tag in viewItemRef.tags"
+                                                        :key="tag"
+                                                        class="badge rounded-pill bg-soft-info text-info"
+                                                    >
+                                                        Tag ID: {{ tag }}
+                                                    </span>
+                                                </div>
 
-                                    <div v-if="viewItemRef.image">
-                                        <img :src="`/storage/${viewItemRef.image}`" alt="Item Image"
-                                            style="max-height: 200px; object-fit: cover;" />
+                                                <!-- Allergies -->
+                                                <hr />
+                                                <h6 class="fw-semibold">
+                                                    Allergies
+                                                </h6>
+                                                <div
+                                                    class="d-flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        v-for="allergy in viewItemRef.allergies"
+                                                        :key="allergy"
+                                                        class="badge rounded-pill bg-soft-danger text-danger"
+                                                    >
+                                                        Allergy ID:
+                                                        {{ allergy }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right: Image + Meta -->
+                                    <div class="col-12 col-md-5">
+                                        <div
+                                            class="card border-0 shadow-sm rounded-4 h-100"
+                                        >
+                                            <div
+                                                class="card-body d-flex flex-column align-items-center justify-content-center"
+                                            >
+                                                <div
+                                                    v-if="viewItemRef.image"
+                                                    class="w-100"
+                                                >
+                                                    <img
+                                                        :src="`/storage/${viewItemRef.image}`"
+                                                        alt="Item Image"
+                                                        class="w-100 rounded-3"
+                                                        style="
+                                                            max-height: 260px;
+                                                            object-fit: cover;
+                                                        "
+                                                    />
+                                                </div>
+                                                <div
+                                                    v-else
+                                                    class="text-center text-muted py-5"
+                                                >
+                                                    <i
+                                                        class="bi bi-image fs-1 d-block mb-2"
+                                                    ></i>
+                                                    <small
+                                                        >No image
+                                                        uploaded</small
+                                                    >
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
+                                                <span class="text-muted"
+                                                    >Created</span
+                                                >
+                                                <span class="fw-semibold">{{
+                                                    viewItemRef.created_at
+                                                }}</span>
+                                            </div>
+                                            <div
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
+                                                <span class="text-muted"
+                                                    >Updated</span
+                                                >
+                                                <span class="fw-semibold">{{
+                                                    viewItemRef.updated_at
+                                                }}</span>
+                                            </div>
+                                            <div
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
+                                                <span class="text-muted"
+                                                    >Stock</span
+                                                >
+                                                <span
+                                                    :class="[
+                                                        'fw-semibold',
+                                                        viewItemRef.stock > 0
+                                                            ? 'text-success'
+                                                            : 'text-danger',
+                                                    ]"
+                                                >
+                                                    {{ viewItemRef.stock }}
+                                                    <span
+                                                        v-if="
+                                                            viewItemRef.stock ===
+                                                            0
+                                                        "
+                                                        class="badge bg-red-600"
+                                                        >Out of stock</span
+                                                    >
+                                                    <span
+                                                        v-else-if="
+                                                            viewItemRef.stock <=
+                                                            viewItemRef.minAlert
+                                                        "
+                                                        class="badge bg-warning"
+                                                        >Low-stock</span
+                                                    >
+                                                    <span
+                                                        v-else
+                                                        class="badge bg-success"
+                                                        >In-stock</span
+                                                    >
+                                                </span>
+                                            </div>
+                                            <div
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
+                                                <span class="text-muted"
+                                                    >Added By</span
+                                                >
+                                                <span class="fw-semibold">{{
+                                                    viewItemRef.user?.name
+                                                }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <!-- Footer -->
+                            <div
+                                class="modal-footer d-flex justify-content-between"
+                            >
+                                <div class="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-primary rounded-pill"
+                                    >
+                                        <i class="bi bi-printer me-1"></i> Print
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-secondary rounded-pill"
+                                        @click="editItem(viewItemRef)"
+                                    >
+                                        <i class="bi bi-pencil-square me-1"></i>
+                                        Edit
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-primary rounded-pill"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Close
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Stockin Modal -->
-                <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="stockInModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
-                                <h5 class="modal-title">Stock In: {{ stockForm.name }}</h5>
-                                <button type="button" class="btn btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
+                                <h5 class="modal-title">
+                                    Stock In: {{ stockForm.name }}
+                                </h5>
+                                <button
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
                             <div class="modal-body">
                                 <div class="row g-3">
                                     <!-- Item Name -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Product Name</label>
-                                        <input type="text" v-model="stockForm.name" class="form-control" readonly />
+                                        <label class="form-label"
+                                            >Product Name</label
+                                        >
+                                        <input
+                                            type="text"
+                                            v-model="stockForm.name"
+                                            class="form-control"
+                                            readonly
+                                        />
                                     </div>
 
                                     <!-- Category -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="stockForm.category_id" :options="categories" optionLabel="name"
-                                            optionValue="id" placeholder="Select Category" class="w-100"
-                                            appendTo="self" />
+                                        <label class="form-label"
+                                            >Category</label
+                                        >
+                                        <Select
+                                            v-model="stockForm.category_id"
+                                            :options="categories"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            placeholder="Select Category"
+                                            class="w-100"
+                                            appendTo="self"
+                                        />
                                     </div>
 
                                     <!-- Supplier -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Supplier</label>
-                                        <Select v-model="stockForm.supplier_id" :options="suppliers" optionLabel="name"
-                                            optionValue="id" placeholder="Select Supplier" class="w-100"
-                                            appendTo="self" />
+                                        <label class="form-label"
+                                            >Supplier</label
+                                        >
+                                        <Select
+                                            v-model="stockForm.supplier_id"
+                                            :options="suppliers"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            placeholder="Select Supplier"
+                                            class="w-100"
+                                            appendTo="self"
+                                        />
                                     </div>
 
                                     <!-- Available quantity -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Available Quantity</label>
-                                        <input type="number" v-model="stockForm.available_quantity" class="form-control"
-                                            readonly />
+                                        <label class="form-label"
+                                            >Available Quantity</label
+                                        >
+                                        <input
+                                            type="number"
+                                            v-model="
+                                                stockForm.available_quantity
+                                            "
+                                            class="form-control"
+                                            readonly
+                                        />
                                     </div>
 
                                     <!-- Stock In Quantity -->
                                     <div class="col-md-4">
-                                        <label class="form-label">Quantity</label>
-                                        <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
-                                            @input="calculateValue()" />
+                                        <label class="form-label"
+                                            >Quantity</label
+                                        >
+                                        <input
+                                            type="number"
+                                            v-model="stockForm.quantity"
+                                            class="form-control"
+                                            min="0"
+                                            @input="calculateValue()"
+                                        />
                                     </div>
 
                                     <!-- Price -->
                                     <div class="col-md-4">
                                         <label class="form-label">Price</label>
-                                        <input type="number" v-model="stockForm.price" class="form-control" min="0"
-                                            @input="calculateValue()" />
+                                        <input
+                                            type="number"
+                                            v-model="stockForm.price"
+                                            class="form-control"
+                                            min="0"
+                                            @input="calculateValue()"
+                                        />
                                     </div>
 
                                     <!-- Value (auto-calculated) -->
                                     <div class="col-md-4">
                                         <label class="form-label">Value</label>
-                                        <input type="text" v-model="stockForm.value" class="form-control" />
+                                        <input
+                                            type="text"
+                                            v-model="stockForm.value"
+                                            class="form-control"
+                                        />
                                     </div>
 
                                     <!-- Expiry Date -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Expiry Date</label>
-                                        <input type="date" v-model="stockForm.expiry_date" class="form-control" />
+                                        <label class="form-label"
+                                            >Expiry Date</label
+                                        >
+                                        <input
+                                            type="date"
+                                            v-model="stockForm.expiry_date"
+                                            class="form-control"
+                                        />
                                     </div>
 
                                     <!-- Notes / Reason -->
                                     <div class="col-md-12">
-                                        <label class="form-label">Notes / Reason</label>
-                                        <textarea v-model="stockForm.description" rows="3"
-                                            class="form-control"></textarea>
+                                        <label class="form-label"
+                                            >Notes / Reason</label
+                                        >
+                                        <textarea
+                                            v-model="stockForm.description"
+                                            rows="3"
+                                            class="form-control"
+                                        ></textarea>
                                     </div>
                                 </div>
 
                                 <div class="mt-4 text-end">
-                                    <button class="btn btn-primary" :disabled="submittingStock" @click="submitStockIn">
+                                    <button
+                                        class="btn btn-primary"
+                                        :disabled="submittingStock"
+                                        @click="submitStockIn"
+                                    >
                                         Stock In
                                     </button>
-                                    <button class="btn btn-secondary ms-2" data-bs-dismiss="modal"
-                                        @click="resetStockForm">
+                                    <button
+                                        class="btn btn-secondary ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetStockForm"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -1253,71 +2074,149 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- Stockout Modal -->
-                <div class="modal fade" id="stockOutModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="stockOutModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
-                                <h5 class="modal-title">Stock Out: {{ stockForm.name }}</h5>
-                                <button type="button" class="btn btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
+                                <h5 class="modal-title">
+                                    Stock Out: {{ stockForm.name }}
+                                </h5>
+                                <button
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
                             <div class="modal-body">
                                 <div class="row g-3">
                                     <!-- Item Name -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Product Name</label>
-                                        <input type="text" v-model="stockForm.name" class="form-control" readonly />
+                                        <label class="form-label"
+                                            >Product Name</label
+                                        >
+                                        <input
+                                            type="text"
+                                            v-model="stockForm.name"
+                                            class="form-control"
+                                            readonly
+                                        />
                                     </div>
 
                                     <!-- Category -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="stockForm.category_id" :options="categories" optionLabel="name"
-                                            optionValue="id" placeholder="Select Category" class="w-100"
-                                            appendTo="self" />
+                                        <label class="form-label"
+                                            >Category</label
+                                        >
+                                        <Select
+                                            v-model="stockForm.category_id"
+                                            :options="categories"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            placeholder="Select Category"
+                                            class="w-100"
+                                            appendTo="self"
+                                        />
                                     </div>
 
                                     <!-- Available Quantity -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Available Quantity</label>
-                                        <input type="number" v-model="stockForm.available_quantity" class="form-control"
-                                            readonly />
+                                        <label class="form-label"
+                                            >Available Quantity</label
+                                        >
+                                        <input
+                                            type="number"
+                                            v-model="
+                                                stockForm.available_quantity
+                                            "
+                                            class="form-control"
+                                            readonly
+                                        />
                                     </div>
 
                                     <!-- Stock Out Quantity -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Quantity</label>
-                                        <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
-                                            @input="calculateValue()" />
+                                        <label class="form-label"
+                                            >Quantity</label
+                                        >
+                                        <input
+                                            type="number"
+                                            v-model="stockForm.quantity"
+                                            class="form-control"
+                                            min="0"
+                                            @input="calculateValue()"
+                                        />
                                     </div>
 
                                     <!-- Price -->
                                     <div class="col-md-6">
                                         <label class="form-label">Price</label>
-                                        <input type="number" v-model="stockForm.price" class="form-control" min="0"
-                                            @input="calculateValue()" />
+                                        <input
+                                            type="number"
+                                            v-model="stockForm.price"
+                                            class="form-control"
+                                            min="0"
+                                            @input="calculateValue()"
+                                        />
                                     </div>
 
                                     <!-- Value (auto-calculated) -->
                                     <div class="col-md-6">
                                         <label class="form-label">Value</label>
-                                        <input type="text" v-model="stockForm.value" class="form-control" readonly />
+                                        <input
+                                            type="text"
+                                            v-model="stockForm.value"
+                                            class="form-control"
+                                            readonly
+                                        />
                                     </div>
 
                                     <!-- Notes / Reason -->
                                     <div class="col-md-12">
-                                        <label class="form-label">Notes / Reason</label>
-                                        <textarea v-model="stockForm.description" rows="3"
-                                            class="form-control"></textarea>
+                                        <label class="form-label"
+                                            >Notes / Reason</label
+                                        >
+                                        <textarea
+                                            v-model="stockForm.description"
+                                            rows="3"
+                                            class="form-control"
+                                        ></textarea>
                                     </div>
                                 </div>
 
                                 <div class="mt-4 text-end">
-                                    <button class="btn btn-danger" :disabled="submittingStock" @click="submitStockOut">
+                                    <button
+                                        class="btn btn-danger"
+                                        :disabled="submittingStock"
+                                        @click="submitStockOut"
+                                    >
                                         Stock Out
                                     </button>
-                                    <button class="btn btn-secondary ms-2" data-bs-dismiss="modal"
-                                        @click="resetStockForm">
+                                    <button
+                                        class="btn btn-secondary ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetStockForm"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -1325,8 +2224,6 @@ const downloadExcel = (data) => {
                         </div>
                     </div>
                 </div>
-
-
             </div>
         </div>
     </Master>

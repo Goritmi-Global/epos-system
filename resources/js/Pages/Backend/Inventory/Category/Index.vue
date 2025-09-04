@@ -235,7 +235,7 @@ const submitCategory = async () => {
                 `/categories/${editingCategory.value.id}`,
                 updatePayload
             );
-            toast.success("Category updated successfully ✅");
+            toast.success("Category updated successfully");
         } else {
             // CREATE MODE - Use the existing structure
             let categoriesPayload = [];
@@ -275,7 +275,7 @@ const submitCategory = async () => {
 
             console.log("Creating categories with payload:", createPayload);
             await axios.post("/categories", createPayload);
-            toast.success("Category created successfully ✅");
+            toast.success("Category created successfully");
         }
 
         resetModal();
@@ -284,7 +284,7 @@ const submitCategory = async () => {
     } catch (err) {
         console.error("❌ Error:", err.response?.data || err.message);
 
-        // ✅ ENHANCED ERROR HANDLING FOR DUPLICATES
+        // ENHANCED ERROR HANDLING FOR DUPLICATES
         if (err.response?.status === 422 && err.response?.data?.errors) {
             const errors = err.response.data.errors;
             let errorMessages = [];
@@ -320,7 +320,7 @@ const submitCategory = async () => {
     }
 };
 
-// ✅ OPTIONAL: Add client-side duplicate check for better UX
+// OPTIONAL: Add client-side duplicate check for better UX
 const checkForDuplicates = () => {
     if (!editingCategory.value) {
         // Only for create mode
@@ -376,7 +376,7 @@ const editRow = (row) => {
                 : `temp_${Date.now()}_${Math.random()}`, // fallback for missing IDs
         }));
 
-        // ✅ FIX: Preselect by VALUE only (not objects)
+        // FIX: Preselect by VALUE only (not objects)
         // Since optionValue="value", manualSubcategories should be an array of strings/values
         manualSubcategories.value = row.subcategories.map((sub) =>
             sub.id ? sub.id.toString() : `temp_${Date.now()}_${Math.random()}`
@@ -425,7 +425,7 @@ const deleteCategory = async (row) => {
 
     try {
         await axios.delete(`/categories/${row.id}`);
-        toast.success("Category deleted successfully ✅");
+        toast.success("Category deleted successfully");
         await fetchCategories(); // refresh the table
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
@@ -566,7 +566,7 @@ const downloadCSV = (data) => {
         link.click();
         document.body.removeChild(link);
 
-        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("CSV downloaded successfully");
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -649,7 +649,7 @@ const downloadPDF = (data) => {
         }.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully");
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -709,7 +709,7 @@ const downloadExcel = (data) => {
         // Save the file
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ✅", {
+        toast.success("Excel file downloaded successfully", {
             autoClose: 2500,
         });
     } catch (error) {
@@ -725,7 +725,7 @@ const downloadExcel = (data) => {
     <Master>
         <div class="page-wrapper">
             <div class="container-fluid py-3">
-                <h4 class="fw-semibold mb-3">Manu Categories</h4>
+                <h4 class="fw-semibold mb-3">Inventory Categories</h4>
 
                 <!-- KPI -->
                 <div class="row g-3">
@@ -740,7 +740,7 @@ const downloadExcel = (data) => {
                             >
                                 <!-- Text -->
                                 <div>
-                                    <div class="fw-bold fs-3">
+                                    <div class="fw-bold fs-4">
                                         {{ c.value }}
                                     </div>
                                     <div class="text-muted fs-6">
@@ -886,7 +886,7 @@ const downloadExcel = (data) => {
                                         <td>{{ row.out_of_stock }}</td>
                                         <td>{{ row.low_stock }}</td>
                                         <td>{{ row.in_stock }}</td>
-                                        <td>{{ row.active ? 'Yes' :'No' }}</td>
+                                        <td>{{ row.active ? "Yes" : "No" }}</td>
                                         <td class="text-center">
                                             <div
                                                 class="d-inline-flex align-items-center gap-3"
