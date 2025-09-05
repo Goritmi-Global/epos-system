@@ -1792,10 +1792,10 @@ const downloadExcel = (data) => {
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
                                                 <span class="text-muted"
-                                                    >Created</span
+                                                    >Updated On</span
                                                 >
                                                 <span class="fw-semibold">{{
-                                                    viewItemRef.formatted_created_at
+                                                    viewItemRef.formatted_updated_at
                                                 }}</span>
                                             </div>
                                              
@@ -1803,7 +1803,8 @@ const downloadExcel = (data) => {
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
                                                 <span class="text-muted"
-                                                    >Stock</span
+                                                    >
+                                                    Stock</span
                                                 >
                                                 <span
                                                     :class="[
@@ -1814,7 +1815,9 @@ const downloadExcel = (data) => {
                                                     ]"
                                                 >
                                                     {{ viewItemRef.stock }}
-                                                    <span
+                                                    
+                                                </span>
+                                                <span
                                                         v-if="
                                                             viewItemRef.stock ===
                                                             0
@@ -1835,8 +1838,9 @@ const downloadExcel = (data) => {
                                                         class="badge bg-success"
                                                         >In-stock</span
                                                     >
-                                                </span>
+                                                
                                             </div>
+                                            
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >

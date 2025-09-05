@@ -5,10 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
-class Inventory extends Model
+class Inventory extends BaseModel
 {
     protected $table = 'inventory_items';
-    protected $appends = ['stock','formatted_created_at', 'formatted_updated_at'];
+    protected $appends = ['stock'];
     protected $fillable = [
         'sku',
         'name',
@@ -58,16 +58,6 @@ class Inventory extends Model
     public function allergies(){
         return $this->belongsTo(Allergy::class);
     }
-    // Accessor for created_at
-    public function getFormattedCreatedAtAttribute()
-    {
-        return Carbon::parse($this->created_at)->format('d-M-Y : h:iA');
-    }
-
-    // Accessor for updated_at
-    public function getFormattedUpdatedAtAttribute()
-    {
-        return Carbon::parse($this->updated_at)->format('d-M-Y : h:iA');
-    }
+     
 
 }
