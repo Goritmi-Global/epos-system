@@ -811,7 +811,7 @@ const downloadExcel = (data) => {
                     <div v-for="c in kpis" :key="c.label" class="col">
                         <div class="card border-0 shadow-sm rounded-4 h-100">
                             <div
-                                class="card-body d-flex align-items-center justify-content-between"
+                                class="card-body d-flex align-items-center justify-content-between "
                             >
                                 <!-- left: value + label -->
                                 <div>
@@ -1677,7 +1677,7 @@ const downloadExcel = (data) => {
                                                     class="d-flex flex-wrap gap-2 mt-2"
                                                 >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-primary text-primary"
+                                                        class="badge rounded-pill bg-primary text-white"
                                                         >Calories:
                                                         {{
                                                             viewItemRef
@@ -1687,7 +1687,7 @@ const downloadExcel = (data) => {
                                                         }}</span
                                                     >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-success text-success"
+                                                        class="badge rounded-pill bg-success text-white"
                                                         >Protein:
                                                         {{
                                                             viewItemRef
@@ -1696,7 +1696,7 @@ const downloadExcel = (data) => {
                                                         }}</span
                                                     >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-warning text-warning"
+                                                        class="badge rounded-pill  bg-warning text-white"
                                                         >Fat:
                                                         {{
                                                             viewItemRef
@@ -1705,7 +1705,7 @@ const downloadExcel = (data) => {
                                                         }}</span
                                                     >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-secondary text-secondary"
+                                                        class="badge rounded-pill  bg-secondary text-white"
                                                         >Carbs:
                                                         {{
                                                             viewItemRef
@@ -1726,9 +1726,9 @@ const downloadExcel = (data) => {
                                                     <span
                                                         v-for="tag in viewItemRef.tags"
                                                         :key="tag"
-                                                        class="badge rounded-pill bg-soft-info text-info"
+                                                        class="badge rounded-pill bg-info text-white"
                                                     >
-                                                        Tag ID: {{ tag }}
+                                                          {{ tag }}
                                                     </span>
                                                 </div>
 
@@ -1743,9 +1743,9 @@ const downloadExcel = (data) => {
                                                     <span
                                                         v-for="allergy in viewItemRef.allergies"
                                                         :key="allergy"
-                                                        class="badge rounded-pill bg-soft-danger text-danger"
+                                                        class="badge rounded-pill bg-danger text-white"
                                                     >
-                                                        Allergy ID:
+                                                       
                                                         {{ allergy }}
                                                     </span>
                                                 </div>
@@ -1795,19 +1795,10 @@ const downloadExcel = (data) => {
                                                     >Created</span
                                                 >
                                                 <span class="fw-semibold">{{
-                                                    viewItemRef.created_at
+                                                    viewItemRef.formatted_created_at
                                                 }}</span>
                                             </div>
-                                            <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between"
-                                            >
-                                                <span class="text-muted"
-                                                    >Updated</span
-                                                >
-                                                <span class="fw-semibold">{{
-                                                    viewItemRef.updated_at
-                                                }}</span>
-                                            </div>
+                                             
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
@@ -2364,4 +2355,6 @@ const downloadExcel = (data) => {
         width: 100%;
     }
 }
+
+
 </style>
