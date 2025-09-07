@@ -15,6 +15,7 @@ import {
     CalendarClock,
     Plus,
     Menu,
+    Pencil
 } from "lucide-vue-next";
 const props = defineProps({
     inventories: Array,
@@ -1822,7 +1823,7 @@ const downloadExcel = (data) => {
                                                             viewItemRef.stock ===
                                                             0
                                                         "
-                                                        class="badge bg-red-600"
+                                                        class="badge bg-red-600 rounded-pill"
                                                         >Out of stock</span
                                                     >
                                                     <span
@@ -1830,12 +1831,12 @@ const downloadExcel = (data) => {
                                                             viewItemRef.stock <=
                                                             viewItemRef.minAlert
                                                         "
-                                                        class="badge bg-warning"
+                                                        class="badge bg-warning rounded-pill"
                                                         >Low-stock</span
                                                     >
                                                     <span
                                                         v-else
-                                                        class="badge bg-success"
+                                                        class="badge bg-success rounded-pill"
                                                         >In-stock</span
                                                     >
                                                 
@@ -1861,20 +1862,24 @@ const downloadExcel = (data) => {
                                 class="modal-footer d-flex justify-content-between"
                             >
                                 <div class="d-flex gap-2">
-                                    <button
+                                    <!-- <button
                                         type="button"
                                         class="btn btn-outline-primary rounded-pill"
                                     >
                                         <i class="bi bi-printer me-1"></i> Print
-                                    </button>
+                                    </button> -->
+
                                     <button
-                                        type="button"
-                                        class="btn btn-outline-secondary rounded-pill"
-                                        @click="editItem(viewItemRef)"
-                                    >
-                                        <i class="bi bi-pencil-square me-1"></i>
-                                        Edit
-                                    </button>
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addItemModal"
+                                    class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
+                                    @click="editItem(viewItemRef)"
+                                >
+                                    <Pencil class="w-4 h-4" /> Edit
+                                </button>
+
+                                
+                                     
                                 </div>
 
                                 <button
