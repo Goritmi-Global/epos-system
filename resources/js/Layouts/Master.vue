@@ -733,10 +733,15 @@ li.active > .side-link {
 }
 
 
-/* Form field errors */
 .is-invalid {
-  background-color: #f8d7da !important;  
-  border-color: #dc3545 !important;    
+  background-color: #f8d7da !important;
+  border-color: #dc3545 !important;
+}
+
+.invalid-feedback {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 4px;
 }
 
 /* Submenu styling */
