@@ -213,8 +213,7 @@ const submitProduct = async () => {
     submitting.value = true;
 
     //  clear previous errors before submitting
-    formErrors.value = {};
-
+    formErrors.value = {}; 
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
     formData.append("category", form.value.category);
