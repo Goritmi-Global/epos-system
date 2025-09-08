@@ -62,7 +62,7 @@ class InventoryController extends Controller
     }
 
     public function show(Inventory $inventory)
-    {
+    { 
         $inventory->load('user');
 
         $data = $inventory->toArray();
@@ -80,6 +80,7 @@ class InventoryController extends Controller
        
         $item['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
 
+     
         return Inertia::render('Inventory/Form', [
             'mode' => 'edit',
             'item' => $item,

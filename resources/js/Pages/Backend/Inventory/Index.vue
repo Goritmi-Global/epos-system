@@ -22,6 +22,7 @@ import {
     Upload,
 } from "lucide-vue-next";
 import axios from "axios";
+// import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 const props = defineProps({
     inventories: Array,
     allergies: {
@@ -310,7 +311,7 @@ watch(
 
 // ===============Edit item ==================
 const editItem = (item) => {
-    console.log(item);
+     
     form.value = {
         id: item.id,
         name: item.name,
@@ -331,9 +332,9 @@ const editItem = (item) => {
         allergies: item.allergies?.map((a) => Number(a)) || [],
         tags: item.tags?.map((t) => Number(t)) || [],
         imageFile: null,
-        imageUrl: item.image ? `/storage/${item.image}` : null,
+        imageUrl: item.image_url,
     };
-    new bootstrap.Modal(document.getElementById("addItemModal")).show();
+    // new bootstrap.Modal(document.getElementById("addItemModal")).show();
 };
 // ============================= reset form =========================
 
@@ -1169,6 +1170,8 @@ watch(
                                                                 'Edit';
                                                         }
                                                     "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addItemModal"
                                                     title="Edit"
                                                     class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
                                                 >
@@ -1644,11 +1647,17 @@ watch(
                                             :image="form.imageUrl"
                                         /> -->
                                         <!-- <ImageCropperModal :ratio="1" @croppedImg="croppedImgSubmit" /> -->
+                                          <!-- <ImageZoomModal
+                                                :file="form.image_url"
+                                                :width="50"
+                                            /> -->
+
                                         <ImageCropperModal
                                             :show="showCropper"
                                             @close="showCropper = false"
                                             @cropped="onCropped"
                                         />
+                                        
 
                                         <small
                                             v-if="formErrors.image"
@@ -1667,7 +1676,7 @@ watch(
                                     >
                                         {{
                                             processStatus === "Edit"
-                                                ? "Edit Item"
+                                                ? "Update Item"
                                                 : "Add Item"
                                         }}
                                     </button>
@@ -2382,12 +2391,12 @@ watch(
     </Master>
     <!-- Modals -->
 
-    <ImageZoomModal
+    <!-- <ImageZoomModal
         class="image-cropper-modal"
         :show="showImageModal"
         :image="previewImage"
         @close="showImageModal = false"
-    />
+    /> -->
 </template>
 
 <style scoped>
