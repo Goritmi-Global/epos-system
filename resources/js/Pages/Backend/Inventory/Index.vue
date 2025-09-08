@@ -107,9 +107,9 @@ const sortedItems = computed(() => {
 });
 
 /* ===================== KPIs ===================== */
-const categoriesCount = computed(
-    () => new Set(items.value.map((i) => i.category)).size
-);
+// const categoriesCount = computed(
+//     () => new Set(items.value.map((i) => i.category)).size
+// );
 const totalItems = computed(() => items.value.length);
 const lowStockCount = computed(
     () =>
@@ -363,20 +363,20 @@ function resetForm() {
     };
 }
 
-function fakeApi(data) {
-    return new Promise((resolve) => {
-        setTimeout(
-            () => resolve({ ok: true, message: "Saved (demo)", data }),
-            800
-        );
-    });
-}
+// function fakeApi(data) {
+//     return new Promise((resolve) => {
+//         setTimeout(
+//             () => resolve({ ok: true, message: "Saved (demo)", data }),
+//             800
+//         );
+//     });
+// }
 
 /* ===================== Row Actions (stubs) ===================== */
-const onStockIn = (it) => console.log("Stock In:", it);
-const onStockOut = (it) => console.log("Stock Out:", it);
-const onViewItem = (it) => console.log("View:", it);
-const onEditItem = (it) => console.log("Edit:", it);
+// const onStockIn = (it) => console.log("Stock In:", it);
+// const onStockOut = (it) => console.log("Stock Out:", it);
+// const onViewItem = (it) => console.log("View:", it);
+// const onEditItem = (it) => console.log("Edit:", it);
 // const onDownload = (type) => console.log("Download:", type);
 // =====================view item =========================
 const viewItemRef = ref({});
@@ -386,13 +386,23 @@ const ViewItem = async (row) => {
         const res = await axios.get(`/inventory/${row.id}`);
         viewItemRef.value = res.data;
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("viewItemModal")
-        );
-        modal.show();
+        // const modal = new bootstrap.Modal(
+        //     document.getElementById("viewItemModal")
+        // );
+        // modal.show();
     } catch (error) {
         console.error("Error fetching item:", error);
     }
+};
+
+// Function to properly hide modal and clean up backdrop
+const closeModal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const modal =
+        window.bootstrap?.Modal.getInstance(el) ||
+        new window.bootstrap.Modal(el);
+    modal.hide();
 };
 
 // ===================== Stock Item Modal =========================
@@ -444,10 +454,10 @@ function openStockModal(item) {
             user_id: 1,
         };
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("stockInModal")
-        );
-        modal.show();
+        // const modal = new bootstrap.Modal(
+        //     document.getElementById("stockInModal")
+        // );
+        // modal.show();
     });
 }
 
@@ -499,10 +509,10 @@ function openStockOutModal(item) {
             user_id: 1,
         };
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("stockOutModal")
-        );
-        modal.show();
+        // const modal = new bootstrap.Modal(
+        //     document.getElementById("stockOutModal")
+        // );
+        // modal.show();
     });
 }
 
@@ -1038,7 +1048,9 @@ const downloadExcel = (data) => {
                                         <th>Unit</th>
                                         <th>Available Stock</th>
                                         <th>Stock Value</th>
-                                        <th class="text-center">Availability</th>
+                                        <th class="text-center">
+                                            Availability
+                                        </th>
 
                                         <th class="text-center">Action</th>
                                     </tr>
@@ -1137,6 +1149,8 @@ const downloadExcel = (data) => {
                                                     @click="
                                                         openStockModal(item)
                                                     "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#stockInModal"
                                                     title="Stock In"
                                                     class="p-2 rounded-full text-green-600 hover:bg-green-100"
                                                 >
@@ -1148,6 +1162,8 @@ const downloadExcel = (data) => {
                                                     @click="
                                                         openStockOutModal(item)
                                                     "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#stockOutModal"
                                                     title="Stock Out"
                                                     class="p-2 rounded-full text-red-600 hover:bg-red-100"
                                                 >
@@ -1157,6 +1173,8 @@ const downloadExcel = (data) => {
                                                 <!-- View -->
                                                 <button
                                                     @click="ViewItem(item)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
                                                     title="View Item"
                                                     class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
                                                 >
@@ -1621,7 +1639,7 @@ const downloadExcel = (data) => {
                                                 'is-invalid': formErrors.image,
                                             }"
                                         >
-                                            <template>
+                                            <template v-if="!form.imagePreview">
                                                 <div class="text-center small">
                                                     <div class="mb-2">
                                                         <i
@@ -1727,13 +1745,25 @@ const downloadExcel = (data) => {
 
                                 <!-- Close -->
                                 <button
-                                    type="button"
-                                    class="btn btn-light btn-sm rounded-circle p-2"
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
                                     title="Close"
                                 >
-                                    <i class="bi bi-x-lg"></i>
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
                                 </button>
                             </div>
 
@@ -2057,6 +2087,8 @@ const downloadExcel = (data) => {
                     tabindex="-1"
                     aria-hidden="true"
                 >
+                    <!-- Loader while fetching data -->
+
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
