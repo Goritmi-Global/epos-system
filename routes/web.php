@@ -157,6 +157,8 @@ Route::prefix('categories')->group(function () {
     Route::get('/{id}', [CategoryController::class, 'show']);
     Route::put('/{id}', [CategoryController::class, 'update']);
     Route::delete('/{id}', [CategoryController::class, 'destroy']);
+    Route::put('/subcategories/{id}', [CategoryController::class, 'updateSubcategory']);
+
     
     // Additional Operations
     Route::get('/parents/list', [CategoryController::class, 'getParents']);
