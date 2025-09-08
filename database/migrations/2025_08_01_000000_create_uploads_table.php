@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('uploads', function (Blueprint $table) {
-            $table->id(); // Auto-increment BIGINT PK
+            $table->id();
             $table->string('file_original_name')->nullable();
             $table->string('file_name')->nullable();
-            $table->unsignedBigInteger('file_size')->nullable();
+            $table->unsignedBigInteger('file_size')->nullable(); // in bytes
             $table->string('extension', 10)->nullable();
-            $table->string('type')->nullable();
-            $table->timestamps();  
+            $table->string('type')->nullable(); // e.g., image, pdf, video
+            $table->timestamps();
         });
     }
 

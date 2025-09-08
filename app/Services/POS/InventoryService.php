@@ -12,6 +12,7 @@ class InventoryService
 {
     public function list(array $filters = [])
     {
+
         return Inventory::with(['user']) // you can add 'upload' if you create the relation
             ->when($filters['q'] ?? null, function ($q, $v) {
                 $q->where(function ($qq) use ($v) {
@@ -66,6 +67,7 @@ class InventoryService
                 $upload      = UploadHelper::store($data['image'], 'uploads', 'public');
                 $data['upload_id'] = $upload->id;
             }
+            // dd($data);
 
             unset($data['image']); // we never store raw path here
 

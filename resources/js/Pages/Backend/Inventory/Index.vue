@@ -244,7 +244,10 @@ const submitProduct = async () => {
     // image
     if (form.imageFile) {
         // optional: keep extension consistent with mime
-        const ext = (form.imageFile.type?.split("/")?.[1] || "webp").replace("jpeg", "jpg");
+        const ext = (form.imageFile.type?.split("/")?.[1] || "webp").replace(
+            "jpeg",
+            "jpg"
+        );
         const name = `image.${ext}`;
         formData.append("image", form.imageFile, name);
     }
@@ -869,12 +872,10 @@ function openImageModal(src) {
     showImageModal.value = true;
 }
 
- 
 function onCropped({ file }) {
-  form.imageFile = file;   // this is the file Laravel expects
-  form.value.imageUrl = URL.createObjectURL(file); // optional for preview
+    form.imageFile = file; // this is the file Laravel expects
+    form.value.imageUrl = URL.createObjectURL(file); // optional for preview
 }
-
 
 watch(
     () => props.show,
@@ -891,7 +892,6 @@ watch(
 </script>
 
 <template>
-     
     <Master>
         <div class="page-wrapper">
             <div class="container-fluid py-3">
@@ -1098,18 +1098,9 @@ watch(
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            <img
-                                                :src="
-                                                    item.image
-                                                        ? `/storage/${item.image}`
-                                                        : '/default.png'
-                                                "
-                                                class="rounded"
-                                                style="
-                                                    width: 40px;
-                                                    height: 40px;
-                                                    object-fit: cover;
-                                                "
+                                            <ImageZoomModal
+                                                :file="item.image_url"
+                                                :width="50"
                                             />
                                         </td>
                                         <td>
@@ -1662,9 +1653,9 @@ watch(
                                         </small>
                                     </div>
                                 </div>
-                                Testing image: {{ form.imageFile }}
+
                                 <!-- Image -->
-                                 
+
                                 <div class="col-md-4">
                                     <div
                                         class="logo-card"
@@ -1672,7 +1663,6 @@ watch(
                                             'is-invalid': formErrors.image,
                                         }"
                                     >
-
                                         <div
                                             class="logo-frame"
                                             @click="
@@ -1693,7 +1683,7 @@ watch(
                                         <small class="text-muted mt-2 d-block"
                                             >Upload Image</small
                                         >
- 
+
                                         <!-- <ImageCropperModal
                                             @cropped="handleCropped"
                                             :aspectRatio="1"
@@ -1701,16 +1691,10 @@ watch(
                                         /> -->
                                         <!-- <ImageCropperModal :ratio="1" @croppedImg="croppedImgSubmit" /> -->
                                         <ImageCropperModal
-   
-  :show="showCropper"
-  @close="showCropper = false"
-  @cropped="onCropped"
-/>
-
- 
-
-
-
+                                            :show="showCropper"
+                                            @close="showCropper = false"
+                                            @cropped="onCropped"
+                                        />
 
                                         <small
                                             v-if="formErrors.image"

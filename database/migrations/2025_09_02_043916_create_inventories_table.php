@@ -21,7 +21,13 @@ return new class extends Migration
             $table->json('nutrition')->nullable(); // calories, fat, protein, carbs
             $table->json('allergies')->nullable(); // store as array
             $table->json('tags')->nullable(); // store as array
-            $table->string('image')->nullable();
+
+            // instead of string('image')
+            $table->foreignId('upload_id')->nullable()
+                  ->constrained('uploads')
+                  ->nullOnDelete(); 
+                  // automatically references uploads.id
+
             $table->timestamps();
         });
     }
