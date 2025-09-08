@@ -96,7 +96,7 @@ class StoreCategoryRequest extends FormRequest
                     
                     $validator->errors()->add(
                         "categories.{$index}.name",
-                        "The {$categoryType} '{$categoryName}' already exists{$parentInfo}."
+                        "The {$categoryType} {$categoryName} already exists{$parentInfo}."
                     );
                     continue;
                 }
