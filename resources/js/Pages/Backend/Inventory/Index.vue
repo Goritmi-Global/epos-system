@@ -7,6 +7,7 @@ import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+
 import {
     Package,
     XCircle,
@@ -15,8 +16,13 @@ import {
     CalendarClock,
     Plus,
     Menu,
-    Pencil
+    Eye,
+    Pencil,
+    Download,
+    Upload,
 } from "lucide-vue-next";
+import axios from "axios";
+// import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 const props = defineProps({
     inventories: Array,
     allergies: {
@@ -102,9 +108,9 @@ const sortedItems = computed(() => {
 });
 
 /* ===================== KPIs ===================== */
-const categoriesCount = computed(
-    () => new Set(items.value.map((i) => i.category)).size
-);
+// const categoriesCount = computed(
+//     () => new Set(items.value.map((i) => i.category)).size
+// );
 const totalItems = computed(() => items.value.length);
 const lowStockCount = computed(
     () =>
@@ -177,9 +183,7 @@ const subcatOptions = computed(() =>
         value: s,
     }))
 );
-const categoryOptions = computed(() =>
-    Object.keys(subcatMap.value).map((c) => ({ name: c, value: c }))
-);
+
 const formErrors = ref({});
 const form = ref({
     name: "",
@@ -194,18 +198,8 @@ const form = ref({
     allergies: [],
     tags: [],
     imageFile: null,
-    imagePreview: "",
+    imageUrl: null,
 });
-
-function handleImage(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    form.value.imageFile = file;
-    const reader = new FileReader();
-    reader.onload = (ev) =>
-        (form.value.imagePreview = String(ev.target?.result || ""));
-    reader.readAsDataURL(file);
-}
 
 const submitting = ref(false);
 
@@ -219,7 +213,7 @@ const submitProduct = async () => {
     formData.append("category", form.value.category);
     formData.append("subcategory", form.value.subcategory || "");
     formData.append("unit", form.value.unit);
-    formData.append("minAlert", form.value.minAlert || '');
+    formData.append("minAlert", form.value.minAlert || "");
     formData.append("supplier", form.value.supplier);
     formData.append("sku", form.value.sku || "");
     formData.append("description", form.value.description || "");
@@ -237,8 +231,14 @@ const submitProduct = async () => {
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // image
-    if (form.value.imageFile) {
-        formData.append("image", form.value.imageFile);
+    if (form.imageFile) {
+        // optional: keep extension consistent with mime
+        const ext = (form.imageFile.type?.split("/")?.[1] || "webp").replace(
+            "jpeg",
+            "jpg"
+        );
+        const name = `image.${ext}`;
+        formData.append("image", form.imageFile, name);
     }
 
     try {
@@ -271,7 +271,10 @@ const submitProduct = async () => {
             formErrors.value = err.response.data.errors; // keys like 'name', 'category', 'nutrition.calories'
             toast.error("Please fix the highlighted fields.");
         } else {
-            console.error("❌ Error saving:", err.response?.data || err.message);
+            console.error(
+                "❌ Error saving:",
+                err.response?.data || err.message
+            );
             toast.error("Failed to save Inventory Item");
         }
     } finally {
@@ -296,7 +299,7 @@ watch(
                     value !== null &&
                     value !== undefined &&
                     value !== "" &&
-                    (!(Array.isArray(value)) || value.length > 0)
+                    (!Array.isArray(value) || value.length > 0)
                 ) {
                     delete formErrors.value[key];
                 }
@@ -306,10 +309,9 @@ watch(
     { deep: true }
 );
 
-
 // ===============Edit item ==================
 const editItem = (item) => {
-    console.log(item);
+     
     form.value = {
         id: item.id,
         name: item.name,
@@ -330,11 +332,9 @@ const editItem = (item) => {
         allergies: item.allergies?.map((a) => Number(a)) || [],
         tags: item.tags?.map((t) => Number(t)) || [],
         imageFile: null,
-        imagePreview: item.image ? `/storage/${item.image}` : null,
+        imageUrl: item.image_url,
     };
-    console.log("Preselected allergies:", form.value);
-    const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
-    modal.show();
+    // new bootstrap.Modal(document.getElementById("addItemModal")).show();
 };
 // ============================= reset form =========================
 
@@ -356,21 +356,6 @@ function resetForm() {
     };
 }
 
-function fakeApi(data) {
-    return new Promise((resolve) => {
-        setTimeout(
-            () => resolve({ ok: true, message: "Saved (demo)", data }),
-            800
-        );
-    });
-}
-
-/* ===================== Row Actions (stubs) ===================== */
-const onStockIn = (it) => console.log("Stock In:", it);
-const onStockOut = (it) => console.log("Stock Out:", it);
-const onViewItem = (it) => console.log("View:", it);
-const onEditItem = (it) => console.log("Edit:", it);
-// const onDownload = (type) => console.log("Download:", type);
 // =====================view item =========================
 const viewItemRef = ref({});
 
@@ -379,10 +364,10 @@ const ViewItem = async (row) => {
         const res = await axios.get(`/inventory/${row.id}`);
         viewItemRef.value = res.data;
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("viewItemModal")
-        );
-        modal.show();
+        // const modal = new bootstrap.Modal(
+        //     document.getElementById("viewItemModal")
+        // );
+        // modal.show();
     } catch (error) {
         console.error("Error fetching item:", error);
     }
@@ -413,7 +398,7 @@ const stockForm = ref({
 });
 
 const submittingStock = ref(false);
-
+const processStatus = ref();
 function openStockModal(item) {
     const categoryObj = props.categories.find((c) => c.name === item.category);
     const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
@@ -437,10 +422,10 @@ function openStockModal(item) {
             user_id: 1,
         };
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("stockInModal")
-        );
-        modal.show();
+        // const modal = new bootstrap.Modal(
+        //     document.getElementById("stockInModal")
+        // );
+        // modal.show();
     });
 }
 
@@ -492,10 +477,10 @@ function openStockOutModal(item) {
             user_id: 1,
         };
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("stockOutModal")
-        );
-        modal.show();
+        // const modal = new bootstrap.Modal(
+        //     document.getElementById("stockOutModal")
+        // );
+        // modal.show();
     });
 }
 
@@ -741,15 +726,6 @@ const downloadPDF = (data) => {
     }
 };
 
-// Helper function for safe JSON parsing
-function safeParse(value) {
-    try {
-        return typeof value === "string" ? JSON.parse(value) : value;
-    } catch (e) {
-        return value;
-    }
-}
-
 const downloadExcel = (data) => {
     try {
         // Check if XLSX is available
@@ -837,6 +813,34 @@ const downloadExcel = (data) => {
     }
 };
 
+const showCropper = ref(false);
+const showImageModal = ref(false);
+const previewImage = ref(null);
+// Image preveiw Modal
+
+function openImageModal(src) {
+    previewImage.value = src || form.value.imageUrl;
+    if (!previewImage.value) return;
+    showImageModal.value = true;
+}
+
+function onCropped({ file }) {
+    form.imageFile = file; // this is the file Laravel expects
+    form.value.imageUrl = URL.createObjectURL(file); // optional for preview
+}
+
+watch(
+    () => props.show,
+    (newVal) => {
+        if (newVal) {
+            nextTick(() => {
+                cropper.value?.replace(props.image || "");
+                // focus first button or file input
+                fileInput.value?.focus();
+            });
+        }
+    }
+);
 </script>
 
 <template>
@@ -849,7 +853,9 @@ const downloadExcel = (data) => {
                 <div class="row g-3">
                     <div v-for="c in kpis" :key="c.label" class="col">
                         <div class="card border-0 shadow-sm rounded-4 h-100">
-                            <div class="card-body d-flex align-items-center justify-content-between ">
+                            <div
+                                class="card-body d-flex align-items-center justify-content-between"
+                            >
                                 <!-- left: value + label -->
                                 <div>
                                     <div class="fw-bold fs-4">
@@ -925,8 +931,16 @@ const downloadExcel = (data) => {
                                 </div>
 
                                 <!-- Add Item -->
-                                <button data-bs-toggle="modal" data-bs-target="#addItemModal"
-                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
+                                <button
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addItemModal"
+                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                                    @click="
+                                        resetForm();
+                                        formErrors = {};
+                                        processStatus = 'Create';
+                                    "
+                                >
                                     <Plus class="w-4 h-4" /> Add Item
                                 </button>
 
@@ -969,9 +983,11 @@ const downloadExcel = (data) => {
                                         <th>Unit</th>
                                         <th>Available Stock</th>
                                         <th>Stock Value</th>
-                                        <th>Availability</th>
+                                        <th class="text-center">
+                                            Availability
+                                        </th>
 
-                                        <th>Action</th>
+                                        <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -981,14 +997,10 @@ const downloadExcel = (data) => {
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            <img :src="item.image
-                                                    ? `/storage/${item.image}`
-                                                    : '/default.png'
-                                                " class="rounded" style="
-                                                    width: 40px;
-                                                    height: 40px;
-                                                    object-fit: cover;
-                                                " />
+                                            <ImageZoomModal
+                                                :file="item.image_url"
+                                                :width="50"
+                                            />
                                         </td>
                                         <td>
                                             {{
@@ -1019,57 +1031,93 @@ const downloadExcel = (data) => {
                                                 )
                                             }}
                                         </td>
-                                        <td>
-                                            <span v-if="item.availableStock === 0" class="badge bg-red-600">Out of
-                                                stock</span>
-                                            <span v-else-if="
-                                                item.availableStock <=
-                                                item.minAlert
-                                            " class="badge bg-warning">Low-stock</span>
-                                            <span v-else class="badge bg-success">In-stock</span>
+                                        <td class="text-center">
+                                            <span
+                                                v-if="item.availableStock === 0"
+                                                class="badge bg-red-600 rounded-pill d-inline-block text-center"
+                                                style="min-width: 100px"
+                                            >
+                                                Out of stock
+                                            </span>
+
+                                            <span
+                                                v-else-if="
+                                                    item.availableStock <=
+                                                    item.minAlert
+                                                "
+                                                class="badge bg-warning rounded-pill d-inline-block text-center"
+                                                style="min-width: 100px"
+                                            >
+                                                Low-stock
+                                            </span>
+
+                                            <span
+                                                v-else
+                                                class="badge bg-success rounded-pill d-inline-block text-center"
+                                                style="min-width: 100px"
+                                            >
+                                                In-stock
+                                            </span>
                                         </td>
 
-                                        <td class="text-end">
-                                            <div class="dropdown">
-                                                <button class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
-                                                    <Menu size="20" />
+                                        <td class="text-center">
+                                            <div
+                                                class="d-inline-flex align-items-center gap-3"
+                                            >
+                                                <!-- Stock In -->
+                                                <button
+                                                    @click="
+                                                        openStockModal(item)
+                                                    "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#stockInModal"
+                                                    title="Stock In"
+                                                    class="p-2 rounded-full text-green-600 hover:bg-green-100"
+                                                >
+                                                    <Download class="w-4 h-4" />
                                                 </button>
-                                                <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            openStockModal(
-                                                                item
-                                                            )
-                                                            ">
-                                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            openStockOutModal(
-                                                                item
-                                                            )
-                                                            ">
-                                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            ViewItem(item)
-                                                            ">
-                                                            <i class="bi bi-eye me-2"></i>View Item
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            editItem(item)
-                                                            ">
-                                                            <i class="bi bi-pencil-square me-2"></i>Edit
-                                                        </a>
-                                                    </li>
-                                                </ul>
+
+                                                <!-- Stock Out -->
+                                                <button
+                                                    @click="
+                                                        openStockOutModal(item)
+                                                    "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#stockOutModal"
+                                                    title="Stock Out"
+                                                    class="p-2 rounded-full text-red-600 hover:bg-red-100"
+                                                >
+                                                    <Upload class="w-4 h-4" />
+                                                </button>
+
+                                                <!-- View -->
+                                                <button
+                                                    @click="ViewItem(item)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
+                                                    title="View Item"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                >
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+
+                                                <!-- Edit -->
+                                                <button
+                                                    @click="
+                                                        () => {
+                                                            editItem(item);
+                                                            formErrors = {};
+                                                            processStatus =
+                                                                'Edit';
+                                                        }
+                                                    "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addItemModal"
+                                                    title="Edit"
+                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                                >
+                                                    <Pencil class="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -1091,7 +1139,11 @@ const downloadExcel = (data) => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
-                                    Add New Inventory Item
+                                    {{
+                                        processStatus === "Edit"
+                                            ? "Edit Item"
+                                            : "Add New Item"
+                                    }}
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -1107,86 +1159,202 @@ const downloadExcel = (data) => {
                                 <!-- top row -->
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label">Product Name</label>
-                                        <input v-model="form.name" type="text" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.name }"
-                                            placeholder="e.g., Chicken Breast" />
-                                        <small v-if="formErrors.name" class="text-danger">
+                                        <label class="form-label"
+                                            >Product Name</label
+                                        >
+                                        <input
+                                            v-model="form.name"
+                                            type="text"
+                                            class="form-control"
+                                            :class="{
+                                                'is-invalid': formErrors.name,
+                                            }"
+                                            placeholder="e.g., Chicken Breast"
+                                        />
+                                        <small
+                                            v-if="formErrors.name"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.name[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="form.category" :options="categories" optionLabel="name"
-                                            optionValue="name" placeholder="Select Category" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                            @update:modelValue="form.subcategory = ''"
-                                            :class="{ 'is-invalid': formErrors.category }" />
-                                        <small v-if="formErrors.category" class="text-danger">
+                                        <label class="form-label"
+                                            >Category</label
+                                        >
+                                        <Select
+                                            v-model="form.category"
+                                            :options="categories"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Category"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            @update:modelValue="
+                                                form.subcategory = ''
+                                            "
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors.category,
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors.category"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.category[0] }}
                                         </small>
                                     </div>
 
                                     <!-- Subcategory -->
-                                    <div class="col-md-6" v-if="subcatOptions.length">
-                                        <label class="form-label">Subcategory</label>
-                                        <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
-                                            optionValue="value" placeholder="Select Subcategory" class="w-100"
-                                            :appendTo="body" :autoZIndex="true" :baseZIndex="2000"
-                                            :class="{ 'is-invalid': formErrors.subcategory }" />
-                                        <small v-if="formErrors.subcategory" class="text-danger">
+                                    <div
+                                        class="col-md-6"
+                                        v-if="subcatOptions.length"
+                                    >
+                                        <label class="form-label"
+                                            >Subcategory</label
+                                        >
+                                        <Select
+                                            v-model="form.subcategory"
+                                            :options="subcatOptions"
+                                            optionLabel="name"
+                                            optionValue="value"
+                                            placeholder="Select Subcategory"
+                                            class="w-100"
+                                            :appendTo="body"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors.subcategory,
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors.subcategory"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.subcategory[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Minimum Stock Alert Level</label>
-                                        <input v-model="form.minAlert" type="number" min="0" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.minAlert }" placeholder="e.g., 5" />
-                                        <small v-if="formErrors.minAlert" class="text-danger">
+                                        <label class="form-label d-block"
+                                            >Minimum Stock Alert Level</label
+                                        >
+                                        <input
+                                            v-model="form.minAlert"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors.minAlert,
+                                            }"
+                                            placeholder="e.g., 5"
+                                        />
+                                        <small
+                                            v-if="formErrors.minAlert"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.minAlert[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Unit Type</label>
-                                        <Select v-model="form.unit" :options="units" optionLabel="name"
-                                            optionValue="name" placeholder="Select Unit" class="w-100" appendTo="self"
-                                            :autoZIndex="true" :baseZIndex="2000"
-                                            :class="{ 'is-invalid': formErrors.unit }" />
-                                        <small v-if="formErrors.unit" class="text-danger">
+                                        <label class="form-label"
+                                            >Unit Type</label
+                                        >
+                                        <Select
+                                            v-model="form.unit"
+                                            :options="units"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Unit"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            :class="{
+                                                'is-invalid': formErrors.unit,
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors.unit"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.unit[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Preferred Supplier</label>
-                                        <Select v-model="form.supplier" :options="suppliers" optionLabel="name"
-                                            optionValue="name" placeholder="Select Supplier" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                            :class="{ 'is-invalid': formErrors.supplier }" />
-                                        <small v-if="formErrors.supplier" class="text-danger">
+                                        <label class="form-label"
+                                            >Preferred Supplier</label
+                                        >
+                                        <Select
+                                            v-model="form.supplier"
+                                            :options="suppliers"
+                                            optionLabel="name"
+                                            optionValue="name"
+                                            placeholder="Select Supplier"
+                                            class="w-100"
+                                            appendTo="self"
+                                            :autoZIndex="true"
+                                            :baseZIndex="2000"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors.supplier,
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors.supplier"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.supplier[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-md-12">
-                                        <label class="form-label">SKU (Optional)</label>
-                                        <input v-model="form.sku" type="text" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.sku }"
-                                            placeholder="Stock Keeping Unit" />
-                                        <small v-if="formErrors.sku" class="text-danger">
+                                        <label class="form-label"
+                                            >SKU (Optional)</label
+                                        >
+                                        <input
+                                            v-model="form.sku"
+                                            type="text"
+                                            class="form-control"
+                                            :class="{
+                                                'is-invalid': formErrors.sku,
+                                            }"
+                                            placeholder="Stock Keeping Unit"
+                                        />
+                                        <small
+                                            v-if="formErrors.sku"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.sku[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-12">
-                                        <label class="form-label">Description</label>
-                                        <textarea v-model="form.description" rows="4" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.description }"
-                                            placeholder="Notes about this product"></textarea>
-                                        <small v-if="formErrors.description" class="text-danger">
+                                        <label class="form-label"
+                                            >Description</label
+                                        >
+                                        <textarea
+                                            v-model="form.description"
+                                            rows="4"
+                                            class="form-control"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors.description,
+                                            }"
+                                            placeholder="Notes about this product"
+                                        ></textarea>
+                                        <small
+                                            v-if="formErrors.description"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.description[0] }}
                                         </small>
                                     </div>
@@ -1195,40 +1363,112 @@ const downloadExcel = (data) => {
                                 <hr class="my-4" />
 
                                 <!-- Nutrition -->
-                                <h6 class="mb-3">Nutrition Information (per unit)</h6>
+                                <h6 class="mb-3">
+                                    Nutrition Information (per unit)
+                                </h6>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label">Calories</label>
-                                        <input v-model="form.nutrition.calories" type="number" min="0"
+                                        <label class="form-label"
+                                            >Calories</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.calories"
+                                            type="number"
+                                            min="0"
                                             class="form-control"
-                                            :class="{ 'is-invalid': formErrors['nutrition.calories'] }" />
-                                        <small v-if="formErrors['nutrition.calories']" class="text-danger">
-                                            {{ formErrors['nutrition.calories'][0] }}
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors[
+                                                        'nutrition.calories'
+                                                    ],
+                                            }"
+                                        />
+                                        <small
+                                            v-if="
+                                                formErrors['nutrition.calories']
+                                            "
+                                            class="text-danger"
+                                        >
+                                            {{
+                                                formErrors[
+                                                    "nutrition.calories"
+                                                ][0]
+                                            }}
                                         </small>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Fat (g)</label>
-                                        <input v-model="form.nutrition.fat" type="number" min="0" class="form-control"
-                                            :class="{ 'is-invalid': formErrors['nutrition.fat'] }" />
-                                        <small v-if="formErrors['nutrition.fat']" class="text-danger">
-                                            {{ formErrors['nutrition.fat'][0] }}
-                                        </small>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Protein (g)</label>
-                                        <input v-model="form.nutrition.protein" type="number" min="0"
+                                        <label class="form-label"
+                                            >Fat (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.fat"
+                                            type="number"
+                                            min="0"
                                             class="form-control"
-                                            :class="{ 'is-invalid': formErrors['nutrition.protein'] }" />
-                                        <small v-if="formErrors['nutrition.protein']" class="text-danger">
-                                            {{ formErrors['nutrition.protein'][0] }}
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors['nutrition.fat'],
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors['nutrition.fat']"
+                                            class="text-danger"
+                                        >
+                                            {{ formErrors["nutrition.fat"][0] }}
                                         </small>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Carbs (g)</label>
-                                        <input v-model="form.nutrition.carbs" type="number" min="0" class="form-control"
-                                            :class="{ 'is-invalid': formErrors['nutrition.carbs'] }" />
-                                        <small v-if="formErrors['nutrition.carbs']" class="text-danger">
-                                            {{ formErrors['nutrition.carbs'][0] }}
+                                        <label class="form-label"
+                                            >Protein (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.protein"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors[
+                                                        'nutrition.protein'
+                                                    ],
+                                            }"
+                                        />
+                                        <small
+                                            v-if="
+                                                formErrors['nutrition.protein']
+                                            "
+                                            class="text-danger"
+                                        >
+                                            {{
+                                                formErrors[
+                                                    "nutrition.protein"
+                                                ][0]
+                                            }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label"
+                                            >Carbs (g)</label
+                                        >
+                                        <input
+                                            v-model="form.nutrition.carbs"
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors[
+                                                        'nutrition.carbs'
+                                                    ],
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors['nutrition.carbs']"
+                                            class="text-danger"
+                                        >
+                                            {{
+                                                formErrors["nutrition.carbs"][0]
+                                            }}
                                         </small>
                                     </div>
                                 </div>
@@ -1236,73 +1476,136 @@ const downloadExcel = (data) => {
                                 <div class="row g-4 mt-1">
                                     <!-- Allergies -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Allergies</label>
-                                        <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Allergies"
-                                            class="w-full md:w-80" appendTo="self"
-                                            :class="{ 'is-invalid': formErrors.allergies }" />
-                                        <small v-if="formErrors.allergies" class="text-danger">
+                                        <label class="form-label d-block"
+                                            >Allergies</label
+                                        >
+                                        <MultiSelect
+                                            v-model="form.allergies"
+                                            :options="allergies"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            filter
+                                            placeholder="Select Allergies"
+                                            class="w-full md:w-80"
+                                            appendTo="self"
+                                            :class="{
+                                                'is-invalid':
+                                                    formErrors.allergies,
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors.allergies"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.allergies[0] }}
                                         </small>
                                     </div>
 
                                     <!-- Tags -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
-                                        <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
-                                            appendTo="self" :class="{ 'is-invalid': formErrors.tags }" />
-                                        <small v-if="formErrors.tags" class="text-danger">
+                                        <label class="form-label d-block"
+                                            >Tags (Halal, Haram, etc.)</label
+                                        >
+                                        <MultiSelect
+                                            v-model="form.tags"
+                                            :options="tags"
+                                            optionLabel="name"
+                                            optionValue="id"
+                                            filter
+                                            placeholder="Select Tags"
+                                            class="w-full md:w-80"
+                                            appendTo="self"
+                                            :class="{
+                                                'is-invalid': formErrors.tags,
+                                            }"
+                                        />
+                                        <small
+                                            v-if="formErrors.tags"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.tags[0] }}
                                         </small>
                                     </div>
                                 </div>
 
                                 <!-- Image -->
-                                <div class="row g-3 mt-2 align-items-center">
-                                    <div class="col-sm-6 col-md-4">
-                                        <div class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                                            :class="{ 'is-invalid': formErrors.image }">
-                                            <template v-if="!form.imagePreview">
-                                                <div class="text-center small">
-                                                    <div class="mb-2">
-                                                        <i class="bi bi-image fs-3"></i>
-                                                    </div>
-                                                    <div>Drag image here</div>
-                                                    <div>
-                                                        or
-                                                        <label class="text-primary fw-semibold"
-                                                            style="cursor: pointer;">
-                                                            Browse image
-                                                            <input type="file" accept="image/*" class="d-none"
-                                                                @change="handleImage" />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                            <template v-else>
-                                                <img :src="form.imagePreview" class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover" />
-                                            </template>
+
+                                <div class="col-md-4">
+                                    <div
+                                        class="logo-card"
+                                        :class="{
+                                            'is-invalid': formErrors.image,
+                                        }"
+                                    >
+                                        <div
+                                            class="logo-frame"
+                                            @click="
+                                                form.imageUrl &&
+                                                    openImageModal()
+                                            "
+                                        >
+                                            <img
+                                                v-if="form.imageUrl"
+                                                :src="form.imageUrl"
+                                                alt="Image"
+                                            />
+                                            <div v-else class="placeholder">
+                                                <i class="bi bi-image"></i>
+                                            </div>
                                         </div>
-                                        <small v-if="formErrors.image" class="text-danger">
+
+                                        <small class="text-muted mt-2 d-block"
+                                            >Upload Image</small
+                                        >
+
+                                        <!-- <ImageCropperModal
+                                            @cropped="handleCropped"
+                                            :aspectRatio="1"
+                                            :image="form.imageUrl"
+                                        /> -->
+                                        <!-- <ImageCropperModal :ratio="1" @croppedImg="croppedImgSubmit" /> -->
+                                          <!-- <ImageZoomModal
+                                                :file="form.image_url"
+                                                :width="50"
+                                            /> -->
+
+                                        <ImageCropperModal
+                                            :show="showCropper"
+                                            @close="showCropper = false"
+                                            @cropped="onCropped"
+                                        />
+                                        
+
+                                        <small
+                                            v-if="formErrors.image"
+                                            class="text-danger"
+                                        >
                                             {{ formErrors.image[0] }}
                                         </small>
                                     </div>
                                 </div>
 
                                 <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
-                                        @click="submitProduct">
-                                        <span>Add Product</span>
+                                    <button
+                                        class="btn btn-primary rounded-pill px-5 py-2"
+                                        :disabled="submitting"
+                                        @click="submitProduct"
+                                    >
+                                        {{
+                                            processStatus === "Edit"
+                                                ? "Update Item"
+                                                : "Add Item"
+                                        }}
                                     </button>
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetForm">
+                                    <button
+                                        class="btn btn-secondary rounded-pill px-4 ms-2"
+                                        data-bs-dismiss="modal"
+                                        @click="resetForm"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -1321,15 +1624,36 @@ const downloadExcel = (data) => {
                                         <h5 class="modal-title fw-semibold mb-0">
                                             View Inventory Item
                                         </h5>
-                                        <small class="text-muted" v-if="viewItemRef?.sku">SKU: {{ viewItemRef.sku
-                                            }}</small>
+                                       
+                                        <small
+                                            class="text-muted"
+                                            v-if="viewItemRef?.sku"
+                                            >SKU: {{ viewItemRef.sku }}</small
+                                        >
                                     </div>
                                 </div>
 
                                 <!-- Close -->
-                                <button type="button" class="btn btn-light btn-sm rounded-circle p-2"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <i class="bi bi-x-lg"></i>
+                                <button
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
                                 </button>
                             </div>
 
@@ -1431,14 +1755,20 @@ const downloadExcel = (data) => {
                                                             viewItemRef
                                                                 .nutrition
                                                                 ?.protein ?? "—"
-                                                        }}</span>
-                                                    <span class="badge rounded-pill  bg-warning text-white">Fat:
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        class="badge rounded-pill bg-warning text-white"
+                                                        >Fat:
                                                         {{
                                                             viewItemRef
                                                                 .nutrition
                                                                 ?.fat ?? "—"
-                                                        }}</span>
-                                                    <span class="badge rounded-pill  bg-secondary text-white">Carbs:
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        class="badge rounded-pill bg-secondary text-white"
+                                                        >Carbs:
                                                         {{
                                                             viewItemRef
                                                                 .nutrition
@@ -1451,9 +1781,14 @@ const downloadExcel = (data) => {
                                                 <h6 class="fw-semibold">
                                                     Tags
                                                 </h6>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <span v-for="tag in viewItemRef.tags" :key="tag"
-                                                        class="badge rounded-pill bg-info text-white">
+                                                <div
+                                                    class="d-flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        v-for="tag in viewItemRef.tags"
+                                                        :key="tag"
+                                                        class="badge rounded-pill bg-info text-white"
+                                                    >
                                                         {{ tag }}
                                                     </span>
                                                 </div>
@@ -1463,10 +1798,14 @@ const downloadExcel = (data) => {
                                                 <h6 class="fw-semibold">
                                                     Allergies
                                                 </h6>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <span v-for="allergy in viewItemRef.allergies" :key="allergy"
-                                                        class="badge rounded-pill bg-danger text-white">
-
+                                                <div
+                                                    class="d-flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        v-for="allergy in viewItemRef.allergies"
+                                                        :key="allergy"
+                                                        class="badge rounded-pill bg-danger text-white"
+                                                    >
                                                         {{ allergy }}
                                                     </span>
                                                 </div>
@@ -1478,19 +1817,23 @@ const downloadExcel = (data) => {
                                     <div class="col-12 col-md-5">
                                         <div class="card border-0 shadow-sm rounded-4 h-100">
                                             <div
-                                                class="card-body d-flex flex-column align-items-center justify-content-center">
-                                                <div v-if="viewItemRef.image" class="w-100">
-                                                    <img :src="`/storage/${viewItemRef.image}`" alt="Item Image"
-                                                        class="w-100 rounded-3" style="
+                                                class="card-body d-flex flex-column align-items-center justify-content-center"
+                                            >
+                                          
+                                                <div
+                                                    v-if="viewItemRef.image"
+                                                    class="w-100"
+                                                >
+                                                    <img
+                                                        :src="viewItemRef.image"
+                                                        alt="Item Image"
+                                                        class="w-100 rounded-3"
+                                                        style="
                                                             max-height: 260px;
                                                             object-fit: cover;
                                                         " />
                                                 </div>
-                                                <div v-else class="text-center text-muted py-5">
-                                                    <i class="bi bi-image fs-1 d-block mb-2"></i>
-                                                    <small>No image
-                                                        uploaded</small>
-                                                </div>
+                                                 
                                             </div>
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between">
@@ -1501,28 +1844,41 @@ const downloadExcel = (data) => {
                                             </div>
 
                                             <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between">
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
                                                 <span class="text-muted">
-                                                    Stock</span>
-                                                <span :class="[
-                                                    'fw-semibold',
-                                                    viewItemRef.stock > 0
-                                                        ? 'text-success'
-                                                        : 'text-danger',
-                                                ]">
+                                                    Stock</span
+                                                >
+                                                <span
+                                                    :class="[
+                                                        'fw-semibold',
+                                                        viewItemRef.stock > 0
+                                                            ? 'text-success'
+                                                            : 'text-danger',
+                                                    ]"
+                                                >
                                                     {{ viewItemRef.stock }}
-
                                                 </span>
-                                                <span v-if="
-                                                    viewItemRef.stock ===
-                                                    0
-                                                " class="badge bg-red-600 rounded-pill">Out of stock</span>
-                                                <span v-else-if="
-                                                    viewItemRef.stock <=
-                                                    viewItemRef.minAlert
-                                                " class="badge bg-warning rounded-pill">Low-stock</span>
-                                                <span v-else class="badge bg-success rounded-pill">In-stock</span>
-
+                                                <span
+                                                    v-if="
+                                                        viewItemRef.stock === 0
+                                                    "
+                                                    class="badge bg-red-600 rounded-pill"
+                                                    >Out of stock</span
+                                                >
+                                                <span
+                                                    v-else-if="
+                                                        viewItemRef.stock <=
+                                                        viewItemRef.minAlert
+                                                    "
+                                                    class="badge bg-warning rounded-pill"
+                                                    >Low-stock</span
+                                                >
+                                                <span
+                                                    v-else
+                                                    class="badge bg-success rounded-pill"
+                                                    >In-stock</span
+                                                >
                                             </div>
 
                                             <div
@@ -1547,14 +1903,14 @@ const downloadExcel = (data) => {
                                         <i class="bi bi-printer me-1"></i> Print
                                     </button> -->
 
-                                    <button data-bs-toggle="modal" data-bs-target="#addItemModal"
+                                    <button
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#addItemModal"
                                         class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
-                                        @click="editItem(viewItemRef)">
+                                        @click="editItem(viewItemRef)"
+                                    >
                                         <Pencil class="w-4 h-4" /> Edit
                                     </button>
-
-
-
                                 </div>
 
                                 <button type="button" class="btn btn-primary rounded-pill" data-bs-dismiss="modal">
@@ -1566,7 +1922,14 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- Stockin Modal -->
-                <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="stockInModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <!-- Loader while fetching data -->
+
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
@@ -1745,6 +2108,14 @@ const downloadExcel = (data) => {
             </div>
         </div>
     </Master>
+    <!-- Modals -->
+
+    <!-- <ImageZoomModal
+        class="image-cropper-modal"
+        :show="showImageModal"
+        :image="previewImage"
+        @close="showImageModal = false"
+    /> -->
 </template>
 
 <style scoped>
@@ -1881,5 +2252,11 @@ const downloadExcel = (data) => {
     .search-wrap {
         width: 100%;
     }
+}
+.image-cropper-modal {
+    z-index: 2001 !important;
+}
+.image-cropper-backdrop {
+    z-index: 2000 !important;
 }
 </style>

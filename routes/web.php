@@ -36,6 +36,9 @@ use App\Http\Controllers\Reference\{
 };
 
 
+// routes/web.php
+Route::get('/test-helper', fn() => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
 
 Route::get('/', function () {
