@@ -11,7 +11,8 @@ class StoreMenuRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        // allow all authenticated users (you can add policies later if needed)
+        return true;
     }
 
     /**
@@ -22,7 +23,17 @@ class StoreMenuRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'name'        => ['required', 'string', 'max:255'],
+            'slug'        => ['nullable', 'string', 'max:255', 'unique:menu_items,slug'],
+            'category'    => ['required', 'string'],
+            'subcategory' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+            'minAlert'    => ['nullable', 'numeric', 'min:0'], // (if you're reusing this as base price)
+            'allergies'   => ['array'],
+            'allergies.*' => ['integer', 'exists:allergies,id'],
+            'tags'        => ['array'],
+            'tags.*'      => ['integer', 'exists:tags,id'],
+            'image'       => ['nullable', 'image', 'max:2048'], // optional but recommended
         ];
     }
 }

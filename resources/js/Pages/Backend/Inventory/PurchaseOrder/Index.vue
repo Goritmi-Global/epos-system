@@ -2,24 +2,6 @@
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
 
-/* =============== Demo table data (replace with API later) =============== */
-// const orders = ref([
-//     {
-//         id: 1,
-//         supplier: "Wali Khan",
-//         purchasedAt: "2025-08-30T02:47:00",
-//         status: "completed",
-//         total: 26.4,
-//     },
-//     {
-//         id: 2,
-//         supplier: "Noor",
-//         purchasedAt: "2025-08-28T23:34:00",
-//         status: "completed",
-//         total: 3000.0,
-//     },
-// ]);
-
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
@@ -38,45 +20,7 @@ const fmtDateTime = (iso) =>
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
-/* =============== Search on main list =============== */
-
-
-/* =============== Static inventory & suppliers (replace with API) =============== */
-const inventory = ref([
-    {
-        id: 101,
-        name: "Basmati rice",
-        image: "https://picsum.photos/seed/rice/72",
-        category: "Poultry",
-        unit: "gram (g)",
-        stock: 2472,
-        defaultPrice: 2.2,
-    },
-    {
-        id: 102,
-        name: "Chicken Breast",
-        image: "https://picsum.photos/seed/chicken/72",
-        category: "Poultry",
-        unit: "gram (g)",
-        stock: 680,
-        defaultPrice: 5.5,
-    },
-]);
-
 const showHelp = ref(false);
-
-/* =========================================================================
-   ADD PURCHASE (instant stock-in)
-   =======================================================================*/
-// const p_supplier = ref("Noor");
-// const p_search = ref("");
-// const p_filteredInv = computed(() => {
-//     const t = p_search.value.trim().toLowerCase();
-//     if (!t) return inventory.value;
-//     return inventory.value.filter((i) =>
-//         [i.name, i.category, i.unit].join(" ").toLowerCase().includes(t)
-//     );
-// });
 
 const props = defineProps({
     orders: Array,

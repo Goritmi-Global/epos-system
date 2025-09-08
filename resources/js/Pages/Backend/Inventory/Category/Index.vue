@@ -26,6 +26,7 @@ const fetchCategories = async () => {
     try {
         const res = await axios.get("/categories");
         categories.value = res.data.data;
+        console.log("Fetched categories:", categories.value);
     } catch (err) {
         console.error("Failed to fetch categories:", err);
     }

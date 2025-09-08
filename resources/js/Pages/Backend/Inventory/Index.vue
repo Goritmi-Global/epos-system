@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated,watch  } from "vue";
+import { ref, computed, onMounted, onUpdated, watch } from "vue";
 import Select from "primevue/select";
 import MultiSelect from "primevue/multiselect";
 import { toast } from "vue3-toastify";
@@ -213,7 +213,7 @@ const submitProduct = async () => {
     submitting.value = true;
 
     //  clear previous errors before submitting
-    formErrors.value = {}; 
+    formErrors.value = {};
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
     formData.append("category", form.value.category);
@@ -281,29 +281,29 @@ const submitProduct = async () => {
 
 //  One deep watcher for the entire form
 watch(
-  form,
-  (newVal) => {
-    Object.keys(formErrors.value).forEach((key) => {
-      if (key.includes(".")) {
-        // handle nested keys e.g. "nutrition.calories"
-        const [parent, child] = key.split(".");
-        if (newVal[parent] && newVal[parent][child] !== "") {
-          delete formErrors.value[key];
-        }
-      } else {
-        const value = newVal[key];
-        if (
-          value !== null &&
-          value !== undefined &&
-          value !== "" &&
-          (!(Array.isArray(value)) || value.length > 0)
-        ) {
-          delete formErrors.value[key];
-        }
-      }
-    });
-  },
-  { deep: true }
+    form,
+    (newVal) => {
+        Object.keys(formErrors.value).forEach((key) => {
+            if (key.includes(".")) {
+                // handle nested keys e.g. "nutrition.calories"
+                const [parent, child] = key.split(".");
+                if (newVal[parent] && newVal[parent][child] !== "") {
+                    delete formErrors.value[key];
+                }
+            } else {
+                const value = newVal[key];
+                if (
+                    value !== null &&
+                    value !== undefined &&
+                    value !== "" &&
+                    (!(Array.isArray(value)) || value.length > 0)
+                ) {
+                    delete formErrors.value[key];
+                }
+            }
+        });
+    },
+    { deep: true }
 );
 
 
@@ -590,10 +590,9 @@ const downloadCSV = (data) => {
                 `"${s.sku || ""}"`,
                 `"${s.description || ""}"`,
                 `"${nutritionStr}"`,
-                `"${
-                    Array.isArray(s.allergies)
-                        ? s.allergies.join(", ")
-                        : s.allergies || ""
+                `"${Array.isArray(s.allergies)
+                    ? s.allergies.join(", ")
+                    : s.allergies || ""
                 }"`,
                 `"${Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || ""}"`,
                 `"${s.created_at || ""}"`,
@@ -730,9 +729,8 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `Inventory_items_${
-            new Date().toISOString().split("T")[0]
-        }.pdf`;
+        const fileName = `Inventory_items_${new Date().toISOString().split("T")[0]
+            }.pdf`;
         doc.save(fileName);
         toast.success("PDF downloaded successfully ", { autoClose: 2500 });
     } catch (error) {
@@ -822,9 +820,8 @@ const downloadExcel = (data) => {
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `inventory_items_${
-            new Date().toISOString().split("T")[0]
-        }.xlsx`;
+        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]
+            }.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
@@ -852,9 +849,7 @@ const downloadExcel = (data) => {
                 <div class="row g-3">
                     <div v-for="c in kpis" :key="c.label" class="col">
                         <div class="card border-0 shadow-sm rounded-4 h-100">
-                            <div
-                                class="card-body d-flex align-items-center justify-content-between "
-                            >
+                            <div class="card-body d-flex align-items-center justify-content-between ">
                                 <!-- left: value + label -->
                                 <div>
                                     <div class="fw-bold fs-4">
@@ -866,11 +861,7 @@ const downloadExcel = (data) => {
                                 </div>
                                 <!-- right: soft icon chip -->
                                 <div :class="['icon-chip', c.iconBg]">
-                                    <component
-                                        :is="c.icon"
-                                        :class="c.iconColor"
-                                        size="26"
-                                    />
+                                    <component :is="c.icon" :class="c.iconColor" size="26" />
                                 </div>
                             </div>
                         </div>
@@ -881,131 +872,82 @@ const downloadExcel = (data) => {
                 <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
-                        <div
-                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-                        >
+                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                             <h5 class="mb-0 fw-semibold">Stock</h5>
 
-                            <div
-                                class="d-flex flex-wrap gap-2 align-items-center"
-                            >
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <div class="search-wrap">
                                     <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="q"
-                                        type="text"
-                                        class="form-control search-input"
-                                        placeholder="Search"
-                                    />
+                                    <input v-model="q" type="text" class="form-control search-input"
+                                        placeholder="Search" />
                                 </div>
 
                                 <!-- Filter By -->
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
+                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown">
                                         Filter By
-                                        <span
-                                            v-if="sortBy"
-                                            class="ms-1 text-muted small"
-                                        >
+                                        <span v-if="sortBy" class="ms-1 text-muted small">
                                             {{
                                                 sortBy === "stock_desc"
                                                     ? "High→Low"
                                                     : sortBy === "stock_asc"
-                                                    ? "Low→High"
-                                                    : sortBy === "name_asc"
-                                                    ? "A→Z"
-                                                    : sortBy === "name_desc"
-                                                    ? "Z→A"
-                                                    : ""
+                                                        ? "Low→High"
+                                                        : sortBy === "name_asc"
+                                                            ? "A→Z"
+                                                            : sortBy === "name_desc"
+                                                                ? "Z→A"
+                                                                : ""
                                             }}
                                         </span>
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'stock_desc'"
-                                                >From High to Low</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'stock_desc'">From High to Low</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'stock_asc'"
-                                                >From Low to High</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'stock_asc'">From Low to High</a>
                                         </li>
                                         <li>
                                             <hr class="dropdown-divider" />
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'name_asc'"
-                                                >Ascending</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'name_asc'">Ascending</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                @click="sortBy = 'name_desc'"
-                                                >Descending</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                @click="sortBy = 'name_desc'">Descending</a>
                                         </li>
                                     </ul>
                                 </div>
 
                                 <!-- Add Item -->
-                                <button
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#addItemModal"
-                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                                >
+                                <button data-bs-toggle="modal" data-bs-target="#addItemModal"
+                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                     <Plus class="w-4 h-4" /> Add Item
                                 </button>
 
                                 <!-- Download all -->
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
+                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown">
                                         Download all
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('pdf')"
-                                                >Download as PDF</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                @click="onDownload('pdf')">Download as PDF</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('excel')"
-                                                >Download as Excel</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                @click="onDownload('excel')">Download as Excel</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('csv')"
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                @click="onDownload('csv')">
                                                 Download as CSV
                                             </a>
                                         </li>
@@ -1033,28 +975,20 @@ const downloadExcel = (data) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr
-                                        v-for="(item, idx) in sortedItems"
-                                        :key="item.id"
-                                    >
+                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
                                         <td>{{ idx + 1 }}</td>
                                         <td class="fw-semibold">
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            <img
-                                                :src="
-                                                    item.image
-                                                        ? `/storage/${item.image}`
-                                                        : '/default.png'
-                                                "
-                                                class="rounded"
-                                                style="
+                                            <img :src="item.image
+                                                    ? `/storage/${item.image}`
+                                                    : '/default.png'
+                                                " class="rounded" style="
                                                     width: 40px;
                                                     height: 40px;
                                                     object-fit: cover;
-                                                "
-                                            />
+                                                " />
                                         </td>
                                         <td>
                                             {{
@@ -1064,10 +998,7 @@ const downloadExcel = (data) => {
                                                 )
                                             }}
                                         </td>
-                                        <td
-                                            class="text-truncate"
-                                            style="max-width: 260px"
-                                        >
+                                        <td class="text-truncate" style="max-width: 260px">
                                             {{ item.category }}
                                         </td>
                                         <td>{{ item.unit }}</td>
@@ -1075,8 +1006,8 @@ const downloadExcel = (data) => {
                                             {{
                                                 item.availableStock
                                                     ? item.availableStock.toFixed(
-                                                          1
-                                                      )
+                                                        1
+                                                    )
                                                     : 0
                                             }}
                                         </td>
@@ -1089,97 +1020,53 @@ const downloadExcel = (data) => {
                                             }}
                                         </td>
                                         <td>
-                                            <span
-                                                v-if="item.availableStock === 0"
-                                                class="badge bg-red-600"
-                                                >Out of stock</span
-                                            >
-                                            <span
-                                                v-else-if="
-                                                    item.availableStock <=
-                                                    item.minAlert
-                                                "
-                                                class="badge bg-warning"
-                                                >Low-stock</span
-                                            >
-                                            <span
-                                                v-else
-                                                class="badge bg-success"
-                                                >In-stock</span
-                                            >
+                                            <span v-if="item.availableStock === 0" class="badge bg-red-600">Out of
+                                                stock</span>
+                                            <span v-else-if="
+                                                item.availableStock <=
+                                                item.minAlert
+                                            " class="badge bg-warning">Low-stock</span>
+                                            <span v-else class="badge bg-success">In-stock</span>
                                         </td>
 
                                         <td class="text-end">
                                             <div class="dropdown">
-                                                <button
-                                                    class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown"
-                                                    aria-expanded="false"
-                                                    title="Actions"
-                                                >
+                                                <button class="btn btn-link text-secondary p-0 fs-5"
+                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
                                                     <Menu size="20" />
                                                 </button>
                                                 <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu"
-                                                >
+                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
                                                     <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                openStockModal(
-                                                                    item
-                                                                )
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-box-arrow-in-down-right me-2"
-                                                            ></i
-                                                            >Stock In
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
+                                                            openStockModal(
+                                                                item
+                                                            )
+                                                            ">
+                                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                openStockOutModal(
-                                                                    item
-                                                                )
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-box-arrow-up-right me-2"
-                                                            ></i
-                                                            >Stock Out
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
+                                                            openStockOutModal(
+                                                                item
+                                                            )
+                                                            ">
+                                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                ViewItem(item)
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-eye me-2"
-                                                            ></i
-                                                            >View Item
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
+                                                            ViewItem(item)
+                                                            ">
+                                                            <i class="bi bi-eye me-2"></i>View Item
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                editItem(item)
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-pencil-square me-2"
-                                                            ></i
-                                                            >Edit
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
+                                                            editItem(item)
+                                                            ">
+                                                            <i class="bi bi-pencil-square me-2"></i>Edit
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -1188,10 +1075,7 @@ const downloadExcel = (data) => {
                                     </tr>
 
                                     <tr v-if="sortedItems.length === 0">
-                                        <td
-                                            colspan="11"
-                                            class="text-center text-muted py-4"
-                                        >
+                                        <td colspan="11" class="text-center text-muted py-4">
                                             No items found.
                                         </td>
                                     </tr>
@@ -1202,16 +1086,8 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- ===================== Add New Product Modal ===================== -->
-                <div
-                    class="modal fade"
-                    id="addItemModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
-                    <div
-                        class="modal-dialog modal-lg modal-dialog-centered"
-                        role="document"
-                    >
+                <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
@@ -1219,324 +1095,213 @@ const downloadExcel = (data) => {
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                    title="Close"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-6 w-6 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
+                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
 
                             <div class="modal-body">
-    <!-- top row -->
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label">Product Name</label>
-            <input
-                v-model="form.name"
-                type="text"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors.name }"
-                placeholder="e.g., Chicken Breast"
-            />
-            <small v-if="formErrors.name" class="text-danger">
-                {{ formErrors.name[0] }}
-            </small>
-        </div>
+                                <!-- top row -->
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Product Name</label>
+                                        <input v-model="form.name" type="text" class="form-control"
+                                            :class="{ 'is-invalid': formErrors.name }"
+                                            placeholder="e.g., Chicken Breast" />
+                                        <small v-if="formErrors.name" class="text-danger">
+                                            {{ formErrors.name[0] }}
+                                        </small>
+                                    </div>
 
-        <div class="col-md-6">
-            <label class="form-label">Category</label>
-            <Select
-                v-model="form.category"
-                :options="categories"
-                optionLabel="name"
-                optionValue="name"
-                placeholder="Select Category"
-                class="w-100"
-                appendTo="self"
-                :autoZIndex="true"
-                :baseZIndex="2000"
-                @update:modelValue="form.subcategory = ''"
-                :class="{ 'is-invalid': formErrors.category }"
-            />
-            <small v-if="formErrors.category" class="text-danger">
-                {{ formErrors.category[0] }}
-            </small>
-        </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="form.category" :options="categories" optionLabel="name"
+                                            optionValue="name" placeholder="Select Category" class="w-100"
+                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                            @update:modelValue="form.subcategory = ''"
+                                            :class="{ 'is-invalid': formErrors.category }" />
+                                        <small v-if="formErrors.category" class="text-danger">
+                                            {{ formErrors.category[0] }}
+                                        </small>
+                                    </div>
 
-        <!-- Subcategory -->
-        <div class="col-md-6" v-if="subcatOptions.length">
-            <label class="form-label">Subcategory</label>
-            <Select
-                v-model="form.subcategory"
-                :options="subcatOptions"
-                optionLabel="name"
-                optionValue="value"
-                placeholder="Select Subcategory"
-                class="w-100"
-                :appendTo="body"
-                :autoZIndex="true"
-                :baseZIndex="2000"
-                :class="{ 'is-invalid': formErrors.subcategory }"
-            />
-            <small v-if="formErrors.subcategory" class="text-danger">
-                {{ formErrors.subcategory[0] }}
-            </small>
-        </div>
+                                    <!-- Subcategory -->
+                                    <div class="col-md-6" v-if="subcatOptions.length">
+                                        <label class="form-label">Subcategory</label>
+                                        <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
+                                            optionValue="value" placeholder="Select Subcategory" class="w-100"
+                                            :appendTo="body" :autoZIndex="true" :baseZIndex="2000"
+                                            :class="{ 'is-invalid': formErrors.subcategory }" />
+                                        <small v-if="formErrors.subcategory" class="text-danger">
+                                            {{ formErrors.subcategory[0] }}
+                                        </small>
+                                    </div>
 
-        <div class="col-md-6">
-            <label class="form-label d-block">Minimum Stock Alert Level</label>
-            <input
-                v-model="form.minAlert"
-                type="number"
-                min="0"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors.minAlert }"
-                placeholder="e.g., 5"
-            />
-            <small v-if="formErrors.minAlert" class="text-danger">
-                {{ formErrors.minAlert[0] }}
-            </small>
-        </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block">Minimum Stock Alert Level</label>
+                                        <input v-model="form.minAlert" type="number" min="0" class="form-control"
+                                            :class="{ 'is-invalid': formErrors.minAlert }" placeholder="e.g., 5" />
+                                        <small v-if="formErrors.minAlert" class="text-danger">
+                                            {{ formErrors.minAlert[0] }}
+                                        </small>
+                                    </div>
 
-        <div class="col-md-6">
-            <label class="form-label">Unit Type</label>
-            <Select
-                v-model="form.unit"
-                :options="units"
-                optionLabel="name"
-                optionValue="name"
-                placeholder="Select Unit"
-                class="w-100"
-                appendTo="self"
-                :autoZIndex="true"
-                :baseZIndex="2000"
-                :class="{ 'is-invalid': formErrors.unit }"
-            />
-            <small v-if="formErrors.unit" class="text-danger">
-                {{ formErrors.unit[0] }}
-            </small>
-        </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Unit Type</label>
+                                        <Select v-model="form.unit" :options="units" optionLabel="name"
+                                            optionValue="name" placeholder="Select Unit" class="w-100" appendTo="self"
+                                            :autoZIndex="true" :baseZIndex="2000"
+                                            :class="{ 'is-invalid': formErrors.unit }" />
+                                        <small v-if="formErrors.unit" class="text-danger">
+                                            {{ formErrors.unit[0] }}
+                                        </small>
+                                    </div>
 
-        <div class="col-md-6">
-            <label class="form-label">Preferred Supplier</label>
-            <Select
-                v-model="form.supplier"
-                :options="suppliers"
-                optionLabel="name"
-                optionValue="name"
-                placeholder="Select Supplier"
-                class="w-100"
-                appendTo="self"
-                :autoZIndex="true"
-                :baseZIndex="2000"
-                :class="{ 'is-invalid': formErrors.supplier }"
-            />
-            <small v-if="formErrors.supplier" class="text-danger">
-                {{ formErrors.supplier[0] }}
-            </small>
-        </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Preferred Supplier</label>
+                                        <Select v-model="form.supplier" :options="suppliers" optionLabel="name"
+                                            optionValue="name" placeholder="Select Supplier" class="w-100"
+                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                            :class="{ 'is-invalid': formErrors.supplier }" />
+                                        <small v-if="formErrors.supplier" class="text-danger">
+                                            {{ formErrors.supplier[0] }}
+                                        </small>
+                                    </div>
 
-        <div class="col-md-12">
-            <label class="form-label">SKU (Optional)</label>
-            <input
-                v-model="form.sku"
-                type="text"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors.sku }"
-                placeholder="Stock Keeping Unit"
-            />
-            <small v-if="formErrors.sku" class="text-danger">
-                {{ formErrors.sku[0] }}
-            </small>
-        </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label">SKU (Optional)</label>
+                                        <input v-model="form.sku" type="text" class="form-control"
+                                            :class="{ 'is-invalid': formErrors.sku }"
+                                            placeholder="Stock Keeping Unit" />
+                                        <small v-if="formErrors.sku" class="text-danger">
+                                            {{ formErrors.sku[0] }}
+                                        </small>
+                                    </div>
 
-        <div class="col-12">
-            <label class="form-label">Description</label>
-            <textarea
-                v-model="form.description"
-                rows="4"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors.description }"
-                placeholder="Notes about this product"
-            ></textarea>
-            <small v-if="formErrors.description" class="text-danger">
-                {{ formErrors.description[0] }}
-            </small>
-        </div>
-    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Description</label>
+                                        <textarea v-model="form.description" rows="4" class="form-control"
+                                            :class="{ 'is-invalid': formErrors.description }"
+                                            placeholder="Notes about this product"></textarea>
+                                        <small v-if="formErrors.description" class="text-danger">
+                                            {{ formErrors.description[0] }}
+                                        </small>
+                                    </div>
+                                </div>
 
-    <hr class="my-4" />
+                                <hr class="my-4" />
 
-    <!-- Nutrition -->
-    <h6 class="mb-3">Nutrition Information (per unit)</h6>
-    <div class="row g-3">
-        <div class="col-md-3">
-            <label class="form-label">Calories</label>
-            <input
-                v-model="form.nutrition.calories"
-                type="number"
-                min="0"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors['nutrition.calories'] }"
-            />
-            <small v-if="formErrors['nutrition.calories']" class="text-danger">
-                {{ formErrors['nutrition.calories'][0] }}
-            </small>
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">Fat (g)</label>
-            <input
-                v-model="form.nutrition.fat"
-                type="number"
-                min="0"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors['nutrition.fat'] }"
-            />
-            <small v-if="formErrors['nutrition.fat']" class="text-danger">
-                {{ formErrors['nutrition.fat'][0] }}
-            </small>
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">Protein (g)</label>
-            <input
-                v-model="form.nutrition.protein"
-                type="number"
-                min="0"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors['nutrition.protein'] }"
-            />
-            <small v-if="formErrors['nutrition.protein']" class="text-danger">
-                {{ formErrors['nutrition.protein'][0] }}
-            </small>
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">Carbs (g)</label>
-            <input
-                v-model="form.nutrition.carbs"
-                type="number"
-                min="0"
-                class="form-control"
-                :class="{ 'is-invalid': formErrors['nutrition.carbs'] }"
-            />
-            <small v-if="formErrors['nutrition.carbs']" class="text-danger">
-                {{ formErrors['nutrition.carbs'][0] }}
-            </small>
-        </div>
-    </div>
+                                <!-- Nutrition -->
+                                <h6 class="mb-3">Nutrition Information (per unit)</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Calories</label>
+                                        <input v-model="form.nutrition.calories" type="number" min="0"
+                                            class="form-control"
+                                            :class="{ 'is-invalid': formErrors['nutrition.calories'] }" />
+                                        <small v-if="formErrors['nutrition.calories']" class="text-danger">
+                                            {{ formErrors['nutrition.calories'][0] }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Fat (g)</label>
+                                        <input v-model="form.nutrition.fat" type="number" min="0" class="form-control"
+                                            :class="{ 'is-invalid': formErrors['nutrition.fat'] }" />
+                                        <small v-if="formErrors['nutrition.fat']" class="text-danger">
+                                            {{ formErrors['nutrition.fat'][0] }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Protein (g)</label>
+                                        <input v-model="form.nutrition.protein" type="number" min="0"
+                                            class="form-control"
+                                            :class="{ 'is-invalid': formErrors['nutrition.protein'] }" />
+                                        <small v-if="formErrors['nutrition.protein']" class="text-danger">
+                                            {{ formErrors['nutrition.protein'][0] }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Carbs (g)</label>
+                                        <input v-model="form.nutrition.carbs" type="number" min="0" class="form-control"
+                                            :class="{ 'is-invalid': formErrors['nutrition.carbs'] }" />
+                                        <small v-if="formErrors['nutrition.carbs']" class="text-danger">
+                                            {{ formErrors['nutrition.carbs'][0] }}
+                                        </small>
+                                    </div>
+                                </div>
 
-    <div class="row g-4 mt-1">
-        <!-- Allergies -->
-        <div class="col-md-6">
-            <label class="form-label d-block">Allergies</label>
-            <MultiSelect
-                v-model="form.allergies"
-                :options="allergies"
-                optionLabel="name"
-                optionValue="id"
-                filter
-                placeholder="Select Allergies"
-                class="w-full md:w-80"
-                appendTo="self"
-                :class="{ 'is-invalid': formErrors.allergies }"
-            />
-            <small v-if="formErrors.allergies" class="text-danger">
-                {{ formErrors.allergies[0] }}
-            </small>
-        </div>
+                                <div class="row g-4 mt-1">
+                                    <!-- Allergies -->
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block">Allergies</label>
+                                        <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
+                                            optionValue="id" filter placeholder="Select Allergies"
+                                            class="w-full md:w-80" appendTo="self"
+                                            :class="{ 'is-invalid': formErrors.allergies }" />
+                                        <small v-if="formErrors.allergies" class="text-danger">
+                                            {{ formErrors.allergies[0] }}
+                                        </small>
+                                    </div>
 
-        <!-- Tags -->
-        <div class="col-md-6">
-            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
-            <MultiSelect
-                v-model="form.tags"
-                :options="tags"
-                optionLabel="name"
-                optionValue="id"
-                filter
-                placeholder="Select Tags"
-                class="w-full md:w-80"
-                appendTo="self"
-                :class="{ 'is-invalid': formErrors.tags }"
-            />
-            <small v-if="formErrors.tags" class="text-danger">
-                {{ formErrors.tags[0] }}
-            </small>
-        </div>
-    </div>
+                                    <!-- Tags -->
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                        <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
+                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                            appendTo="self" :class="{ 'is-invalid': formErrors.tags }" />
+                                        <small v-if="formErrors.tags" class="text-danger">
+                                            {{ formErrors.tags[0] }}
+                                        </small>
+                                    </div>
+                                </div>
 
-    <!-- Image -->
-    <div class="row g-3 mt-2 align-items-center">
-        <div class="col-sm-6 col-md-4">
-            <div class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                :class="{ 'is-invalid': formErrors.image }">
-                <template v-if="!form.imagePreview">
-                    <div class="text-center small">
-                        <div class="mb-2">
-                            <i class="bi bi-image fs-3"></i>
-                        </div>
-                        <div>Drag image here</div>
-                        <div>
-                            or
-                            <label
-                                class="text-primary fw-semibold"
-                                style="cursor: pointer;"
-                            >
-                                Browse image
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    class="d-none"
-                                    @change="handleImage"
-                                />
-                            </label>
-                        </div>
-                    </div>
-                </template>
-                <template v-else>
-                    <img
-                        :src="form.imagePreview"
-                        class="w-100 h-100 rounded-3"
-                        style="object-fit: cover"
-                    />
-                </template>
-            </div>
-            <small v-if="formErrors.image" class="text-danger">
-                {{ formErrors.image[0] }}
-            </small>
-        </div>
-    </div>
+                                <!-- Image -->
+                                <div class="row g-3 mt-2 align-items-center">
+                                    <div class="col-sm-6 col-md-4">
+                                        <div class="img-drop rounded-3 d-flex align-items-center justify-content-center"
+                                            :class="{ 'is-invalid': formErrors.image }">
+                                            <template v-if="!form.imagePreview">
+                                                <div class="text-center small">
+                                                    <div class="mb-2">
+                                                        <i class="bi bi-image fs-3"></i>
+                                                    </div>
+                                                    <div>Drag image here</div>
+                                                    <div>
+                                                        or
+                                                        <label class="text-primary fw-semibold"
+                                                            style="cursor: pointer;">
+                                                            Browse image
+                                                            <input type="file" accept="image/*" class="d-none"
+                                                                @change="handleImage" />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <img :src="form.imagePreview" class="w-100 h-100 rounded-3"
+                                                    style="object-fit: cover" />
+                                            </template>
+                                        </div>
+                                        <small v-if="formErrors.image" class="text-danger">
+                                            {{ formErrors.image[0] }}
+                                        </small>
+                                    </div>
+                                </div>
 
-    <div class="mt-4">
-        <button
-            class="btn btn-primary rounded-pill px-5 py-2"
-            :disabled="submitting"
-            @click="submitProduct"
-        >
-            <span>Add Product</span>
-        </button>
-        <button
-            class="btn btn-secondary rounded-pill px-4 ms-2"
-            data-bs-dismiss="modal"
-            @click="resetForm"
-        >
-            Cancel
-        </button>
-    </div>
-</div>
+                                <div class="mt-4">
+                                    <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
+                                        @click="submitProduct">
+                                        <span>Add Product</span>
+                                    </button>
+                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                        @click="resetForm">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
 
                         </div>
                     </div>
@@ -1544,45 +1309,26 @@ const downloadExcel = (data) => {
                 <!-- /modal -->
 
                 <!-- View modal  -->
-                <div
-                    class="modal fade"
-                    id="viewItemModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
+                <div class="modal fade" id="viewItemModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div
-                            class="modal-content border-0 shadow-lg rounded-4 overflow-hidden"
-                        >
+                        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                             <!-- Header -->
                             <div class="modal-header bg-light">
                                 <div class="d-flex align-items-center gap-2">
                                     <!-- Optional icon (Lucide/Bootstrap icon) -->
-                                    <i
-                                        class="bi bi-box-seam text-primary fs-4"
-                                    ></i>
+                                    <i class="bi bi-box-seam text-primary fs-4"></i>
                                     <div>
-                                        <h5
-                                            class="modal-title fw-semibold mb-0"
-                                        >
+                                        <h5 class="modal-title fw-semibold mb-0">
                                             View Inventory Item
                                         </h5>
-                                        <small
-                                            class="text-muted"
-                                            v-if="viewItemRef?.sku"
-                                            >SKU: {{ viewItemRef.sku }}</small
-                                        >
+                                        <small class="text-muted" v-if="viewItemRef?.sku">SKU: {{ viewItemRef.sku
+                                            }}</small>
                                     </div>
                                 </div>
 
                                 <!-- Close -->
-                                <button
-                                    type="button"
-                                    class="btn btn-light btn-sm rounded-circle p-2"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                    title="Close"
-                                >
+                                <button type="button" class="btn btn-light btn-sm rounded-circle p-2"
+                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
@@ -1592,16 +1338,12 @@ const downloadExcel = (data) => {
                                 <div v-if="viewItemRef" class="row g-4">
                                     <!-- Left: Details -->
                                     <div class="col-12 col-md-7">
-                                        <div
-                                            class="card border-0 shadow-sm rounded-4"
-                                        >
+                                        <div class="card border-0 shadow-sm rounded-4">
                                             <div class="card-body">
                                                 <h5 class="fw-semibold mb-3">
                                                     {{ viewItemRef.name }}
                                                 </h5>
-                                                <p
-                                                    class="text-muted small mb-2"
-                                                >
+                                                <p class="text-muted small mb-2">
                                                     SKU: {{ viewItemRef.sku }}
                                                 </p>
 
@@ -1610,9 +1352,7 @@ const downloadExcel = (data) => {
                                                         <div class="text-muted">
                                                             Category
                                                         </div>
-                                                        <div
-                                                            class="fw-semibold"
-                                                        >
+                                                        <div class="fw-semibold">
                                                             {{
                                                                 viewItemRef.category ||
                                                                 "—"
@@ -1623,9 +1363,7 @@ const downloadExcel = (data) => {
                                                         <div class="text-muted">
                                                             Subcategory
                                                         </div>
-                                                        <div
-                                                            class="fw-semibold"
-                                                        >
+                                                        <div class="fw-semibold">
                                                             {{
                                                                 viewItemRef.subcategory ||
                                                                 "—"
@@ -1636,9 +1374,7 @@ const downloadExcel = (data) => {
                                                         <div class="text-muted">
                                                             Unit
                                                         </div>
-                                                        <div
-                                                            class="fw-semibold"
-                                                        >
+                                                        <div class="fw-semibold">
                                                             {{
                                                                 viewItemRef.unit
                                                             }}
@@ -1648,9 +1384,7 @@ const downloadExcel = (data) => {
                                                         <div class="text-muted">
                                                             Min Alert
                                                         </div>
-                                                        <div
-                                                            class="fw-semibold"
-                                                        >
+                                                        <div class="fw-semibold">
                                                             {{
                                                                 viewItemRef.minAlert
                                                             }}
@@ -1660,9 +1394,7 @@ const downloadExcel = (data) => {
                                                         <div class="text-muted">
                                                             Supplier
                                                         </div>
-                                                        <div
-                                                            class="fw-semibold"
-                                                        >
+                                                        <div class="fw-semibold">
                                                             {{
                                                                 viewItemRef.supplier
                                                             }}
@@ -1672,9 +1404,7 @@ const downloadExcel = (data) => {
                                                         <div class="text-muted">
                                                             Description
                                                         </div>
-                                                        <div
-                                                            class="fw-semibold"
-                                                        >
+                                                        <div class="fw-semibold">
                                                             {{
                                                                 viewItemRef.description ||
                                                                 "—"
@@ -1688,46 +1418,32 @@ const downloadExcel = (data) => {
                                                 <h6 class="fw-semibold">
                                                     Nutrition (per 100g)
                                                 </h6>
-                                                <div
-                                                    class="d-flex flex-wrap gap-2 mt-2"
-                                                >
-                                                    <span
-                                                        class="badge rounded-pill bg-primary text-white"
-                                                        >Calories:
+                                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                                    <span class="badge rounded-pill bg-primary text-white">Calories:
                                                         {{
                                                             viewItemRef
                                                                 .nutrition
                                                                 ?.calories ??
                                                             "—"
-                                                        }}</span
-                                                    >
-                                                    <span
-                                                        class="badge rounded-pill bg-success text-white"
-                                                        >Protein:
+                                                        }}</span>
+                                                    <span class="badge rounded-pill bg-success text-white">Protein:
                                                         {{
                                                             viewItemRef
                                                                 .nutrition
                                                                 ?.protein ?? "—"
-                                                        }}</span
-                                                    >
-                                                    <span
-                                                        class="badge rounded-pill  bg-warning text-white"
-                                                        >Fat:
+                                                        }}</span>
+                                                    <span class="badge rounded-pill  bg-warning text-white">Fat:
                                                         {{
                                                             viewItemRef
                                                                 .nutrition
                                                                 ?.fat ?? "—"
-                                                        }}</span
-                                                    >
-                                                    <span
-                                                        class="badge rounded-pill  bg-secondary text-white"
-                                                        >Carbs:
+                                                        }}</span>
+                                                    <span class="badge rounded-pill  bg-secondary text-white">Carbs:
                                                         {{
                                                             viewItemRef
                                                                 .nutrition
                                                                 ?.carbs ?? "—"
-                                                        }}</span
-                                                    >
+                                                        }}</span>
                                                 </div>
 
                                                 <!-- Tags -->
@@ -1735,15 +1451,10 @@ const downloadExcel = (data) => {
                                                 <h6 class="fw-semibold">
                                                     Tags
                                                 </h6>
-                                                <div
-                                                    class="d-flex flex-wrap gap-2"
-                                                >
-                                                    <span
-                                                        v-for="tag in viewItemRef.tags"
-                                                        :key="tag"
-                                                        class="badge rounded-pill bg-info text-white"
-                                                    >
-                                                          {{ tag }}
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    <span v-for="tag in viewItemRef.tags" :key="tag"
+                                                        class="badge rounded-pill bg-info text-white">
+                                                        {{ tag }}
                                                     </span>
                                                 </div>
 
@@ -1752,15 +1463,10 @@ const downloadExcel = (data) => {
                                                 <h6 class="fw-semibold">
                                                     Allergies
                                                 </h6>
-                                                <div
-                                                    class="d-flex flex-wrap gap-2"
-                                                >
-                                                    <span
-                                                        v-for="allergy in viewItemRef.allergies"
-                                                        :key="allergy"
-                                                        class="badge rounded-pill bg-danger text-white"
-                                                    >
-                                                       
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    <span v-for="allergy in viewItemRef.allergies" :key="allergy"
+                                                        class="badge rounded-pill bg-danger text-white">
+
                                                         {{ allergy }}
                                                     </span>
                                                 </div>
@@ -1770,101 +1476,61 @@ const downloadExcel = (data) => {
 
                                     <!-- Right: Image + Meta -->
                                     <div class="col-12 col-md-5">
-                                        <div
-                                            class="card border-0 shadow-sm rounded-4 h-100"
-                                        >
+                                        <div class="card border-0 shadow-sm rounded-4 h-100">
                                             <div
-                                                class="card-body d-flex flex-column align-items-center justify-content-center"
-                                            >
-                                                <div
-                                                    v-if="viewItemRef.image"
-                                                    class="w-100"
-                                                >
-                                                    <img
-                                                        :src="`/storage/${viewItemRef.image}`"
-                                                        alt="Item Image"
-                                                        class="w-100 rounded-3"
-                                                        style="
+                                                class="card-body d-flex flex-column align-items-center justify-content-center">
+                                                <div v-if="viewItemRef.image" class="w-100">
+                                                    <img :src="`/storage/${viewItemRef.image}`" alt="Item Image"
+                                                        class="w-100 rounded-3" style="
                                                             max-height: 260px;
                                                             object-fit: cover;
-                                                        "
-                                                    />
+                                                        " />
                                                 </div>
-                                                <div
-                                                    v-else
-                                                    class="text-center text-muted py-5"
-                                                >
-                                                    <i
-                                                        class="bi bi-image fs-1 d-block mb-2"
-                                                    ></i>
-                                                    <small
-                                                        >No image
-                                                        uploaded</small
-                                                    >
+                                                <div v-else class="text-center text-muted py-5">
+                                                    <i class="bi bi-image fs-1 d-block mb-2"></i>
+                                                    <small>No image
+                                                        uploaded</small>
                                                 </div>
                                             </div>
                                             <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between"
-                                            >
-                                                <span class="text-muted"
-                                                    >Updated On</span
-                                                >
+                                                class="card-footer bg-transparent small d-flex justify-content-between">
+                                                <span class="text-muted">Updated On</span>
                                                 <span class="fw-semibold">{{
                                                     viewItemRef.formatted_updated_at
-                                                }}</span>
+                                                    }}</span>
                                             </div>
-                                             
+
                                             <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between"
-                                            >
-                                                <span class="text-muted"
-                                                    >
-                                                    Stock</span
-                                                >
-                                                <span
-                                                    :class="[
-                                                        'fw-semibold',
-                                                        viewItemRef.stock > 0
-                                                            ? 'text-success'
-                                                            : 'text-danger',
-                                                    ]"
-                                                >
+                                                class="card-footer bg-transparent small d-flex justify-content-between">
+                                                <span class="text-muted">
+                                                    Stock</span>
+                                                <span :class="[
+                                                    'fw-semibold',
+                                                    viewItemRef.stock > 0
+                                                        ? 'text-success'
+                                                        : 'text-danger',
+                                                ]">
                                                     {{ viewItemRef.stock }}
-                                                    
+
                                                 </span>
-                                                <span
-                                                        v-if="
-                                                            viewItemRef.stock ===
-                                                            0
-                                                        "
-                                                        class="badge bg-red-600 rounded-pill"
-                                                        >Out of stock</span
-                                                    >
-                                                    <span
-                                                        v-else-if="
-                                                            viewItemRef.stock <=
-                                                            viewItemRef.minAlert
-                                                        "
-                                                        class="badge bg-warning rounded-pill"
-                                                        >Low-stock</span
-                                                    >
-                                                    <span
-                                                        v-else
-                                                        class="badge bg-success rounded-pill"
-                                                        >In-stock</span
-                                                    >
-                                                
+                                                <span v-if="
+                                                    viewItemRef.stock ===
+                                                    0
+                                                " class="badge bg-red-600 rounded-pill">Out of stock</span>
+                                                <span v-else-if="
+                                                    viewItemRef.stock <=
+                                                    viewItemRef.minAlert
+                                                " class="badge bg-warning rounded-pill">Low-stock</span>
+                                                <span v-else class="badge bg-success rounded-pill">In-stock</span>
+
                                             </div>
-                                            
+
                                             <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between"
-                                            >
-                                                <span class="text-muted"
-                                                    >Added By</span
-                                                >
+                                                class="card-footer bg-transparent small d-flex justify-content-between">
+                                                <span class="text-muted">Added By</span>
                                                 <span class="fw-semibold">{{
                                                     viewItemRef.user?.name
-                                                }}</span>
+                                                    }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1872,9 +1538,7 @@ const downloadExcel = (data) => {
                             </div>
 
                             <!-- Footer -->
-                            <div
-                                class="modal-footer d-flex justify-content-between"
-                            >
+                            <div class="modal-footer d-flex justify-content-between">
                                 <div class="d-flex gap-2">
                                     <!-- <button
                                         type="button"
@@ -1883,24 +1547,17 @@ const downloadExcel = (data) => {
                                         <i class="bi bi-printer me-1"></i> Print
                                     </button> -->
 
-                                    <button
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#addItemModal"
-                                    class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
-                                    @click="editItem(viewItemRef)"
-                                >
-                                    <Pencil class="w-4 h-4" /> Edit
-                                </button>
+                                    <button data-bs-toggle="modal" data-bs-target="#addItemModal"
+                                        class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
+                                        @click="editItem(viewItemRef)">
+                                        <Pencil class="w-4 h-4" /> Edit
+                                    </button>
 
-                                
-                                     
+
+
                                 </div>
 
-                                <button
-                                    type="button"
-                                    class="btn btn-primary rounded-pill"
-                                    data-bs-dismiss="modal"
-                                >
+                                <button type="button" class="btn btn-primary rounded-pill" data-bs-dismiss="modal">
                                     Close
                                 </button>
                             </div>
@@ -1909,12 +1566,7 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- Stockin Modal -->
-                <div
-                    class="modal fade"
-                    id="stockInModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
+                <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
@@ -1923,23 +1575,10 @@ const downloadExcel = (data) => {
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                    title="Close"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-6 w-6 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
+                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
@@ -1947,138 +1586,73 @@ const downloadExcel = (data) => {
                                 <div class="row g-3">
                                     <!-- Item Name -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Product Name</label
-                                        >
-                                        <input
-                                            type="text"
-                                            v-model="stockForm.name"
-                                            class="form-control"
-                                            readonly
-                                        />
+                                        <label class="form-label">Product Name</label>
+                                        <input type="text" v-model="stockForm.name" class="form-control" readonly />
                                     </div>
 
                                     <!-- Category -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Category</label
-                                        >
-                                        <Select
-                                            v-model="stockForm.category_id"
-                                            :options="categories"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="Select Category"
-                                            class="w-100"
-                                            appendTo="self"
-                                        />
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="stockForm.category_id" :options="categories" optionLabel="name"
+                                            optionValue="id" placeholder="Select Category" class="w-100"
+                                            appendTo="self" />
                                     </div>
 
                                     <!-- Supplier -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Supplier</label
-                                        >
-                                        <Select
-                                            v-model="stockForm.supplier_id"
-                                            :options="suppliers"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="Select Supplier"
-                                            class="w-100"
-                                            appendTo="self"
-                                        />
+                                        <label class="form-label">Supplier</label>
+                                        <Select v-model="stockForm.supplier_id" :options="suppliers" optionLabel="name"
+                                            optionValue="id" placeholder="Select Supplier" class="w-100"
+                                            appendTo="self" />
                                     </div>
 
                                     <!-- Available quantity -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Available Quantity</label
-                                        >
-                                        <input
-                                            type="number"
-                                            v-model="
-                                                stockForm.available_quantity
-                                            "
-                                            class="form-control"
-                                            readonly
-                                        />
+                                        <label class="form-label">Available Quantity</label>
+                                        <input type="number" v-model="stockForm.available_quantity
+                                            " class="form-control" readonly />
                                     </div>
 
                                     <!-- Stock In Quantity -->
                                     <div class="col-md-4">
-                                        <label class="form-label"
-                                            >Quantity</label
-                                        >
-                                        <input
-                                            type="number"
-                                            v-model="stockForm.quantity"
-                                            class="form-control"
-                                            min="0"
-                                            @input="calculateValue()"
-                                        />
+                                        <label class="form-label">Quantity</label>
+                                        <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
+                                            @input="calculateValue()" />
                                     </div>
 
                                     <!-- Price -->
                                     <div class="col-md-4">
                                         <label class="form-label">Price</label>
-                                        <input
-                                            type="number"
-                                            v-model="stockForm.price"
-                                            class="form-control"
-                                            min="0"
-                                            @input="calculateValue()"
-                                        />
+                                        <input type="number" v-model="stockForm.price" class="form-control" min="0"
+                                            @input="calculateValue()" />
                                     </div>
 
                                     <!-- Value (auto-calculated) -->
                                     <div class="col-md-4">
                                         <label class="form-label">Value</label>
-                                        <input
-                                            type="text"
-                                            v-model="stockForm.value"
-                                            class="form-control"
-                                        />
+                                        <input type="text" v-model="stockForm.value" class="form-control" />
                                     </div>
 
                                     <!-- Expiry Date -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Expiry Date</label
-                                        >
-                                        <input
-                                            type="date"
-                                            v-model="stockForm.expiry_date"
-                                            class="form-control"
-                                        />
+                                        <label class="form-label">Expiry Date</label>
+                                        <input type="date" v-model="stockForm.expiry_date" class="form-control" />
                                     </div>
 
                                     <!-- Notes / Reason -->
                                     <div class="col-md-12">
-                                        <label class="form-label"
-                                            >Notes / Reason</label
-                                        >
-                                        <textarea
-                                            v-model="stockForm.description"
-                                            rows="3"
-                                            class="form-control"
-                                        ></textarea>
+                                        <label class="form-label">Notes / Reason</label>
+                                        <textarea v-model="stockForm.description" rows="3"
+                                            class="form-control"></textarea>
                                     </div>
                                 </div>
 
                                 <div class="mt-4 text-end">
-                                    <button
-                                        class="btn btn-primary"
-                                        :disabled="submittingStock"
-                                        @click="submitStockIn"
-                                    >
+                                    <button class="btn btn-primary" :disabled="submittingStock" @click="submitStockIn">
                                         Stock In
                                     </button>
-                                    <button
-                                        class="btn btn-secondary ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetStockForm"
-                                    >
+                                    <button class="btn btn-secondary ms-2" data-bs-dismiss="modal"
+                                        @click="resetStockForm">
                                         Cancel
                                     </button>
                                 </div>
@@ -2088,12 +1662,7 @@ const downloadExcel = (data) => {
                 </div>
 
                 <!-- Stockout Modal -->
-                <div
-                    class="modal fade"
-                    id="stockOutModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
+                <div class="modal fade" id="stockOutModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
@@ -2102,23 +1671,10 @@ const downloadExcel = (data) => {
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                    title="Close"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-6 w-6 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
+                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
@@ -2126,111 +1682,59 @@ const downloadExcel = (data) => {
                                 <div class="row g-3">
                                     <!-- Item Name -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Product Name</label
-                                        >
-                                        <input
-                                            type="text"
-                                            v-model="stockForm.name"
-                                            class="form-control"
-                                            readonly
-                                        />
+                                        <label class="form-label">Product Name</label>
+                                        <input type="text" v-model="stockForm.name" class="form-control" readonly />
                                     </div>
 
                                     <!-- Category -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Category</label
-                                        >
-                                        <Select
-                                            v-model="stockForm.category_id"
-                                            :options="categories"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="Select Category"
-                                            class="w-100"
-                                            appendTo="self"
-                                        />
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="stockForm.category_id" :options="categories" optionLabel="name"
+                                            optionValue="id" placeholder="Select Category" class="w-100"
+                                            appendTo="self" />
                                     </div>
 
                                     <!-- Available Quantity -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Available Quantity</label
-                                        >
-                                        <input
-                                            type="number"
-                                            v-model="
-                                                stockForm.available_quantity
-                                            "
-                                            class="form-control"
-                                            readonly
-                                        />
+                                        <label class="form-label">Available Quantity</label>
+                                        <input type="number" v-model="stockForm.available_quantity
+                                            " class="form-control" readonly />
                                     </div>
 
                                     <!-- Stock Out Quantity -->
                                     <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Quantity</label
-                                        >
-                                        <input
-                                            type="number"
-                                            v-model="stockForm.quantity"
-                                            class="form-control"
-                                            min="0"
-                                            @input="calculateValue()"
-                                        />
+                                        <label class="form-label">Quantity</label>
+                                        <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
+                                            @input="calculateValue()" />
                                     </div>
 
                                     <!-- Price -->
                                     <div class="col-md-6">
                                         <label class="form-label">Price</label>
-                                        <input
-                                            type="number"
-                                            v-model="stockForm.price"
-                                            class="form-control"
-                                            min="0"
-                                            @input="calculateValue()"
-                                        />
+                                        <input type="number" v-model="stockForm.price" class="form-control" min="0"
+                                            @input="calculateValue()" />
                                     </div>
 
                                     <!-- Value (auto-calculated) -->
                                     <div class="col-md-6">
                                         <label class="form-label">Value</label>
-                                        <input
-                                            type="text"
-                                            v-model="stockForm.value"
-                                            class="form-control"
-                                            readonly
-                                        />
+                                        <input type="text" v-model="stockForm.value" class="form-control" readonly />
                                     </div>
 
                                     <!-- Notes / Reason -->
                                     <div class="col-md-12">
-                                        <label class="form-label"
-                                            >Notes / Reason</label
-                                        >
-                                        <textarea
-                                            v-model="stockForm.description"
-                                            rows="3"
-                                            class="form-control"
-                                        ></textarea>
+                                        <label class="form-label">Notes / Reason</label>
+                                        <textarea v-model="stockForm.description" rows="3"
+                                            class="form-control"></textarea>
                                     </div>
                                 </div>
 
                                 <div class="mt-4 text-end">
-                                    <button
-                                        class="btn btn-danger"
-                                        :disabled="submittingStock"
-                                        @click="submitStockOut"
-                                    >
+                                    <button class="btn btn-danger" :disabled="submittingStock" @click="submitStockOut">
                                         Stock Out
                                     </button>
-                                    <button
-                                        class="btn btn-secondary ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetStockForm"
-                                    >
+                                    <button class="btn btn-secondary ms-2" data-bs-dismiss="modal"
+                                        @click="resetStockForm">
                                         Cancel
                                     </button>
                                 </div>
@@ -2378,6 +1882,4 @@ const downloadExcel = (data) => {
         width: 100%;
     }
 }
-
-
 </style>

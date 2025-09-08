@@ -45,7 +45,7 @@ const sidebarMenus = ref([
                     {
                         label: "Categories",
                         icon: "layers",
-                        route: "menu.categories.index",
+                        route: "menu-categories.index",
                     },
                     { label: "Items", icon: "box", route: "menu.index" },
                 ],

@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Menu\StoreMenuRequest;
+use App\Models\Allergy;
 use App\Models\Menu;
+use App\Models\MenuCategory;
+use App\Models\Tag;
 use App\Services\POS\MenuService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,32 +18,32 @@ class MenuController extends Controller
 
     public function index(Request $request)
     {
-        return Inertia::render('Backend/Menu/Index');
-        // $items = $this->service->list($request->only('q'));
-        // return Inertia::render('Menu/Index', ['items' => $items]);
+        $categories = MenuCategory::active()
+            ->whereNull('parent_id')
+            ->with('children')
+            ->get(['id', 'name', 'parent_id']);
+
+        $allergies  = Allergy::all(['id', 'name']);
+        $tags       = Tag::all(['id', 'name']);
+
+
+        return Inertia::render('Backend/Menu/Index', [
+            'categories' => $categories,
+            'allergies'  => $allergies,
+            'tags'       => $tags,
+        ]);
     }
 
-    public function create() { return Inertia::render('Menu/Form', ['mode'=>'create']); }
 
-    public function store(Request $request)
+    public function create()
     {
-        $validated = $request->validate(['name'=>'required|max:255','slug'=>'nullable|max:255']);
-        $this->service->create($validated);
-        return redirect()->route('menu.index')->with('success','Menu created');
+        return Inertia::render('Menu/Form', ['mode' => 'create']);
     }
 
-    public function edit(Menu $menu) { return Inertia::render('Menu/Form', ['mode'=>'edit','item'=>$menu]); }
-
-    public function update(Request $request, Menu $menu)
+    public function store(StoreMenuRequest $request)
     {
-        $validated = $request->validate(['name'=>'required|max:255','slug'=>'nullable|max:255']);
-        $this->service->update($menu, $validated);
-        return redirect()->route('menu.index')->with('success','Menu updated');
-    }
+        $this->service->create($request->validated(), $request);
 
-    public function destroy(Menu $menu)
-    {
-        $this->service->delete($menu);
-        return back()->with('success','Menu deleted');
+        return redirect()->route('menu.index')->with('success', 'Menu created');
     }
 }

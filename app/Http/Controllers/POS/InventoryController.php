@@ -39,7 +39,6 @@ class InventoryController extends Controller
     public function apiList(Request $request)
     {
         $inventories = $this->service->list($request->only('q'));
-        // Return only JSON data, no Inertia
         return response()->json($inventories);
     }
 
@@ -51,7 +50,6 @@ class InventoryController extends Controller
 
     public function store(StoreInventoryRequest $request)
     {
-        dd($request->all());
         $inventory = $this->service->create($request->validated());
         return response()->json([
             'message' => 'Inventory created successfully',
