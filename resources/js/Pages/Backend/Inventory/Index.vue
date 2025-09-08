@@ -182,9 +182,7 @@ const subcatOptions = computed(() =>
         value: s,
     }))
 );
-const categoryOptions = computed(() =>
-    Object.keys(subcatMap.value).map((c) => ({ name: c, value: c }))
-);
+
 const formErrors = ref({});
 const form = ref({
     name: "",
@@ -201,16 +199,6 @@ const form = ref({
     imageFile: null,
     imageUrl: null,
 });
-
-function handleImage(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    form.value.imageFile = file;
-    const reader = new FileReader();
-    reader.onload = (ev) =>
-        (form.value.imagePreview = String(ev.target?.result || ""));
-    reader.readAsDataURL(file);
-}
 
 const submitting = ref(false);
 
@@ -367,21 +355,6 @@ function resetForm() {
     };
 }
 
-// function fakeApi(data) {
-//     return new Promise((resolve) => {
-//         setTimeout(
-//             () => resolve({ ok: true, message: "Saved (demo)", data }),
-//             800
-//         );
-//     });
-// }
-
-/* ===================== Row Actions (stubs) ===================== */
-// const onStockIn = (it) => console.log("Stock In:", it);
-// const onStockOut = (it) => console.log("Stock Out:", it);
-// const onViewItem = (it) => console.log("View:", it);
-// const onEditItem = (it) => console.log("Edit:", it);
-// const onDownload = (type) => console.log("Download:", type);
 // =====================view item =========================
 const viewItemRef = ref({});
 
@@ -397,16 +370,6 @@ const ViewItem = async (row) => {
     } catch (error) {
         console.error("Error fetching item:", error);
     }
-};
-
-// Function to properly hide modal and clean up backdrop
-const closeModal = (id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const modal =
-        window.bootstrap?.Modal.getInstance(el) ||
-        new window.bootstrap.Modal(el);
-    modal.hide();
 };
 
 // ===================== Stock Item Modal =========================
@@ -763,15 +726,6 @@ const downloadPDF = (data) => {
         });
     }
 };
-
-// Helper function for safe JSON parsing
-function safeParse(value) {
-    try {
-        return typeof value === "string" ? JSON.parse(value) : value;
-    } catch (e) {
-        return value;
-    }
-}
 
 const downloadExcel = (data) => {
     try {
