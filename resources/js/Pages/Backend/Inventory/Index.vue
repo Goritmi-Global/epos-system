@@ -22,6 +22,7 @@ import {
     Upload,
 } from "lucide-vue-next";
 import axios from "axios";
+// import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 const props = defineProps({
     inventories: Array,
     allergies: {
@@ -182,9 +183,7 @@ const subcatOptions = computed(() =>
         value: s,
     }))
 );
-const categoryOptions = computed(() =>
-    Object.keys(subcatMap.value).map((c) => ({ name: c, value: c }))
-);
+
 const formErrors = ref({});
 const form = ref({
     name: "",
@@ -199,18 +198,8 @@ const form = ref({
     allergies: [],
     tags: [],
     imageFile: null,
-    imagePreview: "",
+    imageUrl: null,
 });
-
-function handleImage(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    form.value.imageFile = file;
-    const reader = new FileReader();
-    reader.onload = (ev) =>
-        (form.value.imagePreview = String(ev.target?.result || ""));
-    reader.readAsDataURL(file);
-}
 
 const submitting = ref(false);
 
@@ -242,8 +231,14 @@ const submitProduct = async () => {
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // image
-    if (form.value.imageFile) {
-        formData.append("image", form.value.imageFile);
+    if (form.imageFile) {
+        // optional: keep extension consistent with mime
+        const ext = (form.imageFile.type?.split("/")?.[1] || "webp").replace(
+            "jpeg",
+            "jpg"
+        );
+        const name = `image.${ext}`;
+        formData.append("image", form.imageFile, name);
     }
 
     try {
@@ -316,7 +311,7 @@ watch(
 
 // ===============Edit item ==================
 const editItem = (item) => {
-    console.log(item);
+     
     form.value = {
         id: item.id,
         name: item.name,
@@ -337,11 +332,9 @@ const editItem = (item) => {
         allergies: item.allergies?.map((a) => Number(a)) || [],
         tags: item.tags?.map((t) => Number(t)) || [],
         imageFile: null,
-        imagePreview: item.image ? `/storage/${item.image}` : null,
+        imageUrl: item.image_url,
     };
-    console.log("Preselected allergies:", form.value);
-    const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
-    modal.show();
+    // new bootstrap.Modal(document.getElementById("addItemModal")).show();
 };
 // ============================= reset form =========================
 
@@ -363,21 +356,6 @@ function resetForm() {
     };
 }
 
-// function fakeApi(data) {
-//     return new Promise((resolve) => {
-//         setTimeout(
-//             () => resolve({ ok: true, message: "Saved (demo)", data }),
-//             800
-//         );
-//     });
-// }
-
-/* ===================== Row Actions (stubs) ===================== */
-// const onStockIn = (it) => console.log("Stock In:", it);
-// const onStockOut = (it) => console.log("Stock Out:", it);
-// const onViewItem = (it) => console.log("View:", it);
-// const onEditItem = (it) => console.log("Edit:", it);
-// const onDownload = (type) => console.log("Download:", type);
 // =====================view item =========================
 const viewItemRef = ref({});
 
@@ -393,16 +371,6 @@ const ViewItem = async (row) => {
     } catch (error) {
         console.error("Error fetching item:", error);
     }
-};
-
-// Function to properly hide modal and clean up backdrop
-const closeModal = (id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const modal =
-        window.bootstrap?.Modal.getInstance(el) ||
-        new window.bootstrap.Modal(el);
-    modal.hide();
 };
 
 // ===================== Stock Item Modal =========================
@@ -760,15 +728,6 @@ const downloadPDF = (data) => {
     }
 };
 
-// Helper function for safe JSON parsing
-function safeParse(value) {
-    try {
-        return typeof value === "string" ? JSON.parse(value) : value;
-    } catch (e) {
-        return value;
-    }
-}
-
 const downloadExcel = (data) => {
     try {
         // Check if XLSX is available
@@ -856,6 +815,35 @@ const downloadExcel = (data) => {
         });
     }
 };
+
+const showCropper = ref(false);
+const showImageModal = ref(false);
+const previewImage = ref(null);
+// Image preveiw Modal
+
+function openImageModal(src) {
+    previewImage.value = src || form.value.imageUrl;
+    if (!previewImage.value) return;
+    showImageModal.value = true;
+}
+
+function onCropped({ file }) {
+    form.imageFile = file; // this is the file Laravel expects
+    form.value.imageUrl = URL.createObjectURL(file); // optional for preview
+}
+
+watch(
+    () => props.show,
+    (newVal) => {
+        if (newVal) {
+            nextTick(() => {
+                cropper.value?.replace(props.image || "");
+                // focus first button or file input
+                fileInput.value?.focus();
+            });
+        }
+    }
+);
 </script>
 
 <template>
@@ -1065,18 +1053,9 @@ const downloadExcel = (data) => {
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            <img
-                                                :src="
-                                                    item.image
-                                                        ? `/storage/${item.image}`
-                                                        : '/default.png'
-                                                "
-                                                class="rounded"
-                                                style="
-                                                    width: 40px;
-                                                    height: 40px;
-                                                    object-fit: cover;
-                                                "
+                                            <ImageZoomModal
+                                                :file="item.image_url"
+                                                :width="50"
                                             />
                                         </td>
                                         <td>
@@ -1191,6 +1170,8 @@ const downloadExcel = (data) => {
                                                                 'Edit';
                                                         }
                                                     "
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addItemModal"
                                                     title="Edit"
                                                     class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
                                                 >
@@ -1631,51 +1612,53 @@ const downloadExcel = (data) => {
                                 </div>
 
                                 <!-- Image -->
-                                <div class="row g-3 mt-2 align-items-center">
-                                    <div class="col-sm-6 col-md-4">
+
+                                <div class="col-md-4">
+                                    <div
+                                        class="logo-card"
+                                        :class="{
+                                            'is-invalid': formErrors.image,
+                                        }"
+                                    >
                                         <div
-                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                                            :class="{
-                                                'is-invalid': formErrors.image,
-                                            }"
+                                            class="logo-frame"
+                                            @click="
+                                                form.imageUrl &&
+                                                    openImageModal()
+                                            "
                                         >
-                                            <template v-if="!form.imagePreview">
-                                                <div class="text-center small">
-                                                    <div class="mb-2">
-                                                        <i
-                                                            class="bi bi-image fs-3"
-                                                        ></i>
-                                                    </div>
-                                                    <div>Drag image here</div>
-                                                    <div>
-                                                        or
-                                                        <label
-                                                            class="text-primary fw-semibold"
-                                                            style="
-                                                                cursor: pointer;
-                                                            "
-                                                        >
-                                                            Browse image
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                class="d-none"
-                                                                @change="
-                                                                    handleImage
-                                                                "
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                            <template>
-                                                <img
-                                                    :src="form.imagePreview"
-                                                    class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover"
-                                                />
-                                            </template>
+                                            <img
+                                                v-if="form.imageUrl"
+                                                :src="form.imageUrl"
+                                                alt="Image"
+                                            />
+                                            <div v-else class="placeholder">
+                                                <i class="bi bi-image"></i>
+                                            </div>
                                         </div>
+
+                                        <small class="text-muted mt-2 d-block"
+                                            >Upload Image</small
+                                        >
+
+                                        <!-- <ImageCropperModal
+                                            @cropped="handleCropped"
+                                            :aspectRatio="1"
+                                            :image="form.imageUrl"
+                                        /> -->
+                                        <!-- <ImageCropperModal :ratio="1" @croppedImg="croppedImgSubmit" /> -->
+                                          <!-- <ImageZoomModal
+                                                :file="form.image_url"
+                                                :width="50"
+                                            /> -->
+
+                                        <ImageCropperModal
+                                            :show="showCropper"
+                                            @close="showCropper = false"
+                                            @cropped="onCropped"
+                                        />
+                                        
+
                                         <small
                                             v-if="formErrors.image"
                                             class="text-danger"
@@ -1693,7 +1676,7 @@ const downloadExcel = (data) => {
                                     >
                                         {{
                                             processStatus === "Edit"
-                                                ? "Edit Item"
+                                                ? "Update Item"
                                                 : "Add Item"
                                         }}
                                     </button>
@@ -1735,6 +1718,7 @@ const downloadExcel = (data) => {
                                         >
                                             View Inventory Item
                                         </h5>
+                                       
                                         <small
                                             class="text-muted"
                                             v-if="viewItemRef?.sku"
@@ -1955,12 +1939,13 @@ const downloadExcel = (data) => {
                                             <div
                                                 class="card-body d-flex flex-column align-items-center justify-content-center"
                                             >
+                                          
                                                 <div
                                                     v-if="viewItemRef.image"
                                                     class="w-100"
                                                 >
                                                     <img
-                                                        :src="`/storage/${viewItemRef.image}`"
+                                                        :src="viewItemRef.image"
                                                         alt="Item Image"
                                                         class="w-100 rounded-3"
                                                         style="
@@ -1969,18 +1954,7 @@ const downloadExcel = (data) => {
                                                         "
                                                     />
                                                 </div>
-                                                <div
-                                                    v-else
-                                                    class="text-center text-muted py-5"
-                                                >
-                                                    <i
-                                                        class="bi bi-image fs-1 d-block mb-2"
-                                                    ></i>
-                                                    <small
-                                                        >No image
-                                                        uploaded</small
-                                                    >
-                                                </div>
+                                                 
                                             </div>
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
@@ -2415,6 +2389,14 @@ const downloadExcel = (data) => {
             </div>
         </div>
     </Master>
+    <!-- Modals -->
+
+    <!-- <ImageZoomModal
+        class="image-cropper-modal"
+        :show="showImageModal"
+        :image="previewImage"
+        @close="showImageModal = false"
+    /> -->
 </template>
 
 <style scoped>
@@ -2551,5 +2533,11 @@ const downloadExcel = (data) => {
     .search-wrap {
         width: 100%;
     }
+}
+.image-cropper-modal {
+    z-index: 2001 !important;
+}
+.image-cropper-backdrop {
+    z-index: 2000 !important;
 }
 </style>

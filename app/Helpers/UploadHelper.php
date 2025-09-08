@@ -65,6 +65,7 @@ class UploadHelper
     public static function url(?int $uploadId, string $disk = 'public'): ?string
     {
         if (!$uploadId) return null;
+        // dd("in the box");
 
         $upload = Upload::find($uploadId);
         if (!$upload?->file_name) return null;

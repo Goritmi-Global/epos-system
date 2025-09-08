@@ -14,6 +14,7 @@ use App\Models\Unit;
 use App\Services\POS\InventoryService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Helpers\UploadHelper;
 
 class InventoryController extends Controller
 {
@@ -38,6 +39,7 @@ class InventoryController extends Controller
     }
     public function apiList(Request $request)
     {
+        
         $inventories = $this->service->list($request->only('q'));
         // Return only JSON data, no Inertia
         return response()->json($inventories);
@@ -60,13 +62,29 @@ class InventoryController extends Controller
     }
 
     public function show(Inventory $inventory)
-    {
-        return response()->json($inventory->load(['user'])); // add relations like 'user' if needed
+    { 
+        $inventory->load('user');
+
+        $data = $inventory->toArray();
+        $data['upload_id'] = $inventory->upload_id;
+        
+        $data['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
+
+        return response()->json($data);
     }
 
     public function edit(Inventory $inventory)
     {
-        return Inertia::render('Inventory/Form', ['mode' => 'edit', 'item' => $inventory]);
+        $item = $inventory->toArray();
+        $item['upload_id'] = $inventory->upload_id ?? null;
+       
+        $item['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
+
+     
+        return Inertia::render('Inventory/Form', [
+            'mode' => 'edit',
+            'item' => $item,
+        ]);
     }
 
     public function update(UpdateInventoryRequest $request, Inventory $inventory)

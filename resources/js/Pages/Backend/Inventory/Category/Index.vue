@@ -861,7 +861,7 @@ const downloadExcel = (data) => {
                                         <th>Out of Stock</th>
                                         <th>Low Stock</th>
                                         <th>In Stock</th>
-                                        <th>Status</th>
+                                        <th class="text-center">Status</th>
                                         <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -899,7 +899,16 @@ const downloadExcel = (data) => {
                                         <td>{{ row.out_of_stock }}</td>
                                         <td>{{ row.low_stock }}</td>
                                         <td>{{ row.in_stock }}</td>
-                                        <td>{{ row.active ? "Active" : "Inactive" }}</td>
+                                        <td class="text-center">
+  <span
+    :class="row.active 
+      ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20' 
+      : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'"
+  >
+    {{ row.active ? "Active" : "Inactive" }}
+  </span>
+</td>
+
                                         <td class="text-center">
                                             <div class="d-inline-flex align-items-center gap-3">
                                                 <button data-bs-toggle="modal" data-bs-target="#modalUnitForm" @click="
