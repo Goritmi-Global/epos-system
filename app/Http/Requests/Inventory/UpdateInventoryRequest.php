@@ -7,24 +7,31 @@ use Illuminate\Validation\Rule;
 
 class UpdateInventoryRequest extends FormRequest
 {
-    public function authorize(): bool 
-    { 
-        return true; 
+    public function authorize(): bool
+    {
+        return true;
     }
-    
+
     public function rules(): array
     {
-        $id = $this->route('inventory');
         return [
-            // Fix: Change 'inventories' to 'inventory_items'
-            'sku' => ['required','string','max:50', Rule::unique('inventory_items','sku')->ignore($id)],
-            'name' => ['required','string','max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string'],
             'subcategory' => ['nullable', 'string'],
             'unit' => ['required', 'string'],
-            'supplier' => ['nullable', 'string'],
+            'supplier' => ['required', 'string'],
+
+            // Unique SKU but ignore current record
+            'sku' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('inventory_items', 'sku')->ignore($this->route('inventory'))
+            ],
+
             'description' => ['nullable', 'string'],
-            'minAlert' => ['nullable', 'integer'],
+            'minAlert' => ['required', 'integer'],
+
             'nutrition' => ['nullable', 'array'],
             'nutrition.calories' => ['nullable', 'numeric'],
             'nutrition.fat' => ['nullable', 'numeric'],
@@ -33,10 +40,12 @@ class UpdateInventoryRequest extends FormRequest
 
             'allergies' => ['nullable', 'array'],
             'allergies.*' => ['integer'],
+
             'tags' => ['nullable', 'array'],
             'tags.*' => ['integer'],
 
-            'image' => ['nullable', 'image', 'max:2048'],
+            // Image is optional on update
+            'image' => ['required', 'image', 'max:2048'],
         ];
     }
 }

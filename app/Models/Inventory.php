@@ -58,6 +58,12 @@ class Inventory extends BaseModel
     public function allergies(){
         return $this->belongsTo(Allergy::class);
     }
+    public function upload()
+    {
+        return $this->belongsTo(Upload::class, 'upload_id');
+    }
+    
+
      
 
 }
