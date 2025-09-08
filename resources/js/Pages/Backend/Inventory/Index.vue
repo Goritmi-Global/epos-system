@@ -18,6 +18,7 @@ import {
     Menu,
     Pencil
 } from "lucide-vue-next";
+import axios from "axios";
 const props = defineProps({
     inventories: Array,
     allergies: {
