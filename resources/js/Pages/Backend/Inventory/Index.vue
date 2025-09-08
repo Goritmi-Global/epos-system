@@ -16,7 +16,10 @@ import {
     CalendarClock,
     Plus,
     Menu,
+    Eye,
     Pencil,
+    Download,
+    Upload,
 } from "lucide-vue-next";
 import axios from "axios";
 const props = defineProps({
@@ -975,10 +978,9 @@ const downloadExcel = (data) => {
                                     @click="
                                         resetForm();
                                         formErrors = {};
-                                        processStatus ='Create'
+                                        processStatus = 'Create';
                                     "
                                 >
-                                
                                     <Plus class="w-4 h-4" /> Add Item
                                 </button>
 
@@ -1036,9 +1038,9 @@ const downloadExcel = (data) => {
                                         <th>Unit</th>
                                         <th>Available Stock</th>
                                         <th>Stock Value</th>
-                                        <th>Availability</th>
+                                        <th class="text-center">Availability</th>
 
-                                        <th>Action</th>
+                                        <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1097,104 +1099,85 @@ const downloadExcel = (data) => {
                                                 )
                                             }}
                                         </td>
-                                        <td>
+                                        <td class="text-center">
                                             <span
                                                 v-if="item.availableStock === 0"
-                                                class="badge bg-red-600"
-                                                >Out of stock</span
+                                                class="badge bg-red-600 rounded-pill d-inline-block text-center"
+                                                style="min-width: 100px"
                                             >
+                                                Out of stock
+                                            </span>
+
                                             <span
                                                 v-else-if="
                                                     item.availableStock <=
                                                     item.minAlert
                                                 "
-                                                class="badge bg-warning"
-                                                >Low-stock</span
+                                                class="badge bg-warning rounded-pill d-inline-block text-center"
+                                                style="min-width: 100px"
                                             >
+                                                Low-stock
+                                            </span>
+
                                             <span
                                                 v-else
-                                                class="badge bg-success"
-                                                >In-stock</span
+                                                class="badge bg-success rounded-pill d-inline-block text-center"
+                                                style="min-width: 100px"
                                             >
+                                                In-stock
+                                            </span>
                                         </td>
 
-                                        <td class="text-end">
-                                            <div class="dropdown">
+                                        <td class="text-center">
+                                            <div
+                                                class="d-inline-flex align-items-center gap-3"
+                                            >
+                                                <!-- Stock In -->
                                                 <button
-                                                    class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown"
-                                                    aria-expanded="false"
-                                                    title="Actions"
+                                                    @click="
+                                                        openStockModal(item)
+                                                    "
+                                                    title="Stock In"
+                                                    class="p-2 rounded-full text-green-600 hover:bg-green-100"
                                                 >
-                                                    <Menu size="20" />
+                                                    <Download class="w-4 h-4" />
                                                 </button>
-                                                <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu"
+
+                                                <!-- Stock Out -->
+                                                <button
+                                                    @click="
+                                                        openStockOutModal(item)
+                                                    "
+                                                    title="Stock Out"
+                                                    class="p-2 rounded-full text-red-600 hover:bg-red-100"
                                                 >
-                                                    <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                openStockModal(
-                                                                    item
-                                                                )
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-box-arrow-in-down-right me-2"
-                                                            ></i
-                                                            >Stock In
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                openStockOutModal(
-                                                                    item
-                                                                )
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-box-arrow-up-right me-2"
-                                                            ></i
-                                                            >Stock Out
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                ViewItem(item)
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-eye me-2"
-                                                            ></i
-                                                            >View Item
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a
-                                                            class="dropdown-item py-2"
-                                                            href="javascript:void(0)"
-                                                            @click="
-                                                                editItem(item);
-                                                                formErrors = {};
-                                                                processStatus =
-                                                                    'Edit';
-                                                            "
-                                                        >
-                                                            <i
-                                                                class="bi bi-pencil-square me-2"
-                                                            ></i
-                                                            >Edit
-                                                        </a>
-                                                    </li>
-                                                </ul>
+                                                    <Upload class="w-4 h-4" />
+                                                </button>
+
+                                                <!-- View -->
+                                                <button
+                                                    @click="ViewItem(item)"
+                                                    title="View Item"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                >
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+
+                                                <!-- Edit -->
+                                                <button
+                                                    @click="
+                                                        () => {
+                                                            editItem(item);
+                                                            formErrors = {};
+                                                            processStatus =
+                                                                'Edit';
+                                                        }
+                                                    "
+                                                    title="Edit"
+                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                                >
+                                                    <Pencil class="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
