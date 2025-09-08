@@ -1709,6 +1709,7 @@ watch(
                                         >
                                             View Inventory Item
                                         </h5>
+                                       
                                         <small
                                             class="text-muted"
                                             v-if="viewItemRef?.sku"
@@ -1929,12 +1930,13 @@ watch(
                                             <div
                                                 class="card-body d-flex flex-column align-items-center justify-content-center"
                                             >
+                                          
                                                 <div
                                                     v-if="viewItemRef.image"
                                                     class="w-100"
                                                 >
                                                     <img
-                                                        :src="`/storage/${viewItemRef.image}`"
+                                                        :src="viewItemRef.image"
                                                         alt="Item Image"
                                                         class="w-100 rounded-3"
                                                         style="
@@ -1943,18 +1945,7 @@ watch(
                                                         "
                                                     />
                                                 </div>
-                                                <div
-                                                    v-else
-                                                    class="text-center text-muted py-5"
-                                                >
-                                                    <i
-                                                        class="bi bi-image fs-1 d-block mb-2"
-                                                    ></i>
-                                                    <small
-                                                        >No image
-                                                        uploaded</small
-                                                    >
-                                                </div>
+                                                 
                                             </div>
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
