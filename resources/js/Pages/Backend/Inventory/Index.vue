@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, onMounted, onUpdated,watch  } from "vue";
 import Select from "primevue/select";
 import MultiSelect from "primevue/multiselect";
 import { toast } from "vue3-toastify";
@@ -15,6 +15,7 @@ import {
     CalendarClock,
     Plus,
     Menu,
+    Pencil
 } from "lucide-vue-next";
 const props = defineProps({
     inventories: Array,
@@ -176,6 +177,10 @@ const subcatOptions = computed(() =>
         value: s,
     }))
 );
+const categoryOptions = computed(() =>
+    Object.keys(subcatMap.value).map((c) => ({ name: c, value: c }))
+);
+const formErrors = ref({});
 const form = ref({
     name: "",
     category: [],
@@ -207,12 +212,14 @@ const submitting = ref(false);
 const submitProduct = async () => {
     submitting.value = true;
 
+    //  clear previous errors before submitting
+    formErrors.value = {}; 
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
     formData.append("category", form.value.category);
     formData.append("subcategory", form.value.subcategory || "");
     formData.append("unit", form.value.unit);
-    formData.append("minAlert", form.value.minAlert || 0);
+    formData.append("minAlert", form.value.minAlert || '');
     formData.append("supplier", form.value.supplier);
     formData.append("sku", form.value.sku || "");
     formData.append("description", form.value.description || "");
@@ -244,13 +251,13 @@ const submitProduct = async () => {
                     headers: { "Content-Type": "multipart/form-data" },
                 }
             );
-            toast.success("✅ Inventory Item updated successfully");
+            toast.success(" Inventory Item updated successfully");
         } else {
             // CREATE
             await axios.post("/inventory", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
-            toast.success("✅ Inventory Item created successfully");
+            toast.success(" Inventory Item created successfully");
         }
 
         resetForm();
@@ -259,12 +266,46 @@ const submitProduct = async () => {
         const modalEl = document.getElementById("addItemModal");
         bootstrap.Modal.getInstance(modalEl)?.hide();
     } catch (err) {
-        console.error("❌ Error saving:", err.response?.data || err.message);
-        toast.error("Failed to save Inventory Item");
+        // 🧯 capture Laravel validation errors
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+            formErrors.value = err.response.data.errors; // keys like 'name', 'category', 'nutrition.calories'
+            toast.error("Please fix the highlighted fields.");
+        } else {
+            console.error("❌ Error saving:", err.response?.data || err.message);
+            toast.error("Failed to save Inventory Item");
+        }
     } finally {
         submitting.value = false;
     }
 };
+
+//  One deep watcher for the entire form
+watch(
+  form,
+  (newVal) => {
+    Object.keys(formErrors.value).forEach((key) => {
+      if (key.includes(".")) {
+        // handle nested keys e.g. "nutrition.calories"
+        const [parent, child] = key.split(".");
+        if (newVal[parent] && newVal[parent][child] !== "") {
+          delete formErrors.value[key];
+        }
+      } else {
+        const value = newVal[key];
+        if (
+          value !== null &&
+          value !== undefined &&
+          value !== "" &&
+          (!(Array.isArray(value)) || value.length > 0)
+        ) {
+          delete formErrors.value[key];
+        }
+      }
+    });
+  },
+  { deep: true }
+);
+
 
 // ===============Edit item ==================
 const editItem = (item) => {
@@ -416,7 +457,7 @@ async function submitStockIn() {
     calculateValue();
     try {
         await axios.post("/stock_entries", stockForm.value);
-        toast.success("✅ Stock In saved successfully");
+        toast.success(" Stock In saved successfully");
         resetStockForm();
         bootstrap.Modal.getInstance(
             document.getElementById("stockInModal")
@@ -464,7 +505,7 @@ async function submitStockOut() {
 
     try {
         await axios.post("/stock_entries", stockForm.value);
-        toast.success("✅ Stock Out saved successfully");
+        toast.success(" Stock Out saved successfully");
         resetStockForm();
         bootstrap.Modal.getInstance(
             document.getElementById("stockOutModal")
@@ -530,7 +571,7 @@ const downloadCSV = (data) => {
 
         // Build CSV rows
         const rows = data.map((s) => {
-            // ✅ Format nutrition into key:value pairs
+            //  Format nutrition into key:value pairs
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 nutritionStr = Object.entries(s.nutrition)
@@ -583,7 +624,7 @@ const downloadCSV = (data) => {
         link.click();
         document.body.removeChild(link);
 
-        toast.success("CSV downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("CSV downloaded successfully ", { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -693,7 +734,7 @@ const downloadPDF = (data) => {
             new Date().toISOString().split("T")[0]
         }.pdf`;
         doc.save(fileName);
-        toast.success("PDF downloaded successfully ✅", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully ", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -720,7 +761,7 @@ const downloadExcel = (data) => {
 
         // Prepare worksheet data
         const worksheetData = data.map((s) => {
-            // ✅ Format nutrition into key:value pairs
+            //  Format nutrition into key:value pairs
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 nutritionStr = Object.entries(s.nutrition)
@@ -788,7 +829,7 @@ const downloadExcel = (data) => {
         // Save the file
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ✅", {
+        toast.success("Excel file downloaded successfully ", {
             autoClose: 2500,
         });
     } catch (error) {
@@ -798,6 +839,7 @@ const downloadExcel = (data) => {
         });
     }
 };
+
 </script>
 
 <template>
@@ -811,7 +853,7 @@ const downloadExcel = (data) => {
                     <div v-for="c in kpis" :key="c.label" class="col">
                         <div class="card border-0 shadow-sm rounded-4 h-100">
                             <div
-                                class="card-body d-flex align-items-center justify-content-between"
+                                class="card-body d-flex align-items-center justify-content-between "
                             >
                                 <!-- left: value + label -->
                                 <div>
@@ -1199,330 +1241,303 @@ const downloadExcel = (data) => {
                             </div>
 
                             <div class="modal-body">
-                                <!-- top row -->
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Product Name</label
-                                        >
-                                        <input
-                                            v-model="form.name"
-                                            type="text"
-                                            class="form-control"
-                                            placeholder="e.g., Chicken Breast"
-                                        />
-                                    </div>
+    <!-- top row -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Product Name</label>
+            <input
+                v-model="form.name"
+                type="text"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors.name }"
+                placeholder="e.g., Chicken Breast"
+            />
+            <small v-if="formErrors.name" class="text-danger">
+                {{ formErrors.name[0] }}
+            </small>
+        </div>
 
-                                    <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Category</label
-                                        >
-                                        <Select
-                                            v-model="form.category"
-                                            :options="categories"
-                                            optionLabel="name"
-                                            optionValue="name"
-                                            placeholder="Select Category"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                            @update:modelValue="
-                                                form.subcategory = ''
-                                            "
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
-                                                <span v-if="value">{{
-                                                    value
-                                                }}</span>
-                                                <span v-else>{{
-                                                    placeholder
-                                                }}</span>
-                                            </template>
-                                        </Select>
-                                    </div>
+        <div class="col-md-6">
+            <label class="form-label">Category</label>
+            <Select
+                v-model="form.category"
+                :options="categories"
+                optionLabel="name"
+                optionValue="name"
+                placeholder="Select Category"
+                class="w-100"
+                appendTo="self"
+                :autoZIndex="true"
+                :baseZIndex="2000"
+                @update:modelValue="form.subcategory = ''"
+                :class="{ 'is-invalid': formErrors.category }"
+            />
+            <small v-if="formErrors.category" class="text-danger">
+                {{ formErrors.category[0] }}
+            </small>
+        </div>
 
-                                    <!-- Subcategory (only if exists) -->
-                                    <div
-                                        class="col-md-6"
-                                        v-if="subcatOptions.length"
-                                    >
-                                        <label class="form-label"
-                                            >Subcategory</label
-                                        >
-                                        <Select
-                                            v-model="form.subcategory"
-                                            :options="subcatOptions"
-                                            optionLabel="name"
-                                            optionValue="value"
-                                            placeholder="Select Subcategory"
-                                            class="w-100"
-                                            :appendTo="body"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
-                                                <span v-if="value">{{
-                                                    value
-                                                }}</span>
-                                                <span v-else>{{
-                                                    placeholder
-                                                }}</span>
-                                            </template>
-                                        </Select>
-                                    </div>
+        <!-- Subcategory -->
+        <div class="col-md-6" v-if="subcatOptions.length">
+            <label class="form-label">Subcategory</label>
+            <Select
+                v-model="form.subcategory"
+                :options="subcatOptions"
+                optionLabel="name"
+                optionValue="value"
+                placeholder="Select Subcategory"
+                class="w-100"
+                :appendTo="body"
+                :autoZIndex="true"
+                :baseZIndex="2000"
+                :class="{ 'is-invalid': formErrors.subcategory }"
+            />
+            <small v-if="formErrors.subcategory" class="text-danger">
+                {{ formErrors.subcategory[0] }}
+            </small>
+        </div>
 
-                                    <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Minimum Stock Alert Level</label
-                                        >
-                                        <input
-                                            v-model="form.minAlert"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                            placeholder="e.g., 5"
-                                        />
-                                    </div>
+        <div class="col-md-6">
+            <label class="form-label d-block">Minimum Stock Alert Level</label>
+            <input
+                v-model="form.minAlert"
+                type="number"
+                min="0"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors.minAlert }"
+                placeholder="e.g., 5"
+            />
+            <small v-if="formErrors.minAlert" class="text-danger">
+                {{ formErrors.minAlert[0] }}
+            </small>
+        </div>
 
-                                    <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Unit Type</label
-                                        >
-                                        <Select
-                                            v-model="form.unit"
-                                            :options="units"
-                                            optionLabel="name"
-                                            optionValue="name"
-                                            placeholder="Select Unit"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
-                                                <span v-if="value">{{
-                                                    value
-                                                }}</span>
-                                                <span v-else>{{
-                                                    placeholder
-                                                }}</span>
-                                            </template>
-                                        </Select>
-                                    </div>
+        <div class="col-md-6">
+            <label class="form-label">Unit Type</label>
+            <Select
+                v-model="form.unit"
+                :options="units"
+                optionLabel="name"
+                optionValue="name"
+                placeholder="Select Unit"
+                class="w-100"
+                appendTo="self"
+                :autoZIndex="true"
+                :baseZIndex="2000"
+                :class="{ 'is-invalid': formErrors.unit }"
+            />
+            <small v-if="formErrors.unit" class="text-danger">
+                {{ formErrors.unit[0] }}
+            </small>
+        </div>
 
-                                    <div class="col-md-6">
-                                        <label class="form-label"
-                                            >Preferred Supplier</label
-                                        >
-                                        <Select
-                                            v-model="form.supplier"
-                                            :options="suppliers"
-                                            optionLabel="name"
-                                            optionValue="name"
-                                            placeholder="Select Supplier"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        >
-                                            <template
-                                                #value="{ value, placeholder }"
-                                            >
-                                                <span v-if="value">{{
-                                                    value
-                                                }}</span>
-                                                <span v-else>{{
-                                                    placeholder
-                                                }}</span>
-                                            </template>
-                                        </Select>
-                                    </div>
+        <div class="col-md-6">
+            <label class="form-label">Preferred Supplier</label>
+            <Select
+                v-model="form.supplier"
+                :options="suppliers"
+                optionLabel="name"
+                optionValue="name"
+                placeholder="Select Supplier"
+                class="w-100"
+                appendTo="self"
+                :autoZIndex="true"
+                :baseZIndex="2000"
+                :class="{ 'is-invalid': formErrors.supplier }"
+            />
+            <small v-if="formErrors.supplier" class="text-danger">
+                {{ formErrors.supplier[0] }}
+            </small>
+        </div>
 
-                                    <div class="col-md-12">
-                                        <label class="form-label"
-                                            >SKU (Optional)</label
-                                        >
-                                        <input
-                                            v-model="form.sku"
-                                            type="text"
-                                            class="form-control"
-                                            placeholder="Stock Keeping Unit"
-                                        />
-                                    </div>
+        <div class="col-md-12">
+            <label class="form-label">SKU (Optional)</label>
+            <input
+                v-model="form.sku"
+                type="text"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors.sku }"
+                placeholder="Stock Keeping Unit"
+            />
+            <small v-if="formErrors.sku" class="text-danger">
+                {{ formErrors.sku[0] }}
+            </small>
+        </div>
 
-                                    <div class="col-12">
-                                        <label class="form-label"
-                                            >Description</label
-                                        >
-                                        <textarea
-                                            v-model="form.description"
-                                            rows="4"
-                                            class="form-control"
-                                            placeholder="Notes about this product"
-                                        ></textarea>
-                                    </div>
-                                </div>
+        <div class="col-12">
+            <label class="form-label">Description</label>
+            <textarea
+                v-model="form.description"
+                rows="4"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors.description }"
+                placeholder="Notes about this product"
+            ></textarea>
+            <small v-if="formErrors.description" class="text-danger">
+                {{ formErrors.description[0] }}
+            </small>
+        </div>
+    </div>
 
-                                <hr class="my-4" />
+    <hr class="my-4" />
 
-                                <!-- Nutrition -->
-                                <h6 class="mb-3">
-                                    Nutrition Information (per unit)
-                                </h6>
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Calories</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.calories"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Fat (g)</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.fat"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Protein (g)</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.protein"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label"
-                                            >Carbs (g)</label
-                                        >
-                                        <input
-                                            v-model="form.nutrition.carbs"
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
-                                    </div>
-                                </div>
+    <!-- Nutrition -->
+    <h6 class="mb-3">Nutrition Information (per unit)</h6>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Calories</label>
+            <input
+                v-model="form.nutrition.calories"
+                type="number"
+                min="0"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors['nutrition.calories'] }"
+            />
+            <small v-if="formErrors['nutrition.calories']" class="text-danger">
+                {{ formErrors['nutrition.calories'][0] }}
+            </small>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Fat (g)</label>
+            <input
+                v-model="form.nutrition.fat"
+                type="number"
+                min="0"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors['nutrition.fat'] }"
+            />
+            <small v-if="formErrors['nutrition.fat']" class="text-danger">
+                {{ formErrors['nutrition.fat'][0] }}
+            </small>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Protein (g)</label>
+            <input
+                v-model="form.nutrition.protein"
+                type="number"
+                min="0"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors['nutrition.protein'] }"
+            />
+            <small v-if="formErrors['nutrition.protein']" class="text-danger">
+                {{ formErrors['nutrition.protein'][0] }}
+            </small>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Carbs (g)</label>
+            <input
+                v-model="form.nutrition.carbs"
+                type="number"
+                min="0"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors['nutrition.carbs'] }"
+            />
+            <small v-if="formErrors['nutrition.carbs']" class="text-danger">
+                {{ formErrors['nutrition.carbs'][0] }}
+            </small>
+        </div>
+    </div>
 
-                                <div class="row g-4 mt-1">
-                                    <!-- Allergies -->
-                                    <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Allergies</label
-                                        >
-                                        <MultiSelect
-                                            v-model="form.allergies"
-                                            :options="allergies"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            filter
-                                            placeholder="Select Allergies"
-                                            class="w-full md:w-80"
-                                            appendTo="self"
-                                        />
-                                    </div>
+    <div class="row g-4 mt-1">
+        <!-- Allergies -->
+        <div class="col-md-6">
+            <label class="form-label d-block">Allergies</label>
+            <MultiSelect
+                v-model="form.allergies"
+                :options="allergies"
+                optionLabel="name"
+                optionValue="id"
+                filter
+                placeholder="Select Allergies"
+                class="w-full md:w-80"
+                appendTo="self"
+                :class="{ 'is-invalid': formErrors.allergies }"
+            />
+            <small v-if="formErrors.allergies" class="text-danger">
+                {{ formErrors.allergies[0] }}
+            </small>
+        </div>
 
-                                    <!-- Tags -->
-                                    <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Tags (Halal, Haram, etc.)</label
-                                        >
+        <!-- Tags -->
+        <div class="col-md-6">
+            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+            <MultiSelect
+                v-model="form.tags"
+                :options="tags"
+                optionLabel="name"
+                optionValue="id"
+                filter
+                placeholder="Select Tags"
+                class="w-full md:w-80"
+                appendTo="self"
+                :class="{ 'is-invalid': formErrors.tags }"
+            />
+            <small v-if="formErrors.tags" class="text-danger">
+                {{ formErrors.tags[0] }}
+            </small>
+        </div>
+    </div>
 
-                                        <MultiSelect
-                                            v-model="form.tags"
-                                            :options="tags"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            filter
-                                            placeholder="Select Tags"
-                                            class="w-full md:w-80"
-                                            appendTo="self"
-                                        />
-                                    </div>
-                                </div>
+    <!-- Image -->
+    <div class="row g-3 mt-2 align-items-center">
+        <div class="col-sm-6 col-md-4">
+            <div class="img-drop rounded-3 d-flex align-items-center justify-content-center"
+                :class="{ 'is-invalid': formErrors.image }">
+                <template v-if="!form.imagePreview">
+                    <div class="text-center small">
+                        <div class="mb-2">
+                            <i class="bi bi-image fs-3"></i>
+                        </div>
+                        <div>Drag image here</div>
+                        <div>
+                            or
+                            <label
+                                class="text-primary fw-semibold"
+                                style="cursor: pointer;"
+                            >
+                                Browse image
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    class="d-none"
+                                    @change="handleImage"
+                                />
+                            </label>
+                        </div>
+                    </div>
+                </template>
+                <template v-else>
+                    <img
+                        :src="form.imagePreview"
+                        class="w-100 h-100 rounded-3"
+                        style="object-fit: cover"
+                    />
+                </template>
+            </div>
+            <small v-if="formErrors.image" class="text-danger">
+                {{ formErrors.image[0] }}
+            </small>
+        </div>
+    </div>
 
-                                <!-- Image -->
-                                <div class="row g-3 mt-2 align-items-center">
-                                    <div class="col-sm-6 col-md-4">
-                                        <div
-                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                                        >
-                                            <template v-if="!form.imagePreview">
-                                                <div class="text-center small">
-                                                    <div class="mb-2">
-                                                        <i
-                                                            class="bi bi-image fs-3"
-                                                        ></i>
-                                                    </div>
-                                                    <div>Drag image here</div>
-                                                    <div>
-                                                        or
-                                                        <label
-                                                            class="text-primary fw-semibold"
-                                                            style="
-                                                                cursor: pointer;
-                                                            "
-                                                        >
-                                                            Browse image
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                class="d-none"
-                                                                @change="
-                                                                    handleImage
-                                                                "
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                            <template v-else>
-                                                <img
-                                                    :src="form.imagePreview"
-                                                    class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover"
-                                                />
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
+    <div class="mt-4">
+        <button
+            class="btn btn-primary rounded-pill px-5 py-2"
+            :disabled="submitting"
+            @click="submitProduct"
+        >
+            <span>Add Product</span>
+        </button>
+        <button
+            class="btn btn-secondary rounded-pill px-4 ms-2"
+            data-bs-dismiss="modal"
+            @click="resetForm"
+        >
+            Cancel
+        </button>
+    </div>
+</div>
 
-                                <div class="mt-4">
-                                    <button
-                                        class="btn btn-primary rounded-pill px-5 py-2"
-                                        :disabled="submitting"
-                                        @click="submitProduct"
-                                    >
-                                        <span>Add Product</span>
-                                    </button>
-                                    <button
-                                        class="btn btn-secondary rounded-pill px-4 ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetForm"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1677,7 +1692,7 @@ const downloadExcel = (data) => {
                                                     class="d-flex flex-wrap gap-2 mt-2"
                                                 >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-primary text-primary"
+                                                        class="badge rounded-pill bg-primary text-white"
                                                         >Calories:
                                                         {{
                                                             viewItemRef
@@ -1687,7 +1702,7 @@ const downloadExcel = (data) => {
                                                         }}</span
                                                     >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-success text-success"
+                                                        class="badge rounded-pill bg-success text-white"
                                                         >Protein:
                                                         {{
                                                             viewItemRef
@@ -1696,7 +1711,7 @@ const downloadExcel = (data) => {
                                                         }}</span
                                                     >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-warning text-warning"
+                                                        class="badge rounded-pill  bg-warning text-white"
                                                         >Fat:
                                                         {{
                                                             viewItemRef
@@ -1705,7 +1720,7 @@ const downloadExcel = (data) => {
                                                         }}</span
                                                     >
                                                     <span
-                                                        class="badge rounded-pill bg-soft-secondary text-secondary"
+                                                        class="badge rounded-pill  bg-secondary text-white"
                                                         >Carbs:
                                                         {{
                                                             viewItemRef
@@ -1726,9 +1741,9 @@ const downloadExcel = (data) => {
                                                     <span
                                                         v-for="tag in viewItemRef.tags"
                                                         :key="tag"
-                                                        class="badge rounded-pill bg-soft-info text-info"
+                                                        class="badge rounded-pill bg-info text-white"
                                                     >
-                                                        Tag ID: {{ tag }}
+                                                          {{ tag }}
                                                     </span>
                                                 </div>
 
@@ -1743,9 +1758,9 @@ const downloadExcel = (data) => {
                                                     <span
                                                         v-for="allergy in viewItemRef.allergies"
                                                         :key="allergy"
-                                                        class="badge rounded-pill bg-soft-danger text-danger"
+                                                        class="badge rounded-pill bg-danger text-white"
                                                     >
-                                                        Allergy ID:
+                                                       
                                                         {{ allergy }}
                                                     </span>
                                                 </div>
@@ -1792,27 +1807,19 @@ const downloadExcel = (data) => {
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
                                                 <span class="text-muted"
-                                                    >Created</span
+                                                    >Updated On</span
                                                 >
                                                 <span class="fw-semibold">{{
-                                                    viewItemRef.created_at
+                                                    viewItemRef.formatted_updated_at
                                                 }}</span>
                                             </div>
+                                             
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
                                                 <span class="text-muted"
-                                                    >Updated</span
-                                                >
-                                                <span class="fw-semibold">{{
-                                                    viewItemRef.updated_at
-                                                }}</span>
-                                            </div>
-                                            <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between"
-                                            >
-                                                <span class="text-muted"
-                                                    >Stock</span
+                                                    >
+                                                    Stock</span
                                                 >
                                                 <span
                                                     :class="[
@@ -1823,12 +1830,14 @@ const downloadExcel = (data) => {
                                                     ]"
                                                 >
                                                     {{ viewItemRef.stock }}
-                                                    <span
+                                                    
+                                                </span>
+                                                <span
                                                         v-if="
                                                             viewItemRef.stock ===
                                                             0
                                                         "
-                                                        class="badge bg-red-600"
+                                                        class="badge bg-red-600 rounded-pill"
                                                         >Out of stock</span
                                                     >
                                                     <span
@@ -1836,16 +1845,17 @@ const downloadExcel = (data) => {
                                                             viewItemRef.stock <=
                                                             viewItemRef.minAlert
                                                         "
-                                                        class="badge bg-warning"
+                                                        class="badge bg-warning rounded-pill"
                                                         >Low-stock</span
                                                     >
                                                     <span
                                                         v-else
-                                                        class="badge bg-success"
+                                                        class="badge bg-success rounded-pill"
                                                         >In-stock</span
                                                     >
-                                                </span>
+                                                
                                             </div>
+                                            
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
@@ -1866,20 +1876,24 @@ const downloadExcel = (data) => {
                                 class="modal-footer d-flex justify-content-between"
                             >
                                 <div class="d-flex gap-2">
-                                    <button
+                                    <!-- <button
                                         type="button"
                                         class="btn btn-outline-primary rounded-pill"
                                     >
                                         <i class="bi bi-printer me-1"></i> Print
-                                    </button>
+                                    </button> -->
+
                                     <button
-                                        type="button"
-                                        class="btn btn-outline-secondary rounded-pill"
-                                        @click="editItem(viewItemRef)"
-                                    >
-                                        <i class="bi bi-pencil-square me-1"></i>
-                                        Edit
-                                    </button>
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addItemModal"
+                                    class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
+                                    @click="editItem(viewItemRef)"
+                                >
+                                    <Pencil class="w-4 h-4" /> Edit
+                                </button>
+
+                                
+                                     
                                 </div>
 
                                 <button
@@ -2364,4 +2378,6 @@ const downloadExcel = (data) => {
         width: 100%;
     }
 }
+
+
 </style>

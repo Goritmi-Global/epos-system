@@ -51,6 +51,7 @@ class InventoryController extends Controller
 
     public function store(StoreInventoryRequest $request)
     {
+        dd($request->all());
         $inventory = $this->service->create($request->validated());
         return response()->json([
             'message' => 'Inventory created successfully',

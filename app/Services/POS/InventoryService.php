@@ -42,6 +42,7 @@ class InventoryService
                     ? Tag::whereIn('id', $tagIds)->pluck('name')->toArray()
                     : [];
 
+                    // dd($item);
                 // ✅ Return clean object
                 return [
                     "id" => $item->id,
@@ -58,8 +59,7 @@ class InventoryService
                     "tags" => $tagNames,
                     "user" => $item->user?->name,
                     "image" => $item->image,
-                    "created_at" => $item->created_at,
-                    "updated_at" => $item->updated_at,
+                    "created_at" => $item->formatted_created_at
                 ];
             });
     }

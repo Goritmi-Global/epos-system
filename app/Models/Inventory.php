@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-
-class Inventory extends Model
+use Carbon\Carbon;
+class Inventory extends BaseModel
 {
     protected $table = 'inventory_items';
     protected $appends = ['stock'];
@@ -58,4 +58,6 @@ class Inventory extends Model
     public function allergies(){
         return $this->belongsTo(Allergy::class);
     }
+     
+
 }

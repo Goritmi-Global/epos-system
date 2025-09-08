@@ -17,11 +17,11 @@ class StoreInventoryRequest extends FormRequest
             'category' => ['required', 'string'],
             'subcategory' => ['nullable', 'string'],
             'unit' => ['required', 'string'],
-            'supplier' => ['nullable', 'string'],
+            'supplier' => ['required', 'string'],
             'sku' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
 
-            'minAlert' => ['nullable', 'integer'], // <-- add this
+            'minAlert' => ['required', 'integer'], // <-- add this
 
             'nutrition' => ['nullable', 'array'],
             'nutrition.calories' => ['nullable', 'numeric'],
@@ -34,7 +34,7 @@ class StoreInventoryRequest extends FormRequest
             'tags' => ['nullable', 'array'],
             'tags.*' => ['integer'],
 
-            'image' => ['nullable', 'image', 'max:2048'],
+            'image' => ['required', 'image', 'max:2048'],
         ];
     }
 }
