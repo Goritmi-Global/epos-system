@@ -768,6 +768,32 @@ li.active > .side-link {
   padding-left: 0.5rem;
 }
 
-
+.logo-card{
+  background:#fff;
+  border:1px solid #edf0f5;
+  border-radius:1rem;
+  padding:1rem;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  min-height:220px;
+  box-shadow: 0 6px 18px rgba(17,38,146,0.05);
+}
+.logo-frame{
+  width:140px; height:140px;
+  border-radius:1rem;
+  border:1px dashed #cfd6e4;
+  background:#f7f9fc;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  cursor: pointer;
+}
+.logo-frame img{
+  max-width:100%; max-height:100%; object-fit:contain;
+}
+.logo-frame .placeholder{
+  color:#8b97a7; font-size:28px; line-height:0;
+}
 
 </style>

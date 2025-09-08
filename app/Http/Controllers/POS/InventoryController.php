@@ -38,6 +38,7 @@ class InventoryController extends Controller
     }
     public function apiList(Request $request)
     {
+        
         $inventories = $this->service->list($request->only('q'));
         // Return only JSON data, no Inertia
         return response()->json($inventories);

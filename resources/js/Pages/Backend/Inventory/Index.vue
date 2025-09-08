@@ -199,7 +199,7 @@ const form = ref({
     allergies: [],
     tags: [],
     imageFile: null,
-    imagePreview: "",
+    imageUrl: null,
 });
 
 function handleImage(e) {
@@ -242,8 +242,11 @@ const submitProduct = async () => {
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // image
-    if (form.value.imageFile) {
-        formData.append("image", form.value.imageFile);
+    if (form.imageFile) {
+        // optional: keep extension consistent with mime
+        const ext = (form.imageFile.type?.split("/")?.[1] || "webp").replace("jpeg", "jpg");
+        const name = `image.${ext}`;
+        formData.append("image", form.imageFile, name);
     }
 
     try {
@@ -337,11 +340,9 @@ const editItem = (item) => {
         allergies: item.allergies?.map((a) => Number(a)) || [],
         tags: item.tags?.map((t) => Number(t)) || [],
         imageFile: null,
-        imagePreview: item.image ? `/storage/${item.image}` : null,
+        imageUrl: item.image ? `/storage/${item.image}` : null,
     };
-    console.log("Preselected allergies:", form.value);
-    const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
-    modal.show();
+    new bootstrap.Modal(document.getElementById("addItemModal")).show();
 };
 // ============================= reset form =========================
 
@@ -856,9 +857,41 @@ const downloadExcel = (data) => {
         });
     }
 };
+
+const showCropper = ref(false);
+const showImageModal = ref(false);
+const previewImage = ref(null);
+// Image preveiw Modal
+
+function openImageModal(src) {
+    previewImage.value = src || form.value.imageUrl;
+    if (!previewImage.value) return;
+    showImageModal.value = true;
+}
+
+ 
+function onCropped({ file }) {
+  form.imageFile = file;   // this is the file Laravel expects
+  form.value.imageUrl = URL.createObjectURL(file); // optional for preview
+}
+
+
+watch(
+    () => props.show,
+    (newVal) => {
+        if (newVal) {
+            nextTick(() => {
+                cropper.value?.replace(props.image || "");
+                // focus first button or file input
+                fileInput.value?.focus();
+            });
+        }
+    }
+);
 </script>
 
 <template>
+     
     <Master>
         <div class="page-wrapper">
             <div class="container-fluid py-3">
@@ -1629,53 +1662,56 @@ const downloadExcel = (data) => {
                                         </small>
                                     </div>
                                 </div>
-
+                                Testing image: {{ form.imageFile }}
                                 <!-- Image -->
-                                <div class="row g-3 mt-2 align-items-center">
-                                    <div class="col-sm-6 col-md-4">
+                                 
+                                <div class="col-md-4">
+                                    <div
+                                        class="logo-card"
+                                        :class="{
+                                            'is-invalid': formErrors.image,
+                                        }"
+                                    >
+
                                         <div
-                                            class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                                            :class="{
-                                                'is-invalid': formErrors.image,
-                                            }"
+                                            class="logo-frame"
+                                            @click="
+                                                form.imageUrl &&
+                                                    openImageModal()
+                                            "
                                         >
-                                            <template v-if="!form.imagePreview">
-                                                <div class="text-center small">
-                                                    <div class="mb-2">
-                                                        <i
-                                                            class="bi bi-image fs-3"
-                                                        ></i>
-                                                    </div>
-                                                    <div>Drag image here</div>
-                                                    <div>
-                                                        or
-                                                        <label
-                                                            class="text-primary fw-semibold"
-                                                            style="
-                                                                cursor: pointer;
-                                                            "
-                                                        >
-                                                            Browse image
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                class="d-none"
-                                                                @change="
-                                                                    handleImage
-                                                                "
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                            <template>
-                                                <img
-                                                    :src="form.imagePreview"
-                                                    class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover"
-                                                />
-                                            </template>
+                                            <img
+                                                v-if="form.imageUrl"
+                                                :src="form.imageUrl"
+                                                alt="Image"
+                                            />
+                                            <div v-else class="placeholder">
+                                                <i class="bi bi-image"></i>
+                                            </div>
                                         </div>
+
+                                        <small class="text-muted mt-2 d-block"
+                                            >Upload Image</small
+                                        >
+ 
+                                        <!-- <ImageCropperModal
+                                            @cropped="handleCropped"
+                                            :aspectRatio="1"
+                                            :image="form.imageUrl"
+                                        /> -->
+                                        <!-- <ImageCropperModal :ratio="1" @croppedImg="croppedImgSubmit" /> -->
+                                        <ImageCropperModal
+   
+  :show="showCropper"
+  @close="showCropper = false"
+  @cropped="onCropped"
+/>
+
+ 
+
+
+
+
                                         <small
                                             v-if="formErrors.image"
                                             class="text-danger"
@@ -2415,6 +2451,14 @@ const downloadExcel = (data) => {
             </div>
         </div>
     </Master>
+    <!-- Modals -->
+
+    <ImageZoomModal
+        class="image-cropper-modal"
+        :show="showImageModal"
+        :image="previewImage"
+        @close="showImageModal = false"
+    />
 </template>
 
 <style scoped>
@@ -2551,5 +2595,11 @@ const downloadExcel = (data) => {
     .search-wrap {
         width: 100%;
     }
+}
+.image-cropper-modal {
+    z-index: 2001 !important;
+}
+.image-cropper-backdrop {
+    z-index: 2000 !important;
 }
 </style>
