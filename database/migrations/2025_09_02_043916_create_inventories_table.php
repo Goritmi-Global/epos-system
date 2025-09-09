@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('inventory_items', function (Blueprint $table) {
             $table->id();
+
             $table->string('name');
             $table->string('category');
             $table->string('subcategory')->nullable();
@@ -18,15 +19,21 @@ return new class extends Migration
             $table->string('supplier');
             $table->string('sku')->nullable();
             $table->text('description')->nullable();
+
             $table->json('nutrition')->nullable(); // calories, fat, protein, carbs
             $table->json('allergies')->nullable(); // store as array
-            $table->json('tags')->nullable(); // store as array
+            $table->json('tags')->nullable();      // store as array
+
+            $table->foreignId('user_id')
+                  ->nullable()
+                  ->constrained()
+                  ->cascadeOnDelete();
 
             // instead of string('image')
-            $table->foreignId('upload_id')->nullable()
+            $table->foreignId('upload_id')
+                  ->nullable()
                   ->constrained('uploads')
-                  ->nullOnDelete(); 
-                  // automatically references uploads.id
+                  ->nullOnDelete(); // if upload is deleted, set null
 
             $table->timestamps();
         });
