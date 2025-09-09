@@ -33,14 +33,13 @@ const props = defineProps({
 const inventoryItems = ref([]);
 // ================== Ingredients =====================
 const i_search = ref("");
-const i_cart = ref([]); 
+const i_cart = ref([]);
 
 
 const fetchInventory = async () => {
     try {
         const response = await axios.get("/inventory/api-inventories");
         inventoryItems.value = response.data.data;
-        console.log("Fetched inventory:", inventoryItems.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -76,12 +75,22 @@ function addIngredient(item) {
             : Number(item.defaultPrice || 0);
     const expiry = item.expiry || null;
 
-    if (!qty || qty <= 0) return alert("Enter a valid quantity.");
-    if (!price || price <= 0) return alert("Enter a valid unit price.");
+    formErrors.value = {};
+
+    if (!qty || qty <= 0) formErrors.value.qty = "Enter a valid quantity.";
+    if (!price || price <= 0) formErrors.value.unitPrice = "Enter a valid unit price.";
+
+    if (Object.keys(formErrors.value).length > 0) {
+        const messages = Object.values(formErrors.value).join(" ");
+        toast.error(messages);
+        return;
+    }
+
 
     const found = i_cart.value.find(
         (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
     );
+
     if (found) {
         found.qty = round2(found.qty + qty);
         found.cost = round2(found.qty * found.unitPrice);
@@ -94,6 +103,7 @@ function addIngredient(item) {
             unitPrice: price,
             expiry,
             cost: round2(qty * price),
+            nutrition: item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
         });
     }
 
@@ -103,9 +113,44 @@ function addIngredient(item) {
     item.expiry = null;
 }
 
+
 // remove ingredient row
 function removeIngredient(idx) {
     i_cart.value.splice(idx, 1);
+}
+
+// calulate Ingredient when qty or price changes
+const i_totalNutrition = computed(() => {
+    return i_cart.value.reduce(
+        (totals, ing) => {
+            const qty = ing.qty || 1;
+            totals.calories += Number(ing.nutrition?.calories || 0) * qty;
+            totals.protein += Number(ing.nutrition?.protein || 0) * qty;
+            totals.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+            totals.fat += Number(ing.nutrition?.fat || 0) * qty;
+            return totals;
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+});
+
+
+// Save ingredients to main form
+function saveIngredients() {
+    resetErrors();
+    form.ingredients = [...i_cart.value];
+
+    // close ingredient modal
+    const ingModal = bootstrap.Modal.getInstance(
+        document.getElementById("addIngredientModal")
+    );
+    ingModal.hide();
+
+    // reopen parent menu modal
+    const menuModal = new bootstrap.Modal(
+        document.getElementById("addItemModal")
+    );
+    menuModal.show();
 }
 
 
@@ -122,7 +167,6 @@ const items = computed(() => inventories.value);
 const fetchInventories = async () => {
     try {
         const res = await axios.get("inventory/api-inventories");
-        console.log("Stock response data:", res.data);
 
         const apiItems = res.data.data || [];
 
@@ -145,8 +189,21 @@ const fetchInventories = async () => {
     }
 };
 
+const fetchMenus = async () => {
+    try {
+        const res = await axios.get("/menu/menu-items"); // using API route
+        console.log("✅ Menu response data:", res.data);
+
+        menuItems.value = res.data.data || [];
+    } catch (err) {
+        console.error("❌ Error fetching menus:", err);
+    }
+};
+
+
 onMounted(() => {
-    fetchInventories(); 
+    fetchInventories();
+    fetchMenus();
 });
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
@@ -258,6 +315,11 @@ const categoryOptions = computed(() =>
     Object.keys(subcatMap.value).map((c) => ({ name: c, value: c }))
 );
 const formErrors = ref({});
+function resetErrors() {
+    formErrors.value = {}; 
+}
+
+
 const form = ref({
     name: "",
     category: [],
@@ -271,8 +333,24 @@ const form = ref({
     allergies: [],
     tags: [],
     imageFile: null,
-    imagePreview: "",
+    imageUrl: null,
 });
+
+
+const showCropper = ref(false);
+const showImageModal = ref(false);
+const previewImage = ref(null);
+
+function openImageModal(src) {
+    previewImage.value = src || form.value.imageUrl;
+    if (!previewImage.value) return;
+    showImageModal.value = true;
+}
+
+function onCropped({ file }) {
+    form.value.imageFile = file; // File object for Laravel upload
+    form.value.imageUrl = URL.createObjectURL(file); // URL for preview
+}
 
 function handleImage(e) {
     const file = e.target.files?.[0];
@@ -287,73 +365,86 @@ function handleImage(e) {
 const submitting = ref(false);
 
 const submitProduct = async () => {
-  submitting.value = true;
-  formErrors.value = {};
+    submitting.value = true;
+    formErrors.value = {};
 
-  const formData = new FormData();
-  formData.append("name", form.value.name.trim());
-  formData.append("price", form.value.minAlert || 0); // base price
-  formData.append("category_id", form.value.category); // category_id not name
-  formData.append("subcategory_id", form.value.subcategory || "");
-  formData.append("description", form.value.description || "");
+    const formData = new FormData();
+    formData.append("name", form.value.name.trim());
+    formData.append("price", form.value.minAlert || 0); // base price
+    if (form.value.category) {
+        formData.append("category_id", parseInt(form.value.category));
+    }
+    if (form.value.subcategory) {
+        formData.append("subcategory_id", parseInt(form.value.subcategory));
+    }
+    formData.append("description", form.value.description || "");
 
-  // nutrition
-  formData.append("nutrition[calories]", form.value.nutrition?.calories || 0);
-  formData.append("nutrition[fat]", form.value.nutrition?.fat || 0);
-  formData.append("nutrition[protein]", form.value.nutrition?.protein || 0);
-  formData.append("nutrition[carbs]", form.value.nutrition?.carbs || 0);
+    // nutrition
+    // nutrition from computed total
+    formData.append("nutrition[calories]", i_totalNutrition.value.calories);
+    formData.append("nutrition[fat]", i_totalNutrition.value.fat);
+    formData.append("nutrition[protein]", i_totalNutrition.value.protein);
+    formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
 
-  // allergies + tags
-  form.value.allergies.forEach((id, i) =>
-    formData.append(`allergies[${i}]`, id)
-  );
-  form.value.tags.forEach((id, i) =>
-    formData.append(`tags[${i}]`, id)
-  );
 
-  // ingredients cart
-  i_cart.value.forEach((ing, i) => {
-    formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
-    formData.append(`ingredients[${i}][qty]`, ing.qty);
-    formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
-    formData.append(`ingredients[${i}][cost]`, ing.cost);
-    formData.append(`ingredients[${i}][expiry]`, ing.expiry || "");
-  });
+    // allergies + tags
+    form.value.allergies.forEach((id, i) =>
+        formData.append(`allergies[${i}]`, id)
+    );
+    form.value.tags.forEach((id, i) =>
+        formData.append(`tags[${i}]`, id)
+    );
 
-  // image
-  if (form.value.imageFile) {
-    formData.append("image", form.value.imageFile);
-  }
+    // ingredients cart
+    i_cart.value.forEach((ing, i) => {
+        formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
+        formData.append(`ingredients[${i}][qty]`, ing.qty);
+        formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
+        formData.append(`ingredients[${i}][cost]`, ing.cost);
+    });
 
-  try {
-    if (form.value.id) {
-      await axios.post(`/menu/${form.value.id}?_method=PUT`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Menu updated successfully");
-    } else {
-      await axios.post("/menu", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Menu created successfully");
+    // image
+    if (form.value.imageFile) {
+        formData.append("image", form.value.imageFile);
     }
 
-    resetForm();
-    await fetchMenus(); // <-- similar to fetchInventories
-    bootstrap.Modal.getInstance(
-      document.getElementById("addItemModal")
-    )?.hide();
-  } catch (err) {
-    if (err?.response?.status === 422 && err.response.data?.errors) {
-      formErrors.value = err.response.data.errors;
-      toast.error("Please fix the highlighted fields.");
-    } else {
-      console.error("❌ Error saving:", err.response?.data || err.message);
-      toast.error("Failed to save menu item");
+    try {
+        if (form.value.id) {
+            console.log("Updating menu item with ID:", formData);
+            await axios.post(`/menu/${form.value.id}?_method=PUT`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            toast.success("Menu updated successfully");
+        } else {
+            await axios.post("/menu", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            toast.success("Menu created successfully");
+        }
+
+        resetForm();
+        await fetchMenus();
+        bootstrap.Modal.getInstance(
+            document.getElementById("addItemModal")
+        )?.hide();
+    } catch (err) {
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+            formErrors.value = err.response.data.errors;
+
+            // Collect all error messages in one array
+            const allMessages = Object.values(err.response.data.errors)
+                .flat()
+                .join("\n");
+
+            // Show all messages in one toast
+            toast.error(allMessages);
+        } else {
+            console.error("❌ Error saving:", err.response?.data || err.message);
+            toast.error("Failed to save menu item");
+        }
+    } finally {
+        submitting.value = false;
     }
-  } finally {
-    submitting.value = false;
-  }
 };
 
 
@@ -388,6 +479,12 @@ watch(
 // ===============Edit item ==================
 const editItem = (item) => {
     console.log(item);
+
+    // Clear any existing object URLs first
+    if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(form.value.imageUrl);
+    }
+
     form.value = {
         id: item.id,
         name: item.name,
@@ -404,12 +501,12 @@ const editItem = (item) => {
             protein: 0,
             carbs: 0,
         },
-        // Fix: Convert string values directly to numbers
         allergies: item.allergies?.map((a) => Number(a)) || [],
         tags: item.tags?.map((t) => Number(t)) || [],
         imageFile: null,
-        imagePreview: item.image ? `/storage/${item.image}` : null,
+        imageUrl: item.image ? `/storage/${item.image}` : null,  // Use imageUrl consistently
     };
+
     console.log("Preselected allergies:", form.value);
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
@@ -417,6 +514,9 @@ const editItem = (item) => {
 // ============================= reset form =========================
 
 function resetForm() {
+    if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(form.value.imageUrl);
+    }
     form.value = {
         name: "",
         category: "Poultry",
@@ -430,8 +530,12 @@ function resetForm() {
         allergies: [],
         tags: [],
         imageFile: null,
-        imagePreview: "",
+        imageUrl: null,
     };
+    showCropper.value = false;
+    showImageModal.value = false;
+    previewImage.value = null;
+    formErrors.value = {};
 }
 // =====================view item =========================
 const viewItemRef = ref({});
@@ -858,9 +962,9 @@ const downloadExcel = (data) => {
                                 </div>
 
                                 <!-- Add Item -->
-                                <button data-bs-toggle="modal" data-bs-target="#addItemModal"
+                                <button data-bs-toggle="modal" @click="resetErrors" data-bs-target="#addItemModal"
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
-                                    <Plus class="w-4 h-4" /> Add Item
+                                    <Plus class="w-4 h-4" /> Add Menu
                                 </button>
 
                                 <!-- Download all -->
@@ -1060,8 +1164,8 @@ const downloadExcel = (data) => {
                                     <div class="col-md-6">
                                         <label class="form-label">Category</label>
                                         <Select v-model="form.category" :options="categories" optionLabel="name"
-                                            optionValue="name" placeholder="Select Category" class="w-100"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                            optionValue="id" placeholder="Select Category" class="w-100" appendTo="self"
+                                            :autoZIndex="true" :baseZIndex="2000"
                                             @update:modelValue="form.subcategory = ''"
                                             :class="{ 'is-invalid': formErrors.category }" />
                                         <small v-if="formErrors.category" class="text-danger">
@@ -1122,42 +1226,43 @@ const downloadExcel = (data) => {
 
                                 <!-- Image -->
                                 <div class="row g-3 mt-2 align-items-center">
-                                    <div class="col-sm-6 col-md-4">
-                                        <div class="img-drop rounded-3 d-flex align-items-center justify-content-center"
-                                            :class="{ 'is-invalid': formErrors.image }">
-                                            <template v-if="!form.imagePreview">
-                                                <div class="text-center small">
-                                                    <div class="mb-2">
-                                                        <i class="bi bi-image fs-3"></i>
-                                                    </div>
-                                                    <div>Drag image here</div>
-                                                    <div>
-                                                        or
-                                                        <label class="text-primary fw-semibold"
-                                                            style="cursor: pointer;">
-                                                            Browse image
-                                                            <input type="file" accept="image/*" class="d-none"
-                                                                @change="handleImage" />
-                                                        </label>
-                                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="logo-card" :class="{
+                                            'is-invalid': formErrors.image,
+                                        }">
+                                            <div class="logo-frame"
+                                                @click="form.imageUrl ? openImageModal() : showCropper = true">
+                                                <img v-if="form.imageUrl" :src="form.imageUrl" alt="Menu Item Image" />
+                                                <div v-else class="placeholder">
+                                                    <i class="bi bi-image"></i>
                                                 </div>
-                                            </template>
-                                            <template v-else>
-                                                <img :src="form.imagePreview" class="w-100 h-100 rounded-3"
-                                                    style="object-fit: cover" />
-                                            </template>
+                                            </div>
+
+                                            <small class="text-muted mt-2 d-block">Upload Image</small>
+
+                                            <!-- Image Cropper Modal -->
+                                            <ImageCropperModal :show="showCropper" @close="showCropper = false"
+                                                @cropped="onCropped" />
+
+                                            <!-- Image Preview/Zoom Modal (Optional) -->
+                                            <ImageZoomModal v-if="showImageModal" :show="showImageModal"
+                                                :image="previewImage" @close="showImageModal = false" />
+
+                                            <small v-if="formErrors.image" class="text-danger">
+                                                {{ formErrors.image[0] }}
+                                            </small>
                                         </div>
-                                        <small v-if="formErrors.image" class="text-danger">
-                                            {{ formErrors.image[0] }}
-                                        </small>
                                     </div>
+
                                     <div class="mt-4 col-sm-6 col-md-4">
                                         <button class="btn btn-outline-primary rounded-pill px-4" data-bs-toggle="modal"
                                             data-bs-target="#addIngredientModal">
                                             + Add Ingredients
                                         </button>
+                                        <small v-if="formErrors.ingredients" class="text-danger d-block mt-1">
+                                            {{ formErrors.ingredients[0] }}
+                                        </small>
                                     </div>
-
                                 </div>
 
                                 <div class="mt-4">
@@ -1463,7 +1568,15 @@ const downloadExcel = (data) => {
                                                         <div class="fw-semibold">{{ it.name }}</div>
                                                         <div class="text-muted small">Category: {{ it.category }}</div>
                                                         <div class="text-muted small">Unit: {{ it.unit }}</div>
+                                                        <div class="small mt-2 text-muted">
+                                                            Calories: {{ it.nutrition?.calories || 0 }},
+                                                            Protein: {{ it.nutrition?.protein || 0 }} g,
+                                                            Carbs: {{ it.nutrition?.carbs || 0 }} g,
+                                                            Fat: {{ it.nutrition?.fat || 0 }} g
+                                                        </div>
+
                                                     </div>
+
                                                     <button class="btn btn-primary px-3"
                                                         @click="addIngredient(it)">Add</button>
                                                 </div>
@@ -1473,11 +1586,17 @@ const downloadExcel = (data) => {
                                                         <label class="small text-muted">Quantity</label>
                                                         <input v-model.number="it.qty" type="number" min="0"
                                                             class="form-control form-control-sm" />
+                                                        <small v-if="formErrors.qty" class="text-danger">
+                                                            {{ formErrors.qty }}
+                                                        </small>
                                                     </div>
                                                     <div class="col-4">
                                                         <label class="small text-muted">Unit Price</label>
                                                         <input v-model.number="it.unitPrice" type="number" min="0"
                                                             class="form-control form-control-sm" />
+                                                        <small v-if="formErrors.unitPrice" class="text-danger">
+                                                            {{ formErrors.unitPrice }}
+                                                        </small>
                                                     </div>
                                                     <div class="col-4">
                                                         <label class="small text-muted">Expiry</label>
@@ -1491,6 +1610,16 @@ const downloadExcel = (data) => {
 
                                     <!-- Right side -->
                                     <div class="col-lg-7">
+                                        <div class="card border rounded-4 mb-3">
+                                            <div class="p-3 fw-semibold">
+                                                <div>Total Nutrition (Menu)</div>
+                                                <div>Calories: {{ i_totalNutrition.calories }}</div>
+                                                <div>Protein: {{ i_totalNutrition.protein }} g</div>
+                                                <div>Carbs: {{ i_totalNutrition.carbs }} g</div>
+                                                <div>Fat: {{ i_totalNutrition.fat }} g</div>
+                                            </div>
+                                        </div>
+
                                         <div class="card border rounded-4">
                                             <div class="table-responsive">
                                                 <table class="table align-middle mb-0">
@@ -1530,7 +1659,8 @@ const downloadExcel = (data) => {
                                         </div>
 
                                         <div class="mt-3 text-center">
-                                            <button class="btn btn-primary px-5" data-bs-dismiss="modal">Done</button>
+                                            <button class="btn btn-primary px-5" @click="saveIngredients">Done</button>
+
                                         </div>
                                     </div>
                                 </div>

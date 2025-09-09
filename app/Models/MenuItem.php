@@ -15,6 +15,7 @@ class MenuItem extends Model
         'category_id',
         'description',
         'image',
+        'upload_id'
     ];
 
     // Category
@@ -38,12 +39,17 @@ class MenuItem extends Model
     // Allergies (Many-to-Many via pivot)
     public function allergies()
     {
-        return $this->belongsToMany(Allergy::class, 'menu_allergies');
+        return $this->belongsToMany(Allergy::class, 'menu_allergies')->withTimestamps();
     }
 
     // Tags (Many-to-Many via pivot)
     public function tags()
     {
-        return $this->belongsToMany(Tag::class, 'menu_tags');
+        return $this->belongsToMany(Tag::class, 'menu_tags')->withTimestamps();
+    }
+
+    public function upload()
+    {
+        return $this->belongsTo(Upload::class, 'upload_id');
     }
 }

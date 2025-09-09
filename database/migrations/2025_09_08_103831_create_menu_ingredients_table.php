@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('menu_ingredients', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('menu_item_id');
+            $table->foreignId('inventory_item_id')->constrained('inventory_items')->cascadeOnDelete();
             $table->string('product_name');
             $table->decimal('quantity', 10, 2);
             $table->decimal('cost', 10, 2)->nullable();

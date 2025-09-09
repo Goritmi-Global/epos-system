@@ -384,7 +384,6 @@ function orderSubmit() {
 
     axios.post("/purchase-orders", payload)
         .then(res => {
-            console.log("✅ Order created:", res.data);
             // reset
             o_cart.value = [];
             p_supplier.value = null;
@@ -402,16 +401,6 @@ function orderSubmit() {
 
 
 // ===========================================================
-
-/* =============== Fake API =============== */
-function fakeApi(data) {
-    return new Promise((resolve) =>
-        setTimeout(
-            () => resolve({ ok: true, message: "Saved (demo)", data }),
-            800
-        )
-    );
-}
 
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
