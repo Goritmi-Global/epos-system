@@ -14,10 +14,22 @@ return new class extends Migration
         Schema::create('stock_entries', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('category_id')->constrained('categories')->cascadeOnDelete();
-            $table->foreignId('supplier_id')->constrained('suppliers')->cascadeOnDelete();
-            $table->foreignId('product_id')->constrained('inventory_items')->cascadeOnDelete(); // corrected
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('category_id')
+                ->constrained('categories')
+                ->cascadeOnDelete();
+
+            $table->foreignId('supplier_id')
+                ->nullable()
+                ->constrained('suppliers')
+                ->nullOnDelete(); // if supplier is deleted, set NULL
+
+            $table->foreignId('product_id')
+                ->constrained('inventory_items')
+                ->cascadeOnDelete();
+
+            $table->foreignId('user_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
 
             $table->integer('quantity')->default(0);
             $table->decimal('price', 10, 2)->default(0);
