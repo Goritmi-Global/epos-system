@@ -841,6 +841,21 @@ function fmtDate(d) {
     return d ? new Date(d).toLocaleDateString() : "—";
 }
 // function money(n)        { return (Number(n ?? 0)).toFixed(2); }
+ 
+// totals for the stock-in table footer
+const totals = computed(() => {
+  const rows = stockedInItems.value || [];
+  let totalQty = 0, totalPrice = 0, totalValue = 0;
+
+  for (const r of rows) {
+    totalQty   += Number(r?.quantity ?? 0);
+    totalPrice += Number(r?.price ?? 0);   // if you prefer avg price, compute avg instead
+    totalValue += Number(r?.value ?? 0);
+  }
+  return { totalQty, totalPrice, totalValue };
+});
+
+
 </script>
 
 <template>
@@ -1941,7 +1956,7 @@ function fmtDate(d) {
                                                 }}</span>
                                             </div>
 
-                                            <div
+                                            <!-- <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
                                                 <span class="text-muted"
@@ -1981,7 +1996,7 @@ function fmtDate(d) {
                                                     class="badge bg-success rounded-pill"
                                                     >In-stock</span
                                                 >
-                                            </div>
+                                            </div> -->
 
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
@@ -2056,74 +2071,38 @@ function fmtDate(d) {
                                                 </tr>
                                             </thead>
 
-                                            <tbody>
-                                                <tr
-                                                    v-for="(
-                                                        row, i
-                                                    ) in stockedInItems"
-                                                    :key="row.id"
-                                                >
-                                                    <td class="fw-semibold">
-                                                        {{ i + 1 }}
-                                                    </td>
-                                                    <td>{{ row.quantity }}</td>
-                                                    <td>
-                                                        {{ money(row.price) }}
-                                                    </td>
-                                                    <td class="fw-semibold">
-                                                        {{ money(row.value) }}
-                                                    </td>
-                                                    <td class="text-muted">
-                                                        {{
-                                                            row.description ||
-                                                            "—"
-                                                        }}
-                                                    </td>
-                                                    <td class="text-muted">
-                                                        {{
-                                                            fmtDate(
-                                                                row.purchase_date
-                                                            )
-                                                        }}
-                                                    </td>
-                                                    <td class="text-muted">
-                                                        {{
-                                                            fmtDate(
-                                                                row.expiry_date
-                                                            )
-                                                        }}
-                                                    </td>
-                                                    <td class="text-center">
-                                                        <span
-                                                            :class="[
-                                                                'badge rounded-pill px-3 py-2',
-                                                                stockStatusClass(
-                                                                    row.status
-                                                                ),
-                                                            ]"
-                                                        >
-                                                            {{
-                                                                stockStatusLabel(
-                                                                    row.status
-                                                                )
-                                                            }}
-                                                        </span>
-                                                    </td>
-                                                </tr>
+                                          <tbody>
+  <tr v-for="(row, i) in stockedInItems" :key="row.id">
+    <td class="fw-semibold">{{ i + 1 }}</td>
+    <td>{{ row.quantity }}</td>
+    <td>{{ money(row.price) }}</td>
+    <td class="fw-semibold">{{ money(row.value) }}</td>
+    <td class="text-muted">{{ row.description || "—" }}</td>
+    <td class="text-muted">{{ fmtDate(row.purchase_date) }}</td>
+    <td class="text-muted">{{ fmtDate(row.expiry_date) }}</td>
+    <td class="text-center">
+      <span :class="['badge rounded-pill px-3 py-2', stockStatusClass(row.status)]">
+        {{ stockStatusLabel(row.status) }}
+      </span>
+    </td>
+  </tr>
 
-                                                <tr
-                                                    v-if="
-                                                        !stockedInItems.length
-                                                    "
-                                                >
-                                                    <td
-                                                        colspan="9"
-                                                        class="text-center text-muted py-4"
-                                                    >
-                                                        No items found.
-                                                    </td>
-                                                </tr>
-                                            </tbody>
+  <tr v-if="!stockedInItems.length">
+    <td colspan="9" class="text-center text-muted py-4">No items found.</td>
+  </tr>
+</tbody>
+
+<!-- FOOTER TOTALS -->
+<tfoot>
+  <tr>
+    <th>Totals</th>
+    <th>{{ totals.totalQty }}</th>
+    <th>{{ money(totals.totalPrice) }}</th>
+    <th class="fw-semibold">{{ money(totals.totalValue) }}</th>
+    <th colspan="4"></th>
+  </tr>
+</tfoot>
+
                                         </table>
                                     </div>
                                 </div>

@@ -88,11 +88,11 @@ class InventoryService
             $data['user_id'] = auth()->id();
 
             // FKs
-$data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
-$data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
- 
-// Resolve category_id from subcategory_id or category_id
-$data['category_id'] = $this->resolveCategoryId($data);
+            $data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
+            $data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
+            
+            // Resolve category_id from subcategory_id or category_id
+            $data['category_id'] = $this->resolveCategoryId($data);
 
             // Extract pivots & nutrition BEFORE create (they’re removed from $data)
             [$allergyIds, $tagIds] = $this->extractPivots($data);
@@ -146,17 +146,17 @@ $data['category_id'] = $this->resolveCategoryId($data);
             }
 
             //  Only resolve when either key was sent (partial update-safe)
-if (array_key_exists('subcategory_id', $data) || array_key_exists('category_id', $data)) {
-    $data['category_id'] = $this->resolveCategoryId($data);
-} else {
-    // ensure we don't pass unknown column
-    unset($data['subcategory_id']);
-}
+            if (array_key_exists('subcategory_id', $data) || array_key_exists('category_id', $data)) {
+                $data['category_id'] = $this->resolveCategoryId($data);
+            } else {
+                // ensure we don't pass unknown column
+                unset($data['subcategory_id']);
+            }
 
-            // detect pivots + nutrition...
-$pivotsProvided        = $this->pivotsProvided($data);
-[$allergyIds, $tagIds] = $this->extractPivots($data);
-$nutritionPayload      = $this->extractNutrition($data);
+                        // detect pivots + nutrition...
+            $pivotsProvided        = $this->pivotsProvided($data);
+            [$allergyIds, $tagIds] = $this->extractPivots($data);
+            $nutritionPayload      = $this->extractNutrition($data);
 
             // update scalar columns
             $item->update($data);
@@ -225,24 +225,24 @@ $nutritionPayload      = $this->extractNutrition($data);
         return [$allergyIds, $tagIds];
     }
     private function resolveCategoryId(array &$data): ?int
-{
-    $sub = $data['subcategory_id'] ?? null;
-    $cat = $data['category_id']    ?? null;
+    {
+        $sub = $data['subcategory_id'] ?? null;
+        $cat = $data['category_id']    ?? null;
 
-    // choose subcategory first, else category
-    $resolved = null;
-    if ($sub !== null && $sub !== '') {
-        $resolved = (int) $sub;
-    } elseif ($cat !== null && $cat !== '') {
-        $resolved = (int) $cat;
+        // choose subcategory first, else category
+        $resolved = null;
+        if ($sub !== null && $sub !== '') {
+            $resolved = (int) $sub;
+        } elseif ($cat !== null && $cat !== '') {
+            $resolved = (int) $cat;
+        }
+
+        // remove request-only keys so mass-assign doesn’t choke
+        unset($data['subcategory_id']);
+
+        // keep resolved category_id in payload
+        return $resolved ?: null;
     }
-
-    // remove request-only keys so mass-assign doesn’t choke
-    unset($data['subcategory_id']);
-
-    // keep resolved category_id in payload
-    return $resolved ?: null;
-}
 
 
     /**
@@ -357,69 +357,69 @@ $nutritionPayload      = $this->extractNutrition($data);
 
     // Edit data
    public function editPayload(InventoryItem $item): array
-{
-    $item->load([
-        'user:id,name',
-        'supplier:id,name',
-        'unit:id,name',
-        // load category and its parent so we can derive both ids
-        'category:id,name,parent_id',
-        'category.parent:id,name',
-        'allergies:id',
-        'tags:id',
-        'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
-    ]);
+    {
+        $item->load([
+            'user:id,name',
+            'supplier:id,name',
+            'unit:id,name',
+            // load category and its parent so we can derive both ids
+            'category:id,name,parent_id',
+            'category.parent:id,name',
+            'allergies:id',
+            'tags:id',
+            'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
+        ]);
 
-    $cat = $item->category; // may be null, a parent, or a subcategory
+        $cat = $item->category; // may be null, a parent, or a subcategory
 
-    // If $cat has a parent_id => $cat IS a subcategory.
-    $resolvedCategoryId   = $cat?->parent_id ? (int) $cat->parent_id : ($cat?->id ? (int) $cat->id : null);
-    $resolvedSubcategoryId= $cat?->parent_id ? (int) $cat->id : null;
+        // If $cat has a parent_id => $cat IS a subcategory.
+        $resolvedCategoryId   = $cat?->parent_id ? (int) $cat->parent_id : ($cat?->id ? (int) $cat->id : null);
+        $resolvedSubcategoryId= $cat?->parent_id ? (int) $cat->id : null;
 
-    $categoryName         = $cat?->parent_id ? ($cat->parent?->name) : ($cat?->name);
-    $subcategoryName      = $cat?->parent_id ? $cat->name : null;
+        $categoryName         = $cat?->parent_id ? ($cat->parent?->name) : ($cat?->name);
+        $subcategoryName      = $cat?->parent_id ? $cat->name : null;
 
-    $imageUrl = UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png');
+        $imageUrl = UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png');
 
-    return [
-        'id'          => $item->id,
-        'name'        => $item->name,
-        'sku'         => $item->sku,
-        'description' => $item->description,
-        'minAlert'    => $item->minAlert,
+        return [
+            'id'          => $item->id,
+            'name'        => $item->name,
+            'sku'         => $item->sku,
+            'description' => $item->description,
+            'minAlert'    => $item->minAlert,
 
-        // >>> send BOTH ids for the form <<<
-        'category_id'    => $resolvedCategoryId,
-        'subcategory_id' => $resolvedSubcategoryId,
+            // >>> send BOTH ids for the form <<<
+            'category_id'    => $resolvedCategoryId,
+            'subcategory_id' => $resolvedSubcategoryId,
 
-        // optional display names (useful if you show them)
-        'category_name'    => $categoryName,
-        'subcategory_name' => $subcategoryName,
+            // optional display names (useful if you show them)
+            'category_name'    => $categoryName,
+            'subcategory_name' => $subcategoryName,
 
-        'supplier_id'   => $item->supplier_id,
-        'unit_id'       => $item->unit_id,
-        'supplier_name' => $item->supplier?->name,
-        'unit_name'     => $item->unit?->name,
+            'supplier_id'   => $item->supplier_id,
+            'unit_id'       => $item->unit_id,
+            'supplier_name' => $item->supplier?->name,
+            'unit_name'     => $item->unit?->name,
 
-        'allergy_ids' => $item->allergies->pluck('id')->values(),
-        'tag_ids'     => $item->tags->pluck('id')->values(),
+            'allergy_ids' => $item->allergies->pluck('id')->values(),
+            'tag_ids'     => $item->tags->pluck('id')->values(),
 
-        'nutrition' => [
-            'calories' => (float) ($item->nutrition->calories ?? 0),
-            'protein'  => (float) ($item->nutrition->protein  ?? 0),
-            'fat'      => (float) ($item->nutrition->fat      ?? 0),
-            'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
-        ],
+            'nutrition' => [
+                'calories' => (float) ($item->nutrition->calories ?? 0),
+                'protein'  => (float) ($item->nutrition->protein  ?? 0),
+                'fat'      => (float) ($item->nutrition->fat      ?? 0),
+                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+            ],
 
-        'upload_id'  => $item->upload_id,
-        'image_url'  => $imageUrl,
-        'image'      => $imageUrl, // if your form previews from `image`
+            'upload_id'  => $item->upload_id,
+            'image_url'  => $imageUrl,
+            'image'      => $imageUrl, // if your form previews from `image`
 
-        'user'       => $item->user?->name,
-        'created_at' => optional($item->created_at)->toDateTimeString(),
-        'updated_at' => optional($item->updated_at)->toDateTimeString(),
-    ];
-}
+            'user'       => $item->user?->name,
+            'created_at' => optional($item->created_at)->toDateTimeString(),
+            'updated_at' => optional($item->updated_at)->toDateTimeString(),
+        ];
+    }
 
 
 }
