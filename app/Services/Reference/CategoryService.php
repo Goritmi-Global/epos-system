@@ -2,7 +2,7 @@
 
 namespace App\Services\Reference;
 
-use App\Models\Category;
+use App\Models\InventoryCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -104,20 +104,21 @@ class CategoryService
      * @param array $categoryData
      * @return Category
      */
-    private function createSingleCategory(array $categoryData): Category
+     private function createSingleCategory(array $categoryData): InventoryCategory
     {
         $category = InventoryCategory::create([
-            'name' => $categoryData['name'],
-            'icon' => $categoryData['icon'] ?? '🧰',
-            'active' => $categoryData['active'] ?? true,
-            'parent_id' => $categoryData['parent_id'],
-            'total_value' => 0,
-            'total_items' => 0,
+            'name'         => $categoryData['name'],
+            'icon'         => $categoryData['icon'] ?? '🧰',
+            'active'       => $categoryData['active'] ?? true,
+            'parent_id'    => $categoryData['parent_id'] ?? null,
+            'total_value'  => 0,
+            'total_items'  => 0,
             'out_of_stock' => 0,
-            'low_stock' => 0,
-            'in_stock' => 0,
+            'low_stock'    => 0,
+            'in_stock'     => 0,
         ]);
-        return $category;
+
+        return $category; // now matches return type
     }
 
     /**
@@ -146,7 +147,7 @@ class CategoryService
      * @param int $id
      * @return Category|null
      */
-    public function getCategoryById(int $id): ?Category
+    public function getCategoryById(int $id): ?InventoryCategory
     {
         return InventoryCategory::with(['subcategories', 'parent'])->find($id);
     }

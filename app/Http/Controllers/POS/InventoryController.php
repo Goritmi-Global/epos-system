@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StoreInventoryRequest;
 use App\Http\Requests\Inventory\UpdateInventoryRequest;
 use App\Models\Allergy;
-use App\Models\Category;
+use App\Models\InventoryCategory;
 use App\Models\Inventory;
 use App\Models\Supplier;
 use App\Models\Tag;

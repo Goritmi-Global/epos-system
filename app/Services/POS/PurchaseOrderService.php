@@ -2,7 +2,7 @@
 
 namespace App\Services\POS;
 
-use App\Models\Category;
+use App\Models\InventoryCategory;
 use App\Models\Inventory;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseItem;
