@@ -7,6 +7,7 @@ use App\Http\Requests\Menu\StoreMenuRequest;
 use App\Models\Allergy;
 use App\Models\Menu;
 use App\Models\MenuCategory;
+use App\Models\MenuItem;
 use App\Models\Tag;
 use App\Services\POS\MenuService;
 use Illuminate\Http\Request;
@@ -42,8 +43,21 @@ class MenuController extends Controller
 
     public function store(StoreMenuRequest $request)
     {
-        $this->service->create($request->validated(), $request);
+        $menu = $this->service->create($request->validated(), $request);
 
-        return redirect()->route('menu.index')->with('success', 'Menu created');
+        return response()->json([
+            'message' => 'Menu created successfully',
+            'data'    => $menu,
+        ], 201);
+    }
+
+    public function apiIndex()
+    {
+        $menus = MenuItem::with(['category', 'ingredients', 'allergies', 'tags'])->get();
+
+        return response()->json([
+            'message' => 'Menu items fetched successfully',
+            'data'    => $menus,
+        ]);
     }
 }

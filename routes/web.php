@@ -188,6 +188,7 @@ Route::middleware('auth')->group(function () {
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');
+        Route::get('/menu-items', [MenuController::class, 'apiIndex']);
         Route::get('/create', [MenuController::class, 'create'])->name('create');
         Route::post('/', [MenuController::class, 'store'])->name('store');
         Route::get('/{menu}/edit', [MenuController::class, 'edit'])->name('edit');
