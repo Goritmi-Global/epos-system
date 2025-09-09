@@ -2,13 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Tag extends Model
 {
-    use HasFactory;
+    protected $fillable = ['name', 'slug'];
 
-    protected $fillable = ['name', 'description'];
+    public function inventoryItems()
+    {
+        // pivot: inventory_item_tags
+        return $this->belongsToMany(
+            Inventory::class,
+            'inventory_item_tags',
+            'tag_id',
+            'inventory_item_id'
+        )->withTimestamps();
+    }
 }
-

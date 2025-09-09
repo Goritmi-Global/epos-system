@@ -13,11 +13,7 @@ class InventoryService
         return Inventory::with([
                 'user:id,name',
                 'allergies:id,name',
-                'tags:id,name',
-                'calories:id,value,label',
-                'fats:id,grams,label',
-                'carbs:id,grams,label',
-                'proteins:id,grams,label',
+                'tags:id,name', 
             ])
             ->when($filters['q'] ?? null, function ($q, $v) {
                 $q->where(function ($qq) use ($v) {
@@ -45,11 +41,7 @@ class InventoryService
                     'tags'        => $item->tags->pluck('name')->values(),
                     'tag_ids'     => $item->tags->pluck('id')->values(),
 
-                    // Nutrition lookups via pivots
-                    'calories'    => $item->calories->map(fn ($c) => ['id'=>$c->id,'value'=>$c->value,'label'=>$c->label])->values(),
-                    'fats'        => $item->fats->map(fn ($f) => ['id'=>$f->id,'grams'=>$f->grams,'label'=>$f->label])->values(),
-                    'carbs'       => $item->carbs->map(fn ($c) => ['id'=>$c->id,'grams'=>$c->grams,'label'=>$c->label])->values(),
-                    'proteins'    => $item->proteins->map(fn ($p) => ['id'=>$p->id,'grams'=>$p->grams,'label'=>$p->label])->values(),
+                     
 
                     'user'        => $item->user?->name,
                     'image_url'   => UploadHelper::url($item->upload_id),
@@ -72,15 +64,11 @@ class InventoryService
             // Pull out pivot arrays before create
             $allergyIds = $data['allergy_ids']  ?? [];
             $tagIds     = $data['tag_ids']      ?? [];
-            $calIds     = $data['calorie_ids']  ?? [];
-            $fatIds     = $data['fat_ids']      ?? [];
-            $carbIds    = $data['carb_ids']     ?? [];
-            $protIds    = $data['protein_ids']  ?? [];
+            
 
             unset(
                 $data['allergy_ids'], $data['tag_ids'],
-                $data['calorie_ids'], $data['fat_ids'],
-                $data['carb_ids'],    $data['protein_ids']
+              
             );
 
             $inventory = Inventory::create($data);
@@ -88,15 +76,11 @@ class InventoryService
             // Sync pivots
             $inventory->allergies()->sync($allergyIds);
             $inventory->tags()->sync($tagIds);
-            $inventory->calories()->sync($calIds);
-            $inventory->fats()->sync($fatIds);
-            $inventory->carbs()->sync($carbIds);
-            $inventory->proteins()->sync($protIds);
+            
 
             return $inventory->load([
                 'allergies:id,name', 'tags:id,name',
-                'calories:id,value,label', 'fats:id,grams,label',
-                'carbs:id,grams,label', 'proteins:id,grams,label',
+                 
             ]);
         });
     }
@@ -113,15 +97,11 @@ class InventoryService
             // Extract pivot arrays if present (keep existing if not provided)
             $allergyIds = $data['allergy_ids']  ?? null;
             $tagIds     = $data['tag_ids']      ?? null;
-            $calIds     = $data['calorie_ids']  ?? null;
-            $fatIds     = $data['fat_ids']      ?? null;
-            $carbIds    = $data['carb_ids']     ?? null;
-            $protIds    = $data['protein_ids']  ?? null;
+            
 
             unset(
                 $data['allergy_ids'], $data['tag_ids'],
-                $data['calorie_ids'], $data['fat_ids'],
-                $data['carb_ids'],    $data['protein_ids']
+                
             );
 
             $inventory->update($data);
@@ -129,15 +109,11 @@ class InventoryService
             // Only sync when sent (lets you do partial updates)
             if (is_array($allergyIds)) $inventory->allergies()->sync($allergyIds);
             if (is_array($tagIds))     $inventory->tags()->sync($tagIds);
-            if (is_array($calIds))     $inventory->calories()->sync($calIds);
-            if (is_array($fatIds))     $inventory->fats()->sync($fatIds);
-            if (is_array($carbIds))    $inventory->carbs()->sync($carbIds);
-            if (is_array($protIds))    $inventory->proteins()->sync($protIds);
+             
 
             return $inventory->fresh()->load([
                 'allergies:id,name', 'tags:id,name',
-                'calories:id,value,label', 'fats:id,grams,label',
-                'carbs:id,grams,label', 'proteins:id,grams,label',
+                 
             ]);
         });
     }

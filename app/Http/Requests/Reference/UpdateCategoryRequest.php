@@ -57,7 +57,7 @@ class UpdateCategoryRequest extends FormRequest
 
             // ✅ CHECK MAIN CATEGORY NAME FOR DUPLICATES
             if (!empty($categoryName)) {
-                $duplicateCategory = \App\Models\Category::where('name', $categoryName)
+                $duplicateCategory = \App\Models\InventoryCategory::where('name', $categoryName)
                     ->where('parent_id', $parentId)
                     ->where('id', '!=', $categoryId) // Exclude current category
                     ->first();
@@ -95,7 +95,7 @@ class UpdateCategoryRequest extends FormRequest
                     $subcategoryNames[] = $subcategoryKey;
 
                     // Check for duplicates in database
-                    $query = \App\Models\Category::where('name', $subcategoryName)
+                    $query = \App\Models\InventoryCategory::where('name', $subcategoryName)
                         ->where('parent_id', $categoryId);
                         
                     // Exclude current subcategory if it has an ID
@@ -115,7 +115,7 @@ class UpdateCategoryRequest extends FormRequest
             // ✅ VALIDATE PARENT CATEGORY LOGIC
             if ($parentId) {
                 // Ensure parent is a top-level category
-                $parentExists = \App\Models\Category::where('id', $parentId)
+                $parentExists = \App\Models\InventoryCategory::where('id', $parentId)
                     ->whereNull('parent_id')
                     ->exists();
 

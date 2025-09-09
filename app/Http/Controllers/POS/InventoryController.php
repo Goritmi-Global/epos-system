@@ -24,7 +24,7 @@ class InventoryController extends Controller
     {
         $inventories = $this->service->list($request->only('q'));
         $allergies = Allergy::get();
-        $categories = Category::get();
+        $categories = InventoryCategory::get();
         $units = Unit::get();
         $suppliers = Supplier::get();
         $tags = Tag::get();

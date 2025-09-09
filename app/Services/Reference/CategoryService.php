@@ -36,7 +36,7 @@ class CategoryService
                         }
 
                         // Verify parent exists and is a main category
-                        $parent = Category::where('id', $cat['parent_id'])
+                        $parent = InventoryCategory::where('id', $cat['parent_id'])
                             ->whereNull('parent_id')
                             ->first();
 
@@ -53,7 +53,7 @@ class CategoryService
                     }
 
                     // Check for duplicates
-                    $existingCategory = Category::where('name', $cat['name'])
+                    $existingCategory = InventoryCategory::where('name', $cat['name'])
                         ->where('parent_id', $cat['parent_id'] ?? null)
                         ->first();
 
@@ -106,7 +106,7 @@ class CategoryService
      */
     private function createSingleCategory(array $categoryData): Category
     {
-        $category = Category::create([
+        $category = InventoryCategory::create([
             'name' => $categoryData['name'],
             'icon' => $categoryData['icon'] ?? '🧰',
             'active' => $categoryData['active'] ?? true,
@@ -127,7 +127,7 @@ class CategoryService
      */
     public function getAllCategories()
     {
-        return Category::with(['subcategories', 'parent'])->get();
+        return InventoryCategory::with(['subcategories', 'parent'])->get();
     }
 
     /**
@@ -137,7 +137,7 @@ class CategoryService
      */
     public function getParentCategories()
     {
-        return Category::whereNull('parent_id')->orderBy('name')->get();
+        return InventoryCategory::whereNull('parent_id')->orderBy('name')->get();
     }
 
     /**
@@ -148,7 +148,7 @@ class CategoryService
      */
     public function getCategoryById(int $id): ?Category
     {
-        return Category::with(['subcategories', 'parent'])->find($id);
+        return InventoryCategory::with(['subcategories', 'parent'])->find($id);
     }
 
     /**
@@ -162,7 +162,7 @@ class CategoryService
     public function updateCategory(int $id, array $data): array
     {
         try {
-            $category = Category::find($id);
+            $category = InventoryCategory::find($id);
 
             if (!$category) {
                 return [
@@ -174,7 +174,7 @@ class CategoryService
 
             // Validate parent category if updating to subcategory
             if (isset($data['parent_id']) && $data['parent_id']) {
-                $parentCategory = Category::find($data['parent_id']);
+                $parentCategory = InventoryCategory::find($data['parent_id']);
                 if (!$parentCategory) {
                     throw new Exception('Parent category not found');
                 }
@@ -202,7 +202,7 @@ class CategoryService
                 foreach ($data['subcategories'] as $subData) {
                     if (isset($subData['id']) && $subData['id']) {
                         // Update existing subcategory
-                        $subcategory = Category::find($subData['id']);
+                        $subcategory = InventoryCategory::find($subData['id']);
                         if ($subcategory && $subcategory->parent_id == $category->id) {
                             $subcategory->update([
                                 'name' => $subData['name'],
@@ -213,7 +213,7 @@ class CategoryService
                         }
                     } else {
                         // Create new subcategory
-                        $newSubcategory = Category::create([
+                        $newSubcategory = InventoryCategory::create([
                             'name' => $subData['name'],
                             'parent_id' => $category->id,
                             'icon' => $data['icon'] ?? null, // Inherit parent icon
@@ -226,14 +226,14 @@ class CategoryService
                 // ✅ DELETE subcategories that were removed from the list
                 $subcategoriesToDelete = array_diff($currentSubcategoryIds, $updatedSubcategoryIds);
                 if (!empty($subcategoriesToDelete)) {
-                    Category::whereIn('id', $subcategoriesToDelete)
+                    InventoryCategory::whereIn('id', $subcategoriesToDelete)
                         ->where('parent_id', $category->id) // Extra safety check
                         ->delete();
                 }
             }
 
             // Reload category with subcategories
-            $updatedCategory = Category::with('subcategories')->find($id);
+            $updatedCategory = InventoryCategory::with('subcategories')->find($id);
 
             return [
                 'success' => true,
@@ -260,7 +260,7 @@ class CategoryService
         try {
             DB::beginTransaction();
 
-            $category = Category::find($id);
+            $category = InventoryCategory::find($id);
 
             if (!$category) {
                 return [
@@ -271,7 +271,7 @@ class CategoryService
             }
 
             // Delete all subcategories of this category
-            Category::where('parent_id', $id)->delete();
+            InventoryCategory::where('parent_id', $id)->delete();
 
             // Delete the parent category
             $category->delete();
@@ -304,7 +304,7 @@ class CategoryService
      */
     public function searchCategories(string $query)
     {
-        return Category::with(['subcategories', 'parent'])
+        return InventoryCategory::with(['subcategories', 'parent'])
             ->where('name', 'like', '%' . $query . '%')
             ->orderBy('name')
             ->get();
@@ -317,11 +317,11 @@ class CategoryService
      */
     public function getCategoryStatistics(): array
     {
-        $totalCategories = Category::count();
-        $parentCategories = Category::whereNull('parent_id')->count();
-        $subcategories = Category::whereNotNull('parent_id')->count();
-        $activeCategories = Category::where('active', true)->count();
-        $inactiveCategories = Category::where('active', false)->count();
+        $totalCategories = InventoryCategory::count();
+        $parentCategories = InventoryCategory::whereNull('parent_id')->count();
+        $subcategories = InventoryCategory::whereNotNull('parent_id')->count();
+        $activeCategories = InventoryCategory::where('active', true)->count();
+        $inactiveCategories = InventoryCategory::where('active', false)->count();
 
         return [
             'total_categories' => $totalCategories,
@@ -341,7 +341,7 @@ class CategoryService
     public function toggleCategoryStatus(int $id): array
     {
         try {
-            $category = Category::find($id);
+            $category = InventoryCategory::find($id);
 
             if (!$category) {
                 return [
@@ -380,7 +380,7 @@ class CategoryService
     public function updateSubcategoryName(int $subcategoryId, string $newName): array
     {
         try {
-            $subcategory = Category::find($subcategoryId);
+            $subcategory = InventoryCategory::find($subcategoryId);
 
             if (!$subcategory || !$subcategory->parent_id) {
                 return [
@@ -403,7 +403,7 @@ class CategoryService
             }
 
             // Check for duplicates under the same parent
-            $duplicate = Category::where('name', $newName)
+            $duplicate = InventoryCategory::where('name', $newName)
                 ->where('parent_id', $parentId)
                 ->where('id', '!=', $subcategoryId)
                 ->exists();

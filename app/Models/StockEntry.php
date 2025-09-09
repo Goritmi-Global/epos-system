@@ -31,7 +31,7 @@ class StockEntry extends Model
     // Relationships
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(InventoryCategory::class);
     }
 
     public function supplier()
