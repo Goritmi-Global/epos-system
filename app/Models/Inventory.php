@@ -56,13 +56,38 @@ class Inventory extends BaseModel
     {
         return $this->hasMany(PurchaseItem::class, 'product_id');
     }
-    public function allergies(){
-        return $this->belongsTo(Allergy::class);
-    }
+    
     public function upload()
     {
         return $this->belongsTo(Upload::class, 'upload_id');
     }
+
+    // Relation to other models are defined here
+    public function allergies()
+    {
+        return $this->belongsToMany(Allergy::class, 'inventory_item_allergies', 'inventory_item_id', 'allergy_id');
+    }
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'inventory_item_tags', 'inventory_item_id', 'tag_id');
+    }
+    public function calories()
+    {
+        return $this->belongsToMany(Calorie::class, 'inventory_item_calories', 'inventory_item_id', 'calorie_id');
+    }
+    public function fats()
+    {
+        return $this->belongsToMany(Fat::class, 'inventory_item_fats', 'inventory_item_id', 'fat_id');
+    }
+    public function carbs()
+    {
+        return $this->belongsToMany(Carb::class, 'inventory_item_carbs', 'inventory_item_id', 'carb_id');
+    }
+    public function proteins()
+    {
+        return $this->belongsToMany(Protein::class, 'inventory_item_proteins', 'inventory_item_id', 'protein_id');
+    }
+
 
 
      
