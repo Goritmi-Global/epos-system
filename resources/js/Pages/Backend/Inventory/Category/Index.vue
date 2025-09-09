@@ -507,7 +507,7 @@ const submitSubCategory = async () => {
     }
 
     submittingSub.value = true;
-    subCatErrors.value = "";
+    subCatErrors = "";
 
     try {
         const { data } = await axios.put(
@@ -539,11 +539,11 @@ const submitSubCategory = async () => {
             // Reset editing state
             editingSubCategory.value = { id: null, name: "", parent_id: null };
         } else {
-            subCatErrors.value = data.message || "Failed to update subcategory";
+            subCatErrors = data.message || "Failed to update subcategory";
         }
     } catch (err) {
         console.error(err);
-        subCatErrors.value =
+        subCatErrors =
             err.response?.data?.message || "An error occurred while updating";
     } finally {
         submittingSub.value = false;
@@ -943,8 +943,9 @@ const downloadExcel = (data) => {
                                                     style="gap: 5px"
                                                 >
                                                     <span>{{ sub.name }}</span>
+
                                                     <button
-                                                        class="btn btn-sm p-0 text-blue-600 hover:bg-blue-100"
+                                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
                                                         @click="
                                                             editSubCategory(
                                                                 row,
@@ -1543,17 +1544,34 @@ const downloadExcel = (data) => {
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5
+                                    @click="subCatErrors = ''"
                                     class="modal-title"
                                     id="editSubCatModalLabel"
                                 >
                                     Edit Subcategory
                                 </h5>
+
                                 <button
-                                    type="button"
-                                    class="btn-close"
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
-                                ></button>
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
                             <div class="modal-body">
                                 <div class="mb-3">
@@ -1573,27 +1591,13 @@ const downloadExcel = (data) => {
                                         subCatErrors
                                     }}</small>
                                 </div>
-                            </div>
-                            <div class="modal-footer">
                                 <button
                                     type="button"
-                                    class="btn btn-secondary"
-                                    data-bs-dismiss="modal"
-                                    :disabled="submittingSub"
-                                >
-                                    Close
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-primary"
+                                    class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
                                     @click="submitSubCategory"
                                     :disabled="submittingSub"
                                 >
-                                    {{
-                                        submittingSub
-                                            ? "Saving..."
-                                            : "Save Changes"
-                                    }}
+                                    {{ submittingSub ? "Saving..." : "Update" }}
                                 </button>
                             </div>
                         </div>
