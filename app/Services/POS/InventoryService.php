@@ -87,9 +87,12 @@ class InventoryService
             // who created it
             $data['user_id'] = auth()->id();
 
-            // ensure the FK fields exist as integers on inventory_items
-            $data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
-            $data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
+            // FKs
+$data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
+$data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
+ 
+// Resolve category_id from subcategory_id or category_id
+$data['category_id'] = $this->resolveCategoryId($data);
 
             // Extract pivots & nutrition BEFORE create (they’re removed from $data)
             [$allergyIds, $tagIds] = $this->extractPivots($data);
@@ -142,10 +145,18 @@ class InventoryService
                 $data['unit_id'] = $data['unit_id'] !== null ? (int) $data['unit_id'] : null;
             }
 
-            // detect if pivots were sent (partial update friendly)
-            $pivotsProvided         = $this->pivotsProvided($data);
-            [$allergyIds, $tagIds]  = $this->extractPivots($data);
-            $nutritionPayload       = $this->extractNutrition($data);
+            //  Only resolve when either key was sent (partial update-safe)
+if (array_key_exists('subcategory_id', $data) || array_key_exists('category_id', $data)) {
+    $data['category_id'] = $this->resolveCategoryId($data);
+} else {
+    // ensure we don't pass unknown column
+    unset($data['subcategory_id']);
+}
+
+            // detect pivots + nutrition...
+$pivotsProvided        = $this->pivotsProvided($data);
+[$allergyIds, $tagIds] = $this->extractPivots($data);
+$nutritionPayload      = $this->extractNutrition($data);
 
             // update scalar columns
             $item->update($data);
@@ -213,6 +224,26 @@ class InventoryService
 
         return [$allergyIds, $tagIds];
     }
+    private function resolveCategoryId(array &$data): ?int
+{
+    $sub = $data['subcategory_id'] ?? null;
+    $cat = $data['category_id']    ?? null;
+
+    // choose subcategory first, else category
+    $resolved = null;
+    if ($sub !== null && $sub !== '') {
+        $resolved = (int) $sub;
+    } elseif ($cat !== null && $cat !== '') {
+        $resolved = (int) $cat;
+    }
+
+    // remove request-only keys so mass-assign doesn’t choke
+    unset($data['subcategory_id']);
+
+    // keep resolved category_id in payload
+    return $resolved ?: null;
+}
+
 
     /**
      * For partial updates: did the request include pivot arrays?

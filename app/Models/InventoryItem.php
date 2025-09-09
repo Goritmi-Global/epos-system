@@ -13,7 +13,7 @@ class InventoryItem extends BaseModel
 
     protected $fillable = [
     'name','minAlert','sku','description',
-    'supplier_id','unit_id','user_id','upload_id',
+    'supplier_id','unit_id','user_id','upload_id','category_id',
 ];
  
     // ----- Belongs To -----
@@ -60,16 +60,12 @@ class InventoryItem extends BaseModel
         return $this->belongsTo(Unit::class);
     }
 
-    public function categories()
-    {
-        // pivot: inventory_item_categories (inventory_item_id, category_id)
-        return $this->belongsToMany(
-            InventoryCategory::class,
-            'inventory_item_categories',
-            'inventory_item_id',
-            'category_id'
-        )->withTimestamps();
-    }
+    public function category()
+{
+    return $this->belongsTo(\App\Models\InventoryCategory::class, 'category_id');
+}
+
+ 
 
     // ----- Nutrition: one row per inventory item in its own table -----
     public function nutrition()

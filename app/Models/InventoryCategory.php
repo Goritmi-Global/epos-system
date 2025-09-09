@@ -92,15 +92,10 @@ class InventoryCategory extends Model
         return $this->subcategories()->exists();
     }
 
-    public function inventoryItems()
-    {
-        // pivot: inventory_item_categories
-        return $this->belongsToMany(
-            InventoryItem::class,
-            'inventory_item_categories',
-            'category_id',
-            'inventory_item_id'
-        )->withTimestamps();
-    }
+    public function primaryInventoryItems()
+{
+    return $this->hasMany(\App\Models\InventoryItem::class, 'category_id');
+}
+
     
 }

@@ -14,9 +14,13 @@ return new class extends Migration
             $table->string('name');
             $table->integer('minAlert')->default(0);
 
-            // FK columns instead of strings
+            // NEW: primary category (nullable)
+            $table->foreignId('category_id')->nullable()
+                ->constrained('inventory_categories')->nullOnDelete();
+
             $table->foreignId('supplier_id')->nullable()
                 ->constrained('suppliers')->nullOnDelete();
+
             $table->foreignId('unit_id')->nullable()
                 ->constrained('units')->nullOnDelete();
 
@@ -29,7 +33,6 @@ return new class extends Migration
             $table->timestamps();
         });
     }
-
 
     public function down(): void
     {
