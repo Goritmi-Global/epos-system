@@ -15,6 +15,9 @@ use App\Services\POS\InventoryService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Helpers\UploadHelper;
+use App\Models\StockEntry;
+use Illuminate\Support\Carbon;
+
 
 class InventoryController extends Controller
 {
@@ -42,6 +45,7 @@ class InventoryController extends Controller
     {
         
         $inventories = $this->service->list($request->only('q'));
+        // dd($inventories);
         return response()->json($inventories);
     }
 

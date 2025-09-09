@@ -296,44 +296,62 @@ watch(
 );
 
 // =============== Edit item ===============
+import { nextTick } from "vue";
+
 const editItem = (item) => {
-    // Map display names back to IDs for selects
-    const cat = props.categories.find(
-        (c) => c.name === item.category && !c.parent_id
-    );
-    let subcat = null;
-    if (cat) {
-        subcat =
-            props.categories.find(
-                (c) => c.name === item.subcategory && c.parent_id === cat.id
-            ) || null;
+    const toNum = (v) =>
+        v === "" || v === null || v === undefined ? null : Number(v);
+
+    // derive category/subcategory from the category object if present
+    let category_id = null;
+    let subcategory_id = null;
+
+    if (item.category && typeof item.category === "object") {
+        const cat = item.category;
+        if (cat.parent_id) {
+            // item is saved with a SUBCATEGORY
+            subcategory_id = toNum(cat.id);
+            category_id = toNum(cat.parent_id);
+        } else {
+            // item is saved with a PARENT category only
+            category_id = toNum(cat.id);
+            subcategory_id = null;
+        }
+    } else {
+        // fallback if your payload sometimes sends raw ids
+        category_id = toNum(item.category_id);
+        subcategory_id = toNum(item.subcategory_id);
     }
-    const unit = props.units.find((u) => u.name === item.unit) || null;
-    const sup = props.suppliers.find((s) => s.name === item.supplier) || null;
 
     form.value = {
         id: item.id,
-        name: item.name,
-        category_id: cat ? cat.id : null,
-        subcategory_id: subcat ? subcat.id : null,
-        unit_id: unit ? unit.id : null,
-        minAlert: item.minAlert ?? null,
-        supplier_id: sup ? sup.id : null,
-        sku: item.sku || "",
-        description: item.description || "",
-        nutrition: item.nutrition || {
+        name: item.name ?? "",
+        category_id,
+        subcategory_id,
+        unit_id: toNum(item.unit_id),
+        supplier_id: toNum(item.supplier_id),
+        minAlert: item.minAlert ?? 0,
+        sku: item.sku ?? "",
+        description: item.description ?? "",
+        nutrition: item.nutrition ?? {
             calories: 0,
-            fat: 0,
             protein: 0,
+            fat: 0,
             carbs: 0,
         },
-        allergies: Array.isArray(item.allergies)
-            ? item.allergies.map(Number)
-            : [],
-        tags: Array.isArray(item.tags) ? item.tags.map(Number) : [],
+        allergies: item.allergy_ids ?? [],
+        tags: item.tag_ids ?? [],
         imageFile: null,
-        imageUrl: item.image_url || null,
+        imageUrl: item.image_url ?? null,
     };
+
+    // ensure subcategory still belongs to the selected category after options render
+    nextTick(() => {
+        const subOk = subcatOptions.value.some(
+            (sc) => sc.id === form.value.subcategory_id
+        );
+        if (!subOk) form.value.subcategory_id = null;
+    });
 };
 
 // =============== Reset form ===============
@@ -362,6 +380,7 @@ const ViewItem = async (row) => {
     try {
         const res = await axios.get(`/inventory/${row.id}`);
         viewItemRef.value = res.data;
+        await loadStockins(row.id);
     } catch (error) {
         console.error("Error fetching item:", error);
     }
@@ -775,6 +794,53 @@ function onCropped({ file }) {
     form.value.imageFile = file;
     form.value.imageUrl = URL.createObjectURL(file);
 }
+
+const search = ref("");
+
+// new flow for stock in/out
+const nearExpireRows = ref(0);
+const expiredRows = ref(0);
+const nearExpireQty = ref(0);
+const expiredQty = ref(0);
+// fetch stock-ins for an item and compute counts
+const stockedInItems = ref([]);
+async function loadStockins(itemId) {
+    try {
+        const { data } = await axios.get(`/stock_entries/by-item/${itemId}`);
+        const payload = data?.data || {};
+
+        stockedInItems.value = payload.records || [];
+
+        nearExpireRows.value = payload.near_count ?? 0;
+        expiredRows.value = payload.expired_count ?? 0;
+        nearExpireQty.value = payload.near_qty ?? 0;
+        expiredQty.value = payload.expired_qty ?? 0;
+    } catch (e) {
+        console.error(e);
+        stockedInItems.value = [];
+        nearExpireRows.value = expiredRows.value = 0;
+        nearExpireQty.value = expiredQty.value = 0;
+    }
+}
+// helpers for badges
+function stockStatusLabel(s) {
+    return s === "expired"
+        ? "Expired"
+        : s === "near"
+        ? "Near Expire"
+        : "Active";
+}
+function stockStatusClass(s) {
+    return s === "expired"
+        ? "bg-danger"
+        : s === "near"
+        ? "bg-warning"
+        : "bg-success";
+}
+function fmtDate(d) {
+    return d ? new Date(d).toLocaleDateString() : "—";
+}
+// function money(n)        { return (Number(n ?? 0)).toFixed(2); }
 </script>
 
 <template>
@@ -958,7 +1024,7 @@ function onCropped({ file }) {
                                         <th>S.#</th>
                                         <th>Items</th>
                                         <th>Image</th>
-                                        <th>Unit Price</th>
+
                                         <th>Category</th>
                                         <th>Unit</th>
                                         <th>Available Stock</th>
@@ -1008,21 +1074,14 @@ function onCropped({ file }) {
                                                 "
                                             />
                                         </td>
-                                        <td>
-                                            {{
-                                                money(
-                                                    item.unitPrice || 0,
-                                                    "GBP"
-                                                )
-                                            }}
-                                        </td>
+
                                         <td
                                             class="text-truncate"
                                             style="max-width: 260px"
                                         >
                                             {{ item.category.name }}
                                         </td>
-                                        <td>{{ item.unit }}</td>
+                                        <td>{{ item.unit_name }}</td>
                                         <td>
                                             {{
                                                 item.availableStock
@@ -1700,9 +1759,9 @@ function onCropped({ file }) {
                                                             }}
                                                         </div>
                                                     </div>
-                                                    <div class="col-6">
+                                                    <!-- <div class="col-6">
                                                         <div class="text-muted">
-                                                            Subcategory
+                                                            Subcategory 123
                                                         </div>
                                                         <div
                                                             class="fw-semibold"
@@ -1712,7 +1771,7 @@ function onCropped({ file }) {
                                                                 "—"
                                                             }}
                                                         </div>
-                                                    </div>
+                                                    </div> -->
                                                     <div class="col-6">
                                                         <div class="text-muted">
                                                             Unit
@@ -1937,29 +1996,137 @@ function onCropped({ file }) {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div
-                                class="modal-footer d-flex justify-content-between"
-                            >
-                                <div class="d-flex gap-2">
-                                    <button
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#addItemModal"
-                                        class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
-                                        @click="editItem(viewItemRef)"
-                                    >
-                                        <Pencil class="w-4 h-4" /> Edit
-                                    </button>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    class="btn btn-primary rounded-pill"
-                                    data-bs-dismiss="modal"
+                                <div
+                                    class="card border-0 shadow-lg rounded-4 overflow-hidden"
                                 >
-                                    Close
-                                </button>
+                                    <div
+                                        class="card-header bg-white d-flex justify-content-between align-items-center"
+                                    >
+                                        <h5 class="mb-0">Stock Details</h5>
+
+                                        <div class="d-flex gap-2">
+                                            <!-- Search -->
+                                            <div class="position-relative">
+                                                <span
+                                                    class="position-absolute top-50 start-0 translate-middle-y ms-3 opacity-50"
+                                                >
+                                                    <!-- search icon -->
+                                                    <svg
+                                                        width="18"
+                                                        height="18"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            fill="currentColor"
+                                                            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5M9.5 14A4.5 4.5 0 1 1 14 9.5A4.505 4.505 0 0 1 9.5 14Z"
+                                                        />
+                                                    </svg>
+                                                </span>
+                                                <input
+                                                    v-model="search"
+                                                    type="text"
+                                                    class="form-control rounded-pill shadow-sm ps-5"
+                                                    placeholder="Search"
+                                                    style="min-width: 260px"
+                                                />
+                                            </div>
+
+                                            <!-- Filter dropdown -->
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive">
+                                        <table
+                                            class="table table-hover align-middle mb-0"
+                                        >
+                                            <thead class="table-primary">
+                                                <tr>
+                                                    <th style="width: 80px">
+                                                        S.#
+                                                    </th>
+                                                    <th>Qty</th>
+                                                    <th>Price</th>
+                                                    <th>Value</th>
+                                                    <th>Description</th>
+                                                    <th>Purchase Date</th>
+                                                    <th>Expiry Date</th>
+                                                    <th class="text-center">
+                                                        Status
+                                                    </th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                <tr
+                                                    v-for="(
+                                                        row, i
+                                                    ) in stockedInItems"
+                                                    :key="row.id"
+                                                >
+                                                    <td class="fw-semibold">
+                                                        {{ i + 1 }}
+                                                    </td>
+                                                    <td>{{ row.quantity }}</td>
+                                                    <td>
+                                                        {{ money(row.price) }}
+                                                    </td>
+                                                    <td class="fw-semibold">
+                                                        {{ money(row.value) }}
+                                                    </td>
+                                                    <td class="text-muted">
+                                                        {{
+                                                            row.description ||
+                                                            "—"
+                                                        }}
+                                                    </td>
+                                                    <td class="text-muted">
+                                                        {{
+                                                            fmtDate(
+                                                                row.purchase_date
+                                                            )
+                                                        }}
+                                                    </td>
+                                                    <td class="text-muted">
+                                                        {{
+                                                            fmtDate(
+                                                                row.expiry_date
+                                                            )
+                                                        }}
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span
+                                                            :class="[
+                                                                'badge rounded-pill px-3 py-2',
+                                                                stockStatusClass(
+                                                                    row.status
+                                                                ),
+                                                            ]"
+                                                        >
+                                                            {{
+                                                                stockStatusLabel(
+                                                                    row.status
+                                                                )
+                                                            }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+
+                                                <tr
+                                                    v-if="
+                                                        !stockedInItems.length
+                                                    "
+                                                >
+                                                    <td
+                                                        colspan="9"
+                                                        class="text-center text-muted py-4"
+                                                    >
+                                                        No items found.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

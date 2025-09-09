@@ -356,60 +356,70 @@ $nutritionPayload      = $this->extractNutrition($data);
 
 
     // Edit data
-    public function editPayload(InventoryItem $item): array
-    {
-        $item->load([
-            'user:id,name',
-            'supplier:id,name',
-            'unit:id,name',
-            'category:id,name',
-            'allergies:id',
-            'tags:id',
-            'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
-        ]);
+   public function editPayload(InventoryItem $item): array
+{
+    $item->load([
+        'user:id,name',
+        'supplier:id,name',
+        'unit:id,name',
+        // load category and its parent so we can derive both ids
+        'category:id,name,parent_id',
+        'category.parent:id,name',
+        'allergies:id',
+        'tags:id',
+        'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
+    ]);
 
-        $imageUrl = UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png');
+    $cat = $item->category; // may be null, a parent, or a subcategory
 
-        return [
-            'id'            => $item->id,
-            'name'          => $item->name,
-            'sku'           => $item->sku,
-            'description'   => $item->description,
-            'minAlert'      => $item->minAlert,
+    // If $cat has a parent_id => $cat IS a subcategory.
+    $resolvedCategoryId   = $cat?->parent_id ? (int) $cat->parent_id : ($cat?->id ? (int) $cat->id : null);
+    $resolvedSubcategoryId= $cat?->parent_id ? (int) $cat->id : null;
 
-            // FKs (for selects)
-            'supplier_id'   => $item->supplier_id,
-            'unit_id'       => $item->unit_id,
-            'category_id'   => $item->category_id,
+    $categoryName         = $cat?->parent_id ? ($cat->parent?->name) : ($cat?->name);
+    $subcategoryName      = $cat?->parent_id ? $cat->name : null;
 
-            // Optional display names (if your form shows current names)
-            'supplier_name' => $item->supplier?->name,
-            'unit_name'     => $item->unit?->name,
-            'category_name' => $item->category?->name,
+    $imageUrl = UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png');
 
-            // Pivots (IDs for multiselects)
-            'allergy_ids'   => $item->allergies->pluck('id')->values(),
-            'tag_ids'       => $item->tags->pluck('id')->values(),
+    return [
+        'id'          => $item->id,
+        'name'        => $item->name,
+        'sku'         => $item->sku,
+        'description' => $item->description,
+        'minAlert'    => $item->minAlert,
 
-            // Nutrition (hasOne table)
-            'nutrition'     => [
-                'calories' => (float) ($item->nutrition->calories ?? 0),
-                'protein'  => (float) ($item->nutrition->protein  ?? 0),
-                'fat'      => (float) ($item->nutrition->fat      ?? 0),
-                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
-            ],
+        // >>> send BOTH ids for the form <<<
+        'category_id'    => $resolvedCategoryId,
+        'subcategory_id' => $resolvedSubcategoryId,
 
-            // Image
-            'upload_id'     => $item->upload_id,
-            'image_url'     => $imageUrl,
-            // If your form expects `image` for preview, also provide it:
-            'image'         => $imageUrl,
+        // optional display names (useful if you show them)
+        'category_name'    => $categoryName,
+        'subcategory_name' => $subcategoryName,
 
-            // Meta
-            'user'          => $item->user?->name,
-            'created_at'    => $item->created_at?->toDateTimeString(),
-            'updated_at'    => $item->updated_at?->toDateTimeString(),
-        ];
-    }
-    
+        'supplier_id'   => $item->supplier_id,
+        'unit_id'       => $item->unit_id,
+        'supplier_name' => $item->supplier?->name,
+        'unit_name'     => $item->unit?->name,
+
+        'allergy_ids' => $item->allergies->pluck('id')->values(),
+        'tag_ids'     => $item->tags->pluck('id')->values(),
+
+        'nutrition' => [
+            'calories' => (float) ($item->nutrition->calories ?? 0),
+            'protein'  => (float) ($item->nutrition->protein  ?? 0),
+            'fat'      => (float) ($item->nutrition->fat      ?? 0),
+            'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+        ],
+
+        'upload_id'  => $item->upload_id,
+        'image_url'  => $imageUrl,
+        'image'      => $imageUrl, // if your form previews from `image`
+
+        'user'       => $item->user?->name,
+        'created_at' => optional($item->created_at)->toDateTimeString(),
+        'updated_at' => optional($item->updated_at)->toDateTimeString(),
+    ];
+}
+
+
 }

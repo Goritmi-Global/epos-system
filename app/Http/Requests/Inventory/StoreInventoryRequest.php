@@ -14,16 +14,16 @@ class StoreInventoryRequest extends FormRequest
     {
         return [
             'name'            => ['required','string','max:255'],
-            'category_id'     => ['nullable','integer','exists:inventory_categories,id'],
+            'category_id'     => ['required','integer','exists:inventory_categories,id'],
             'subcategory_id'  => ['nullable','integer','exists:inventory_categories,id'],
             'unit_id'         => ['required','integer','exists:units,id'],
-            'supplier_id'     => ['nullable','integer','exists:suppliers,id'],
+            'supplier_id'     => ['required','integer','exists:suppliers,id'],
 
             // if SKU must be unique on create:
             'sku'             => ['nullable','string','max:255','unique:inventory_items,sku'],
 
             'description'     => ['nullable','string'],
-            'minAlert'        => ['nullable','integer','min:0'],
+            'minAlert'        => ['required','integer','min:0'],
 
             'nutrition'               => ['nullable','array'],
             'nutrition.calories'      => ['nullable','numeric','min:0'],
