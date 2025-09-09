@@ -2,7 +2,7 @@
 
 namespace App\Services\POS;
 
-use App\Models\Inventory;
+use App\Models\InventoryItem;
 use App\Models\StockEntry;
 use Illuminate\Http\Request;
 
@@ -55,7 +55,7 @@ class StockEntryService
         // net stock value
         $stockValue = $totalInValue - $totalOutValue;
 
-        $inventory = Inventory::find($product);
+        $inventory = InventoryItem::find($product);
         $minAlert = $inventory?->minAlert ?? 0;
 
         return response()->json([

@@ -9,10 +9,16 @@ use Illuminate\Support\Facades\DB;
 
 class InventoryService
 {
+    /** ----------------------------------------------------------------
+     *  Read / List
+     *  ---------------------------------------------------------------- */
     public function list(array $filters = [])
     {
-        return InventoryItem::with([
+        return InventoryItem::query()
+            ->with([
                 'user:id,name',
+                'supplier:id,name',
+                'unit:id,name',
                 'allergies:id,name',
                 'tags:id,name',
                 'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
@@ -25,64 +31,79 @@ class InventoryService
             })
             ->orderByDesc('id')
             ->paginate(20)
-            ->through(function ($item) {
+            ->through(function (InventoryItem $item) {
                 return [
-                    'id'          => $item->id,
-                    'name'        => $item->name,
-                    'category'    => $item->category,
-                    'subcategory' => $item->subcategory,
-                    'minAlert'    => $item->minAlert,
-                    'unit'        => $item->unit,
-                    'supplier'    => $item->supplier,
-                    'sku'         => $item->sku,
-                    'description' => $item->description,
+                    'id'            => $item->id,
+                    'name'          => $item->name,
+                    'sku'           => $item->sku,
+                    'description'   => $item->description,
+
+                    // keep if you use these columns on inventory_items
+                    'category'      => $item->category ?? null,
+                    'subcategory'   => $item->subcategory ?? null,
+                    'minAlert'      => $item->minAlert ?? null,
+
+                    // supplier / unit stored on inventory_items
+                    'supplier_id'   => $item->supplier_id,
+                    'supplier_name' => $item->supplier?->name,
+                    'unit_id'       => $item->unit_id,
+                    'unit_name'     => $item->unit?->name,
 
                     // Pivots
-                    'allergies'   => $item->allergies->pluck('name')->values(),
-                    'allergy_ids' => $item->allergies->pluck('id')->values(),
-                    'tags'        => $item->tags->pluck('name')->values(),
-                    'tag_ids'     => $item->tags->pluck('id')->values(),
+                    'allergies'     => $item->allergies->pluck('name')->values(),
+                    'allergy_ids'   => $item->allergies->pluck('id')->values(),
+                    'tags'          => $item->tags->pluck('name')->values(),
+                    'tag_ids'       => $item->tags->pluck('id')->values(),
 
-                    // Nutrition (from hasOne table)
-                    'nutrition'   => [
+                    // Nutrition
+                    'nutrition'     => [
                         'calories' => (float) ($item->nutrition->calories ?? 0),
                         'protein'  => (float) ($item->nutrition->protein  ?? 0),
                         'fat'      => (float) ($item->nutrition->fat      ?? 0),
                         'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
                     ],
 
-                    'user'        => $item->user?->name,
-                    'image_url'   => UploadHelper::url($item->upload_id),
-                    'created_at'  => $item->created_at?->format('Y-m-d H:i'),
+                    'user'          => $item->user?->name,
+                    'image_url'     => UploadHelper::url($item->upload_id),
+                    'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
                 ];
             });
     }
 
+    /** ----------------------------------------------------------------
+     *  Create
+     *  ---------------------------------------------------------------- */
     public function create(array $data): InventoryItem
     {
+        // dd($data);
         return DB::transaction(function () use ($data) {
-            // Upload image -> uploads table
+            // Image -> uploads table
             if (!empty($data['image'])) {
                 $upload = UploadHelper::store($data['image'], 'uploads', 'public');
                 $data['upload_id'] = $upload->id;
             }
             unset($data['image']);
 
+            // who created it
             $data['user_id'] = auth()->id();
 
-            // Extract pivot + nutrition payloads
-            [$allergyIds, $tagIds] = $this->extractPivots($data);
-            $nutritionPayload      = $this->extractNutrition($data);
+            // ensure the FK fields exist as integers on inventory_items
+            $data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
+            $data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
 
-            // Create item
+            // Extract pivots & nutrition BEFORE create (they’re removed from $data)
+            [$allergyIds, $tagIds] = $this->extractPivots($data);
+            $nutritionPayload       = $this->extractNutrition($data);
+
+            // Create base row
             $item = InventoryItem::create($data);
 
-            // Sync pivots
+            // Sync pivots (detach/attach exact set)
             $item->allergies()->sync($allergyIds);
             $item->tags()->sync($tagIds);
 
-            // Upsert nutrition (hasOne)
-            if (!empty($nutritionPayload)) {
+            // Upsert nutrition if any provided
+            if ($nutritionPayload !== []) {
                 InventoryItemNutrition::updateOrCreate(
                     ['inventory_item_id' => $item->id],
                     $nutritionPayload
@@ -90,33 +111,46 @@ class InventoryService
             }
 
             return $item->load([
+                'user:id,name',
+                'supplier:id,name',
+                'unit:id,name',
                 'allergies:id,name',
                 'tags:id,name',
                 'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
-                'user:id,name',
             ]);
         });
     }
 
+    /** ----------------------------------------------------------------
+     *  Update
+     *  ---------------------------------------------------------------- */
     public function update(InventoryItem $item, array $data): InventoryItem
     {
         return DB::transaction(function () use ($item, $data) {
-            // Replace/upload image if new one provided
+            // replace/upload image if new one provided
             if (!empty($data['image'])) {
                 $newUpload = UploadHelper::replace($item->upload_id, $data['image'], 'uploads', 'public');
                 $data['upload_id'] = $newUpload->id;
             }
             unset($data['image']);
 
-            // Extract optional pivot + nutrition payloads
-            $pivotsProvided       = $this->pivotsProvided($data);
-            [$allergyIds, $tagIds] = $this->extractPivots($data);
-            $nutritionPayload      = $this->extractNutrition($data);
+            // FKs (optional on update)
+            if (array_key_exists('supplier_id', $data)) {
+                $data['supplier_id'] = $data['supplier_id'] !== null ? (int) $data['supplier_id'] : null;
+            }
+            if (array_key_exists('unit_id', $data)) {
+                $data['unit_id'] = $data['unit_id'] !== null ? (int) $data['unit_id'] : null;
+            }
 
-            // Update main columns
+            // detect if pivots were sent (partial update friendly)
+            $pivotsProvided         = $this->pivotsProvided($data);
+            [$allergyIds, $tagIds]  = $this->extractPivots($data);
+            $nutritionPayload       = $this->extractNutrition($data);
+
+            // update scalar columns
             $item->update($data);
 
-            // Sync pivots only if sent (partial update friendly)
+            // sync pivots only when provided in request
             if ($pivotsProvided['allergies']) {
                 $item->allergies()->sync($allergyIds);
             }
@@ -124,8 +158,8 @@ class InventoryService
                 $item->tags()->sync($tagIds);
             }
 
-            // Upsert nutrition if sent
-            if (!empty($nutritionPayload)) {
+            // upsert nutrition only if provided
+            if ($nutritionPayload !== []) {
                 InventoryItemNutrition::updateOrCreate(
                     ['inventory_item_id' => $item->id],
                     $nutritionPayload
@@ -133,14 +167,19 @@ class InventoryService
             }
 
             return $item->fresh()->load([
+                'user:id,name',
+                'supplier:id,name',
+                'unit:id,name',
                 'allergies:id,name',
                 'tags:id,name',
                 'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
-                'user:id,name',
             ]);
         });
     }
 
+    /** ----------------------------------------------------------------
+     *  Delete
+     *  ---------------------------------------------------------------- */
     public function delete(InventoryItem $item): void
     {
         DB::transaction(function () use ($item) {
@@ -149,26 +188,40 @@ class InventoryService
         });
     }
 
-    /** ------------------------- Helpers ------------------------- */
+    /** ----------------------------------------------------------------
+     *  Helpers
+     *  ---------------------------------------------------------------- */
 
+    /**
+     * Extract allergy/tag IDs from $data. Accepts:
+     * - 'allergies' or 'allergy_ids' (array or JSON), and
+     * - 'tags' or 'tag_ids' (array or JSON).
+     * Removes these keys from $data.
+     */
     private function extractPivots(array &$data): array
     {
-        $allergyIds = $data['allergy_ids'] ?? [];
-        $tagIds     = $data['tag_ids']     ?? [];
+        $allergyIds = $data['allergies'] ?? $data['allergy_ids'] ?? [];
+        $tagIds     = $data['tags']      ?? $data['tag_ids']      ?? [];
 
-        unset($data['allergy_ids'], $data['tag_ids']);
+        if (is_string($allergyIds)) $allergyIds = json_decode($allergyIds, true) ?: [];
+        if (is_string($tagIds))     $tagIds     = json_decode($tagIds, true)     ?: [];
 
-        return [
-            is_array($allergyIds) ? $allergyIds : [],
-            is_array($tagIds)     ? $tagIds     : [],
-        ];
+        $allergyIds = collect($allergyIds)->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
+        $tagIds     = collect($tagIds)->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
+
+        unset($data['allergies'], $data['allergy_ids'], $data['tags'], $data['tag_ids']);
+
+        return [$allergyIds, $tagIds];
     }
 
+    /**
+     * For partial updates: did the request include pivot arrays?
+     */
     private function pivotsProvided(array $data): array
     {
         return [
-            'allergies' => array_key_exists('allergy_ids', $data),
-            'tags'      => array_key_exists('tag_ids', $data),
+            'allergies' => array_key_exists('allergies', $data) || array_key_exists('allergy_ids', $data),
+            'tags'      => array_key_exists('tags', $data)      || array_key_exists('tag_ids', $data),
         ];
     }
 
@@ -176,14 +229,17 @@ class InventoryService
      * Accepts either:
      * - $data['nutrition'] = ['calories'=>.., 'protein'=>.., 'fat'=>.., 'carbs'=>..]
      * - or flattened keys: nutrition_calories, nutrition_protein, nutrition_fat, nutrition_carbs
-     * Returns normalized payload and unsets consumed keys.
+     * Removes consumed keys and returns a normalized payload,
+     * or [] if nothing nutrition-related was provided.
      */
     private function extractNutrition(array &$data): array
     {
         $payload = [];
 
-        if (isset($data['nutrition']) && is_array($data['nutrition'])) {
-            $n = $data['nutrition'];
+        if (isset($data['nutrition'])) {
+            $n = is_string($data['nutrition']) ? json_decode($data['nutrition'], true) : $data['nutrition'];
+            $n = is_array($n) ? $n : [];
+
             $payload = [
                 'calories' => isset($n['calories']) ? (float) $n['calories'] : 0,
                 'protein'  => isset($n['protein'])  ? (float) $n['protein']  : 0,
@@ -192,25 +248,21 @@ class InventoryService
             ];
             unset($data['nutrition']);
         } else {
-            $hasAny = false;
+            $touched = false;
             foreach (['calories','protein','fat','carbs'] as $k) {
                 $key = "nutrition_{$k}";
                 if (array_key_exists($key, $data)) {
                     $payload[$k] = (float) $data[$key];
                     unset($data[$key]);
-                    $hasAny = true;
+                    $touched = true;
                 }
             }
-            if (!$hasAny) {
-                $payload = [];
-            } else {
-                // Ensure all keys exist
+            if ($touched) {
                 $payload = array_merge(['calories'=>0,'protein'=>0,'fat'=>0,'carbs'=>0], $payload);
             }
         }
 
-        // Remove empties (so we don't upsert blank rows on update)
-        $nonZero = array_filter($payload, fn($v) => $v !== null);
-        return $nonZero;
+        // If nothing nutrition-related was provided, return empty array.
+        return $payload ?: [];
     }
 }

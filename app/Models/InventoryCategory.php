@@ -96,7 +96,7 @@ class InventoryCategory extends Model
     {
         // pivot: inventory_item_categories
         return $this->belongsToMany(
-            Inventory::class,
+            InventoryItem::class,
             'inventory_item_categories',
             'category_id',
             'inventory_item_id'

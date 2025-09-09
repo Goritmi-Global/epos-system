@@ -12,7 +12,7 @@ class Tag extends Model
     {
         // pivot: inventory_item_tags
         return $this->belongsToMany(
-            Inventory::class,
+            InventoryItem::class,
             'inventory_item_tags',
             'tag_id',
             'inventory_item_id'

@@ -5,23 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
-class Inventory extends BaseModel
+class InventoryItem extends BaseModel
 {
     protected $table = 'inventory_items';
 
     protected $appends = ['stock'];
 
     protected $fillable = [
-        'sku',
-        'name',
-        'description',
-        'unit',        // scalar field (e.g., "kg", "ltr", etc.)
-        'supplier',    // scalar field (e.g., "ABC Traders")
-        'minAlert',
-        'image',
-        'user_id',
-        'upload_id',
-    ];
+    'name','minAlert','sku','description',
+    'supplier_id','unit_id','user_id','upload_id',
+];
  
     // ----- Belongs To -----
     public function user()
@@ -55,6 +48,16 @@ class Inventory extends BaseModel
             'inventory_item_id',
             'tag_id'
         )->withTimestamps();
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public function categories()

@@ -12,7 +12,7 @@ class Allergy extends Model
     {
         // pivot: inventory_item_allergies
         return $this->belongsToMany(
-            Inventory::class,
+            InventoryItem::class,
             'inventory_item_allergies',
             'allergy_id',
             'inventory_item_id'
