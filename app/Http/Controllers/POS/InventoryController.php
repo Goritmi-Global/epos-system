@@ -60,29 +60,17 @@ class InventoryController extends Controller
         ], 201);
     }
 
-    public function show(InventoryItem $inventory)
-    { 
-        $inventory->load('user');
-
-        $data = $inventory->toArray();
-        $data['upload_id'] = $inventory->upload_id;
-        
-        $data['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
-
-        return response()->json($data);
+    public function show(InventoryItem $inventory, InventoryService $service)
+    {
+        return response()->json($service->show($inventory));
     }
 
-    public function edit(InventoryItem $inventory)
+  
+    public function edit(InventoryItem $inventory, InventoryService $service)
     {
-        $item = $inventory->toArray();
-        $item['upload_id'] = $inventory->upload_id ?? null;
-       
-        $item['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
-
-     
         return Inertia::render('Inventory/Form', [
             'mode' => 'edit',
-            'item' => $item,
+            'item' => $service->editPayload($inventory),
         ]);
     }
 

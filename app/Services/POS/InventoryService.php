@@ -296,4 +296,120 @@ $nutritionPayload      = $this->extractNutrition($data);
         // If nothing nutrition-related was provided, return empty array.
         return $payload ?: [];
     }
+
+
+    // Show data
+    public function show(InventoryItem $item): array
+    {
+        $item->load([
+            'user:id,name',
+            'supplier:id,name',
+            'unit:id,name',
+            'category:id,name,parent_id',
+            'allergies:id,name',
+            'tags:id,name',
+            'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
+        ]);
+
+        return $this->formatItem($item);
+    }
+
+    protected function formatItem(InventoryItem $item): array
+    {
+        return [
+            'id'            => $item->id,
+            'name'          => $item->name,
+            'sku'           => $item->sku,
+            'description'   => $item->description,
+            'minAlert'      => $item->minAlert,
+
+            // FKs
+            'supplier_id'   => $item->supplier_id,
+            'supplier_name' => $item->supplier?->name,
+            'unit_id'       => $item->unit_id,
+            'unit_name'     => $item->unit?->name,
+            'category_id'   => $item->category_id,
+            'category_name' => $item->category?->name,
+
+            // Pivots
+            'allergies'     => $item->allergies->pluck('name')->values(),
+            'allergy_ids'   => $item->allergies->pluck('id')->values(),
+            'tags'          => $item->tags->pluck('name')->values(),
+            'tag_ids'       => $item->tags->pluck('id')->values(),
+
+            // Nutrition (hasOne table)
+            'nutrition'     => [
+                'calories' => (float) ($item->nutrition->calories ?? 0),
+                'protein'  => (float) ($item->nutrition->protein  ?? 0),
+                'fat'      => (float) ($item->nutrition->fat      ?? 0),
+                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+            ],
+
+            // Meta
+            'user'          => $item->user?->name,
+            'upload_id'     => $item->upload_id,
+            'image_url'     => UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png'),
+            'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
+            'updated_at'    => optional($item->updated_at)->format('Y-m-d H:i'),
+        ];
+    }
+
+
+    // Edit data
+    public function editPayload(InventoryItem $item): array
+    {
+        $item->load([
+            'user:id,name',
+            'supplier:id,name',
+            'unit:id,name',
+            'category:id,name',
+            'allergies:id',
+            'tags:id',
+            'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
+        ]);
+
+        $imageUrl = UploadHelper::url($item->upload_id) ?? asset('assets/img/default.png');
+
+        return [
+            'id'            => $item->id,
+            'name'          => $item->name,
+            'sku'           => $item->sku,
+            'description'   => $item->description,
+            'minAlert'      => $item->minAlert,
+
+            // FKs (for selects)
+            'supplier_id'   => $item->supplier_id,
+            'unit_id'       => $item->unit_id,
+            'category_id'   => $item->category_id,
+
+            // Optional display names (if your form shows current names)
+            'supplier_name' => $item->supplier?->name,
+            'unit_name'     => $item->unit?->name,
+            'category_name' => $item->category?->name,
+
+            // Pivots (IDs for multiselects)
+            'allergy_ids'   => $item->allergies->pluck('id')->values(),
+            'tag_ids'       => $item->tags->pluck('id')->values(),
+
+            // Nutrition (hasOne table)
+            'nutrition'     => [
+                'calories' => (float) ($item->nutrition->calories ?? 0),
+                'protein'  => (float) ($item->nutrition->protein  ?? 0),
+                'fat'      => (float) ($item->nutrition->fat      ?? 0),
+                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+            ],
+
+            // Image
+            'upload_id'     => $item->upload_id,
+            'image_url'     => $imageUrl,
+            // If your form expects `image` for preview, also provide it:
+            'image'         => $imageUrl,
+
+            // Meta
+            'user'          => $item->user?->name,
+            'created_at'    => $item->created_at?->toDateTimeString(),
+            'updated_at'    => $item->updated_at?->toDateTimeString(),
+        ];
+    }
+    
 }
