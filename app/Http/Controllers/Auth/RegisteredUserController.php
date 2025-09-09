@@ -56,10 +56,9 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($rawPassword),
             'pin' => Hash::make($rawPin),
             'verifying_otp' => $otp,
-        ]);
-        dd($otp,$user);
+        ]); 
         // Send a custom verification email (Laravel Recommended via Mailable)
-        Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin,$otp));
+        // Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin,$otp));
         throw ValidationException::withMessages([
             'unverified' => 'Account not verified. A new OTP has been sent to your email.',
             'email_address' => $user->email,

@@ -2,7 +2,7 @@
 
 namespace App\Services\POS;
 
-use App\Models\Inventory;
+use App\Models\InventoryItem;
 use App\Models\MenuItem;
 use Illuminate\Http\Request;
 use App\Helpers\UploadHelper;
@@ -55,7 +55,7 @@ class MenuService
         // Ingredients
         if (!empty($data['ingredients'])) {
             foreach ($data['ingredients'] as $ing) {
-                $inventory = Inventory::find($ing['inventory_item_id']);
+                $inventory = InventoryItem::find($ing['inventory_item_id']);
 
                 $menu->ingredients()->create([
                     'inventory_item_id' => $ing['inventory_item_id'],

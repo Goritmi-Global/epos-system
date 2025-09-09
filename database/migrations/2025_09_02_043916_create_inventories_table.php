@@ -12,28 +12,23 @@ return new class extends Migration
             $table->id();
 
             $table->string('name');
-            $table->string('category');
-            $table->string('subcategory')->nullable();
             $table->integer('minAlert')->default(0);
-            $table->string('unit');
-            $table->string('supplier');
-            $table->string('sku')->nullable();
+
+            // NEW: primary category (nullable)
+            $table->foreignId('category_id')->nullable()
+                ->constrained('inventory_categories')->nullOnDelete();
+
+            $table->foreignId('supplier_id')->nullable()
+                ->constrained('suppliers')->nullOnDelete();
+
+            $table->foreignId('unit_id')->nullable()
+                ->constrained('units')->nullOnDelete();
+
+            $table->string('sku')->nullable()->unique();
             $table->text('description')->nullable();
 
-            $table->json('nutrition')->nullable(); // calories, fat, protein, carbs
-            $table->json('allergies')->nullable(); // store as array
-            $table->json('tags')->nullable();      // store as array
-
-            $table->foreignId('user_id')
-                  ->nullable()
-                  ->constrained()
-                  ->cascadeOnDelete();
-
-            // instead of string('image')
-            $table->foreignId('upload_id')
-                  ->nullable()
-                  ->constrained('uploads')
-                  ->nullOnDelete(); // if upload is deleted, set null
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('upload_id')->nullable()->constrained('uploads')->nullOnDelete();
 
             $table->timestamps();
         });

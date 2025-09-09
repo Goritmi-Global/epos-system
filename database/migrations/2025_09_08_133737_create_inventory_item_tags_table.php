@@ -6,22 +6,25 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('inventory_item_tags', function (Blueprint $table) {
-            $table->foreignId('inventory_item_id')->constrained('inventory_items')->cascadeOnDelete();
-            $table->foreignId('tag_id')->constrained('tags')->cascadeOnDelete();
-            $table->primary(['inventory_item_id', 'tag_id']);
+            $table->id();
+
+            $table->foreignId('inventory_item_id')
+                  ->constrained('inventory_items')
+                  ->cascadeOnDelete();
+
+            $table->foreignId('tag_id')
+                  ->constrained('tags')
+                  ->cascadeOnDelete();
+
+            $table->timestamps();
+
+            $table->unique(['inventory_item_id', 'tag_id'], 'inv_tag_unique');
         });
     }
 
-
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('inventory_item_tags');

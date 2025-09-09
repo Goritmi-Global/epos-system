@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('inventory_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('icon', 10)->default('🧰');
@@ -24,16 +24,16 @@ return new class extends Migration
             $table->integer('in_stock')->default(0);
             $table->timestamps();
 
-            // Foreign key constraint
+            // Foreign key constraint (self-referencing inside inventory_categories)
             $table->foreign('parent_id')
                   ->references('id')
-                  ->on('categories')
+                  ->on('inventory_categories')
                   ->onDelete('cascade');
 
             // Indexes for better performance
             $table->index('parent_id');
             $table->index('active');
-            $table->index(['name', 'parent_id']); // Composite index for uniqueness checks
+            $table->index(['name', 'parent_id']); // Composite index
         });
     }
 
@@ -42,6 +42,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('inventory_categories');
     }
 };

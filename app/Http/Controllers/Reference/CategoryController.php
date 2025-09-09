@@ -9,7 +9,7 @@ use App\Services\Reference\CategoryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
-use App\Models\Category;
+use App\Models\InventoryCategory;
 
 class CategoryController extends Controller
 {

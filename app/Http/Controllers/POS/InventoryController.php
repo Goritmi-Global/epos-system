@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StoreInventoryRequest;
 use App\Http\Requests\Inventory\UpdateInventoryRequest;
 use App\Models\Allergy;
-use App\Models\Category;
-use App\Models\Inventory;
+use App\Models\InventoryCategory;
+use App\Models\InventoryItem;
 use App\Models\Supplier;
 use App\Models\Tag;
 use App\Models\Unit;
@@ -15,6 +15,9 @@ use App\Services\POS\InventoryService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Helpers\UploadHelper;
+use App\Models\StockEntry;
+use Illuminate\Support\Carbon;
+
 
 class InventoryController extends Controller
 {
@@ -23,24 +26,26 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
         $inventories = $this->service->list($request->only('q'));
-        $allergies = Allergy::get();
-        $categories = Category::get();
-        $units = Unit::get();
-        $suppliers = Supplier::get();
-        $tags = Tag::get();
+
         return Inertia::render('Backend/Inventory/Index', [
             'inventories' => $inventories,
-            'allergies' => $allergies,
-            'units' => $units,
-            'suppliers' => $suppliers,
-            'tags' => $tags,
-            'categories' => $categories
+
+            // all as arrays of {id, name}
+            'allergies'   => Allergy::select('id','name')->orderBy('name')->get(),
+            'tags'        => Tag::select('id','name')->orderBy('name')->get(),
+            'units'       => Unit::select('id','name')->orderBy('name')->get(),
+            'suppliers'   => Supplier::select('id','name')->orderBy('name')->get(),
+
+            // if you have parent/child categories, keep parent_id; otherwise just id/name
+            'categories'  => InventoryCategory::select('id','name','parent_id')->orderBy('name')->get(),
         ]);
     }
+
     public function apiList(Request $request)
     {
         
         $inventories = $this->service->list($request->only('q'));
+        // dd($inventories);
         return response()->json($inventories);
     }
 
@@ -59,39 +64,27 @@ class InventoryController extends Controller
         ], 201);
     }
 
-    public function show(Inventory $inventory)
-    { 
-        $inventory->load('user');
-
-        $data = $inventory->toArray();
-        $data['upload_id'] = $inventory->upload_id;
-        
-        $data['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
-
-        return response()->json($data);
+    public function show(InventoryItem $inventory, InventoryService $service)
+    {
+        return response()->json($service->show($inventory));
     }
 
-    public function edit(Inventory $inventory)
+  
+    public function edit(InventoryItem $inventory, InventoryService $service)
     {
-        $item = $inventory->toArray();
-        $item['upload_id'] = $inventory->upload_id ?? null;
-       
-        $item['image'] = UploadHelper::url($inventory->upload_id) ?? asset('assets/img/default.png');
-
-     
         return Inertia::render('Inventory/Form', [
             'mode' => 'edit',
-            'item' => $item,
+            'item' => $service->editPayload($inventory),
         ]);
     }
 
-    public function update(UpdateInventoryRequest $request, Inventory $inventory)
+    public function update(UpdateInventoryRequest $request, InventoryItem $inventory)
     {
         $this->service->update($inventory, $request->validated());
         return redirect()->route('inventory.index')->with('success', 'Item updated');
     }
 
-    public function destroy(Inventory $inventory)
+    public function destroy(InventoryItem $inventory)
     {
         $this->service->delete($inventory);
         return back()->with('success', 'Item deleted');

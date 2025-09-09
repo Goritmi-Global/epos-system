@@ -86,7 +86,7 @@ class StoreCategoryRequest extends FormRequest
                 $categoryNames[] = $duplicateKey;
                 
                 // ✅ CHECK FOR DUPLICATES IN DATABASE
-                $existingCategory = \App\Models\Category::where('name', $categoryName)
+                $existingCategory = \App\Models\InventoryCategory::where('name', $categoryName)
                     ->where('parent_id', $parentId)
                     ->first();
                     
@@ -112,7 +112,7 @@ class StoreCategoryRequest extends FormRequest
                     }
                     
                     // Ensure parent is a top-level category (not a subcategory itself)
-                    $parentExists = \App\Models\Category::where('id', $parentId)
+                    $parentExists = \App\Models\InventoryCategory::where('id', $parentId)
                         ->whereNull('parent_id') // must be a main category
                         ->exists();
 

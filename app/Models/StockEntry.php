@@ -15,7 +15,7 @@ class StockEntry extends Model
     // Mass assignable attributes
     protected $fillable = [
         'category_id',
-        'supplier_id',
+        'supplier_id', // product id store as an inventory item id 
         'product_id',
         'user_id',
         'quantity',
@@ -28,10 +28,18 @@ class StockEntry extends Model
         'purchase_date',
     ];
 
+    protected $casts = [
+        'quantity'      => 'integer',
+        'price'         => 'decimal:2',
+        'value'         => 'decimal:2',
+        'expiry_date'   => 'date',
+        'purchase_date' => 'date',
+    ];
+
     // Relationships
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(InventoryCategory::class);
     }
 
     public function supplier()
@@ -47,5 +55,21 @@ class StockEntry extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+     // --- Scopes (handy for queries/aggregates) ---
+    public function scopeForItem($q, int $itemId)
+    {
+        return $q->where('product_id', $itemId);
+    }
+
+    public function scopeStockIn($q)
+    {
+        return $q->where('stock_type', 'stockin');
+    }
+
+    public function scopeStockOut($q)
+    {
+        return $q->where('stock_type', 'stockout');
     }
 }

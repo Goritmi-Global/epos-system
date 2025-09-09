@@ -8,25 +8,26 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('inventory_item_allergies', function (Blueprint $table) {
+        Schema::create('inventory_item_nutrition', function (Blueprint $table) {
             $table->id();
 
             $table->foreignId('inventory_item_id')
                   ->constrained('inventory_items')
                   ->cascadeOnDelete();
 
-            $table->foreignId('allergy_id')
-                  ->constrained('allergies')
-                  ->cascadeOnDelete();
+            $table->decimal('calories', 10, 2)->default(0);
+            $table->decimal('fat', 10, 2)->default(0);
+            $table->decimal('carbs', 10, 2)->default(0);
+            $table->decimal('protein', 10, 2)->default(0);
 
             $table->timestamps();
 
-            $table->unique(['inventory_item_id', 'allergy_id'], 'inv_allergy_unique');
+            $table->unique('inventory_item_id', 'inv_nutrition_unique');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('inventory_item_allergies');
+        Schema::dropIfExists('inventory_item_nutrition');
     }
 };

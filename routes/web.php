@@ -89,6 +89,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('stock_entries')->name('stock_entries.')->group(function () {
         Route::get('/', [StockEntryController::class, 'index'])->name('index');
         Route::post('/', [StockEntryController::class, 'store'])->name('store');
+        Route::get('/by-item/{inventory}', [StockEntryController::class, 'byItem']);
 
         // Put specific routes BEFORE parameterized routes
         Route::get('/stock-logs', [StockEntryController::class, 'stockLogs'])->name('stock.logs');

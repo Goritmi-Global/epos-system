@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Services\POS\StockEntryService;
 use App\Http\Requests\Inventory\StoreStockEntryRequest;
 use App\Models\StockEntry;
+use App\Models\InventoryItem;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class StockEntryController extends Controller
 {
@@ -69,4 +71,51 @@ class StockEntryController extends Controller
         }
         return response()->json(['message' => 'Failed to delete log'], 500);
     }
+
+     public function byItem(InventoryItem $inventory)
+    {
+        $today   = Carbon::today();
+        $cutoff  = Carbon::today()->addDays(15);
+
+        $rows = StockEntry::query()
+            ->forItem($inventory->id)
+            ->stockIn()
+            ->orderBy('expiry_date', 'asc')
+            ->get(['id','quantity','price','value','description','purchase_date','expiry_date','created_at']);
+
+        $mapped = $rows->map(function ($r) use ($today, $cutoff) {
+            $status = 'active';
+            if ($r->expiry_date) {
+                if ($r->expiry_date->lt($today)) {
+                    $status = 'expired';
+                } elseif ($r->expiry_date->lte($cutoff)) {
+                    $status = 'near';
+                }
+            }
+
+            return [
+                'id'            => $r->id,
+                'quantity'      => (int) $r->quantity,
+                'price'         => (float) $r->price,
+                'value'         => (float) $r->value,
+                'description'   => $r->description,
+                'purchase_date' => optional($r->purchase_date)->format('Y-m-d'),
+                'expiry_date'   => optional($r->expiry_date)->format('Y-m-d'),
+                'created_at'    => optional($r->created_at)->format('Y-m-d H:i'),
+                'status'        => $status, // active | near | expired
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'records'        => $mapped,
+                'near_count'     => $mapped->where('status', 'near')->count(),
+                'near_qty'       => $mapped->where('status', 'near')->sum('quantity'),
+                'expired_count'  => $mapped->where('status', 'expired')->count(),
+                'expired_qty'    => $mapped->where('status', 'expired')->sum('quantity'),
+            ],
+        ]);
+    }
+
 }

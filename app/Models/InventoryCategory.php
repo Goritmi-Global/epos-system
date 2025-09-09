@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Category extends Model
+class InventoryCategory extends Model
 {
     use HasFactory;
 
@@ -41,7 +41,7 @@ class Category extends Model
      */
     public function subcategories(): HasMany
     {
-        return $this->hasMany(Category::class, 'parent_id');
+        return $this->hasMany(InventoryCategory::class, 'parent_id');
     }
 
     /**
@@ -49,7 +49,7 @@ class Category extends Model
      */
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(Category::class, 'parent_id');
+        return $this->belongsTo(InventoryCategory::class, 'parent_id');
     }
 
     /**
@@ -91,4 +91,11 @@ class Category extends Model
     {
         return $this->subcategories()->exists();
     }
+
+    public function primaryInventoryItems()
+{
+    return $this->hasMany(\App\Models\InventoryItem::class, 'category_id');
+}
+
+    
 }
