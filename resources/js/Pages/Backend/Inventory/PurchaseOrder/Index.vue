@@ -620,6 +620,7 @@ onUpdated(() => window.feather?.replace());
                                             class="form-label small text-muted d-block"
                                             >preferred supplier</label
                                         >
+
                                         <Select
                                             v-model="p_supplier"
                                             :options="supplierOptions"
