@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, onMounted, onUpdated, watch } from "vue";
 import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -447,6 +447,20 @@ const typeTextClass = (v) =>
         : v === "stockout"
         ? "text-danger"
         : "text-secondary";
+
+// calculate total price when quantity or unit price changes
+const toNum = (v) =>
+    v === "" || v === null || v === undefined ? 0 : Number(v);
+const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+watch(
+    () => [editForm.value.quantity, editForm.value.unitPrice],
+    ([q, p]) => {
+        const total = toNum(q) * toNum(p);
+        editForm.value.totalPrice = round2(total);
+    },
+    { immediate: true }
+);
 </script>
 
 <template>
@@ -924,8 +938,8 @@ const typeTextClass = (v) =>
                                         </button>
                                     </div>
                                     <div class="modal-body">
-                                        <form @submit.prevent="updateLog">
-                                            <div class="mb-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-6 col-md-12">
                                                 <label class="form-label"
                                                     >Item Name</label
                                                 >
@@ -937,7 +951,7 @@ const typeTextClass = (v) =>
                                                 />
                                             </div>
 
-                                            <div class="mb-3">
+                                            <div class="col-md-6 col-md-12">
                                                 <label class="form-label"
                                                     >Quantity</label
                                                 >
@@ -949,7 +963,7 @@ const typeTextClass = (v) =>
                                                 />
                                             </div>
 
-                                            <div class="mb-3">
+                                            <div class="col-md-6 col-md-12">
                                                 <label class="form-label"
                                                     >Unit Price</label
                                                 >
@@ -960,8 +974,21 @@ const typeTextClass = (v) =>
                                                     required
                                                 />
                                             </div>
+                                            <div class="col-md-6 col-md-12">
+                                                <label class="form-label"
+                                                    >Value</label
+                                                >
+                                                <input
+                                                    type="number"
+                                                    readonly
+                                                    class="form-control"
+                                                    v-model="
+                                                        editForm.totalPrice
+                                                    "
+                                                />
+                                            </div>
 
-                                            <div class="mb-3">
+                                            <div class="col-md-6 col-md-12">
                                                 <label class="form-label"
                                                     >Expiry Date</label
                                                 >
@@ -986,12 +1013,12 @@ const typeTextClass = (v) =>
                                             <div class="mt-4">
                                                 <button
                                                     class="btn btn-primary rounded-pill px-4"
-                                                    type="submit"
+                                                    @click="updateLog()"
                                                 >
                                                     Update
                                                 </button>
                                             </div>
-                                        </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
