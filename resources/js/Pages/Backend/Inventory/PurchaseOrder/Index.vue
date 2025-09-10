@@ -156,9 +156,24 @@ function addOrderItem(item) {
             : Number(item.defaultPrice || 0);
     const expiry = item.expiry || null;
 
-    if (!qty || qty <= 0) return toast.error("Enter a valid quantity.");
-    if (!price || price <= 0) return toast.error("Enter a valid unit price.");
-    if (!expiry || expiry <= 0) return toast.error("Enter an expiry date.");
+     if (!qty || qty <= 0){
+        formErrors.value.qty = ["Enter a valid quantity."]
+        toast.error("Enter a valid quantity.");
+    }
+    
+
+
+    if (!price || price <= 0){
+        formErrors.value.unit_price = ["Enter a valid unit price."];
+        toast.error("Enter a valid unit price.");
+    }
+    
+
+    if (!expiry || expiry <= 0){
+        formErrors.value.expiry_date = ["Enter an expiry date."];
+        toast.error("Enter an expiry date.");
+    }
+  
 
     // MERGE: same product + same unitPrice + same expiry
     const found = o_cart.value.find(
@@ -296,17 +311,26 @@ const p_errors = reactive({
 });
 const o_submitting = ref(false);
 
+const formErrors = ref({});
+
+const resetErrors = () => {
+    formErrors.value = {};
+}
+
 function orderSubmit() {
     // validate supplier
     if (!p_supplier.value) {
-        p_errors.supplier = "Please select a supplier.";
+        formErrors.value.supplier_id = ["Please select a supplier."];
         toast.error("Please select a supplier.");
         // optional: focus the field
         nextTick(() => document.getElementById("supplierSelect")?.focus());
         return;
     }
     // if (!p_supplier.value) return toast.error("Please select a supplier.");
-    if (!p_cart.value.length) return toast.error("No items added.");
+    if (!p_cart.value.length){
+          formErrors.value.p_cart = ["No items added."];
+        toast.error("No items added.");
+    } 
 
     const payload = {
         supplier_id: p_supplier.value.id,
@@ -334,11 +358,26 @@ function orderSubmit() {
             m?.hide();
         })
         .catch((err) => {
-            console.error(
-                "❌ Failed to create order:",
-                err.response?.data || err.message
-            );
-            alert("Failed to create order.");
+            if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+
+                const list = [
+                    ...new Set(Object.values(err.response.data.errors).flat()),
+                ];
+                const msg = list.join("<br>");
+
+                // toast.dismiss();
+                toast.error(`Validation failed:<br>${msg}`, {
+                    autoClose: 3500,
+                    dangerouslyHTMLString: true, // for vue-toastification
+                });
+            } else {
+                // toast.dismiss();
+                toast.error("Something went wrong. Please try again.", {
+                    autoClose: 3000,
+                });
+                console.error(err);
+            }
         })
         .finally(() => {
             o_submitting.value = false;
@@ -820,6 +859,7 @@ onUpdated(() => window.feather?.replace());
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
                                     title="Close"
+                                    @click="resetErrors"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -843,7 +883,7 @@ onUpdated(() => window.feather?.replace());
                                     <div class="col-md-6">
                                         <label
                                             class="form-label small text-muted d-block"
-                                            >preferred supplier</label
+                                            >Preferred Supplier</label
                                         >
                                         <div class="dropdown w-100">
                                             <button
@@ -868,13 +908,19 @@ onUpdated(() => window.feather?.replace());
                                                 >
                                                     <a
                                                         class="dropdown-item"
+                                                        :class="{ 'is-invalid': formErrors.supplier_id }"
                                                         href="javascript:void(0)"
                                                         @click="p_supplier = s"
                                                     >
                                                         {{ s.name }}
                                                     </a>
                                                 </li>
+
                                             </ul>
+                                             <small v-if="formErrors.supplier_id" class="text-danger">
+                                {{ formErrors.supplier_id[0] }}
+                            </small>
+
                                         </div>
                                     </div>
                                 </div>
@@ -961,7 +1007,13 @@ onUpdated(() => window.feather?.replace());
                                                             type="number"
                                                             min="0"
                                                             class="form-control form-control"
+                                                            
+                                                            :class="{ 'is-invalid': formErrors.qty }"
                                                         />
+                                                            <small v-if="formErrors.qty" class="text-danger">
+                                                                {{ formErrors.qty[0] }}
+                                                            </small>
+
                                                     </div>
                                                     <div class="col-4">
                                                         <label
@@ -975,7 +1027,12 @@ onUpdated(() => window.feather?.replace());
                                                             type="number"
                                                             min="0"
                                                             class="form-control form-control"
+                                                            :class="{ 'is-invalid': formErrors.unit_price }"
                                                         />
+                                                            <small v-if="formErrors.unit_price" class="text-danger">
+                                                                {{ formErrors.unit_price[0] }}
+                                                            </small>
+
                                                     </div>
                                                     <div class="col-4">
                                                         <label
@@ -986,7 +1043,12 @@ onUpdated(() => window.feather?.replace());
                                                             v-model="it.expiry"
                                                             type="date"
                                                             class="form-control form-control"
+                                                            :class="{ 'is-invalid': formErrors.expiry_date }"
                                                         />
+                                                            <small v-if="formErrors.expiry_date" class="text-danger">
+                                                                {{ formErrors.expiry_date[0] }}
+                                                            </small>
+
                                                     </div>
                                                 </div>
                                             </div>

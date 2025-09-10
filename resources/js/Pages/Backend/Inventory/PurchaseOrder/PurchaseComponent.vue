@@ -15,9 +15,24 @@ function addPurchaseItem(item) {
             : Number(item.defaultPrice || 0);
     const expiry = item.expiry || null;
 
-    if (!qty || qty <= 0) return toast.error("Enter a valid quantity.");
-    if (!price || price <= 0) return toast.error("Enter a valid unit price.");
-    if (!expiry || expiry <= 0) return toast.error("Enter an expiry date.");
+    if (!qty || qty <= 0){
+        formErrors.value.qty = ["Enter a valid quantity."]
+        toast.error("Enter a valid quantity.");
+    }
+    
+
+
+    if (!price || price <= 0){
+        formErrors.value.unit_price = ["Enter a valid unit price."];
+        toast.error("Enter a valid unit price.");
+    }
+    
+
+    if (!expiry || expiry <= 0){
+        formErrors.value.expiry_date = ["Enter an expiry date."];
+        toast.error("Enter an expiry date.");
+    }
+  
 
     // MERGE: same product + same unitPrice + same expiry
     const found = p_cart.value.find(
@@ -49,10 +64,24 @@ function delPurchaseRow(idx) {
 }
 
 const p_submitting = ref(false);
+const formErrors = ref({});
+
+const resteErrors = ()=> {
+    formErrors.value = {};
+}
 
 async function quickPurchaseSubmit() {
-    if (!p_supplier.value) return toast.error("Please select a supplier.");
-    if (!p_cart.value.length) return toast.error("No items added.");
+    if (!p_supplier.value) {
+    formErrors.value.supllier_id = ["Please select a supplier."];
+    }
+   
+
+if (!p_cart.value.length){
+    formErrors.value.supllier_id = ["No items added."];
+//  return toast.error("No items added.");
+}
+
+formErrors.value = {};
 
     const payload = {
         supplier_id: p_supplier.value,
@@ -81,11 +110,26 @@ async function quickPurchaseSubmit() {
         );
         modal?.hide();
     } catch (err) {
-        toast.error(
-            "Failed to create purchase:",
-            err.response?.data || err.message
-        );
-        toast.error("Failed to create purchase.");
+          if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+
+                const list = [
+                    ...new Set(Object.values(err.response.data.errors).flat()),
+                ];
+                const msg = list.join("<br>");
+
+                // toast.dismiss();
+                toast.error(`Validation failed:<br>${msg}`, {
+                    autoClose: 3500,
+                    dangerouslyHTMLString: true, // for vue-toastification
+                });
+            } else {
+                // toast.dismiss();
+                toast.error("Something went wrong. Please try again.", {
+                    autoClose: 3000,
+                });
+                console.error(err);
+            }
     } finally {
         p_submitting.value = false;
     }
@@ -176,6 +220,7 @@ function orderSubmit() {
                         data-bs-dismiss="modal"
                         aria-label="Close"
                         title="Close"
+                        @click="resteErrors"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -198,7 +243,7 @@ function orderSubmit() {
                     <div class="row g-3 align-items-center">
                         <div class="col-md-6">
                             <label class="form-label small text-muted d-block"
-                                >preferred supplier</label
+                                >Preferred supplier</label
                             >
 
                             <Select
@@ -208,10 +253,15 @@ function orderSubmit() {
                                 optionValue="id"
                                 placeholder="Select Supplier"
                                 class="w-100"
+                                :class="{ 'is-invalid': formErrors.supplier_id }"
                                 appendTo="self"
                                 :autoZIndex="true"
                                 :baseZIndex="2000"
                             />
+                          
+                             <small v-if="formErrors.supplier_id" class="text-danger">
+                                {{ formErrors.supplier_id[0] }}
+                            </small>
                         </div>
                     </div>
 
@@ -283,7 +333,12 @@ function orderSubmit() {
                                                     type="number"
                                                     min="0"
                                                     class="form-control"
+                                                    :class="{ 'is-invalid': formErrors.qty }"
                                                 />
+                                                 <small v-if="formErrors.qty" class="text-danger">
+                                {{ formErrors.qty[0] }}
+                            </small>
+
                                             </div>
                                             <div class="col-4">
                                                 <label class="small text-muted"
@@ -296,7 +351,11 @@ function orderSubmit() {
                                                     type="number"
                                                     min="0"
                                                     class="form-control"
+                                                    :class="{ 'is-invalid': formErrors.unit_price }"
                                                 />
+                                                 <small v-if="formErrors.unit_price" class="text-danger">
+                                {{ formErrors.unit_price[0] }}
+                            </small>
                                             </div>
                                             <div class="col-4">
                                                 <label class="small text-muted"
@@ -306,7 +365,11 @@ function orderSubmit() {
                                                     v-model="it.expiry"
                                                     type="date"
                                                     class="form-control"
+                                                    :class="{ 'is-invalid': formErrors.expiry_date }"
                                                 />
+                                                <small v-if="formErrors.expiry_date" class="text-danger">
+                                {{ formErrors.expiry_date[0] }}
+                            </small>
                                             </div>
                                         </div>
                                     </div>

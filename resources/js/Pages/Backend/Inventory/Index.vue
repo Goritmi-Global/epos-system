@@ -270,7 +270,16 @@ const submitProduct = async () => {
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
-            toast.error("Please fix the highlighted fields.");
+             const list = [
+                    ...new Set(Object.values(err.response.data.errors).flat()),
+                ];
+                const msg = list.join("<br>");
+
+                // toast.dismiss();
+                toast.error(`Validation failed:<br>${msg}`, {
+                    autoClose: 3500,
+                    dangerouslyHTMLString: true, // for vue-toastification
+                });
         } else {
             console.error(
                 "❌ Error saving:",
@@ -458,6 +467,10 @@ function resetStockForm() {
     stockForm.value.value = 0;
     stockForm.value.expiry_date = "";
     stockForm.value.description = "";
+  
+}
+const resetErrors = () => {
+    formErrors.value = {}
 }
 
 async function submitStockIn() {
@@ -472,8 +485,27 @@ async function submitStockIn() {
         )?.hide();
         await fetchInventories();
     } catch (err) {
-        console.error(err);
-        toast.error("Failed to save Stock In");
+         if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+
+                const list = [
+                    ...new Set(Object.values(err.response.data.errors).flat()),
+                ];
+                const msg = list.join("<br>");
+
+                // toast.dismiss();
+                toast.error(`Validation failed:<br>${msg}`, {
+                    autoClose: 3500,
+                    dangerouslyHTMLString: true, // for vue-toastification
+                });
+            } else {
+                // toast.dismiss();
+                toast.error("Something went wrong. Please try again.", {
+                    autoClose: 3000,
+                });
+                console.error(err);
+            }
+       
     } finally {
         submittingStock.value = false;
     }
@@ -514,8 +546,27 @@ async function submitStockOut() {
         )?.hide();
         await fetchInventories();
     } catch (err) {
-        console.error(err);
-        toast.error("Failed to save Stock Out");
+         if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+
+                const list = [
+                    ...new Set(Object.values(err.response.data.errors).flat()),
+                ];
+                const msg = list.join("<br>");
+
+                // toast.dismiss();
+                toast.error(`Validation failed:<br>${msg}`, {
+                    autoClose: 3500,
+                    dangerouslyHTMLString: true, // for vue-toastification
+                });
+            } else {
+                // toast.dismiss();
+                toast.error("Something went wrong. Please try again.", {
+                    autoClose: 3000,
+                });
+                console.error(err);
+            }
+      
     } finally {
         submittingStock.value = false;
     }
@@ -2217,6 +2268,7 @@ const totals = computed(() => {
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
                                     title="Close"
+                                    @click="resetErrors"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -2244,8 +2296,14 @@ const totals = computed(() => {
                                             type="text"
                                             v-model="stockForm.name"
                                             class="form-control"
+                                            :class="{ 'is-invalid': formErrors.name }"
                                             readonly
                                         />
+
+                                         <small v-if="formErrors.name" class="text-danger">
+                                {{ formErrors.name[0] }}
+                            </small>
+
                                     </div>
 
                                     <div class="col-md-6">
@@ -2260,7 +2318,12 @@ const totals = computed(() => {
                                             placeholder="Select Category"
                                             class="w-100"
                                             appendTo="self"
+                                            :class="{ 'is-invalid': formErrors.category_id }"
                                         />
+                                     
+                                        <small v-if="formErrors.category_id" class="text-danger">
+                                {{ formErrors.category_id[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-6">
@@ -2275,7 +2338,11 @@ const totals = computed(() => {
                                             placeholder="Select Supplier"
                                             class="w-100"
                                             appendTo="self"
+                                            :class="{ 'is-invalid': formErrors.supplier_id }"
                                         />
+                                      <small v-if="formErrors.supplier_id" class="text-danger">
+                                {{ formErrors.supplier_id[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-6">
@@ -2302,7 +2369,12 @@ const totals = computed(() => {
                                             class="form-control"
                                             min="0"
                                             @input="calculateValue()"
+                                             :class="{ 'is-invalid': formErrors.quantity }"
                                         />
+
+                                        <small v-if="formErrors.quantity" class="text-danger">
+                                {{ formErrors.quantity[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-4">
@@ -2387,6 +2459,7 @@ const totals = computed(() => {
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
                                     title="Close"
+                                    @click="resetErrors"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -2430,7 +2503,12 @@ const totals = computed(() => {
                                             placeholder="Select Category"
                                             class="w-100"
                                             appendTo="self"
+                                            :class="{ 'is-invalid': formErrors.category_id }"
                                         />
+                                       
+                                         <small v-if="formErrors.category_id" class="text-danger">
+                                {{ formErrors.category_id[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-6">
@@ -2457,7 +2535,12 @@ const totals = computed(() => {
                                             class="form-control"
                                             min="0"
                                             @input="calculateValue()"
+                                            :class="{'is-invalid' : formErrors.quantity}"
                                         />
+
+                                        <small v-if="formErrors.quantity" class="text-danger">
+                                {{ formErrors.quantity[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-6">
