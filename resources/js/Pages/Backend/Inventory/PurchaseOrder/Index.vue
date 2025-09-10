@@ -1,7 +1,23 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { toast } from "vue3-toastify";
 
+import {
+    Package,
+    XCircle,
+    AlertTriangle,
+    CalendarX2,
+    CalendarClock,
+    Plus,
+    Eye,
+    Pencil,
+    Download,
+    Upload,
+} from "lucide-vue-next";
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
@@ -400,6 +416,213 @@ function orderSubmit() {
 }
 
 
+
+/* -------------------- Helpers for normalization -------------------- */
+const extractArray = (maybe) => {
+  if (!maybe) return [];
+  if (Array.isArray(maybe)) return maybe;
+  if (Array.isArray(maybe.data)) return maybe.data;
+  return [];
+};
+
+const extractSupplierName = (o) => {
+  if (!o) return "";
+  if (o.supplier && typeof o.supplier === "object") return o.supplier.name || o.supplier.title || "";
+  if (o.supplier_name) return o.supplier_name;
+  if (o.supplierId) return String(o.supplierId);
+  if (o.supplier_id) {
+    // try lookup from supplierOptions if available
+    const s = supplierOptions.value?.find((sp) => String(sp.id) === String(o.supplier_id));
+    return s?.name || String(o.supplier_id);
+  }
+  // fallback plain string
+  return typeof o.supplier === "string" ? o.supplier : "";
+};
+
+const extractTotalAmount = (o) => {
+  if (!o) return 0;
+  if (o.total_amount != null) return Number(o.total_amount);
+  if (o.total != null) return Number(o.total);
+  if (o.amount != null) return Number(o.amount);
+  // try to compute from items if present
+  if (Array.isArray(o.items)) {
+    return o.items.reduce((sum, it) => {
+      const sub = it.sub_total ?? it.subTotal ?? it.total ?? ( (it.quantity || 0) * (it.unit_price ?? it.unitPrice ?? 0) );
+      return sum + Number(sub || 0);
+    }, 0);
+  }
+  return 0;
+};
+
+const extractPurchaseDate = (o) => {
+  if (!o) return "";
+  return o.purchase_date || o.purchased_at || o.date || o.created_at || "";
+};
+
+
+const normalizeOrders = (arr) =>
+  arr.map((o) => ({
+    supplier_name: extractSupplierName(o),
+    purchase_date: extractPurchaseDate(o),
+    status: o.status || "",
+    total_amount: extractTotalAmount(o),
+    _raw: o, // keep original if needed
+  }));
+
+/* -------------------- Updated onDownload -------------------- */
+const onDownload = (type) => {
+  // pick the best source available (client-fetched orders OR props)
+  let source = extractArray(orders.value);
+  if (!source.length) source = extractArray(orderData.value); // props.orders.data
+  if (!source.length) source = extractArray(props.orders); // fallback
+
+  if (!source.length) {
+    toast.error("No Orders data to download");
+    return;
+  }
+
+  // apply client-side search filter (q) if present
+  const t = q.value?.trim()?.toLowerCase();
+  const filteredSource = t
+    ? source.filter((o) => {
+        const hay = [
+          extractSupplierName(o),
+          o.status || "",
+          String(extractTotalAmount(o)),
+          extractPurchaseDate(o),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(t);
+      })
+    : source;
+
+  if (!filteredSource.length) {
+    toast.error("No Orders found to download");
+    return;
+  }
+
+  const normalized = normalizeOrders(filteredSource);
+
+  try {
+    if (type === "pdf") {
+      downloadPDF(normalized);
+    } else if (type === "excel") {
+      downloadExcel(normalized);
+    } else if (type === "csv") {
+      downloadCSV(normalized);
+    } else {
+      toast.error("Invalid download type");
+    }
+  } catch (error) {
+    console.error("Download failed:", error);
+    toast.error(`Download failed: ${error.message}`);
+  }
+};
+
+/* -------------------- Updated export helpers (work with normalized data) -------------------- */
+
+const downloadCSV = (data) => {
+  try {
+    const headers = ["Supplier", "Purchase Date", "Status", "Total Amount"];
+    const rows = data.map((o) => [
+      `"${String(o.supplier_name || "").replace(/"/g, '""')}"`,
+      `"${String(o.purchase_date || "")}"`,
+      `"${String(o.status || "")}"`,
+      `"${o.total_amount ?? 0}"`,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `purchase_orders_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("CSV downloaded successfully", { autoClose: 2500 });
+  } catch (error) {
+    console.error("CSV generation error:", error);
+    toast.error(`CSV generation failed: ${error.message}`);
+  }
+};
+
+const downloadPDF = (data) => {
+  try {
+    const doc = new jsPDF("p", "mm", "a4");
+    doc.setFontSize(18);
+    doc.text("Purchase Orders Report", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+    doc.text(`Total Orders: ${data.length}`, 14, 34);
+
+    const tableColumns = ["Supplier", "Purchase Date", "Status", "Total Amount"];
+    const tableRows = data.map((o) => [
+      o.supplier_name || "",
+      o.purchase_date || "",
+      o.status || "",
+      money(o.total_amount || 0, "GBP"),
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumns],
+      body: tableRows,
+      startY: 40,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      margin: { left: 14, right: 14 },
+      didDrawPage: (tableData) => {
+        const pageCount = doc.internal.getNumberOfPages();
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${tableData.pageNumber} of ${pageCount}`,
+          tableData.settings.margin.left,
+          pageHeight - 10
+        );
+      },
+    });
+
+    doc.save(`purchase_orders_${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success("PDF downloaded successfully", { autoClose: 2500 });
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    toast.error(`PDF generation failed: ${error.message}`);
+  }
+};
+
+const downloadExcel = (data) => {
+  try {
+    if (typeof XLSX === "undefined") throw new Error("XLSX not loaded");
+
+    const worksheetData = data.map((o) => ({
+      Supplier: o.supplier_name || "",
+      "Purchase Date": o.purchase_date || "",
+      Status: o.status || "",
+      "Total Amount": o.total_amount ?? 0,
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    worksheet["!cols"] = [{ wch: 25 }, { wch: 18 }, { wch: 15 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+    const metaData = [
+      { Info: "Generated On", Value: new Date().toLocaleString() },
+      { Info: "Total Orders", Value: data.length },
+      { Info: "Exported By", Value: "Purchase Orders System" },
+    ];
+    const metaSheet = XLSX.utils.json_to_sheet(metaData);
+    XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+    XLSX.writeFile(workbook, `purchase_orders_${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+  } catch (error) {
+    console.error("Excel generation error:", error);
+    toast.error(`Excel generation failed: ${error.message}`);
+  }
+};
+
 // ===========================================================
 
 onMounted(() => window.feather?.replace());
@@ -454,9 +677,44 @@ onUpdated(() => window.feather?.replace());
                                     data-bs-target="#addOrderModal">
                                     Order
                                 </button>
-                                <button class="btn btn-outline-secondary rounded-pill px-4">
-                                    Download
-                                </button>
+                                <div class="dropdown">
+                        <button
+                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown"
+                        >
+                            Download all
+                        </button>
+                        <ul
+                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                        >
+                            <li>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('pdf')"
+                                    >Download as PDF</a
+                                >
+                            </li>
+                            <li>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('excel')"
+                                    >Download as Excel</a
+                                >
+                            </li>
+
+                            <li>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:;"
+                                    @click="onDownload('csv')"
+                                >
+                                    Download as CSV
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                             </div>
                         </div>
 
@@ -490,8 +748,20 @@ onUpdated(() => window.feather?.replace());
                                             </td>
                                             <td class="fw-semibold text-success">{{ row.status }}</td>
                                             <td>{{ money(row.total) }}</td>
-                                            <td class="text-end">
+                                            <td>
+                                                 <button
+                                                    @click="ViewItem(item)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
+                                                    title="View Item"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                >
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                            <!-- <td class="text-end">
                                                 <div class="dropdown">
+                                                    
                                                     <button class="btn btn-link text-secondary p-0 fs-5"
                                                         data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
                                                     <ul
@@ -502,7 +772,7 @@ onUpdated(() => window.feather?.replace());
                                                         </li>
                                                     </ul>
                                                 </div>
-                                            </td>
+                                            </td> -->
                                         </tr>
                                         <tr class="sep-row">
                                             <td colspan="6"></td>
@@ -717,8 +987,27 @@ onUpdated(() => window.feather?.replace());
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">Order</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
+                                <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                             </div>
 
                             <div class="modal-body">
