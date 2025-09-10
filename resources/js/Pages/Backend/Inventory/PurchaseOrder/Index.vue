@@ -1075,7 +1075,7 @@ onUpdated(() => window.feather?.replace());
                                                             {{ it.stock }}
                                                         </div>
                                                     </div>
-                                                    <button class="btn btn-primary px-3" @click="
+                                                    <button  class="px-4 py-2 rounded-pill btn btn-primary text-white text-center" @click="
                                                         addOrderItem(it)
                                                         ">
                                                         Add
@@ -1173,7 +1173,7 @@ onUpdated(() => window.feather?.replace());
                                         </div>
 
                                         <div class="mt-4 text-center">
-                                            <button class="btn btn-primary btn-lg px-5 py-3" :disabled="o_submitting ||
+                                            <button type="button"  class="px-4 py-2 w-40 rounded-pill btn btn-primary text-white text-center" :disabled="o_submitting ||
                                                 o_cart.length === 0
                                                 " @click="orderSubmit">
                                                 <span v-if="!o_submitting">Order</span>
