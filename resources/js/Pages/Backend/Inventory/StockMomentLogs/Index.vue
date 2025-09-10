@@ -902,10 +902,26 @@ const typeTextClass = (v) =>
                                             Edit Stock Log
                                         </h5>
                                         <button
-                                            type="button"
-                                            class="btn-close"
+                                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                             data-bs-dismiss="modal"
-                                        ></button>
+                                            aria-label="Close"
+                                            title="Close"
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                class="h-6 w-6 text-red-500"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    d="M6 18L18 6M6 6l12 12"
+                                                />
+                                            </svg>
+                                        </button>
                                     </div>
                                     <div class="modal-body">
                                         <form @submit.prevent="updateLog">
@@ -967,12 +983,14 @@ const typeTextClass = (v) =>
                                                 </select>
                                             </div> -->
 
-                                            <button
-                                                type="submit"
-                                                class="btn btn-primary w-100"
-                                            >
-                                                Update
-                                            </button>
+                                            <div class="mt-4">
+                                                <button
+                                                    class="btn btn-primary rounded-pill px-4"
+                                                    type="submit"
+                                                >
+                                                    Update
+                                                </button>
+                                            </div>
                                         </form>
                                     </div>
                                 </div>
