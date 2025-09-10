@@ -1960,6 +1960,18 @@ const totals = computed(() => {
                                                 </div>
                                             </div>
 
+
+                                              <div
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
+                                                <span class="text-muted"
+                                                    >Stock In</span
+                                                >
+                                                <span class="fw-semibold">{{
+                                                   totals.totalQty
+                                                }}</span>
+                                            </div>
+
                                             <div
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
