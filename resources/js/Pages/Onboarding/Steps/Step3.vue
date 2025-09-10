@@ -48,10 +48,11 @@ watch(form, emitSave, { deep: true })
           v-model="form.currency"
           :options="currencies"
           placeholder="Select currency"
-          class="w-100"
+          class="w-100" 
           @change="emitSave"
         />
       </div>
+      
 
       <div class="col-md-6">
         <label class="form-label">Symbol Position</label>

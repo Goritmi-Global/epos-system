@@ -26,6 +26,19 @@ class SupplierController extends Controller
     }
      
     
+    // SupplierService.php
+public function pluck(array $filters = [])
+{
+    return Supplier::query()
+        ->when($filters['q'] ?? null, function ($q, $v) {
+            $q->where('name', 'like', "%$v%");
+        })
+        ->get(['id', 'name']); // returns collection of {id, name}
+}
+
+
+     
+    
     public function store(SupplierStoreRequest $request): JsonResponse
     {
       

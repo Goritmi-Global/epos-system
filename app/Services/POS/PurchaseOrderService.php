@@ -64,7 +64,9 @@ class PurchaseOrderService
                 // For initial orders, no stock entry is created if status is pending
                 if (($data['status'] ?? 'pending') === 'completed') {
                     $inventory = InventoryItem::find($item['product_id']);
-                    $categoryId = InventoryCategory::where('name', $inventory->category)->first()->id;
+
+                    $categoryId = InventoryCategory::where('id', $inventory->category_id)->first()->id;
+                    // dd($categoryId);
                     StockEntry::create([
                         'product_id'     => $item['product_id'],
                         'category_id'    => $categoryId,

@@ -1078,6 +1078,7 @@ const totals = computed(() => {
                                             {{ item.name }}
                                         </td>
                                         <td>
+                                            
                                             <img
                                                 :src="item.image_url"
                                                 alt=""

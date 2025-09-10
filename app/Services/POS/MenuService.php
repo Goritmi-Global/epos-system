@@ -39,6 +39,7 @@ class MenuService
             'subcategory_id' => $data['subcategory_id'] ?? null,
             'description'   => $data['description'] ?? null,
             'image'         => $data['image'] ?? null,
+            'upload_id'      => $data['upload_id'] ?? null,
         ]);
 
         // Nutrition

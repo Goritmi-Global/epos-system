@@ -65,4 +65,20 @@ class SupplierService
     {
         $supplier->delete();
     }
+
+    public function pluck(Request $request)
+    {  
+        // Get suppliers list with only id and name
+        $suppliers = $this->service->list($request->only('q'))
+            ->map(function ($supplier) {
+                return [
+                    'id'   => $supplier->id,
+                    'name' => $supplier->name,
+                ];
+            });
+
+        return response()->json($suppliers);
+    }
+
+
 }
