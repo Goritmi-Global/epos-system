@@ -1965,7 +1965,7 @@ const totals = computed(() => {
                                                 class="card-footer bg-transparent small d-flex justify-content-between"
                                             >
                                                 <span class="text-muted"
-                                                    >Stock In</span
+                                                    >Stocked In</span
                                                 >
                                                 <span class="fw-semibold">{{
                                                    totals.totalQty
