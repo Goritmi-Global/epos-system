@@ -6,6 +6,8 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
+import "vue3-toastify/dist/index.css";
+import PurchaseComponent from "./PurchaseComponent.vue";
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
