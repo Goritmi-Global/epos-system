@@ -2616,10 +2616,7 @@ const totals = computed(() => {
     font-size: 0.95rem;
     color: #333;
 }
-
-.table-responsive {
-    overflow: visible !important;
-}
+ 
 .dropdown-menu {
     position: absolute !important;
     z-index: 1050 !important;
