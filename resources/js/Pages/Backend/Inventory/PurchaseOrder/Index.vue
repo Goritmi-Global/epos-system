@@ -633,44 +633,7 @@ onUpdated(() => window.feather?.replace());
                                             :baseZIndex="2000"
                                         />
 
-                                       <!-- Tes {{ p_errors }} -->
-                                        <!-- <small
-                                            v-if="formErrors.supplier_id"
-                                            class="text-danger"
-                                        >
-                                            {{ formErrors.supplier_id[0] }}
-                                        </small> -->
-                                        <!-- <div class="dropdown w-100">
-                                            <button
-                                                class="btn btn-light border rounded-3 w-100 d-flex justify-content-between align-items-center"
-                                                data-bs-toggle="dropdown"
-                                            >
-                                                {{
-                                                    p_supplier
-                                                        ? p_supplier.name
-                                                        : "Select Supplier"
-                                                }}
-                                                <i
-                                                    class="bi bi-caret-down-fill"
-                                                ></i>
-                                            </button>
-                                            <ul
-                                                class="dropdown-menu w-100 shadow rounded-3"
-                                            >
-                                                <li
-                                                    v-for="s in supplierOptions"
-                                                    :key="s.id"
-                                                >
-                                                    <a
-                                                        class="dropdown-item"
-                                                        href="javascript:void(0)"
-                                                        @click="p_supplier = s"
-                                                    >
-                                                        {{ s.name }}
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div> -->
+                                        
                                     </div>
                                 </div>
 
