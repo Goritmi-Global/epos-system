@@ -67,7 +67,7 @@ class StockEntryService
 
     // Get stock logs
     public function getStockLogs(): array
-    {
+    { 
         return StockEntry::with('product', 'supplier')
             ->latest()
             ->get()
