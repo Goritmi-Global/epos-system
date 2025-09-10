@@ -14,7 +14,7 @@ class UpdateInventoryRequest extends FormRequest
 
    public function rules(): array
     {
-        $id = $this->route('inventory') instanceof \App\Models\Inventory
+        $id = $this->route('inventory') instanceof \App\Models\InventoryItem
             ? $this->route('inventory')->id
             : $this->route('inventory'); // works for id or model binding
 
