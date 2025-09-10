@@ -98,8 +98,11 @@ function Edit(row) {
     const modal = new bootstrap.Modal(document.getElementById("editLogModal"));
     modal.show();
 }
+const isUpdating = ref(false);
 
 async function updateLog() {
+    if (isUpdating.value) return; // prevent double click
+    isUpdating.value = true;
     try {
         await axios.put(
             `stock_entries/stock-logs/${editForm.value.id}`,
@@ -107,6 +110,7 @@ async function updateLog() {
         );
         await fetchLogs();
         toast.success("Stock log updated successfully");
+
         const modal = bootstrap.Modal.getInstance(
             document.getElementById("editLogModal")
         );
@@ -114,6 +118,8 @@ async function updateLog() {
     } catch (error) {
         console.error(error);
         toast.error("Failed to update log");
+    } finally {
+        isUpdating.value = false;
     }
 }
 
@@ -714,8 +720,46 @@ watch(
                                     class="modal-content rounded-4 shadow-lg border-0"
                                 >
                                     <!-- Header -->
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Log Details</h5>
+                                    <div
+                                        class="modal-header align-items-center"
+                                    >
+                                        <div
+                                            class="d-flex align-items-center gap-2"
+                                        >
+                                            <span
+                                                class="badge bg-primary rounded-circle p-2"
+                                            >
+                                                <!-- box icon -->
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="18"
+                                                    height="18"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    stroke-width="2"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M3 7.5L12 12l9-4.5M3 7.5V17a2 2 0 002 2h14a2 2 0 002-2V7.5M21 7.5L12 3 3 7.5"
+                                                    />
+                                                </svg>
+                                            </span>
+                                            <div class="d-flex flex-column">
+                                                <h5 class="modal-title mb-0">
+                                                    View Stock Log
+                                                </h5>
+                                                <small class="text-muted"
+                                                    >Item:
+                                                    {{
+                                                        selectedLog?.itemName ??
+                                                        "—"
+                                                    }}</small
+                                                >
+                                            </div>
+                                        </div>
+
                                         <button
                                             class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                             data-bs-dismiss="modal"
@@ -724,7 +768,7 @@ watch(
                                         >
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
-                                                class="h-6 w-6 text-red-500"
+                                                class="h-6 w-6 text-danger"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
                                                 stroke="currentColor"
@@ -741,161 +785,223 @@ watch(
 
                                     <!-- Body -->
                                     <div class="modal-body p-4 bg-light">
-                                        <div v-if="selectedLog" class="row g-3">
-                                            <!-- Item & Category -->
-                                            <div class="col-md-6">
+                                        <div v-if="selectedLog" class="row g-4">
+                                            <!-- LEFT: Details card -->
+                                            <div class="col-lg-12">
                                                 <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100"
+                                                    class="card border-0 shadow-sm rounded-4 h-100"
                                                 >
-                                                    <h6 class="text-muted mb-1">
-                                                        Item
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            selectedLog.itemName
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Category
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            selectedLog.category
-                                                                ?.name ?? "—"
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                                    <div class="card-body">
+                                                        <!-- Top: Key attributes (like screenshot style) -->
+                                                        <h6
+                                                            class="fw-semibold mb-3"
+                                                        >
+                                                            Details
+                                                        </h6>
 
-                                            <!-- Quantity & Prices -->
-                                            <div class="col-md-4">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100 text-center"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Quantity
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            selectedLog.quantity
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100 text-center"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Unit Price
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            money(
-                                                                selectedLog.unitPrice
-                                                            )
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100 text-center"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Total Price
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            money(
-                                                                selectedLog.totalPrice
-                                                            )
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                                        <div class="row g-3">
+                                                            <div
+                                                                class="col-md-6"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Category</small
+                                                                >
+                                                                <div
+                                                                    class="fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        selectedLog
+                                                                            .category
+                                                                            ?.name ??
+                                                                        "—"
+                                                                    }}
+                                                                </div>
+                                                            </div>
 
-                                            <!-- Operation & Type -->
-                                            <div class="col-md-6">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Operation
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            selectedLog.operationType
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Type
-                                                    </h6>
-                                                    <span
-                                                        class="badge rounded-pill"
-                                                        :class="
-                                                            selectedLog.type ===
-                                                            'stockin'
-                                                                ? 'bg-success'
-                                                                : 'bg-danger'
-                                                        "
-                                                    >
-                                                        {{ selectedLog.type }}
-                                                    </span>
-                                                </div>
-                                            </div>
+                                                            <div
+                                                                class="col-md-6"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Operation</small
+                                                                >
+                                                                <div
+                                                                    class="fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        selectedLog.operationType ??
+                                                                        "—"
+                                                                    }}
+                                                                </div>
+                                                            </div>
 
-                                            <!-- Dates -->
-                                            <div class="col-md-6">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Date
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            fmtDateTime(
-                                                                selectedLog.dateTime
-                                                            )
-                                                        }}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div
-                                                    class="p-3 bg-white rounded-3 shadow-sm h-100"
-                                                >
-                                                    <h6 class="text-muted mb-1">
-                                                        Expiry Date
-                                                    </h6>
-                                                    <p class="fw-semibold mb-0">
-                                                        {{
-                                                            selectedLog.expiryDate
-                                                                ? fmtDate(
-                                                                      selectedLog.expiryDate
-                                                                  )
-                                                                : "—"
-                                                        }}
-                                                    </p>
+                                                            <div
+                                                                class="col-md-6"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Quantity</small
+                                                                >
+                                                                <div
+                                                                    class="fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        selectedLog.quantity ??
+                                                                        "—"
+                                                                    }}
+                                                                </div>
+                                                            </div>
+
+                                                            <div
+                                                                class="col-md-6"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Type</small
+                                                                >
+                                                                <span
+                                                                    class="badge rounded-pill"
+                                                                    :class="
+                                                                        selectedLog.type ===
+                                                                        'stockin'
+                                                                            ? 'bg-success'
+                                                                            : 'bg-danger'
+                                                                    "
+                                                                >
+                                                                    {{
+                                                                        selectedLog.type ??
+                                                                        "—"
+                                                                    }}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr class="my-4" />
+
+                                                        <!-- Prices row (centered boxes like KPIs) -->
+                                                        <div
+                                                            class="row g-3 text-center"
+                                                        >
+                                                            <div
+                                                                class="col-md-4"
+                                                            >
+                                                                <div
+                                                                    class="p-3 bg-light rounded-3"
+                                                                >
+                                                                    <small
+                                                                        class="text-muted d-block"
+                                                                        >Unit
+                                                                        Price</small
+                                                                    >
+                                                                    <div
+                                                                        class="fs-6 fw-semibold"
+                                                                    >
+                                                                        {{
+                                                                            money(
+                                                                                selectedLog.unitPrice ??
+                                                                                    0
+                                                                            )
+                                                                        }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="col-md-4"
+                                                            >
+                                                                <div
+                                                                    class="p-3 bg-light rounded-3"
+                                                                >
+                                                                    <small
+                                                                        class="text-muted d-block"
+                                                                        >Total
+                                                                        Price</small
+                                                                    >
+                                                                    <div
+                                                                        class="fs-6 fw-semibold"
+                                                                    >
+                                                                        {{
+                                                                            money(
+                                                                                selectedLog.totalPrice ??
+                                                                                    0
+                                                                            )
+                                                                        }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="col-md-4"
+                                                            >
+                                                                <div
+                                                                    class="p-3 bg-light rounded-3"
+                                                                >
+                                                                    <small
+                                                                        class="text-muted d-block"
+                                                                        >Date</small
+                                                                    >
+                                                                    <div
+                                                                        class="fs-6 fw-semibold"
+                                                                    >
+                                                                        {{
+                                                                            fmtDateTime(
+                                                                                selectedLog.dateTime
+                                                                            )
+                                                                        }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <hr class="my-4" />
+
+                                                        <!-- Dates section -->
+                                                        <div class="row g-3">
+                                                            <div
+                                                                class="col-md-6"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Recorded
+                                                                    On</small
+                                                                >
+                                                                <div
+                                                                    class="fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        fmtDateTime(
+                                                                            selectedLog.dateTime
+                                                                        )
+                                                                    }}
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="col-md-6"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Expiry
+                                                                    Date</small
+                                                                >
+                                                                <div
+                                                                    class="fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        selectedLog.expiryDate
+                                                                            ? fmtDate(
+                                                                                  selectedLog.expiryDate
+                                                                              )
+                                                                            : "—"
+                                                                    }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Footer -->
+                                    <!-- (No footer needed, like screenshot) -->
                                 </div>
                             </div>
                         </div>
@@ -988,16 +1094,15 @@ watch(
                                                 />
                                             </div>
 
-                                            <div class="col-md-6 col-md-12">
+                                            <div class="col-12 col-md-6">
                                                 <label class="form-label"
                                                     >Expiry Date</label
                                                 >
+                                                <!-- remove the debug {{ editForm.expiryDate }} line -->
                                                 <input
                                                     type="date"
                                                     class="form-control"
-                                                    v-model="
-                                                        editForm.expiryDate
-                                                    "
+                                                    v-model="expiryDateModel"
                                                 />
                                             </div>
 
@@ -1012,10 +1117,26 @@ watch(
 
                                             <div class="mt-4">
                                                 <button
-                                                    class="btn btn-primary rounded-pill px-4"
-                                                    @click="updateLog()"
+                                                    class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
+                                                    :disabled="isUpdating"
+                                                    :aria-busy="
+                                                        isUpdating
+                                                            ? 'true'
+                                                            : 'false'
+                                                    "
+                                                    @click="updateLog"
                                                 >
-                                                    Update
+                                                    <span
+                                                        v-if="isUpdating"
+                                                        class="spinner-border spinner-border-sm"
+                                                        role="status"
+                                                        aria-hidden="true"
+                                                    ></span>
+                                                    <span>{{
+                                                        isUpdating
+                                                            ? "Updating…"
+                                                            : "Update"
+                                                    }}</span>
                                                 </button>
                                             </div>
                                         </div>
