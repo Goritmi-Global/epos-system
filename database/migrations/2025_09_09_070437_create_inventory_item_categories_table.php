@@ -19,7 +19,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->foreignId('category_id')
-                ->constrained('categories')
+                ->constrained('inventory_categories')
                 ->cascadeOnDelete();
 
             $table->timestamps();

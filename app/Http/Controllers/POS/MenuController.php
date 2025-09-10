@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Services\POS\MenuService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Helpers\UploadHelper;
 
 class MenuController extends Controller
 {
@@ -53,7 +54,22 @@ class MenuController extends Controller
 
     public function apiIndex()
     {
-        $menus = MenuItem::with(['category', 'ingredients', 'allergies', 'tags'])->get();
+        $menus = MenuItem::with(['category', 'ingredients', 'allergies', 'tags', 'nutrition'])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id'          => $item->id,
+                    'name'        => $item->name,
+                    'price'       => $item->price,
+                    'description' => $item->description,
+                    'category'    => $item->category,
+                    'ingredients' => $item->ingredients,
+                    'nutrition'   => $item->nutrition,
+                    'allergies'   => $item->allergies,
+                    'tags'        => $item->tags,
+                    'image_url'   => UploadHelper::url($item->upload_id),
+                ];
+            });
 
         return response()->json([
             'message' => 'Menu items fetched successfully',
