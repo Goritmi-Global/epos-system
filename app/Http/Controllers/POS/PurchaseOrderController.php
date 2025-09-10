@@ -27,7 +27,10 @@ class PurchaseOrderController extends Controller
             'orders' => $orders
         ]);
     }
-
+    public function fetchOrders(Request $request){
+        $orders = $this->service->list($request->only(['q', 'status']));
+        return response()->json(['message' => 'Purchase order fetched successfully', 'data' => $orders], 201);
+    }
 
     public function store(StorePurchaseOrderRequest $request)
     {

@@ -8,6 +8,17 @@ import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import "vue3-toastify/dist/index.css";
 import PurchaseComponent from "./PurchaseComponent.vue";
+
+import {
+    Shapes,
+    Package,
+    AlertTriangle,
+    XCircle,
+    Pencil,
+    Eye,
+    Plus,
+} from "lucide-vue-next";
+
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
@@ -31,7 +42,14 @@ const showHelp = ref(false);
 const props = defineProps({
     orders: Array,
 });
-const orderData = computed(() => props.orders.data);
+
+// const orderData = computed(() => props.orders.data);
+const orderData = ref([]);
+const fetchPurchaseOrders = async () => {
+    const res = await axios.get("/purchase-orders/fetchOrders");
+   
+    orderData.value = res.data.data.data; // [{id, name}]
+};
 
 const supplierOptions = ref([]);
 const p_supplier = ref(null);
@@ -60,7 +78,8 @@ const fetchInventory = async () => {
 onMounted(() => {
     fetchInventory();
     fetchSuppliers();
-    fetchOrders();
+    Purchase();
+    fetchPurchaseOrders();
 });
 const p_filteredInv = computed(() => {
     const t = p_search.value.trim().toLowerCase();
@@ -84,7 +103,7 @@ const q = ref(""); // search input
 const statusFilter = ref(""); // optional status filter
 
 // Fetch orders from API
-async function fetchOrders() {
+async function Purchase() {
     loading.value = true;
     try {
         const res = await axios.get("/purchase-orders", {
@@ -667,6 +686,7 @@ onUpdated(() => window.feather?.replace());
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <!-- {{ orderData }} -->
                                     <template
                                         v-for="(row, i) in orderData"
                                         :key="row.id"
@@ -737,7 +757,7 @@ onUpdated(() => window.feather?.replace());
                                     </template>
 
                                     <!-- Fix this line -->
-                                    <tr v-if="orderData.length === 0">
+                                    <tr v-if="orderData?.length === 0">
                                         <td
                                             colspan="6"
                                             class="text-center text-muted py-4"
@@ -1335,14 +1355,14 @@ onUpdated(() => window.feather?.replace());
                             <div class="modal-footer">
                                 <button
                                     type="button"
-                                    class="btn btn-secondary"
+                                    class="btn btn-secondary rounded-pill px-4 ms-2"
                                     data-bs-dismiss="modal"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
-                                    class="btn btn-success"
+                                    class="btn btn-primary rounded-pill px-4"
                                     @click="updateOrder"
                                     :disabled="
                                         updating || editItems.length === 0
