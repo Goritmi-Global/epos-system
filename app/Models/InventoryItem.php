@@ -36,7 +36,7 @@ class InventoryItem extends BaseModel
             'inventory_item_allergies',
             'inventory_item_id',
             'allergy_id'
-        )->withTimestamps();
+        );
     }
 
     public function tags()
@@ -47,7 +47,7 @@ class InventoryItem extends BaseModel
             'inventory_item_tags',
             'inventory_item_id',
             'tag_id'
-        )->withTimestamps();
+        );
     }
 
     public function supplier()

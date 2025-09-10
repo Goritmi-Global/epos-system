@@ -121,18 +121,24 @@ function removeIngredient(idx) {
 
 // calulate Ingredient when qty or price changes
 const i_totalNutrition = computed(() => {
-    return i_cart.value.reduce(
-        (totals, ing) => {
-            const qty = ing.qty || 1;
-            totals.calories += Number(ing.nutrition?.calories || 0) * qty;
-            totals.protein += Number(ing.nutrition?.protein || 0) * qty;
-            totals.carbs += Number(ing.nutrition?.carbs || 0) * qty;
-            totals.fat += Number(ing.nutrition?.fat || 0) * qty;
-            return totals;
-        },
-        { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    );
-});
+    return i_cart.value.reduce((totals, ing) => {
+        const qty = Number(ing.qty) || 0
+
+        totals.calories += Number(ing.nutrition?.calories || 0) * qty
+        totals.protein  += Number(ing.nutrition?.protein  || 0) * qty
+        totals.carbs    += Number(ing.nutrition?.carbs    || 0) * qty
+        totals.fat      += Number(ing.nutrition?.fat      || 0) * qty
+
+        return totals
+    }, { 
+        calories: Number(savedNutrition.value.calories || 0),
+        protein:  Number(savedNutrition.value.protein || 0),
+        carbs:    Number(savedNutrition.value.carbs || 0),
+        fat:      Number(savedNutrition.value.fat || 0)
+    })
+})
+
+
 
 
 // Save ingredients to main form
@@ -188,12 +194,10 @@ const fetchInventories = async () => {
         console.error(err);
     }
 };
-
+const menuItems = ref([]);
 const fetchMenus = async () => {
     try {
-        const res = await axios.get("/menu/menu-items"); // using API route
-        console.log("✅ Menu response data:", res.data);
-
+        const res = await axios.get("/menu/menu-items");
         menuItems.value = res.data.data || [];
     } catch (err) {
         console.error("❌ Error fetching menus:", err);
@@ -206,14 +210,45 @@ onMounted(() => {
     fetchMenus();
 });
 /* ===================== Toolbar: Search + Filter ===================== */
-const q = ref("");
-const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
+// const q = ref("");
+// const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
 
+// const filteredItems = computed(() => {
+//     const term = q.value.trim().toLowerCase();
+//     if (!term) return items.value;
+//     return items.value.filter((i) =>
+//         [i.name, i.category, i.unit].some((v) =>
+//             (v || "").toLowerCase().includes(term)
+//         )
+//     );
+// });
+
+// const sortedItems = computed(() => {
+//     const arr = [...filteredItems.value];
+//     switch (sortBy.value) {
+//         case "stock_desc":
+//             return arr.sort((a, b) => b.stockValue - a.stockValue); // High→Low
+//         case "stock_asc":
+//             return arr.sort((a, b) => a.stockValue - b.stockValue); // Low→High
+//         case "name_asc":
+//             return arr.sort((a, b) => a.name.localeCompare(b.name)); // A→Z
+//         case "name_desc":
+//             return arr.sort((a, b) => b.name.localeCompare(a.name)); // Z→A
+//         default:
+//             return arr;
+//     }
+// });
+
+
+const q = ref("");
+const sortBy = ref("");
+
+// ✅ Use menuItems here
 const filteredItems = computed(() => {
     const term = q.value.trim().toLowerCase();
-    if (!term) return items.value;
-    return items.value.filter((i) =>
-        [i.name, i.category, i.unit].some((v) =>
+    if (!term) return menuItems.value;
+    return menuItems.value.filter((i) =>
+        [i.name, i.category?.name, i.unit].some((v) =>
             (v || "").toLowerCase().includes(term)
         )
     );
@@ -223,17 +258,18 @@ const sortedItems = computed(() => {
     const arr = [...filteredItems.value];
     switch (sortBy.value) {
         case "stock_desc":
-            return arr.sort((a, b) => b.stockValue - a.stockValue); // High→Low
+            return arr.sort((a, b) => (b.stockValue || 0) - (a.stockValue || 0));
         case "stock_asc":
-            return arr.sort((a, b) => a.stockValue - b.stockValue); // Low→High
+            return arr.sort((a, b) => (a.stockValue || 0) - (b.stockValue || 0));
         case "name_asc":
-            return arr.sort((a, b) => a.name.localeCompare(b.name)); // A→Z
+            return arr.sort((a, b) => a.name.localeCompare(b.name));
         case "name_desc":
-            return arr.sort((a, b) => b.name.localeCompare(a.name)); // Z→A
+            return arr.sort((a, b) => b.name.localeCompare(a.name));
         default:
             return arr;
     }
 });
+
 
 /* ===================== KPIs ===================== */
 const categoriesCount = computed(
@@ -316,13 +352,13 @@ const categoryOptions = computed(() =>
 );
 const formErrors = ref({});
 function resetErrors() {
-    formErrors.value = {}; 
+    formErrors.value = {};
 }
 
 
 const form = ref({
     name: "",
-    category: [],
+    category_id: null,
     subcategory: "",
     unit: [],
     minAlert: "",
@@ -371,11 +407,11 @@ const submitProduct = async () => {
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
     formData.append("price", form.value.minAlert || 0); // base price
-    if (form.value.category) {
-        formData.append("category_id", parseInt(form.value.category));
+    if (form.value.category_id) {
+        formData.append("category_id", form.value.category_id);
     }
-    if (form.value.subcategory) {
-        formData.append("subcategory_id", parseInt(form.value.subcategory));
+    if (form.value.subcategory_id) {
+        formData.append("subcategory_id", form.value.subcategory_id);
     }
     formData.append("description", form.value.description || "");
 
@@ -477,10 +513,8 @@ watch(
 
 
 // ===============Edit item ==================
+const savedNutrition = ref({ calories: 0, protein: 0, carbs: 0, fat: 0 })
 const editItem = (item) => {
-    console.log(item);
-
-    // Clear any existing object URLs first
     if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
@@ -488,29 +522,44 @@ const editItem = (item) => {
     form.value = {
         id: item.id,
         name: item.name,
-        category: item.category,
-        subcategory: item.subcategory,
-        unit: item.unit,
-        minAlert: item.minAlert,
-        supplier: item.supplier,
-        sku: item.sku,
+        price: item.price,
+        category_id: item.category?.id || null,
         description: item.description,
-        nutrition: item.nutrition || {
-            calories: 0,
-            fat: 0,
-            protein: 0,
-            carbs: 0,
-        },
-        allergies: item.allergies?.map((a) => Number(a)) || [],
-        tags: item.tags?.map((t) => Number(t)) || [],
+        ingredients: item.ingredients || [],
+        allergies: item.allergy_ids || [],
+        tags: item.tag_ids || [],
         imageFile: null,
-        imageUrl: item.image ? `/storage/${item.image}` : null,  // Use imageUrl consistently
+        imageUrl: item.image_url || null,
     };
 
-    console.log("Preselected allergies:", form.value);
+    // Save the original nutrition
+    savedNutrition.value = item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
+
+    // Hydrate cart
+    i_cart.value = (item.ingredients || []).map(ing => ({
+        id: ing.id,
+        name: ing.product_name || ing.name || '—',
+        category: ing.category?.name || '',
+        qty: ing.quantity || 0,
+        unitPrice: ing.unit_price || 0,
+        expiry: ing.expiry || null,
+        cost: ing.cost || (ing.quantity && ing.unit_price ? ing.quantity * ing.unit_price : 0),
+        nutrition: ing.nutrition ? JSON.parse(ing.nutrition) : { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    }));
+
+    // Merge into inventory so inputs are prefilled
+    i_filteredInv.value = i_filteredInv.value.map(inv => {
+        const found = i_cart.value.find(c => c.id === inv.id);
+        return found ? { ...inv, ...found } : inv;
+    });
+
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
 };
+
+
+
+
 // ============================= reset form =========================
 
 function resetForm() {
@@ -999,73 +1048,51 @@ const downloadExcel = (data) => {
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>
-                                        <th>Items</th>
                                         <th>Image</th>
-                                        <th>Unit Price</th>
+                                        <th>Menu Name</th>
                                         <th>Category</th>
-                                        <th>Unit</th>
-                                        <th>Available Stock</th>
-                                        <th>Stock Value</th>
-                                        <th>Availability</th>
-
+                                        <th>Price</th>
+                                        <th>Status</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                        <!-- S.# -->
                                         <td>{{ idx + 1 }}</td>
+                                        <!-- Image -->
+                                        <td>
+                                            <img :src="item.image_url" alt="" style="
+                                                    width: 50px;
+                                                    height: 50px;
+                                                    object-fit: cover;
+                                                    border-radius: 6px;
+                                                " />
+                                        </td>
+
+                                        <!-- Menu Name -->
                                         <td class="fw-semibold">
                                             {{ item.name }}
                                         </td>
-                                        <td>
-                                            <img :src="item.image
-                                                ? `/storage/${item.image}`
-                                                : '/default.png'
-                                                " class="rounded" style="
-                                                    width: 40px;
-                                                    height: 40px;
-                                                    object-fit: cover;
-                                                " />
-                                        </td>
-                                        <td>
-                                            {{
-                                                money(
-                                                    item.unitPrice || 0,
-                                                    "GBP"
-                                                )
-                                            }}
-                                        </td>
+
+                                        <!-- Category -->
                                         <td class="text-truncate" style="max-width: 260px">
-                                            {{ item.category }}
-                                        </td>
-                                        <td>{{ item.unit }}</td>
-                                        <td>
-                                            {{
-                                                item.availableStock
-                                                    ? item.availableStock.toFixed(
-                                                        1
-                                                    )
-                                                    : 0
-                                            }}
-                                        </td>
-                                        <td>
-                                            {{
-                                                money(
-                                                    item.stockValue || 0,
-                                                    "GBP"
-                                                )
-                                            }}
-                                        </td>
-                                        <td>
-                                            <span v-if="item.availableStock === 0" class="badge bg-red-600">Out of
-                                                stock</span>
-                                            <span v-else-if="
-                                                item.availableStock <=
-                                                item.minAlert
-                                            " class="badge bg-warning">Low-stock</span>
-                                            <span v-else class="badge bg-success">In-stock</span>
+                                            {{ item.category?.name || '—' }}
                                         </td>
 
+                                        <!-- Price -->
+                                        <td>
+                                            {{ money(item.price || 0, "GBP") }}
+                                        </td>
+
+                                        <!-- Status -->
+                                        <td>
+                                            <span v-if="item.category?.active === 0"
+                                                class="badge bg-red-600">Inactive</span>
+                                            <span v-else class="badge bg-success">Active</span>
+                                        </td>
+
+                                        <!-- Actions -->
                                         <td class="text-end">
                                             <div class="dropdown">
                                                 <button class="btn btn-link text-secondary p-0 fs-5"
@@ -1075,35 +1102,16 @@ const downloadExcel = (data) => {
                                                 <ul
                                                     class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
                                                     <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            openStockModal(
-                                                                item
-                                                            )
-                                                            ">
-                                                            <i class="bi bi-box-arrow-in-down-right me-2"></i>Stock In
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            openStockOutModal(
-                                                                item
-                                                            )
-                                                            ">
-                                                            <i class="bi bi-box-arrow-up-right me-2"></i>Stock Out
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            ViewItem(item)
-                                                            ">
-                                                            <i class="bi bi-eye me-2"></i>View Item
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="
-                                                            editItem(item)
-                                                            ">
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                            @click="editItem(item)">
                                                             <i class="bi bi-pencil-square me-2"></i>Edit
+                                                        </a>
+                                                    </li>
+
+                                                    <li>
+                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
+                                                            @click="ViewItem(item)">
+                                                            <i class="bi bi-eye me-2"></i>Deactivate
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -1111,14 +1119,16 @@ const downloadExcel = (data) => {
                                         </td>
                                     </tr>
 
+                                    <!-- Empty state -->
                                     <tr v-if="sortedItems.length === 0">
-                                        <td colspan="11" class="text-center text-muted py-4">
-                                            No items found.
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            No Menu items found.
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+
                     </div>
                 </div>
 
@@ -1154,16 +1164,16 @@ const downloadExcel = (data) => {
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label d-block">Base Price</label>
-                                        <input v-model="form.minAlert" type="number" min="0" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.minAlert }" placeholder="e.g., 0.00" />
-                                        <small v-if="formErrors.minAlert" class="text-danger">
-                                            {{ formErrors.minAlert[0] }}
+                                        <input v-model="form.price" type="number" min="0" class="form-control"
+                                            :class="{ 'is-invalid': formErrors.price }" placeholder="e.g., 0.00" />
+                                        <small v-if="formErrors.price" class="text-danger">
+                                            {{ formErrors.price[0] }}
                                         </small>
                                     </div>
 
                                     <div class="col-md-6">
                                         <label class="form-label">Category</label>
-                                        <Select v-model="form.category" :options="categories" optionLabel="name"
+                                        <Select v-model="form.category_id" :options="categories" optionLabel="name"
                                             optionValue="id" placeholder="Select Category" class="w-100" appendTo="self"
                                             :autoZIndex="true" :baseZIndex="2000"
                                             @update:modelValue="form.subcategory = ''"
@@ -1296,7 +1306,7 @@ const downloadExcel = (data) => {
                                             View Inventory Item
                                         </h5>
                                         <small class="text-muted" v-if="viewItemRef?.sku">SKU: {{ viewItemRef.sku
-                                            }}</small>
+                                        }}</small>
                                     </div>
                                 </div>
 
@@ -1471,7 +1481,7 @@ const downloadExcel = (data) => {
                                                 <span class="text-muted">Updated On</span>
                                                 <span class="fw-semibold">{{
                                                     viewItemRef.formatted_updated_at
-                                                    }}</span>
+                                                }}</span>
                                             </div>
 
                                             <div
@@ -1504,7 +1514,7 @@ const downloadExcel = (data) => {
                                                 <span class="text-muted">Added By</span>
                                                 <span class="fw-semibold">{{
                                                     viewItemRef.user?.name
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1617,51 +1627,50 @@ const downloadExcel = (data) => {
                                                 <div>Protein: {{ i_totalNutrition.protein }} g</div>
                                                 <div>Carbs: {{ i_totalNutrition.carbs }} g</div>
                                                 <div>Fat: {{ i_totalNutrition.fat }} g</div>
-                                            </div>
-                                        </div>
+                                            </div>  
+                                    </div>
 
-                                        <div class="card border rounded-4">
-                                            <div class="table-responsive">
-                                                <table class="table align-middle mb-0">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Qty</th>
-                                                            <th>Unit Price</th>
-                                                            <th>Expiry</th>
-                                                            <th>Cost</th>
-                                                            <th class="text-end">Action</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr v-for="(ing, idx) in i_cart" :key="idx">
-                                                            <td>{{ ing.name }}</td>
-                                                            <td>{{ ing.qty }}</td>
-                                                            <td>{{ ing.unitPrice }}</td>
-                                                            <td>{{ ing.expiry || '—' }}</td>
-                                                            <td>{{ ing.cost }}</td>
-                                                            <td class="text-end">
-                                                                <button class="btn btn-sm btn-danger"
-                                                                    @click="removeIngredient(idx)">Remove</button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr v-if="i_cart.length === 0">
-                                                            <td colspan="6" class="text-center text-muted py-3">No
-                                                                ingredients added.
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <div class="p-3 fw-semibold text-end">
-                                                Total Cost: {{ money(i_total) }}
-                                            </div>
+                                    <div class="card border rounded-4">
+                                        <div class="table-responsive">
+                                            <table class="table align-middle mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Qty</th>
+                                                        <th>Unit Price</th>
+                                                        <th>Expiry</th>
+                                                        <th>Cost</th>
+                                                        <th class="text-end">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(ing, idx) in i_cart" :key="idx">
+                                                        <td>{{ ing.name }}</td>
+                                                        <td>{{ ing.qty }}</td>
+                                                        <td>{{ ing.unitPrice }}</td>
+                                                        <td>{{ ing.expiry || '—' }}</td>
+                                                        <td>{{ ing.cost }}</td>
+                                                        <td class="text-end">
+                                                            <button class="btn btn-sm btn-danger"
+                                                                @click="removeIngredient(idx)">Remove</button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr v-if="i_cart.length === 0">
+                                                        <td colspan="6" class="text-center text-muted py-3">No
+                                                            ingredients added.
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
-
-                                        <div class="mt-3 text-center">
-                                            <button class="btn btn-primary px-5" @click="saveIngredients">Done</button>
-
+                                        <div class="p-3 fw-semibold text-end">
+                                            Total Cost: {{ money(i_total) }}
                                         </div>
+                                    </div>
+
+                                    <div class="mt-3 text-center">
+                                        <button class="btn btn-primary px-5" @click="saveIngredients">Done</button>
+
                                     </div>
                                 </div>
                             </div>
@@ -1669,6 +1678,7 @@ const downloadExcel = (data) => {
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     </Master>
 </template>
