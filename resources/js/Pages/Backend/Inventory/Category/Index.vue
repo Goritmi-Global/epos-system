@@ -1677,9 +1677,7 @@ const downloadExcel = (data) => {
     font-weight: 600;
 }
 
-.table-responsive {
-    overflow: visible !important;
-}
+ 
 
 .dropdown-menu {
     position: absolute !important;
