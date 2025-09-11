@@ -907,7 +907,7 @@ const downloadExcel = (data) => {
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle">
+                            <table class="table table-striped">
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>

@@ -312,6 +312,7 @@ watch(
 
 // =============== Edit item ===============
 import { nextTick } from "vue";
+import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 
 const editItem = (item) => {
     const toNum = (v) =>
@@ -1082,7 +1083,7 @@ const totals = computed(() => {
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-striped">
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>
@@ -1127,8 +1128,16 @@ const totals = computed(() => {
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            
-                                            <img
+                                            <ImageZoomModal 
+                                                v-if="item.image_url"
+                                                :file="item.image_url"
+                                                :alt="item.name"
+                                                :width="50"
+                                                :height="50"
+                                                :custom_class="'cursor-pointer'"
+                                               
+                                            />
+                                            <!-- <img
                                                 :src="item.image_url"
                                                 alt=""
                                                 style="
@@ -1137,7 +1146,7 @@ const totals = computed(() => {
                                                     object-fit: cover;
                                                     border-radius: 6px;
                                                 "
-                                            />
+                                            /> -->
                                         </td>
 
                                         <td
@@ -1939,7 +1948,7 @@ const totals = computed(() => {
                                                     Tags
                                                 </h6>
                                                 <div
-                                                    class="d-flex flex-wrap gap-2"
+                                                    class="d-flex flex-wrap gap-2 mt-2"
                                                 >
                                                     <span
                                                         v-for="tag in viewItemRef.tags"
@@ -1955,7 +1964,7 @@ const totals = computed(() => {
                                                     Allergies
                                                 </h6>
                                                 <div
-                                                    class="d-flex flex-wrap gap-2"
+                                                    class="d-flex flex-wrap gap-2 mt-2"
                                                 >
                                                     <span
                                                         v-for="allergy in viewItemRef.allergies"
@@ -1987,8 +1996,7 @@ const totals = computed(() => {
                                                         "
                                                         alt="Item Image"
                                                         class="w-100 rounded-3"
-                                                        style="
-                                                            max-height: 260px;
+                                                        style=" 
                                                             object-fit: cover;
                                                         "
                                                     />
@@ -2002,7 +2010,7 @@ const totals = computed(() => {
                                                 <span class="text-muted"
                                                     >Stocked In</span
                                                 >
-                                                <span class="fw-semibold">{{
+                                                <span class="  badge bg-gray-500 rounded-pill text-white p-2">{{
                                                    totals.totalQty
                                                 }}</span>
                                             </div>
@@ -2081,40 +2089,12 @@ const totals = computed(() => {
                                     >
                                         <h5 class="mb-0">Stock Details</h5>
 
-                                        <div class="d-flex gap-2">
-                                            <!-- Search -->
-                                            <div class="position-relative">
-                                                <span
-                                                    class="position-absolute top-50 start-0 translate-middle-y ms-3 opacity-50"
-                                                >
-                                                    <!-- search icon -->
-                                                    <svg
-                                                        width="18"
-                                                        height="18"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            fill="currentColor"
-                                                            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5M9.5 14A4.5 4.5 0 1 1 14 9.5A4.505 4.505 0 0 1 9.5 14Z"
-                                                        />
-                                                    </svg>
-                                                </span>
-                                                <input
-                                                    v-model="search"
-                                                    type="text"
-                                                    class="form-control rounded-pill shadow-sm ps-5"
-                                                    placeholder="Search"
-                                                    style="min-width: 260px"
-                                                />
-                                            </div>
-
-                                            <!-- Filter dropdown -->
-                                        </div>
+                                         
                                     </div>
 
                                     <div class="table-responsive">
                                         <table
-                                            class="table table-hover align-middle mb-0"
+                                            class="table table-striped mb-0"
                                         >
                                             <thead class="table-primary">
                                                 <tr>
@@ -2172,8 +2152,9 @@ const totals = computed(() => {
                                                     </td>
                                                     <td class="text-center">
                                                         <span
+                                                         style="min-width: 100px"
                                                             :class="[
-                                                                'badge rounded-pill px-3 py-2',
+                                                                'badge rounded-pill d-inline-block text-center',
                                                                 stockStatusClass(
                                                                     row.status
                                                                 ),
