@@ -13,7 +13,7 @@ class StockEntryService
     {
         // Remove frontend-only field
         unset($data['available_quantity']);
-
+ 
         // Create the stock entry
         return StockEntry::create($data);
     }

@@ -426,11 +426,15 @@ const stockForm = ref({
     user_id: 1,
 });
 
+ 
+
 const submittingStock = ref(false);
 const processStatus = ref();
 
-function openStockModal(item) {
-    const categoryObj = props.categories.find((c) => c.name === item.category);
+function openStockModal(item,item_category) {
+
+    // console.log("Opening stock modal for item:", item_category.id);
+    // const categoryObj = props.categories.find((c) => c.name === item.category);
     const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
 
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
@@ -438,7 +442,7 @@ function openStockModal(item) {
         stockForm.value = {
             product_id: item.id,
             name: item.name,
-            category_id: categoryObj ? categoryObj.id : null,
+            category_id: item_category.id,
             supplier_id: supplierObj ? supplierObj.id : null,
             available_quantity: totalStock.available || 0,
             quantity: 0,
@@ -451,6 +455,7 @@ function openStockModal(item) {
             purchase_date: new Date().toISOString().slice(0, 10),
             user_id: 1,
         };
+        console.log("Stock In form:", stockForm.value);
     });
 }
 
@@ -467,6 +472,7 @@ const resetErrors = () => {
 }
 
 async function submitStockIn() {
+    console.log(stockForm.value);
     submittingStock.value = true;
     calculateValue();
     try {
@@ -1202,7 +1208,7 @@ const totals = computed(() => {
                                             >
                                                 <button
                                                     @click="
-                                                        openStockModal(item)
+                                                        openStockModal(item,item.category)
                                                     "
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#stockInModal"
@@ -2275,7 +2281,23 @@ const totals = computed(() => {
                                         <label class="form-label"
                                             >Category</label
                                         >
-                                        <Select
+                                        <!-- input readonly jsut show {{props.categories[0].id}}  -->
+                                        
+                                      <!-- Display Category Name -->
+<!-- Show category name -->
+<input 
+  type="text"
+  :value="props.categories[0]?.name"
+  class="form-control"
+  readonly
+/>
+
+ 
+
+
+
+                                        
+                                        <!-- <Select
                                             v-model="stockForm.category_id"
                                             :options="props.categories"
                                             optionLabel="name"
@@ -2284,7 +2306,7 @@ const totals = computed(() => {
                                             class="w-100"
                                             appendTo="self"
                                             :class="{ 'is-invalid': formErrors.category_id }"
-                                        />
+                                        /> -->
                                      
                                         <small v-if="formErrors.category_id" class="text-danger">
                                 {{ formErrors.category_id[0] }}
@@ -2359,6 +2381,7 @@ const totals = computed(() => {
                                             type="text"
                                             v-model="stockForm.value"
                                             class="form-control"
+                                            readonly
                                         />
                                     </div>
 
