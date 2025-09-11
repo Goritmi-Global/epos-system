@@ -759,10 +759,7 @@ watch(commonAllergies, (newVal) => {
     background-color: white !important;
     color: black !important;
 }
-
-.table-responsive {
-    overflow: visible !important;
-}
+ 
 
 .dropdown-menu {
     position: absolute !important;

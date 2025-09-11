@@ -753,10 +753,7 @@ watch(commonTags, (newVal) => {
     color: black !important;
 }
 
-.table-responsive {
-    overflow: visible !important;
-}
-
+ 
 .dropdown-menu {
     position: absolute !important;
     z-index: 1050 !important;

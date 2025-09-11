@@ -1511,10 +1511,7 @@ const downloadExcel = (data) => {
     font-size: 0.95rem;
     color: #333;
 }
-
-.table-responsive {
-    overflow: visible !important;
-}
+ 
 
 .dropdown-menu {
     position: absolute !important;
