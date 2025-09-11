@@ -85,12 +85,26 @@ const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
 const filteredItems = computed(() => {
     const term = q.value.trim().toLowerCase();
     if (!term) return items.value;
-    return items.value.filter((i) =>
-        [i.name, i.category, i.unit].some((v) =>
-            (v || "").toLowerCase().includes(term)
-        )
-    );
+
+    return items.value.filter((i) => {
+        const name = (i.name || "").toLowerCase();
+        const categoryName =
+            typeof i.category === "object"
+                ? (i.category.name || "").toLowerCase()
+                : (i.category || "").toString().toLowerCase();
+        const unitName =
+            typeof i.unit === "object"
+                ? (i.unit.name || "").toLowerCase()
+                : (i.unit || "").toString().toLowerCase();
+
+        return (
+            name.includes(term) ||
+            categoryName.includes(term) ||
+            unitName.includes(term)
+        );
+    });
 });
+
 
 const sortedItems = computed(() => {
     const arr = [...filteredItems.value];
@@ -1944,6 +1958,18 @@ const totals = computed(() => {
                                                         "
                                                     />
                                                 </div>
+                                            </div>
+
+
+                                              <div
+                                                class="card-footer bg-transparent small d-flex justify-content-between"
+                                            >
+                                                <span class="text-muted"
+                                                    >Stocked In</span
+                                                >
+                                                <span class="fw-semibold">{{
+                                                   totals.totalQty
+                                                }}</span>
                                             </div>
 
                                             <div

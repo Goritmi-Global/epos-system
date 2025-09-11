@@ -1,8 +1,23 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated, reactive, watch } from "vue";
+import { ref, computed, onMounted, reactive, onUpdated } from "vue";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
+import "vue3-toastify/dist/index.css";
+import PurchaseComponent from "./PurchaseComponent.vue";
+
+import {
+    Shapes,
+    Package,
+    AlertTriangle,
+    XCircle,
+    Pencil,
+    Eye,
+    Plus,
+} from "lucide-vue-next";
 
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
@@ -27,7 +42,14 @@ const showHelp = ref(false);
 const props = defineProps({
     orders: Array,
 });
-const orderData = computed(() => props.orders.data);
+
+// const orderData = computed(() => props.orders.data);
+const orderData = ref([]);
+const fetchPurchaseOrders = async () => {
+    const res = await axios.get("/purchase-orders/fetchOrders");
+   
+    orderData.value = res.data.data.data; // [{id, name}]
+};
 
 const supplierOptions = ref([]);
 const p_supplier = ref(null);
@@ -57,7 +79,8 @@ const fetchInventory = async () => {
 onMounted(() => {
     fetchInventory();
     fetchSuppliers();
-    fetchOrders();
+    Purchase();
+    fetchPurchaseOrders();
 });
 const p_filteredInv = computed(() => {
     const t = p_search.value.trim().toLowerCase();
@@ -81,7 +104,7 @@ const q = ref(""); // search input
 const statusFilter = ref(""); // optional status filter
 
 // Fetch orders from API
-async function fetchOrders() {
+async function Purchase() {
     loading.value = true;
     try {
         const res = await axios.get("/purchase-orders", {
@@ -110,106 +133,14 @@ async function fetchOrders() {
 
 // ==========================================================================
 
-// left card inputs (shared across cards for demo)
-const p_qty = ref(1);
-const p_price = ref(""); // unit price
-const p_expiry = ref(""); // expiry date
-
 // cart rows: {id,name,category,qty,unitPrice,expiry,cost}
-const p_cart = ref([]);
-const p_total = computed(() =>
-    round2(p_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
-);
-
-function addPurchaseItem(item) {
-    const qty = Number(item.qty || 0);
-    const price =
-        item.unitPrice !== ""
-            ? Number(item.unitPrice)
-            : Number(item.defaultPrice || 0);
-    const expiry = item.expiry || null;
-
-    if (!qty || qty <= 0) return toast.error("Enter a valid quantity.");
-    if (!price || price <= 0) return toast.error("Enter a valid unit price.");
-    if (!expiry || expiry <= 0) return toast.error("Enter an expiry date.");
-
-    // MERGE: same product + same unitPrice + same expiry
-    const found = p_cart.value.find(
-        (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
-    );
-    if (found) {
-        found.qty = round2(found.qty + qty);
-        found.cost = round2(found.qty * found.unitPrice);
-    } else {
-        p_cart.value.push({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            qty,
-            unitPrice: price,
-            expiry,
-            cost: round2(qty * price),
-        });
-    }
-
-    // reset only that item’s fields
-    item.qty = null;
-    item.unitPrice = null;
-    item.expiry = null;
-}
-
-function delPurchaseRow(idx) {
-    p_cart.value.splice(idx, 1);
-}
 
 // ===========================Submitting Quick Purchase===========================
-const p_submitting = ref(false);
-
-async function quickPurchaseSubmit() {
-    if (!p_supplier.value) return toast.error("Please select a supplier.");
-    if (!p_cart.value.length) return toast.error("No items added.");
-
-    const payload = {
-        supplier_id: p_supplier.value,
-        purchase_date: new Date().toISOString().split("T")[0], // today
-        status: "completed",
-        items: p_cart.value.map((item) => ({
-            product_id: item.id,
-            quantity: item.qty,
-            unit_price: item.unitPrice,
-            expiry: item.expiry || null,
-        })),
-    };
-
-    p_submitting.value = true;
-
-    try {
-        const res = await axios.post("/purchase-orders", payload);
-        console.log("✅ Purchase created:", res.data);
-
-        // reset modal
-        p_cart.value = [];
-        p_supplier.value = null;
-
-        const modal = bootstrap.Modal.getInstance(
-            document.getElementById("addPurchaseModal")
-        );
-        modal?.hide();
-    } catch (err) {
-        toast.error(
-            "Failed to create purchase:",
-            err.response?.data || err.message
-        );
-        toast.error("Failed to create purchase.");
-    } finally {
-        p_submitting.value = false;
-    }
-}
 
 /* =========================================================================
    ADD ORDER (later delivery) — MERGE on same product+unitPrice+expiry
    =======================================================================*/
-const o_supplier = ref(null);
+
 const o_search = ref("");
 
 // cart rows: {id,name,category,qty,unitPrice,expiry,cost}
@@ -415,10 +346,243 @@ function orderSubmit() {
         });
 }
 
-// clear the supplier error as soon as a value is chosen
-watch(p_supplier, (v) => {
-    if (v && p_errors.supplier) p_errors.supplier = "";
-});
+/* -------------------- Helpers for normalization -------------------- */
+const extractArray = (maybe) => {
+    if (!maybe) return [];
+    if (Array.isArray(maybe)) return maybe;
+    if (Array.isArray(maybe.data)) return maybe.data;
+    return [];
+};
+
+const extractSupplierName = (o) => {
+    if (!o) return "";
+    if (o.supplier && typeof o.supplier === "object")
+        return o.supplier.name || o.supplier.title || "";
+    if (o.supplier_name) return o.supplier_name;
+    if (o.supplierId) return String(o.supplierId);
+    if (o.supplier_id) {
+        // try lookup from supplierOptions if available
+        const s = supplierOptions.value?.find(
+            (sp) => String(sp.id) === String(o.supplier_id)
+        );
+        return s?.name || String(o.supplier_id);
+    }
+    // fallback plain string
+    return typeof o.supplier === "string" ? o.supplier : "";
+};
+
+const extractTotalAmount = (o) => {
+    if (!o) return 0;
+    if (o.total_amount != null) return Number(o.total_amount);
+    if (o.total != null) return Number(o.total);
+    if (o.amount != null) return Number(o.amount);
+    // try to compute from items if present
+    if (Array.isArray(o.items)) {
+        return o.items.reduce((sum, it) => {
+            const sub =
+                it.sub_total ??
+                it.subTotal ??
+                it.total ??
+                (it.quantity || 0) * (it.unit_price ?? it.unitPrice ?? 0);
+            return sum + Number(sub || 0);
+        }, 0);
+    }
+    return 0;
+};
+
+const extractPurchaseDate = (o) => {
+    if (!o) return "";
+    return o.purchase_date || o.purchased_at || o.date || o.created_at || "";
+};
+
+const normalizeOrders = (arr) =>
+    arr.map((o) => ({
+        supplier_name: extractSupplierName(o),
+        purchase_date: extractPurchaseDate(o),
+        status: o.status || "",
+        total_amount: extractTotalAmount(o),
+        _raw: o, // keep original if needed
+    }));
+
+/* -------------------- Updated onDownload -------------------- */
+const onDownload = (type) => {
+    // pick the best source available (client-fetched orders OR props)
+    let source = extractArray(orders.value);
+    if (!source.length) source = extractArray(orderData.value); // props.orders.data
+    if (!source.length) source = extractArray(props.orders); // fallback
+
+    if (!source.length) {
+        toast.error("No Orders data to download");
+        return;
+    }
+
+    // apply client-side search filter (q) if present
+    const t = q.value?.trim()?.toLowerCase();
+    const filteredSource = t
+        ? source.filter((o) => {
+              const hay = [
+                  extractSupplierName(o),
+                  o.status || "",
+                  String(extractTotalAmount(o)),
+                  extractPurchaseDate(o),
+              ]
+                  .join(" ")
+                  .toLowerCase();
+              return hay.includes(t);
+          })
+        : source;
+
+    if (!filteredSource.length) {
+        toast.error("No Orders found to download");
+        return;
+    }
+
+    const normalized = normalizeOrders(filteredSource);
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(normalized);
+        } else if (type === "excel") {
+            downloadExcel(normalized);
+        } else if (type === "csv") {
+            downloadCSV(normalized);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+/* -------------------- Updated export helpers (work with normalized data) -------------------- */
+
+const downloadCSV = (data) => {
+    try {
+        const headers = ["Supplier", "Purchase Date", "Status", "Total Amount"];
+        const rows = data.map((o) => [
+            `"${String(o.supplier_name || "").replace(/"/g, '""')}"`,
+            `"${String(o.purchase_date || "")}"`,
+            `"${String(o.status || "")}"`,
+            `"${o.total_amount ?? 0}"`,
+        ]);
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
+        ].join("\n");
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute(
+            "download",
+            `purchase_orders_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("p", "mm", "a4");
+        doc.setFontSize(18);
+        doc.text("Purchase Orders Report", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+        doc.text(`Total Orders: ${data.length}`, 14, 34);
+
+        const tableColumns = [
+            "Supplier",
+            "Purchase Date",
+            "Status",
+            "Total Amount",
+        ];
+        const tableRows = data.map((o) => [
+            o.supplier_name || "",
+            o.purchase_date || "",
+            o.status || "",
+            money(o.total_amount || 0, "GBP"),
+        ]);
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            alternateRowStyles: { fillColor: [240, 240, 240] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        doc.save(
+            `purchase_orders_${new Date().toISOString().split("T")[0]}.pdf`
+        );
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") throw new Error("XLSX not loaded");
+
+        const worksheetData = data.map((o) => ({
+            Supplier: o.supplier_name || "",
+            "Purchase Date": o.purchase_date || "",
+            Status: o.status || "",
+            "Total Amount": o.total_amount ?? 0,
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+        worksheet["!cols"] = [
+            { wch: 25 },
+            { wch: 18 },
+            { wch: 15 },
+            { wch: 15 },
+        ];
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Orders", Value: data.length },
+            { Info: "Exported By", Value: "Purchase Orders System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        XLSX.writeFile(
+            workbook,
+            `purchase_orders_${new Date().toISOString().split("T")[0]}.xlsx`
+        );
+        toast.success("Excel file downloaded successfully", {
+            autoClose: 2500,
+        });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
+
 // ===========================================================
 
 onMounted(() => window.feather?.replace());
@@ -487,6 +651,11 @@ onUpdated(() => window.feather?.replace());
                                 >
                                     Purchase
                                 </button>
+                                <PurchaseComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                />
+
                                 <button
                                     class="btn btn-primary rounded-pill px-4"
                                     data-bs-toggle="modal"
@@ -494,11 +663,44 @@ onUpdated(() => window.feather?.replace());
                                 >
                                     Order
                                 </button>
-                                <button
-                                    class="btn btn-outline-secondary rounded-pill px-4"
-                                >
-                                    Download
-                                </button>
+                                <div class="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
+                                        Download
+                                    </button>
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('pdf')"
+                                                >Download as PDF</a
+                                            >
+                                        </li>
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('excel')"
+                                                >Download as Excel</a
+                                            >
+                                        </li>
+
+                                        <li>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('csv')"
+                                            >
+                                                Download as CSV
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
 
@@ -516,6 +718,7 @@ onUpdated(() => window.feather?.replace());
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <!-- {{ orderData }} -->
                                     <template
                                         v-for="(row, i) in orderData"
                                         :key="row.id"
@@ -546,14 +749,21 @@ onUpdated(() => window.feather?.replace());
                                             </td>
                                             <td>{{ money(row.total) }}</td>
                                             <td class="text-end">
+                                                <button
+                                                    @click="openModal(row)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
+                                                    title="View Item"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                >
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                            <!-- <td class="text-end">
                                                 <div class="dropdown">
-                                                    <button
-                                                        class="btn btn-link text-secondary p-0 fs-5"
-                                                        data-bs-toggle="dropdown"
-                                                        aria-expanded="false"
-                                                    >
-                                                        ⋮
-                                                    </button>
+                                                    
+                                                    <button class="btn btn-link text-secondary p-0 fs-5"
+                                                        data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
                                                     <ul
                                                         class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden"
                                                     >
@@ -571,7 +781,7 @@ onUpdated(() => window.feather?.replace());
                                                         </li>
                                                     </ul>
                                                 </div>
-                                            </td>
+                                            </td> -->
                                         </tr>
                                         <tr class="sep-row">
                                             <td colspan="6"></td>
@@ -579,7 +789,7 @@ onUpdated(() => window.feather?.replace());
                                     </template>
 
                                     <!-- Fix this line -->
-                                    <tr v-if="orderData.length === 0">
+                                    <tr v-if="orderData?.length === 0">
                                         <td
                                             colspan="6"
                                             class="text-center text-muted py-4"
@@ -594,304 +804,6 @@ onUpdated(() => window.feather?.replace());
                 </div>
 
                 <!-- ================= Add Purchase (Modal) ================= -->
-                <div
-                    class="modal fade"
-                    id="addPurchaseModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
-                    <div class="modal-dialog modal-xl modal-dialog-centered">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">
-                                    Add Purchase
-                                </h5>
-                                <button
-                                    type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                ></button>
-                            </div>
-
-                            <div class="modal-body">
-                                <div class="row g-3 align-items-center">
-                                    <div class="col-md-6">
-                                        <label
-                                            class="form-label small text-muted d-block"
-                                            >preferred supplier</label
-                                        >
-
-                                        <Select
-                                            v-model="p_supplier"
-                                            :options="supplierOptions"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="Select Supplier"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :autoZIndex="true"
-                                            :baseZIndex="2000"
-                                        />
-
-                                        
-                                    </div>
-                                </div>
-
-                                <div class="row g-4 mt-1">
-                                    <!-- Left: inventory picker -->
-                                    <div class="col-lg-5">
-                                        <div class="search-wrap mb-2">
-                                            <i class="bi bi-search"></i>
-                                            <input
-                                                v-model="p_search"
-                                                type="text"
-                                                class="form-control search-input"
-                                                placeholder="Search..."
-                                            />
-                                        </div>
-
-                                        <!-- Scrollable container -->
-                                        <div class="purchase-scroll">
-                                            <div
-                                                v-for="it in p_filteredInv"
-                                                :key="it.id"
-                                                class="card shadow-sm border-0 rounded-4 mb-3"
-                                            >
-                                                <div class="card-body">
-                                                    <div
-                                                        class="d-flex align-items-start gap-3"
-                                                    >
-                                                        <img
-                                                            :src="it.image_url"
-                                                            alt=""
-                                                            style="
-                                                                width: 76px;
-                                                                height: 76px;
-                                                                object-fit: cover;
-                                                                border-radius: 6px;
-                                                            "
-                                                        />
-                                                        <div
-                                                            class="flex-grow-1"
-                                                        >
-                                                            <div
-                                                                class="fw-semibold"
-                                                            >
-                                                                {{ it.name }}
-                                                            </div>
-                                                            <div
-                                                                class="text-muted small"
-                                                            >
-                                                                Category:
-                                                                {{
-                                                                    it.category
-                                                                        .name
-                                                                }}
-                                                            </div>
-                                                            <div
-                                                                class="text-muted small"
-                                                            >
-                                                                Unit:
-                                                                {{
-                                                                    it.unit_name
-                                                                }}
-                                                            </div>
-                                                            <div
-                                                                class="text-muted small"
-                                                            >
-                                                                Stock: 12
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
-                                                            @click="
-                                                                addPurchaseItem(
-                                                                    it
-                                                                )
-                                                            "
-                                                        >
-                                                            Add
-                                                        </button>
-                                                    </div>
-
-                                                    <div class="row g-2 mt-3">
-                                                        <div class="col-4">
-                                                            <label
-                                                                class="small text-muted"
-                                                                >Quantity</label
-                                                            >
-                                                            <input
-                                                                v-model.number="
-                                                                    it.qty
-                                                                "
-                                                                type="number"
-                                                                min="0"
-                                                                class="form-control"
-                                                            />
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <label
-                                                                class="small text-muted"
-                                                                >Unit
-                                                                Price</label
-                                                            >
-                                                            <input
-                                                                v-model.number="
-                                                                    it.unitPrice
-                                                                "
-                                                                type="number"
-                                                                min="0"
-                                                                class="form-control"
-                                                            />
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <label
-                                                                class="small text-muted"
-                                                                >Expiry
-                                                                Date</label
-                                                            >
-                                                            <input
-                                                                v-model="
-                                                                    it.expiry
-                                                                "
-                                                                type="date"
-                                                                class="form-control"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right: cart -->
-                                    <div class="col-lg-7">
-                                        <div class="cart card border rounded-4">
-                                            <div class="table-responsive">
-                                                <table
-                                                    class="table align-middle mb-0"
-                                                >
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-
-                                                            <th>Quantity</th>
-                                                            <th>unit price</th>
-                                                            <th>expiry</th>
-                                                            <th>cost</th>
-                                                            <th
-                                                                class="text-end"
-                                                            >
-                                                                Action
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr
-                                                            v-for="(
-                                                                r, idx
-                                                            ) in p_cart"
-                                                            :key="idx"
-                                                        >
-                                                            <td>
-                                                                {{ r.name }}
-                                                            </td>
-
-                                                            <td>{{ r.qty }}</td>
-                                                            <td>
-                                                                {{
-                                                                    money(
-                                                                        r.unitPrice
-                                                                    )
-                                                                }}
-                                                            </td>
-                                                            <td>
-                                                                {{
-                                                                    r.expiry ||
-                                                                    "—"
-                                                                }}
-                                                            </td>
-                                                            <td>
-                                                                {{
-                                                                    money(
-                                                                        r.cost
-                                                                    )
-                                                                }}
-                                                            </td>
-                                                            <td
-                                                                class="text-end"
-                                                            >
-                                                                <button
-                                                                    @click="
-                                                                        delPurchaseRow(
-                                                                            idx
-                                                                        )
-                                                                    "
-                                                                    class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
-                                                                    title="Delete"
-                                                                >
-                                                                    <svg
-                                                                        class="w-5 h-5"
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        stroke-width="2"
-                                                                        viewBox="0 0 24 24"
-                                                                    >
-                                                                        <path
-                                                                            stroke-linecap="round"
-                                                                            stroke-linejoin="round"
-                                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z"
-                                                                        />
-                                                                    </svg>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr
-                                                            v-if="
-                                                                p_cart.length ===
-                                                                0
-                                                            "
-                                                        >
-                                                            <td
-                                                                colspan="7"
-                                                                class="text-center text-muted py-4"
-                                                            >
-                                                                No items added.
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <div
-                                                class="text-end p-3 fw-semibold"
-                                            >
-                                                Total Bill: {{ money(p_total) }}
-                                            </div>
-                                        </div>
-
-                                        <div class="mt-4 text-center">
-                                            <button
-                                                class="btn btn-primary rounded-pill px-5 py-2"
-                                                :disabled="
-                                                    p_submitting ||
-                                                    p_cart.length === 0
-                                                "
-                                                @click="quickPurchaseSubmit"
-                                            >
-                                                <span v-if="!p_submitting"
-                                                    >Quick Purchase</span
-                                                >
-                                                <span v-else>Saving...</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- /modal-body -->
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ================= Add Order (Modal) ================= -->
                 <div
@@ -905,11 +817,26 @@ onUpdated(() => window.feather?.replace());
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">Order</h5>
                                 <button
-                                    type="button"
-                                    class="btn-close"
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
-                                ></button>
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
 
                             <div class="modal-body">
@@ -1013,7 +940,7 @@ onUpdated(() => window.feather?.replace());
                                                         </div>
                                                     </div>
                                                     <button
-                                                        class="btn btn-primary rounded-pill px-3 py-1"
+                                                        class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
                                                         @click="
                                                             addOrderItem(it)
                                                         "
@@ -1168,7 +1095,8 @@ onUpdated(() => window.feather?.replace());
 
                                         <div class="mt-4 text-center">
                                             <button
-                                                class="btn btn-primary btn-lg px-5 py-3"
+                                                type="button"
+                                                class="btn btn-primary rounded-pill px-5 py-2"
                                                 :disabled="
                                                     o_submitting ||
                                                     o_cart.length === 0
@@ -1201,14 +1129,29 @@ onUpdated(() => window.feather?.replace());
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
-                                    Purchase Order Details
+                                    Purchase Details
                                 </h5>
                                 <button
-                                    type="button"
-                                    class="btn-close"
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
-                                ></button>
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
 
                             <div class="modal-body" v-if="selectedOrder">
@@ -1311,14 +1254,29 @@ onUpdated(() => window.feather?.replace());
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
-                                    Edit Purchase Order
+                                    Purchase Details
                                 </h5>
                                 <button
-                                    type="button"
-                                    class="btn-close"
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
-                                ></button>
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
 
                             <div class="modal-body" v-if="selectedOrder">
@@ -1518,14 +1476,14 @@ onUpdated(() => window.feather?.replace());
                             <div class="modal-footer">
                                 <button
                                     type="button"
-                                    class="btn btn-secondary"
+                                    class="btn btn-secondary rounded-pill px-4 ms-2"
                                     data-bs-dismiss="modal"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
-                                    class="btn btn-success"
+                                    class="btn btn-primary rounded-pill px-4"
                                     @click="updateOrder"
                                     :disabled="
                                         updating || editItems.length === 0

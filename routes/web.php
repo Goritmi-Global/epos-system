@@ -123,6 +123,7 @@ Route::middleware('auth')->group(function () {
     // Purchase Orders
     Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+        Route::get('/fetchOrders', [PurchaseOrderController::class, 'fetchOrders'])->name('fetchOrders');
         Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
         Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
@@ -133,6 +134,7 @@ Route::middleware('auth')->group(function () {
     // Reference Management
     Route::prefix('reference')->name('reference.')->group(function () {
         Route::get('/', [ReferenceManagementController::class, 'index'])->name('index');
+        
         Route::post('/', [ReferenceManagementController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [ReferenceManagementController::class, 'edit'])->name('edit');
         Route::put('/{id}', [ReferenceManagementController::class, 'update'])->name('update');

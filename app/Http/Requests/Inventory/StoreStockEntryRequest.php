@@ -17,7 +17,7 @@ class StoreStockEntryRequest extends FormRequest
         return [
             'product_id' => 'required|exists:inventory_items,id',
             'name' => 'required|string',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => 'required|exists:inventory_categories,id',
             'supplier_id' => [
             Rule::requiredIf(fn () => request('stock_type') === 'stockin'),
             'nullable',
