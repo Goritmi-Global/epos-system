@@ -480,16 +480,7 @@ async function submitStockIn() {
          if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
 
-                const list = [
-                    ...new Set(Object.values(err.response.data.errors).flat()),
-                ];
-                const msg = list.join("<br>");
-
-                // toast.dismiss();
-                toast.error(`Validation failed:<br>${msg}`, {
-                    autoClose: 3500,
-                    dangerouslyHTMLString: true, // for vue-toastification
-                });
+              toast.error("Please fill in all required fields correctly.");
             } else {
                 // toast.dismiss();
                 toast.error("Something went wrong. Please try again.", {
@@ -529,40 +520,41 @@ function openStockOutModal(item) {
 async function submitStockOut() {
     submittingStock.value = true;
     calculateValue();
+
+ 
+    if (stockForm.value.quantity > stockForm.value.available_quantity) {
+        formErrors.value.quantity = [
+            "The quantity should not exceed the available quantity.",
+        ];
+        submittingStock.value = false;
+        return; // stop submission
+    } else {
+        formErrors.value.quantity = null; // clear error if valid
+    }
+
     try {
         await axios.post("/stock_entries", stockForm.value);
-        toast.success(" Stock Out saved successfully");
+        toast.success("Stock Out saved successfully");
         resetStockForm();
         bootstrap.Modal.getInstance(
             document.getElementById("stockOutModal")
         )?.hide();
         await fetchInventories();
     } catch (err) {
-         if (err?.response?.status === 422 && err.response.data?.errors) {
-                formErrors.value = err.response.data.errors;
-
-                const list = [
-                    ...new Set(Object.values(err.response.data.errors).flat()),
-                ];
-                const msg = list.join("<br>");
-
-                // toast.dismiss();
-                toast.error(`Validation failed:<br>${msg}`, {
-                    autoClose: 3500,
-                    dangerouslyHTMLString: true, // for vue-toastification
-                });
-            } else {
-                // toast.dismiss();
-                toast.error("Something went wrong. Please try again.", {
-                    autoClose: 3000,
-                });
-                console.error(err);
-            }
-      
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+            formErrors.value = err.response.data.errors;
+            toast.error("Please fill in all required fields correctly.");
+        } else {
+            toast.error("Something went wrong. Please try again.", {
+                autoClose: 3000,
+            });
+            console.error(err);
+        }
     } finally {
         submittingStock.value = false;
     }
 }
+
 
 // ===================== Downloads (PDF, Excel, CSV) =====================
 const onDownload = (type) => {
