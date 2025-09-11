@@ -74,7 +74,7 @@ onUpdated(() => window.feather?.replace());
 
 /* ---------------- Logs view ---------------- */
 const selectedLog = ref(null);
-
+const formErrors = ref({});
 const View = (row) => {
     selectedLog.value = row;
 
@@ -99,10 +99,15 @@ function Edit(row) {
     modal.show();
 }
 const isUpdating = ref(false);
-
+ const resetErrors = () => {
+         formErrors.value = {};
+     }
 async function updateLog() {
     if (isUpdating.value) return; // prevent double click
     isUpdating.value = true;
+     formErrors.value = {};
+
+    
     try {
         await axios.put(
             `stock_entries/stock-logs/${editForm.value.id}`,
@@ -115,9 +120,17 @@ async function updateLog() {
             document.getElementById("editLogModal")
         );
         if (modal) modal.hide();
-    } catch (error) {
-        console.error(error);
-        toast.error("Failed to update log");
+    } catch (err) {
+   
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+            
+                 toast.error("Please fill in all required fields correctly.");
+            } else {
+                // toast.dismiss();
+                toast.error("Something went wrong. Please try again.");
+                console.error(err);
+            }
     } finally {
         isUpdating.value = false;
     }
@@ -1026,6 +1039,7 @@ watch(
                                             data-bs-dismiss="modal"
                                             aria-label="Close"
                                             title="Close"
+                                            @click="resetErrors"
                                         >
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
@@ -1065,8 +1079,13 @@ watch(
                                                     type="number"
                                                     class="form-control"
                                                     v-model="editForm.quantity"
+                                                    :class="{ 'is-invalid': formErrors.quantity }"
                                                     required
                                                 />
+                                               
+                                                <small v-if="formErrors.quantity" class="text-danger">
+                                                    {{ formErrors.quantity[0] }}
+                                                </small>
                                             </div>
 
                                             <div class="col-md-6 col-md-12">
@@ -1077,8 +1096,14 @@ watch(
                                                     type="number"
                                                     class="form-control"
                                                     v-model="editForm.unitPrice"
+                                                    
+                                                    :class="{ 'is-invalid': formErrors.unitPrice }"
                                                     required
                                                 />
+                                                
+                                                <small v-if="formErrors.unitPrice" class="text-danger">
+                                                    {{ formErrors.unitPrice[0] }}
+                                                </small>
                                             </div>
                                             <div class="col-md-6 col-md-12">
                                                 <label class="form-label"

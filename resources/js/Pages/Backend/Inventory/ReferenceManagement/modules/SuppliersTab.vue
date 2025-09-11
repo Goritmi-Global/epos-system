@@ -187,9 +187,8 @@ const downloadPDF = (data) => {
         });
 
         // 💾 Save file
-        const fileName = `suppliers_${
-            new Date().toISOString().split("T")[0]
-        }.pdf`;
+        const fileName = `suppliers_${new Date().toISOString().split("T")[0]
+            }.pdf`;
         doc.save(fileName);
 
         toast.success("PDF downloaded successfully .", { autoClose: 2500 });
@@ -239,9 +238,8 @@ const downloadExcel = (data) => {
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `suppliers_${
-            new Date().toISOString().split("T")[0]
-        }.xlsx`;
+        const fileName = `suppliers_${new Date().toISOString().split("T")[0]
+            }.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
@@ -324,18 +322,10 @@ const submit = () => {
         })
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
+                // store errors if you still want to show them near inputs
                 formErrors.value = err.response.data.errors;
 
-                const list = [
-                    ...new Set(Object.values(err.response.data.errors).flat()),
-                ];
-                const msg = list.join("<br>");
-
-                // toast.dismiss();
-                toast.error(`Validation failed:<br>${msg}`, {
-                    autoClose: 3500,
-                    dangerouslyHTMLString: true, // for vue-toastification
-                });
+                toast.error("Please fill in all required fields correctly.");
             } else {
                 // toast.dismiss();
                 toast.error("Something went wrong. Please try again.", {
@@ -448,70 +438,43 @@ const deleteSupplier = (id) => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div
-                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-            >
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Suppliers</h4>
 
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input
-                            v-model="q"
-                            class="form-control search-input"
-                            placeholder="Search"
-                        />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" />
                     </div>
 
-                    <button
-                        data-bs-toggle="modal"
-                        data-bs-target="#modalAddSupplier"
-                        @click="
-                            () => {
-                                resetForm();
-                                formErrors = {};
-                            }
-                        "
-                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                    >
+                    <button data-bs-toggle="modal" data-bs-target="#modalAddSupplier" @click="
+                        () => {
+                            resetForm();
+                            formErrors = {};
+                        }
+                    " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
 
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button
-                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown"
-                        >
+                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown">
                             Download all
                         </button>
-                        <ul
-                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                        >
+                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('pdf')"
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
                                     Download as PDF
                                 </a>
                             </li>
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('excel')"
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
                                     Download as Excel
                                 </a>
                             </li>
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('csv')"
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
                                     Download as CSV
                                 </a>
                             </li>
@@ -546,33 +509,23 @@ const deleteSupplier = (id) => {
                             </td>
                             <td>{{ s.preferred_items }}</td>
                             <td class="text-center">
-                                <div
-                                    class="d-inline-flex align-items-center gap-3"
-                                >
-                                    <button
-                                        @click="
-                                            () => {
-                                                onEdit(s);
-                                                formErrors = {};
-                                            }
-                                        "
-                                        title="Edit"
-                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                    >
+                                <div class="d-inline-flex align-items-center gap-3">
+                                    <button @click="
+                                        () => {
+                                            onEdit(s);
+                                            formErrors = {};
+                                        }
+                                    " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                         <Pencil class="w-4 h-4" />
                                     </button>
 
-                                    <ConfirmModal
-                                        :title="'Confirm Delete'"
-                                        :message="`Are you sure you want to delete ${s.name}?`"
-                                        :showDeleteButton="true"
+                                    <ConfirmModal :title="'Confirm Delete'"
+                                        :message="`Are you sure you want to delete ${s.name}?`" :showDeleteButton="true"
                                         @confirm="
                                             () => {
                                                 deleteSupplier(s.id);
                                             }
-                                        "
-                                        @cancel="() => {}"
-                                    />
+                                        " @cancel="() => { }" />
                                 </div>
                             </td>
                         </tr>
@@ -588,17 +541,8 @@ const deleteSupplier = (id) => {
     </div>
 
     <!-- Add Supplier Modal -->
-    <div
-        class="modal fade"
-        id="modalAddSupplier"
-        tabindex="-1"
-        aria-labelledby="modalAddSupplier"
-        aria-hidden="true"
-    >
-        <div
-            class="modal-dialog modal-lg modal-dialog-centered"
-            role="document"
-        >
+    <div class="modal fade" id="modalAddSupplier" tabindex="-1" aria-labelledby="modalAddSupplier" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">
@@ -610,23 +554,10 @@ const deleteSupplier = (id) => {
                     </h5>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -636,11 +567,8 @@ const deleteSupplier = (id) => {
                         <!-- Name -->
                         <div class="col-lg-6">
                             <label class="form-label">Name</label>
-                            <input
-                                class="form-control"
-                                v-model="form.name"
-                                :class="{ 'is-invalid': formErrors.name }"
-                            />
+                            <input class="form-control" v-model="form.name"
+                                :class="{ 'is-invalid': formErrors.name }" />
                             <small v-if="formErrors.name" class="text-danger">
                                 {{ formErrors.name[0] }}
                             </small>
@@ -649,11 +577,8 @@ const deleteSupplier = (id) => {
                         <!-- Email -->
                         <div class="col-lg-6">
                             <label class="form-label">Email</label>
-                            <input
-                                class="form-control"
-                                v-model="form.email"
-                                :class="{ 'is-invalid': formErrors.email }"
-                            />
+                            <input class="form-control" v-model="form.email"
+                                :class="{ 'is-invalid': formErrors.email }" />
                             <small v-if="formErrors.email" class="text-danger">
                                 {{ formErrors.email[0] }}
                             </small>
@@ -662,16 +587,9 @@ const deleteSupplier = (id) => {
                         <!-- Phone (vue-tel-input) -->
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
-                            <vue-tel-input
-                                v-model="form.phone"
-                                default-country="PK"
-                                mode="international"
-                                @validate="checkPhone"
-                                :auto-format="true"
-                                :enable-formatting="true"
-                                :input-options="{ showDialCode: true }"
-                                :class="{ 'is-invalid': formErrors.phone }"
-                            />
+                            <vue-tel-input v-model="form.phone" default-country="PK" mode="international"
+                                @validate="checkPhone" :auto-format="true" :enable-formatting="true"
+                                :input-options="{ showDialCode: true }" :class="{ 'is-invalid': formErrors.phone }" />
                             <small v-if="formErrors.phone" class="text-danger">
                                 {{ formErrors.phone[0] }}
                             </small>
@@ -683,17 +601,10 @@ const deleteSupplier = (id) => {
                         <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
-                            <input
-                                class="form-control"
-                                v-model="form.preferred_items"
-                                :class="{
-                                    'is-invalid': formErrors.preferred_items,
-                                }"
-                            />
-                            <small
-                                v-if="formErrors.preferred_items"
-                                class="text-danger"
-                            >
+                            <input class="form-control" v-model="form.preferred_items" :class="{
+                                'is-invalid': formErrors.preferred_items,
+                            }" />
+                            <small v-if="formErrors.preferred_items" class="text-danger">
                                 {{ formErrors.preferred_items[0] }}
                             </small>
                         </div>
@@ -701,42 +612,21 @@ const deleteSupplier = (id) => {
                         <!-- Address -->
                         <div class="col-lg-12">
                             <label class="form-label">Address</label>
-                            <textarea
-                                class="form-control"
-                                rows="4"
-                                v-model="form.address"
-                                :class="{ 'is-invalid': formErrors.address }"
-                            ></textarea>
-                            <small
-                                v-if="formErrors.address"
-                                class="text-danger"
-                            >
+                            <textarea class="form-control" rows="4" v-model="form.address"
+                                :class="{ 'is-invalid': formErrors.address }"></textarea>
+                            <small v-if="formErrors.address" class="text-danger">
                                 {{ formErrors.address[0] }}
                             </small>
                         </div>
 
-                        <button
-                            v-if="processStatus === 'Edit'"
-                            class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading"
-                            @click="updateSupplier()"
-                        >
-                            <span
-                                v-if="loading"
-                                class="spinner-border spinner-border-sm me-2"
-                            ></span>
+                        <button v-if="processStatus === 'Edit'" class="btn btn-primary rounded-pill w-100 mt-4"
+                            :disabled="loading" @click="updateSupplier()">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Update Supplier
                         </button>
-                        <button
-                            v-else
-                            class="btn btn-primary rounded-pill w-100 mt-4"
-                            :disabled="loading"
-                            @click="submit()"
-                        >
-                            <span
-                                v-if="loading"
-                                class="spinner-border spinner-border-sm me-2"
-                            ></span>
+                        <button v-else class="btn btn-primary rounded-pill w-100 mt-4" :disabled="loading"
+                            @click="submit()">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Add Supplier
                         </button>
                     </div>

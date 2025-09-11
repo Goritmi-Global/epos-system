@@ -5,6 +5,7 @@ namespace App\Http\Controllers\POS;
 use App\Http\Controllers\Controller;
 use App\Services\POS\StockEntryService;
 use App\Http\Requests\Inventory\StoreStockEntryRequest;
+use App\Http\Requests\Inventory\UpdateStockEntryRequest;
 use App\Models\StockEntry;
 use App\Models\InventoryItem;
 use Illuminate\Http\Request;
@@ -52,7 +53,7 @@ class StockEntryController extends Controller
         return response()->json($logs);
     }
 
-    public function updateLog(Request $request, $id)
+    public function updateLog(UpdateStockEntryRequest $request, $id)
     {
         $updated = $this->service->updateLog($request, $id);
 
