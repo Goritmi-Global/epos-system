@@ -35,7 +35,6 @@ const inventoryItems = ref([]);
 const i_search = ref("");
 const i_cart = ref([]);
 
-
 const fetchInventory = async () => {
     try {
         const response = await axios.get("/inventory/api-inventories");
@@ -73,7 +72,6 @@ function addIngredient(item) {
         item.unitPrice !== "" && item.unitPrice != null
             ? Number(item.unitPrice)
             : Number(item.defaultPrice || 0);
-    const expiry = item.expiry || null;
 
     formErrors.value = {};
 
@@ -86,9 +84,8 @@ function addIngredient(item) {
         return;
     }
 
-
     const found = i_cart.value.find(
-        (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
+        (r) => r.id === item.id && r.unitPrice === price
     );
 
     if (found) {
@@ -101,22 +98,24 @@ function addIngredient(item) {
             category: item.category,
             qty,
             unitPrice: price,
-            expiry,
             cost: round2(qty * price),
             nutrition: item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
         });
     }
-
     // reset fields on the left card
     item.qty = null;
     item.unitPrice = null;
-    item.expiry = null;
 }
-
 
 // remove ingredient row
 function removeIngredient(idx) {
     i_cart.value.splice(idx, 1);
+    const found = i_displayInv.value.find(i => i.id === ing.id);
+    if (found) {
+        found.qty = null;
+        found.unitPrice = null;
+        found.cost = 0;
+    }
 }
 
 // calulate Ingredient when qty or price changes
@@ -125,21 +124,18 @@ const i_totalNutrition = computed(() => {
         const qty = Number(ing.qty) || 0
 
         totals.calories += Number(ing.nutrition?.calories || 0) * qty
-        totals.protein  += Number(ing.nutrition?.protein  || 0) * qty
-        totals.carbs    += Number(ing.nutrition?.carbs    || 0) * qty
-        totals.fat      += Number(ing.nutrition?.fat      || 0) * qty
+        totals.protein += Number(ing.nutrition?.protein || 0) * qty
+        totals.carbs += Number(ing.nutrition?.carbs || 0) * qty
+        totals.fat += Number(ing.nutrition?.fat || 0) * qty
 
         return totals
-    }, { 
+    }, {
         calories: Number(savedNutrition.value.calories || 0),
-        protein:  Number(savedNutrition.value.protein || 0),
-        carbs:    Number(savedNutrition.value.carbs || 0),
-        fat:      Number(savedNutrition.value.fat || 0)
+        protein: Number(savedNutrition.value.protein || 0),
+        carbs: Number(savedNutrition.value.carbs || 0),
+        fat: Number(savedNutrition.value.fat || 0)
     })
 })
-
-
-
 
 // Save ingredients to main form
 function saveIngredients() {
@@ -210,36 +206,6 @@ onMounted(() => {
     fetchMenus();
 });
 /* ===================== Toolbar: Search + Filter ===================== */
-// const q = ref("");
-// const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
-
-// const filteredItems = computed(() => {
-//     const term = q.value.trim().toLowerCase();
-//     if (!term) return items.value;
-//     return items.value.filter((i) =>
-//         [i.name, i.category, i.unit].some((v) =>
-//             (v || "").toLowerCase().includes(term)
-//         )
-//     );
-// });
-
-// const sortedItems = computed(() => {
-//     const arr = [...filteredItems.value];
-//     switch (sortBy.value) {
-//         case "stock_desc":
-//             return arr.sort((a, b) => b.stockValue - a.stockValue); // High→Low
-//         case "stock_asc":
-//             return arr.sort((a, b) => a.stockValue - b.stockValue); // Low→High
-//         case "name_asc":
-//             return arr.sort((a, b) => a.name.localeCompare(b.name)); // A→Z
-//         case "name_desc":
-//             return arr.sort((a, b) => b.name.localeCompare(a.name)); // Z→A
-//         default:
-//             return arr;
-//     }
-// });
-
-
 const q = ref("");
 const sortBy = ref("");
 
@@ -361,7 +327,7 @@ const form = ref({
     category_id: null,
     subcategory: "",
     unit: [],
-    minAlert: "",
+    price: "",
     supplier: [],
     sku: "",
     description: "",
@@ -384,29 +350,18 @@ function openImageModal(src) {
 }
 
 function onCropped({ file }) {
-    form.value.imageFile = file; // File object for Laravel upload
-    form.value.imageUrl = URL.createObjectURL(file); // URL for preview
-}
-
-function handleImage(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    form.value.imageFile = file;
-    const reader = new FileReader();
-    reader.onload = (ev) =>
-        (form.value.imagePreview = String(ev.target?.result || ""));
-    reader.readAsDataURL(file);
+    form.value.imageFile = file; 
+    form.value.imageUrl = URL.createObjectURL(file); 
 }
 
 const submitting = ref(false);
-
 const submitProduct = async () => {
     submitting.value = true;
     formErrors.value = {};
 
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
-    formData.append("price", form.value.minAlert || 0); // base price
+    formData.append("price", form.value.price || 0); // base price
     if (form.value.category_id) {
         formData.append("category_id", form.value.category_id);
     }
@@ -514,10 +469,30 @@ watch(
 
 // ===============Edit item ==================
 const savedNutrition = ref({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+// Create a display inventory that merges with cart data
+const i_displayInv = computed(() => {
+    return i_filteredInv.value.map(inv => {
+        const found = i_cart.value.find(c => c.id === inv.id);
+        return found ? {
+            ...inv,
+            qty: found.qty,
+            unitPrice: found.unitPrice,
+            cost: found.cost
+        } : {
+            ...inv,
+            qty: null,
+            unitPrice: null,
+            cost: 0
+        };
+    });
+});
+
+
 const editItem = (item) => {
     if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
+    console.log(item);
 
     form.value = {
         id: item.id,
@@ -526,8 +501,8 @@ const editItem = (item) => {
         category_id: item.category?.id || null,
         description: item.description,
         ingredients: item.ingredients || [],
-        allergies: item.allergy_ids || [],
-        tags: item.tag_ids || [],
+        allergies: item.allergy_ids || item.allergies?.map(a => a.id) || [],
+        tags: item.tag_ids || item.tags?.map(t => t.id) || [],
         imageFile: null,
         imageUrl: item.image_url || null,
     };
@@ -535,30 +510,59 @@ const editItem = (item) => {
     // Save the original nutrition
     savedNutrition.value = item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
 
-    // Hydrate cart
+    // Hydrate cart - this will automatically update i_displayInv
     i_cart.value = (item.ingredients || []).map(ing => ({
         id: ing.id,
         name: ing.product_name || ing.name || '—',
         category: ing.category?.name || '',
-        qty: ing.quantity || 0,
+        qty: ing.qty || ing.quantity || 0,
         unitPrice: ing.unit_price || 0,
-        expiry: ing.expiry || null,
         cost: ing.cost || (ing.quantity && ing.unit_price ? ing.quantity * ing.unit_price : 0),
         nutrition: ing.nutrition ? JSON.parse(ing.nutrition) : { calories: 0, protein: 0, carbs: 0, fat: 0 },
     }));
-
-    // Merge into inventory so inputs are prefilled
-    i_filteredInv.value = i_filteredInv.value.map(inv => {
-        const found = i_cart.value.find(c => c.id === inv.id);
-        return found ? { ...inv, ...found } : inv;
-    });
 
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
 };
 
 
+const submitEdit = async () => {
+    submitting.value = true;
 
+    // Recalculate nutrition based on ingredient quantity
+    const totalNutrition = i_cart.value.reduce((acc, ing) => {
+        const qty = Number(ing.qty || 0);
+        acc.calories += (Number(ing.nutrition?.calories || 0) * qty);
+        acc.protein  += (Number(ing.nutrition?.protein  || 0) * qty);
+        acc.fat      += (Number(ing.nutrition?.fat      || 0) * qty);
+        acc.carbs    += (Number(ing.nutrition?.carbs    || 0) * qty);
+        return acc;
+    }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+
+    // Prepare payload
+    const payload = {
+        ...form.value,
+        nutrition: totalNutrition, 
+        ingredients: i_cart.value.map(ing => ({
+            inventory_item_id: ing.id,
+            qty: ing.qty,
+            unitPrice: ing.unitPrice,
+            cost: ing.cost,
+            nutrition: ing.nutrition, 
+        })),
+    };
+
+    try {
+        await axios.put(`/menu/${form.value.id}`, payload);
+        toast.success("Menu updated successfully");
+        // refresh list or close modal
+    } catch (err) {
+        console.error(err);
+        // handle validation errors
+    } finally {
+        submitting.value = false;
+    }
+};
 
 // ============================= reset form =========================
 
@@ -586,24 +590,6 @@ function resetForm() {
     previewImage.value = null;
     formErrors.value = {};
 }
-// =====================view item =========================
-const viewItemRef = ref({});
-
-const ViewItem = async (row) => {
-    try {
-        const res = await axios.get(`/inventory/${row.id}`);
-        viewItemRef.value = res.data;
-
-        const modal = new bootstrap.Modal(
-            document.getElementById("viewItemModal")
-        );
-        modal.show();
-    } catch (error) {
-        console.error("Error fetching item:", error);
-    }
-};
-
-
 
 // code fo download files like  PDF, Excel and CSV
 
@@ -930,7 +916,7 @@ const downloadExcel = (data) => {
         <div class="page-wrapper">
             <div class="container-fluid py-3">
                 <!-- Title -->
-                <h4 class="fw-semibold mb-3">Overall Inventory</h4>
+                <h4 class="fw-semibold mb-3">Menus</h4>
                 <!-- KPI Cards -->
                 <div class="row g-3">
                     <div v-for="c in kpis" :key="c.label" class="col">
@@ -954,7 +940,7 @@ const downloadExcel = (data) => {
                     </div>
                 </div>
 
-                <!-- Stock Table -->
+                <!-- Main Table -->
                 <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
@@ -1110,7 +1096,7 @@ const downloadExcel = (data) => {
 
                                                     <li>
                                                         <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="ViewItem(item)">
+                                                            @click="toggleStatus(item)">
                                                             <i class="bi bi-eye me-2"></i>Deactivate
                                                         </a>
                                                     </li>
@@ -1277,8 +1263,8 @@ const downloadExcel = (data) => {
 
                                 <div class="mt-4">
                                     <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
-                                        @click="submitProduct">
-                                        <span>Add Product</span>
+                                        @click="form.id ? submitEdit() : submitProduct()">
+                                        <span>{{ form.id ? 'Update Product' : 'Add Product' }}</span>
                                     </button>
                                     <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
                                         @click="resetForm">
@@ -1292,262 +1278,6 @@ const downloadExcel = (data) => {
                 </div>
                 <!-- /modal -->
 
-                <!-- View modal  -->
-                <div class="modal fade" id="viewItemModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                            <!-- Header -->
-                            <div class="modal-header bg-light">
-                                <div class="d-flex align-items-center gap-2">
-                                    <!-- Optional icon (Lucide/Bootstrap icon) -->
-                                    <i class="bi bi-box-seam text-primary fs-4"></i>
-                                    <div>
-                                        <h5 class="modal-title fw-semibold mb-0">
-                                            View Inventory Item
-                                        </h5>
-                                        <small class="text-muted" v-if="viewItemRef?.sku">SKU: {{ viewItemRef.sku
-                                        }}</small>
-                                    </div>
-                                </div>
-
-                                <!-- Close -->
-                                <button type="button" class="btn btn-light btn-sm rounded-circle p-2"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-
-                            <!-- Body -->
-                            <div class="modal-body">
-                                <div v-if="viewItemRef" class="row g-4">
-                                    <!-- Left: Details -->
-                                    <div class="col-12 col-md-7">
-                                        <div class="card border-0 shadow-sm rounded-4">
-                                            <div class="card-body">
-                                                <h5 class="fw-semibold mb-3">
-                                                    {{ viewItemRef.name }}
-                                                </h5>
-                                                <p class="text-muted small mb-2">
-                                                    SKU: {{ viewItemRef.sku }}
-                                                </p>
-
-                                                <div class="row g-3 small">
-                                                    <div class="col-6">
-                                                        <div class="text-muted">
-                                                            Category
-                                                        </div>
-                                                        <div class="fw-semibold">
-                                                            {{
-                                                                viewItemRef.category ||
-                                                                "—"
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <div class="text-muted">
-                                                            Subcategory
-                                                        </div>
-                                                        <div class="fw-semibold">
-                                                            {{
-                                                                viewItemRef.subcategory ||
-                                                                "—"
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <div class="text-muted">
-                                                            Unit
-                                                        </div>
-                                                        <div class="fw-semibold">
-                                                            {{
-                                                                viewItemRef.unit
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <div class="text-muted">
-                                                            Min Alert
-                                                        </div>
-                                                        <div class="fw-semibold">
-                                                            {{
-                                                                viewItemRef.minAlert
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <div class="text-muted">
-                                                            Supplier
-                                                        </div>
-                                                        <div class="fw-semibold">
-                                                            {{
-                                                                viewItemRef.supplier
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <div class="text-muted">
-                                                            Description
-                                                        </div>
-                                                        <div class="fw-semibold">
-                                                            {{
-                                                                viewItemRef.description ||
-                                                                "—"
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Nutrition -->
-                                                <hr />
-                                                <h6 class="fw-semibold">
-                                                    Nutrition (per 100g)
-                                                </h6>
-                                                <div class="d-flex flex-wrap gap-2 mt-2">
-                                                    <span class="badge rounded-pill bg-primary text-white">Calories:
-                                                        {{
-                                                            viewItemRef
-                                                                .nutrition
-                                                                ?.calories ??
-                                                            "—"
-                                                        }}</span>
-                                                    <span class="badge rounded-pill bg-success text-white">Protein:
-                                                        {{
-                                                            viewItemRef
-                                                                .nutrition
-                                                                ?.protein ?? "—"
-                                                        }}</span>
-                                                    <span class="badge rounded-pill  bg-warning text-white">Fat:
-                                                        {{
-                                                            viewItemRef
-                                                                .nutrition
-                                                                ?.fat ?? "—"
-                                                        }}</span>
-                                                    <span class="badge rounded-pill  bg-secondary text-white">Carbs:
-                                                        {{
-                                                            viewItemRef
-                                                                .nutrition
-                                                                ?.carbs ?? "—"
-                                                        }}</span>
-                                                </div>
-
-                                                <!-- Tags -->
-                                                <hr />
-                                                <h6 class="fw-semibold">
-                                                    Tags
-                                                </h6>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <span v-for="tag in viewItemRef.tags" :key="tag"
-                                                        class="badge rounded-pill bg-info text-white">
-                                                        {{ tag }}
-                                                    </span>
-                                                </div>
-
-                                                <!-- Allergies -->
-                                                <hr />
-                                                <h6 class="fw-semibold">
-                                                    Allergies
-                                                </h6>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <span v-for="allergy in viewItemRef.allergies" :key="allergy"
-                                                        class="badge rounded-pill bg-danger text-white">
-
-                                                        {{ allergy }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right: Image + Meta -->
-                                    <div class="col-12 col-md-5">
-                                        <div class="card border-0 shadow-sm rounded-4 h-100">
-                                            <div
-                                                class="card-body d-flex flex-column align-items-center justify-content-center">
-                                                <div v-if="viewItemRef.image" class="w-100">
-                                                    <img :src="`/storage/${viewItemRef.image}`" alt="Item Image"
-                                                        class="w-100 rounded-3" style="
-                                                            max-height: 260px;
-                                                            object-fit: cover;
-                                                        " />
-                                                </div>
-                                                <div v-else class="text-center text-muted py-5">
-                                                    <i class="bi bi-image fs-1 d-block mb-2"></i>
-                                                    <small>No image
-                                                        uploaded</small>
-                                                </div>
-                                            </div>
-                                            <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between">
-                                                <span class="text-muted">Updated On</span>
-                                                <span class="fw-semibold">{{
-                                                    viewItemRef.formatted_updated_at
-                                                }}</span>
-                                            </div>
-
-                                            <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between">
-                                                <span class="text-muted">
-                                                    Stock</span>
-                                                <span :class="[
-                                                    'fw-semibold',
-                                                    viewItemRef.stock > 0
-                                                        ? 'text-success'
-                                                        : 'text-danger',
-                                                ]">
-                                                    {{ viewItemRef.stock }}
-
-                                                </span>
-                                                <span v-if="
-                                                    viewItemRef.stock ===
-                                                    0
-                                                " class="badge bg-red-600 rounded-pill">Out of stock</span>
-                                                <span v-else-if="
-                                                    viewItemRef.stock <=
-                                                    viewItemRef.minAlert
-                                                " class="badge bg-warning rounded-pill">Low-stock</span>
-                                                <span v-else class="badge bg-success rounded-pill">In-stock</span>
-
-                                            </div>
-
-                                            <div
-                                                class="card-footer bg-transparent small d-flex justify-content-between">
-                                                <span class="text-muted">Added By</span>
-                                                <span class="fw-semibold">{{
-                                                    viewItemRef.user?.name
-                                                }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Footer -->
-                            <div class="modal-footer d-flex justify-content-between">
-                                <div class="d-flex gap-2">
-                                    <!-- <button
-                                        type="button"
-                                        class="btn btn-outline-primary rounded-pill"
-                                    >
-                                        <i class="bi bi-printer me-1"></i> Print
-                                    </button> -->
-
-                                    <button data-bs-toggle="modal" data-bs-target="#addItemModal"
-                                        class="d-flex align-items-center gap-1 px-5 rounded-pill btn btn-primary text-white"
-                                        @click="editItem(viewItemRef)">
-                                        <Pencil class="w-4 h-4" /> Edit
-                                    </button>
-
-
-
-                                </div>
-
-                                <button type="button" class="btn btn-primary rounded-pill" data-bs-dismiss="modal">
-                                    Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Add Ingredient Modal -->
                 <div class="modal fade" id="addIngredientModal" tabindex="-1" aria-hidden="true">
@@ -1567,22 +1297,23 @@ const downloadExcel = (data) => {
                                                 placeholder="Search Items..." />
                                         </div>
 
-                                        <div v-for="it in i_filteredInv" :key="it.id"
+                                        <div v-for="it in i_displayInv" :key="it.id"
                                             class="card shadow-sm border-0 rounded-4 mb-3">
                                             <div class="card-body">
                                                 <div class="d-flex align-items-start gap-3">
-                                                    <img :src="it.image ? `/storage/${it.image}` : '/default.png'"
+                                                    <img :src="it.image_url ? `${it.image_url}` : '/default.png'"
                                                         class="rounded"
                                                         style="width: 56px; height: 56px; object-fit: cover;" />
                                                     <div class="flex-grow-1">
                                                         <div class="fw-semibold">{{ it.name }}</div>
-                                                        <div class="text-muted small">Category: {{ it.category }}</div>
+                                                        <div class="text-muted small">Category: {{ it.category.name }}
+                                                        </div>
                                                         <div class="text-muted small">Unit: {{ it.unit }}</div>
                                                         <div class="small mt-2 text-muted">
                                                             Calories: {{ it.nutrition?.calories || 0 }},
-                                                            Protein: {{ it.nutrition?.protein || 0 }} g,
-                                                            Carbs: {{ it.nutrition?.carbs || 0 }} g,
-                                                            Fat: {{ it.nutrition?.fat || 0 }} g
+                                                            Protein: {{ it.nutrition?.protein || 0 }},
+                                                            Carbs: {{ it.nutrition?.carbs || 0 }} ,
+                                                            Fat: {{ it.nutrition?.fat || 0 }}
                                                         </div>
 
                                                     </div>
@@ -1608,11 +1339,7 @@ const downloadExcel = (data) => {
                                                             {{ formErrors.unitPrice }}
                                                         </small>
                                                     </div>
-                                                    <div class="col-4">
-                                                        <label class="small text-muted">Expiry</label>
-                                                        <input v-model="it.expiry" type="date"
-                                                            class="form-control form-control-sm" />
-                                                    </div>
+                                                    
                                                 </div>
                                             </div>
                                         </div>
@@ -1627,50 +1354,49 @@ const downloadExcel = (data) => {
                                                 <div>Protein: {{ i_totalNutrition.protein }} g</div>
                                                 <div>Carbs: {{ i_totalNutrition.carbs }} g</div>
                                                 <div>Fat: {{ i_totalNutrition.fat }} g</div>
-                                            </div>  
-                                    </div>
-
-                                    <div class="card border rounded-4">
-                                        <div class="table-responsive">
-                                            <table class="table align-middle mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Name</th>
-                                                        <th>Qty</th>
-                                                        <th>Unit Price</th>
-                                                        <th>Expiry</th>
-                                                        <th>Cost</th>
-                                                        <th class="text-end">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr v-for="(ing, idx) in i_cart" :key="idx">
-                                                        <td>{{ ing.name }}</td>
-                                                        <td>{{ ing.qty }}</td>
-                                                        <td>{{ ing.unitPrice }}</td>
-                                                        <td>{{ ing.expiry || '—' }}</td>
-                                                        <td>{{ ing.cost }}</td>
-                                                        <td class="text-end">
-                                                            <button class="btn btn-sm btn-danger"
-                                                                @click="removeIngredient(idx)">Remove</button>
-                                                        </td>
-                                                    </tr>
-                                                    <tr v-if="i_cart.length === 0">
-                                                        <td colspan="6" class="text-center text-muted py-3">No
-                                                            ingredients added.
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                            </div>
                                         </div>
-                                        <div class="p-3 fw-semibold text-end">
-                                            Total Cost: {{ money(i_total) }}
+
+                                        <div class="card border rounded-4">
+                                            <div class="table-responsive">
+                                                <table class="table align-middle mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Qty</th>
+                                                            <th>Unit Price</th>
+                                                            <th>Cost</th>
+                                                            <th class="text-end">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr v-for="(ing, idx) in i_cart" :key="idx">
+                                                            <td>{{ ing.name }}</td>
+                                                            <td>{{ ing.qty }}</td>
+                                                            <td>{{ ing.unitPrice }}</td>
+                                                            <td>{{ ing.cost }}</td>
+                                                            <td class="text-end">
+                                                                <button class="btn btn-sm btn-danger"
+                                                                    @click="removeIngredient(idx)">Remove</button>
+                                                            </td>
+                                                        </tr>
+                                                        <tr v-if="i_cart.length === 0">
+                                                            <td colspan="6" class="text-center text-muted py-3">No
+                                                                ingredients added.
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div class="p-3 fw-semibold text-end">
+                                                Total Cost: {{ money(i_total) }}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div class="mt-3 text-center">
-                                        <button class="btn btn-primary px-5" @click="saveIngredients">Done</button>
+                                        <div class="mt-3 text-center">
+                                            <button class="btn btn-primary px-5" @click="saveIngredients">Done</button>
 
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1678,7 +1404,6 @@ const downloadExcel = (data) => {
                     </div>
                 </div>
             </div>
-        </div>
         </div>
     </Master>
 </template>

@@ -34,6 +34,7 @@ const p_supplier = ref(null);
 
 const fetchSuppliers = async () => {
     const res = await axios.get("/suppliers/pluck");
+    console.log("Fetched suppliers:", res.data);
     supplierOptions.value = res.data; // [{id, name}]
 };
 

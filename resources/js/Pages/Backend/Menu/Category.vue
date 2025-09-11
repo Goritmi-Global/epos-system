@@ -776,7 +776,7 @@ const downloadExcel = (data) => {
     <Master>
         <div class="page-wrapper">
             <div class="container-fluid py-3">
-                <h4 class="fw-semibold mb-3">Inventory Categories</h4>
+                <h4 class="fw-semibold mb-3">Categories</h4>
 
                 <!-- KPI -->
                 <div class="row g-3">

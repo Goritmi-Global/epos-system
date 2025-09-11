@@ -42,6 +42,7 @@ class MenuController extends Controller
         return Inertia::render('Menu/Form', ['mode' => 'create']);
     }
 
+
     public function store(StoreMenuRequest $request)
     {
         $menu = $this->service->create($request->validated(), $request);
@@ -51,6 +52,18 @@ class MenuController extends Controller
             'data'    => $menu,
         ], 201);
     }
+
+    public function update(Request $request, MenuItem $menu)
+    {
+        $data = $request->all();
+        $menu = $this->service->update($menu, $data);
+
+        return response()->json([
+            'message' => 'Menu updated successfully',
+            'data'    => $menu,
+        ]);
+    }
+
 
     public function apiIndex()
     {
