@@ -698,13 +698,13 @@ onUpdated(() => window.feather?.replace());
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                             <table class="table table-striped">
                                 <thead class="small text-muted">
                                     <tr>
                                         <th style="width: 80px">S. #</th>
                                         <th>Supplier Name</th>
-                                        <th>Purchase date</th>
-                                        <th>Status</th>
+                                        <th>Purchase date</th> 
+                                        <th class="text-start">Status</th>
                                         <th>Total value</th>
                                         <th class="text-end">Action</th>
                                     </tr>
@@ -731,9 +731,9 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td  class="text-start">
                                                 <span :class="[
-                                                    'badge',
+                                                    'badge rounded-pill w-20',
                                                     row.status === 'pending' ? 'badge-pending' : '',
                                                     row.status === 'completed' ? 'badge-completed' : ''
                                                 ]">
@@ -773,9 +773,7 @@ onUpdated(() => window.feather?.replace());
                                                 </div>
                                             </td> -->
                                         </tr>
-                                        <tr class="sep-row">
-                                            <td colspan="6"></td>
-                                        </tr>
+                                         
                                     </template>
 
                                     <!-- Fix this line -->
@@ -1164,9 +1162,9 @@ r, idx
                                     <div class="col-md-6">
                                         <p>
                                             <strong>Current Status:</strong>
-                                            <span class="badge bg-warning text-dark">{{
-                                                selectedOrder.status
-                                            }}</span>
+                                            <span class="badge rounded-pill fw-semibold px-3 py-2">{{
+                                                selectedOrder.status 
+                                            }}</span> 
                                         </p>
                                         <p>
                                             <strong>Total:</strong>
@@ -1352,11 +1350,7 @@ item, index
     border-bottom: 2px solid #111;
 }
 
-.sep-row td {
-    border-bottom: 2px solid #111;
-    height: 12px;
-    padding: 0;
-}
+ 
 
 /* Help popover */
 .help-popover {
