@@ -52,7 +52,7 @@ class StoreMenuRequest extends FormRequest
 
 
             // image
-            'image'         => ['nullable', 'image', 'max:2048'],
+            'image'         => ['required', 'image', 'max:2048'],
         ];
     }
 

@@ -13,6 +13,7 @@ use App\Services\POS\MenuService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Helpers\UploadHelper;
+use App\Http\Requests\Menu\UpdateMenuRequest;
 
 class MenuController extends Controller
 {
@@ -53,7 +54,7 @@ class MenuController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, MenuItem $menu)
+    public function update(UpdateMenuRequest $request, MenuItem $menu)
     {
         $data = $request->all();
         $menu = $this->service->update($menu, $data);
@@ -75,6 +76,7 @@ class MenuController extends Controller
                     'name'        => $item->name,
                     'price'       => $item->price,
                     'description' => $item->description,
+                    'status' => $item->status,
                     'category'    => $item->category,
                     'ingredients' => $item->ingredients,
                     'nutrition'   => $item->nutrition,
@@ -87,6 +89,21 @@ class MenuController extends Controller
         return response()->json([
             'message' => 'Menu items fetched successfully',
             'data'    => $menus,
+        ]);
+    }
+
+    public function toggleStatus(Request $request, MenuItem $menu)
+    {
+        
+        $request->validate([
+            'status' => 'required|boolean',
+        ]);
+
+        $menu->update(['status' => $request->status]);
+
+        return response()->json([
+            'message' => 'Status updated successfully',
+            'status'  => $menu->status,
         ]);
     }
 }
