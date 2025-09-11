@@ -217,6 +217,7 @@ const submitCategory = async () => {
 
             if (!updatePayload.name) {
                 catFormErrors.value.name = ["Category name cannot be empty"];
+                toast.error("Category name cannot be empty");
                 submitting.value = false;
                 return;
             }
@@ -248,6 +249,7 @@ const submitCategory = async () => {
                     catFormErrors.value.subcategories = [
                         "Please add at least one subcategory",
                     ];
+                    toast.error("Please add at least one subcategory");
                     submitting.value = false;
                     return;
                 }
@@ -264,6 +266,8 @@ const submitCategory = async () => {
                     catFormErrors.value.name = [
                         "Please add at least one category",
                     ];
+
+                    toast.error('Please add at least one category');
                     submitting.value = false;
                     return;
                 }
@@ -331,6 +335,7 @@ const submitCategory = async () => {
 };
 
 const resetErrors = () => {
+    resetModal();
     catFormErrors.value = {};
 };
 
@@ -854,6 +859,7 @@ const downloadExcel = (data) => {
                                     data-bs-toggle="modal"
                                     data-bs-target="#addCatModal"
                                     @click="resetErrors"
+                                  
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
                                 >
                                     <Plus class="w-4 h-4" /> Add Category
@@ -864,7 +870,7 @@ const downloadExcel = (data) => {
                                         class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                                         data-bs-toggle="dropdown"
                                     >
-                                        Download all
+                                        Download
                                     </button>
                                     <ul
                                         class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
@@ -1139,7 +1145,7 @@ const downloadExcel = (data) => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
-                                    Add Raw Material Categories
+                                   {{ editingCategory ? "Edit Category" : "Add Raw Material Category" }}
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -1671,9 +1677,7 @@ const downloadExcel = (data) => {
     font-weight: 600;
 }
 
-.table-responsive {
-    overflow: visible !important;
-}
+ 
 
 .dropdown-menu {
     position: absolute !important;
