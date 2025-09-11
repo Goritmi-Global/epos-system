@@ -326,6 +326,7 @@ function orderSubmit() {
         nextTick(() => document.getElementById("supplierSelect")?.focus());
         return;
     }
+    
     // if (!p_supplier.value) return toast.error("Please select a supplier.");
     if (!p_cart.value.length){
           formErrors.value.p_cart = ["No items added."];
@@ -361,16 +362,7 @@ function orderSubmit() {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
 
-                const list = [
-                    ...new Set(Object.values(err.response.data.errors).flat()),
-                ];
-                const msg = list.join("<br>");
-
-                // toast.dismiss();
-                toast.error(`Validation failed:<br>${msg}`, {
-                    autoClose: 3500,
-                    dangerouslyHTMLString: true, // for vue-toastification
-                });
+                  toast.error("Please fill in all required fields correctly.");
             } else {
                 // toast.dismiss();
                 toast.error("Something went wrong. Please try again.", {
@@ -744,7 +736,7 @@ onUpdated(() => window.feather?.replace());
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table align-middle purchase-table">
+                            <table class="table table-hover">
                                 <thead class="small text-muted">
                                     <tr>
                                         <th style="width: 80px">S. #</th>
@@ -780,11 +772,18 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </td>
-                                            <td
-                                                class="fw-semibold text-success"
+                                           <td>
+                                            <span
+                                                :class="[
+                                                'badge',
+                                                row.status === 'pending' ? 'badge-pending' : '',
+                                                row.status === 'completed' ? 'badge-completed' : ''
+                                                ]"
                                             >
                                                 {{ row.status }}
+                                            </span>
                                             </td>
+
                                             <td>{{ money(row.total) }}</td>
                                             <td class="text-end">
                                                 <button
@@ -885,43 +884,25 @@ onUpdated(() => window.feather?.replace());
                                             class="form-label small text-muted d-block"
                                             >Preferred Supplier</label
                                         >
-                                        <div class="dropdown w-100">
-                                            <button
-                                                class="btn btn-light border rounded-3 w-100 d-flex justify-content-between align-items-center"
-                                                data-bs-toggle="dropdown"
-                                            >
-                                                {{
-                                                    p_supplier
-                                                        ? p_supplier.name
-                                                        : "Select Supplier"
-                                                }}
-                                                <i
-                                                    class="bi bi-caret-down-fill"
-                                                ></i>
-                                            </button>
-                                            <ul
-                                                class="dropdown-menu w-100 shadow rounded-3"
-                                            >
-                                                <li
-                                                    v-for="s in supplierOptions"
-                                                    :key="s.id"
-                                                >
-                                                    <a
-                                                        class="dropdown-item"
-                                                        :class="{ 'is-invalid': formErrors.supplier_id }"
-                                                        href="javascript:void(0)"
-                                                        @click="p_supplier = s"
-                                                    >
-                                                        {{ s.name }}
-                                                    </a>
-                                                </li>
 
-                                            </ul>
-                                             <small v-if="formErrors.supplier_id" class="text-danger">
+                                        <Select
+                                v-model="p_supplier"
+                                :options="supplierOptions"
+                                optionLabel="name"
+                                optionValue="id"
+                                placeholder="Select Supplier"
+                                class="w-100"
+                                :class="{ 'is-invalid': formErrors.supplier_id }"
+                                appendTo="self"
+                                :autoZIndex="true"
+                                :baseZIndex="2000"
+                            />
+                          
+                             <small v-if="formErrors.supplier_id" class="text-danger">
                                 {{ formErrors.supplier_id[0] }}
                             </small>
 
-                                        </div>
+                                    
                                     </div>
                                 </div>
 
@@ -1621,6 +1602,21 @@ onUpdated(() => window.feather?.replace());
     background: #fff;
     z-index: 2000;
 }
+.badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.badge-pending {
+  background-color: orange;
+}
+
+.badge-completed {
+  background-color: green;
+}
+
 
 /* Cart */
 .cart thead th {

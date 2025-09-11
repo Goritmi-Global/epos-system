@@ -270,16 +270,8 @@ const submitProduct = async () => {
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
-             const list = [
-                    ...new Set(Object.values(err.response.data.errors).flat()),
-                ];
-                const msg = list.join("<br>");
-
-                // toast.dismiss();
-                toast.error(`Validation failed:<br>${msg}`, {
-                    autoClose: 3500,
-                    dangerouslyHTMLString: true, // for vue-toastification
-                });
+           
+                toast.error("Please fill in all required fields correctly.");
         } else {
             console.error(
                 "❌ Error saving:",

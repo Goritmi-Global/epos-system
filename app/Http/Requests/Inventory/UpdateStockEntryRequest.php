@@ -17,7 +17,7 @@ class UpdateStockEntryRequest extends FormRequest
             'quantity' => 'required|integer|min:1',
             'unitPrice' => 'required|numeric|min:0',
             'expiryDate' => 'nullable|date',
-            'operationType' => 'required|string|in:add,remove,adjust',
+        
         ];
     }
 
@@ -32,8 +32,7 @@ class UpdateStockEntryRequest extends FormRequest
             'unitPrice.numeric' => 'Unit price must be a valid number.',
             'unitPrice.min' => 'Unit price cannot be negative.',
 
-            'operationType.required' => 'Operation type is required.',
-            'operationType.in' => 'Operation type must be add, remove, or adjust.',
+            
         ];
     }
 }
