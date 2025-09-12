@@ -12,7 +12,7 @@ class UpdateInventoryRequest extends FormRequest
         return true;
     }
 
-   public function rules(): array
+    public function rules(): array
     {
         $id = $this->route('inventory') instanceof \App\Models\InventoryItem
             ? $this->route('inventory')->id
@@ -33,19 +33,39 @@ class UpdateInventoryRequest extends FormRequest
             'description'     => ['nullable','string'],
             'minAlert'        => ['required','integer','min:0'],
 
-            'nutrition'               => ['nullable','array'],
-            'nutrition.calories'      => ['nullable','numeric','min:0'],
-            'nutrition.fat'           => ['nullable','numeric','min:0'],
-            'nutrition.protein'       => ['nullable','numeric','min:0'],
-            'nutrition.carbs'         => ['nullable','numeric','min:0'],
+            'nutrition'               => ['required','array'],
+            'nutrition.calories'      => ['required','numeric','gt:0'],
+            'nutrition.fat'           => ['required','numeric','gt:0'],
+            'nutrition.protein'       => ['required','numeric','gt:0'],
+            'nutrition.carbs'         => ['required','numeric','gt:0'],
 
             'allergies'       => ['nullable','array'],
             'allergies.*'     => ['integer','distinct','exists:allergies,id'],
             'tags'            => ['nullable','array'],
             'tags.*'          => ['integer','distinct','exists:tags,id'],
 
-            // Optional on update:
             'image'           => ['sometimes','nullable','image','max:2048'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'nutrition.required' => 'The nutrition information is required.',
+            'nutrition.calories.required' => 'The calories field is required.',
+            'nutrition.fat.required' => 'The fat field is required.',
+            'nutrition.protein.required' => 'The protein field is required.',
+            'nutrition.carbs.required' => 'The carbs field is required.',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'nutrition.calories' => 'calories',
+            'nutrition.fat' => 'fat',
+            'nutrition.protein' => 'protein',
+            'nutrition.carbs' => 'carbs',
         ];
     }
 }
