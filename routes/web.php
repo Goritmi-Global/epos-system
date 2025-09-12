@@ -101,6 +101,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
+
+
+         Route::get('stock-logs/{log}/allocations', [StockLogController::class, 'allocations'])
+        ->whereNumber('log')
+        ->name('stock-logs.allocations');
     });
 
 

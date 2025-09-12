@@ -257,30 +257,30 @@ onUpdated(() => window.feather?.replace());
                                                 <small class="text-muted d-block">Category</small>
                                                 <div class="fw-semibold">{{ selectedLog.category?.name ?? selectedLog.category ?? "—" }}</div>
                                             </div>
-                                            <div class="col-md-6">
+                                            <!-- <div class="col-md-6">
                                                 <small class="text-muted d-block">Operation</small>
                                                 <div class="fw-semibold">{{ selectedLog.operationType ?? "—" }}</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <small class="text-muted d-block">Quantity</small>
+                                            </div> -->
+                                            <!-- <div class="col-md-6">
+                                                <small class="text-muted d-block">Stock Out Quantity</small>
                                                 <div class="fw-semibold">{{ selectedLog.quantity ?? "—" }}</div>
-                                            </div>
+                                            </div> -->
                                             <div class="col-md-6">
-                                                <small class="text-muted d-block">Type</small>
-                                                <span class="badge rounded-pill bg-danger">{{ selectedLog.type ?? "—" }}</span>
+                                                <small class="text-muted d-block">Operation</small>
+                                                <span class="badge rounded-pill bg-danger">{{ selectedLog.operationType ?? "—" }}</span>
                                             </div>
                                         </div>
 
                                         <hr class="my-4" />
 
                                         <div class="row g-3 text-center">
-                                            <div class="col-md-6">
+                                            <!-- <div class="col-md-6">
                                                 <div class="p-3 bg-light rounded-3">
                                                     <small class="text-muted d-block">Total Price</small>
                                                     <div class="fs-6 fw-semibold">{{ money(selectedLog.totalPrice ?? 0) }}</div>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-6">
+                                            </div> -->
+                                            <div class="col-md-12">
                                                 <div class="p-3 bg-light rounded-3">
                                                     <small class="text-muted d-block">Date</small>
                                                     <div class="fs-6 fw-semibold">{{ fmtDateTime(selectedLog.dateTime) }}</div>
@@ -296,7 +296,8 @@ onUpdated(() => window.feather?.replace());
                                                 <thead class="small text-muted">
                                                     <tr>
                                                         <th>#</th>
-                                                        <th>Batch (IN) ID</th>
+                                                        <!-- <th>Batch (IN) ID</th> -->
+                                                        <!-- <th>Product</th> -->
                                                         <th>Expiry Date</th>
                                                         <th>Unit Price</th>
                                                         <th>Allocated Qty</th>
@@ -305,7 +306,8 @@ onUpdated(() => window.feather?.replace());
                                                 <tbody>
                                                     <tr v-for="(a, idx) in selectedAllocations" :key="a.id">
                                                         <td>{{ idx + 1 }}</td>
-                                                        <td>{{ a.stock_in_entry_id }}</td>
+                                                        <!-- <td>{{ a.stock_in_entry_id }}</td> -->
+                                                         <!-- <td>{{ a.product_name }}</td> -->
                                                         <td>{{ a.expiry_date ? (new Date(a.expiry_date)).toISOString().slice(0,10) : "—" }}</td>
                                                         <td>{{ money(a.unit_price ?? 0) }}</td>
                                                         <td>{{ a.quantity }}</td>
