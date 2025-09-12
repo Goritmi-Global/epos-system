@@ -731,13 +731,13 @@ function resetForm() {
 // code fo download files like  PDF, Excel and CSV
 
 const onDownload = (type) => {
-    if (!inventories.value || inventories.value.length === 0) {
+    if (!menuItems.value || menuItems.value.length === 0) {
         toast.error("No Allergies data to download");
         return;
     }
 
     // Use filtered data if there's a search query, otherwise use all suppliers
-    const dataToExport = q.value.trim() ? filtered.value : inventories.value;
+    const dataToExport = q.value.trim() ? filtered.value : menuItems.value;
 
     if (dataToExport.length === 0) {
         toast.error("No Inventory Item found to download");
@@ -847,21 +847,17 @@ const downloadPDF = (data) => {
 
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
-        doc.text("Inventory Item Report", 70, 20);
+        doc.text("Menu Item Report", 70, 20);
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 70, 28);
-        doc.text(`Total Inventory Items: ${data.length}`, 70, 34);
+        doc.text(`Total Menu Items: ${data.length}`, 70, 34);
 
         const tableColumns = [
             "Item Name",
             "Category",
-            "Min Alert",
-            "Unit",
-            "Supplier",
-            "SKU",
             "Description",
             "Nutrition",
             "Allergies",
@@ -879,33 +875,34 @@ const downloadPDF = (data) => {
             }
             if (Array.isArray(nutri)) return nutri.join(", ");
             if (typeof nutri === "object") {
-                return Object.entries(nutri)
-                    .map(
-                        ([k, v]) =>
-                            `${k
-                                .replace(/[_-]/g, " ")
-                                .replace(/\b\w/g, (c) =>
-                                    c.toUpperCase()
-                                )}: ${v}`
+                // ✅ Only keep required fields
+                const wantedKeys = ["calories", "protein", "fat", "carbs"];
+                return wantedKeys
+                    .map((key) =>
+                        nutri[key] !== undefined ? `${key}: ${nutri[key]}` : null
                     )
+                    .filter(Boolean)
                     .join(", ");
             }
             return String(nutri ?? "");
         };
 
+
         const tableRows = data.map((s) => [
             s.name || "",
-            s.category || "",
-            s.minAlert ?? "",
-            s.unit || "",
-            s.supplier || "",
-            s.sku || "",
+            s.category.name || "",
             s.description || "",
             s.nutrition_text || formatNutrition(s.nutrition),
+            // Allergies
             Array.isArray(s.allergies)
-                ? s.allergies.join(", ")
+                ? s.allergies.map(a => a.name || a).join(", ")
                 : s.allergies || "",
-            Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
+
+            // Tags
+            Array.isArray(s.tags)
+                ? s.tags.map(t => t.name || t).join(", ")
+                : s.tags || "",
+
         ]);
 
         autoTable(doc, {
@@ -1236,7 +1233,7 @@ const downloadExcel = (data) => {
     :class="item.status === 1 ? 'bi bi-check-circle' : 'bi bi-x-circle'"
     class="text-lg"
   ></i> -->
-<!-- </button> -->
+                                                <!-- </button> -->
 
 
                                                 <ConfirmModal :title="'Confirm Status'"
@@ -1712,7 +1709,7 @@ const downloadExcel = (data) => {
     font-size: 0.95rem;
     color: #333;
 }
- 
+
 
 .dropdown-menu {
     position: absolute !important;
