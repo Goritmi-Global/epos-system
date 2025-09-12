@@ -38,7 +38,6 @@ class MenuService
             'category_id'   => $data['category_id'],
             'subcategory_id' => $data['subcategory_id'] ?? null,
             'description'   => $data['description'] ?? null,
-            'image'         => $data['image'] ?? null,
             'upload_id'      => $data['upload_id'] ?? null,
         ]);
 
@@ -75,6 +74,15 @@ class MenuService
     public function update(MenuItem $menu, array $data): MenuItem
     {
         // -------------------------------
+        // 1. Replace/upload image if provided
+        // -------------------------------
+        if (!empty($data['image'])) {
+            $newUpload = UploadHelper::replace($menu->upload_id, $data['image'], 'uploads', 'public');
+            $data['upload_id'] = $newUpload->id;
+        }
+        unset($data['image']); 
+
+        // -------------------------------
         // 1. Update base menu info
         // -------------------------------
         $menu->update([
@@ -82,6 +90,7 @@ class MenuService
             'price'       => $data['price'],
             'category_id' => $data['category_id'],
             'description' => $data['description'] ?? null,
+            'upload_id'   => $data['upload_id'] ?? $menu->upload_id,
         ]);
 
         // -------------------------------
@@ -101,26 +110,31 @@ class MenuService
         $menu->tags()->sync($data['tags'] ?? []);
 
         // -------------------------------
-        // 4. Ingredients (clear + insert)
+        // 4. Ingredients (smart update)
         // -------------------------------
-        // Merge ingredients by inventory_item_id
-        $merged = collect($data['ingredients'])
-            ->groupBy('inventory_item_id')
-            ->map(function ($group) {
-                
-                return [
-                    'inventory_item_id' => $group[0]['inventory_item_id'],
-                    'product_name'      => InventoryItem::find($group[0]['inventory_item_id'])?->name ?? 'Unknown',
-                    'quantity'          => $group->sum('qty'),
-                    'cost'              => $group->sum('cost'),
-                ];
-            })
-            ->values();
+        $ingredientIds = collect($data['ingredients'])->pluck('inventory_item_id');
 
-        // Clear old + insert merged
-        // $menu->ingredients()->delete();
-        foreach ($merged as $ing) {
-            $menu->ingredients()->create($ing);
+        // Remove old ones not in request
+        $menu->ingredients()
+            ->whereNotIn('inventory_item_id', $ingredientIds)
+            ->delete();
+
+        // Preload names once
+        $itemNames = InventoryItem::whereIn('id', $ingredientIds)
+            ->pluck('name', 'id');
+
+        foreach ($data['ingredients'] as $ing) {
+            $menu->ingredients()->updateOrCreate(
+                [
+                    'menu_item_id'       => $menu->id,
+                    'inventory_item_id'  => $ing['inventory_item_id'],
+                ],
+                [
+                    'product_name' => $itemNames[$ing['inventory_item_id']] ?? 'Unknown',
+                    'quantity'     => $ing['qty'],
+                    'cost'         => $ing['cost'],
+                ]
+            );
         }
 
 

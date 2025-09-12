@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated, watch } from "vue";
+import { ref, computed, onMounted, onUpdated, watch, toRaw } from "vue";
 import Select from "primevue/select";
 import MultiSelect from "primevue/multiselect";
 import { toast } from "vue3-toastify";
@@ -15,7 +15,10 @@ import {
     CalendarClock,
     Plus,
     Menu,
-    Pencil
+    Pencil,
+    CheckCircle,
+    Eye,
+    EyeOff
 } from "lucide-vue-next";
 
 const props = defineProps({
@@ -31,6 +34,8 @@ const props = defineProps({
 });
 
 const inventoryItems = ref([]);
+const showStatusModal = ref(false);
+const statusTargetItem = ref(null);
 // ================== Ingredients =====================
 const i_search = ref("");
 const i_cart = ref([]);
@@ -79,18 +84,23 @@ function addIngredient(item) {
     if (!price || price <= 0) formErrors.value.unitPrice = "Enter a valid unit price.";
 
     if (Object.keys(formErrors.value).length > 0) {
-        const messages = Object.values(formErrors.value).join(" ");
-        toast.error(messages);
+        const messages = Object.values(formErrors.value)
+            .flat()
+            .join("\n");
+        toast.error(messages, {
+            style: { whiteSpace: "pre-line" }
+        });
+
         return;
     }
 
-    const found = i_cart.value.find(
-        (r) => r.id === item.id && r.unitPrice === price
-    );
+
+    const found = i_cart.value.find(r => r.id === item.id);
 
     if (found) {
-        found.qty = round2(found.qty + qty);
-        found.cost = round2(found.qty * found.unitPrice);
+        found.qty = qty;
+        found.unitPrice = price;
+        found.cost = round2(qty * price);
     } else {
         i_cart.value.push({
             id: item.id,
@@ -102,21 +112,30 @@ function addIngredient(item) {
             nutrition: item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
         });
     }
-    // reset fields on the left card
-    item.qty = null;
-    item.unitPrice = null;
+
+    if (!isEditMode.value) {
+        item.qty = null
+        item.unitPrice = null
+    }
+
 }
 
-// remove ingredient row
 function removeIngredient(idx) {
+    const ing = i_cart.value[idx];
+    if (!ing) return;
+
+    // remove from right table (cart)
     i_cart.value.splice(idx, 1);
+
+    // reset fields on left side card
     const found = i_displayInv.value.find(i => i.id === ing.id);
     if (found) {
         found.qty = null;
         found.unitPrice = null;
-        found.cost = 0;
+        found.cost = null;
     }
 }
+
 
 // calulate Ingredient when qty or price changes
 const i_totalNutrition = computed(() => {
@@ -129,13 +148,9 @@ const i_totalNutrition = computed(() => {
         totals.fat += Number(ing.nutrition?.fat || 0) * qty
 
         return totals
-    }, {
-        calories: Number(savedNutrition.value.calories || 0),
-        protein: Number(savedNutrition.value.protein || 0),
-        carbs: Number(savedNutrition.value.carbs || 0),
-        fat: Number(savedNutrition.value.fat || 0)
-    })
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0 })
 })
+
 
 // Save ingredients to main form
 function saveIngredients() {
@@ -224,9 +239,9 @@ const sortedItems = computed(() => {
     const arr = [...filteredItems.value];
     switch (sortBy.value) {
         case "stock_desc":
-            return arr.sort((a, b) => (b.stockValue || 0) - (a.stockValue || 0));
+            return arr.sort((a, b) => (b.price || 0) - (a.price || 0));
         case "stock_asc":
-            return arr.sort((a, b) => (a.stockValue || 0) - (b.stockValue || 0));
+            return arr.sort((a, b) => (a.price || 0) - (b.price || 0));
         case "name_asc":
             return arr.sort((a, b) => a.name.localeCompare(b.name));
         case "name_desc":
@@ -242,6 +257,14 @@ const categoriesCount = computed(
     () => new Set(items.value.map((i) => i.category)).size
 );
 const totalItems = computed(() => items.value.length);
+const totalMenuItems = computed(() => menuItems.value.length);
+const activeMenuItems = computed(() =>
+    menuItems.value.filter(item => item.status === 1).length
+);
+
+const deactiveMenuItems = computed(() =>
+    menuItems.value.filter(item => item.status === 0).length
+);
 const lowStockCount = computed(
     () =>
         items.value.filter(
@@ -253,40 +276,40 @@ const outOfStockCount = computed(
 );
 const kpis = computed(() => [
     {
-        label: "Total Items",
-        value: totalItems.value ?? 0,
+        label: "Total Menus",
+        value: totalMenuItems.value ?? 0,
         icon: Package,
         iconBg: "bg-soft-success",
         iconColor: "text-success",
     },
     {
-        label: "Out of Stock",
-        value: outOfStockCount.value ?? 0,
+        label: "Active Menus",
+        value: activeMenuItems.value ?? 0,
+        icon: CheckCircle,
+        iconBg: "bg-soft-danger",
+        iconColor: "text-success",
+    },
+    {
+        label: "Inactive Menus",
+        value: deactiveMenuItems.value ?? 0,
         icon: XCircle,
-        iconBg: "bg-soft-danger",
-        iconColor: "text-danger",
-    },
-    {
-        label: "Low Stock",
-        value: lowStockCount.value ?? 0,
-        icon: AlertTriangle,
         iconBg: "bg-soft-warning",
-        iconColor: "text-warning",
-    },
-    {
-        label: "Expired Stock",
-        value: expiredCount.value ?? 0,
-        icon: CalendarX2,
-        iconBg: "bg-soft-danger",
         iconColor: "text-danger",
     },
-    {
-        label: "Near Expire Stock",
-        value: nearExpireCount.value ?? 0,
-        icon: CalendarClock,
-        iconBg: "bg-soft-info",
-        iconColor: "text-info",
-    },
+    // {
+    //     label: "Expired Stock",
+    //     value: expiredCount.value ?? 0,
+    //     icon: CalendarX2,
+    //     iconBg: "bg-soft-danger",
+    //     iconColor: "text-danger",
+    // },
+    // {
+    //     label: "Near Expire Stock",
+    //     value: nearExpireCount.value ?? 0,
+    //     icon: CalendarClock,
+    //     iconBg: "bg-soft-info",
+    //     iconColor: "text-info",
+    // },
 ]);
 
 onMounted(() => window.feather?.replace());
@@ -350,8 +373,8 @@ function openImageModal(src) {
 }
 
 function onCropped({ file }) {
-    form.value.imageFile = file; 
-    form.value.imageUrl = URL.createObjectURL(file); 
+    form.value.imageFile = file;
+    form.value.imageUrl = URL.createObjectURL(file);
 }
 
 const submitting = ref(false);
@@ -361,7 +384,10 @@ const submitProduct = async () => {
 
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
-    formData.append("price", form.value.price || 0); // base price
+    if (form.value.price !== "" && form.value.price !== null) {
+        formData.append("price", form.value.price);
+    }
+
     if (form.value.category_id) {
         formData.append("category_id", form.value.category_id);
     }
@@ -428,7 +454,8 @@ const submitProduct = async () => {
                 .join("\n");
 
             // Show all messages in one toast
-            toast.error(allMessages);
+            // toast.error(allMessages);
+            toast.error("Please filled all the required fields");
         } else {
             console.error("❌ Error saving:", err.response?.data || err.message);
             toast.error("Failed to save menu item");
@@ -469,7 +496,8 @@ watch(
 
 // ===============Edit item ==================
 const savedNutrition = ref({ calories: 0, protein: 0, carbs: 0, fat: 0 })
-// Create a display inventory that merges with cart data
+const isEditMode = ref(false);
+
 const i_displayInv = computed(() => {
     return i_filteredInv.value.map(inv => {
         const found = i_cart.value.find(c => c.id === inv.id);
@@ -480,8 +508,8 @@ const i_displayInv = computed(() => {
             cost: found.cost
         } : {
             ...inv,
-            qty: null,
-            unitPrice: null,
+            qty: 0,
+            unitPrice: 0,
             cost: 0
         };
     });
@@ -492,84 +520,180 @@ const editItem = (item) => {
     if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
-    console.log(item);
+
+    isEditMode.value = true;
+    const itemData = toRaw(item);
+    console.log(itemData);
 
     form.value = {
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        category_id: item.category?.id || null,
-        description: item.description,
-        ingredients: item.ingredients || [],
-        allergies: item.allergy_ids || item.allergies?.map(a => a.id) || [],
-        tags: item.tag_ids || item.tags?.map(t => t.id) || [],
+        id: itemData.id,
+        name: itemData.name,
+        price: itemData.price,
+        category_id: itemData.category?.id || null,
+        description: itemData.description,
+        ingredients: itemData.ingredients || [],
+        allergies: itemData.allergies?.map(a => a.id) || [],
+        tags: itemData.tags?.map(t => t.id) || [],
         imageFile: null,
-        imageUrl: item.image_url || null,
+        imageUrl: itemData.image_url || null,
     };
 
-    // Save the original nutrition
-    savedNutrition.value = item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    savedNutrition.value = {
+        calories: parseFloat(itemData.nutrition?.calories || 0),
+        protein: parseFloat(itemData.nutrition?.protein || 0),
+        carbs: parseFloat(itemData.nutrition?.carbs || 0),
+        fat: parseFloat(itemData.nutrition?.fat || 0)
+    };
 
-    // Hydrate cart - this will automatically update i_displayInv
-    i_cart.value = (item.ingredients || []).map(ing => ({
-        id: ing.id,
-        name: ing.product_name || ing.name || '—',
-        category: ing.category?.name || '',
-        qty: ing.qty || ing.quantity || 0,
-        unitPrice: ing.unit_price || 0,
-        cost: ing.cost || (ing.quantity && ing.unit_price ? ing.quantity * ing.unit_price : 0),
-        nutrition: ing.nutrition ? JSON.parse(ing.nutrition) : { calories: 0, protein: 0, carbs: 0, fat: 0 },
-    }));
+    // Build i_cart with enriched inventory details
+    i_cart.value = (itemData.ingredients || []).map(ing => {
+        const quantity = parseFloat(ing.quantity || ing.qty || 0);
+        const cost = parseFloat(ing.cost || 0);
+        const unitPrice = quantity > 0 ? cost / quantity : 0;
+
+        // find the matching inventory item (for category, unit, nutrition, etc.)
+        const inv = i_filteredInv.value.find(inv =>
+            inv.id === (ing.inventory_item_id || ing.id || ing.product_id)
+        );
+
+        return {
+            id: ing.inventory_item_id || ing.id || ing.product_id,
+            image_url: inv.image_url || '—',
+            name: ing.product_name || ing.name || inv?.name || '—',
+            category: inv?.category || ing.category || { name: '' },
+            unit: inv?.unit || ing.unit || '',
+            qty: quantity,
+            unitPrice: unitPrice,
+            cost: cost,
+            nutrition: ing.nutrition
+                ? (typeof ing.nutrition === 'string' ? JSON.parse(ing.nutrition) : ing.nutrition)
+                : inv?.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        };
+    });
+
+    console.log('Hydrated cart with details:', i_cart.value);
 
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
 };
 
 
+
 const submitEdit = async () => {
     submitting.value = true;
-
-    // Recalculate nutrition based on ingredient quantity
-    const totalNutrition = i_cart.value.reduce((acc, ing) => {
-        const qty = Number(ing.qty || 0);
-        acc.calories += (Number(ing.nutrition?.calories || 0) * qty);
-        acc.protein  += (Number(ing.nutrition?.protein  || 0) * qty);
-        acc.fat      += (Number(ing.nutrition?.fat      || 0) * qty);
-        acc.carbs    += (Number(ing.nutrition?.carbs    || 0) * qty);
-        return acc;
-    }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
-
-    // Prepare payload
-    const payload = {
-        ...form.value,
-        nutrition: totalNutrition, 
-        ingredients: i_cart.value.map(ing => ({
-            inventory_item_id: ing.id,
-            qty: ing.qty,
-            unitPrice: ing.unitPrice,
-            cost: ing.cost,
-            nutrition: ing.nutrition, 
-        })),
-    };
+    formErrors.value = {};
 
     try {
-        await axios.put(`/menu/${form.value.id}`, payload);
+        // Recalculate nutrition totals
+        const totalNutrition = i_cart.value.reduce((acc, ing) => {
+            const qty = Number(ing.qty || 0);
+            acc.calories += (Number(ing.nutrition?.calories || 0) * qty);
+            acc.protein += (Number(ing.nutrition?.protein || 0) * qty);
+            acc.carbs += (Number(ing.nutrition?.carbs || 0) * qty);
+            acc.fat += (Number(ing.nutrition?.fat || 0) * qty);
+            return acc;
+        }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+        // Use FormData for proper file upload handling
+        const formData = new FormData();
+
+        // Basic fields
+        formData.append("name", form.value.name.trim());
+        formData.append("price", form.value.price || 0);
+        if (form.value.category_id) {
+            formData.append("category_id", form.value.category_id);
+        }
+        formData.append("description", form.value.description || "");
+
+        // Nutrition data
+        formData.append("nutrition[calories]", totalNutrition.calories);
+        formData.append("nutrition[fat]", totalNutrition.fat);
+        formData.append("nutrition[protein]", totalNutrition.protein);
+        formData.append("nutrition[carbs]", totalNutrition.carbs);
+
+        // Allergies and tags
+        form.value.allergies.forEach((id, i) =>
+            formData.append(`allergies[${i}]`, id)
+        );
+        form.value.tags.forEach((id, i) =>
+            formData.append(`tags[${i}]`, id)
+        );
+
+        // Ingredients from cart
+        i_cart.value.forEach((ing, i) => {
+            formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
+            formData.append(`ingredients[${i}][qty]`, ing.qty);
+            formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
+            formData.append(`ingredients[${i}][cost]`, ing.cost);
+        });
+
+        // Image handling
+        if (form.value.imageFile) {
+            // New image selected
+            formData.append("image", form.value.imageFile);
+        }
+
+        // Method spoofing for Laravel PUT request with file upload
+        formData.append("_method", "PUT");
+
+        // Make the API call
+        await axios.post(`/menu/${form.value.id}`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            },
+        });
+
         toast.success("Menu updated successfully");
-        // refresh list or close modal
+
+        // Reset form and close modal
+        resetForm();
+        await fetchMenus();
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
+        modal?.hide();
+
     } catch (err) {
-        console.error(err);
-        // handle validation errors
+        if (err?.response?.status === 422 && err.response.data?.errors) {
+            formErrors.value = err.response.data.errors;
+
+            // Collect all error messages in one array
+            const allMessages = Object.values(err.response.data.errors)
+                .flat()
+                .join("\n");
+
+            toast.error(allMessages);
+        } else {
+            console.error("❌ Update failed:", err.response?.data || err.message);
+            toast.error("Failed to update menu item");
+        }
     } finally {
         submitting.value = false;
     }
 };
 
+
+const toggleStatus = async (item) => {
+    try {
+        const newStatus = item.status === 1 ? 0 : 1;
+        await axios.patch(`/menu/${item.id}/status`, { status: newStatus });
+        toast.success(`Menu item is now ${newStatus === 1 ? "Active" : "Inactive"}`);
+        await fetchMenus();
+    } catch (err) {
+        console.error("Failed to toggle status", err);
+        toast.error("Failed to update status");
+    }
+};
+
+
 // ============================= reset form =========================
 
 function resetForm() {
+    // revoke blob URL if exists
     if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
+
+    // reset form fields
     form.value = {
         name: "",
         category: "Poultry",
@@ -585,11 +709,24 @@ function resetForm() {
         imageFile: null,
         imageUrl: null,
     };
+
+    // reset UI states
     showCropper.value = false;
     showImageModal.value = false;
     previewImage.value = null;
     formErrors.value = {};
+
+    // ✅ reset ingredients + totals
+    i_cart.value = [];
+    i_total.value = 0;
+    i_totalNutrition.value = {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+    };
 }
+
 
 // code fo download files like  PDF, Excel and CSV
 
@@ -945,7 +1082,7 @@ const downloadExcel = (data) => {
                     <div class="card-body">
                         <!-- Toolbar -->
                         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0 fw-semibold">Stock</h5>
+                            <h2 class="mb-0 fw-semibold fs-6">Menu</h2>
 
                             <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <div class="search-wrap">
@@ -1039,7 +1176,7 @@ const downloadExcel = (data) => {
                                         <th>Category</th>
                                         <th>Price</th>
                                         <th>Status</th>
-                                        <th>Action</th>
+                                        <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1073,34 +1210,43 @@ const downloadExcel = (data) => {
 
                                         <!-- Status -->
                                         <td>
-                                            <span v-if="item.category?.active === 0"
-                                                class="badge bg-red-600">Inactive</span>
-                                            <span v-else class="badge bg-success">Active</span>
+                                            <span v-if="item.status === 0"
+                                                class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">Inactive</span>
+                                            <span v-else
+                                                class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">Active</span>
                                         </td>
 
                                         <!-- Actions -->
-                                        <td class="text-end">
-                                            <div class="dropdown">
-                                                <button class="btn btn-link text-secondary p-0 fs-5"
-                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
-                                                    <Menu size="20" />
-                                                </button>
-                                                <ul
-                                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden action-menu">
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="editItem(item)">
-                                                            <i class="bi bi-pencil-square me-2"></i>Edit
-                                                        </a>
-                                                    </li>
+                                        <td class="text-center">
+                                            <div class="d-inline-flex align-items-center gap-3">
 
-                                                    <li>
-                                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                            @click="toggleStatus(item)">
-                                                            <i class="bi bi-eye me-2"></i>Deactivate
-                                                        </a>
-                                                    </li>
-                                                </ul>
+                                                <button @click="editItem(item)" data-bs-toggle="modal" title="Edit"
+                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                    <Pencil class="w-4 h-4" />
+                                                </button>
+                                                <!-- <button
+  @click="() => { statusTargetItem.value = item; showStatusModal.value = true; }"
+  class="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200"
+  :class="item.status === 1
+      ? 'bg-green-50 text-green-600 hover:bg-green-100'
+      : 'bg-red-50 text-red-600 hover:bg-red-100'"
+  :title="item.status === 1 ? 'Deactivate' : 'Activate'"
+>
+  <i
+    :class="item.status === 1 ? 'bi bi-check-circle' : 'bi bi-x-circle'"
+    class="text-lg"
+  ></i> -->
+<!-- </button> -->
+
+
+                                                <ConfirmModal :title="'Confirm Status'"
+                                                    :message="`Are you sure you want to change status to ${item.status === 1 ? 'Inactive' : 'Active'}?`"
+                                                    :showDeleteButton="true" @confirm="() => {
+                                                        toggleStatus(item);
+                                                    }" @cancel="() => { }" />
+
+
+
                                             </div>
                                         </td>
                                     </tr>
@@ -1124,9 +1270,9 @@ const downloadExcel = (data) => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
-                                    Add New Inventory Item
+                                    {{ isEditMode == true ? "Edit Menu" : "Add Menu" }}
                                 </h5>
-                                <button
+                                <button @click="resetForm"
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal" aria-label="Close" title="Close">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
@@ -1163,9 +1309,9 @@ const downloadExcel = (data) => {
                                             optionValue="id" placeholder="Select Category" class="w-100" appendTo="self"
                                             :autoZIndex="true" :baseZIndex="2000"
                                             @update:modelValue="form.subcategory = ''"
-                                            :class="{ 'is-invalid': formErrors.category }" />
-                                        <small v-if="formErrors.category" class="text-danger">
-                                            {{ formErrors.category[0] }}
+                                            :class="{ 'is-invalid': formErrors.category_id }" />
+                                        <small v-if="formErrors.category_id" class="text-danger">
+                                            {{ formErrors.category_id[0] }}
                                         </small>
                                     </div>
 
@@ -1203,6 +1349,7 @@ const downloadExcel = (data) => {
                                             optionValue="id" filter placeholder="Select Allergies"
                                             class="w-full md:w-80" appendTo="self"
                                             :class="{ 'is-invalid': formErrors.allergies }" />
+                                        <br />
                                         <small v-if="formErrors.allergies" class="text-danger">
                                             {{ formErrors.allergies[0] }}
                                         </small>
@@ -1214,6 +1361,7 @@ const downloadExcel = (data) => {
                                         <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
                                             optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
                                             appendTo="self" :class="{ 'is-invalid': formErrors.tags }" />
+                                        <br />
                                         <small v-if="formErrors.tags" class="text-danger">
                                             {{ formErrors.tags[0] }}
                                         </small>
@@ -1244,21 +1392,74 @@ const downloadExcel = (data) => {
                                             <ImageZoomModal v-if="showImageModal" :show="showImageModal"
                                                 :image="previewImage" @close="showImageModal = false" />
 
-                                            <small v-if="formErrors.image" class="text-danger">
-                                                {{ formErrors.image[0] }}
-                                            </small>
+
                                         </div>
                                     </div>
 
-                                    <div class="mt-4 col-sm-6 col-md-4">
-                                        <button class="btn btn-outline-primary rounded-pill px-4" data-bs-toggle="modal"
+                                    <div class="mt-4 col-sm-6 col-md-8">
+                                        <button class="btn btn-outline-primary rounded-pill px-4"
+                                            :class="{ 'is-invalid': formErrors.ingredients }" data-bs-toggle="modal"
                                             data-bs-target="#addIngredientModal">
-                                            + Add Ingredients
+                                            {{ isEditMode == true ? "Ingredients" : "+ Add Ingredients" }}
                                         </button>
                                         <small v-if="formErrors.ingredients" class="text-danger d-block mt-1">
                                             {{ formErrors.ingredients[0] }}
                                         </small>
+
+                                        <div v-if="i_cart.length > 0" class="mt-3">
+
+                                            <!-- Nutrition Card -->
+                                            <div class="card border rounded-4 mb-3">
+                                                <div class="p-3 fw-semibold">
+                                                    <div class="mb-2">Total Nutrition (Menu)</div>
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                        <span class="badge bg-primary px-3 py-2 rounded-pill">
+                                                            Calories: {{ i_totalNutrition.calories }}
+                                                        </span>
+                                                        <span class="badge bg-success px-3 py-2 rounded-pill">
+                                                            Protein: {{ i_totalNutrition.protein }} g
+                                                        </span>
+                                                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                                                            Carbs: {{ i_totalNutrition.carbs }} g
+                                                        </span>
+                                                        <span class="badge bg-danger px-3 py-2 rounded-pill">
+                                                            Fat: {{ i_totalNutrition.fat }} g
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+
+                                            <!-- Ingredients Table -->
+                                            <div class="card border rounded-4">
+                                                <div class="table-responsive">
+                                                    <table class="table align-middle mb-0">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Name</th>
+                                                                <th>Qty</th>
+                                                                <th>Unit Price</th>
+                                                                <th>Cost</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr v-for="(ing, idx) in i_cart" :key="idx">
+                                                                <td>{{ ing.name }}</td>
+                                                                <td>{{ ing.qty }}</td>
+                                                                <td>{{ ing.unitPrice }}</td>
+                                                                <td>{{ ing.cost }}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="p-3 fw-semibold text-end">
+                                                    Total Cost: {{ money(i_total) }}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
+
+
                                 </div>
 
                                 <div class="mt-4">
@@ -1318,8 +1519,8 @@ const downloadExcel = (data) => {
 
                                                     </div>
 
-                                                    <button class="btn btn-primary px-3"
-                                                        @click="addIngredient(it)">Add</button>
+                                                    <button class="btn btn-primary px-3" @click="addIngredient(it)">{{
+                                                        i_cart.some(c => c.id === it.id) ? 'Update' : 'Add'}}</button>
                                                 </div>
 
                                                 <div class="row g-2 mt-3">
@@ -1339,7 +1540,7 @@ const downloadExcel = (data) => {
                                                             {{ formErrors.unitPrice }}
                                                         </small>
                                                     </div>
-                                                    
+
                                                 </div>
                                             </div>
                                         </div>

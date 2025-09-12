@@ -17,7 +17,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->unsignedBigInteger('category_id')->nullable();
             $table->text('description')->nullable();
-            $table->string('image')->nullable();
+            $table->boolean('status')->default(1);
             $table->timestamps();
 
             $table->foreign('category_id')->references('id')->on('menu_categories')->onDelete('set null');
