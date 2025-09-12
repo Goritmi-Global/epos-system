@@ -307,36 +307,44 @@ onUpdated(() => window.feather?.replace());
                                                 <small class="text-muted d-block">Category</small>
                                                 <div class="fw-semibold">{{ selectedLog.category?.name ?? selectedLog.category ?? "—" }}</div>
                                             </div>
+                                            
                                             <div class="col-md-6">
-                                                <small class="text-muted d-block">Operation</small>
-                                                <div class="fw-semibold">{{ selectedLog.operationType ?? "—" }}</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <small class="text-muted d-block">Quantity</small>
+                                                <small class="text-muted d-block">Stock In Quantity</small>
                                                 <div class="fw-semibold">{{ selectedLog.quantity ?? "—" }}</div>
                                             </div>
                                             <div class="col-md-6">
+                                                <small class="text-muted d-block">Operation</small>
+                                                <div class="badge rounded-pill bg-success">{{ selectedLog.operationType ?? "—" }}</div>
+                                            </div>
+                                            <!-- <div class="col-md-6">
                                                 <small class="text-muted d-block">Type</small>
                                                 <span class="badge rounded-pill bg-success">{{ selectedLog.type ?? "—" }}</span>
-                                            </div>
+                                            </div> -->
                                         </div>
 
                                         <hr class="my-4" />
 
                                         <div class="row g-3 text-center">
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <div class="p-3 bg-light rounded-3">
                                                     <small class="text-muted d-block">Unit Price</small>
                                                     <div class="fs-6 fw-semibold">{{ money(selectedLog.unitPrice ?? 0) }}</div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <div class="p-3 bg-light rounded-3">
                                                     <small class="text-muted d-block">Total Price</small>
                                                     <div class="fs-6 fw-semibold">{{ money(selectedLog.totalPrice ?? 0) }}</div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            
+                                            <div class="col-md-3">
+                                                <div class="p-3 bg-light rounded-3">
+                                                    <small class="text-muted d-block">Expiry Date</small>
+                                                    <div class="fs-6 fw-semibold"> {{ selectedLog.expiryDate ? fmtDate(selectedLog.expiryDate) : "—" }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
                                                 <div class="p-3 bg-light rounded-3">
                                                     <small class="text-muted d-block">Date</small>
                                                     <div class="fs-6 fw-semibold">{{ fmtDateTime(selectedLog.dateTime) }}</div>
@@ -344,19 +352,7 @@ onUpdated(() => window.feather?.replace());
                                             </div>
                                         </div>
 
-                                        <hr class="my-4" />
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <small class="text-muted d-block">Recorded On</small>
-                                                <div class="fw-semibold">{{ fmtDateTime(selectedLog.dateTime) }}</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <small class="text-muted d-block">Expiry Date</small>
-                                                <div class="fw-semibold">
-                                                    {{ selectedLog.expiryDate ? fmtDate(selectedLog.expiryDate) : "—" }}
-                                                </div>
-                                            </div>
-                                        </div>
+                                         
                                     </div>
                                 </div>
                             </div> <!-- /col -->
