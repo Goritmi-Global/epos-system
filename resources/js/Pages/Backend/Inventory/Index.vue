@@ -312,6 +312,7 @@ watch(
 
 // =============== Edit item ===============
 import { nextTick } from "vue";
+import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 
 const editItem = (item) => {
     const toNum = (v) =>
@@ -425,19 +426,23 @@ const stockForm = ref({
     user_id: 1,
 });
 
+ 
+
 const submittingStock = ref(false);
 const processStatus = ref();
 
 function openStockModal(item) {
-    const categoryObj = props.categories.find((c) => c.name === item.category);
-    const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
 
+    // console.log("Opening stock modal for item:", item_category.id);
+    // const categoryObj = props.categories.find((c) => c.name === item.category);
+    const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
+stockInItemCategory.value = item.category.name;
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};
         stockForm.value = {
             product_id: item.id,
             name: item.name,
-            category_id: categoryObj ? categoryObj.id : null,
+            category_id: item.category.id,
             supplier_id: supplierObj ? supplierObj.id : null,
             available_quantity: totalStock.available || 0,
             quantity: 0,
@@ -450,6 +455,7 @@ function openStockModal(item) {
             purchase_date: new Date().toISOString().slice(0, 10),
             user_id: 1,
         };
+        console.log("Stock In form:", stockForm.value);
     });
 }
 
@@ -466,6 +472,7 @@ const resetErrors = () => {
 }
 
 async function submitStockIn() {
+    console.log(stockForm.value);
     submittingStock.value = true;
     calculateValue();
     try {
@@ -494,16 +501,21 @@ async function submitStockIn() {
     }
 }
 
+const stockOutItemCategory = ref(null);
+const stockInItemCategory = ref(null);
 // =========================== Stockout Modal ===========================
 function openStockOutModal(item) {
-    const categoryObj = props.categories.find((c) => c.name === item.category);
+    // const categoryObj = props.categories.find((c) => c.name === item.category);
 
+    // console.log("Opening stock out modal for item:", item.id);
+    // console.log("Opening stock out modal for categoryObj:", item.category.name, item.category.id);
+    stockOutItemCategory.value = item.category.name;
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};
         stockForm.value = {
             product_id: item.id,
             name: item.name,
-            category_id: categoryObj ? categoryObj.id : null,
+            category_id: item.category.id,
             available_quantity: totalStock.available || 0,
             quantity: 0,
             price: 0,
@@ -514,6 +526,7 @@ function openStockOutModal(item) {
             purchase_date: new Date().toISOString().slice(0, 10),
             user_id: 1,
         };
+        
     });
 }
 
@@ -1082,7 +1095,7 @@ const totals = computed(() => {
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-striped">
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th>S.#</th>
@@ -1127,8 +1140,16 @@ const totals = computed(() => {
                                             {{ item.name }}
                                         </td>
                                         <td>
-                                            
-                                            <img
+                                            <ImageZoomModal 
+                                                v-if="item.image_url"
+                                                :file="item.image_url"
+                                                :alt="item.name"
+                                                :width="50"
+                                                :height="50"
+                                                :custom_class="'cursor-pointer'"
+                                               
+                                            />
+                                            <!-- <img
                                                 :src="item.image_url"
                                                 alt=""
                                                 style="
@@ -1137,7 +1158,7 @@ const totals = computed(() => {
                                                     object-fit: cover;
                                                     border-radius: 6px;
                                                 "
-                                            />
+                                            /> -->
                                         </td>
 
                                         <td
@@ -1939,7 +1960,7 @@ const totals = computed(() => {
                                                     Tags
                                                 </h6>
                                                 <div
-                                                    class="d-flex flex-wrap gap-2"
+                                                    class="d-flex flex-wrap gap-2 mt-2"
                                                 >
                                                     <span
                                                         v-for="tag in viewItemRef.tags"
@@ -1955,7 +1976,7 @@ const totals = computed(() => {
                                                     Allergies
                                                 </h6>
                                                 <div
-                                                    class="d-flex flex-wrap gap-2"
+                                                    class="d-flex flex-wrap gap-2 mt-2"
                                                 >
                                                     <span
                                                         v-for="allergy in viewItemRef.allergies"
@@ -1987,8 +2008,7 @@ const totals = computed(() => {
                                                         "
                                                         alt="Item Image"
                                                         class="w-100 rounded-3"
-                                                        style="
-                                                            max-height: 260px;
+                                                        style=" 
                                                             object-fit: cover;
                                                         "
                                                     />
@@ -2002,7 +2022,7 @@ const totals = computed(() => {
                                                 <span class="text-muted"
                                                     >Stocked In</span
                                                 >
-                                                <span class="fw-semibold">{{
+                                                <span class="  badge bg-gray-500 rounded-pill text-white p-2">{{
                                                    totals.totalQty
                                                 }}</span>
                                             </div>
@@ -2081,40 +2101,12 @@ const totals = computed(() => {
                                     >
                                         <h5 class="mb-0">Stock Details</h5>
 
-                                        <div class="d-flex gap-2">
-                                            <!-- Search -->
-                                            <div class="position-relative">
-                                                <span
-                                                    class="position-absolute top-50 start-0 translate-middle-y ms-3 opacity-50"
-                                                >
-                                                    <!-- search icon -->
-                                                    <svg
-                                                        width="18"
-                                                        height="18"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            fill="currentColor"
-                                                            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5M9.5 14A4.5 4.5 0 1 1 14 9.5A4.505 4.505 0 0 1 9.5 14Z"
-                                                        />
-                                                    </svg>
-                                                </span>
-                                                <input
-                                                    v-model="search"
-                                                    type="text"
-                                                    class="form-control rounded-pill shadow-sm ps-5"
-                                                    placeholder="Search"
-                                                    style="min-width: 260px"
-                                                />
-                                            </div>
-
-                                            <!-- Filter dropdown -->
-                                        </div>
+                                         
                                     </div>
 
                                     <div class="table-responsive">
                                         <table
-                                            class="table table-hover align-middle mb-0"
+                                            class="table table-striped mb-0"
                                         >
                                             <thead class="table-primary">
                                                 <tr>
@@ -2172,8 +2164,9 @@ const totals = computed(() => {
                                                     </td>
                                                     <td class="text-center">
                                                         <span
+                                                         style="min-width: 100px"
                                                             :class="[
-                                                                'badge rounded-pill px-3 py-2',
+                                                                'badge rounded-pill d-inline-block text-center',
                                                                 stockStatusClass(
                                                                     row.status
                                                                 ),
@@ -2294,7 +2287,21 @@ const totals = computed(() => {
                                         <label class="form-label"
                                             >Category</label
                                         >
-                                        <Select
+                                        <!-- input readonly jsut show {{props.categories[0].id}}  -->
+                                        
+                                      <!-- Display Category Name -->
+<!-- Show category name -->
+<input type="text"
+                                        :value="stockInItemCategory"
+                                        class="form-control"
+                                        readonly
+                                        />
+ 
+
+
+
+                                        
+                                        <!-- <Select
                                             v-model="stockForm.category_id"
                                             :options="props.categories"
                                             optionLabel="name"
@@ -2303,7 +2310,7 @@ const totals = computed(() => {
                                             class="w-100"
                                             appendTo="self"
                                             :class="{ 'is-invalid': formErrors.category_id }"
-                                        />
+                                        /> -->
                                      
                                         <small v-if="formErrors.category_id" class="text-danger">
                                 {{ formErrors.category_id[0] }}
@@ -2369,7 +2376,11 @@ const totals = computed(() => {
                                             class="form-control"
                                             min="0"
                                             @input="calculateValue()"
+                                             :class="{ 'is-invalid': formErrors.price }"
                                         />
+                                        <small v-if="formErrors.price" class="text-danger">
+                                {{ formErrors.price[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-4">
@@ -2378,10 +2389,11 @@ const totals = computed(() => {
                                             type="text"
                                             v-model="stockForm.value"
                                             class="form-control"
+                                            readonly
                                         />
                                     </div>
 
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <label class="form-label"
                                             >Expiry Date</label
                                         >
@@ -2404,21 +2416,15 @@ const totals = computed(() => {
                                     </div>
                                 </div>
 
-                                <div class="mt-4 text-end">
+                                <div class="mt-4">
                                     <button
-                                        class="btn btn-primary"
+                                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
                                         :disabled="submittingStock"
                                         @click="submitStockIn"
                                     >
                                         Stock In
                                     </button>
-                                    <button
-                                        class="btn btn-secondary ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetStockForm"
-                                    >
-                                        Cancel
-                                    </button>
+                                     
                                 </div>
                             </div>
                         </div>
@@ -2436,7 +2442,7 @@ const totals = computed(() => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title">
-                                    Stock Out: {{ stockForm.name }}
+                                    Stock Out :  {{ stockForm.name }}
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -2479,16 +2485,14 @@ const totals = computed(() => {
                                         <label class="form-label"
                                             >Category</label
                                         >
-                                        <Select
-                                            v-model="stockForm.category_id"
-                                            :options="props.categories"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="Select Category"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :class="{ 'is-invalid': formErrors.category_id }"
+                                  <!-- {{ stockForm }} -->
+                                    
+                                        <input type="text"
+                                        :value="stockOutItemCategory"
+                                        class="form-control"
+                                        readonly
                                         />
+                                        
                                        
                                          <small v-if="formErrors.category_id" class="text-danger">
                                 {{ formErrors.category_id[0] }}
@@ -2527,18 +2531,22 @@ const totals = computed(() => {
                             </small>
                                     </div>
 
-                                    <div class="col-md-6">
+                                    <!-- <div class="col-md-6">
                                         <label class="form-label">Price</label>
                                         <input
                                             type="number"
                                             v-model="stockForm.price"
                                             class="form-control"
                                             min="0"
+                                            :class="{ 'is-invalid': formErrors.price }"
                                             @input="calculateValue()"
                                         />
-                                    </div>
+                                        <small v-if="formErrors.price" class="text-danger">
+                                {{ formErrors.price[0] }}
+                            </small>
+                                    </div> -->
 
-                                    <div class="col-md-6">
+                                    <!-- <div class="col-md-6">
                                         <label class="form-label">Value</label>
                                         <input
                                             type="text"
@@ -2546,7 +2554,7 @@ const totals = computed(() => {
                                             class="form-control"
                                             readonly
                                         />
-                                    </div>
+                                    </div> -->
 
                                     <div class="col-md-12">
                                         <label class="form-label"
@@ -2562,19 +2570,13 @@ const totals = computed(() => {
 
                                 <div class="mt-4 text-end">
                                     <button
-                                        class="btn btn-danger"
+                                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-danger text-white"
                                         :disabled="submittingStock"
                                         @click="submitStockOut"
                                     >
                                         Stock Out
                                     </button>
-                                    <button
-                                        class="btn btn-secondary ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetStockForm"
-                                    >
-                                        Cancel
-                                    </button>
+                                    
                                 </div>
                             </div>
                         </div>

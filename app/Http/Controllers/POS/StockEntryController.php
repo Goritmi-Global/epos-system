@@ -26,7 +26,7 @@ class StockEntryController extends Controller
 
     // Store a new stock entry
     public function store(StoreStockEntryRequest $request)
-    {
+    { 
         $entry = $this->service->create($request->validated());
         return response()->json([
             'message' => 'Stock Entry created successfully',

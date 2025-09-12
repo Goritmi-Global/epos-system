@@ -72,4 +72,15 @@ class StockEntry extends Model
     {
         return $q->where('stock_type', 'stockout');
     }
+
+    // app/Models/StockEntry.php
+    public function allocationsUsedFromMe()   // for a stock-in batch: who consumed me?
+    {
+        return $this->hasMany(StockOutAllocation::class, 'stock_in_entry_id');
+    }
+    public function allocationsForThisOut()   // for a stock-out entry: which IN batches did I eat?
+    {
+        return $this->hasMany(StockOutAllocation::class, 'stock_out_entry_id');
+    }
+
 }
