@@ -28,7 +28,7 @@ class StoreMenuRequest extends FormRequest
             'category_id'   => ['required', 'numeric', 'exists:menu_categories,id'],
             'subcategory_id' => ['nullable', 'numeric', 'exists:menu_categories,id'],
             'description'   => ['nullable', 'string'],
-            'price'         => ['required', 'numeric', 'min:0'],
+            'price'         => ['required', 'numeric', 'gt:0'],
 
             // nutrition
             'nutrition'              => ['array'],

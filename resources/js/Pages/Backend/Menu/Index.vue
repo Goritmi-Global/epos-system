@@ -49,6 +49,7 @@ const fetchInventory = async () => {
     }
 };
 
+import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 
 // filter inventory for ingredients
 const i_filteredInv = computed(() => {
@@ -170,6 +171,12 @@ function saveIngredients() {
     menuModal.show();
 }
 
+const showMenuModal = () => {
+    const menuModal = new bootstrap.Modal(
+        document.getElementById("addItemModal")
+    );
+    menuModal.show();
+}
 
 onMounted(() => {
     fetchInventory();
@@ -715,6 +722,7 @@ function resetForm() {
     showImageModal.value = false;
     previewImage.value = null;
     formErrors.value = {};
+    isEditMode.value = null;
 
     // ✅ reset ingredients + totals
     i_cart.value = [];
@@ -766,46 +774,53 @@ const downloadCSV = (data) => {
         const headers = [
             "Item Name",
             "Category",
-            "Min Alert",
-            "Unit",
-            "Supplier",
-            "Sku",
             "Description",
             "Nutrition",
             "Allergies",
             "Tags",
-            "Created At",
-            "Updated At",
         ];
 
         // Build CSV rows
         const rows = data.map((s) => {
-            //  Format nutrition into key:value pairs
+            // ✅ Format Nutrition (only calories, protein, fat, carbs)
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
-                nutritionStr = Object.entries(s.nutrition)
-                    .map(([k, v]) => `${k}: ${v}`)
+                const wantedKeys = ["calories", "protein", "fat", "carbs"];
+                nutritionStr = wantedKeys
+                    .map((key) =>
+                        s.nutrition[key] !== undefined
+                            ? `${key}: ${s.nutrition[key]}`
+                            : null
+                    )
+                    .filter(Boolean)
                     .join("; ");
             } else if (typeof s.nutrition === "string") {
                 nutritionStr = s.nutrition;
             }
 
+            // ✅ Handle Category (object or string)
+            const category =
+                typeof s.category === "object"
+                    ? s.category?.name || ""
+                    : s.category || "";
+
+            // ✅ Handle Allergies (array of objects or strings)
+            const allergies = Array.isArray(s.allergies)
+                ? s.allergies.map((a) => a.name || a).join(", ")
+                : s.allergies || "";
+
+            // ✅ Handle Tags (array of objects or strings)
+            const tags = Array.isArray(s.tags)
+                ? s.tags.map((t) => t.name || t).join(", ")
+                : s.tags || "";
+
             return [
                 `"${s.name || ""}"`,
-                `"${s.category || ""}"`,
-                `"${s.minAlert || ""}"`,
-                `"${s.unit || ""}"`,
-                `"${s.supplier || ""}"`,
-                `"${s.sku || ""}"`,
+                `"${category}"`,
                 `"${s.description || ""}"`,
                 `"${nutritionStr}"`,
-                `"${Array.isArray(s.allergies)
-                    ? s.allergies.join(", ")
-                    : s.allergies || ""
-                }"`,
-                `"${Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || ""}"`,
-                `"${s.created_at || ""}"`,
-                `"${s.updated_at || ""}"`,
+                `"${allergies}"`,
+                `"${tags}"`,
             ];
         });
 
@@ -826,7 +841,7 @@ const downloadCSV = (data) => {
         link.setAttribute("href", url);
         link.setAttribute(
             "download",
-            `inventory_items_${new Date().toISOString().split("T")[0]}.csv`
+            `menu_items_${new Date().toISOString().split("T")[0]}.csv`
         );
         document.body.appendChild(link);
         link.click();
@@ -840,6 +855,7 @@ const downloadCSV = (data) => {
         });
     }
 };
+
 
 const downloadPDF = (data) => {
     try {
@@ -935,7 +951,7 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `Inventory_items_${new Date().toISOString().split("T")[0]
+        const fileName = `menu_items_${new Date().toISOString().split("T")[0]
             }.pdf`;
         doc.save(fileName);
         toast.success("PDF downloaded successfully ", { autoClose: 2500 });
@@ -965,31 +981,45 @@ const downloadExcel = (data) => {
 
         // Prepare worksheet data
         const worksheetData = data.map((s) => {
-            //  Format nutrition into key:value pairs
+            // ✅ Format Nutrition (only calories, protein, fat, carbs)
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
-                nutritionStr = Object.entries(s.nutrition)
-                    .map(([k, v]) => `${k}: ${v}`)
+                const wantedKeys = ["calories", "protein", "fat", "carbs"];
+                nutritionStr = wantedKeys
+                    .map((key) =>
+                        s.nutrition[key] !== undefined
+                            ? `${key}: ${s.nutrition[key]}`
+                            : null
+                    )
+                    .filter(Boolean)
                     .join("; ");
             } else if (typeof s.nutrition === "string") {
                 nutritionStr = s.nutrition;
             }
 
+            // ✅ Handle Category (object or string)
+            const category =
+                typeof s.category === "object"
+                    ? s.category?.name || ""
+                    : s.category || "";
+
+            // ✅ Handle Allergies (array of objects or strings)
+            const allergies = Array.isArray(s.allergies)
+                ? s.allergies.map((a) => a.name || a).join(", ")
+                : s.allergies || "";
+
+            // ✅ Handle Tags (array of objects or strings)
+            const tags = Array.isArray(s.tags)
+                ? s.tags.map((t) => t.name || t).join(", ")
+                : s.tags || "";
+
             return {
                 "Item Name": s.name || "",
-                Category: s.category || "",
-                "Min Alert": s.minAlert || "",
-                Unit: s.unit || "",
-                Supplier: s.supplier || "",
-                Sku: s.sku || "",
+                Category: category,
                 Description: s.description || "",
                 Nutrition: nutritionStr,
-                Allergies: Array.isArray(s.allergies)
-                    ? s.allergies.join(", ")
-                    : s.allergies || "",
-                Tags: Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
-                "Created At": s.created_at || "",
-                "Updated At": s.updated_at || "",
+                Allergies: allergies,
+                Tags: tags,
             };
         });
 
@@ -1026,8 +1056,9 @@ const downloadExcel = (data) => {
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]
-            }.xlsx`;
+        const fileName = `menu_items_${new Date()
+            .toISOString()
+            .split("T")[0]}.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
@@ -1042,6 +1073,7 @@ const downloadExcel = (data) => {
         });
     }
 };
+
 
 </script>
 
@@ -1140,7 +1172,7 @@ const downloadExcel = (data) => {
                                 <div class="dropdown">
                                     <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                                         data-bs-toggle="dropdown">
-                                        Download all
+                                        Download
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                         <li>
@@ -1180,14 +1212,17 @@ const downloadExcel = (data) => {
                                     <tr v-for="(item, idx) in sortedItems" :key="item.id">
                                         <!-- S.# -->
                                         <td>{{ idx + 1 }}</td>
-                                        <!-- Image -->
+
                                         <td>
-                                            <img :src="item.image_url" alt="" style="
-                                                    width: 50px;
-                                                    height: 50px;
-                                                    object-fit: cover;
-                                                    border-radius: 6px;
-                                                " />
+                                            <ImageZoomModal 
+                                                v-if="item.image_url"
+                                                :file="item.image_url"
+                                                :alt="item.name"
+                                                :width="50"
+                                                :height="50"
+                                                :custom_class="'cursor-pointer'"
+                                               
+                                            />
                                         </td>
 
                                         <!-- Menu Name -->
@@ -1483,7 +1518,16 @@ const downloadExcel = (data) => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">Add Ingredients</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+                                <button
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                    data-bs-dismiss="modal" aria-label="Close"  @click="showMenuModal" title="Close">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                               
                             </div>
 
                             <div class="modal-body">

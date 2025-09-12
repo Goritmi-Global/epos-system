@@ -18,9 +18,9 @@ class UpdateMenuCategoryRequest extends FormRequest
             'name' => 'required|string|max:255',
             'icon' => 'nullable|string|max:10',
             'active' => 'boolean',
-            'parent_id' => 'nullable|exists:categories,id',
+            'parent_id' => 'nullable|exists:menu_categories,id',
             'subcategories' => 'nullable|array',
-            'subcategories.*.id' => 'nullable|exists:categories,id',
+            'subcategories.*.id' => 'nullable|exists:menu_categories,id',
             'subcategories.*.name' => 'required|string|max:255',
             'subcategories.*.active' => 'boolean',
         ];
