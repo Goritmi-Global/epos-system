@@ -4,18 +4,82 @@ namespace App\Services\POS;
 
 use App\Models\InventoryItem;
 use App\Models\StockEntry;
-use Illuminate\Http\Request;
-
+use Illuminate\Http\Request; 
+ 
+use App\Models\StockOutAllocation;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class StockEntryService
 {
-    public function create(array $data): StockEntry
+     public function create(array $data): StockEntry
     {
-        // Remove frontend-only field
+        // frontend-only
         unset($data['available_quantity']);
- 
-        // Create the stock entry
-        return StockEntry::create($data);
+
+        // ---- If NOT stockout => normal insert (no FIFO logic) ----
+        if (strtolower($data['stock_type'] ?? '') !== 'stockout') {
+            return StockEntry::create($data);
+        }
+
+        // ---- STOCKOUT path (FIFO by expiry) ----
+        return DB::transaction(function () use ($data) {
+            // do not send NULL price; let DB default apply
+            unset($data['price']);
+
+            $productId  = (int) $data['product_id'];
+            $needQty    = (int) $data['quantity'];
+
+            // 1) create the stock-out entry
+            $stockOut = StockEntry::create($data);
+
+            // 2) get IN batches ordered by earliest expiry first (NULLs last)
+            $batches = StockEntry::query()
+                ->where('product_id', $productId)
+                ->where('stock_type', 'stockin')
+                ->select(['id','quantity','price','expiry_date','created_at'])
+                ->orderByRaw('expiry_date IS NULL, expiry_date ASC, created_at ASC, id ASC')
+                ->lockForUpdate()
+                ->get();
+
+            $left      = $needQty;
+            $totalCost = 0.0;
+
+            foreach ($batches as $batch) {
+                // remaining = in_qty - allocations already recorded
+                $allocated = (int) StockOutAllocation::where('stock_in_entry_id', $batch->id)->sum('quantity');
+                $remaining = max(0, (int)$batch->quantity - $allocated);
+                if ($remaining <= 0) continue;
+
+                $use = min($left, $remaining);
+                if ($use <= 0) break;
+
+                StockOutAllocation::create([
+                    'stock_out_entry_id' => $stockOut->id,
+                    'stock_in_entry_id'  => $batch->id,
+                    'product_id'         => $productId,
+                    'quantity'           => $use,
+                    'unit_price'         => $batch->price,
+                    'expiry_date'        => $batch->expiry_date,
+                ]);
+
+                $totalCost += ((float)$batch->price) * $use;
+                $left -= $use;
+
+                if ($left === 0) break;
+            }
+
+            if ($left > 0) {
+                throw ValidationException::withMessages([
+                    'quantity' => ["Insufficient stock to fulfill request (short by {$left})."],
+                ]);
+            }
+
+            // Optional: capture weighted cost on the OUT row; remove if you want 0.
+            $stockOut->update(['value' => $totalCost]);
+
+            return $stockOut;
+        });
     }
 
     public function list(array $filters)
@@ -27,6 +91,22 @@ class StockEntryService
         }
 
         return $query->paginate(20);
+    }
+
+    /**
+     * Compute current available quantity for a product without mutating stock-in rows.
+     * Sum(IN) - Sum(allocations).
+     */
+    
+    public function availableQuantity(int $productId): int
+    {
+        $in = (int) StockEntry::where('product_id', $productId)
+            ->where('stock_type', 'stockin')->sum('quantity');
+
+        $allocated = (int) StockOutAllocation::where('product_id', $productId)
+            ->sum('quantity');
+
+        return max(0, $in - $allocated);
     }
 
     // New method to get total stock for a product

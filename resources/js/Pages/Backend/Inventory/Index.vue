@@ -431,18 +431,18 @@ const stockForm = ref({
 const submittingStock = ref(false);
 const processStatus = ref();
 
-function openStockModal(item,item_category) {
+function openStockModal(item) {
 
     // console.log("Opening stock modal for item:", item_category.id);
     // const categoryObj = props.categories.find((c) => c.name === item.category);
     const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
-
+stockInItemCategory.value = item.category.name;
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};
         stockForm.value = {
             product_id: item.id,
             name: item.name,
-            category_id: item_category.id,
+            category_id: item.category.id,
             supplier_id: supplierObj ? supplierObj.id : null,
             available_quantity: totalStock.available || 0,
             quantity: 0,
@@ -501,16 +501,21 @@ async function submitStockIn() {
     }
 }
 
+const stockOutItemCategory = ref(null);
+const stockInItemCategory = ref(null);
 // =========================== Stockout Modal ===========================
 function openStockOutModal(item) {
-    const categoryObj = props.categories.find((c) => c.name === item.category);
+    // const categoryObj = props.categories.find((c) => c.name === item.category);
 
+    // console.log("Opening stock out modal for item:", item.id);
+    // console.log("Opening stock out modal for categoryObj:", item.category.name, item.category.id);
+    stockOutItemCategory.value = item.category.name;
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};
         stockForm.value = {
             product_id: item.id,
             name: item.name,
-            category_id: categoryObj ? categoryObj.id : null,
+            category_id: item.category.id,
             available_quantity: totalStock.available || 0,
             quantity: 0,
             price: 0,
@@ -521,6 +526,7 @@ function openStockOutModal(item) {
             purchase_date: new Date().toISOString().slice(0, 10),
             user_id: 1,
         };
+        
     });
 }
 
@@ -1208,7 +1214,7 @@ const totals = computed(() => {
                                             >
                                                 <button
                                                     @click="
-                                                        openStockModal(item,item.category)
+                                                        openStockModal(item)
                                                     "
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#stockInModal"
@@ -2285,13 +2291,11 @@ const totals = computed(() => {
                                         
                                       <!-- Display Category Name -->
 <!-- Show category name -->
-<input 
-  type="text"
-  :value="props.categories[0]?.name"
-  class="form-control"
-  readonly
-/>
-
+<input type="text"
+                                        :value="stockInItemCategory"
+                                        class="form-control"
+                                        readonly
+                                        />
  
 
 
@@ -2372,7 +2376,11 @@ const totals = computed(() => {
                                             class="form-control"
                                             min="0"
                                             @input="calculateValue()"
+                                             :class="{ 'is-invalid': formErrors.price }"
                                         />
+                                        <small v-if="formErrors.price" class="text-danger">
+                                {{ formErrors.price[0] }}
+                            </small>
                                     </div>
 
                                     <div class="col-md-4">
@@ -2385,7 +2393,7 @@ const totals = computed(() => {
                                         />
                                     </div>
 
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <label class="form-label"
                                             >Expiry Date</label
                                         >
@@ -2408,21 +2416,15 @@ const totals = computed(() => {
                                     </div>
                                 </div>
 
-                                <div class="mt-4 text-end">
+                                <div class="mt-4">
                                     <button
-                                        class="btn btn-primary"
+                                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
                                         :disabled="submittingStock"
                                         @click="submitStockIn"
                                     >
                                         Stock In
                                     </button>
-                                    <button
-                                        class="btn btn-secondary ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetStockForm"
-                                    >
-                                        Cancel
-                                    </button>
+                                     
                                 </div>
                             </div>
                         </div>
@@ -2440,7 +2442,7 @@ const totals = computed(() => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title">
-                                    Stock Out: {{ stockForm.name }}
+                                    Stock Out :  {{ stockForm.name }}
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -2483,16 +2485,14 @@ const totals = computed(() => {
                                         <label class="form-label"
                                             >Category</label
                                         >
-                                        <Select
-                                            v-model="stockForm.category_id"
-                                            :options="props.categories"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="Select Category"
-                                            class="w-100"
-                                            appendTo="self"
-                                            :class="{ 'is-invalid': formErrors.category_id }"
+                                  <!-- {{ stockForm }} -->
+                                    
+                                        <input type="text"
+                                        :value="stockOutItemCategory"
+                                        class="form-control"
+                                        readonly
                                         />
+                                        
                                        
                                          <small v-if="formErrors.category_id" class="text-danger">
                                 {{ formErrors.category_id[0] }}
@@ -2531,18 +2531,22 @@ const totals = computed(() => {
                             </small>
                                     </div>
 
-                                    <div class="col-md-6">
+                                    <!-- <div class="col-md-6">
                                         <label class="form-label">Price</label>
                                         <input
                                             type="number"
                                             v-model="stockForm.price"
                                             class="form-control"
                                             min="0"
+                                            :class="{ 'is-invalid': formErrors.price }"
                                             @input="calculateValue()"
                                         />
-                                    </div>
+                                        <small v-if="formErrors.price" class="text-danger">
+                                {{ formErrors.price[0] }}
+                            </small>
+                                    </div> -->
 
-                                    <div class="col-md-6">
+                                    <!-- <div class="col-md-6">
                                         <label class="form-label">Value</label>
                                         <input
                                             type="text"
@@ -2550,7 +2554,7 @@ const totals = computed(() => {
                                             class="form-control"
                                             readonly
                                         />
-                                    </div>
+                                    </div> -->
 
                                     <div class="col-md-12">
                                         <label class="form-label"
@@ -2566,19 +2570,13 @@ const totals = computed(() => {
 
                                 <div class="mt-4 text-end">
                                     <button
-                                        class="btn btn-danger"
+                                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-danger text-white"
                                         :disabled="submittingStock"
                                         @click="submitStockOut"
                                     >
                                         Stock Out
                                     </button>
-                                    <button
-                                        class="btn btn-secondary ms-2"
-                                        data-bs-dismiss="modal"
-                                        @click="resetStockForm"
-                                    >
-                                        Cancel
-                                    </button>
+                                    
                                 </div>
                             </div>
                         </div>
