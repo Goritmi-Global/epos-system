@@ -668,7 +668,6 @@ const deleteSupplier = (id) => {
     background-color: white !important;
     color: black !important;
 }
- }
 
 .dropdown-menu {
     position: absolute !important;
