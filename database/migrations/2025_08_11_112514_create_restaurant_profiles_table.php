@@ -46,6 +46,8 @@ return new class extends Migration {
             $table->boolean('table_management_enabled')->default(false);
             $table->boolean('online_ordering_enabled')->default(false);
             $table->unsignedInteger('number_of_tables')->nullable();
+            $table->json('table_details')->nullable();
+
 
             /** Step 6: Receipt & Printers */
             $table->text('receipt_header')->nullable();
@@ -61,11 +63,11 @@ return new class extends Migration {
             $table->boolean('card_enabled')->default(false);
             $table->string('integrated_terminal')->nullable();   // SumUp, Square
             $table->json('custom_payment_options')->nullable();  // ["JustEat",...]
-            $table->string('default_payment_method')->nullable();// Cash, Card, etc.
+            $table->string('default_payment_method')->nullable(); // Cash, Card, etc.
 
             /** Step 8: Users & Roles Policy (wizard creates users elsewhere) */
             $table->json('attendance_policy')->nullable(); // {clock_enabled, require_shift, track_location, allow_late_clockin, require_reason}
-            
+
             /** Step 9: Business Hours */
             $table->json('business_hours')->nullable(); // {mon:{open:"09:00",close:"17:00",closed:false}, ...}
             $table->boolean('auto_disable_after_hours')->default(true);

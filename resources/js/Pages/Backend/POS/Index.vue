@@ -2,10 +2,37 @@
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
+import Select from "primevue/select";
 
 /* ----------------------------
    Categories (same keys/icons)
 -----------------------------*/
+
+const profileTables = ref({});
+const orderTypes = ref([]);
+const orderType = ref(""); 
+const selectedTable = ref(null);
+
+const fetchProfileTables = async () => {
+    try {
+        const response = await axios.get("/pos/fetch-profile-tables");
+        profileTables.value = response.data;
+        console.log(profileTables.value);
+
+        if (profileTables.value.order_types) {
+            orderTypes.value = profileTables.value.order_types;
+            // pick the first as default
+            orderType.value = orderTypes.value[0];
+        }
+
+        console.log("Order Types:", orderTypes.value);
+    } catch (error) {
+        console.error("Error fetching profile tables:", error);
+    }
+};
+
+
+
 const categories = [
     {
         key: "fruits",
@@ -219,7 +246,7 @@ const productsByCat = {
 -----------------------------*/
 const activeCat = ref("fruits");
 const searchQuery = ref("");
-const orderType = ref("dine"); // 'dine' | 'delivery'
+// const orderType = ref("dine"); // 'dine' | 'delivery'
 
 const tableNo = ref(""); // dine-in
 const customer = ref("Walk In"); // delivery/customer
@@ -326,10 +353,12 @@ onMounted(() => {
             backdrop: "static",
         });
     }
+    fetchProfileTables();
 });
 </script>
 
 <template>
+
     <Head title="POS Order" />
 
     <Master>
@@ -342,70 +371,37 @@ onMounted(() => {
 
                         <div class="search-wrap mb-3">
                             <i class="bi bi-search"></i>
-                            <input
-                                v-model="searchQuery"
-                                type="text"
-                                class="form-control search-input"
-                                placeholder="Search"
-                            />
+                            <input v-model="searchQuery" type="text" class="form-control search-input"
+                                placeholder="Search" />
                         </div>
 
                         <!-- Category tabs with arrows -->
                         <div class="tabs-wrap">
-                            <button
-                                v-if="showCatArrows"
-                                class="tab-arrow left"
-                                type="button"
-                                @click="scrollTabs('left')"
-                                aria-label="Previous categories"
-                            >
+                            <button v-if="showCatArrows" class="tab-arrow left" type="button"
+                                @click="scrollTabs('left')" aria-label="Previous categories">
                                 <i class="fa fa-chevron-left"></i>
                             </button>
 
-                            <ul
-                                class="tabs border-0"
-                                id="catTabs"
-                                ref="catScroller"
-                            >
-                                <li
-                                    v-for="c in categories"
-                                    :key="c.key"
-                                    :class="{ active: isCat(c.key) }"
-                                    @click="setCat(c.key)"
-                                    role="button"
-                                    tabindex="0"
-                                >
-                                    <div
-                                        class="product-details flex-column text-center"
-                                    >
+                            <ul class="tabs border-0" id="catTabs" ref="catScroller">
+                                <li v-for="c in categories" :key="c.key" :class="{ active: isCat(c.key) }"
+                                    @click="setCat(c.key)" role="button" tabindex="0">
+                                    <div class="product-details flex-column text-center">
                                         <img :src="c.icon" alt="" />
                                         <h6 class="mt-2 mb-0">{{ c.label }}</h6>
                                     </div>
                                 </li>
                             </ul>
 
-                            <button
-                                v-if="showCatArrows"
-                                class="tab-arrow right"
-                                type="button"
-                                @click="scrollTabs('right')"
-                                aria-label="Next categories"
-                            >
+                            <button v-if="showCatArrows" class="tab-arrow right" type="button"
+                                @click="scrollTabs('right')" aria-label="Next categories">
                                 <i class="fa fa-chevron-right"></i>
                             </button>
                         </div>
 
                         <!-- Products Grid -->
                         <div class="row g-3">
-                            <div
-                                class="col-lg-3 col-sm-6 d-flex"
-                                v-for="p in filteredProducts"
-                                :key="p.title"
-                            >
-                                <div
-                                    class="productset flex-fill hoverable"
-                                    @click="openItem(p)"
-                                >
+                            <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
+                                <div class="productset flex-fill hoverable" @click="openItem(p)">
                                     <div class="productsetimg">
                                         <img :src="p.img" alt="img" />
                                         <h6>
@@ -425,13 +421,8 @@ onMounted(() => {
                                 </div>
                             </div>
 
-                            <div
-                                v-if="filteredProducts.length === 0"
-                                class="col-12"
-                            >
-                                <div
-                                    class="alert alert-light border text-center"
-                                >
+                            <div v-if="filteredProducts.length === 0" class="col-12">
+                                <div class="alert alert-light border text-center">
                                     No items found.
                                 </div>
                             </div>
@@ -442,76 +433,42 @@ onMounted(() => {
                     <div class="col-lg-4 col-sm-12">
                         <div class="card card-order shadow-sm">
                             <div class="card-body pb-2">
-                                <div
-                                    class="d-flex align-items-center justify-content-between mb-3"
-                                >
+                                <div class="d-flex align-items-center justify-content-between mb-3">
                                     <div class="btn-group">
-                                        <button
-                                            class="btn btn-sm"
-                                            :class="
-                                                orderType === 'dine'
-                                                    ? 'btn-success'
-                                                    : 'btn-light'
-                                            "
-                                            @click="orderType = 'dine'"
-                                        >
-                                            Dine In
-                                        </button>
-                                        <button
-                                            class="btn btn-sm"
-                                            :class="
-                                                orderType === 'delivery'
-                                                    ? 'btn-success'
-                                                    : 'btn-light'
-                                            "
-                                            @click="orderType = 'delivery'"
-                                        >
-                                            Delivery
+                                        <button v-for="(type, index) in orderTypes" :key="index" class="btn btn-sm"
+                                            :class="orderType === type ? 'btn-success' : 'btn-light'"
+                                            @click="orderType = type">
+                                           {{ type.replace('_', ' ').charAt(0).toUpperCase() + type.replace('_', ' ').slice(1) }}
+
                                         </button>
                                     </div>
-
-                                    <span class="badge bg-secondary"
-                                        >Order</span
-                                    >
+                                    <span class="badge bg-secondary">Order</span>
                                 </div>
 
                                 <!-- Type-specific inputs -->
-                                <div v-if="orderType === 'dine'" class="mb-3">
-                                    <label class="form-label small mb-1"
-                                        >Table No:</label
-                                    >
-                                    <input
-                                     v-model="tableNo"
-                                            type="text"
-                                            class="form-control"
-                                             
-                                        placeholder="Table No:"
-                                    />
-                                    <label class="form-label small mt-3 mb-1"
-                                        >Customer</label
-                                    >
-                                    <input
-                                     v-model="customer"
-                                            type="text"
-                                            class="form-control"
-                                             
-                                        placeholder="Customer Name"
-                                    />
-                                     
+                                <div v-if="orderType === 'dine_in'" class="mb-3">
+                                    <label class="form-label small mb-1">Table No:</label>
+                                    <select v-model="selectedTable" class="form-control">
+                                        <option
+                                            v-for="(table, index) in profileTables.table_details"
+                                            :key="index"
+                                            :value="table"
+                                        >
+                                            {{ table.name }} ({{ table.chairs }} chairs)
+                                        </option>
+                                    </select>
+
+                                    <label class="form-label small mt-3 mb-1">Customer</label>
+                                    <input v-model="customer" type="text" class="form-control"
+                                        placeholder="Customer Name" />
+
                                 </div>
 
                                 <div v-else class="mb-3">
-                                    <label class="form-label small mb-1"
-                                        >Customer</label
-                                    >
-                                    <input
-                                     v-model="customer"
-                                            type="text"
-                                            class="form-control"
-                                             
-                                        placeholder="Customer Name"
-                                    />
-                                     
+                                    <label class="form-label small mb-1">Customer</label>
+                                    <input v-model="customer" type="text" class="form-control"
+                                        placeholder="Customer Name" />
+
                                     <!-- <div
                                         class="d-flex align-items-center gap-2 mt-3"
                                     >
@@ -532,81 +489,49 @@ onMounted(() => {
 
                                 <!-- Order items -->
                                 <div>
-                                    <div
-                                        class="d-flex justify-content-between mb-2"
-                                    >
+                                    <div class="d-flex justify-content-between mb-2">
                                         <strong>Items</strong>
                                         <small class="text-muted">Qty</small>
                                         <small class="text-muted">Price</small>
                                     </div>
 
-                                    <div
-                                        v-if="orderItems.length === 0"
-                                        class="text-muted text-center py-3"
-                                    >
+                                    <div v-if="orderItems.length === 0" class="text-muted text-center py-3">
                                         No items added
                                     </div>
 
-                                    <div
-                                        v-for="(it, i) in orderItems"
-                                        :key="it.title"
-                                        class="d-flex align-items-center justify-content-between py-2 border-bottom"
-                                    >
-                                        <div
-                                            class="d-flex align-items-center gap-2"
-                                        >
-                                            <img
-                                                :src="it.img"
-                                                alt=""
-                                                class="rounded"
-                                                style="
+                                    <div v-for="(it, i) in orderItems" :key="it.title"
+                                        class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <img :src="it.img" alt="" class="rounded" style="
                                                     width: 36px;
                                                     height: 36px;
                                                     object-fit: cover;
-                                                "
-                                            />
-                                            
+                                                " />
+
                                             <div>
-                                              
+
                                                 <div class="fw-semibold">
                                                     {{ it.title }}
                                                 </div>
-                                                <small
-                                                    class="text-muted"
-                                                    v-if="it.note"
-                                                    >{{ it.note }}</small
-                                                >
+                                                <small class="text-muted" v-if="it.note">{{ it.note }}</small>
                                             </div>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center gap-2"
-                                        >
-                                            <button
-                                                class="btn btn-sm btn-primary"
-                                                @click="decCart(i)"
-                                            >
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button class="btn btn-sm btn-primary" @click="decCart(i)">
                                                 −
                                             </button>
                                             <div class="px-2 bg-danger">{{ it.qty }}</div>
-                                            <button
-                                                class="btn btn-sm btn-primary"
-                                                @click="incCart(i)"
-                                            >
+                                            <button class="btn btn-sm btn-primary" @click="incCart(i)">
                                                 +
                                             </button>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center gap-3"
-                                        >
+                                        <div class="d-flex align-items-center gap-3">
                                             <div class="text-nowrap">
                                                 {{ money(it.price) }}
                                             </div>
-                                            <button
-                                                class="btn btn-sm btn-outline-danger"
-                                                @click="removeCart(i)"
-                                            >
+                                            <button class="btn btn-sm btn-outline-danger" @click="removeCart(i)">
                                                 <i class="fa fa-trash"></i>
                                             </button>
                                         </div>
@@ -618,18 +543,11 @@ onMounted(() => {
                                 <!-- Totals -->
                                 <div class="d-flex flex-column gap-1">
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted"
-                                            >Sub Total</span
-                                        >
+                                        <span class="text-muted">Sub Total</span>
                                         <strong>{{ money(subTotal) }}</strong>
                                     </div>
-                                    <div
-                                        class="d-flex justify-content-between"
-                                        v-if="orderType === 'delivery'"
-                                    >
-                                        <span class="text-muted"
-                                            >Delivery Charges</span
-                                        >
+                                    <div class="d-flex justify-content-between" v-if="orderType === 'delivery'">
+                                        <span class="text-muted">Delivery Charges</span>
                                         <strong>{{ deliveryPercent }}%</strong>
                                     </div>
                                     <div class="d-flex justify-content-between">
@@ -640,11 +558,7 @@ onMounted(() => {
 
                                 <hr />
 
-                                <textarea
-                                    class="form-control"
-                                    rows="4"
-                                    placeholder="Add Note"
-                                ></textarea>
+                                <textarea class="form-control" rows="4" placeholder="Add Note"></textarea>
 
                                 <div class="d-flex gap-3 mt-3">
                                     <button class="btn btn-success flex-fill">
@@ -663,35 +577,20 @@ onMounted(() => {
         </div>
 
         <!-- Choose Item Modal -->
-        <div
-            class="modal fade"
-            id="chooseItem"
-            tabindex="-1"
-            aria-hidden="true"
-        >
+        <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header border-0">
                         <h5 class="modal-title fw-bold">Choose Item</h5>
-                        <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                        ></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
 
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
                             <div class="col-lg-5 mb-3">
-                                <img
-                                    :src="
-                                        selectedItem?.img ||
-                                        '/assets/img/product/product29.jpg'
-                                    "
-                                    class="img-fluid rounded shadow-sm w-100"
-                                    alt="item"
-                                />
+                                <img :src="selectedItem?.img ||
+                                    '/assets/img/product/product29.jpg'
+                                    " class="img-fluid rounded shadow-sm w-100" alt="item" />
                             </div>
 
                             <div class="col-lg-7">
@@ -704,49 +603,32 @@ onMounted(() => {
 
                                 <!-- Example chips (demo only) -->
                                 <div class="chips mb-3">
-                                    <span class="chip"
-                                        >Basmati rice (20 gram (g))</span
-                                    >
-                                    <span class="chip chip-orange"
-                                        >Calories: 120.0</span
-                                    >
-                                    <span class="chip chip-green"
-                                        >Carbs: 4.0</span
-                                    >
-                                    <span class="chip chip-purple"
-                                        >Fats: 3.0</span
-                                    >
-                                    <span class="chip chip-blue"
-                                        >Protein: 18.0</span
-                                    >
+                                    <span class="chip">Basmati rice (20 gram (g))</span>
+                                    <span class="chip chip-orange">Calories: 120.0</span>
+                                    <span class="chip chip-green">Carbs: 4.0</span>
+                                    <span class="chip chip-purple">Fats: 3.0</span>
+                                    <span class="chip chip-blue">Protein: 18.0</span>
                                     <span class="chip chip-red">Celery</span>
                                     <span class="chip">Gluten-Free</span>
                                 </div>
 
                                 <!-- Qty control -->
-                               <div class="qty-group d-inline-flex align-items-center mb-3">
-  <button class="qty-btn" @click="decQty">−</button>
-  <div class="qty-box">{{ modalQty }}</div>
-  <button class="qty-btn" @click="incQty">+</button>
-</div>
+                                <div class="qty-group d-inline-flex align-items-center mb-3">
+                                    <button class="qty-btn" @click="decQty">−</button>
+                                    <div class="qty-box">{{ modalQty }}</div>
+                                    <button class="qty-btn" @click="incQty">+</button>
+                                </div>
 
                                 <div class="mb-3">
-                                    <input
-                                        v-model="modalNote"
-                                        class="form-control "
-                                        placeholder="Add note (optional)"
-                                    />
+                                    <input v-model="modalNote" class="form-control "
+                                        placeholder="Add note (optional)" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="modal-footer border-0 pt-0">
-                        <button
-                        class="btn btn-outline-secondary rounded-pill"
-                            
-                            data-bs-dismiss="modal"
-                        >
+                        <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">
                             Cancel
                         </button>
                         <button class="btn btn-primary rounded-pill" @click="confirmAdd">
@@ -765,6 +647,7 @@ onMounted(() => {
     position: relative;
     /* width: clamp(220px, 28vw, 360px); */
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -772,6 +655,7 @@ onMounted(() => {
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -786,6 +670,7 @@ onMounted(() => {
     gap: 8px;
     margin-bottom: 16px;
 }
+
 .tab-arrow {
     border: 0;
     background: #fff;
@@ -794,6 +679,7 @@ onMounted(() => {
     height: 36px;
     border-radius: 50%;
 }
+
 .tab-arrow.left {
     order: -1;
 }
@@ -809,11 +695,12 @@ onMounted(() => {
     list-style: none;
     scrollbar-width: none;
 }
+
 .tabs::-webkit-scrollbar {
     display: none;
 }
 
-.tabs > li {
+.tabs>li {
     flex: 0 0 auto;
     width: 100px;
     height: 100px;
@@ -826,13 +713,16 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
 }
-.tabs > li:hover {
+
+.tabs>li:hover {
     transform: translateY(-1px);
 }
-.tabs > li.active {
+
+.tabs>li.active {
     outline: 2px solid #6f61ff;
     background: #f1eeff;
 }
+
 .tabs img {
     width: 32px;
     height: 32px;
@@ -844,18 +734,22 @@ onMounted(() => {
     transition: 0.15s;
     cursor: pointer;
 }
+
 .productset.hoverable:hover {
     transform: translateY(-2px);
 }
+
 .productsetimg {
     position: relative;
     overflow: hidden;
     border-radius: 10px;
 }
+
 .productsetimg img {
     width: 100%;
     display: block;
 }
+
 .productsetimg h6 {
     position: absolute;
     left: 8px;
@@ -867,6 +761,7 @@ onMounted(() => {
     border-radius: 6px;
     font-size: 12px;
 }
+
 .check-product {
     position: absolute;
     right: 8px;
@@ -880,6 +775,7 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
 }
+
 .productsetcontent h4 {
     font-size: 16px;
 }
@@ -890,6 +786,7 @@ onMounted(() => {
     flex-wrap: wrap;
     gap: 10px;
 }
+
 .chip {
     padding: 6px 10px;
     border-radius: 20px;
@@ -897,22 +794,27 @@ onMounted(() => {
     font-size: 12px;
     border: 1px solid #eee;
 }
+
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
 }
+
 .chip-blue {
     background: #e8f3ff;
     border-color: #d2e6ff;
 }
+
 .chip-purple {
     background: #f1e9ff;
     border-color: #e1d2ff;
 }
+
 .chip-orange {
     background: #fff3e6;
     border-color: #ffe1bf;
 }
+
 .chip-red {
     background: #ffe9ea;
     border-color: #ffd3d6;
@@ -921,38 +823,38 @@ onMounted(() => {
 /* Qty control (modal) */
 /* Wrap as a group */
 .qty-group {
-  border-radius: 10px;
-  overflow: hidden; /* makes them look like one control */
-  border: 1px solid #d0cfd7;
+    border-radius: 10px;
+    overflow: hidden;
+    /* makes them look like one control */
+    border: 1px solid #d0cfd7;
 }
 
 /* Btns still follow your style */
 .qty-btn {
-  width: 34px;
-  height: 44px;
-  border: 0;
-  background: #1b1670;
-  font-size: 20px;
-  line-height: 1;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    width: 34px;
+    height: 44px;
+    border: 0;
+    background: #1b1670;
+    font-size: 20px;
+    line-height: 1;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Middle box (value) */
 .qty-box {
-  height: 44px;
-  min-width: 60px;
-  text-align: center;
-  padding: 8px 12px;
-  background: #1b1670;
-  color: white;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #d0cfd7;
+    height: 44px;
+    min-width: 60px;
+    text-align: center;
+    padding: 8px 12px;
+    background: #1b1670;
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d0cfd7;
 }
-
 </style>

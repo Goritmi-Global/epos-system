@@ -223,6 +223,7 @@ Route::middleware('auth')->group(function () {
 
     // POS Order live screen
     Route::get('/pos/order', [PosOrderController::class, 'screen'])->name('pos.order');
+    Route::get('/pos/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('pos.fetch.profile.tables');
 
     // Orders
     Route::prefix('orders')->name('orders.')->group(function () {
