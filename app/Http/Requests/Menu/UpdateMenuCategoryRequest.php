@@ -20,7 +20,7 @@ class UpdateMenuCategoryRequest extends FormRequest
             'active' => 'boolean',
             'parent_id' => 'nullable|exists:categories,id',
             'subcategories' => 'nullable|array',
-            'subcategories.*.id' => 'nullable|exists:categories,id',
+            'subcategories.*.id' => 'nullable|exists:menu_categories,id',
             'subcategories.*.name' => 'required|string|max:255',
             'subcategories.*.active' => 'boolean',
         ];

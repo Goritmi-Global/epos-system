@@ -228,7 +228,11 @@ Route::middleware('auth')->group(function () {
     });
 
     // POS Order live screen
-    Route::get('/pos/order', [PosOrderController::class, 'screen'])->name('pos.order');
+    Route::prefix('pos')->name('pos.')->group(function (){
+        Route::get('/order', [PosOrderController::class, 'index'])->name('order'); 
+        Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('pos.menu-categories'); 
+        Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('pos.menu-items'); 
+    });
 
     // Orders
     Route::prefix('orders')->name('orders.')->group(function () {

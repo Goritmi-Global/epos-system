@@ -6,218 +6,70 @@ import { ref, computed, onMounted } from "vue";
 /* ----------------------------
    Categories (same keys/icons)
 -----------------------------*/
-const categories = [
-    {
-        key: "fruits",
-        label: "Fruits",
-        icon: "/assets/img/product/product62.png",
-    },
-    {
-        key: "headphone",
-        label: "Headphones",
-        icon: "/assets/img/product/product63.png",
-    },
-    {
-        key: "Accessories",
-        label: "Accessories",
-        icon: "/assets/img/product/product64.png",
-    },
-    { key: "Shoes", label: "Shoes", icon: "/assets/img/product/product65.png" },
-    {
-        key: "computer",
-        label: "Computer",
-        icon: "/assets/img/product/product66.png",
-    },
-    {
-        key: "Snacks",
-        label: "Snacks",
-        icon: "/assets/img/product/product67.png",
-    },
-    {
-        key: "watch",
-        label: "Watches",
-        icon: "/assets/img/product/product68.png",
-    },
-    {
-        key: "cycle",
-        label: "Cycles",
-        icon: "/assets/img/product/product61.png",
-    },
-];
+const menuCategories = ref([]);
+const fetchMenuCategories = async () => {
+    try {
+        const response = await axios.get("/pos/fetch-menu-categories");
+        menuCategories.value = response.data;
+        if (menuCategories.value.length > 0) {
+            activeCat.value = menuCategories.value[0].id;
+        }
+        console.log(menuCategories.value);
+    } catch (error) {
+        console.error("Error fetching inventory:", error);
+    }
+};
+
+const menuItems = ref([]);
+const fetchMenuItems = async () => {
+    try {
+        const response = await axios.get("/pos/fetch-menu-items");
+        menuItems.value = response.data;
+        console.log(menuItems.value);
+    } catch (error) {
+        console.error("Error fetching inventory:", error);
+    }
+};
 
 /* ----------------------------
-   Demo Products by Category
+   Real Products by Category
 -----------------------------*/
-const productsByCat = {
-    fruits: [
-        {
-            title: "Orange",
-            img: "/assets/img/product/product29.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Fruits",
-        },
-        {
-            title: "Strawberry",
-            img: "/assets/img/product/product31.jpg",
-            qty: 1,
-            price: 15.0,
-            family: "Fruits",
-        },
-        {
-            title: "Banana",
-            img: "/assets/img/product/product35.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Fruits",
-        },
-        {
-            title: "Limon",
-            img: "/assets/img/product/product37.jpg",
-            qty: 5,
-            price: 1500.0,
-            family: "Fruits",
-        },
-        {
-            title: "Apple",
-            img: "/assets/img/product/product54.jpg",
-            qty: 5,
-            price: 1500.0,
-            family: "Fruits",
-        },
-    ],
-    headphone: [
-        {
-            title: "Earphones A",
-            img: "/assets/img/product/product44.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Headphones",
-        },
-        {
-            title: "Earphones B",
-            img: "/assets/img/product/product45.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Headphones",
-        },
-        {
-            title: "Earphones C",
-            img: "/assets/img/product/product36.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Headphones",
-        },
-    ],
-    Accessories: [
-        {
-            title: "Sunglasses",
-            img: "/assets/img/product/product32.jpg",
-            qty: 1,
-            price: 15.0,
-            family: "Accessories",
-        },
-        {
-            title: "Pendrive",
-            img: "/assets/img/product/product46.jpg",
-            qty: 1,
-            price: 150.0,
-            family: "Accessories",
-        },
-        {
-            title: "Mouse",
-            img: "/assets/img/product/product55.jpg",
-            qty: 1,
-            price: 150.0,
-            family: "Accessories",
-        },
-    ],
-    Shoes: [
-        {
-            title: "Red Nike",
-            img: "/assets/img/product/product60.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Shoes",
-        },
-    ],
-    computer: [
-        {
-            title: "Desktop",
-            img: "/assets/img/product/product56.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Computers",
-        },
-    ],
-    Snacks: [
-        {
-            title: "Duck Salad",
-            img: "/assets/img/product/product47.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-        {
-            title: "Breakfast Board",
-            img: "/assets/img/product/product48.png",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-        {
-            title: "California roll",
-            img: "/assets/img/product/product57.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-        {
-            title: "Sashimi",
-            img: "/assets/img/product/product58.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-    ],
-    watch: [
-        {
-            title: "Watch A",
-            img: "/assets/img/product/product49.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Watch",
-        },
-        {
-            title: "Watch B",
-            img: "/assets/img/product/product51.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Watch",
-        },
-    ],
-    cycle: [
-        {
-            title: "Cycle A",
-            img: "/assets/img/product/product52.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Cycle",
-        },
-        {
-            title: "Cycle B",
-            img: "/assets/img/product/product53.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Cycle",
-        },
-    ],
-};
+
+const productsByCat = computed(() => {
+    const grouped = {};
+
+    menuItems.value.forEach((item) => {
+        const catId = item.category?.id || "uncategorized";
+        const catName = item.category?.name || "Uncategorized";
+
+        if (!grouped[catId]) {
+            grouped[catId] = [];
+        }
+
+        grouped[catId].push({
+            id: item.id,
+            title: item.name,
+            img: item.image_url || "/assets/img/default.png",
+            qty: item.ingredients?.length ?? 0,
+            price: Number(item.price),
+            family: catName, // still displayable name
+            description: item.description,
+            nutrition: item.nutrition,
+            tags: item.tags,
+            allergies: item.allergies,
+            ingredients: item.ingredients ?? [],
+        });
+    });
+
+    return grouped;
+});
+
+
 
 /* ----------------------------
    UI State
 -----------------------------*/
-const activeCat = ref("fruits");
+// const activeCat = ref("fruits");
 const searchQuery = ref("");
 const orderType = ref("dine"); // 'dine' | 'delivery'
 
@@ -226,24 +78,56 @@ const customer = ref("Walk In"); // delivery/customer
 
 const deliveryPercent = ref(10); // demo: 10% delivery charges
 
-const setCat = (k) => (activeCat.value = k);
-const isCat = (k) => activeCat.value === k;
+// const setCat = (k) => (activeCat.value = k);
+// const isCat = (k) => activeCat.value === k;
+
+const activeCat = ref(null); // store ID
+const setCat = (id) => {
+    activeCat.value = id;
+};
+const isCat = (id) => activeCat.value === id;
+
+
+const selectedCategory = ref(null);
+function openCategory(id) {
+  selectedCategory.value = id
+}
+
+function goBack() {
+  selectedCategory.value = null
+}
 
 /* Search + category combined */
-const visibleProducts = computed(() => productsByCat[activeCat.value] ?? []);
+// const visibleProducts = computed(() => productsByCat[activeCat.value] ?? []);
+// const filteredProducts = computed(() => {
+//     const q = searchQuery.value.trim().toLowerCase();
+//     if (!q) return visibleProducts.value;
+//     return visibleProducts.value.filter(
+//         (p) =>
+//             p.title.toLowerCase().includes(q) ||
+//             (p.family || "").toLowerCase().includes(q)
+//     );
+// });
+
+const visibleProducts = computed(() => productsByCat.value[activeCat.value] ?? []);
+
 const filteredProducts = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
     if (!q) return visibleProducts.value;
+
     return visibleProducts.value.filter(
         (p) =>
             p.title.toLowerCase().includes(q) ||
-            (p.family || "").toLowerCase().includes(q)
+            (p.family || "").toLowerCase().includes(q) ||
+            (p.description || "").toLowerCase().includes(q) ||
+            (p.tags?.map(t => t.name.toLowerCase()).join(", ") || "").includes(q)
     );
 });
 
+
 /* Horizontal scroll arrows for category tabs */
 const catScroller = ref(null);
-const showCatArrows = computed(() => categories.length > 5);
+const showCatArrows = computed(() => menuCategories.value.length > 5);
 const scrollTabs = (dir) => {
     const el = catScroller.value;
     if (!el) return;
@@ -326,10 +210,13 @@ onMounted(() => {
             backdrop: "static",
         });
     }
+    fetchMenuCategories();
+    fetchMenuItems();
 });
 </script>
 
 <template>
+
     <Head title="POS Order" />
 
     <Master>
@@ -342,70 +229,38 @@ onMounted(() => {
 
                         <div class="search-wrap mb-3">
                             <i class="bi bi-search"></i>
-                            <input
-                                v-model="searchQuery"
-                                type="text"
-                                class="form-control search-input"
-                                placeholder="Search"
-                            />
+                            <input v-model="searchQuery" type="text" class="form-control search-input"
+                                placeholder="Search" />
                         </div>
 
                         <!-- Category tabs with arrows -->
                         <div class="tabs-wrap">
-                            <button
-                                v-if="showCatArrows"
-                                class="tab-arrow left"
-                                type="button"
-                                @click="scrollTabs('left')"
-                                aria-label="Previous categories"
-                            >
+                            <button v-if="showCatArrows" class="tab-arrow left" type="button"
+                                @click="scrollTabs('left')" aria-label="Previous categories">
                                 <i class="fa fa-chevron-left"></i>
                             </button>
 
-                            <ul
-                                class="tabs border-0"
-                                id="catTabs"
-                                ref="catScroller"
-                            >
-                                <li
-                                    v-for="c in categories"
-                                    :key="c.key"
-                                    :class="{ active: isCat(c.key) }"
-                                    @click="setCat(c.key)"
-                                    role="button"
-                                    tabindex="0"
-                                >
-                                    <div
-                                        class="product-details flex-column text-center"
-                                    >
-                                        <img :src="c.icon" alt="" />
-                                        <h6 class="mt-2 mb-0">{{ c.label }}</h6>
+                            <ul class="tabs border-0" id="catTabs" ref="catScroller">
+                                <li v-for="c in menuCategories" :key="c.id" :class="{ active: isCat(c.id) }"
+                                    @click="setCat(c.id)" role="button" tabindex="0">
+                                    <div class="product-details flex-column text-center">
+                                        <!-- if backend gives emoji in icon field -->
+                                        <div class="text-2xl">{{ c.icon }}</div>
+                                        <h6 class="mt-2 mb-0">{{ c.name }}</h6>
                                     </div>
                                 </li>
                             </ul>
 
-                            <button
-                                v-if="showCatArrows"
-                                class="tab-arrow right"
-                                type="button"
-                                @click="scrollTabs('right')"
-                                aria-label="Next categories"
-                            >
+                            <button v-if="showCatArrows" class="tab-arrow right" type="button"
+                                @click="scrollTabs('right')" aria-label="Next categories">
                                 <i class="fa fa-chevron-right"></i>
                             </button>
                         </div>
 
                         <!-- Products Grid -->
                         <div class="row g-3">
-                            <div
-                                class="col-lg-3 col-sm-6 d-flex"
-                                v-for="p in filteredProducts"
-                                :key="p.title"
-                            >
-                                <div
-                                    class="productset flex-fill hoverable"
-                                    @click="openItem(p)"
-                                >
+                            <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
+                                <div class="productset flex-fill hoverable" @click="openItem(p)">
                                     <div class="productsetimg">
                                         <img :src="p.img" alt="img" />
                                         <h6>
@@ -425,13 +280,8 @@ onMounted(() => {
                                 </div>
                             </div>
 
-                            <div
-                                v-if="filteredProducts.length === 0"
-                                class="col-12"
-                            >
-                                <div
-                                    class="alert alert-light border text-center"
-                                >
+                            <div v-if="filteredProducts.length === 0" class="col-12">
+                                <div class="alert alert-light border text-center">
                                     No items found.
                                 </div>
                             </div>
@@ -442,76 +292,40 @@ onMounted(() => {
                     <div class="col-lg-4 col-sm-12">
                         <div class="card card-order shadow-sm">
                             <div class="card-body pb-2">
-                                <div
-                                    class="d-flex align-items-center justify-content-between mb-3"
-                                >
+                                <div class="d-flex align-items-center justify-content-between mb-3">
                                     <div class="btn-group">
-                                        <button
-                                            class="btn btn-sm"
-                                            :class="
-                                                orderType === 'dine'
-                                                    ? 'btn-success'
-                                                    : 'btn-light'
-                                            "
-                                            @click="orderType = 'dine'"
-                                        >
+                                        <button class="btn btn-sm" :class="orderType === 'dine'
+                                            ? 'btn-success'
+                                            : 'btn-light'
+                                            " @click="orderType = 'dine'">
                                             Dine In
                                         </button>
-                                        <button
-                                            class="btn btn-sm"
-                                            :class="
-                                                orderType === 'delivery'
-                                                    ? 'btn-success'
-                                                    : 'btn-light'
-                                            "
-                                            @click="orderType = 'delivery'"
-                                        >
+                                        <button class="btn btn-sm" :class="orderType === 'delivery'
+                                            ? 'btn-success'
+                                            : 'btn-light'
+                                            " @click="orderType = 'delivery'">
                                             Delivery
                                         </button>
                                     </div>
 
-                                    <span class="badge bg-secondary"
-                                        >Order</span
-                                    >
+                                    <span class="badge bg-secondary">Order</span>
                                 </div>
 
                                 <!-- Type-specific inputs -->
                                 <div v-if="orderType === 'dine'" class="mb-3">
-                                    <label class="form-label small mb-1"
-                                        >Table No:</label
-                                    >
-                                    <input
-                                     v-model="tableNo"
-                                            type="text"
-                                            class="form-control"
-                                             
-                                        placeholder="Table No:"
-                                    />
-                                    <label class="form-label small mt-3 mb-1"
-                                        >Customer</label
-                                    >
-                                    <input
-                                     v-model="customer"
-                                            type="text"
-                                            class="form-control"
-                                             
-                                        placeholder="Customer Name"
-                                    />
-                                     
+                                    <label class="form-label small mb-1">Table No:</label>
+                                    <input v-model="tableNo" type="text" class="form-control" placeholder="Table No:" />
+                                    <label class="form-label small mt-3 mb-1">Customer</label>
+                                    <input v-model="customer" type="text" class="form-control"
+                                        placeholder="Customer Name" />
+
                                 </div>
 
                                 <div v-else class="mb-3">
-                                    <label class="form-label small mb-1"
-                                        >Customer</label
-                                    >
-                                    <input
-                                     v-model="customer"
-                                            type="text"
-                                            class="form-control"
-                                             
-                                        placeholder="Customer Name"
-                                    />
-                                     
+                                    <label class="form-label small mb-1">Customer</label>
+                                    <input v-model="customer" type="text" class="form-control"
+                                        placeholder="Customer Name" />
+
                                     <!-- <div
                                         class="d-flex align-items-center gap-2 mt-3"
                                     >
@@ -532,81 +346,49 @@ onMounted(() => {
 
                                 <!-- Order items -->
                                 <div>
-                                    <div
-                                        class="d-flex justify-content-between mb-2"
-                                    >
+                                    <div class="d-flex justify-content-between mb-2">
                                         <strong>Items</strong>
                                         <small class="text-muted">Qty</small>
                                         <small class="text-muted">Price</small>
                                     </div>
 
-                                    <div
-                                        v-if="orderItems.length === 0"
-                                        class="text-muted text-center py-3"
-                                    >
+                                    <div v-if="orderItems.length === 0" class="text-muted text-center py-3">
                                         No items added
                                     </div>
 
-                                    <div
-                                        v-for="(it, i) in orderItems"
-                                        :key="it.title"
-                                        class="d-flex align-items-center justify-content-between py-2 border-bottom"
-                                    >
-                                        <div
-                                            class="d-flex align-items-center gap-2"
-                                        >
-                                            <img
-                                                :src="it.img"
-                                                alt=""
-                                                class="rounded"
-                                                style="
+                                    <div v-for="(it, i) in orderItems" :key="it.title"
+                                        class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <img :src="it.img" alt="" class="rounded" style="
                                                     width: 36px;
                                                     height: 36px;
                                                     object-fit: cover;
-                                                "
-                                            />
-                                            
+                                                " />
+
                                             <div>
-                                              
+
                                                 <div class="fw-semibold">
                                                     {{ it.title }}
                                                 </div>
-                                                <small
-                                                    class="text-muted"
-                                                    v-if="it.note"
-                                                    >{{ it.note }}</small
-                                                >
+                                                <small class="text-muted" v-if="it.note">{{ it.note }}</small>
                                             </div>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center gap-2"
-                                        >
-                                            <button
-                                                class="btn btn-sm btn-primary"
-                                                @click="decCart(i)"
-                                            >
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button class="btn btn-sm btn-primary" @click="decCart(i)">
                                                 −
                                             </button>
                                             <div class="px-2 bg-danger">{{ it.qty }}</div>
-                                            <button
-                                                class="btn btn-sm btn-primary"
-                                                @click="incCart(i)"
-                                            >
+                                            <button class="btn btn-sm btn-primary" @click="incCart(i)">
                                                 +
                                             </button>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center gap-3"
-                                        >
+                                        <div class="d-flex align-items-center gap-3">
                                             <div class="text-nowrap">
                                                 {{ money(it.price) }}
                                             </div>
-                                            <button
-                                                class="btn btn-sm btn-outline-danger"
-                                                @click="removeCart(i)"
-                                            >
+                                            <button class="btn btn-sm btn-outline-danger" @click="removeCart(i)">
                                                 <i class="fa fa-trash"></i>
                                             </button>
                                         </div>
@@ -618,18 +400,11 @@ onMounted(() => {
                                 <!-- Totals -->
                                 <div class="d-flex flex-column gap-1">
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted"
-                                            >Sub Total</span
-                                        >
+                                        <span class="text-muted">Sub Total</span>
                                         <strong>{{ money(subTotal) }}</strong>
                                     </div>
-                                    <div
-                                        class="d-flex justify-content-between"
-                                        v-if="orderType === 'delivery'"
-                                    >
-                                        <span class="text-muted"
-                                            >Delivery Charges</span
-                                        >
+                                    <div class="d-flex justify-content-between" v-if="orderType === 'delivery'">
+                                        <span class="text-muted">Delivery Charges</span>
                                         <strong>{{ deliveryPercent }}%</strong>
                                     </div>
                                     <div class="d-flex justify-content-between">
@@ -640,11 +415,7 @@ onMounted(() => {
 
                                 <hr />
 
-                                <textarea
-                                    class="form-control"
-                                    rows="4"
-                                    placeholder="Add Note"
-                                ></textarea>
+                                <textarea class="form-control" rows="4" placeholder="Add Note"></textarea>
 
                                 <div class="d-flex gap-3 mt-3">
                                     <button class="btn btn-success flex-fill">
@@ -663,99 +434,116 @@ onMounted(() => {
         </div>
 
         <!-- Choose Item Modal -->
-        <div
-            class="modal fade"
-            id="chooseItem"
-            tabindex="-1"
-            aria-hidden="true"
-        >
+        <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header border-0">
-                        <h5 class="modal-title fw-bold">Choose Item</h5>
-                        <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                        ></button>
+                        <!-- Show Item Name -->
+                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
 
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
                             <div class="col-lg-5 mb-3">
-                                <img
-                                    :src="
-                                        selectedItem?.img ||
-                                        '/assets/img/product/product29.jpg'
-                                    "
-                                    class="img-fluid rounded shadow-sm w-100"
-                                    alt="item"
-                                />
+                                <img :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
+                                    class="img-fluid rounded shadow-sm w-100" alt="item" />
                             </div>
 
                             <div class="col-lg-7">
-                                <h3 class="mb-2 text-primary-dark">
-                                    {{ selectedItem?.title }}
-                                </h3>
+                                <h3 class="mb-1 text-primary-dark">{{ selectedItem?.title }}</h3>
+
+
+
+                                <!-- PRICE -->
                                 <div class="h5 mb-3">
                                     {{ money(selectedItem?.price || 0) }}
                                 </div>
-
-                                <!-- Example chips (demo only) -->
-                                <div class="chips mb-3">
-                                    <span class="chip"
-                                        >Basmati rice (20 gram (g))</span
-                                    >
-                                    <span class="chip chip-orange"
-                                        >Calories: 120.0</span
-                                    >
-                                    <span class="chip chip-green"
-                                        >Carbs: 4.0</span
-                                    >
-                                    <span class="chip chip-purple"
-                                        >Fats: 3.0</span
-                                    >
-                                    <span class="chip chip-blue"
-                                        >Protein: 18.0</span
-                                    >
-                                    <span class="chip chip-red">Celery</span>
-                                    <span class="chip">Gluten-Free</span>
+                                <!-- INGREDIENTS (top) -->
+                                <div class="mb-2">
+                                    <strong>Ingredients:</strong>
+                                    <div v-if="!(selectedItem?.ingredients?.length)">
+                                        <em class="text-muted">No ingredients listed</em>
+                                    </div>
+                                    <div v-else class="mt-2">
+                                        <!-- inline chips/list -->
+                                        <span v-for="ing in selectedItem.ingredients"
+                                            :key="'ing-' + (ing.id ?? ing.inventory_item_id ?? JSON.stringify(ing))"
+                                            class="chip" style="margin-right:6px;">
+                                            {{ ing.product_name || ing.name || 'Item' }}
+                                            <span class="text-muted" v-if="ing.quantity"> ({{
+                                                Number(ing.quantity).toFixed(2) }})</span>
+                                        </span>
+                                    </div>
                                 </div>
 
+                                <!-- NUTRITION / ALLERGIES / TAGS -->
+                                <div class="chips mb-3">
+                                    <!-- NUTRITION -->
+                                    <div class="mb-2">
+                                        <strong>Nutrition:</strong>
+                                        <div class="mt-1">
+                                            <span v-if="selectedItem?.nutrition?.calories" class="chip chip-orange mx-1">
+                                                Calories: {{ selectedItem.nutrition.calories }}
+                                            </span>
+                                            <span v-if="selectedItem?.nutrition?.carbs" class="chip chip-green mx-1">
+                                                Carbs: {{ selectedItem.nutrition.carbs }}
+                                            </span>
+                                            <span v-if="selectedItem?.nutrition?.fat" class="chip chip-purple mx-1">
+                                                Fats: {{ selectedItem.nutrition.fat }}
+                                            </span>
+                                            <span v-if="selectedItem?.nutrition?.protein" class="chip chip-blue mx-1">
+                                                Protein: {{ selectedItem.nutrition.protein }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- ALLERGIES -->
+                                    <div class="mb-2">
+                                        <strong>Allergies:</strong>
+                                        <div class="mt-1">
+                                            <span v-for="(a, i) in selectedItem?.allergies || []"
+                                                :key="'allergy-' + (a.id ?? i)" class="chip chip-red mx-1">
+                                                {{ a.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- TAGS -->
+                                    <div>
+                                        <strong>Tags:</strong>
+                                        <div class="mt-1">
+                                            <span v-for="(t, i) in selectedItem?.tags || []" :key="'tag-' + (t.id ?? i)"
+                                                class="chip chip-teal mx-1">
+                                                {{ t.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+
                                 <!-- Qty control -->
-                               <div class="qty-group d-inline-flex align-items-center mb-3">
-  <button class="qty-btn" @click="decQty">−</button>
-  <div class="qty-box">{{ modalQty }}</div>
-  <button class="qty-btn" @click="incQty">+</button>
-</div>
+                                <div class="qty-group d-inline-flex align-items-center mb-3">
+                                    <button class="qty-btn" @click="decQty">−</button>
+                                    <div class="qty-box">{{ modalQty }}</div>
+                                    <button class="qty-btn" @click="incQty">+</button>
+                                </div>
 
                                 <div class="mb-3">
-                                    <input
-                                        v-model="modalNote"
-                                        class="form-control "
-                                        placeholder="Add note (optional)"
-                                    />
+                                    <input v-model="modalNote" class="form-control" placeholder="Add note (optional)" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="modal-footer border-0 pt-0">
-                        <button
-                        class="btn btn-outline-secondary rounded-pill"
-                            
-                            data-bs-dismiss="modal"
-                        >
-                            Cancel
-                        </button>
-                        <button class="btn btn-primary rounded-pill" @click="confirmAdd">
-                            Add to Order
-                        </button>
+                        <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button class="btn btn-primary rounded-pill" @click="confirmAdd">Add to Order</button>
                     </div>
                 </div>
             </div>
         </div>
+
     </Master>
 </template>
 
@@ -765,6 +553,7 @@ onMounted(() => {
     position: relative;
     /* width: clamp(220px, 28vw, 360px); */
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -772,6 +561,7 @@ onMounted(() => {
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -786,6 +576,7 @@ onMounted(() => {
     gap: 8px;
     margin-bottom: 16px;
 }
+
 .tab-arrow {
     border: 0;
     background: #fff;
@@ -794,6 +585,7 @@ onMounted(() => {
     height: 36px;
     border-radius: 50%;
 }
+
 .tab-arrow.left {
     order: -1;
 }
@@ -809,11 +601,12 @@ onMounted(() => {
     list-style: none;
     scrollbar-width: none;
 }
+
 .tabs::-webkit-scrollbar {
     display: none;
 }
 
-.tabs > li {
+.tabs>li {
     flex: 0 0 auto;
     width: 100px;
     height: 100px;
@@ -826,13 +619,16 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
 }
-.tabs > li:hover {
+
+.tabs>li:hover {
     transform: translateY(-1px);
 }
-.tabs > li.active {
+
+.tabs>li.active {
     outline: 2px solid #6f61ff;
     background: #f1eeff;
 }
+
 .tabs img {
     width: 32px;
     height: 32px;
@@ -844,18 +640,22 @@ onMounted(() => {
     transition: 0.15s;
     cursor: pointer;
 }
+
 .productset.hoverable:hover {
     transform: translateY(-2px);
 }
+
 .productsetimg {
     position: relative;
     overflow: hidden;
     border-radius: 10px;
 }
+
 .productsetimg img {
     width: 100%;
     display: block;
 }
+
 .productsetimg h6 {
     position: absolute;
     left: 8px;
@@ -867,6 +667,7 @@ onMounted(() => {
     border-radius: 6px;
     font-size: 12px;
 }
+
 .check-product {
     position: absolute;
     right: 8px;
@@ -880,6 +681,7 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
 }
+
 .productsetcontent h4 {
     font-size: 16px;
 }
@@ -890,6 +692,7 @@ onMounted(() => {
     flex-wrap: wrap;
     gap: 10px;
 }
+
 .chip {
     padding: 6px 10px;
     border-radius: 20px;
@@ -897,22 +700,27 @@ onMounted(() => {
     font-size: 12px;
     border: 1px solid #eee;
 }
+
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
 }
+
 .chip-blue {
     background: #e8f3ff;
     border-color: #d2e6ff;
 }
+
 .chip-purple {
     background: #f1e9ff;
     border-color: #e1d2ff;
 }
+
 .chip-orange {
     background: #fff3e6;
     border-color: #ffe1bf;
 }
+
 .chip-red {
     background: #ffe9ea;
     border-color: #ffd3d6;
@@ -921,38 +729,38 @@ onMounted(() => {
 /* Qty control (modal) */
 /* Wrap as a group */
 .qty-group {
-  border-radius: 10px;
-  overflow: hidden; /* makes them look like one control */
-  border: 1px solid #d0cfd7;
+    border-radius: 10px;
+    overflow: hidden;
+    /* makes them look like one control */
+    border: 1px solid #d0cfd7;
 }
 
 /* Btns still follow your style */
 .qty-btn {
-  width: 34px;
-  height: 44px;
-  border: 0;
-  background: #1b1670;
-  font-size: 20px;
-  line-height: 1;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    width: 34px;
+    height: 44px;
+    border: 0;
+    background: #1b1670;
+    font-size: 20px;
+    line-height: 1;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Middle box (value) */
 .qty-box {
-  height: 44px;
-  min-width: 60px;
-  text-align: center;
-  padding: 8px 12px;
-  background: #1b1670;
-  color: white;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #d0cfd7;
+    height: 44px;
+    min-width: 60px;
+    text-align: center;
+    padding: 8px 12px;
+    background: #1b1670;
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d0cfd7;
 }
-
 </style>
