@@ -356,7 +356,7 @@ onMounted(() => {
 
                                     <div v-for="(it, i) in orderItems" :key="it.title"
                                         class="d-flex align-items-center justify-content-between py-2 border-bottom">
-                                        <div class="d-flex align-items-center gap-2">
+                                        <div class="d-flex align-items-center gap-3">
                                             <img :src="it.img" alt="" class="rounded" style="
                                                     width: 36px;
                                                     height: 36px;
@@ -372,12 +372,12 @@ onMounted(() => {
                                             </div>
                                         </div>
 
-                                        <div class="d-flex align-items-center gap-2">
-                                            <button class="btn btn-sm btn-primary" @click="decCart(i)">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <button class="px-3 py-1 rounded-pill btn btn-primary text-white text-center" @click="decCart(i)">
                                                 −
                                             </button>
-                                            <div class="px-2 bg-danger">{{ it.qty }}</div>
-                                            <button class="btn btn-sm btn-primary" @click="incCart(i)">
+                                            <div class="px-3 py-1 rounded-pill btn btn-danger text-white">{{ it.qty }}</div>
+                                            <button class="px-3 py-1 rounded-pill btn btn-primary text-white text-center" @click="incCart(i)">
                                                 +
                                             </button>
                                         </div>
@@ -506,8 +506,7 @@ onMounted(() => {
                                     <div class="qty-box">{{ modalQty }}</div> <button class="qty-btn"
                                         @click="incQty">+</button>
                                 </div>
-                                <div class="mb-3"> <input v-model="modalNote" class="form-control"
-                                        placeholder="Add note (optional)" /> </div>
+                                <div class="mb-3">  </div>
                             </div>
                         </div>
                     </div>
