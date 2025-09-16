@@ -9,16 +9,24 @@ use Inertia\Inertia;
 class PosOrderController extends Controller
 {
     public function __construct(private PosOrderService $service) {}
-    public function screen()
-    {  
-        // dd("tset");
-        return Inertia::render('Backend/POS/Index'); 
 
+    public function index()
+    {  
+        return Inertia::render('Backend/POS/Index'); 
+    }
+    public function fetchMenuCategories()
+    {  
+        $menuCategories = $this->service->getMenuCategories();
+        return $menuCategories; 
+    }
+    public function fetchMenuItems()
+    {  
+        $menuItems = $this->service->getAllMenus();
+        return $menuItems; 
     }
 
    public function fetchProfileTables()
     {  
-        
         $profileTables = $this->service->getProfileTable();
         return $profileTables; 
     }

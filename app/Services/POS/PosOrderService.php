@@ -2,13 +2,24 @@
 
 namespace App\Services\POS;
 
+use App\Models\MenuCategory;
+use App\Models\MenuItem;
 use App\Models\PosOrder;
 use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
+use App\Helpers\UploadHelper;
 
 class PosOrderService
 {
+    public function list(array $filters = [])
+    {
+        return PosOrder::query()
+            ->when($filters['status'] ?? null, fn($q, $v) => $q->where('status', $v))
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+    }
+
     public function startOrder(array $payload = []): PosOrder
     {
         return PosOrder::create([
@@ -48,13 +59,31 @@ class PosOrderService
         // TODO: rollback stock/movements if you manage inventory reservations here
     }
 
-    public function list(array $filters = [])
+    public function getMenuCategories(bool $onlyActive = true)
     {
-        return PosOrder::query()
-            ->when($filters['status'] ?? null, fn($q, $v) => $q->where('status', $v))
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+        $query = MenuCategory::with('children')
+                ->whereNull('parent_id');
+        if ($onlyActive) {
+            $query->active();
+        }
+
+        return $query->get();
+    }
+    public function getAllMenus()
+    {
+        return MenuItem::with([
+            'category',
+            'ingredients',
+            'nutrition',
+            'allergies',
+            'tags',
+            'upload',
+        ])
+            ->get()
+            ->map(function ($item) {
+                $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
+                return $item;
+            });
     }
 
 

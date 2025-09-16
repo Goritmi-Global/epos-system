@@ -41,41 +41,48 @@ const subcatOptions = computed(() =>
 );
 
 // ===================== Data & fetching =====================
-const expiredCount = 7;
-const nearExpireCount = 3;
+
 
 const inventories = ref(props.inventories?.data || []);
 const items = computed(() => inventories.value);
 const loading = ref(false);
 
 const fetchInventories = async () => {
+  try {
     loading.value = true;
-    try {
-        const res = await axios.get("inventory/api-inventories");
-        const apiItems = res.data.data || [];
+    const res = await axios.get("inventory/api-inventories");
+    const apiItems = res.data.data || [];
 
-        inventories.value = await Promise.all(
-            apiItems.map(async (item) => {
-                const stockRes = await axios.get(
-                    `/stock_entries/total/${item.id}`
-                );
-                loading.value = false;
-                const stockData = stockRes.data.total?.original || {};
-                return {
-                    ...item,
-                    availableStock: stockData.available || 0,
-                    stockValue: stockData.stockValue || 0,
-                    minAlert: stockData.minAlert || 0,
-                };
-            })
-        );
-    } catch (err) {
-        console.error(err);
+    if (apiItems.length === 0) {
+      inventories.value = [];
+      loading.value = false; // stop loader when no data
+      return;
     }
+
+    inventories.value = await Promise.all(
+      apiItems.map(async (item) => {
+        const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
+        const stockData = stockRes.data.total?.original || {};
+        return {
+          ...item,
+          availableStock: stockData.available || 0,
+          stockValue: stockData.stockValue || 0,
+          minAlert: stockData.minAlert || 0,
+        };
+      })
+    );
+
+    loading.value = false; 
+  } catch (err) {
+    console.error(err);
+    loading.value = false; 
+  }
 };
+
 
 onMounted(() => {
     fetchInventories();
+    fetchStockForCounting();
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -124,6 +131,16 @@ const sortedItems = computed(() => {
 
 /* ===================== KPIs ===================== */
 const totalItems = computed(() => items.value.length);
+const stockitems = ref([])
+const fetchStockForCounting = async () => {
+  try {
+    const response = await axios.get("/stock_entries"); 
+    stockitems.value = response.data.data;
+    console.log(stockitems.value);
+  } catch (error) {
+    console.error("Failed to fetch stock entries:", error);
+  }
+};
 const lowStockCount = computed(
     () =>
         items.value.filter(
@@ -133,6 +150,32 @@ const lowStockCount = computed(
 const outOfStockCount = computed(
     () => items.value.filter((i) => i.availableStock <= 0).length
 );
+
+const expiredCount = computed(() =>
+  stockitems.value.filter((i) => {
+    if (!i.expiry_date) return false;
+    const expiry = new Date(i.expiry_date);
+    console.log("Inside from expirty" ,expiry);
+    const today = new Date();
+    console.log(today);
+    // reset hours to ignore time
+    expiry.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return expiry < today;
+  }).length
+);
+
+const nearExpireCount = computed(() =>
+  stockitems.value.filter((i) => {
+    if (!i.expiry_date) return false;
+    const expiry = new Date(i.expiry_date);
+    const today = new Date();
+    const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
+    return diffDays > 0 && diffDays <= 15;
+  }).length
+);
+
+
 const kpis = computed(() => [
     {
         label: "Total Items",
@@ -231,10 +274,10 @@ const submitProduct = async () => {
     fd.append("description", form.value.description || "");
 
     // Nutrition
-    fd.append("nutrition[calories]", form.value.nutrition.calories || 0);
-    fd.append("nutrition[fat]", form.value.nutrition.fat || 0);
-    fd.append("nutrition[protein]", form.value.nutrition.protein || 0);
-    fd.append("nutrition[carbs]", form.value.nutrition.carbs || 0);
+    fd.append("nutrition[calories]", form.value.nutrition.calories);
+    fd.append("nutrition[fat]", form.value.nutrition.fat);
+    fd.append("nutrition[protein]", form.value.nutrition.protein);
+    fd.append("nutrition[carbs]", form.value.nutrition.carbs);
 
     // Allergies/Tags
     (form.value.allergies || []).forEach((id, i) =>
@@ -483,6 +526,7 @@ async function submitStockIn() {
             document.getElementById("stockInModal")
         )?.hide();
         await fetchInventories();
+        await fetchStockForCounting();
     } catch (err) {
          if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
@@ -539,6 +583,7 @@ async function submitStockOut() {
         formErrors.value.quantity = [
             "The quantity should not exceed the available quantity.",
         ];
+        toast.error("The quantity should not exceed the available quantity.")
         submittingStock.value = false;
         return; // stop submission
     } else {
@@ -553,6 +598,7 @@ async function submitStockOut() {
             document.getElementById("stockOutModal")
         )?.hide();
         await fetchInventories();
+        await fetchStockForCounting();
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
@@ -909,15 +955,34 @@ const totals = computed(() => {
     const rows = stockedInItems.value || [];
     let totalQty = 0,
         totalPrice = 0,
-        totalValue = 0;
+        totalValue = 0,
+        notExpiredQty = 0; // 👈 new
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (const r of rows) {
-        totalQty += Number(r?.quantity ?? 0);
-        totalPrice += Number(r?.price ?? 0); // if you prefer avg price, compute avg instead
+        const qty = Number(r?.quantity ?? 0);
+
+        totalQty += qty;
+        totalPrice += Number(r?.price ?? 0);
         totalValue += Number(r?.value ?? 0);
+
+        // only add qty if not expired
+        if (!r?.expiry_date) {
+            notExpiredQty += qty;
+        } else {
+            const expiry = new Date(r.expiry_date);
+            expiry.setHours(0, 0, 0, 0);
+            if (expiry >= today) {
+                notExpiredQty += qty;
+            }
+        }
     }
-    return { totalQty, totalPrice, totalValue };
+
+    return { totalQty, totalPrice, totalValue, notExpiredQty };
 });
+
 </script>
 
 <template>
@@ -1165,7 +1230,7 @@ const totals = computed(() => {
                                             class="text-truncate"
                                             style="max-width: 260px"
                                         >
-                                            {{ item.category.name }}
+                                            {{ item.category?.name }}
                                         </td>
                                         <td>{{ item.unit_name }}</td>
                                         <td>
@@ -1727,13 +1792,14 @@ const totals = computed(() => {
                                             @cropped="onCropped"
                                         />
 
-                                        <small
+                                        
+                                    </div>
+                                    <small
                                             v-if="formErrors.image"
                                             class="text-danger"
                                         >
                                             {{ formErrors.image[0] }}
                                         </small>
-                                    </div>
                                 </div>
 
                                 <div class="mt-4">
@@ -2023,7 +2089,7 @@ const totals = computed(() => {
                                                     >Stocked In</span
                                                 >
                                                 <span class="  badge bg-gray-500 rounded-pill text-white p-2">{{
-                                                   totals.totalQty
+                                                   totals.notExpiredQty
                                                 }}</span>
                                             </div>
 

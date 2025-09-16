@@ -26,7 +26,6 @@ const fetchCategories = async () => {
     try {
         const res = await axios.get("/categories");
         categories.value = res.data.data;
-        console.log("Fetched categories:", categories.value);
     } catch (err) {
         console.error("Failed to fetch categories:", err);
     }
@@ -243,8 +242,8 @@ const submitCategory = async () => {
         } else {
             // CREATE MODE - Use the existing structure
             let categoriesPayload = [];
-
             if (isSub.value) {
+                
                 if (isSub.value && manualSubcategories.value.length === 0) {
                     catFormErrors.value.subcategories = [
                         "Please add at least one subcategory",
@@ -271,6 +270,8 @@ const submitCategory = async () => {
                     submitting.value = false;
                     return;
                 }
+
+                
 
                 categoriesPayload = manualCategories.value.map((cat) => ({
                     id: undefined,
@@ -335,7 +336,7 @@ const submitCategory = async () => {
 };
 
 const resetErrors = () => {
-    resetModal();
+    // resetModal();
     catFormErrors.value = {};
 };
 

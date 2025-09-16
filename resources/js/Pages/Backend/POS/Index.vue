@@ -2,22 +2,112 @@
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
-import Select from "primevue/select";
 
 /* ----------------------------
    Categories (same keys/icons)
 -----------------------------*/
+const menuCategories = ref([]);
+const fetchMenuCategories = async () => {
+    try {
+        const response = await axios.get("/pos/fetch-menu-categories");
+        menuCategories.value = response.data;
+        if (menuCategories.value.length > 0) {
+            activeCat.value = menuCategories.value[0].id;
+        }
+        console.log(menuCategories.value);
+    } catch (error) {
+        console.error("Error fetching inventory:", error);
+    }
+};
+
+const menuItems = ref([]);
+const fetchMenuItems = async () => {
+    try {
+        const response = await axios.get("/pos/fetch-menu-items");
+        menuItems.value = response.data;
+        console.log(menuItems.value);
+    } catch (error) {
+        console.error("Error fetching inventory:", error);
+    }
+};
+
+/* ----------------------------
+   Real Products by Category
+-----------------------------*/
+
+const productsByCat = computed(() => {
+    const grouped = {};
+
+    menuItems.value.forEach((item) => {
+        const catId = item.category?.id || "uncategorized";
+        const catName = item.category?.name || "Uncategorized";
+
+        if (!grouped[catId]) {
+            grouped[catId] = [];
+        }
+
+        grouped[catId].push({
+            id: item.id,
+            title: item.name,
+            img: item.image_url || "/assets/img/default.png",
+            qty: item.ingredients?.length ?? 0,
+            price: Number(item.price),
+            family: catName, // still displayable name
+            description: item.description,
+            nutrition: item.nutrition,
+            tags: item.tags,
+            allergies: item.allergies,
+            ingredients: item.ingredients ?? [],
+        });
+    });
+
+    return grouped;
+});
+
+
+
+/* ----------------------------
+   UI State
+-----------------------------*/
+// const activeCat = ref("fruits");
+const searchQuery = ref("");
+const orderType = ref("dine"); // 'dine' | 'delivery'
+
+const tableNo = ref(""); // dine-in
+const customer = ref("Walk In"); // delivery/customer
+
+const deliveryPercent = ref(10); // demo: 10% delivery charges
+
+// const setCat = (k) => (activeCat.value = k);
+// const isCat = (k) => activeCat.value === k;
+
+const activeCat = ref(null); // store ID
+const setCat = (id) => {
+    activeCat.value = id;
+};
+const isCat = (id) => activeCat.value === id;
+
+
+const selectedCategory = ref(null);
+function openCategory(id) {
+    selectedCategory.value = id
+}
+
+function goBack() {
+    selectedCategory.value = null
+}
+
+
 
 const profileTables = ref({});
 const orderTypes = ref([]);
-const orderType = ref(""); 
 const selectedTable = ref(null);
 
 const fetchProfileTables = async () => {
     try {
         const response = await axios.get("/pos/fetch-profile-tables");
         profileTables.value = response.data;
-        console.log(profileTables.value);
+        console.log("profileTables", profileTables.value);
 
         if (profileTables.value.order_types) {
             orderTypes.value = profileTables.value.order_types;
@@ -31,246 +121,37 @@ const fetchProfileTables = async () => {
     }
 };
 
-
-
-const categories = [
-    {
-        key: "fruits",
-        label: "Fruits",
-        icon: "/assets/img/product/product62.png",
-    },
-    {
-        key: "headphone",
-        label: "Headphones",
-        icon: "/assets/img/product/product63.png",
-    },
-    {
-        key: "Accessories",
-        label: "Accessories",
-        icon: "/assets/img/product/product64.png",
-    },
-    { key: "Shoes", label: "Shoes", icon: "/assets/img/product/product65.png" },
-    {
-        key: "computer",
-        label: "Computer",
-        icon: "/assets/img/product/product66.png",
-    },
-    {
-        key: "Snacks",
-        label: "Snacks",
-        icon: "/assets/img/product/product67.png",
-    },
-    {
-        key: "watch",
-        label: "Watches",
-        icon: "/assets/img/product/product68.png",
-    },
-    {
-        key: "cycle",
-        label: "Cycles",
-        icon: "/assets/img/product/product61.png",
-    },
-];
-
-/* ----------------------------
-   Demo Products by Category
------------------------------*/
-const productsByCat = {
-    fruits: [
-        {
-            title: "Orange",
-            img: "/assets/img/product/product29.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Fruits",
-        },
-        {
-            title: "Strawberry",
-            img: "/assets/img/product/product31.jpg",
-            qty: 1,
-            price: 15.0,
-            family: "Fruits",
-        },
-        {
-            title: "Banana",
-            img: "/assets/img/product/product35.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Fruits",
-        },
-        {
-            title: "Limon",
-            img: "/assets/img/product/product37.jpg",
-            qty: 5,
-            price: 1500.0,
-            family: "Fruits",
-        },
-        {
-            title: "Apple",
-            img: "/assets/img/product/product54.jpg",
-            qty: 5,
-            price: 1500.0,
-            family: "Fruits",
-        },
-    ],
-    headphone: [
-        {
-            title: "Earphones A",
-            img: "/assets/img/product/product44.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Headphones",
-        },
-        {
-            title: "Earphones B",
-            img: "/assets/img/product/product45.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Headphones",
-        },
-        {
-            title: "Earphones C",
-            img: "/assets/img/product/product36.jpg",
-            qty: 5,
-            price: 150.0,
-            family: "Headphones",
-        },
-    ],
-    Accessories: [
-        {
-            title: "Sunglasses",
-            img: "/assets/img/product/product32.jpg",
-            qty: 1,
-            price: 15.0,
-            family: "Accessories",
-        },
-        {
-            title: "Pendrive",
-            img: "/assets/img/product/product46.jpg",
-            qty: 1,
-            price: 150.0,
-            family: "Accessories",
-        },
-        {
-            title: "Mouse",
-            img: "/assets/img/product/product55.jpg",
-            qty: 1,
-            price: 150.0,
-            family: "Accessories",
-        },
-    ],
-    Shoes: [
-        {
-            title: "Red Nike",
-            img: "/assets/img/product/product60.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Shoes",
-        },
-    ],
-    computer: [
-        {
-            title: "Desktop",
-            img: "/assets/img/product/product56.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Computers",
-        },
-    ],
-    Snacks: [
-        {
-            title: "Duck Salad",
-            img: "/assets/img/product/product47.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-        {
-            title: "Breakfast Board",
-            img: "/assets/img/product/product48.png",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-        {
-            title: "California roll",
-            img: "/assets/img/product/product57.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-        {
-            title: "Sashimi",
-            img: "/assets/img/product/product58.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Snacks",
-        },
-    ],
-    watch: [
-        {
-            title: "Watch A",
-            img: "/assets/img/product/product49.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Watch",
-        },
-        {
-            title: "Watch B",
-            img: "/assets/img/product/product51.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Watch",
-        },
-    ],
-    cycle: [
-        {
-            title: "Cycle A",
-            img: "/assets/img/product/product52.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Cycle",
-        },
-        {
-            title: "Cycle B",
-            img: "/assets/img/product/product53.jpg",
-            qty: 1,
-            price: 1500.0,
-            family: "Cycle",
-        },
-    ],
-};
-
-/* ----------------------------
-   UI State
------------------------------*/
-const activeCat = ref("fruits");
-const searchQuery = ref("");
-// const orderType = ref("dine"); // 'dine' | 'delivery'
-
-const tableNo = ref(""); // dine-in
-const customer = ref("Walk In"); // delivery/customer
-
-const deliveryPercent = ref(10); // demo: 10% delivery charges
-
-const setCat = (k) => (activeCat.value = k);
-const isCat = (k) => activeCat.value === k;
-
 /* Search + category combined */
-const visibleProducts = computed(() => productsByCat[activeCat.value] ?? []);
+// const visibleProducts = computed(() => productsByCat[activeCat.value] ?? []);
+// const filteredProducts = computed(() => {
+//     const q = searchQuery.value.trim().toLowerCase();
+//     if (!q) return visibleProducts.value;
+//     return visibleProducts.value.filter(
+//         (p) =>
+//             p.title.toLowerCase().includes(q) ||
+//             (p.family || "").toLowerCase().includes(q)
+//     );
+// });
+
+const visibleProducts = computed(() => productsByCat.value[activeCat.value] ?? []);
+
 const filteredProducts = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
     if (!q) return visibleProducts.value;
+
     return visibleProducts.value.filter(
         (p) =>
             p.title.toLowerCase().includes(q) ||
-            (p.family || "").toLowerCase().includes(q)
+            (p.family || "").toLowerCase().includes(q) ||
+            (p.description || "").toLowerCase().includes(q) ||
+            (p.tags?.map(t => t.name.toLowerCase()).join(", ") || "").includes(q)
     );
 });
 
+
 /* Horizontal scroll arrows for category tabs */
 const catScroller = ref(null);
-const showCatArrows = computed(() => categories.length > 5);
+const showCatArrows = computed(() => menuCategories.value.length > 5);
 const scrollTabs = (dir) => {
     const el = catScroller.value;
     if (!el) return;
@@ -353,6 +234,8 @@ onMounted(() => {
             backdrop: "static",
         });
     }
+    fetchMenuCategories();
+    fetchMenuItems();
     fetchProfileTables();
 });
 </script>
@@ -366,65 +249,42 @@ onMounted(() => {
             <div class="container-fluid py-3">
                 <div class="row">
                     <!-- LEFT: Categories + Products -->
-                    <div class="col-lg-8 col-sm-12">
-                        <!-- Search -->
-
-                        <div class="search-wrap mb-3">
-                            <i class="bi bi-search"></i>
-                            <input v-model="searchQuery" type="text" class="form-control search-input"
-                                placeholder="Search" />
-                        </div>
-
+                    <div class="col-lg-8 col-sm-12"> <!-- Search -->
+                        <div class="search-wrap mb-3"> <i class="bi bi-search"></i> <input v-model="searchQuery"
+                                type="text" class="form-control search-input" placeholder="Search" /> </div>
                         <!-- Category tabs with arrows -->
-                        <div class="tabs-wrap">
-                            <button v-if="showCatArrows" class="tab-arrow left" type="button"
-                                @click="scrollTabs('left')" aria-label="Previous categories">
-                                <i class="fa fa-chevron-left"></i>
-                            </button>
-
+                        <div class="tabs-wrap"> <button v-if="showCatArrows" class="tab-arrow left" type="button"
+                                @click="scrollTabs('left')" aria-label="Previous categories"> <i
+                                    class="fa fa-chevron-left"></i> </button>
                             <ul class="tabs border-0" id="catTabs" ref="catScroller">
-                                <li v-for="c in categories" :key="c.key" :class="{ active: isCat(c.key) }"
-                                    @click="setCat(c.key)" role="button" tabindex="0">
+                                <li v-for="c in menuCategories" :key="c.id" :class="{ active: isCat(c.id) }"
+                                    @click="setCat(c.id)" role="button" tabindex="0">
                                     <div class="product-details flex-column text-center">
-                                        <img :src="c.icon" alt="" />
-                                        <h6 class="mt-2 mb-0">{{ c.label }}</h6>
+                                        <!-- if backend gives emoji in icon field -->
+                                        <div class="text-2xl">{{ c.icon }}</div>
+                                        <h6 class="mt-2 mb-0">{{ c.name }}</h6>
                                     </div>
                                 </li>
-                            </ul>
-
-                            <button v-if="showCatArrows" class="tab-arrow right" type="button"
-                                @click="scrollTabs('right')" aria-label="Next categories">
-                                <i class="fa fa-chevron-right"></i>
-                            </button>
-                        </div>
-
-                        <!-- Products Grid -->
+                            </ul> <button v-if="showCatArrows" class="tab-arrow right" type="button"
+                                @click="scrollTabs('right')" aria-label="Next categories"> <i
+                                    class="fa fa-chevron-right"></i> </button>
+                        </div> <!-- Products Grid -->
                         <div class="row g-3">
                             <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
                                 <div class="productset flex-fill hoverable" @click="openItem(p)">
-                                    <div class="productsetimg">
-                                        <img :src="p.img" alt="img" />
-                                        <h6>
-                                            Qty: {{ Number(p.qty).toFixed(2) }}
-                                        </h6>
-                                        <div class="check-product">
-                                            <i class="fa fa-plus"></i>
-                                        </div>
+                                    <div class="productsetimg"> <img :src="p.img" alt="img" />
+                                        <h6> Qty: {{ Number(p.qty).toFixed(2) }} </h6>
+                                        <div class="check-product"> <i class="fa fa-plus"></i> </div>
                                     </div>
                                     <div class="productsetcontent">
-                                        <h5 class="text-muted small">
-                                            {{ p.family }}
-                                        </h5>
+                                        <h5 class="text-muted small"> {{ p.family }} </h5>
                                         <h4 class="mb-1">{{ p.title }}</h4>
                                         <h6>{{ money(p.price) }}</h6>
                                     </div>
                                 </div>
                             </div>
-
                             <div v-if="filteredProducts.length === 0" class="col-12">
-                                <div class="alert alert-light border text-center">
-                                    No items found.
-                                </div>
+                                <div class="alert alert-light border text-center"> No items found. </div>
                             </div>
                         </div>
                     </div>
@@ -438,9 +298,9 @@ onMounted(() => {
                                         <button v-for="(type, index) in orderTypes" :key="index" class="btn btn-sm"
                                             :class="orderType === type ? 'btn-success' : 'btn-light'"
                                             @click="orderType = type">
-                                           {{ type.replace('_', ' ').charAt(0).toUpperCase() + type.replace('_', ' ').slice(1) }}
-
+                                            {{type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}}
                                         </button>
+
                                     </div>
                                     <span class="badge bg-secondary">Order</span>
                                 </div>
@@ -449,11 +309,8 @@ onMounted(() => {
                                 <div v-if="orderType === 'dine_in'" class="mb-3">
                                     <label class="form-label small mb-1">Table No:</label>
                                     <select v-model="selectedTable" class="form-control">
-                                        <option
-                                            v-for="(table, index) in profileTables.table_details"
-                                            :key="index"
-                                            :value="table"
-                                        >
+                                        <option v-for="(table, index) in profileTables.table_details" :key="index"
+                                            :value="table">
                                             {{ table.name }} ({{ table.chairs }} chairs)
                                         </option>
                                     </select>
@@ -580,61 +437,65 @@ onMounted(() => {
         <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="modal-header border-0">
-                        <h5 class="modal-title fw-bold">Choose Item</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="modal-header border-0"> <!-- Show Item Name -->
+                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5> <button
+                            type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
-                            <div class="col-lg-5 mb-3">
-                                <img :src="selectedItem?.img ||
-                                    '/assets/img/product/product29.jpg'
-                                    " class="img-fluid rounded shadow-sm w-100" alt="item" />
-                            </div>
-
+                            <div class="col-lg-5 mb-3"> <img
+                                    :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
+                                    class="img-fluid rounded shadow-sm w-100" alt="item" /> </div>
                             <div class="col-lg-7">
-                                <h3 class="mb-2 text-primary-dark">
-                                    {{ selectedItem?.title }}
-                                </h3>
-                                <div class="h5 mb-3">
-                                    {{ money(selectedItem?.price || 0) }}
+                                <h3 class="mb-1 text-primary-dark">{{ selectedItem?.title }}</h3> <!-- PRICE -->
+                                <div class="h5 mb-3"> {{ money(selectedItem?.price || 0) }} </div>
+                                <!-- INGREDIENTS (top) -->
+                                <div class="mb-2"> <strong>Ingredients:</strong>
+                                    <div v-if="!(selectedItem?.ingredients?.length)"> <em class="text-muted">No
+                                            ingredients listed</em> </div>
+                                    <div v-else class="mt-2"> <!-- inline chips/list --> <span
+                                            v-for="ing in selectedItem.ingredients"
+                                            :key="'ing-' + (ing.id ?? ing.inventory_item_id ?? JSON.stringify(ing))"
+                                            class="chip" style="margin-right:6px;"> {{ ing.product_name || ing.name ||
+                                                'Item' }} <span class="text-muted" v-if="ing.quantity"> ({{
+                                                Number(ing.quantity).toFixed(2) }})</span> </span> </div>
+                                </div> <!-- NUTRITION / ALLERGIES / TAGS -->
+                                <div class="chips mb-3"> <!-- NUTRITION -->
+                                    <div class="mb-2"> <strong>Nutrition:</strong>
+                                        <div class="mt-1"> <span v-if="selectedItem?.nutrition?.calories"
+                                                class="chip chip-orange mx-1"> Calories: {{
+                                                    selectedItem.nutrition.calories }} </span> <span
+                                                v-if="selectedItem?.nutrition?.carbs" class="chip chip-green mx-1">
+                                                Carbs: {{ selectedItem.nutrition.carbs }} </span> <span
+                                                v-if="selectedItem?.nutrition?.fat" class="chip chip-purple mx-1"> Fats:
+                                                {{ selectedItem.nutrition.fat }} </span> <span
+                                                v-if="selectedItem?.nutrition?.protein" class="chip chip-blue mx-1">
+                                                Protein: {{ selectedItem.nutrition.protein }} </span> </div>
+                                    </div> <!-- ALLERGIES -->
+                                    <div class="mb-2"> <strong>Allergies:</strong>
+                                        <div class="mt-1"> <span v-for="(a, i) in selectedItem?.allergies || []"
+                                                :key="'allergy-' + (a.id ?? i)" class="chip chip-red mx-1"> {{ a.name }}
+                                            </span> </div>
+                                    </div> <!-- TAGS -->
+                                    <div> <strong>Tags:</strong>
+                                        <div class="mt-1"> <span v-for="(t, i) in selectedItem?.tags || []"
+                                                :key="'tag-' + (t.id ?? i)" class="chip chip-teal mx-1"> {{ t.name }}
+                                            </span> </div>
+                                    </div>
+                                </div> <!-- Qty control -->
+                                <div class="qty-group d-inline-flex align-items-center mb-3"> <button class="qty-btn"
+                                        @click="decQty">−</button>
+                                    <div class="qty-box">{{ modalQty }}</div> <button class="qty-btn"
+                                        @click="incQty">+</button>
                                 </div>
-
-                                <!-- Example chips (demo only) -->
-                                <div class="chips mb-3">
-                                    <span class="chip">Basmati rice (20 gram (g))</span>
-                                    <span class="chip chip-orange">Calories: 120.0</span>
-                                    <span class="chip chip-green">Carbs: 4.0</span>
-                                    <span class="chip chip-purple">Fats: 3.0</span>
-                                    <span class="chip chip-blue">Protein: 18.0</span>
-                                    <span class="chip chip-red">Celery</span>
-                                    <span class="chip">Gluten-Free</span>
-                                </div>
-
-                                <!-- Qty control -->
-                                <div class="qty-group d-inline-flex align-items-center mb-3">
-                                    <button class="qty-btn" @click="decQty">−</button>
-                                    <div class="qty-box">{{ modalQty }}</div>
-                                    <button class="qty-btn" @click="incQty">+</button>
-                                </div>
-
-                                <div class="mb-3">
-                                    <input v-model="modalNote" class="form-control "
-                                        placeholder="Add note (optional)" />
-                                </div>
+                                <div class="mb-3"> <input v-model="modalNote" class="form-control"
+                                        placeholder="Add note (optional)" /> </div>
                             </div>
                         </div>
                     </div>
-
-                    <div class="modal-footer border-0 pt-0">
-                        <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">
-                            Cancel
-                        </button>
-                        <button class="btn btn-primary rounded-pill" @click="confirmAdd">
-                            Add to Order
-                        </button>
-                    </div>
+                    <div class="modal-footer border-0 pt-0"> <button class="btn btn-outline-secondary rounded-pill"
+                            data-bs-dismiss="modal">Cancel</button> <button class="btn btn-primary rounded-pill"
+                            @click="confirmAdd">Add to Order</button> </div>
                 </div>
             </div>
         </div>

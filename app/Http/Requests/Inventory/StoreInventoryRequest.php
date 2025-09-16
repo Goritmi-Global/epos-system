@@ -10,34 +10,55 @@ class StoreInventoryRequest extends FormRequest
     {
         return true;
     }
+
     public function rules(): array
     {
         return [
-            'name'            => ['required','string','max:255'],
-            'category_id'     => ['required','integer','exists:inventory_categories,id'],
-            'subcategory_id'  => ['nullable','integer','exists:inventory_categories,id'],
-            'unit_id'         => ['required','integer','exists:units,id'],
-            'supplier_id'     => ['required','integer','exists:suppliers,id'],
+            'name'            => ['required', 'string', 'max:255'],
+            'category_id'     => ['required', 'integer', 'exists:inventory_categories,id'],
+            'subcategory_id'  => ['nullable', 'integer', 'exists:inventory_categories,id'],
+            'unit_id'         => ['required', 'integer', 'exists:units,id'],
+            'supplier_id'     => ['required', 'integer', 'exists:suppliers,id'],
+            'sku'             => ['nullable', 'string', 'max:255', 'unique:inventory_items,sku'],
+            'description'     => ['nullable', 'string'],
+            'minAlert'        => ['required', 'integer', 'min:0'],
 
-            // if SKU must be unique on create:
-            'sku'             => ['nullable','string','max:255','unique:inventory_items,sku'],
+            'nutrition'               => ['required', 'array'],
+            'nutrition.calories'      => ['required', 'numeric', 'min:0'],
+            'nutrition.fat'           => ['required', 'numeric', 'min:0'],
+            'nutrition.protein'       => ['required', 'numeric', 'min:0'],
+            'nutrition.carbs'         => ['required', 'numeric', 'min:0'],
 
-            'description'     => ['nullable','string'],
-            'minAlert'        => ['required','integer','min:0'],
+            'allergies'       => ['nullable', 'array'],
+            'allergies.*'     => ['integer', 'distinct', 'exists:allergies,id'],
+            'tags'            => ['nullable', 'array'],
+            'tags.*'          => ['integer', 'distinct', 'exists:tags,id'],
 
-            'nutrition'               => ['nullable','array'],
-            'nutrition.calories'      => ['nullable','numeric','min:0'],
-            'nutrition.fat'           => ['nullable','numeric','min:0'],
-            'nutrition.protein'       => ['nullable','numeric','min:0'],
-            'nutrition.carbs'         => ['nullable','numeric','min:0'],
-
-            'allergies'       => ['nullable','array'],
-            'allergies.*'     => ['integer','distinct','exists:allergies,id'],
-            'tags'            => ['nullable','array'],
-            'tags.*'          => ['integer','distinct','exists:tags,id'],
-
-            'image'           => ['required','image','max:2048'], // KB
+            'image'           => ['required', 'image', 'max:2048'], // KB
         ];
     }
 
+    public function messages(): array
+    {
+        return [
+            'nutrition.required' => 'The nutrition information is required.',
+            'nutrition.calories.required' => 'The calories field is required.',
+            'nutrition.fat.required' => 'The fat field is required.',
+            'nutrition.protein.required' => 'The protein field is required.',
+            'nutrition.carbs.required' => 'The carbs field is required.',
+        ];
+    }
+
+    /**
+     * Rename attributes so dot notation doesn't appear in errors
+     */
+    public function attributes(): array
+    {
+        return [
+            'nutrition.calories' => 'calories',
+            'nutrition.fat' => 'fat',
+            'nutrition.protein' => 'protein',
+            'nutrition.carbs' => 'carbs',
+        ];
+    }
 }

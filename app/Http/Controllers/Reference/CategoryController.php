@@ -73,7 +73,6 @@ class CategoryController extends Controller
      */
     public function store(StoreCategoryRequest $request): JsonResponse
     {
-
         try {
             $result = $this->categoryService->createCategories($request->validated());
 
