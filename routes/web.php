@@ -101,11 +101,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
-
-
-         Route::get('stock-logs/{log}/allocations', [StockLogController::class, 'allocations'])
-        ->whereNumber('log')
-        ->name('stock-logs.allocations');
     });
 
 
@@ -207,7 +202,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{menu}/edit', [MenuController::class, 'edit'])->name('edit');
         Route::get('/{menu}', [MenuController::class, 'show'])->name('show');
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
-        Route::patch('/{menu}/status', [MenuController::class, 'toggleStatus']);
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
 

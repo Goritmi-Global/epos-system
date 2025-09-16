@@ -24,4 +24,11 @@ class PosOrderController extends Controller
         $menuItems = $this->service->getAllMenus();
         return $menuItems; 
     }
+
+   public function fetchProfileTables()
+    {  
+        $profileTables = $this->service->getProfileTable();
+        return $profileTables; 
+    }
+
 }

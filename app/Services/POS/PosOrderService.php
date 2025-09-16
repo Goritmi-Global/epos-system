@@ -5,6 +5,7 @@ namespace App\Services\POS;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\PosOrder;
+use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
 
@@ -60,7 +61,8 @@ class PosOrderService
 
     public function getMenuCategories(bool $onlyActive = true)
     {
-        $query = MenuCategory::with('children');
+        $query = MenuCategory::with('children')
+                ->whereNull('parent_id');
         if ($onlyActive) {
             $query->active();
         }
@@ -82,5 +84,12 @@ class PosOrderService
                 $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
                 return $item;
             });
+    }
+
+
+    public function getProfileTable()
+    {
+        return RestaurantProfile::select('order_types', 'table_details')->first();
+      
     }
 }

@@ -90,11 +90,11 @@ const isCat = (id) => activeCat.value === id;
 
 const selectedCategory = ref(null);
 function openCategory(id) {
-  selectedCategory.value = id
+    selectedCategory.value = id
 }
 
 function goBack() {
-  selectedCategory.value = null
+    selectedCategory.value = null
 }
 
 /* Search + category combined */
@@ -224,22 +224,13 @@ onMounted(() => {
             <div class="container-fluid py-3">
                 <div class="row">
                     <!-- LEFT: Categories + Products -->
-                    <div class="col-lg-8 col-sm-12">
-                        <!-- Search -->
-
-                        <div class="search-wrap mb-3">
-                            <i class="bi bi-search"></i>
-                            <input v-model="searchQuery" type="text" class="form-control search-input"
-                                placeholder="Search" />
-                        </div>
-
+                    <div class="col-lg-8 col-sm-12"> <!-- Search -->
+                        <div class="search-wrap mb-3"> <i class="bi bi-search"></i> <input v-model="searchQuery"
+                                type="text" class="form-control search-input" placeholder="Search" /> </div>
                         <!-- Category tabs with arrows -->
-                        <div class="tabs-wrap">
-                            <button v-if="showCatArrows" class="tab-arrow left" type="button"
-                                @click="scrollTabs('left')" aria-label="Previous categories">
-                                <i class="fa fa-chevron-left"></i>
-                            </button>
-
+                        <div class="tabs-wrap"> <button v-if="showCatArrows" class="tab-arrow left" type="button"
+                                @click="scrollTabs('left')" aria-label="Previous categories"> <i
+                                    class="fa fa-chevron-left"></i> </button>
                             <ul class="tabs border-0" id="catTabs" ref="catScroller">
                                 <li v-for="c in menuCategories" :key="c.id" :class="{ active: isCat(c.id) }"
                                     @click="setCat(c.id)" role="button" tabindex="0">
@@ -249,41 +240,26 @@ onMounted(() => {
                                         <h6 class="mt-2 mb-0">{{ c.name }}</h6>
                                     </div>
                                 </li>
-                            </ul>
-
-                            <button v-if="showCatArrows" class="tab-arrow right" type="button"
-                                @click="scrollTabs('right')" aria-label="Next categories">
-                                <i class="fa fa-chevron-right"></i>
-                            </button>
-                        </div>
-
-                        <!-- Products Grid -->
+                            </ul> <button v-if="showCatArrows" class="tab-arrow right" type="button"
+                                @click="scrollTabs('right')" aria-label="Next categories"> <i
+                                    class="fa fa-chevron-right"></i> </button>
+                        </div> <!-- Products Grid -->
                         <div class="row g-3">
                             <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
                                 <div class="productset flex-fill hoverable" @click="openItem(p)">
-                                    <div class="productsetimg">
-                                        <img :src="p.img" alt="img" />
-                                        <h6>
-                                            Qty: {{ Number(p.qty).toFixed(2) }}
-                                        </h6>
-                                        <div class="check-product">
-                                            <i class="fa fa-plus"></i>
-                                        </div>
+                                    <div class="productsetimg"> <img :src="p.img" alt="img" />
+                                        <h6> Qty: {{ Number(p.qty).toFixed(2) }} </h6>
+                                        <div class="check-product"> <i class="fa fa-plus"></i> </div>
                                     </div>
                                     <div class="productsetcontent">
-                                        <h5 class="text-muted small">
-                                            {{ p.family }}
-                                        </h5>
+                                        <h5 class="text-muted small"> {{ p.family }} </h5>
                                         <h4 class="mb-1">{{ p.title }}</h4>
                                         <h6>{{ money(p.price) }}</h6>
                                     </div>
                                 </div>
                             </div>
-
                             <div v-if="filteredProducts.length === 0" class="col-12">
-                                <div class="alert alert-light border text-center">
-                                    No items found.
-                                </div>
+                                <div class="alert alert-light border text-center"> No items found. </div>
                             </div>
                         </div>
                     </div>
@@ -294,27 +270,27 @@ onMounted(() => {
                             <div class="card-body pb-2">
                                 <div class="d-flex align-items-center justify-content-between mb-3">
                                     <div class="btn-group">
-                                        <button class="btn btn-sm" :class="orderType === 'dine'
-                                            ? 'btn-success'
-                                            : 'btn-light'
-                                            " @click="orderType = 'dine'">
-                                            Dine In
-                                        </button>
-                                        <button class="btn btn-sm" :class="orderType === 'delivery'
-                                            ? 'btn-success'
-                                            : 'btn-light'
-                                            " @click="orderType = 'delivery'">
-                                            Delivery
+                                        <button v-for="(type, index) in orderTypes" :key="index" class="btn btn-sm"
+                                            :class="orderType === type ? 'btn-success' : 'btn-light'"
+                                            @click="orderType = type">
+                                            {{ type.replace('_', ' ').charAt(0).toUpperCase() + type.replace('_',
+                                                '').slice(1) }}
+
                                         </button>
                                     </div>
-
                                     <span class="badge bg-secondary">Order</span>
                                 </div>
 
                                 <!-- Type-specific inputs -->
-                                <div v-if="orderType === 'dine'" class="mb-3">
+                                <div v-if="orderType === 'dine_in'" class="mb-3">
                                     <label class="form-label small mb-1">Table No:</label>
-                                    <input v-model="tableNo" type="text" class="form-control" placeholder="Table No:" />
+                                    <select v-model="selectedTable" class="form-control">
+                                        <option v-for="(table, index) in profileTables.table_details" :key="index"
+                                            :value="table">
+                                            {{ table.name }} ({{ table.chairs }} chairs)
+                                        </option>
+                                    </select>
+
                                     <label class="form-label small mt-3 mb-1">Customer</label>
                                     <input v-model="customer" type="text" class="form-control"
                                         placeholder="Customer Name" />
@@ -437,113 +413,68 @@ onMounted(() => {
         <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="modal-header border-0">
-                        <!-- Show Item Name -->
-                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="modal-header border-0"> <!-- Show Item Name -->
+                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5> <button
+                            type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
-                            <div class="col-lg-5 mb-3">
-                                <img :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
-                                    class="img-fluid rounded shadow-sm w-100" alt="item" />
-                            </div>
-
+                            <div class="col-lg-5 mb-3"> <img
+                                    :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
+                                    class="img-fluid rounded shadow-sm w-100" alt="item" /> </div>
                             <div class="col-lg-7">
-                                <h3 class="mb-1 text-primary-dark">{{ selectedItem?.title }}</h3>
-
-
-
-                                <!-- PRICE -->
-                                <div class="h5 mb-3">
-                                    {{ money(selectedItem?.price || 0) }}
-                                </div>
+                                <h3 class="mb-1 text-primary-dark">{{ selectedItem?.title }}</h3> <!-- PRICE -->
+                                <div class="h5 mb-3"> {{ money(selectedItem?.price || 0) }} </div>
                                 <!-- INGREDIENTS (top) -->
-                                <div class="mb-2">
-                                    <strong>Ingredients:</strong>
-                                    <div v-if="!(selectedItem?.ingredients?.length)">
-                                        <em class="text-muted">No ingredients listed</em>
-                                    </div>
-                                    <div v-else class="mt-2">
-                                        <!-- inline chips/list -->
-                                        <span v-for="ing in selectedItem.ingredients"
+                                <div class="mb-2"> <strong>Ingredients:</strong>
+                                    <div v-if="!(selectedItem?.ingredients?.length)"> <em class="text-muted">No
+                                            ingredients listed</em> </div>
+                                    <div v-else class="mt-2"> <!-- inline chips/list --> <span
+                                            v-for="ing in selectedItem.ingredients"
                                             :key="'ing-' + (ing.id ?? ing.inventory_item_id ?? JSON.stringify(ing))"
-                                            class="chip" style="margin-right:6px;">
-                                            {{ ing.product_name || ing.name || 'Item' }}
-                                            <span class="text-muted" v-if="ing.quantity"> ({{
-                                                Number(ing.quantity).toFixed(2) }})</span>
-                                        </span>
+                                            class="chip" style="margin-right:6px;"> {{ ing.product_name || ing.name ||
+                                            'Item' }} <span class="text-muted" v-if="ing.quantity"> ({{
+                                                Number(ing.quantity).toFixed(2) }})</span> </span> </div>
+                                </div> <!-- NUTRITION / ALLERGIES / TAGS -->
+                                <div class="chips mb-3"> <!-- NUTRITION -->
+                                    <div class="mb-2"> <strong>Nutrition:</strong>
+                                        <div class="mt-1"> <span v-if="selectedItem?.nutrition?.calories"
+                                                class="chip chip-orange mx-1"> Calories: {{
+                                                selectedItem.nutrition.calories }} </span> <span
+                                                v-if="selectedItem?.nutrition?.carbs" class="chip chip-green mx-1">
+                                                Carbs: {{ selectedItem.nutrition.carbs }} </span> <span
+                                                v-if="selectedItem?.nutrition?.fat" class="chip chip-purple mx-1"> Fats:
+                                                {{ selectedItem.nutrition.fat }} </span> <span
+                                                v-if="selectedItem?.nutrition?.protein" class="chip chip-blue mx-1">
+                                                Protein: {{ selectedItem.nutrition.protein }} </span> </div>
+                                    </div> <!-- ALLERGIES -->
+                                    <div class="mb-2"> <strong>Allergies:</strong>
+                                        <div class="mt-1"> <span v-for="(a, i) in selectedItem?.allergies || []"
+                                                :key="'allergy-' + (a.id ?? i)" class="chip chip-red mx-1"> {{ a.name }}
+                                            </span> </div>
+                                    </div> <!-- TAGS -->
+                                    <div> <strong>Tags:</strong>
+                                        <div class="mt-1"> <span v-for="(t, i) in selectedItem?.tags || []"
+                                                :key="'tag-' + (t.id ?? i)" class="chip chip-teal mx-1"> {{ t.name }}
+                                            </span> </div>
                                     </div>
+                                </div> <!-- Qty control -->
+                                <div class="qty-group d-inline-flex align-items-center mb-3"> <button class="qty-btn"
+                                        @click="decQty">−</button>
+                                    <div class="qty-box">{{ modalQty }}</div> <button class="qty-btn"
+                                        @click="incQty">+</button>
                                 </div>
-
-                                <!-- NUTRITION / ALLERGIES / TAGS -->
-                                <div class="chips mb-3">
-                                    <!-- NUTRITION -->
-                                    <div class="mb-2">
-                                        <strong>Nutrition:</strong>
-                                        <div class="mt-1">
-                                            <span v-if="selectedItem?.nutrition?.calories" class="chip chip-orange mx-1">
-                                                Calories: {{ selectedItem.nutrition.calories }}
-                                            </span>
-                                            <span v-if="selectedItem?.nutrition?.carbs" class="chip chip-green mx-1">
-                                                Carbs: {{ selectedItem.nutrition.carbs }}
-                                            </span>
-                                            <span v-if="selectedItem?.nutrition?.fat" class="chip chip-purple mx-1">
-                                                Fats: {{ selectedItem.nutrition.fat }}
-                                            </span>
-                                            <span v-if="selectedItem?.nutrition?.protein" class="chip chip-blue mx-1">
-                                                Protein: {{ selectedItem.nutrition.protein }}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <!-- ALLERGIES -->
-                                    <div class="mb-2">
-                                        <strong>Allergies:</strong>
-                                        <div class="mt-1">
-                                            <span v-for="(a, i) in selectedItem?.allergies || []"
-                                                :key="'allergy-' + (a.id ?? i)" class="chip chip-red mx-1">
-                                                {{ a.name }}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <!-- TAGS -->
-                                    <div>
-                                        <strong>Tags:</strong>
-                                        <div class="mt-1">
-                                            <span v-for="(t, i) in selectedItem?.tags || []" :key="'tag-' + (t.id ?? i)"
-                                                class="chip chip-teal mx-1">
-                                                {{ t.name }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-
-                                <!-- Qty control -->
-                                <div class="qty-group d-inline-flex align-items-center mb-3">
-                                    <button class="qty-btn" @click="decQty">−</button>
-                                    <div class="qty-box">{{ modalQty }}</div>
-                                    <button class="qty-btn" @click="incQty">+</button>
-                                </div>
-
-                                <div class="mb-3">
-                                    <input v-model="modalNote" class="form-control" placeholder="Add note (optional)" />
-                                </div>
+                                <div class="mb-3"> <input v-model="modalNote" class="form-control"
+                                        placeholder="Add note (optional)" /> </div>
                             </div>
                         </div>
                     </div>
-
-                    <div class="modal-footer border-0 pt-0">
-                        <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
-                        <button class="btn btn-primary rounded-pill" @click="confirmAdd">Add to Order</button>
-                    </div>
+                    <div class="modal-footer border-0 pt-0"> <button class="btn btn-outline-secondary rounded-pill"
+                            data-bs-dismiss="modal">Cancel</button> <button class="btn btn-primary rounded-pill"
+                            @click="confirmAdd">Add to Order</button> </div>
                 </div>
             </div>
         </div>
-
     </Master>
 </template>
 

@@ -149,30 +149,59 @@ const o_total = computed(() =>
     round2(o_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
 );
 
+
+
+
+// set error for an item
+const setItemError = (item, field, message) => {
+  if (!formErrors.value[item.id]) formErrors.value[item.id] = {};
+  formErrors.value[item.id][field] = [message];
+};
+
+// clear either a specific field error for an item, or all errors for that item
+const clearItemErrors = (item, field = null) => {
+  if (!formErrors.value) return;
+  if (!item || !item.id) return;
+  if (field) {
+    if (formErrors.value[item.id]) {
+      delete formErrors.value[item.id][field];
+      if (Object.keys(formErrors.value[item.id]).length === 0) {
+        delete formErrors.value[item.id];
+      }
+    }
+  } else {
+    delete formErrors.value[item.id];
+  }
+};
+
+
+
 function addOrderItem(item) {
+     clearItemErrors(item);
+    console.log(item);
     const qty = Number(item.qty || 0);
     const price =
         item.unitPrice !== "" && item.unitPrice != null
             ? Number(item.unitPrice)
             : Number(item.defaultPrice || 0);
     const expiry = item.expiry || null;
-
-    if (!qty || qty <= 0) {
-        formErrors.value.qty = ["Enter a valid quantity."]
+    
+     if (!qty || qty <= 0) {
+        setItemError(item, 'qty', 'Enter a valid quantity.');
         toast.error("Enter a valid quantity.");
+        return;
     }
-
-
 
     if (!price || price <= 0) {
-        formErrors.value.unit_price = ["Enter a valid unit price."];
+        setItemError(item, 'unit_price', 'Enter a valid unit price.');
         toast.error("Enter a valid unit price.");
+        return;
     }
 
-
-    if (!expiry || expiry <= 0) {
-        formErrors.value.expiry_date = ["Enter an expiry date."];
+    if (!expiry) {
+        setItemError(item, 'expiry_date', 'Enter an expiry date.');
         toast.error("Enter an expiry date.");
+        return;
     }
 
 
@@ -200,6 +229,8 @@ function addOrderItem(item) {
     item.qty = null;
     item.unitPrice = null;
     item.expiry = null;
+
+    clearItemErrors(item);
 }
 
 function delOrderRow(idx) {
@@ -875,9 +906,9 @@ onUpdated(() => window.feather?.replace());
                                                         <label class="small text-muted">Quantity</label>
                                                         <input v-model.number="it.qty
                                                             " type="number" min="0" class="form-control form-control"
-                                                            :class="{ 'is-invalid': formErrors.qty }" />
-                                                        <small v-if="formErrors.qty" class="text-danger">
-                                                            {{ formErrors.qty[0] }}
+                                                            :class="{ 'is-invalid': formErrors[it.id] && formErrors[it.id].qty }" />
+                                                        <small v-if="formErrors[it.id] && formErrors[it.id].qty" class="text-danger">
+                                                            {{ formErrors[it.id].qty[0] }}
                                                         </small>
 
                                                     </div>
@@ -885,9 +916,9 @@ onUpdated(() => window.feather?.replace());
                                                         <label class="small text-muted">Unit Price</label>
                                                         <input v-model.number="it.unitPrice
                                                             " type="number" min="0" class="form-control form-control"
-                                                            :class="{ 'is-invalid': formErrors.unit_price }" />
-                                                        <small v-if="formErrors.unit_price" class="text-danger">
-                                                            {{ formErrors.unit_price[0] }}
+                                                            :class="{ 'is-invalid': formErrors[it.id] && formErrors[it.id].unit_price }" />
+                                                        <small v-if="formErrors[it.id] && formErrors[it.id].unit_price" class="text-danger">
+                                                            {{ formErrors[it.id].unit_price[0] }}
                                                         </small>
 
                                                     </div>
@@ -895,9 +926,9 @@ onUpdated(() => window.feather?.replace());
                                                         <label class="small text-muted">Expiry Date</label>
                                                         <input v-model="it.expiry" type="date"
                                                             class="form-control form-control"
-                                                            :class="{ 'is-invalid': formErrors.expiry_date }" />
-                                                        <small v-if="formErrors.expiry_date" class="text-danger">
-                                                            {{ formErrors.expiry_date[0] }}
+                                                            :class="{ 'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date }" />
+                                                        <small v-if="formErrors[it.id] && formErrors[it.id].expiry_date" class="text-danger">
+                                                           {{ formErrors[it.id].expiry_date[0] }}
                                                         </small>
 
                                                     </div>

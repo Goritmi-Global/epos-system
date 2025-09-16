@@ -12,7 +12,7 @@ class RestaurantProfile extends Model
         'business_name','legal_name','phone','email','address','website','logo_path',
         'currency','currency_symbol_position','number_format','date_format','time_format',
         'is_tax_registered','tax_type','tax_rate','extra_tax_rates','price_includes_tax',
-        'order_types','table_management_enabled','online_ordering_enabled','number_of_tables',
+        'order_types','table_management_enabled','online_ordering_enabled','number_of_tables', 'table_details',
         'receipt_header','receipt_footer','receipt_logo_path','show_qr_on_receipt',
         'tax_breakdown_on_receipt','kitchen_printer_enabled','printers',
         'cash_enabled','card_enabled','integrated_terminal','custom_payment_options','default_payment_method',
@@ -43,5 +43,6 @@ class RestaurantProfile extends Model
         'inventory_tracking_enabled' => 'boolean',
         'multi_location_enabled'     => 'boolean',
         'tax_rate'                   => 'decimal:2',
+        'table_details' => 'array',
     ];
 }

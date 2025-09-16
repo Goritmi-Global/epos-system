@@ -38,6 +38,7 @@ const progressPercent = computed(() => (current.value / steps.length) * 100)
 function gotoStep(n){ current.value = n }
  
 const saveStep = (payload) => {
+  console.log(payload);
   try {
     // Merge the step data into the main profile
     Object.assign(profile.value, payload?.data || {})
