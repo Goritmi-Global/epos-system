@@ -97,6 +97,30 @@ function goBack() {
     selectedCategory.value = null
 }
 
+
+
+const profileTables = ref({});
+const orderTypes = ref([]);
+const selectedTable = ref(null);
+
+const fetchProfileTables = async () => {
+    try {
+        const response = await axios.get("/pos/fetch-profile-tables");
+        profileTables.value = response.data;
+        console.log("profileTables", profileTables.value);
+
+        if (profileTables.value.order_types) {
+            orderTypes.value = profileTables.value.order_types;
+            // pick the first as default
+            orderType.value = orderTypes.value[0];
+        }
+
+        console.log("Order Types:", orderTypes.value);
+    } catch (error) {
+        console.error("Error fetching profile tables:", error);
+    }
+};
+
 /* Search + category combined */
 // const visibleProducts = computed(() => productsByCat[activeCat.value] ?? []);
 // const filteredProducts = computed(() => {
@@ -212,6 +236,7 @@ onMounted(() => {
     }
     fetchMenuCategories();
     fetchMenuItems();
+    fetchProfileTables();
 });
 </script>
 
@@ -273,10 +298,9 @@ onMounted(() => {
                                         <button v-for="(type, index) in orderTypes" :key="index" class="btn btn-sm"
                                             :class="orderType === type ? 'btn-success' : 'btn-light'"
                                             @click="orderType = type">
-                                            {{ type.replace('_', ' ').charAt(0).toUpperCase() + type.replace('_',
-                                                '').slice(1) }}
-
+                                            {{type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}}
                                         </button>
+
                                     </div>
                                     <span class="badge bg-secondary">Order</span>
                                 </div>
@@ -433,14 +457,14 @@ onMounted(() => {
                                             v-for="ing in selectedItem.ingredients"
                                             :key="'ing-' + (ing.id ?? ing.inventory_item_id ?? JSON.stringify(ing))"
                                             class="chip" style="margin-right:6px;"> {{ ing.product_name || ing.name ||
-                                            'Item' }} <span class="text-muted" v-if="ing.quantity"> ({{
+                                                'Item' }} <span class="text-muted" v-if="ing.quantity"> ({{
                                                 Number(ing.quantity).toFixed(2) }})</span> </span> </div>
                                 </div> <!-- NUTRITION / ALLERGIES / TAGS -->
                                 <div class="chips mb-3"> <!-- NUTRITION -->
                                     <div class="mb-2"> <strong>Nutrition:</strong>
                                         <div class="mt-1"> <span v-if="selectedItem?.nutrition?.calories"
                                                 class="chip chip-orange mx-1"> Calories: {{
-                                                selectedItem.nutrition.calories }} </span> <span
+                                                    selectedItem.nutrition.calories }} </span> <span
                                                 v-if="selectedItem?.nutrition?.carbs" class="chip chip-green mx-1">
                                                 Carbs: {{ selectedItem.nutrition.carbs }} </span> <span
                                                 v-if="selectedItem?.nutrition?.fat" class="chip chip-purple mx-1"> Fats:
