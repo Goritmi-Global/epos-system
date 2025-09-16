@@ -180,6 +180,7 @@ const resetFields = () => {
 const submitCategory = async () => {
     if (isSub.value && !selectedParentId.value) {
         catFormErrors.value.parent_id = ["Please select a parent category"];
+        toast.error("Please filled all the required fields");
         submitting.value = false;
         return;
     }
@@ -227,6 +228,7 @@ const submitCategory = async () => {
 
             if (!updatePayload.name) {
                 catFormErrors.value.name = ["Category name cannot be empty"];
+                toast.error("Please filled all the required fields");
                 submitting.value = false;
                 return;
             }
@@ -258,6 +260,7 @@ const submitCategory = async () => {
                     catFormErrors.value.subcategories = [
                         "Please add at least one subcategory",
                     ];
+                    toast.error("Please filled all the required fields");
                     submitting.value = false;
                     return;
                 }
@@ -274,6 +277,7 @@ const submitCategory = async () => {
                     catFormErrors.value.name = [
                         "Please add at least one category",
                     ];
+                    toast.error("Please filled all the required fields");
                     submitting.value = false;
                     return;
                 }
@@ -342,6 +346,7 @@ const submitCategory = async () => {
 
 const resetErrors = () => {
     catFormErrors.value = {};
+    subCatErrors.value = "";
 };
 
 const manualSubcategoriesInput = ref("");
@@ -475,14 +480,16 @@ const editingSubCategory = ref({
 });
 
 const editSubCategory = (category, sub) => {
+
     editingSubCategory.value = {
         id: sub.id,
         name: sub.name,
         parent_id: category.id,
     };
-
+  
     const modalEl = document.getElementById("editSubCatModal");
     const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      resetErrors();
     bsModal.show();
 };
 
@@ -496,18 +503,20 @@ const resetSubCategoryFields = () => {
         name: "",
         parent_id: null,
     };
-    subCatErrors.value = "";
+    subCatErrors.value = {};
     submittingSub.value = false;
 };
 
 const submitSubCategory = async () => {
+
     if (!editingSubCategory.value.name.trim()) {
         subCatErrors.value = "Subcategory name cannot be empty";
+        toast.error("Please filled all the required fields");
         return;
     }
 
     submittingSub.value = true;
-    subCatErrors.value = "";
+
 
     try {
         const { data } = await axios.put(
@@ -551,7 +560,7 @@ const submitSubCategory = async () => {
 };
 
 const onDownload = (type) => {
-    if (!parentCategories.value || parentCategories.value.length === 0) {
+    if (!categories.value || categories.value.length === 0) {
         toast.error("No Units data to download");
         return;
     }
@@ -559,7 +568,7 @@ const onDownload = (type) => {
     // Use filtered data if there's a search query, otherwise use all suppliers
     const dataToExport = q.value.trim()
         ? filtered.value
-        : parentCategories.value;
+        : categories.value;
 
     if (dataToExport.length === 0) {
         toast.error("No Units found to download");
@@ -869,7 +878,7 @@ const downloadExcel = (data) => {
                                         class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                                         data-bs-toggle="dropdown"
                                     >
-                                        Download all
+                                        Download
                                     </button>
                                     <ul
                                         class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
@@ -957,6 +966,7 @@ const downloadExcel = (data) => {
                                                                     row,
                                                                     sub
                                                                 );
+                                                                
                                                             }
                                                         "
                                                         title="Edit"
@@ -1050,7 +1060,7 @@ const downloadExcel = (data) => {
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
                                 <h5 class="modal-title fw-semibold">
-                                    {{ editingCategory ? "Edit Category" : "Add Raw Material Category" }}
+                                    {{ editingCategory ? "Edit Menu Category" : "Add Menu Category" }}
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -1465,6 +1475,7 @@ const downloadExcel = (data) => {
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
                                     title="Close"
+                                    @click="resetErrors"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"

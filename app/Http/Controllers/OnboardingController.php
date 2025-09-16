@@ -75,6 +75,9 @@ class OnboardingController extends Controller
                 'table_management_enabled'  => 'required|boolean',
                 'online_ordering_enabled'   => 'required|boolean',
                 'number_of_tables'          => 'nullable|integer|min:0',
+                'table_details' => 'nullable|array',
+                
+
             ]),
             6 => $request->validate([
                 'receipt_header'           => 'nullable|string|max:2000',
@@ -128,6 +131,7 @@ class OnboardingController extends Controller
 
         // Grab all profile data from request
         $profileData = $request->input('profile', []);
+    
         $completed = $request->input('completed_steps', []);
 
         // Comprehensive validation - match what your frontend actually sends
@@ -149,7 +153,9 @@ class OnboardingController extends Controller
             'table_mgmt'                  => 'nullable|string', // frontend sends "yes"/"no"
             'online_ordering'             => 'nullable|string', // frontend sends "yes"/"no"
             'tables'                      => 'nullable|integer|min:0',
-
+            'table_details' => 'nullable|array',
+                'table_details.*.name' => 'required|string|max:255',
+                'table_details.*.chairs' => 'required|integer|min:1',
             // Step 6 - Receipt settings
             'receipt_header'              => 'nullable|string|max:2000',
             'receipt_footer'              => 'nullable|string|max:2000',
@@ -165,13 +171,13 @@ class OnboardingController extends Controller
             'tax_id'                      => 'nullable|string',
 
             // Business Hours - this is the key field causing your error
-            'business_hours'              => 'required|array|size:7',
+            'hours'              => 'required|array|size:7',
             'business_hours.*.name'       => 'required|string',
             'business_hours.*.open'       => 'required|boolean',
             'business_hours.*.start'      => 'nullable|string',
             'business_hours.*.end'        => 'nullable|string',
             'business_hours.*.breaks'     => 'nullable|array',
-            'auto_disable_after_hours'    => 'required|boolean',
+            'auto_disable_after_hours'    => 'boolean',
 
             // Other fields from your data dump
             'country_code'                => 'nullable|string|max:10',

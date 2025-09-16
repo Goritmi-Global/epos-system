@@ -3,6 +3,7 @@
 namespace App\Services\POS;
 
 use App\Models\PosOrder;
+use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
@@ -12,7 +13,7 @@ class PosOrderService
     {
         return PosOrder::create([
             'order_no'     => $payload['order_no'] ?? Str::upper(Str::random(8)),
-            'customer_name'=> $payload['customer_name'] ?? null,
+            'customer_name' => $payload['customer_name'] ?? null,
             'service_type' => $payload['service_type'] ?? 'dine_in', // dine_in | takeaway | delivery
             'table_no'     => $payload['table_no'] ?? null,
             'status'       => 'draft',
@@ -54,5 +55,12 @@ class PosOrderService
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
+    }
+
+
+    public function getProfileTable()
+    {
+        return RestaurantProfile::select('order_types', 'table_details')->first();
+      
     }
 }
