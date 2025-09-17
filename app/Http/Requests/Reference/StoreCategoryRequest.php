@@ -22,7 +22,7 @@ class StoreCategoryRequest extends FormRequest
             'categories.*.name' => 'required|string|max:255',
             'categories.*.icon' => 'sometimes|string|max:10',
             'categories.*.active' => 'sometimes|boolean',
-            'categories.*.parent_id' => 'nullable|integer|exists:categories,id',
+            'categories.*.parent_id' => 'nullable|integer|exists:inventory_categories,id',
         ];
     }
 
