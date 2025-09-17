@@ -58,16 +58,7 @@ const saveStep = (payload) => {
   }
 }
 
-
-
-// // stays the same: gather everything locally
-// const finish = (payload) => {
-//   try {
-//     Object.assign(profile.value, payload?.data || {})
-//     // (optional) localStorage.setItem('onboarding_draft', JSON.stringify(profile.value))
-//   } catch (e) { console.error(e) }
-// }
-
+ 
  
 
 async function finish () {

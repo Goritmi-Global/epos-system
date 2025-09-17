@@ -263,12 +263,12 @@ Route::post('/allergies/import', [AllergyController::class, 'import'])->name('al
 });
 
 // onboarding routes
-Route::middleware(['auth', 'verified'])->group(function () {
+// Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::get('/onboarding/data', [OnboardingController::class, 'show'])->name('onboarding.show');
     Route::post('/onboarding/step/{step}', [OnboardingController::class, 'saveStep'])->name('onboarding.saveStep');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
-});
+// });
 
 
 
