@@ -291,13 +291,11 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         // Define headers
-        const headers = ["Name", "Created At", "Created By"];
+        const headers = ["name"];
 
         // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
-            `"${s.created_at || ""}"`,
-            `"${s.updated_at || ""}"`,
         ]);
 
         // Combine into CSV string
@@ -474,8 +472,6 @@ watch(commonTags, (newVal) => {
 });
 
 
-
-// import handle function
 const handleImport = (data) => {
     console.log("Imported Data:", data);
 
@@ -486,7 +482,7 @@ const handleImport = (data) => {
     console.log(data.slice(1));
     const tagsToImport = rows.map((row) => {
         return {
-            tags: row[0] || "",
+            name: row[0] || "",
         };
     });
 
@@ -541,7 +537,7 @@ const handleImport = (data) => {
                     >
                         <Plus class="w-4 h-4" /> Add Tag
                     </button>
-                    <ImportFile label="Import" @on-import="handleImport" />
+ <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
                         <button
