@@ -52,4 +52,5 @@ class MenuItem extends Model
     {
         return $this->belongsTo(Upload::class, 'upload_id');
     }
+    
 }

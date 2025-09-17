@@ -3,10 +3,32 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PosOrder extends Model
 {
     protected $fillable = [
-        'order_no','customer_name','service_type','table_no','status','total','paid','change'
+        'user_id',
+        'customer_name',
+        'sub_total',
+        'total_amount',
+        'tax',
+        'service_charges',
+        'delivery_charges',
+        'status',
+        'note',
+        'order_date',
+        'order_time',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function type()
+    {
+        return $this->hasOne(PosOrderType::class, 'pos_order_id');
+    }
 }
+

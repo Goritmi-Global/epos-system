@@ -227,6 +227,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('pos.menu-categories'); 
         Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('pos.menu-items');
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('pos.fetch.profile.tables'); 
+        Route::post('/order', [PosOrderController::class, 'store'])->name('order.store');
     });
 
     // Orders
