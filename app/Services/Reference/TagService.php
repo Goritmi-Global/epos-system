@@ -23,6 +23,7 @@ class TagService
 
     public function create(array $data): array
     {
+        dd($data);
         $tags = [];
 
         foreach ($data['tags'] as $tagData) {
