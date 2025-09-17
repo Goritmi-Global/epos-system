@@ -138,8 +138,7 @@ class OnboardingController extends Controller
     }
 
     public function complete(Request $request)
-    {
-        dd($request);
+    { 
         $user = $request->user();
 
         // Grab all profile data from request
@@ -225,7 +224,7 @@ class OnboardingController extends Controller
         $profile->fill($transformedData);
         $profile->status = 'complete';
         $profile->save();
-dd();
+ 
         // Update onboarding progress
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
         $progress->completed_steps = collect($progress->completed_steps ?? [])
