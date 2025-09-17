@@ -1764,6 +1764,85 @@ const downloadExcel = (data) => {
 .table-container {
     overflow: visible !important;
 }
+:deep(.p-multiselect-overlay) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Header area (filter + select all) */
+:deep(.p-multiselect-header) {
+    background: #fff !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Options list container */
+:deep(.p-multiselect-list) {
+    background: #fff !important;
+}
+
+/* Each option */
+:deep(.p-multiselect-option) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Hover/selected option */
+:deep(.p-multiselect-option.p-highlight) {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+}
+
+:deep(.p-multiselect),
+:deep(.p-multiselect-panel),
+:deep(.p-multiselect-token) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Checkbox box in dropdown */
+:deep(.p-multiselect-overlay .p-checkbox-box) {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+}
+
+:deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
+    background: #007bff !important;
+    /* blue when checked */
+    border-color: #007bff !important;
+}
+
+/* Search filter input */
+:deep(.p-multiselect-filter) {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Optional: adjust filter container */
+:deep(.p-multiselect-filter-container) {
+    background: #fff !important;
+}
+
+/* Selected chip inside the multiselect */
+:deep(.p-multiselect-chip) {
+    background: #e9ecef !important;
+    /* light gray, like Bootstrap badge */
+    color: #000 !important;
+    border-radius: 12px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:deep(.p-multiselect-chip .p-chip-remove-icon) {
+    color: #555 !important;
+}
+
+:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #dc3545 !important;
+    /* red on hover */
+}
 
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
@@ -1771,6 +1850,7 @@ const downloadExcel = (data) => {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 
 /* Mobile tweaks */
 @media (max-width: 575.98px) {

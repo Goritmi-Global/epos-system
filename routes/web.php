@@ -153,12 +153,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck');
     });
 
+    // routes/web.php
+    Route::post('/suppliers/import', [SupplierController::class, 'import'])->name('suppliers.import');
+
+
     Route::prefix('tags')->group(function () {
         Route::get('/', [TagController::class, 'index']);
         Route::post('/', [TagController::class, 'store']);
         Route::put('/{tag}', [TagController::class, 'update']);
         Route::delete('/{tag}', [TagController::class, 'destroy']);
     });
+
+     Route::post('/tags/import', [TagController::class, 'import'])->name('suppliers.import');
 
     // Category Management Routes
     Route::prefix('categories')->group(function () {

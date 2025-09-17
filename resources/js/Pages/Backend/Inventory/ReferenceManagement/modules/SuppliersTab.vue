@@ -7,6 +7,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Pencil, Plus } from "lucide-vue-next";
+import ImportFile from "@/Components/ImportFile.vue";
 
 const suppliers = ref([]);
 const page = ref(1);
@@ -433,6 +434,43 @@ const deleteSupplier = (id) => {
             loading.value = false;
         });
 };
+
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+
+    // data is 2D array: [ [col1, col2, ...], [val1, val2, ...] ]
+    // Example: map to supplier objects
+    const headers = data[0];
+    const rows = data.slice(1);
+    console.log(data.slice(1));
+    const suppliersToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",
+            email: row[1] || "",
+            contact: row[2] || "",
+            address: row[3] || "",
+            preferred_items: row[4] || ""
+        };
+    });
+
+    // Send to backend API
+    axios
+        .post("/suppliers/import", { suppliers: suppliersToImport })
+        .then(() => {
+            toast.success("Suppliers imported successfully");
+            fetchSuppliers();
+        })
+        .catch((err) => {
+          if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+                toast.error("There may some duplication in data", {
+                    autoClose: 3000,
+                });
+            }
+          
+        });
+};
+
 </script>
 
 <template>
@@ -455,7 +493,7 @@ const deleteSupplier = (id) => {
                     " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
-
+                    <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
@@ -668,7 +706,7 @@ const deleteSupplier = (id) => {
     background-color: white !important;
     color: black !important;
 }
- 
+
 
 .dropdown-menu {
     position: absolute !important;

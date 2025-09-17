@@ -83,6 +83,7 @@ const fetchInventories = async () => {
 onMounted(() => {
     fetchInventories();
     fetchStockForCounting();
+  
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -475,9 +476,7 @@ const submittingStock = ref(false);
 const processStatus = ref();
 
 function openStockModal(item) {
-
-    // console.log("Opening stock modal for item:", item_category.id);
-    // const categoryObj = props.categories.find((c) => c.name === item.category);
+    resetErrors();
     const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
 stockInItemCategory.value = item.category.name;
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
@@ -549,10 +548,7 @@ const stockOutItemCategory = ref(null);
 const stockInItemCategory = ref(null);
 // =========================== Stockout Modal ===========================
 function openStockOutModal(item) {
-    // const categoryObj = props.categories.find((c) => c.name === item.category);
-
-    // console.log("Opening stock out modal for item:", item.id);
-    // console.log("Opening stock out modal for categoryObj:", item.category.name, item.category.id);
+    resetErrors();
     stockOutItemCategory.value = item.category.name;
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
         const totalStock = res.data.total?.original || {};

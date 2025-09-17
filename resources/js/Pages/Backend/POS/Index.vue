@@ -517,12 +517,11 @@ onMounted(() => {
                                     class="fa fa-chevron-left"></i> </button>
                             <ul class="tabs border-0" id="catTabs" ref="catScroller">
                                 <li v-for="c in menuCategories" :key="c.id" :class="{ active: isCat(c.id) }"
-                                    @click="setCat(c.id)" role="button" tabindex="0">
-                                    <div class="product-details flex-column text-center">
-                                        <!-- if backend gives emoji in icon field -->
-                                        <div class="text-2xl">{{ c.icon }}</div>
-                                        <h6 class="mt-2 mb-0">{{ c.name }}</h6>
-                                    </div>
+                                    @click="setCat(c.id)" role="button" tabindex="0"
+                                    class="product-details flex-column text-center">
+                                    <!-- if backend gives emoji in icon field -->
+                                    <div class="text-2xl">{{ c.icon }}</div>
+                                    <h6 class="mt-2 mb-0">{{ c.name }}</h6>
                                 </li>
                             </ul> <button v-if="showCatArrows" class="tab-arrow right" type="button"
                                 @click="scrollTabs('right')" aria-label="Next categories"> <i
@@ -556,20 +555,21 @@ onMounted(() => {
                             <div class="card-body pb-2">
                                 <div class="d-flex align-items-center justify-content-between mb-3">
                                     <div class="btn-group">
-                                        <button v-for="(type, index) in orderTypes" :key="index" class="btn btn-sm"
-                                            :class="orderType === type ? 'btn-success' : 'btn-light'"
+                                        <button v-for="(type, index) in orderTypes" :key="index"
+                                            class="btn btn-sm px-3 rounded-pill"
+                                            :class="orderType === type ? 'btn-primary ' : 'btn-light'"
                                             @click="orderType = type">
                                             {{type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}}
                                         </button>
 
                                     </div>
-                                    <span class="badge bg-secondary">Order</span>
+                                    <span class="badge btn btn-primary rounded-pill px-3 py-2">Order</span>
                                 </div>
 
                                 <!-- Type-specific inputs -->
                                 <div v-if="orderType === 'dine_in'" class="mb-3">
                                     <label class="form-label small mb-1">Table No:</label>
-                                    <select v-model="selectedTable" class="form-control">
+                                    <select :P v-model="selectedTable" class="form-control">
                                         <option v-for="(table, index) in profileTables.table_details" :key="index"
                                             :value="table">
                                             {{ table.name }}
@@ -619,7 +619,7 @@ onMounted(() => {
 
                                     <div v-for="(it, i) in orderItems" :key="it.title"
                                         class="d-flex align-items-center justify-content-between py-2 border-bottom">
-                                        <div class="d-flex align-items-center gap-2">
+                                        <div class="d-flex align-items-center gap-3">
                                             <img :src="it.img" alt="" class="rounded" style="
                                                     width: 36px;
                                                     height: 36px;
@@ -635,8 +635,10 @@ onMounted(() => {
                                             </div>
                                         </div>
 
-                                        <div class="d-flex align-items-center gap-2">
-                                            <button class="btn btn-sm btn-primary" @click="decCart(i)">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <button
+                                                class="px-3 py-1 rounded-pill btn btn-primary text-white text-center"
+                                                @click="decCart(i)">
                                                 −
                                             </button>
 
@@ -687,7 +689,7 @@ onMounted(() => {
                                     <button class="btn btn-success flex-fill" @click="placeOrder()">
                                         Place Order
                                     </button>
-                                    <button class="btn btn-danger flex-fill">
+                                    <button class="btn btn-secondary rounded-pill px-4 ms-2">
                                         Cancel
                                     </button>
                                 </div>
@@ -704,8 +706,15 @@ onMounted(() => {
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header border-0"> <!-- Show Item Name -->
-                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5> <button
-                            type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5>
+                        <button
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
@@ -758,14 +767,15 @@ onMounted(() => {
                                     </button>
 
                                 </div>
-                                <div class="mb-3"> <input v-model="modalNote" class="form-control"
-                                        placeholder="Add note (optional)" /> </div>
+                                <div class="mb-3"> </div>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-0 pt-0"> <button class="btn btn-outline-secondary rounded-pill"
-                            data-bs-dismiss="modal">Cancel</button> <button class="btn btn-primary rounded-pill"
-                            @click="confirmAdd">Add to Order</button> </div>
+                    <div class="modal-footer border-0 pt-0"> <button class="btn btn-secondary rounded-pill px-4 ms-2"
+                            data-bs-dismiss="modal">Cancel</button>
+                        <button class="btn btn-primary rounded-pill" @click="confirmAdd">Add to Order
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -843,6 +853,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 8px;
 }
 
 .tabs>li:hover {
@@ -851,16 +862,41 @@ onMounted(() => {
 
 .tabs>li.active {
     outline: 2px solid #6f61ff;
-    background: #f1eeff;
+    color: white;
+
+}
+
+/* Product details container - this was missing! */
+.product-details {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4px;
 }
 
 .tabs img {
     width: 32px;
     height: 32px;
     object-fit: contain;
+    flex-shrink: 0;
 }
 
-/* Product cards */
+.product-details h6 {
+    font-size: 11px;
+    line-height: 1.2;
+    margin: 0;
+    font-weight: 500;
+    color: #333;
+    word-wrap: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
 .productset.hoverable {
     transition: 0.15s;
     cursor: pointer;
@@ -881,7 +917,7 @@ onMounted(() => {
     display: block;
 }
 
-.productsetimg h6 {
+/* .productsetimg h6 {
     position: absolute;
     left: 8px;
     bottom: 8px;
@@ -891,7 +927,7 @@ onMounted(() => {
     padding: 2px 6px;
     border-radius: 6px;
     font-size: 12px;
-}
+} */
 
 .check-product {
     position: absolute;
@@ -929,6 +965,10 @@ onMounted(() => {
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
+}
+
+.btn-group {
+    gap: 8px;
 }
 
 .chip-blue {
