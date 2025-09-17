@@ -164,7 +164,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{tag}', [TagController::class, 'destroy']);
     });
 
-     Route::post('/tags/import', [TagController::class, 'import'])->name('suppliers.import');
+     Route::post('/tags/import', [TagController::class, 'import'])->name('tags.import'); 
+     
 
     // Category Management Routes
     Route::prefix('categories')->group(function () {
@@ -190,6 +191,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{unit}', [UnitController::class, 'update']);
         Route::delete('/{unit}', [UnitController::class, 'destroy']);
     });
+    Route::post('/units/import', [UnitController::class, 'import'])->name('units.import'); 
 
     Route::prefix('allergies')->group(function () {
         Route::get('/', [AllergyController::class, 'index']);
@@ -198,7 +200,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{allergy}', [AllergyController::class, 'destroy']);
     });
 
-
+Route::post('/allergies/import', [AllergyController::class, 'import'])->name('allergies.import'); 
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');
