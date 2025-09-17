@@ -1,7 +1,7 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { toast } from "vue3-toastify";
 /* ----------------------------
    Categories (same keys/icons)
@@ -206,12 +206,12 @@ const incCart = async (i) => {
     console.log("it", it);
 
     if ((it.stock ?? 0) <= 0) {
-        alert("Item out of stock.");
+        toast.error("Item out of stock.");
         return;
     }
 
     if (it.qty >= (it.stock ?? 0)) {
-        alert("Not enough stock to add more of this item.");
+        toast.error("Not enough stock to add more of this item.");
         return;
     }
 
@@ -224,14 +224,14 @@ const incCart = async (i) => {
         console.log(`Stock-out successful. New qty for ${it.title}: ${it.qty}`);
     } catch (err) {
         console.error("Failed to update stock for increment:", err);
-        alert("Failed to add item. Please try again.");
+        toast.error("Failed to add item. Please try again.");
     }
 };
 
 const decCart = async (i) => {
     const it = orderItems.value[i];
     if (!it || it.qty <= 1) {
-        alert("Cannot reduce below 1.");
+        toast.error("Cannot reduce below 1.");
         return;
     }
 
@@ -244,7 +244,7 @@ const decCart = async (i) => {
         console.log(`Stock-in successful. New qty for ${it.title}: ${it.qty}`);
     } catch (err) {
         console.error("Failed to update stock for decrement:", err);
-        alert("Failed to remove item. Please try again.");
+        toast.error("Failed to remove item. Please try again.");
     }
 };
 
@@ -437,47 +437,156 @@ const decQty = async () => {
 // ===============================================================
 //                      Submit Order
 // ===============================================================
+
+const formErrors = ref({});
+
+// Reset cart and order form
+const resetCart = () => {
+    orderItems.value = [];
+    customer.value = "Walk In";
+    selectedTable.value = null;
+    orderType.value = orderTypes.value[0] || "dine_in";
+    note.value = "";
+    deliveryPercent.value = 0;
+};
+
+watch(orderType, () => {
+    formErrors.value = {};
+});
+
+
+
 const note = ref("");
-const placeOrder = async () => {
-    const payload = {
-        customer_name: customer.value,
-        sub_total: subTotal.value,
-        total_amount: grandTotal.value,
-        tax: 0,                  // temporarily 0
-        service_charges: 0,      // temporarily 0
-        delivery_charges: 0,     // temporarily 0
-        note: note.value,
-        order_date: new Date().toISOString().split('T')[0],
-        order_time: new Date().toLocaleTimeString(),
-        order_type: orderType.value === "dine_in" ? "Dine In"
-                    : orderType.value === "delivery" ? "Delivery"
-                    : orderType.value === "takeaway" ? "Takeaway"
-                    : "Collection",
-        table_number: selectedTable.value?.name || null,
-        items: orderItems.value.map(it => ({
-            product_id: it.id,
-            title: it.title,
-            quantity: it.qty,
-            price: it.price,
-            note: it.note || null,
-        })),
-    };
+// const placeOrder = async () => {
+//     if (!orderItems.value.length) {
+//         toast.error("Please add at least one item to the cart before placing the order.");
+//         return;
+//     }
+//     const payload = {
+//         customer_name: customer.value,
+//         sub_total: subTotal.value,
+//         total_amount: grandTotal.value,
+//         tax: 0,                  // temporarily 0
+//         service_charges: 0,      // temporarily 0
+//         delivery_charges: 0,     // temporarily 0
+//         note: note.value,
+//         order_date: new Date().toISOString().split('T')[0],
+//         order_time: new Date().toTimeString().split(' ')[0],
+//         order_type: orderType.value === "dine_in" ? "Dine In"
+//             : orderType.value === "delivery" ? "Delivery"
+//                 : orderType.value === "takeaway" ? "Takeaway"
+//                     : "Collection",
+//         table_number: selectedTable.value?.name || null,
+//         items: orderItems.value.map(it => ({
+//             product_id: it.id,
+//             title: it.title,
+//             quantity: it.qty,
+//             price: it.price,
+//             note: it.note || null,
+//         })),
+//     };
 
-    console.log("sending payload...", payload);
+//     console.log("sending payload...", payload);
 
+//     try {
+//         const res = await axios.post('/pos/order', payload);
+//         resetCart();
+//         formErrors.value = {};
+//         toast.success(res.data.message);
+//         // reset cart/form here if needed
+//     } catch (err) {
+
+//         console.error("Order error:", err);
+
+//         if (err.response?.status === 422) {
+//             // Store errors for later use
+//             formErrors.value = err.response.data.errors;
+
+//             // Also show them in toast
+//             Object.values(formErrors.value).forEach((messages) => {
+//                 messages.forEach((msg) => toast.error(msg));
+//             });
+//         } else {
+//             toast.error(err.response?.data?.message || "Failed to place order");
+//         }
+//     }
+// };
+
+
+const showConfirmModal = ref(false);
+const paymentMethod = ref("Cash");
+const cashReceived = ref(0);
+
+const changeAmount = computed(() => {
+    if (paymentMethod.value === "Cash") {
+        return cashReceived.value - grandTotal.value;
+    }
+    return 0;
+});
+
+const openConfirmModal = () => {
+    if (orderItems.value.length === 0) {
+        toast.error("Please add at least one item to the cart.");
+        return;
+    }
+
+    cashReceived.value = grandTotal.value; // pre-fill cash received with total
+    showConfirmModal.value = true;
+};
+
+const confirmOrder = async () => {
     try {
-        const res = await axios.post('/pos/order', payload);
-        alert(res.data.message);
-        // reset cart/form here if needed
+        // build payload same as before
+        const payload = {
+            customer_name: customer.value,
+            sub_total: subTotal.value,
+            total_amount: grandTotal.value,
+            tax: 0,
+            service_charges: 0,
+            delivery_charges: 0,
+            note: note.value,
+            order_date: new Date().toISOString().split("T")[0],
+            order_time: new Date().toTimeString().split(" ")[0],
+            order_type:
+                orderType.value === "dine_in"
+                    ? "Dine In"
+                    : orderType.value === "delivery"
+                        ? "Delivery"
+                        : orderType.value === "takeaway"
+                            ? "Takeaway"
+                            : "Collection",
+            table_number: selectedTable.value?.name || null,
+            payment_method: paymentMethod.value,
+            cash_received: cashReceived.value,
+            change: changeAmount.value,
+            items: orderItems.value.map((it) => ({
+                product_id: it.id,
+                title: it.title,
+                quantity: it.qty,
+                price: it.price,
+                note: it.note || null,
+            })),
+        };
+
+        const res = await axios.post("/pos/order", payload);
+        resetCart();
+        showConfirmModal.value = false;
+        toast.success(res.data.message);
     } catch (err) {
-        console.error(err);
-        alert('Failed to place order');
+        console.error("Order error:", err);
+        toast.error(err.response?.data?.message || "Failed to place order");
     }
 };
 
 
 
-
+// Format orderType → remove underscores & capitalize
+const formattedOrderType = computed(() => {
+    if (!orderType.value) return "";
+    return orderType.value
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+});
 
 
 
@@ -531,7 +640,15 @@ onMounted(() => {
                             <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
                                 <div class="productset flex-fill hoverable" @click="openItem(p)">
                                     <div class="productsetimg"> <img :src="p.img" alt="img" />
-                                        <h6> Qty: {{ Number(p.qty).toFixed(2) }} </h6>
+
+                                        <h6>
+                                            Ingredients Qty: {{
+                                                p.ingredients && p.ingredients.length
+                                                    ? p.ingredients.reduce((sum, ing) => sum + Number(ing.quantity || 0), 0)
+                                                    : 0
+                                            }}
+                                        </h6>
+
 
                                         <div class="check-product"> <i class="fa fa-plus"></i> </div>
                                     </div>
@@ -569,12 +686,17 @@ onMounted(() => {
                                 <!-- Type-specific inputs -->
                                 <div v-if="orderType === 'dine_in'" class="mb-3">
                                     <label class="form-label small mb-1">Table No:</label>
-                                    <select :P v-model="selectedTable" class="form-control">
+                                    <select :P v-model="selectedTable" class="form-control"
+                                        :class="{ 'is-invalid': formErrors.table_number }">
                                         <option v-for="(table, index) in profileTables.table_details" :key="index"
                                             :value="table">
                                             {{ table.name }}
                                         </option>
                                     </select>
+                                    <small v-if="formErrors.table_number" class="text-danger">
+                                        {{ formErrors.table_number[0] }}
+                                    </small>
+                                    <br />
 
                                     <label class="form-label small mt-3 mb-1">Customer</label>
                                     <input v-model="customer" type="text" class="form-control"
@@ -636,8 +758,7 @@ onMounted(() => {
                                         </div>
 
                                         <div class="d-flex align-items-center gap-3">
-                                            <button
-                                                class="px-3 py-1 rounded-pill btn btn-primary text-white text-center"
+                                            <button class="px-2 py-1 btn btn-primary text-white text-center"
                                                 @click="decCart(i)">
                                                 −
                                             </button>
@@ -686,7 +807,8 @@ onMounted(() => {
                                     placeholder="Add Note"></textarea>
 
                                 <div class="d-flex gap-3 mt-3">
-                                    <button class="btn btn-success flex-fill" @click="placeOrder()">
+                                    <button class="px-4 py-2 rounded-pill btn btn-primary text-white text-center w-full"
+                                        @click="openConfirmModal">
                                         Place Order
                                     </button>
                                     <button class="btn btn-secondary rounded-pill px-4 ms-2">
@@ -771,14 +893,125 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-0 pt-0"> <button class="btn btn-secondary rounded-pill px-4 ms-2"
-                            data-bs-dismiss="modal">Cancel</button>
-                        <button class="btn btn-primary rounded-pill" @click="confirmAdd">Add to Order
+                    <div class="modal-footer border-0 pt-0">
+                        <button class="btn btn-primary rounded-pill px-4 py-2" @click="confirmAdd">Add to Order
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Confirm Order Modal  -->
+        <div v-if="showConfirmModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content rounded-4 shadow-lg border-0">
+
+                    <!-- Header -->
+                    <div class="modal-header bg-gradient"
+                        style="background: linear-gradient(90deg,#0d6efd,#4e9fff);">
+                        <h5 class="modal-title fw-bold">
+                            <i class="bi bi-receipt-cutoff me-2"></i> Confirm Order
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white"
+                            @click="showConfirmModal = false"></button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body">
+
+                        <!-- Order Summary -->
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body">
+                                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-info-circle me-2"></i> Order
+                                    Summary</h6>
+                                <ul class="list-group list-group-flush small">
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span><strong>Customer</strong></span>
+                                        <span>{{ customer || "Walk In" }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span><strong>Service</strong></span>
+                                        <span>
+                                            <span class="badge bg-primary px-3 py-2">{{ formattedOrderType }}</span>
+                                        </span>
+                                    </li>
+                                    <li v-if="orderType === 'dine_in'"
+                                        class="list-group-item d-flex justify-content-between">
+                                        <span><strong>Table No</strong></span>
+                                        <span>{{ selectedTable?.name || "N/A" }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span><strong>Total Items</strong></span>
+                                        <span>{{ orderItems.length }}</span>
+                                    </li>
+                                    <li
+                                        class="list-group-item d-flex justify-content-between fs-5 fw-bold text-success">
+                                        <span>Total</span>
+                                        <span>{{ money(grandTotal) }}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Payment Section -->
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="bi bi-credit-card me-2"></i> Payment Method
+                                </h6>
+
+                                <!-- Radio Buttons -->
+                                <div class="d-flex gap-4 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" id="paymentCash" value="Cash"
+                                            v-model="paymentMethod">
+                                        <label class="form-check-label" for="paymentCash">Cash</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" id="paymentCard" value="Card"
+                                            v-model="paymentMethod">
+                                        <label class="form-check-label" for="paymentCard">Card</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" id="paymentSplit" value="Split"
+                                            v-model="paymentMethod">
+                                        <label class="form-check-label" for="paymentSplit">Split</label>
+                                    </div>
+                                </div>
+
+                                <!-- Cash Input -->
+                                <div v-if="paymentMethod === 'Cash'" class="border-top pt-3">
+                                    <label class="form-label fw-semibold">Cash Received</label>
+                                    <input type="number" v-model.number="cashReceived" class="form-control" />
+                                    <div class="mt-2">
+                                        <strong>Change:</strong>
+                                        <span
+                                            :class="changeAmount < 0 ? 'text-danger fw-bold' : 'text-success fw-bold'">
+                                            {{ money(changeAmount) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-secondary bg-secondary text-white btn-sm px-3 rounded-pill py-2"
+                            @click="showConfirmModal = false"> Cancel
+                        </button>
+                        <button class="btn btn-success btn-sm px-3 rounded-pill py-2" @click="confirmOrder">
+                            <i class="bi bi-check2-circle me-1"></i> Confirm & Place
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
     </Master>
 </template>
 
@@ -937,7 +1170,7 @@ onMounted(() => {
     height: 28px;
     border-radius: 50%;
     background: #6f61ff;
-    color: #fff;
+    color: #fff !important;
     display: flex;
     align-items: center;
     justify-content: center;

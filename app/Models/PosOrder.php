@@ -30,5 +30,8 @@ class PosOrder extends Model
     {
         return $this->hasOne(PosOrderType::class, 'pos_order_id');
     }
+    public function payment()
+    {
+        return $this->hasOne(Payment::class, 'order_id');
+    }
 }
-

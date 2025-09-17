@@ -8,6 +8,7 @@ use App\Models\PosOrder;
 use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
+use App\Models\Payment;
 use App\Models\PosOrderType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,14 @@ class PosOrderService
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
+
+            Payment::create([
+            'order_id'        => $order->id,
+            'user_id'         => Auth::id(),
+            'amount_received' => $data['cash_received'] ?? $data['total_amount'],
+            'payment_type'    => $data['payment_method'],
+            'payment_date'    => now(),
+        ]);
 
             return $order;
         });
