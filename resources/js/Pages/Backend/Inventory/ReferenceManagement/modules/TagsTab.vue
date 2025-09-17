@@ -7,6 +7,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
+import ImportFile from "@/Components/ImportFile.vue";
 
 const options = ref([
     { label: "Vegan", value: "Vegan" },
@@ -471,6 +472,42 @@ watch(commonTags, (newVal) => {
         delete formErrors.value.tags;
     }
 });
+
+
+
+// import handle function
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+
+    // data is 2D array: [ [col1, col2, ...], [val1, val2, ...] ]
+    // Example: map to supplier objects
+    const headers = data[0];
+    const rows = data.slice(1);
+    console.log(data.slice(1));
+    const tagsToImport = rows.map((row) => {
+        return {
+            tags: row[0] || "",
+        };
+    });
+
+    // Send to backend API
+    axios
+        .post("/tags/import", { tags: tagsToImport })
+        .then(() => {
+            toast.success("Tags imported successfully");
+            fetchTags();
+        })
+        .catch((err) => {
+          if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+                toast.error("There may some duplication in data", {
+                    autoClose: 3000,
+                });
+            }
+          
+        });
+};
+
 </script>
 
 <template>
@@ -504,7 +541,7 @@ watch(commonTags, (newVal) => {
                     >
                         <Plus class="w-4 h-4" /> Add Tag
                     </button>
-
+                    <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
                         <button
