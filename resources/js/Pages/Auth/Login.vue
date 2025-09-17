@@ -50,7 +50,7 @@ const submit = () => {
 
         // ✅ Success: go to dashboard
         onSuccess: () => {
-            window.location.href = route("dashboard");
+            // window.location.href = route("dashboard");
         },
 
         // ✅ Error: check if it's unverified and show modal
