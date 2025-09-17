@@ -13,6 +13,21 @@ return new class extends Migration
     {
         Schema::create('pos_orders', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            
+            $table->string('customer_name')->nullable();
+            $table->decimal('sub_total', 10, 2)->default(0);
+            $table->decimal('total_amount', 10, 2)->default(0);
+
+            $table->decimal('tax', 10, 2)->nullable();
+            $table->decimal('service_charges', 10, 2)->nullable();
+            $table->decimal('delivery_charges', 10, 2)->nullable();
+
+            $table->string('status')->default('paid');
+            $table->text('note')->nullable();
+
+            $table->date('order_date')->nullable();
+            $table->time('order_time')->nullable();
             $table->timestamps();
         });
     }
