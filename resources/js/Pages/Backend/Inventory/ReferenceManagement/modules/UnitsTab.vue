@@ -7,6 +7,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
+import ImportFile from "@/Components/ImportFile.vue";
 
 const options  = ref([
     // Weight Units
@@ -284,13 +285,11 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         // Define headers
-        const headers = ["Name", "Created At", "Created By"];
+        const headers = ["name"];
 
         // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
-            `"${s.created_at || ""}"`,
-            `"${s.updated_at || ""}"`,
         ]);
 
         // Combine into CSV string
@@ -465,6 +464,36 @@ watch(commonUnits, (newVal) => {
         delete formErrors.value.units;
     }
 });
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+    const headers = data[0];
+    const rows = data.slice(1);
+    console.log(data.slice(1));
+    const unitsToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",
+           
+        };
+    });
+
+    // Send to backend API
+    axios
+        .post("/units/import", { units: unitsToImport })
+        .then(() => {
+            toast.success("Units imported successfully");
+            fetchUnits();
+        })
+        .catch((err) => {
+          if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+                toast.error("There may some duplication in data", {
+                    autoClose: 3000,
+                });
+            }
+          
+        });
+};
+
 </script>
 
 <template>
@@ -498,7 +527,7 @@ watch(commonUnits, (newVal) => {
                     >
                         <Plus class="w-4 h-4" /> Add Unit
                     </button>
-
+ <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
                         <button

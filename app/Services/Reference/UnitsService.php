@@ -28,10 +28,11 @@ class UnitsService
      */
     public function create(array $data): Unit
     {
+        foreach ($data['units'] as $name) { 
         $unit = new Unit();
-        $unit->name = $data['name'];
+        $unit->name = $name['name'];
         $unit->save();
-
+        }
         return $unit;
     }
 

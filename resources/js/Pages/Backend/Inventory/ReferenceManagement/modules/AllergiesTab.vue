@@ -7,6 +7,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
+import ImportFile from "@/Components/ImportFile.vue";
 
 const commonExistingAllergiesList = ref([
     { label: "Crustaceans", value: "Crustaceans" },
@@ -471,6 +472,36 @@ watch(commonAllergies, (newVal) => {
         delete formErrors.value.allergies;
     }
 });
+
+
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+    const headers = data[0];
+    const rows = data.slice(1);
+    const allergiesToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",
+           
+        };
+    });
+
+    // Send to backend API
+    axios
+        .post("/allergies/import", { allergies: allergiesToImport })
+        .then(() => {
+            toast.success("Allergies imported successfully");
+            fetchAllergies();
+        })
+        .catch((err) => {
+          if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+                toast.error("There may some duplication in data", {
+                    autoClose: 3000,
+                });
+            }
+          
+        });
+};
 </script>
 
 <template>
@@ -504,7 +535,7 @@ watch(commonAllergies, (newVal) => {
                     >
                         <Plus class="w-4 h-4" /> Add Allergy
                     </button>
-
+                    <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
                         <button
