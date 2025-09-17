@@ -165,6 +165,7 @@ const resetModal = () => {
 const submitting = ref(false);
 const catFormErrors = ref({});
 import axios from "axios";
+import ImportFile from "@/Components/ImportFile.vue";
 
 const submitCategory = async () => {
     if (isSub.value && !selectedParentId.value) {
@@ -592,24 +593,19 @@ const downloadCSV = (data) => {
     try {
         // Define headers
         const headers = [
-            "Category",
-            "SubCategory",
-            "Total Value",
-            "Total Items",
-            "Out of Stock",
-            "Low Stock",
-            "In Stock",
+            "category",
+            "subcategory",
+            "icon",
+            "active",
+           
         ];
 
         // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
             `"${s.parent_id || ""}"`,
-            `"${s.total_value || ""}"`,
-            `"${s.total_items || ""}"`,
-            `"${s.out_of_stock || ""}"`,
-            `"${s.low_stock || ""}"`,
-            `"${s.in_stock || ""}"`,
+            `"${s.icon || ""}"`,
+           `${s.active ? 1 : 0}`,
         ]);
 
         // Combine into CSV string
@@ -788,6 +784,36 @@ const downloadExcel = (data) => {
         });
     }
 };
+
+
+// handle import function
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+
+    const headers = data[0]; // ["category","subcategory","icon","active"]
+    const rows = data.slice(1);
+
+    const categoriesToImport = rows.map((row) => {
+        return {
+            category: row[0] || "",       // Parent category
+            subcategory: row[1] || null,  // Child category (optional)
+            icon: row[2] || "",           // Emoji/icon
+            active: row[3] || 1           // Default active=1
+        };
+    });
+
+    axios
+        .post("/categories/import", { categories: categoriesToImport })
+        .then(() => {
+            toast.success("Categories imported successfully");
+            fetchCategories();
+        })
+        .catch((err) => {
+            console.error(err);
+            toast.error("Import failed");
+        });
+};
+
 </script>
 
 <template>
@@ -865,7 +891,7 @@ const downloadExcel = (data) => {
                                 >
                                     <Plus class="w-4 h-4" /> Add Category
                                 </button>
-
+<ImportFile label="Import" @on-import="handleImport" />
                                 <div class="dropdown">
                                     <button
                                         class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
