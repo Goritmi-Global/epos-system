@@ -12,6 +12,18 @@ class OnboardingController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $profile = RestaurantProfile::where('user_id', $user->id)->first();
+        if ($profile && $profile->status === 'complete') {
+            return redirect()->route('dashboard');
+        }
+        if (!$request->user()) {
+            return redirect()->route('login');
+        }
         return Inertia::render('Onboarding/Index');
     }
 
@@ -127,6 +139,7 @@ class OnboardingController extends Controller
 
     public function complete(Request $request)
     {
+        dd($request);
         $user = $request->user();
 
         // Grab all profile data from request
@@ -212,7 +225,7 @@ class OnboardingController extends Controller
         $profile->fill($transformedData);
         $profile->status = 'complete';
         $profile->save();
-
+dd();
         // Update onboarding progress
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
         $progress->completed_steps = collect($progress->completed_steps ?? [])
@@ -223,11 +236,15 @@ class OnboardingController extends Controller
         $progress->is_completed = true;
         $progress->completed_at = now();
         $progress->save();
+        return redirect('/');
 
-        return response()->json([
-            'ok'      => true,
-            'profile' => $profile,
-            'progress' => $progress,
-        ]);
+// return redirect()->route('dashboard');
+
+
+        // return response()->json([
+        //     'ok'      => true,
+        //     'profile' => $profile,
+        //     'progress' => $progress,
+        // ]);
     }
 }

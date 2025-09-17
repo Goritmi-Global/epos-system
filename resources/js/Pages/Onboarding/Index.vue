@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import axios from "axios";
-
+import { toast } from "vue3-toastify";
 import Step1 from "./steps/Step1.vue"
 import Step2 from "./steps/Step2.vue"
 import Step3 from "./steps/Step3.vue"
@@ -63,17 +63,27 @@ const saveStep = (payload) => {
 
 async function finish () {
   try {
-    // send ONE payload with everything
     const { data: res } = await axios.post('/onboarding/complete', {
       profile: profile.value,     // all steps merged here
       completed_steps: progress.value.completed_steps,
     })
-    console.log('Saved!', res)
-    // navigate / toast etc.
+
+    toast.success("Onboarding completed successfully! Your profile created.");
+
+    // wait 3 seconds before redirect
+    setTimeout(() => {
+      window.location.href = '/dashboard'
+    }, 3000)
+
   } catch (e) {
     console.error('final save error:', e)
+    toast.error("Something went wrong while completing onboarding.")
+  } finally {
+    // optional cleanup (like stopping a loading spinner)
   }
 }
+
+
 
 
 // function finish(){ console.log("FINAL PROFILE:", profile.value) }

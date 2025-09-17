@@ -1,23 +1,27 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+/* ---------- Auth scaffolding ---------- */
 use App\Http\Controllers\Auth\RegisteredUserController;
+
+/* ---------- General ---------- */
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VerifyAccountController;
 use App\Http\Controllers\DashboardController;
-
 use App\Http\Controllers\OnboardingController;
-use App\Http\Controllers\GeoController;
+use App\Http\Controllers\GeoController; // (not used below, but kept for later)
+use App\Http\Controllers\IndexController;
 
+/* ---------- POS & Inventory ---------- */
 use App\Http\Controllers\POS\{
     InventoryController,
     InventoryCategoryController,
     StockLogController,
     PurchaseOrderController,
     StockEntryController,
-
     MenuController,
     MenuCategoryController,
     PosOrderController,
@@ -26,6 +30,8 @@ use App\Http\Controllers\POS\{
     AnalyticsController,
     SettingsController,
 };
+
+/* ---------- References ---------- */
 use App\Http\Controllers\Reference\{
     ReferenceManagementController,
     SupplierController,
@@ -35,48 +41,45 @@ use App\Http\Controllers\Reference\{
     UnitController
 };
 
+/* =========================================================
+|  Public / Guest
+|========================================================= */
 
-// routes/web.php
-Route::get('/test-helper', fn() => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+// health/test helper
+Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
 
-Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
+// root -> login screen (Inertia)
+Route::get('/', fn () => Inertia::render('Auth/Login'));
 
-Route::get('/', function () {
-    return Inertia::render('Auth/Login');
-    // return Inertia::render('Welcome', [
-    //     'canLogin' => Route::has('login'),
-    //     'canRegister' => Route::has('register'),
-    //     'laravelVersion' => Application::VERSION,
-    //     'phpVersion' => PHP_VERSION,
-    // ]);
-});
-// Auth::routes(['verify' => true]);
-
-
+// email verification links & OTP verify
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
 
+/* =========================================================
+|  Authenticated (auth + verified where needed)
+|========================================================= */
 
-// Dashboard -> Controller@index
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+// Main dashboard
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-
-Route::middleware('auth')->group(function () {
+    /* -------- Profile -------- */
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    /* -------- Onboarding (must be reachable after login) -------- */
+    Route::prefix('onboarding')->name('onboarding.')->group(function () {
+        Route::get('/', [OnboardingController::class, 'index'])->name('index');
+        Route::get('/data', [OnboardingController::class, 'show'])->name('show');
+        Route::post('/step/{step}', [OnboardingController::class, 'saveStep'])->name('saveStep');
+        Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
+    });
 
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
-
-    // Inventory
+    /* -------- Inventory -------- */
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('index');
-        Route::get('/api-inventories', [InventoryController::class, 'apiList']);
+        Route::get('/api-inventories', [InventoryController::class, 'apiList'])->name('api');
         Route::get('/create', [InventoryController::class, 'create'])->name('create');
         Route::post('/', [InventoryController::class, 'store'])->name('store');
         Route::get('/{inventory}', [InventoryController::class, 'show'])->name('show');
@@ -84,28 +87,27 @@ Route::middleware('auth')->group(function () {
         Route::put('/{inventory}', [InventoryController::class, 'update'])->name('update');
         Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
     });
+    Route::post('/items/import', [InventoryController::class, 'import'])->name('items.import');
 
-    Route::post('/items/import', [InventoryController::class, 'import'])->name('items.import'); 
-    // Stock In/Out entries
+    /* -------- Stock Entries & Logs -------- */
     Route::prefix('stock_entries')->name('stock_entries.')->group(function () {
         Route::get('/', [StockEntryController::class, 'index'])->name('index');
         Route::post('/', [StockEntryController::class, 'store'])->name('store');
-        Route::get('/by-item/{inventory}', [StockEntryController::class, 'byItem']);
+        Route::get('/by-item/{inventory}', [StockEntryController::class, 'byItem'])->name('byItem');
 
-        // Put specific routes BEFORE parameterized routes
+        // Fixed routes before parameterized
         Route::get('/stock-logs', [StockEntryController::class, 'stockLogs'])->name('stock.logs');
-        Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog']);
-        Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog']);
+        Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
+        Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
 
-        // Parameterized routes come last
+        // Parameterized
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
     });
 
-
-    // Inventory Categories
+    /* -------- Inventory Categories -------- */
     Route::prefix('inventory-categories')->name('inventory.categories.')->group(function () {
         Route::get('/', [InventoryCategoryController::class, 'index'])->name('index');
         Route::post('/', [InventoryCategoryController::class, 'store'])->name('store');
@@ -114,14 +116,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}', [InventoryCategoryController::class, 'destroy'])->name('destroy');
     });
 
-    // Stock Logs
+    /* -------- Stock Logs (separate index if needed) -------- */
     Route::prefix('stock-logs')->name('stock.logs.')->group(function () {
         Route::get('/', [StockLogController::class, 'index'])->name('index');
         Route::post('/', [StockLogController::class, 'store'])->name('store');
         Route::get('/{id}', [StockLogController::class, 'show'])->name('show');
     });
 
-    // Purchase Orders
+    /* -------- Purchase Orders -------- */
     Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
         Route::get('/fetchOrders', [PurchaseOrderController::class, 'fetchOrders'])->name('fetchOrders');
@@ -132,85 +134,71 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
     });
 
-    // Reference Management
+    /* -------- Reference Management -------- */
     Route::prefix('reference')->name('reference.')->group(function () {
         Route::get('/', [ReferenceManagementController::class, 'index'])->name('index');
-        
         Route::post('/', [ReferenceManagementController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [ReferenceManagementController::class, 'edit'])->name('edit');
         Route::put('/{id}', [ReferenceManagementController::class, 'update'])->name('update');
         Route::delete('/{id}', [ReferenceManagementController::class, 'destroy'])->name('destroy');
     });
 
-
-    
+    /* -------- Suppliers -------- */
     Route::prefix('suppliers')->name('suppliers.')->group(function () {
         Route::get('/', [SupplierController::class, 'index'])->name('index');
         Route::post('/', [SupplierController::class, 'store'])->name('store');
         Route::post('/update', [SupplierController::class, 'update'])->name('update');
         Route::delete('/{supplier}', [SupplierController::class, 'destroy'])->name('destroy');
-
-        // special pluck route
-        Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck');
+        Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck'); // special
     });
-
-    // routes/web.php
     Route::post('/suppliers/import', [SupplierController::class, 'import'])->name('suppliers.import');
 
-
-    Route::prefix('tags')->group(function () {
-        Route::get('/', [TagController::class, 'index']);
-        Route::post('/', [TagController::class, 'store']);
-        Route::put('/{tag}', [TagController::class, 'update']);
-        Route::delete('/{tag}', [TagController::class, 'destroy']);
+    /* -------- Tags -------- */
+    Route::prefix('tags')->name('tags.')->group(function () {
+        Route::get('/', [TagController::class, 'index'])->name('index');
+        Route::post('/', [TagController::class, 'store'])->name('store');
+        Route::put('/{tag}', [TagController::class, 'update'])->name('update');
+        Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
     });
+    Route::post('/tags/import', [TagController::class, 'import'])->name('tags.import');
 
-     Route::post('/tags/import', [TagController::class, 'import'])->name('tags.import'); 
-     
+    /* -------- Categories -------- */
+    Route::prefix('categories')->name('categories.')->group(function () {
+        Route::get('/', [CategoryController::class, 'index'])->name('index');
+        Route::post('/', [CategoryController::class, 'store'])->name('store');
+        Route::get('/{id}', [CategoryController::class, 'show'])->name('show');
+        Route::put('/{id}', [CategoryController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CategoryController::class, 'destroy'])->name('destroy');
+        Route::put('/subcategories/{id}', [CategoryController::class, 'updateSubcategory'])->name('updateSubcategory');
 
-    // Category Management Routes
-    Route::prefix('categories')->group(function () {
-        // CRUD Operations
-        Route::get('/', [CategoryController::class, 'index']);
-        Route::post('/', [CategoryController::class, 'store']);
-        Route::get('/{id}', [CategoryController::class, 'show']);
-        Route::put('/{id}', [CategoryController::class, 'update']);
-        Route::delete('/{id}', [CategoryController::class, 'destroy']);
-        Route::put('/subcategories/{id}', [CategoryController::class, 'updateSubcategory']);
-
-
-        // Additional Operations
-        Route::get('/parents/list', [CategoryController::class, 'getParents']);
-        Route::get('/statistics/summary', [CategoryController::class, 'statistics']);
-        Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus']);
+        Route::get('/parents/list', [CategoryController::class, 'getParents'])->name('parents');
+        Route::get('/statistics/summary', [CategoryController::class, 'statistics'])->name('stats');
+        Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('toggle');
     });
-
     Route::post('/categories/import', [CategoryController::class, 'import'])->name('categories.import');
 
-
-
-    Route::prefix('units')->group(function () {
-        Route::get('/', [UnitController::class, 'index']);
-        Route::post('/', [UnitController::class, 'store']);
-        Route::put('/{unit}', [UnitController::class, 'update']);
-        Route::delete('/{unit}', [UnitController::class, 'destroy']);
+    /* -------- Units -------- */
+    Route::prefix('units')->name('units.')->group(function () {
+        Route::get('/', [UnitController::class, 'index'])->name('index');
+        Route::post('/', [UnitController::class, 'store'])->name('store');
+        Route::put('/{unit}', [UnitController::class, 'update'])->name('update');
+        Route::delete('/{unit}', [UnitController::class, 'destroy'])->name('destroy');
     });
-    Route::post('/units/import', [UnitController::class, 'import'])->name('units.import'); 
+    Route::post('/units/import', [UnitController::class, 'import'])->name('units.import');
 
-    Route::prefix('allergies')->group(function () {
-        Route::get('/', [AllergyController::class, 'index']);
-        Route::post('/', [AllergyController::class, 'store']);
-        Route::put('/{allergy}', [AllergyController::class, 'update']);
-        Route::delete('/{allergy}', [AllergyController::class, 'destroy']);
+    /* -------- Allergies -------- */
+    Route::prefix('allergies')->name('allergies.')->group(function () {
+        Route::get('/', [AllergyController::class, 'index'])->name('index');
+        Route::post('/', [AllergyController::class, 'store'])->name('store');
+        Route::put('/{allergy}', [AllergyController::class, 'update'])->name('update');
+        Route::delete('/{allergy}', [AllergyController::class, 'destroy'])->name('destroy');
     });
+    Route::post('/allergies/import', [AllergyController::class, 'import'])->name('allergies.import');
 
-Route::post('/allergies/import', [AllergyController::class, 'import'])->name('allergies.import'); 
-
-
-    // Menu
+    /* -------- Menu -------- */
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');
-        Route::get('/menu-items', [MenuController::class, 'apiIndex']);
+        Route::get('/menu-items', [MenuController::class, 'apiIndex'])->name('items');
         Route::get('/create', [MenuController::class, 'create'])->name('create');
         Route::post('/', [MenuController::class, 'store'])->name('store');
         Route::get('/{menu}/edit', [MenuController::class, 'edit'])->name('edit');
@@ -219,69 +207,56 @@ Route::post('/allergies/import', [AllergyController::class, 'import'])->name('al
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
 
-    // Menu Categories
+    /* -------- Menu Categories -------- */
     Route::prefix('menu-categories')->name('menu-categories.')->group(function () {
         Route::get('/', [MenuCategoryController::class, 'index'])->name('index');
-        // Route::get('/create', [MenuCategoryController::class, 'create'])->name('create');
         Route::post('/', [MenuCategoryController::class, 'store'])->name('store');
         Route::get('/{id}', [MenuCategoryController::class, 'show'])->name('show');
         Route::get('/{id}/edit', [MenuCategoryController::class, 'edit'])->name('edit');
         Route::put('/{id}', [MenuCategoryController::class, 'update'])->name('update');
         Route::delete('/{id}', [MenuCategoryController::class, 'destroy'])->name('destroy');
-        Route::put('/subcategories/{id}', [MenuCategoryController::class, 'updateSubcategory']);
+        Route::put('/subcategories/{id}', [MenuCategoryController::class, 'updateSubcategory'])->name('updateSubcategory');
 
-        Route::get('/parents/list', [MenuCategoryController::class, 'getParents']);
-        Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics']);
-        Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus']);
+        Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
+        Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
+        Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
     });
 
-    // POS Order live screen
-    Route::prefix('pos')->name('pos.')->group(function (){
-        Route::get('/order', [PosOrderController::class, 'index'])->name('order'); 
-        Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('pos.menu-categories'); 
-        Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('pos.menu-items');
-        Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('pos.fetch.profile.tables'); 
+    /* -------- POS Live Screen -------- */
+    Route::prefix('pos')->name('pos.')->group(function () {
+        Route::get('/order', [PosOrderController::class, 'index'])->name('order');
+        Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu-categories');
+        Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu-items');
+        Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('fetch.profile.tables');
     });
 
-    // Orders
+    /* -------- Orders -------- */
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrdersController::class, 'index'])->name('index');
-        Route::get('/all-orders', [OrdersController::class, 'fetchAllOrders'])->name('fetchAllOrders');
+        Route::get('/all-orders', [OrdersController::class, 'fetchAllOrders'])->name('all');
         Route::get('/{order}', [OrdersController::class, 'show'])->name('show');
     });
 
-    // Payment
+    /* -------- Payment -------- */
     Route::prefix('payment')->name('payment.')->group(function () {
         Route::get('/', [PaymentController::class, 'index'])->name('index');
         Route::post('/', [PaymentController::class, 'store'])->name('store');
     });
 
-    // Analytics
+    /* -------- Analytics -------- */
     Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('/', [AnalyticsController::class, 'index'])->name('index');
     });
 
-    // Settings
+    /* -------- Settings -------- */
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [SettingsController::class, 'index'])->name('index');
         Route::post('/', [SettingsController::class, 'update'])->name('update');
     });
 });
 
-// onboarding routes
-// Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
-    Route::get('/onboarding/data', [OnboardingController::class, 'show'])->name('onboarding.show');
-    Route::post('/onboarding/step/{step}', [OnboardingController::class, 'saveStep'])->name('onboarding.saveStep');
-    Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
-// });
+/* ---------- Public settings/locations page (if intended public) ---------- */
+Route::get('/settings/locations', [IndexController::class, 'index'])->name('locations.index');
 
-
-
-
-// routes/web.php
-Route::get('/settings/locations', [\App\Http\Controllers\IndexController::class, 'index'])
-    ->name('locations.index');
-
-
+/* ---------- Breeze/Jetstream auth routes ---------- */
 require __DIR__ . '/auth.php';
