@@ -357,6 +357,7 @@ watch(
 // =============== Edit item ===============
 import { nextTick } from "vue";
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
+import ImportFile from "@/Components/ImportFile.vue";
 
 const editItem = (item) => {
     const toNum = (v) =>
@@ -638,20 +639,23 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         const headers = [
-            "Item Name",
-            "Category",
-            "Min Alert",
-            "Unit",
-            "Supplier",
-            "Sku",
-            "Description",
-            "Nutrition",
-            "Allergies",
-            "Tags",
-            "Created At",
-            "Updated At",
+            "name",
+            "sku",
+            "category",
+            "min_alert",
+            "unit",
+            "preferred_supplier",
+           "purchase_price",
+           "sale_price",
+           "stock",
+           "active",
+           "calories",
+           "fat",
+           "protein",
+           "carbs"
         ];
         const rows = data.map((s) => {
+            
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 nutritionStr = Object.entries(s.nutrition)
@@ -662,21 +666,25 @@ const downloadCSV = (data) => {
             }
             return [
                 `"${s.name || ""}"`,
-                `"${s.category || ""}"`,
+                 `"${s.sku || ""}"`,
+                `"${s.category.name || ""}"`,
                 `"${s.minAlert || ""}"`,
-                `"${s.unit || ""}"`,
-                `"${s.supplier || ""}"`,
-                `"${s.sku || ""}"`,
+                `"${s.unit_id || ""}"`,
+                `"${s.supplier_id || ""}"`,
                 `"${s.description || ""}"`,
-                `"${nutritionStr}"`,
+                `"${s.description || ""}"`,
+                `"${s.description || ""}"`,
+                `"${s.description || ""}"`,
+                `"${s.nutrition.calories}"`,
+                `"${s.nutrition.protein}"`,
+                `"${s.nutrition.fat}"`,
+                `"${s.nutrition.carbs}"`,
                 `"${
                     Array.isArray(s.allergies)
                         ? s.allergies.join(", ")
                         : s.allergies || ""
                 }"`,
                 `"${Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || ""}"`,
-                `"${s.created_at || ""}"`,
-                `"${s.updated_at || ""}"`,
             ];
         });
         const csvContent = [
@@ -979,6 +987,48 @@ const totals = computed(() => {
     return { totalQty, totalPrice, totalValue, notExpiredQty };
 });
 
+
+// handle import function for items
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+
+    const headers = data[0]; 
+    // CSV headers: ["name","sku","category","purchase_price","sale_price","stock","active","calories","fat","protein","carbs"]
+    const rows = data.slice(1);
+
+    const itemsToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",               
+            sku: row[1] || "",                
+            category: row[2] || "", 
+            min_alert: row[3] || "",
+            unit: row[4] || "",
+            preferred_supplier: row[5]  || "",          
+            purchase_price: parseFloat(row[6]) || 0,
+            sale_price: parseFloat(row[7]) || 0,
+            stock: parseInt(row[8]) || 0,
+            active: row[9] == "0" ? 0 : 1,
+
+            calories: parseFloat(row[10]) || 0,
+            fat: parseFloat(row[11]) || 0,
+            protein: parseFloat(row[12]) || 0,
+            carbs: parseFloat(row[13]) || 0,
+        };
+    });
+
+    axios
+        .post("/items/import", { items: itemsToImport })
+        .then(() => {
+            toast.success("Items imported successfully");
+            fetchInventories(); 
+        })
+        .catch((err) => {
+            console.error(err);
+            toast.error("Import failed");
+        });
+};
+
+
 </script>
 
 <template>
@@ -1113,6 +1163,7 @@ const totals = computed(() => {
                                 >
                                     <Plus class="w-4 h-4" /> Add Item
                                 </button>
+                                 <ImportFile label="Import" @on-import="handleImport" />
 
                                 <!-- Download all -->
                                 <div class="dropdown">

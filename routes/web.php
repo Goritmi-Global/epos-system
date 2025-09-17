@@ -85,6 +85,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
     });
 
+    Route::post('/items/import', [InventoryController::class, 'import'])->name('items.import'); 
     // Stock In/Out entries
     Route::prefix('stock_entries')->name('stock_entries.')->group(function () {
         Route::get('/', [StockEntryController::class, 'index'])->name('index');
@@ -184,6 +185,9 @@ Route::middleware('auth')->group(function () {
         Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus']);
     });
 
+    Route::post('/categories/import', [CategoryController::class, 'import'])->name('categories.import');
+
+
 
     Route::prefix('units')->group(function () {
         Route::get('/', [UnitController::class, 'index']);
@@ -201,6 +205,8 @@ Route::middleware('auth')->group(function () {
     });
 
 Route::post('/allergies/import', [AllergyController::class, 'import'])->name('allergies.import'); 
+
+
     // Menu
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');
@@ -235,7 +241,6 @@ Route::post('/allergies/import', [AllergyController::class, 'import'])->name('al
         Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('pos.menu-categories'); 
         Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('pos.menu-items');
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('pos.fetch.profile.tables'); 
-        Route::post('/order', [PosOrderController::class, 'store'])->name('order.store');
     });
 
     // Orders
