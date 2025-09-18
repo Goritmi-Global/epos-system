@@ -63,14 +63,7 @@ const p_filteredInv = computed(() => {
 
 /* =========================================================================
    === Pagination code starts here =========================================
-   This uses your GLOBAL <Paginator> component.
-   Backend must return a standard Laravel LengthAwarePaginator JSON:
-     {
-       data: [...],
-       current_page, last_page, per_page, total, links: [...]
-     }
-   We’re calling /api/purchase-orders (JSON). If you only have an Inertia
-   route, add a tiny API controller/route for JSON.
+   This uses  GLOBAL <Paginator> component. connect in the app.js file 
    ========================================================================= */
 
 const loading = ref(false);
