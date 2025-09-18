@@ -220,7 +220,7 @@ class OnboardingController extends Controller
             }
         }
 
-        // Fill and save all data
+        // Fill and save all data/*
         $profile->fill($transformedData);
         $profile->status = 'complete';
         $profile->save();
