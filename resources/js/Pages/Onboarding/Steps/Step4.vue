@@ -2,18 +2,35 @@
 import { reactive, toRaw, watch, ref } from "vue";
 import Select from "primevue/select"; // PrimeVue Select
 
-const props = defineProps({ model: Object });
+const props = defineProps({ model: Object, formErrors: Object });
 const emit = defineEmits(["save"]);
 
 const form = reactive({
-  tax_registered: props.model.tax_registered ?? "yes",
+  tax_registered: props.model.tax_registered ?? true,
   tax_type: props.model.tax_type ?? "VAT",
   tax_rate: props.model.tax_rate ?? 0,
-  price_includes_tax: props.model.price_includes_tax ?? "yes",
+  price_includes_tax: props.model.price_includes_tax ?? true,
   tax_id: props.model.tax_id ?? "",
+  extra_tax_rates: props.model.extra_tax_rates ?? "", // ✅ Add this
 });
 
-watch(form, () => emit("save", { step: 4, data: toRaw(form) }), { deep: true });
+watch(form, () => {
+  emit("save", {
+    step: 4,
+    data: {
+      tax_registered: form.tax_registered,       // boolean
+      tax_type: form.tax_type,
+      tax_rate: Number(form.tax_rate),                     // number
+      extra_tax_rates: form.extra_tax_rates
+        ? form.extra_tax_rates.split(",").map(rate => rate.trim()) // array
+        : [],
+      price_includes_tax: form.price_includes_tax === true, // boolean
+      tax_id: form.tax_id,
+    },
+  })
+}, { deep: true })
+
+
 
 // Tax types for Select
 const taxTypeOptions = ref([
@@ -41,57 +58,66 @@ watch(selectedTaxType, (opt) => {
     <div class="mb-3">
       <label class="form-label d-block mb-2">Is your business tax registered?</label>
       <div class="segmented">
-        <input type="radio" id="tax-yes" value="yes" v-model="form.tax_registered" class="segmented__input" />
-        <label for="tax-yes" class="segmented__btn" :class="{ 'is-active': form.tax_registered === 'yes' }">YES</label>
+        <input type="radio" id="tax-yes" :value="true" v-model="form.tax_registered" class="segmented__input" />
+        <label for="tax-yes" class="segmented__btn" :class="{ 'is-active': form.tax_registered === true }">YES</label>
 
-        <input type="radio" id="tax-no" value="no" v-model="form.tax_registered" class="segmented__input" />
-        <label for="tax-no" class="segmented__btn" :class="{ 'is-active': form.tax_registered === 'no' }">NO</label>
+        <input type="radio" id="tax-no" :value="false" v-model="form.tax_registered" class="segmented__input" />
+        <label for="tax-no" class="segmented__btn" :class="{ 'is-active': form.tax_registered === false }">NO</label>
       </div>
     </div>
 
     <!-- If registered -->
-    <div v-if="form.tax_registered === 'yes'" class="row g-3">
+    <div v-if="form.tax_registered === true" class="row g-3">
       <div class="col-md-6">
         <label class="form-label">Tax Type</label>
-        <Select
-          v-model="selectedTaxType"
-          :options="taxTypeOptions"
-          optionLabel="name"
-          :filter="false"
-          placeholder="Select Tax Type"
-          class="w-100"
-        >
-          <template #value="{ value, placeholder }">
-            <span v-if="value">{{ value.name }}</span>
-            <span v-else>{{ placeholder }}</span>
-          </template>
-          <template #option="{ option }">
-            <span>{{ option.name }}</span>
-          </template>
-        </Select>
+        <Select v-model="form.tax_type" :options="taxTypeOptions" optionLabel="name" optionValue="code"
+          placeholder="Select Tax Type" class="w-100" :class="{ 'is-invalid': formErrors?.tax_type }" />
+
+        <small v-if="formErrors?.tax_type" class="text-danger">
+          {{ formErrors.tax_type[0] }}
+        </small>
       </div>
+
       <div class="col-md-3">
         <label class="form-label">Tax Rate (%)</label>
-        <input type="number" class="form-control" min="0" max="100" v-model.number="form.tax_rate" />
+        <input type="number" class="form-control" min="0" max="100" v-model.number="form.tax_rate"
+          :class="{ 'is-invalid': formErrors?.tax_rate }" />
+        <small v-if="formErrors?.tax_rate" class="text-danger">
+          {{ formErrors.tax_rate[0] }}
+        </small>
       </div>
+
       <div class="col-md-3">
         <label class="form-label">Tax ID</label>
         <input class="form-control" v-model="form.tax_id" />
       </div>
     </div>
 
+    <!-- Extra Tax Rates -->
+    <div v-if="form.tax_registered === true" class="mt-3">
+      <label class="form-label">Extra Tax Rates</label>
+      <input class="form-control" v-model="form.extra_tax_rates" placeholder="e.g. 5%"
+        :class="{ 'is-invalid': formErrors?.extra_tax_rates }" />
+      <small v-if="formErrors?.extra_tax_rates" class="text-danger">
+        {{ formErrors.extra_tax_rates[0] }}
+      </small>
+    </div>
+
     <!-- Price includes tax -->
     <div class="mt-3">
       <label class="form-label d-block mb-2">Price includes tax?</label>
       <div class="segmented">
-        <input type="radio" id="price-yes" value="yes" v-model="form.price_includes_tax" class="segmented__input" />
-        <label for="price-yes" class="segmented__btn" :class="{ 'is-active': form.price_includes_tax === 'yes' }">YES</label>
+        <input type="radio" id="price-yes" :value="true" v-model="form.price_includes_tax" class="segmented__input" />
+        <label for="price-yes" class="segmented__btn"
+          :class="{ 'is-active': form.price_includes_tax === true }">YES</label>
 
-        <input type="radio" id="price-no" value="no" v-model="form.price_includes_tax" class="segmented__input" />
-        <label for="price-no" class="segmented__btn" :class="{ 'is-active': form.price_includes_tax === 'no' }">NO</label>
+        <input type="radio" id="price-no" :value="false" v-model="form.price_includes_tax" class="segmented__input" />
+        <label for="price-no" class="segmented__btn"
+          :class="{ 'is-active': form.price_includes_tax === false }">NO</label>
       </div>
     </div>
   </div>
+
 </template>
 
 <style scoped>

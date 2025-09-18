@@ -14,14 +14,23 @@ class OrdersController extends Controller
 
     public function index(Request $request)
     {
-        return Inertia::render('Backend/POS/Order');   
-    
+        return Inertia::render('Backend/POS/Order');
+
         // $orders = $this->service->list($request->only('q','status'));
         // return Inertia::render('Orders/Index', ['orders'=>$orders]);
     }
 
     public function show(Order $order)
     {
-        return Inertia::render('Orders/Show', ['order'=>$order->load([])]);
+        return Inertia::render('Orders/Show', ['order' => $order->load([])]);
+    }
+    public function fetchAllOrders()
+    {
+        $orders = $this->service->getAllOrders();
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders,
+        ]);
     }
 }

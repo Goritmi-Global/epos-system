@@ -1,31 +1,45 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
 
 /* ===================== Demo Data (swap with API later) ===================== */
-const orders = ref([
-    // matches your screenshot shape
-    {
-        id: 1,
-        tableNo: 90,
-        orderType: "Dine In",
-        customer: "Ali Khan",
-        total: 2.5,
-        status: "paid",
-        createdAt: new Date(Date.now() - 23 * 60 * 60 * 1000), // 23 hours ago
-    },
-    {
-        id: 2,
-        tableNo: 1,
-        orderType: "Dine In",
-        customer: "Walk In",
-        total: 2.5,
-        status: "paid",
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    },
-]);
+// const orders = ref([
+//     // matches your screenshot shape
+//     {
+//         id: 1,
+//         tableNo: 90,
+//         orderType: "Dine In",
+//         customer: "Ali Khan",
+//         total: 2.5,
+//         status: "paid",
+//         createdAt: new Date(Date.now() - 23 * 60 * 60 * 1000), // 23 hours ago
+//     },
+//     {
+//         id: 2,
+//         tableNo: 1,
+//         orderType: "Dine In",
+//         customer: "Walk In",
+//         total: 2.5,
+//         status: "paid",
+//         createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+//     },
+// ]);
+const orders = ref([]);
+
+const fetchOrders = async () => {
+    try {
+        const response = await axios.get("/orders/all-orders");
+        orders.value = response.data.data;
+        console.log(orders.value);
+    } catch (error) {
+        console.error("Error fetching inventory:", error);
+    }
+};
+onMounted(() => {
+    fetchOrders();
+})
 
 /* ===================== Toolbar: Search + Filters ===================== */
 const q = ref("");
@@ -35,13 +49,46 @@ const statusFilter = ref("All");
 const orderTypeOptions = ref(["All", "Dine In", "Delivery"]);
 const statusOptions = ref(["All", "paid", "pending", "cancelled"]);
 
+// const filtered = computed(() => {
+//     const term = q.value.trim().toLowerCase();
+//     return orders.value
+//         .filter((o) =>
+//             orderTypeFilter.value === "All"
+//                 ? true
+//                 : o.orderType === orderTypeFilter.value
+//         )
+//         .filter((o) =>
+//             statusFilter.value === "All"
+//                 ? true
+//                 : o.status === statusFilter.value
+//         )
+//         .filter((o) => {
+//             if (!term) return true;
+//             return [
+//                 String(o.id),
+//                 String(o.tableNo),
+//                 o.orderType,
+//                 formatDate(o.createdAt),
+//                 timeAgo(o.createdAt),
+//                 o.customer,
+//                 o.status,
+//                 String(o.total),
+//             ]
+//                 .join(" ")
+//                 .toLowerCase()
+//                 .includes(term);
+//         });
+// });
+
+
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
+
     return orders.value
         .filter((o) =>
             orderTypeFilter.value === "All"
                 ? true
-                : o.orderType === orderTypeFilter.value
+                : o.type?.order_type === orderTypeFilter.value
         )
         .filter((o) =>
             statusFilter.value === "All"
@@ -52,19 +99,21 @@ const filtered = computed(() => {
             if (!term) return true;
             return [
                 String(o.id),
-                String(o.tableNo),
-                o.orderType,
-                formatDate(o.createdAt),
-                timeAgo(o.createdAt),
-                o.customer,
-                o.status,
-                String(o.total),
+                o.type?.table_number ?? "",
+                o.type?.order_type ?? "",
+                o.customer_name ?? "",
+                o.payment?.payment_type ?? "",
+                o.status ?? "",
+                String(o.total_amount ?? ""),
+                formatDate(o.created_at),
+                timeAgo(o.created_at),
             ]
                 .join(" ")
                 .toLowerCase()
                 .includes(term);
         });
 });
+
 
 /* ===================== KPIs ===================== */
 const totalOrders = computed(() => orders.value.length);
@@ -99,6 +148,7 @@ function money(n) {
 </script>
 
 <template>
+
     <Head title="Orders" />
 
     <Master>
@@ -111,9 +161,7 @@ function money(n) {
                 <div class="row g-3">
                     <div class="col-6 col-md-4">
                         <div class="card border-0 shadow-sm rounded-4">
-                            <div
-                                class="card-body d-flex flex-column justify-content-center text-center"
-                            >
+                            <div class="card-body d-flex flex-column justify-content-center text-center">
                                 <div class="icon-wrap mb-2">
                                     <i class="bi bi-list-task"></i>
                                 </div>
@@ -126,9 +174,7 @@ function money(n) {
                     </div>
                     <div class="col-6 col-md-4">
                         <div class="card border-0 shadow-sm rounded-4">
-                            <div
-                                class="card-body d-flex flex-column justify-content-center text-center"
-                            >
+                            <div class="card-body d-flex flex-column justify-content-center text-center">
                                 <div class="icon-wrap mb-2">
                                     <i class="bi bi-check2-circle"></i>
                                 </div>
@@ -143,9 +189,7 @@ function money(n) {
                     </div>
                     <div class="col-6 col-md-4">
                         <div class="card border-0 shadow-sm rounded-4">
-                            <div
-                                class="card-body d-flex flex-column justify-content-center text-center"
-                            >
+                            <div class="card-body d-flex flex-column justify-content-center text-center">
                                 <div class="icon-wrap mb-2">
                                     <i class="bi bi-hourglass-split"></i>
                                 </div>
@@ -162,97 +206,61 @@ function money(n) {
                 <div class="card border-0 shadow-lg rounded-4 mt-3">
                     <div class="card-body">
                         <!-- Toolbar -->
-                        <div
-                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-                        >
+                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                             <h5 class="mb-0 fw-semibold">Orders</h5>
 
-                            <div
-                                class="d-flex flex-wrap gap-2 align-items-center"
-                            >
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <!-- Search -->
                                 <div class="search-wrap">
                                     <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="q"
-                                        type="text"
-                                        class="form-control search-input"
-                                        placeholder="Search"
-                                    />
+                                    <input v-model="q" type="text" class="form-control search-input"
+                                        placeholder="Search" />
                                 </div>
 
                                 <!-- Order Type filter -->
                                 <div style="min-width: 170px">
-                                    <Select
-                                        v-model="orderTypeFilter"
-                                        :options="orderTypeOptions"
-                                        placeholder="Order Type"
-                                        class="w-100"
-                                        :appendTo="'body'"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                    >
-                                        <template
-                                            #value="{ value, placeholder }"
-                                        >
+                                    <Select v-model="orderTypeFilter" :options="orderTypeOptions"
+                                        placeholder="Order Type" class="w-100" :appendTo="'body'" :autoZIndex="true"
+                                        :baseZIndex="2000">
+                                        <template #value="{ value, placeholder }">
                                             <span v-if="value">{{
                                                 value
-                                            }}</span>
+                                                }}</span>
                                             <span v-else>{{
                                                 placeholder
-                                            }}</span>
+                                                }}</span>
                                         </template>
                                     </Select>
                                 </div>
 
                                 <!-- Status filter -->
                                 <div style="min-width: 160px">
-                                    <Select
-                                        v-model="statusFilter"
-                                        :options="statusOptions"
-                                        placeholder="Status"
-                                        class="w-100"
-                                        :appendTo="'body'"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                    >
-                                        <template
-                                            #value="{ value, placeholder }"
-                                        >
+                                    <Select v-model="statusFilter" :options="statusOptions" placeholder="Status"
+                                        class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
+                                        <template #value="{ value, placeholder }">
                                             <span v-if="value">{{
                                                 value
-                                            }}</span>
+                                                }}</span>
                                             <span v-else>{{
                                                 placeholder
-                                            }}</span>
+                                                }}</span>
                                         </template>
                                     </Select>
                                 </div>
 
                                 <!-- Download -->
                                 <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
+                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown">
                                         Download
                                     </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
+                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                >Download as PDF</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)">Download as PDF</a>
                                         </li>
                                         <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:void(0)"
-                                                >Download as Excel</a
-                                            >
+                                            <a class="dropdown-item py-2" href="javascript:void(0)">Download as
+                                                Excel</a>
                                         </li>
                                     </ul>
                                 </div>
@@ -261,10 +269,7 @@ function money(n) {
 
                         <!-- Table -->
                         <div class="table-responsive">
-                            <table
-                                class="table table-hover align-middle mb-0"
-                                style="min-height: 320px"
-                            >
+                            <table class="table table-hover align-middle mb-0" style="min-height: 320px">
                                 <thead class="border-top small text-muted">
                                     <tr>
                                         <th style="width: 70px">S. #</th>
@@ -273,6 +278,7 @@ function money(n) {
                                         <th>Date</th>
                                         <th>Time</th>
                                         <th>Customer</th>
+                                        <th>Payment Type</th>
                                         <th>Total Price</th>
                                         <th>Status</th>
                                     </tr>
@@ -280,37 +286,36 @@ function money(n) {
                                 <tbody>
                                     <tr v-for="(o, i) in filtered" :key="o.id">
                                         <td>{{ i + 1 }}</td>
-                                        <td>{{ o.tableNo }}</td>
-                                        <td>{{ o.orderType }}</td>
-                                        <td>{{ formatDate(o.createdAt) }}</td>
-                                        <td>{{ timeAgo(o.createdAt) }}</td>
-                                        <td>{{ o.customer }}</td>
-                                        <td>{{ money(o.total) }}</td>
+                                        <td>{{ o.type?.table_number ?? "-" }}</td>
+                                        <td>{{ o.type?.order_type ?? "-" }}</td>
+                                        <td>{{ formatDate(o.created_at) }}</td>
+                                        <td>{{ timeAgo(o.created_at) }}</td>
+                                        <td>{{ o.customer_name ?? "-" }}</td>
+                                        <td>{{ o.payment?.payment_type ?? "-" }}</td>
+                                        <td>{{ money(o.total_amount) }}</td>
                                         <td>
-                                            <span
-                                                class="badge rounded-pill fw-semibold px-3 py-2"
-                                                :class="
-                                                    o.status === 'paid'
-                                                        ? 'bg-success-subtle text-success'
-                                                        : 'bg-secondary-subtle text-secondary'
-                                                "
-                                            >
+                                            <span class="badge rounded-pill fw-semibold px-3 py-2" :class="o.status === 'paid'
+                                                    ? 'bg-success-subtle text-success'
+                                                    : o.status === 'pending'
+                                                        ? 'bg-warning-subtle text-warning'
+                                                        : o.status === 'cancelled'
+                                                            ? 'bg-danger-subtle text-danger'
+                                                            : 'bg-secondary-subtle text-secondary'
+                                                ">
                                                 {{ o.status }}
                                             </span>
                                         </td>
                                     </tr>
 
                                     <tr v-if="filtered.length === 0">
-                                        <td
-                                            colspan="8"
-                                            class="text-center text-muted py-4"
-                                        >
+                                        <td colspan="9" class="text-center text-muted py-4">
                                             No orders found.
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -328,9 +333,11 @@ function money(n) {
     font-size: 2rem;
     color: var(--brand);
 }
+
 .kpi-label {
     font-size: 0.95rem;
 }
+
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
@@ -342,6 +349,7 @@ function money(n) {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -350,6 +358,7 @@ function money(n) {
     color: #6b7280;
     font-size: 1rem;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -361,6 +370,7 @@ function money(n) {
     background-color: var(--brand);
     border-color: var(--brand);
 }
+
 .btn-primary:hover {
     filter: brightness(1.05);
 }
@@ -370,6 +380,7 @@ function money(n) {
     font-weight: 600;
     border: 0 !important;
 }
+
 .table tbody td {
     vertical-align: middle;
     border-color: #eee;
@@ -380,6 +391,7 @@ function money(n) {
     .kpi-value {
         font-size: 1.45rem;
     }
+
     .search-wrap {
         width: 100%;
     }
