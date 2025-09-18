@@ -54,6 +54,7 @@ import "vue-tel-input/vue-tel-input.css";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
+import Paginator from "@/Components/Pagination.vue";
 import ImageCropperAppCanvas from "@/Components/ImageCropperAppCanvas.vue";
 
 const appName = import.meta.env.VITE_APP_NAME || "Laravel";
@@ -73,6 +74,7 @@ createInertiaApp({
         vueApp.component("ImageCropperModal", ImageCropperModal);
         vueApp.component("ImageZoomModal", ImageZoomModal);
         vueApp.component("ImageCropperAppCanvas", ImageCropperAppCanvas);
+        vueApp.component("Paginator", Paginator);
         const VueTelInputOptions = {
             mode: "international",
         };
