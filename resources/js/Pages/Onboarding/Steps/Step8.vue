@@ -2,7 +2,7 @@
 import { reactive, toRaw, computed } from "vue"
 import Select from "primevue/select"
 
-const props = defineProps({ model: Object })
+const props = defineProps({ model: Object, formErrors: Object })
 const emit  = defineEmits(["save"])
 
 const defaultDay = (name) => ({ name, open: true, start: "09:00", end: "17:00", breaks: [] })
@@ -38,7 +38,6 @@ const timeItems = computed(() => {
   return items
 })
 </script>
-
 <template>
   <div>
     <h5 class="fw-bold mb-3">Step 8 of 9 - Business Hours</h5>
@@ -54,6 +53,11 @@ const timeItems = computed(() => {
         <label class="segmented__btn" :class="{ 'is-active': form.auto_disable==='no' }" for="ad-no">NO</label>
       </div>
     </div>
+
+    <!-- ✅ Attendance Policy Error -->
+    <small v-if="props.formErrors?.attendance_policy" class="text-danger d-block mb-3">
+      {{ props.formErrors.attendance_policy[0] }}
+    </small>
 
     <!-- Day rows -->
     <div class="vstack gap-3">

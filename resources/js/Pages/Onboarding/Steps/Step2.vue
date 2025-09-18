@@ -2,7 +2,7 @@
 import { reactive, ref, toRaw, watch, onMounted } from "vue";
 import Select from "primevue/select";
 
-const props = defineProps({ model: Object });
+const props = defineProps({ model: Object, formErrors: Object });
 const emit = defineEmits(["save"]);
 
 /* ------------------ FORM ------------------ */
@@ -12,6 +12,7 @@ const form = reactive({
     address: props.model?.address ?? "",
     email: props.model?.email ?? "",
     website: props.model?.website ?? "",
+    legal_name: props.model?.legal_name ?? "",
     // phone pieces
     phone_country: props.model?.phone_country ?? "", // ISO "GB"
     phone_code: props.model?.phone_code ?? "", // "+44"
@@ -104,7 +105,7 @@ function onCropped({ file }) {
     form.logo_file = file;
     form.logo = URL.createObjectURL(file);
 }
- 
+
 
 function emitSave() {
     emit("save", { step: 2, data: toRaw(form) });
@@ -120,47 +121,42 @@ const flagUrl = (iso, size = "24x18") =>
         <h5 class="fw-bold mb-4">Step 2 of 9 - Business Information</h5>
 
         <div class="row g-4">
+            <!-- Business Name -->
             <div class="col-12">
                 <label class="form-label">Business Name*</label>
-                <input
-                    class="form-control"
-                    v-model="form.business_name"
-                    @input="emitSave"
-                />
+                <input class="form-control" v-model="form.business_name" @input="emitSave"
+                    :class="{ 'is-invalid': formErrors?.business_name }" />
+                <small v-if="formErrors?.business_name" class="text-danger">
+                    {{ formErrors.business_name[0] }}
+                </small>
             </div>
 
-            <!-- Logo card -->
+            <!-- Logo -->
             <div class="col-md-3">
                 <small class="text-muted mt-2">Upload Logo</small>
                 <div class="logo-card">
-                    <div
-                        class="logo-frame"
-                        @click="form.logo && openImageModal(form.logo)"
-                    >
+                    <div class="logo-frame" @click="form.logo && openImageModal(form.logo)">
                         <img v-if="form.logo" :src="form.logo" alt="Logo" />
                         <div v-else class="placeholder">
                             <i class="bi bi-image"></i>
                         </div>
                     </div>
 
-                    <ImageCropperModal
-                        :show="showCropper"
-                        @close="showCropper = false"
-                        @cropped="onCropped"
-                    />
+                    <!-- Validation for logo -->
+                    <small v-if="formErrors?.logo_path" class="text-danger">
+                        {{ formErrors.logo_path[0] }}
+                    </small>
+
+                    <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
                 </div>
             </div>
 
             <div class="col-md-9">
+                <!-- Business Type -->
                 <label class="form-label">Business Type*</label>
-                <Select
-                    v-model="selectedBusinessType"
-                    :options="businessTypeOptions"
-                    optionLabel="name"
-                    :filter="true"
-                    placeholder="Select business type"
-                    class="w-100"
-                >
+                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true"
+                    placeholder="Select business type" class="w-100"
+                    :class="{ 'is-invalid': formErrors?.business_type }">
                     <template #value="{ value, placeholder }">
                         <span v-if="value">{{ value.name }}</span>
                         <span v-else>{{ placeholder }}</span>
@@ -169,104 +165,65 @@ const flagUrl = (iso, size = "24x18") =>
                         <span>{{ option.name }}</span>
                     </template>
                 </Select>
+                <small v-if="formErrors?.business_type" class="text-danger">
+                    {{ formErrors.business_type[0] }}
+                </small>
 
+                <!-- Address -->
                 <label class="form-label mt-3">Address*</label>
-                <input
-                    class="form-control"
-                    v-model="form.address"
-                    @input="emitSave"
-                />
+                <input class="form-control" v-model="form.address" @input="emitSave"
+                    :class="{ 'is-invalid': formErrors?.address }" />
+                <small v-if="formErrors?.address" class="text-danger">
+                    {{ formErrors.address[0] }}
+                </small>
 
                 <div class="row g-3 mt-1">
+                    <!-- Phone -->
                     <div class="col-md-6">
                         <label class="form-label">Phone*</label>
-
-                        <!-- Phone input group: flag + dial + number -->
                         <div class="input-group">
                             <span class="input-group-text p-0">
-                                <Select
-                                    v-model="selectedDial"
-                                    :options="dialOptions"
-                                    optionLabel="name"
-                                    :filter="true"
-                                    placeholder="Code"
-                                    class="dial-select"
-                                >
-                                    <!-- selected -->
-                                    <template #value="{ value, placeholder }">
-                                        <div
-                                            v-if="value"
-                                            class="d-flex align-items-center gap-2 px-2"
-                                        >
-                                            <img
-                                                :src="
-                                                    flagUrl(value.iso, '16x12')
-                                                "
-                                                width="16"
-                                                height="12"
-                                                alt=""
-                                            />
-                                            <span class="fw-semibold">{{
-                                                value.dial
-                                            }}</span>
-                                        </div>
-                                        <span v-else class="px-2">{{
-                                            placeholder
-                                        }}</span>
-                                    </template>
-                                    <!-- options -->
-                                    <template #option="{ option }">
-                                        <div
-                                            class="d-flex align-items-center gap-2"
-                                        >
-                                            <img
-                                                :src="
-                                                    flagUrl(option.iso, '16x12')
-                                                "
-                                                width="16"
-                                                height="12"
-                                                alt=""
-                                            />
-                                            <span class="fw-semibold">{{
-                                                option.dial
-                                            }}</span>
-                                            <small class="text-muted"
-                                                >— {{ option.name }}</small
-                                            >
-                                        </div>
-                                    </template>
-                                </Select>
+                                <Select v-model="selectedDial" :options="dialOptions" optionLabel="name" :filter="true"
+                                    placeholder="Code" class="dial-select" />
                             </span>
-
-                            <input
-                                class="form-control"
-                                inputmode="numeric"
-                                placeholder="Phone number"
-                                v-model="form.phone_local"
-                            />
+                            <input class="form-control" inputmode="numeric" placeholder="Phone number"
+                                v-model="form.phone_local" :class="{ 'is-invalid': formErrors?.phone }" />
                         </div>
+                        <small v-if="formErrors?.phone" class="text-danger">
+                            {{ formErrors.phone[0] }}
+                        </small>
                     </div>
 
+                    <!-- Email -->
                     <div class="col-md-6">
                         <label class="form-label">Email*</label>
-                        <input
-                            type="email"
-                            class="form-control"
-                            v-model="form.email"
-                            @input="emitSave"
-                        />
+                        <input type="email" class="form-control" v-model="form.email" @input="emitSave"
+                            :class="{ 'is-invalid': formErrors?.email }" />
+                        <small v-if="formErrors?.email" class="text-danger">
+                            {{ formErrors.email[0] }}
+                        </small>
                     </div>
                 </div>
 
+                <!-- Website -->
                 <label class="form-label mt-3">Website</label>
-                <input
-                    class="form-control"
-                    v-model="form.website"
-                    @input="emitSave"
-                />
+                <input class="form-control" v-model="form.website" @input="emitSave"
+                    :class="{ 'is-invalid': formErrors?.website }" />
+                <small v-if="formErrors?.website" class="text-danger">
+                    {{ formErrors.website[0] }}
+                </small>
+                <br>
+                <!-- Legal Name -->
+                <label class="form-label mt-3">Legal Name*</label>
+                <input class="form-control" v-model="form.legal_name" @input="emitSave"
+                    :class="{ 'is-invalid': formErrors?.legal_name }" />
+                <small v-if="formErrors?.legal_name" class="text-danger">
+                    {{ formErrors.legal_name[0] }}
+                </small>
             </div>
         </div>
     </div>
+
 
     <!-- Modals -->
 </template>
@@ -284,6 +241,7 @@ const flagUrl = (iso, size = "24x18") =>
     min-height: 220px;
     box-shadow: 0 6px 18px rgba(17, 38, 146, 0.05);
 }
+
 .logo-frame {
     width: 140px;
     height: 140px;
@@ -296,24 +254,29 @@ const flagUrl = (iso, size = "24x18") =>
     overflow: hidden;
     cursor: pointer;
 }
+
 .logo-frame img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
+
 .logo-frame .placeholder {
     color: #8b97a7;
     font-size: 28px;
     line-height: 0;
 }
+
 .dial-select {
     min-width: 130px;
     border: 0;
 }
-.input-group > .input-group-text {
+
+.input-group>.input-group-text {
     background: transparent;
     border-right: 0;
 }
+
 .input-group .form-control {
     border-left: 0;
 }

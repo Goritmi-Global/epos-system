@@ -206,6 +206,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
+Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import'); 
+
 
     /* -------- Menu Categories -------- */
     Route::prefix('menu-categories')->name('menu-categories.')->group(function () {
@@ -220,7 +222,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
         Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
         Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
+        Route::post('/import', [MenuCategoryController::class, 'import'])->name('menu_categories.import'); 
     });
+
+    
 
     /* -------- POS Live Screen -------- */
     Route::prefix('pos')->name('pos.')->group(function () {
