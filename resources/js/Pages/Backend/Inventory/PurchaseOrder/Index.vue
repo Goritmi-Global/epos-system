@@ -10,12 +10,8 @@ import "vue3-toastify/dist/index.css";
 import PurchaseComponent from "./PurchaseComponent.vue";
 import OrderComponent from "./OrderComponent.vue";
 
-import {
-     
-    Eye,
-    Plus,
-} from "lucide-vue-next";
- 
+import { Eye, Plus } from "lucide-vue-next";
+
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         Number(n || 0)
@@ -38,22 +34,20 @@ const showHelp = ref(false);
 const props = defineProps({
     orders: Array,
 });
- 
+
 const orderData = ref([]);
 const fetchPurchaseOrders = async () => {
-     
     const res = await axios.get("/purchase-orders/fetchOrders");
 
-    orderData.value = res.data.data.data; 
+    orderData.value = res.data.data.data;
 };
 
 const supplierOptions = ref([]);
 
-
 const fetchSuppliers = async () => {
-    const res = await axios.get("/suppliers/pluck"); 
-    supplierOptions.value = res.data;  
-}; 
+    const res = await axios.get("/suppliers/pluck");
+    supplierOptions.value = res.data;
+};
 const inventoryItems = ref([]); // holds API data
 const p_search = ref("");
 
@@ -82,7 +76,7 @@ const p_filteredInv = computed(() => {
             .includes(t)
     );
 });
- 
+
 const orders = ref([]);
 const loading = ref(false);
 
@@ -108,8 +102,8 @@ async function Purchase() {
         loading.value = false;
     }
 }
- 
-const selectedOrder = ref(null); 
+
+const selectedOrder = ref(null);
 const editItems = ref([]);
 const isEditing = ref(false);
 
@@ -120,7 +114,7 @@ async function openModal(order) {
         const response = await axios.get(`/purchase-orders/${order.id}`);
         selectedOrder.value = response.data;
 
-        if (order.status === "pending") { 
+        if (order.status === "pending") {
             isEditing.value = true;
             editItems.value = selectedOrder.value.items.map((item) => ({
                 id: item.id,
@@ -197,8 +191,6 @@ function calculateSubtotal(item) {
     item.sub_total = (quantity * unitPrice).toFixed(2);
 }
 
- 
-
 /* -------------------- Helpers for normalization -------------------- */
 const extractArray = (maybe) => {
     if (!maybe) return [];
@@ -273,16 +265,16 @@ const onDownload = (type) => {
     const t = q.value?.trim()?.toLowerCase();
     const filteredSource = t
         ? source.filter((o) => {
-            const hay = [
-                extractSupplierName(o),
-                o.status || "",
-                String(extractTotalAmount(o)),
-                extractPurchaseDate(o),
-            ]
-                .join(" ")
-                .toLowerCase();
-            return hay.includes(t);
-        })
+              const hay = [
+                  extractSupplierName(o),
+                  o.status || "",
+                  String(extractTotalAmount(o)),
+                  extractPurchaseDate(o),
+              ]
+                  .join(" ")
+                  .toLowerCase();
+              return hay.includes(t);
+          })
         : source;
 
     if (!filteredSource.length) {
@@ -448,15 +440,26 @@ onUpdated(() => window.feather?.replace());
             <div class="container-fluid py-3">
                 <div class="card border-0 shadow-lg rounded-4">
                     <div class="card-body p-4">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div
+                            class="d-flex align-items-center justify-content-between mb-3"
+                        >
                             <div class="d-flex align-items-center gap-2">
                                 <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
                                 <div class="position-relative">
-                                    <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
-                                        <i class="bi bi-question-circle fs-5"></i>
+                                    <button
+                                        class="btn btn-link p-0 ms-2"
+                                        @click="showHelp = !showHelp"
+                                        title="Help"
+                                    >
+                                        <i
+                                            class="bi bi-question-circle fs-5"
+                                        ></i>
                                     </button>
-                                    <div v-if="showHelp" class="help-popover shadow rounded-4 p-3">
+                                    <div
+                                        v-if="showHelp"
+                                        class="help-popover shadow rounded-4 p-3"
+                                    >
                                         <p class="mb-2">
                                             This screen allows you to view,
                                             manage, and update all purchase
@@ -478,39 +481,72 @@ onUpdated(() => window.feather?.replace());
                             <div class="d-flex gap-2 align-items-center">
                                 <div class="search-wrap me-1">
                                     <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
+                                    <input
+                                        v-model="q"
+                                        type="text"
+                                        class="form-control search-input"
+                                        placeholder="Search"
+                                    />
                                 </div>
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addPurchaseModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addPurchaseModal"
+                                >
                                     Purchase
                                 </button>
-                                <PurchaseComponent :suppliers="supplierOptions" :items="p_filteredInv" @refresh-data="fetchPurchaseOrders"/>
+                                <PurchaseComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                    @refresh-data="fetchPurchaseOrders"
+                                />
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addOrderModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addOrderModal"
+                                >
                                     Order
                                 </button>
-                                 <OrderComponent :suppliers="supplierOptions" :items="p_filteredInv" @refresh-data="fetchPurchaseOrders"/>
+                                <OrderComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                    @refresh-data="fetchPurchaseOrders"
+                                />
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Download
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('pdf')">Download as PDF</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('pdf')"
+                                                >Download as PDF</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('excel')">Download as Excel</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('excel')"
+                                                >Download as Excel</a
+                                            >
                                         </li>
 
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('csv')">
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('csv')"
+                                            >
                                                 Download as CSV
                                             </a>
                                         </li>
@@ -521,12 +557,12 @@ onUpdated(() => window.feather?.replace());
 
                         <!-- Table -->
                         <div class="table-responsive">
-                             <table class="table table-striped">
+                            <table class="table table-striped">
                                 <thead class="small text-muted">
                                     <tr>
                                         <th style="width: 80px">S. #</th>
                                         <th>Supplier Name</th>
-                                        <th>Purchase date</th> 
+                                        <th>Purchase date</th>
                                         <th class="text-start">Status</th>
                                         <th>Total value</th>
                                         <th class="text-end">Action</th>
@@ -534,7 +570,10 @@ onUpdated(() => window.feather?.replace());
                                 </thead>
                                 <tbody>
                                     <!-- {{ orderData }} -->
-                                    <template v-for="(row, i) in orderData" :key="row.id">
+                                    <template
+                                        v-for="(row, i) in orderData"
+                                        :key="row.id"
+                                    >
                                         <tr>
                                             <td>{{ i + 1 }}</td>
                                             <td>{{ row.supplier }}</td>
@@ -554,21 +593,32 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </td>
-                                            <td  class="text-start">
-                                                <span :class="[
-                                                    'badge rounded-pill w-20',
-                                                    row.status === 'pending' ? 'badge-pending' : '',
-                                                    row.status === 'completed' ? 'badge-completed' : ''
-                                                ]">
+                                            <td class="text-start">
+                                                <span
+                                                    :class="[
+                                                        'badge rounded-pill w-20',
+                                                        row.status === 'pending'
+                                                            ? 'badge-pending'
+                                                            : '',
+                                                        row.status ===
+                                                        'completed'
+                                                            ? 'badge-completed'
+                                                            : '',
+                                                    ]"
+                                                >
                                                     {{ row.status }}
                                                 </span>
                                             </td>
 
                                             <td>{{ money(row.total) }}</td>
                                             <td class="text-end">
-                                                <button @click="openModal(row)" data-bs-toggle="modal"
-                                                    data-bs-target="#viewItemModal" title="View Item"
-                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100">
+                                                <button
+                                                    @click="openModal(row)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
+                                                    title="View Item"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                >
                                                     <Eye class="w-4 h-4" />
                                                 </button>
                                             </td>
@@ -596,12 +646,14 @@ onUpdated(() => window.feather?.replace());
                                                 </div>
                                             </td> -->
                                         </tr>
-                                         
                                     </template>
 
                                     <!-- Fix this line -->
                                     <tr v-if="orderData?.length === 0">
-                                        <td colspan="6" class="text-center text-muted py-4">
+                                        <td
+                                            colspan="6"
+                                            class="text-center text-muted py-4"
+                                        >
                                             No purchase orders found.
                                         </td>
                                     </tr>
@@ -611,56 +663,102 @@ onUpdated(() => window.feather?.replace());
                     </div>
                 </div>
 
-                 
-
                 <!-- ====================View Modal either Purchase or Order ==================== -->
                 <!-- View Order Modal (Read-only) -->
-                <div class="modal fade" id="viewOrderModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="viewOrderModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content rounded-4 shadow-lg border-0">
                             <!-- Header -->
                             <div class="modal-header align-items-center">
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-success rounded-circle p-2">
+                                    <span
+                                        class="badge bg-success rounded-circle p-2"
+                                    >
                                         <!-- shopping cart icon -->
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-6-9v9" />
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="18"
+                                            height="18"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-6-9v9"
+                                            />
                                         </svg>
                                     </span>
                                     <div class="d-flex flex-column">
-                                        <h5 class="modal-title mb-0">Purchase Details</h5>
+                                        <h5 class="modal-title mb-0">
+                                            Purchase Details
+                                        </h5>
                                         <small class="text-muted">
                                             Supplier:
-                                            {{ selectedOrder?.supplier?.name ?? "—" }}
+                                            {{
+                                                selectedOrder?.supplier?.name ??
+                                                "—"
+                                            }}
                                         </small>
                                     </div>
                                 </div>
 
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-danger"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
                                     </svg>
                                 </button>
                             </div>
 
                             <!-- Body -->
-                            <div class="modal-body p-4 bg-light" v-if="selectedOrder">
+                            <div
+                                class="modal-body p-4 bg-light"
+                                v-if="selectedOrder"
+                            >
                                 <div class="row g-4">
                                     <div class="col-lg-12">
-                                        <div class="card border-0 shadow-sm rounded-4 h-100">
+                                        <div
+                                            class="card border-0 shadow-sm rounded-4 h-100"
+                                        >
                                             <div class="card-body">
                                                 <!-- Top section -->
-                                                <h6 class="fw-semibold mb-3">Order Summary</h6>
+                                                <h6 class="fw-semibold mb-3">
+                                                    Order Summary
+                                                </h6>
 
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
-                                                        <small class="text-muted d-block">Purchase Date</small>
-                                                        <div class="fw-semibold">
+                                                        <small
+                                                            class="text-muted d-block"
+                                                            >Purchase
+                                                            Date</small
+                                                        >
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
                                                             {{
                                                                 fmtDateTime(
                                                                     selectedOrder.purchase_date
@@ -670,20 +768,38 @@ onUpdated(() => window.feather?.replace());
                                                     </div>
 
                                                     <div class="col-md-6">
-                                                        <small class="text-muted d-block">Status</small>
-                                                        <span class="badge rounded-pill" :class="selectedOrder.status ===
+                                                        <small
+                                                            class="text-muted d-block"
+                                                            >Status</small
+                                                        >
+                                                        <span
+                                                            class="badge rounded-pill"
+                                                            :class="
+                                                                selectedOrder.status ===
                                                                 'completed'
-                                                                ? 'bg-success'
-                                                                : 'bg-warning'
-                                                            ">
-                                                            {{ selectedOrder.status }}
+                                                                    ? 'bg-success'
+                                                                    : 'bg-warning'
+                                                            "
+                                                        >
+                                                            {{
+                                                                selectedOrder.status
+                                                            }}
                                                         </span>
                                                     </div>
 
                                                     <div class="col-md-6">
-                                                        <small class="text-muted d-block">Total Amount</small>
-                                                        <div class="fw-semibold">
-                                                            {{ money(selectedOrder.total_amount) }}
+                                                        <small
+                                                            class="text-muted d-block"
+                                                            >Total Amount</small
+                                                        >
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                money(
+                                                                    selectedOrder.total_amount
+                                                                )
+                                                            }}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -691,35 +807,71 @@ onUpdated(() => window.feather?.replace());
                                                 <hr class="my-4" />
 
                                                 <!-- Items Table -->
-                                                <h6 class="fw-semibold mb-3">Purchased Items</h6>
+                                                <h6 class="fw-semibold mb-3">
+                                                    Purchased Items
+                                                </h6>
                                                 <div class="table-responsive">
-                                                    <table class="table table-bordered align-middle">
-                                                        <thead class="table-light">
+                                                    <table
+                                                        class="table table-bordered align-middle"
+                                                    >
+                                                        <thead
+                                                            class="table-light"
+                                                        >
                                                             <tr>
-                                                                <th>Product Name</th>
-                                                                <th>Quantity</th>
-                                                                <th>Unit Price</th>
-                                                                <th>Subtotal</th>
-                                                                <th>Expiry Date</th>
+                                                                <th>
+                                                                    Product Name
+                                                                </th>
+                                                                <th>
+                                                                    Quantity
+                                                                </th>
+                                                                <th>
+                                                                    Unit Price
+                                                                </th>
+                                                                <th>
+                                                                    Subtotal
+                                                                </th>
+                                                                <th>
+                                                                    Expiry Date
+                                                                </th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            <tr v-for="item in selectedOrder.items" :key="item.id">
+                                                            <tr
+                                                                v-for="item in selectedOrder.items"
+                                                                :key="item.id"
+                                                            >
                                                                 <td>
                                                                     {{
-                                                                        item.product?.name ||
+                                                                        item
+                                                                            .product
+                                                                            ?.name ||
                                                                         "Unknown Product"
                                                                     }}
                                                                 </td>
-                                                                <td>{{ item.quantity }}</td>
                                                                 <td>
-                                                                    {{ money(item.unit_price) }}
+                                                                    {{
+                                                                        item.quantity
+                                                                    }}
                                                                 </td>
                                                                 <td>
-                                                                    {{ money(item.sub_total) }}
+                                                                    {{
+                                                                        money(
+                                                                            item.unit_price
+                                                                        )
+                                                                    }}
                                                                 </td>
                                                                 <td>
-                                                                    {{ item.expiry || "—" }}
+                                                                    {{
+                                                                        money(
+                                                                            item.sub_total
+                                                                        )
+                                                                    }}
+                                                                </td>
+                                                                <td>
+                                                                    {{
+                                                                        item.expiry ||
+                                                                        "—"
+                                                                    }}
                                                                 </td>
                                                             </tr>
                                                         </tbody>
@@ -736,9 +888,13 @@ onUpdated(() => window.feather?.replace());
                     </div>
                 </div>
 
-
                 <!-- Edit Order Modal (Editable) -->
-                <div class="modal fade" id="editOrderModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="editOrderModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
@@ -747,10 +903,23 @@ onUpdated(() => window.feather?.replace());
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
                                     </svg>
                                 </button>
                             </div>
@@ -776,9 +945,8 @@ onUpdated(() => window.feather?.replace());
                                     </div>
                                     <div class="col-md-6">
                                         <p>
-                                            <strong>Current Status: </strong>{{ selectedOrder.status }}
-                                              
-                                              
+                                            <strong>Current Status: </strong
+                                            >{{ selectedOrder.status }}
                                         </p>
                                         <p>
                                             <strong>Total Price:</strong>
@@ -817,62 +985,102 @@ onUpdated(() => window.feather?.replace());
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="(
-item, index
-                                                ) in editItems" :key="item.id || index">
+                                            <tr
+                                                v-for="(
+                                                    item, index
+                                                ) in editItems"
+                                                :key="item.id || index"
+                                            >
                                                 <td>
-                                                    <input v-model="item.name" type="text" class="form-control" readonly
+                                                    <input
+                                                        v-model="item.name"
+                                                        type="text"
+                                                        class="form-control"
+                                                        readonly
+                                                       
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        v-model.number="
+                                                            item.quantity
+                                                        "
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        class="form-control"
+                                                        @input="
+                                                            calculateSubtotal(
+                                                                item
+                                                            )
+                                                        "
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        v-model.number="
+                                                            item.unit_price
+                                                        "
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        class="form-control"
+                                                        @input="
+                                                            calculateSubtotal(
+                                                                item
+                                                            )
+                                                        "
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        v-model="item.sub_total"
+                                                        type="text"
+                                                        class="form-control"
+                                                        readonly
                                                         style="
                                                             background-color: #f8f9fa;
-                                                        " />
+                                                        "
+                                                    />
                                                 </td>
                                                 <td>
-                                                    <input v-model.number="item.quantity
-                                                        " type="number" min="0" step="0.01" class="form-control"
-                                                        @input="
-                                                            calculateSubtotal(
-                                                                item
+                                                    <!-- {{ item }} -->
+                                                    <input
+                                                        v-model="item.expiry"
+                                                        type="date"
+                                                        class="form-control"
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        class="btn btn-danger btn-sm"
+                                                        @click="
+                                                            editItems.splice(
+                                                                index,
+                                                                1
                                                             )
-                                                            " />
-                                                </td>
-                                                <td>
-                                                    <input v-model.number="item.unit_price
-                                                        " type="number" min="0" step="0.01" class="form-control"
-                                                        @input="
-                                                            calculateSubtotal(
-                                                                item
-                                                            )
-                                                            " />
-                                                </td>
-                                                <td>
-                                                    <input v-model="item.sub_total" type="text" class="form-control"
-                                                        readonly style="
-                                                            background-color: #f8f9fa;
-                                                        " />
-                                                </td>
-                                                <td>
-                                                    <input v-model="item.expiry" type="date" class="form-control" />
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-danger btn-sm" @click="
-                                                        editItems.splice(
-                                                            index,
-                                                            1
-                                                        )
-                                                        " type="button">
+                                                        "
+                                                        type="button"
+                                                    >
                                                         Delete
                                                     </button>
                                                 </td>
                                             </tr>
                                             <tr v-if="editItems.length === 0">
-                                                <td colspan="6" class="text-center text-muted py-3">
+                                                <td
+                                                    colspan="6"
+                                                    class="text-center text-muted py-3"
+                                                >
                                                     No items found
                                                 </td>
                                             </tr>
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <td colspan="3" class="text-end fw-bold">
+                                                <td
+                                                    colspan="3"
+                                                    class="text-end fw-bold"
+                                                >
                                                     Total:
                                                 </td>
                                                 <td class="fw-bold">
@@ -883,7 +1091,7 @@ item, index
                                                                     sum +
                                                                     parseFloat(
                                                                         item.sub_total ||
-                                                                        0
+                                                                            0
                                                                     ),
                                                                 0
                                                             )
@@ -905,17 +1113,29 @@ item, index
                             </div>
 
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-primary rounded-pill px-4  py-2" @click="updateOrder"
-                                    :disabled="updating || editItems.length === 0
-                                        ">
+                                <button
+                                    type="button"
+                                    class="btn btn-primary rounded-pill px-4 py-2"
+                                    @click="updateOrder"
+                                    :disabled="
+                                        updating || editItems.length === 0
+                                    "
+                                >
                                     <span v-if="updating">
-                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span
+                                            class="spinner-border spinner-border-sm me-2"
+                                        ></span>
                                         Updating...
                                     </span>
-                                    <span v-else>Complete Order & Update Stock</span>
+                                    <span v-else
+                                        >Complete Order & Update Stock</span
+                                    >
                                 </button>
-                                <button type="button" class="btn btn-secondary rounded-pill  py-2 ms-2"
-                                    data-bs-dismiss="modal">
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary rounded-pill py-2 ms-2"
+                                    data-bs-dismiss="modal"
+                                >
                                     Cancel
                                 </button>
                             </div>
@@ -964,8 +1184,6 @@ item, index
     border-bottom: 2px solid #111;
 }
 
- 
-
 /* Help popover */
 .help-popover {
     position: absolute;
@@ -990,7 +1208,6 @@ item, index
 .badge-completed {
     background-color: green;
 }
-
 
 /* Cart */
 .cart thead th {
