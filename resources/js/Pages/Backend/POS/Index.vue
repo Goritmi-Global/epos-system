@@ -530,7 +530,60 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
+function printReceipt() {
+  const receipt = `
+    <html>
+    <head>
+      <style>
+        @media print {
+          @page { size: 58mm auto; margin: 3mm; }
+          body { font-family: monospace; font-size: 12px; line-height: 1.3; }
+          .center { text-align: center; }
+          .row { display: flex; justify-content: space-between; }
+          hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="center">
+        <h3 style="margin:0;">Goritmi</h3>
+        <p style="margin:0;">Order ID: #75</p>
+        <p style="margin:0;">Date: ${new Date().toLocaleString()}</p>
+      </div>
+      <br/>
+      <p>Payment Type: Cash</p>
+      <p>Order Type: Dine In</p>
+      <p>Customer Name: Walk In</p>
+      <hr/>
+      <div class="row">
+        <b>Item</b><b>Qty</b><b>Price</b>
+      </div>
+      <div class="row"><span>Menu 1</span><span>x1</span><span>£180.00</span></div>
+      <div class="row"><span>Menu 3</span><span>x1</span><span>£120.00</span></div>
+      <div class="row"><span>Menu 5</span><span>x1</span><span>£180.00</span></div>
+      <hr/>
+      <div class="row"><span>Subtotal:</span><span>£480.00</span></div>
+      <div class="row"><b>Total Price:</b><b>£480.00</b></div>
+      <br/>
+      <p style="font-size:11px;">Location: Abdara Road, Peshawar</p>
+      <p style="font-size:11px;">Email: info@goritmi.com</p>
+      <div class="center"><p>Thank you for your visit!</p></div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open("", "", "width=400,height=600");
+  printWindow.document.write(receipt);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
+}
+
+
 const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
+    printReceipt();
+    return;
     try {
         console.log('payment methiod', paymentMethod);
         // build payload same as before

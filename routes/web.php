@@ -230,6 +230,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('fetch.profile.tables');
     });
 
+    
+
     /* -------- Orders -------- */
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrdersController::class, 'index'])->name('index');
