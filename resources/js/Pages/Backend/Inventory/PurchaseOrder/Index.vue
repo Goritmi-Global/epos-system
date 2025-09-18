@@ -858,7 +858,6 @@ onUpdated(() => window.feather?.replace?.());
                                     <span v-else
                                         >Complete Order & Update Stock</span
                                     >
-                                           
                                 </button>
                                 <button
                                     type="button"
