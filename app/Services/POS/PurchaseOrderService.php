@@ -124,29 +124,26 @@ class PurchaseOrderService
             }
 
             // Only create stock entries if status changed from pending -> completed
-            if ($oldStatus !== 'completed' && $order->status === 'completed') {
-                foreach ($order->items as $item) {
-                    $inventory = InventoryItem::find($item->product_id);
-                    $categoryId = InventoryCategory::where('name', $inventory->category)->first()->id;
+            foreach ($data['items'] as $itemData) {
+                $inventory = InventoryItem::find($itemData['product_id']);
+                $categoryId = $inventory->category_id;
+                $totalValue = $itemData['qty'] * $itemData['unit_price'];
 
-                    // Ensure total_cost is set
-                    $totalValue = $item->quantity * $item->unit_price;
-
-                    StockEntry::create([
-                        'product_id'     => $item->product_id,
-                        'category_id'    => $categoryId,
-                        'supplier_id'    => $order->supplier_id,
-                        'user_id'        => Auth::id(),
-                        'quantity'       => $item->quantity,
-                        'price'          => $item->unit_price,
-                        'value'          => $totalValue,  
-                        'stock_type'     => 'stockin',
-                        'operation_type' => 'purchase',
-                        'expiry_date'    => $item->expiry,
-                        'purchase_date'  => $order->purchase_date ?? now(),
-                    ]);
-                }
+                StockEntry::create([
+                    'product_id'     => $itemData['product_id'],   
+                    'category_id'    => $categoryId,               
+                    'supplier_id'    => $order->supplier_id,       
+                    'user_id'        => Auth::id(),                
+                    'quantity'       => $itemData['qty'],          
+                    'price'          => $itemData['unit_price'],   
+                    'value'          => $totalValue,               
+                    'stock_type'     => 'stockin',                 
+                    'operation_type' => 'purchase',                
+                    'expiry_date'    => $itemData['expiry'] ?? null, 
+                    'purchase_date'  => $order->purchase_date ?? now(), 
+                ]);
             }
+
 
             return $order;
         });
