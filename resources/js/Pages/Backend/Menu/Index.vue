@@ -50,6 +50,7 @@ const fetchInventory = async () => {
 };
 
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
+import ImportFile from "@/Components/importFile.vue";
 
 // filter inventory for ingredients
 const i_filteredInv = computed(() => {
@@ -1075,6 +1076,38 @@ const downloadExcel = (data) => {
 };
 
 
+const handleImport = (data) => {
+    console.log("Imported Data:", data);
+
+    const headers = data[0]; 
+    // CSV headers: ["name","sku","category","purchase_price","sale_price","stock","active","calories","fat","protein","carbs"]
+    const rows = data.slice(1);
+
+    const itemsToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",                       
+            category: row[1] || "", 
+            active: row[2] == "0" ? 0 : 1,
+            price: row[3] || 100,
+            calories: parseFloat(row[4]) || 0,
+            fat: parseFloat(row[5]) || 0,
+            protein: parseFloat(row[6]) || 0,
+            carbs: parseFloat(row[7]) || 0,
+        };
+    });
+
+    axios
+        .post("/menu_items/import", { items: itemsToImport })
+        .then(() => {
+            toast.success("Items imported successfully");
+            fetchInventories(); 
+        })
+        .catch((err) => {
+            console.error(err);
+            toast.error("Import failed");
+        });
+};
+
 </script>
 
 <template>
@@ -1167,7 +1200,7 @@ const downloadExcel = (data) => {
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                     <Plus class="w-4 h-4" /> Add Menu
                                 </button>
-
+<ImportFile label="Import" @on-import="handleImport" />
                                 <!-- Download all -->
                                 <div class="dropdown">
                                     <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"

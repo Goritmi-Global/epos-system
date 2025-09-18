@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Services\POS\MenuCategoryService;
 use App\Http\Requests\Menu\StoreMenuCategoryRequest;
 use App\Http\Requests\Menu\UpdateMenuCategoryRequest;
+use App\Models\InventoryCategory;
+use App\Models\MenuCategory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
@@ -252,5 +254,34 @@ class MenuCategoryController extends Controller
                 'message' => $result['message'],
             ], 422);
         }
+    }
+
+    public function import(Request $request): JsonResponse
+    {
+        $categories = $request->input('categories', []);
+      
+        foreach ($categories as $row) {
+            $parentName = $row['category'] ?? null;
+            $subName = $row['subcategory'] ?? null;
+
+            // 1. Create/find parent
+            $parent = null;
+            if ($parentName) {
+                $parent = MenuCategory::firstOrCreate(
+                    ['name' => $parentName, 'parent_id' => null],
+                    ['icon' => $row['icon'] ?? "", 'active' => $row['active'] ?? 1]
+                );
+            }
+
+            // 2. Create/find subcategory
+            if ($subName) {
+                MenuCategory::firstOrCreate(
+                    ['name' => $subName, 'parent_id' => $parent?->id],
+                    ['icon' => $row['icon'] ?? "", 'active' => $row['active'] ?? 1]
+                );
+            }
+        }
+
+        return response()->json(['message' => 'Categories imported successfully']);
     }
 }

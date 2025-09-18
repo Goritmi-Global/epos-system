@@ -218,6 +218,8 @@ Route::post('/allergies/import', [AllergyController::class, 'import'])->name('al
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
+Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import'); 
+
 
     // Menu Categories
     Route::prefix('menu-categories')->name('menu-categories.')->group(function () {
@@ -235,6 +237,8 @@ Route::post('/allergies/import', [AllergyController::class, 'import'])->name('al
         Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus']);
     });
 
+    
+Route::post('/menu_categories/import', [MenuCategoryController::class, 'import'])->name('menu_categories.import'); 
     // POS Order live screen
     Route::prefix('pos')->name('pos.')->group(function (){
         Route::get('/order', [PosOrderController::class, 'index'])->name('order'); 
