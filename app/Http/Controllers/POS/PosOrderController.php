@@ -22,7 +22,7 @@ class PosOrderController extends Controller
 
         return response()->json([
             'message' => 'Order created successfully',
-            'order_id' => $order->id,
+            'order' => $order,
         ]);
     }
     public function fetchMenuCategories()
