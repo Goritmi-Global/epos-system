@@ -18,17 +18,18 @@ watch(form, () => {
   emit("save", {
     step: 4,
     data: {
-      tax_registered: form.tax_registered,       // boolean
+      tax_registered: form.tax_registered ? 1 : 0, // send as 1/0
       tax_type: form.tax_type,
-      tax_rate: Number(form.tax_rate),                     // number
-      extra_tax_rates: form.extra_tax_rates
-        ? form.extra_tax_rates.split(",").map(rate => rate.trim()) // array
+      tax_rate: Number(form.tax_rate),
+      extra_tax_rates: form.tax_registered && typeof form.extra_tax_rates === "string"
+        ? form.extra_tax_rates.split(",").map(rate => rate.trim())
         : [],
-      price_includes_tax: form.price_includes_tax === true, // boolean
+      price_includes_tax: form.price_includes_tax ? 1 : 0,
       tax_id: form.tax_id,
     },
   })
 }, { deep: true })
+
 
 
 

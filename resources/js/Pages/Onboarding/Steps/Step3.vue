@@ -8,10 +8,10 @@ const emit = defineEmits(["save"])
 
 const form = reactive({
   currency: props.model?.currency ?? "PKR",
-  currency_symbol_position: props.model?.currency_symbol_position ?? "after", 
+  currency_symbol_position: props.model?.currency_symbol_position ?? "after",
   date_format: props.model?.date_format ?? "dd/MM/yyyy",
   number_format: props.model?.number_format ?? "1,000",
-  time_format: props.model?.time_format ?? "12-hour", 
+  time_format: props.model?.time_format ?? "12-hour",
 })
 
 
