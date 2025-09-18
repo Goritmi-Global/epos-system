@@ -8,18 +8,10 @@ import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import "vue3-toastify/dist/index.css";
 import PurchaseComponent from "./PurchaseComponent.vue";
+import OrderComponent from "./OrderComponent.vue";
 
-import {
-    Shapes,
-    Package,
-    AlertTriangle,
-    XCircle,
-    Pencil,
-    Eye,
-    Plus,
-} from "lucide-vue-next";
+import { Eye, Plus } from "lucide-vue-next";
 
-/* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         Number(n || 0)
@@ -43,27 +35,19 @@ const props = defineProps({
     orders: Array,
 });
 
-// const orderData = computed(() => props.orders.data);
 const orderData = ref([]);
 const fetchPurchaseOrders = async () => {
     const res = await axios.get("/purchase-orders/fetchOrders");
 
-    orderData.value = res.data.data.data; // [{id, name}]
+    orderData.value = res.data.data.data;
 };
 
 const supplierOptions = ref([]);
-const p_supplier = ref(null);
 
 const fetchSuppliers = async () => {
     const res = await axios.get("/suppliers/pluck");
-    console.log("Fetched suppliers:", res.data);
-    supplierOptions.value = res.data; // [{id, name}]
+    supplierOptions.value = res.data;
 };
-
-// =========================================================================
-// Inventory retrieval for Add Purchase modal
-// ========================================================================
-
 const inventoryItems = ref([]); // holds API data
 const p_search = ref("");
 
@@ -93,9 +77,6 @@ const p_filteredInv = computed(() => {
     );
 });
 
-// ========================================================================
-// Purchase Items Retrieval
-// ========================================================================
 const orders = ref([]);
 const loading = ref(false);
 
@@ -122,130 +103,7 @@ async function Purchase() {
     }
 }
 
-// Computed filteredOrders for search
-// const filteredOrders = computed(() => {
-//   const t = q.value.trim().toLowerCase();
-//   return props.orders.value.filter((o) => {
-//     const str = [o.supplier, o.status, String(o.total), o.purchasedAt].join(" ").toLowerCase();
-//     return str.includes(t);
-//   });
-// });
-
-// ==========================================================================
-
-// cart rows: {id,name,category,qty,unitPrice,expiry,cost}
-
-// ===========================Submitting Quick Purchase===========================
-
-/* =========================================================================
-   ADD ORDER (later delivery) — MERGE on same product+unitPrice+expiry
-   =======================================================================*/
-
-const o_search = ref("");
-
-// cart rows: {id,name,category,qty,unitPrice,expiry,cost}
-const o_cart = ref([]);
-const o_total = computed(() =>
-    round2(o_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
-);
-
-
-
-
-// set error for an item
-const setItemError = (item, field, message) => {
-  if (!formErrors.value[item.id]) formErrors.value[item.id] = {};
-  formErrors.value[item.id][field] = [message];
-};
-
-// clear either a specific field error for an item, or all errors for that item
-const clearItemErrors = (item, field = null) => {
-  if (!formErrors.value) return;
-  if (!item || !item.id) return;
-  if (field) {
-    if (formErrors.value[item.id]) {
-      delete formErrors.value[item.id][field];
-      if (Object.keys(formErrors.value[item.id]).length === 0) {
-        delete formErrors.value[item.id];
-      }
-    }
-  } else {
-    delete formErrors.value[item.id];
-  }
-};
-
-
-
-function addOrderItem(item) {
-     clearItemErrors(item);
-    console.log(item);
-    const qty = Number(item.qty || 0);
-    const price =
-        item.unitPrice !== "" && item.unitPrice != null
-            ? Number(item.unitPrice)
-            : Number(item.defaultPrice || 0);
-    const expiry = item.expiry || null;
-    
-     if (!qty || qty <= 0) {
-        setItemError(item, 'qty', 'Enter a valid quantity.');
-        toast.error("Enter a valid quantity.");
-        return;
-    }
-
-    if (!price || price <= 0) {
-        setItemError(item, 'unit_price', 'Enter a valid unit price.');
-        toast.error("Enter a valid unit price.");
-        return;
-    }
-
-    if (!expiry) {
-        setItemError(item, 'expiry_date', 'Enter an expiry date.');
-        toast.error("Enter an expiry date.");
-        return;
-    }
-
-
-    // MERGE: same product + same unitPrice + same expiry
-    const found = o_cart.value.find(
-        (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
-    );
-
-    if (found) {
-        found.qty = round2(found.qty + qty);
-        found.cost = round2(found.qty * found.unitPrice);
-    } else {
-        o_cart.value.push({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            qty,
-            unitPrice: price,
-            expiry,
-            cost: round2(qty * price),
-        });
-    }
-
-    // reset only this item's fields
-    item.qty = null;
-    item.unitPrice = null;
-    item.expiry = null;
-
-    clearItemErrors(item);
-}
-
-function delOrderRow(idx) {
-    o_cart.value.splice(idx, 1);
-}
-
-// ============================================================================
-// Submitting Order
-// ============================================================================
-// Add these to your Vue component's setup() function
-
-// Add these to your Vue component's setup() function
-
 const selectedOrder = ref(null);
-const editingOrder = ref(null);
 const editItems = ref([]);
 const isEditing = ref(false);
 
@@ -257,7 +115,6 @@ async function openModal(order) {
         selectedOrder.value = response.data;
 
         if (order.status === "pending") {
-            // For pending orders, make items editable
             isEditing.value = true;
             editItems.value = selectedOrder.value.items.map((item) => ({
                 id: item.id,
@@ -284,7 +141,7 @@ async function openModal(order) {
         }
     } catch (error) {
         console.error("Error fetching order details:", error);
-        alert("Failed to load order details");
+        toast.error("Failed to load order details");
     }
 }
 
@@ -318,10 +175,10 @@ async function updateOrder() {
         // Refresh the orders list
         await fetchOrders();
 
-        alert("Order updated successfully and stock entries created!");
+        toast.error("Order updated successfully and stock entries created!");
     } catch (error) {
         console.error("Error updating order:", error);
-        alert("Failed to update order");
+        toast.error("Failed to update order");
     } finally {
         updating.value = false;
     }
@@ -332,80 +189,6 @@ function calculateSubtotal(item) {
     const quantity = parseFloat(item.quantity) || 0;
     const unitPrice = parseFloat(item.unit_price) || 0;
     item.sub_total = (quantity * unitPrice).toFixed(2);
-}
-
-// ===========================================================
-
-// ===========================================================
-// central place to keep form errors
-const p_errors = reactive({
-    supplier: "",
-});
-const o_submitting = ref(false);
-
-const formErrors = ref({});
-
-const resetErrors = () => {
-    formErrors.value = {};
-}
-
-function orderSubmit() {
-    // validate supplier
-    if (!p_supplier.value) {
-        formErrors.value.supplier_id = ["Please select a supplier."];
-        toast.error("Please select a supplier.");
-        // optional: focus the field
-        nextTick(() => document.getElementById("supplierSelect")?.focus());
-        return;
-    }
-
-    // if (!p_supplier.value) return toast.error("Please select a supplier.");
-    if (!p_cart.value.length) {
-        formErrors.value.p_cart = ["No items added."];
-        toast.error("No items added.");
-    }
-
-    const payload = {
-        supplier_id: p_supplier.value.id,
-        purchase_date: new Date().toISOString().split("T")[0],
-        status: "pending",
-        items: o_cart.value.map(({ id, qty, unitPrice, expiry }) => ({
-            product_id: id,
-            quantity: qty,
-            unit_price: unitPrice,
-            expiry: expiry || null,
-        })),
-    };
-
-    o_submitting.value = true;
-
-    axios
-        .post("/purchase-orders", payload)
-        .then((res) => {
-            // reset
-            o_cart.value = [];
-            p_supplier.value = null;
-            const m = bootstrap.Modal.getInstance(
-                document.getElementById("addOrderModal")
-            );
-            m?.hide();
-        })
-        .catch((err) => {
-            if (err?.response?.status === 422 && err.response.data?.errors) {
-                formErrors.value = err.response.data.errors;
-
-                toast.error("Please fill in all required fields correctly.");
-            } else {
-                // toast.dismiss();
-                toast.error("Something went wrong. Please try again.", {
-                    autoClose: 3000,
-                });
-                console.error(err);
-            }
-        })
-        .finally(() => {
-            o_submitting.value = false;
-        });
 }
 
 /* -------------------- Helpers for normalization -------------------- */
@@ -482,16 +265,16 @@ const onDownload = (type) => {
     const t = q.value?.trim()?.toLowerCase();
     const filteredSource = t
         ? source.filter((o) => {
-            const hay = [
-                extractSupplierName(o),
-                o.status || "",
-                String(extractTotalAmount(o)),
-                extractPurchaseDate(o),
-            ]
-                .join(" ")
-                .toLowerCase();
-            return hay.includes(t);
-        })
+              const hay = [
+                  extractSupplierName(o),
+                  o.status || "",
+                  String(extractTotalAmount(o)),
+                  extractPurchaseDate(o),
+              ]
+                  .join(" ")
+                  .toLowerCase();
+              return hay.includes(t);
+          })
         : source;
 
     if (!filteredSource.length) {
@@ -657,15 +440,26 @@ onUpdated(() => window.feather?.replace());
             <div class="container-fluid py-3">
                 <div class="card border-0 shadow-lg rounded-4">
                     <div class="card-body p-4">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div
+                            class="d-flex align-items-center justify-content-between mb-3"
+                        >
                             <div class="d-flex align-items-center gap-2">
                                 <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
                                 <div class="position-relative">
-                                    <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
-                                        <i class="bi bi-question-circle fs-5"></i>
+                                    <button
+                                        class="btn btn-link p-0 ms-2"
+                                        @click="showHelp = !showHelp"
+                                        title="Help"
+                                    >
+                                        <i
+                                            class="bi bi-question-circle fs-5"
+                                        ></i>
                                     </button>
-                                    <div v-if="showHelp" class="help-popover shadow rounded-4 p-3">
+                                    <div
+                                        v-if="showHelp"
+                                        class="help-popover shadow rounded-4 p-3"
+                                    >
                                         <p class="mb-2">
                                             This screen allows you to view,
                                             manage, and update all purchase
@@ -687,38 +481,72 @@ onUpdated(() => window.feather?.replace());
                             <div class="d-flex gap-2 align-items-center">
                                 <div class="search-wrap me-1">
                                     <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
+                                    <input
+                                        v-model="q"
+                                        type="text"
+                                        class="form-control search-input"
+                                        placeholder="Search"
+                                    />
                                 </div>
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addPurchaseModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addPurchaseModal"
+                                >
                                     Purchase
                                 </button>
-                                <PurchaseComponent :suppliers="supplierOptions" :items="p_filteredInv" />
+                                <PurchaseComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                    @refresh-data="fetchPurchaseOrders"
+                                />
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addOrderModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addOrderModal"
+                                >
                                     Order
                                 </button>
+                                <OrderComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                    @refresh-data="fetchPurchaseOrders"
+                                />
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Download
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('pdf')">Download as PDF</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('pdf')"
+                                                >Download as PDF</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('excel')">Download as Excel</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('excel')"
+                                                >Download as Excel</a
+                                            >
                                         </li>
 
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('csv')">
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('csv')"
+                                            >
                                                 Download as CSV
                                             </a>
                                         </li>
@@ -729,12 +557,12 @@ onUpdated(() => window.feather?.replace());
 
                         <!-- Table -->
                         <div class="table-responsive">
-                             <table class="table table-striped">
+                            <table class="table table-striped">
                                 <thead class="small text-muted">
                                     <tr>
                                         <th style="width: 80px">S. #</th>
                                         <th>Supplier Name</th>
-                                        <th>Purchase date</th> 
+                                        <th>Purchase date</th>
                                         <th class="text-start">Status</th>
                                         <th>Total value</th>
                                         <th class="text-end">Action</th>
@@ -742,7 +570,10 @@ onUpdated(() => window.feather?.replace());
                                 </thead>
                                 <tbody>
                                     <!-- {{ orderData }} -->
-                                    <template v-for="(row, i) in orderData" :key="row.id">
+                                    <template
+                                        v-for="(row, i) in orderData"
+                                        :key="row.id"
+                                    >
                                         <tr>
                                             <td>{{ i + 1 }}</td>
                                             <td>{{ row.supplier }}</td>
@@ -762,21 +593,32 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </td>
-                                            <td  class="text-start">
-                                                <span :class="[
-                                                    'badge rounded-pill w-20',
-                                                    row.status === 'pending' ? 'badge-pending' : '',
-                                                    row.status === 'completed' ? 'badge-completed' : ''
-                                                ]">
+                                            <td class="text-start">
+                                                <span
+                                                    :class="[
+                                                        'badge rounded-pill w-20',
+                                                        row.status === 'pending'
+                                                            ? 'badge-pending'
+                                                            : '',
+                                                        row.status ===
+                                                        'completed'
+                                                            ? 'badge-completed'
+                                                            : '',
+                                                    ]"
+                                                >
                                                     {{ row.status }}
                                                 </span>
                                             </td>
 
                                             <td>{{ money(row.total) }}</td>
                                             <td class="text-end">
-                                                <button @click="openModal(row)" data-bs-toggle="modal"
-                                                    data-bs-target="#viewItemModal" title="View Item"
-                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100">
+                                                <button
+                                                    @click="openModal(row)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
+                                                    title="View Item"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                >
                                                     <Eye class="w-4 h-4" />
                                                 </button>
                                             </td>
@@ -804,12 +646,14 @@ onUpdated(() => window.feather?.replace());
                                                 </div>
                                             </td> -->
                                         </tr>
-                                         
                                     </template>
 
                                     <!-- Fix this line -->
                                     <tr v-if="orderData?.length === 0">
-                                        <td colspan="6" class="text-center text-muted py-4">
+                                        <td
+                                            colspan="6"
+                                            class="text-center text-muted py-4"
+                                        >
                                             No purchase orders found.
                                         </td>
                                     </tr>
@@ -819,264 +663,102 @@ onUpdated(() => window.feather?.replace());
                     </div>
                 </div>
 
-                <!-- ================= Add Purchase (Modal) ================= -->
-
-                <!-- ================= Add Order (Modal) ================= -->
-                <div class="modal fade" id="addOrderModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-xl modal-dialog-centered">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">Order</h5>
-                                <button
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetErrors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div class="modal-body">
-                                <div class="row g-3 align-items-center">
-                                    <div class="col-md-6">
-                                        <label class="form-label small text-muted d-block">Preferred Supplier</label>
-
-                                        <Select v-model="p_supplier" :options="supplierOptions" optionLabel="name"
-                                            optionValue="id" placeholder="Select Supplier" class="w-100"
-                                            :class="{ 'is-invalid': formErrors.supplier_id }" appendTo="self"
-                                            :autoZIndex="true" :baseZIndex="2000" />
-
-                                        <small v-if="formErrors.supplier_id" class="text-danger">
-                                            {{ formErrors.supplier_id[0] }}
-                                        </small>
-
-
-                                    </div>
-                                </div>
-
-                                <div class="row g-4 mt-1">
-                                    <!-- Left: inventory picker -->
-                                    <div class="col-lg-5">
-                                        <div class="search-wrap mb-2">
-                                            <i class="bi bi-search"></i>
-                                            <input v-model="o_search" type="text" class="form-control search-input"
-                                                placeholder="Search..." />
-                                        </div>
-
-                                        <div v-for="it in p_filteredInv" :key="it.id"
-                                            class="card shadow-sm border-0 rounded-4 mb-3">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-start gap-3">
-                                                    <img :src="it.image_url" alt="" style="
-                                                            width: 76px;
-                                                            height: 76px;
-                                                            object-fit: cover;
-                                                            border-radius: 6px;
-                                                        " />
-
-                                                    <div class="flex-grow-1">
-                                                        <div class="fw-semibold">
-                                                            {{ it.name }}
-                                                        </div>
-                                                        <div class="text-muted small">
-                                                            Category:
-                                                            {{
-                                                                it.category.name
-                                                            }}
-                                                        </div>
-                                                        <div class="text-muted small">
-                                                            Unit: {{ it.unit }}
-                                                        </div>
-                                                        <div class="text-muted small">
-                                                            Stock:
-                                                            {{ it.stock }}
-                                                        </div>
-                                                    </div>
-                                                    <button class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
-                                                        @click="
-                                                            addOrderItem(it)
-                                                            ">
-                                                        Add
-                                                    </button>
-                                                </div>
-
-                                                <div class="row g-2 mt-3">
-                                                    <div class="col-4">
-                                                        <label class="small text-muted">Quantity</label>
-                                                        <input v-model.number="it.qty
-                                                            " type="number" min="0" class="form-control form-control"
-                                                            :class="{ 'is-invalid': formErrors[it.id] && formErrors[it.id].qty }" />
-                                                        <small v-if="formErrors[it.id] && formErrors[it.id].qty" class="text-danger">
-                                                            {{ formErrors[it.id].qty[0] }}
-                                                        </small>
-
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <label class="small text-muted">Unit Price</label>
-                                                        <input v-model.number="it.unitPrice
-                                                            " type="number" min="0" class="form-control form-control"
-                                                            :class="{ 'is-invalid': formErrors[it.id] && formErrors[it.id].unit_price }" />
-                                                        <small v-if="formErrors[it.id] && formErrors[it.id].unit_price" class="text-danger">
-                                                            {{ formErrors[it.id].unit_price[0] }}
-                                                        </small>
-
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <label class="small text-muted">Expiry Date</label>
-                                                        <input v-model="it.expiry" type="date"
-                                                            class="form-control form-control"
-                                                            :class="{ 'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date }" />
-                                                        <small v-if="formErrors[it.id] && formErrors[it.id].expiry_date" class="text-danger">
-                                                           {{ formErrors[it.id].expiry_date[0] }}
-                                                        </small>
-
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right: cart -->
-                                    <div class="col-lg-7">
-                                        <div class="cart card border rounded-4">
-                                            <div class="table-responsive">
-                                                <table class="table align-middle mb-0">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-
-                                                            <th>Quantity</th>
-                                                            <th>unit price</th>
-                                                            <th>expiry</th>
-                                                            <th>cost</th>
-                                                            <th class="text-end">
-                                                                Action
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr v-for="(
-r, idx
-                                                            ) in o_cart" :key="idx">
-                                                            <td>
-                                                                {{ r.name }}
-                                                            </td>
-
-                                                            <td>{{ r.qty }}</td>
-                                                            <td>
-                                                                {{
-                                                                    r.unitPrice
-                                                                }}
-                                                            </td>
-                                                            <td>
-                                                                {{
-                                                                    r.expiry ||
-                                                                    "—"
-                                                                }}
-                                                            </td>
-                                                            <td>
-                                                                {{ r.cost }}
-                                                            </td>
-                                                            <td class="text-end">
-                                                                <button @click="
-                                                                    delOrderRow(
-                                                                        idx
-                                                                    )
-                                                                    "
-                                                                    class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
-                                                                    title="Delete">
-                                                                    <svg class="w-5 h-5" fill="none"
-                                                                        stroke="currentColor" stroke-width="2"
-                                                                        viewBox="0 0 24 24">
-                                                                        <path stroke-linecap="round"
-                                                                            stroke-linejoin="round"
-                                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
-                                                                    </svg>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr v-if="
-                                                            o_cart.length ===
-                                                            0
-                                                        ">
-                                                            <td colspan="7" class="text-center text-muted py-4">
-                                                                No items added.
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <div class="text-end p-3 fw-semibold">
-                                                Total Bill: {{ money(o_total) }}
-                                            </div>
-                                        </div>
-
-                                        <div class="mt-4 text-center">
-                                            <button type="button" class="btn btn-primary rounded-pill px-5 py-2"
-                                                :disabled="o_submitting ||
-                                                    o_cart.length === 0
-                                                    " @click="orderSubmit">
-                                                <span v-if="!o_submitting">Order</span>
-                                                <span v-else>Saving...</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- /modal-body -->
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ====================View Modal either Purchase or Order ==================== -->
                 <!-- View Order Modal (Read-only) -->
-                <div class="modal fade" id="viewOrderModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="viewOrderModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content rounded-4 shadow-lg border-0">
                             <!-- Header -->
                             <div class="modal-header align-items-center">
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-success rounded-circle p-2">
+                                    <span
+                                        class="badge bg-success rounded-circle p-2"
+                                    >
                                         <!-- shopping cart icon -->
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-6-9v9" />
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="18"
+                                            height="18"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m12-9l2 9m-6-9v9"
+                                            />
                                         </svg>
                                     </span>
                                     <div class="d-flex flex-column">
-                                        <h5 class="modal-title mb-0">Purchase Details</h5>
+                                        <h5 class="modal-title mb-0">
+                                            Purchase Details
+                                        </h5>
                                         <small class="text-muted">
                                             Supplier:
-                                            {{ selectedOrder?.supplier?.name ?? "—" }}
+                                            {{
+                                                selectedOrder?.supplier?.name ??
+                                                "—"
+                                            }}
                                         </small>
                                     </div>
                                 </div>
 
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-danger"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
                                     </svg>
                                 </button>
                             </div>
 
                             <!-- Body -->
-                            <div class="modal-body p-4 bg-light" v-if="selectedOrder">
+                            <div
+                                class="modal-body p-4 bg-light"
+                                v-if="selectedOrder"
+                            >
                                 <div class="row g-4">
                                     <div class="col-lg-12">
-                                        <div class="card border-0 shadow-sm rounded-4 h-100">
+                                        <div
+                                            class="card border-0 shadow-sm rounded-4 h-100"
+                                        >
                                             <div class="card-body">
                                                 <!-- Top section -->
-                                                <h6 class="fw-semibold mb-3">Order Summary</h6>
+                                                <h6 class="fw-semibold mb-3">
+                                                    Order Summary
+                                                </h6>
 
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
-                                                        <small class="text-muted d-block">Purchase Date</small>
-                                                        <div class="fw-semibold">
+                                                        <small
+                                                            class="text-muted d-block"
+                                                            >Purchase
+                                                            Date</small
+                                                        >
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
                                                             {{
                                                                 fmtDateTime(
                                                                     selectedOrder.purchase_date
@@ -1086,20 +768,38 @@ r, idx
                                                     </div>
 
                                                     <div class="col-md-6">
-                                                        <small class="text-muted d-block">Status</small>
-                                                        <span class="badge rounded-pill" :class="selectedOrder.status ===
+                                                        <small
+                                                            class="text-muted d-block"
+                                                            >Status</small
+                                                        >
+                                                        <span
+                                                            class="badge rounded-pill"
+                                                            :class="
+                                                                selectedOrder.status ===
                                                                 'completed'
-                                                                ? 'bg-success'
-                                                                : 'bg-warning'
-                                                            ">
-                                                            {{ selectedOrder.status }}
+                                                                    ? 'bg-success'
+                                                                    : 'bg-warning'
+                                                            "
+                                                        >
+                                                            {{
+                                                                selectedOrder.status
+                                                            }}
                                                         </span>
                                                     </div>
 
                                                     <div class="col-md-6">
-                                                        <small class="text-muted d-block">Total Amount</small>
-                                                        <div class="fw-semibold">
-                                                            {{ money(selectedOrder.total_amount) }}
+                                                        <small
+                                                            class="text-muted d-block"
+                                                            >Total Amount</small
+                                                        >
+                                                        <div
+                                                            class="fw-semibold"
+                                                        >
+                                                            {{
+                                                                money(
+                                                                    selectedOrder.total_amount
+                                                                )
+                                                            }}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1107,35 +807,71 @@ r, idx
                                                 <hr class="my-4" />
 
                                                 <!-- Items Table -->
-                                                <h6 class="fw-semibold mb-3">Purchased Items</h6>
+                                                <h6 class="fw-semibold mb-3">
+                                                    Purchased Items
+                                                </h6>
                                                 <div class="table-responsive">
-                                                    <table class="table table-bordered align-middle">
-                                                        <thead class="table-light">
+                                                    <table
+                                                        class="table table-bordered align-middle"
+                                                    >
+                                                        <thead
+                                                            class="table-light"
+                                                        >
                                                             <tr>
-                                                                <th>Product Name</th>
-                                                                <th>Quantity</th>
-                                                                <th>Unit Price</th>
-                                                                <th>Subtotal</th>
-                                                                <th>Expiry Date</th>
+                                                                <th>
+                                                                    Product Name
+                                                                </th>
+                                                                <th>
+                                                                    Quantity
+                                                                </th>
+                                                                <th>
+                                                                    Unit Price
+                                                                </th>
+                                                                <th>
+                                                                    Subtotal
+                                                                </th>
+                                                                <th>
+                                                                    Expiry Date
+                                                                </th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            <tr v-for="item in selectedOrder.items" :key="item.id">
+                                                            <tr
+                                                                v-for="item in selectedOrder.items"
+                                                                :key="item.id"
+                                                            >
                                                                 <td>
                                                                     {{
-                                                                        item.product?.name ||
+                                                                        item
+                                                                            .product
+                                                                            ?.name ||
                                                                         "Unknown Product"
                                                                     }}
                                                                 </td>
-                                                                <td>{{ item.quantity }}</td>
                                                                 <td>
-                                                                    {{ money(item.unit_price) }}
+                                                                    {{
+                                                                        item.quantity
+                                                                    }}
                                                                 </td>
                                                                 <td>
-                                                                    {{ money(item.sub_total) }}
+                                                                    {{
+                                                                        money(
+                                                                            item.unit_price
+                                                                        )
+                                                                    }}
                                                                 </td>
                                                                 <td>
-                                                                    {{ item.expiry || "—" }}
+                                                                    {{
+                                                                        money(
+                                                                            item.sub_total
+                                                                        )
+                                                                    }}
+                                                                </td>
+                                                                <td>
+                                                                    {{
+                                                                        item.expiry ||
+                                                                        "—"
+                                                                    }}
                                                                 </td>
                                                             </tr>
                                                         </tbody>
@@ -1152,9 +888,13 @@ r, idx
                     </div>
                 </div>
 
-
                 <!-- Edit Order Modal (Editable) -->
-                <div class="modal fade" id="editOrderModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="editOrderModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
@@ -1163,10 +903,23 @@ r, idx
                                 </h5>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
                                     </svg>
                                 </button>
                             </div>
@@ -1192,13 +945,11 @@ r, idx
                                     </div>
                                     <div class="col-md-6">
                                         <p>
-                                            <strong>Current Status:</strong>
-                                            <span class="badge rounded-pill fw-semibold px-3 py-2">{{
-                                                selectedOrder.status 
-                                            }}</span> 
+                                            <strong>Current Status: </strong
+                                            >{{ selectedOrder.status }}
                                         </p>
                                         <p>
-                                            <strong>Total:</strong>
+                                            <strong>Total Price:</strong>
                                             {{
                                                 money(
                                                     selectedOrder.total_amount
@@ -1234,62 +985,102 @@ r, idx
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="(
-item, index
-                                                ) in editItems" :key="item.id || index">
+                                            <tr
+                                                v-for="(
+                                                    item, index
+                                                ) in editItems"
+                                                :key="item.id || index"
+                                            >
                                                 <td>
-                                                    <input v-model="item.name" type="text" class="form-control" readonly
+                                                    <input
+                                                        v-model="item.name"
+                                                        type="text"
+                                                        class="form-control"
+                                                        readonly
+                                                       
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        v-model.number="
+                                                            item.quantity
+                                                        "
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        class="form-control"
+                                                        @input="
+                                                            calculateSubtotal(
+                                                                item
+                                                            )
+                                                        "
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        v-model.number="
+                                                            item.unit_price
+                                                        "
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        class="form-control"
+                                                        @input="
+                                                            calculateSubtotal(
+                                                                item
+                                                            )
+                                                        "
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        v-model="item.sub_total"
+                                                        type="text"
+                                                        class="form-control"
+                                                        readonly
                                                         style="
                                                             background-color: #f8f9fa;
-                                                        " />
+                                                        "
+                                                    />
                                                 </td>
                                                 <td>
-                                                    <input v-model.number="item.quantity
-                                                        " type="number" min="0" step="0.01" class="form-control"
-                                                        @input="
-                                                            calculateSubtotal(
-                                                                item
+                                                    <!-- {{ item }} -->
+                                                    <input
+                                                        v-model="item.expiry"
+                                                        type="date"
+                                                        class="form-control"
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        class="btn btn-danger btn-sm"
+                                                        @click="
+                                                            editItems.splice(
+                                                                index,
+                                                                1
                                                             )
-                                                            " />
-                                                </td>
-                                                <td>
-                                                    <input v-model.number="item.unit_price
-                                                        " type="number" min="0" step="0.01" class="form-control"
-                                                        @input="
-                                                            calculateSubtotal(
-                                                                item
-                                                            )
-                                                            " />
-                                                </td>
-                                                <td>
-                                                    <input v-model="item.sub_total" type="text" class="form-control"
-                                                        readonly style="
-                                                            background-color: #f8f9fa;
-                                                        " />
-                                                </td>
-                                                <td>
-                                                    <input v-model="item.expiry" type="date" class="form-control" />
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-danger btn-sm" @click="
-                                                        editItems.splice(
-                                                            index,
-                                                            1
-                                                        )
-                                                        " type="button">
+                                                        "
+                                                        type="button"
+                                                    >
                                                         Delete
                                                     </button>
                                                 </td>
                                             </tr>
                                             <tr v-if="editItems.length === 0">
-                                                <td colspan="6" class="text-center text-muted py-3">
+                                                <td
+                                                    colspan="6"
+                                                    class="text-center text-muted py-3"
+                                                >
                                                     No items found
                                                 </td>
                                             </tr>
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <td colspan="3" class="text-end fw-bold">
+                                                <td
+                                                    colspan="3"
+                                                    class="text-end fw-bold"
+                                                >
                                                     Total:
                                                 </td>
                                                 <td class="fw-bold">
@@ -1300,7 +1091,7 @@ item, index
                                                                     sum +
                                                                     parseFloat(
                                                                         item.sub_total ||
-                                                                        0
+                                                                            0
                                                                     ),
                                                                 0
                                                             )
@@ -1322,18 +1113,30 @@ item, index
                             </div>
 
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    data-bs-dismiss="modal">
-                                    Cancel
-                                </button>
-                                <button type="button" class="btn btn-primary rounded-pill px-4" @click="updateOrder"
-                                    :disabled="updating || editItems.length === 0
-                                        ">
+                                <button
+                                    type="button"
+                                    class="btn btn-primary rounded-pill px-4 py-2"
+                                    @click="updateOrder"
+                                    :disabled="
+                                        updating || editItems.length === 0
+                                    "
+                                >
                                     <span v-if="updating">
-                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span
+                                            class="spinner-border spinner-border-sm me-2"
+                                        ></span>
                                         Updating...
                                     </span>
-                                    <span v-else>Complete Order & Update Stock</span>
+                                    <span v-else
+                                        >Complete Order & Update Stock</span
+                                    >
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary rounded-pill py-2 ms-2"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Cancel
                                 </button>
                             </div>
                         </div>
@@ -1381,8 +1184,6 @@ item, index
     border-bottom: 2px solid #111;
 }
 
- 
-
 /* Help popover */
 .help-popover {
     position: absolute;
@@ -1407,7 +1208,6 @@ item, index
 .badge-completed {
     background-color: green;
 }
-
 
 /* Cart */
 .cart thead th {
