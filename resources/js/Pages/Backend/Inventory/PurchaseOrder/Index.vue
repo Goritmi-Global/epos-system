@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, reactive, onUpdated } from "vue";
+import { ref, computed, onMounted, onUpdated } from "vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -9,9 +9,10 @@ import Select from "primevue/select";
 import "vue3-toastify/dist/index.css";
 import PurchaseComponent from "./PurchaseComponent.vue";
 import OrderComponent from "./OrderComponent.vue";
-
+import axios from "axios";
 import { Eye, Plus, Trash2 } from "lucide-vue-next";
 
+/* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         Number(n || 0)
@@ -28,26 +29,15 @@ const fmtDateTime = (iso) =>
     });
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-
 const showHelp = ref(false);
 
-const props = defineProps({
-    orders: Array,
-});
-
-const orderData = ref([]);
-const fetchPurchaseOrders = async () => {
-    const res = await axios.get("/purchase-orders/fetchOrders");
-
-    orderData.value = res.data.data.data;
-};
-
+/* =============== Data you already fetch =============== */
 const supplierOptions = ref([]);
-
 const fetchSuppliers = async () => {
     const res = await axios.get("/suppliers/pluck");
     supplierOptions.value = res.data;
 };
+
 const inventoryItems = ref([]); // holds API data
 const p_search = ref("");
 
@@ -60,12 +50,6 @@ const fetchInventory = async () => {
     }
 };
 
-onMounted(() => {
-    fetchInventory();
-    fetchSuppliers();
-    Purchase();
-    fetchPurchaseOrders();
-});
 const p_filteredInv = computed(() => {
     const t = p_search.value.trim().toLowerCase();
     if (!t) return inventoryItems.value;
@@ -77,37 +61,164 @@ const p_filteredInv = computed(() => {
     );
 });
 
-const orders = ref([]);
+/* =========================================================================
+   === Pagination code starts here =========================================
+   This uses your GLOBAL <Paginator> component.
+   Backend must return a standard Laravel LengthAwarePaginator JSON:
+     {
+       data: [...],
+       current_page, last_page, per_page, total, links: [...]
+     }
+   We’re calling /api/purchase-orders (JSON). If you only have an Inertia
+   route, add a tiny API controller/route for JSON.
+   ========================================================================= */
+
 const loading = ref(false);
 
-// Search & filter
-const q = ref(""); // search input
-const statusFilter = ref(""); // optional status filter
+// unified paginator state for the table + global Paginator
+const paginator = ref({
+    data: [],
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    links: [],
+});
 
-// Fetch orders from API
-async function Purchase() {
+const orderData = computed(() => paginator.value.data || []);
+const meta = computed(() => ({
+    current_page: paginator.value.current_page,
+    last_page: paginator.value.last_page,
+    per_page: paginator.value.per_page,
+    total: paginator.value.total,
+}));
+const links = computed(() => paginator.value.links || []);
+
+const perPage = ref(20);
+
+/** Safely unwrap different paginator shapes */
+function normalizeFromFetchOrders(raw) {
+    // common shapes we may get:
+    // A) { data: { data: [...], current_page, last_page, per_page, total, links: [...] } }
+    // B) { data: [...], current_page, last_page, per_page, total, links: [...] }
+    // C) Laravel API Resource style: { data: [...], meta: {...}, links: {...} }
+
+    // prefer inner "data"
+    const lvl1 = raw?.data ?? raw;
+
+    // shape A
+    if (
+        lvl1 &&
+        lvl1.data &&
+        Array.isArray(lvl1.data) &&
+        typeof lvl1.current_page !== "undefined"
+    ) {
+        return {
+            data: lvl1.data,
+            current_page: Number(lvl1.current_page) || 1,
+            last_page: Number(lvl1.last_page) || 1,
+            per_page: Number(lvl1.per_page) || 20,
+            total: Number(lvl1.total) || (lvl1.data?.length ?? 0),
+            links: Array.isArray(lvl1.links) ? lvl1.links : [],
+        };
+    }
+
+    // shape B (root is the paginator)
+    if (
+        raw &&
+        raw.data &&
+        Array.isArray(raw.data) &&
+        typeof raw.current_page !== "undefined"
+    ) {
+        return {
+            data: raw.data,
+            current_page: Number(raw.current_page) || 1,
+            last_page: Number(raw.last_page) || 1,
+            per_page: Number(raw.per_page) || 20,
+            total: Number(raw.total) || (raw.data?.length ?? 0),
+            links: Array.isArray(raw.links) ? raw.links : [],
+        };
+    }
+
+    // shape C (API Resource with meta/links objects)
+    if (raw && Array.isArray(raw.data) && raw.meta) {
+        const m = raw.meta;
+        return {
+            data: raw.data,
+            current_page: Number(m.current_page) || 1,
+            last_page: Number(m.last_page) || 1,
+            per_page: Number(m.per_page) || 20,
+            total: Number(m.total) || (raw.data?.length ?? 0),
+            // when links are objects, we’ll synthesize simple numeric buttons
+            links: Array.isArray(m.links) ? m.links : [],
+        };
+    }
+
+    // fallback: just a list
+    return {
+        data: Array.isArray(lvl1) ? lvl1 : [],
+        current_page: 1,
+        last_page: 1,
+        per_page: perPage.value,
+        total: Array.isArray(lvl1) ? lvl1.length : 0,
+        links: [],
+    };
+}
+
+// your original function name kept
+const fetchPurchaseOrders = async (page = 1) => {
     loading.value = true;
     try {
-        const res = await axios.get("/purchase-orders", {
-            params: {
-                q: q.value,
-                status: statusFilter.value || undefined,
-            },
+        const res = await axios.get("/purchase-orders/fetchOrders", {
+            params: { page, per_page: perPage.value },
         });
-        orders.value = res.data;
-    } catch (err) {
-        console.error("Failed to fetch orders:", err);
-        orders.value = [];
+
+        // your sample: res.data.data.data -> unwrap progressively
+        // try most useful node first (lvl under `.data`)
+        const node =
+            res?.data?.data ?? // common wrapper
+            res?.data ?? // plain
+            res; // last resort
+
+        const normalized = normalizeFromFetchOrders(node);
+        paginator.value = normalized;
+    } catch (e) {
+        console.error(e);
+        toast.error("Failed to fetch orders");
+        paginator.value = {
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            per_page: perPage.value,
+            total: 0,
+            links: [],
+        };
     } finally {
         loading.value = false;
     }
-}
+};
 
+// hooked up to the GLOBAL Paginator
+function onGo(label) {
+    const p = Number(label);
+    if (!Number.isFinite(p)) return;
+    if (p < 1 || p > meta.value.last_page) return;
+    fetchPurchaseOrders(p);
+}
+function onSize(size) {
+    perPage.value = Number(size) || 20;
+    fetchPurchaseOrders(1);
+}
+/* =========================================================================
+   === Pagination code ends here ===========================================
+   ========================================================================= */
+
+/* =============== Order modal/update (your logic kept) =============== */
 const selectedOrder = ref(null);
 const editItems = ref([]);
 const isEditing = ref(false);
+const updating = ref(false);
 
-// Open modal function
 async function openModal(order) {
     try {
         const res = await axios.get(`/purchase-orders/${order.id}`);
@@ -115,59 +226,52 @@ async function openModal(order) {
 
         if (order.status === "pending") {
             isEditing.value = true;
-            editItems.value = selectedOrder.value.items.map(item => ({
+            editItems.value = selectedOrder.value.items.map((item) => ({
                 id: item.id,
                 product_id: item.product_id,
                 name: item.product?.name || "Unknown",
                 quantity: item.quantity,
                 unit_price: item.unit_price,
                 expiry: item.expiry || "",
-                sub_total: item.sub_total
+                sub_total: item.sub_total,
             }));
         } else {
             isEditing.value = false;
         }
 
-        const modal = new bootstrap.Modal(document.getElementById("orderDetailsModal"));
+        const modal = new bootstrap.Modal(
+            document.getElementById("orderDetailsModal")
+        );
         modal.show();
-
     } catch (err) {
         console.error(err);
         toast.error("Failed to load order details");
     }
 }
 
-
-// Update order function
-const updating = ref(false);
-
 async function updateOrder() {
     if (!selectedOrder.value) return;
-
     updating.value = true;
-    console.log(editItems);
     try {
         const payload = {
             status: "completed",
             items: editItems.value.map((item) => ({
                 purchase_id: selectedOrder.value.id,
                 product_id: item.product_id,
-                qty: item.quantity, // Changed from 'quantity' to 'qty'
+                qty: item.quantity,
                 unit_price: item.unit_price,
                 expiry: item.expiry || null,
             })),
         };
-        console.log("updateOrder Update payload:", payload);
         await axios.put(`/purchase-orders/${selectedOrder.value.id}`, payload);
 
-        // Close modal and refresh orders
         const modal = bootstrap.Modal.getInstance(
             document.getElementById("orderDetailsModal")
         );
         modal?.hide();
 
-        // Refresh the orders list
-        await fetchPurchaseOrders();
+        // refresh current page after update
+        await fetchPage(meta.value.current_page);
 
         toast.success("Order updated successfully and stock entries created!");
     } catch (error) {
@@ -178,254 +282,17 @@ async function updateOrder() {
     }
 }
 
-// Calculate subtotal for editing
 function calculateSubtotal(item) {
     const quantity = parseFloat(item.quantity) || 0;
     const unitPrice = parseFloat(item.unit_price) || 0;
     item.sub_total = (quantity * unitPrice).toFixed(2);
 }
 
-/* -------------------- Helpers for normalization -------------------- */
-const extractArray = (maybe) => {
-    if (!maybe) return [];
-    if (Array.isArray(maybe)) return maybe;
-    if (Array.isArray(maybe.data)) return maybe.data;
-    return [];
-};
-
-const extractSupplierName = (o) => {
-    if (!o) return "";
-    if (o.supplier && typeof o.supplier === "object")
-        return o.supplier.name || o.supplier.title || "";
-    if (o.supplier_name) return o.supplier_name;
-    if (o.supplierId) return String(o.supplierId);
-    if (o.supplier_id) {
-        // try lookup from supplierOptions if available
-        const s = supplierOptions.value?.find(
-            (sp) => String(sp.id) === String(o.supplier_id)
-        );
-        return s?.name || String(o.supplier_id);
-    }
-    // fallback plain string
-    return typeof o.supplier === "string" ? o.supplier : "";
-};
-
-const extractTotalAmount = (o) => {
-    if (!o) return 0;
-    if (o.total_amount != null) return Number(o.total_amount);
-    if (o.total != null) return Number(o.total);
-    if (o.amount != null) return Number(o.amount);
-    // try to compute from items if present
-    if (Array.isArray(o.items)) {
-        return o.items.reduce((sum, it) => {
-            const sub =
-                it.sub_total ??
-                it.subTotal ??
-                it.total ??
-                (it.quantity || 0) * (it.unit_price ?? it.unitPrice ?? 0);
-            return sum + Number(sub || 0);
-        }, 0);
-    }
-    return 0;
-};
-
-const extractPurchaseDate = (o) => {
-    if (!o) return "";
-    return o.purchase_date || o.purchased_at || o.date || o.created_at || "";
-};
-
-const normalizeOrders = (arr) =>
-    arr.map((o) => ({
-        supplier_name: extractSupplierName(o),
-        purchase_date: extractPurchaseDate(o),
-        status: o.status || "",
-        total_amount: extractTotalAmount(o),
-        _raw: o, // keep original if needed
-    }));
-
-/* -------------------- Updated onDownload -------------------- */
-const onDownload = (type) => {
-    // pick the best source available (client-fetched orders OR props)
-    let source = extractArray(orders.value);
-    if (!source.length) source = extractArray(orderData.value); // props.orders.data
-    if (!source.length) source = extractArray(props.orders); // fallback
-
-    if (!source.length) {
-        toast.error("No Orders data to download");
-        return;
-    }
-
-    // apply client-side search filter (q) if present
-    const t = q.value?.trim()?.toLowerCase();
-    const filteredSource = t
-        ? source.filter((o) => {
-            const hay = [
-                extractSupplierName(o),
-                o.status || "",
-                String(extractTotalAmount(o)),
-                extractPurchaseDate(o),
-            ]
-                .join(" ")
-                .toLowerCase();
-            return hay.includes(t);
-        })
-        : source;
-
-    if (!filteredSource.length) {
-        toast.error("No Orders found to download");
-        return;
-    }
-
-    const normalized = normalizeOrders(filteredSource);
-
-    try {
-        if (type === "pdf") {
-            downloadPDF(normalized);
-        } else if (type === "excel") {
-            downloadExcel(normalized);
-        } else if (type === "csv") {
-            downloadCSV(normalized);
-        } else {
-            toast.error("Invalid download type");
-        }
-    } catch (error) {
-        console.error("Download failed:", error);
-        toast.error(`Download failed: ${error.message}`);
-    }
-};
-
-/* -------------------- Updated export helpers (work with normalized data) -------------------- */
-
-const downloadCSV = (data) => {
-    try {
-        const headers = ["Supplier", "Purchase Date", "Status", "Total Amount"];
-        const rows = data.map((o) => [
-            `"${String(o.supplier_name || "").replace(/"/g, '""')}"`,
-            `"${String(o.purchase_date || "")}"`,
-            `"${String(o.status || "")}"`,
-            `"${o.total_amount ?? 0}"`,
-        ]);
-        const csvContent = [
-            headers.join(","),
-            ...rows.map((r) => r.join(",")),
-        ].join("\n");
-        const blob = new Blob([csvContent], {
-            type: "text/csv;charset=utf-8;",
-        });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute(
-            "download",
-            `purchase_orders_${new Date().toISOString().split("T")[0]}.csv`
-        );
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("CSV downloaded successfully", { autoClose: 2500 });
-    } catch (error) {
-        console.error("CSV generation error:", error);
-        toast.error(`CSV generation failed: ${error.message}`);
-    }
-};
-
-const downloadPDF = (data) => {
-    try {
-        const doc = new jsPDF("p", "mm", "a4");
-        doc.setFontSize(18);
-        doc.text("Purchase Orders Report", 14, 20);
-        doc.setFontSize(10);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
-        doc.text(`Total Orders: ${data.length}`, 14, 34);
-
-        const tableColumns = [
-            "Supplier",
-            "Purchase Date",
-            "Status",
-            "Total Amount",
-        ];
-        const tableRows = data.map((o) => [
-            o.supplier_name || "",
-            o.purchase_date || "",
-            o.status || "",
-            money(o.total_amount || 0, "GBP"),
-        ]);
-
-        autoTable(doc, {
-            head: [tableColumns],
-            body: tableRows,
-            startY: 40,
-            styles: { fontSize: 8, cellPadding: 2 },
-            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
-            margin: { left: 14, right: 14 },
-            didDrawPage: (tableData) => {
-                const pageCount = doc.internal.getNumberOfPages();
-                const pageHeight = doc.internal.pageSize.height;
-                doc.setFontSize(8);
-                doc.text(
-                    `Page ${tableData.pageNumber} of ${pageCount}`,
-                    tableData.settings.margin.left,
-                    pageHeight - 10
-                );
-            },
-        });
-
-        doc.save(
-            `purchase_orders_${new Date().toISOString().split("T")[0]}.pdf`
-        );
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
-    } catch (error) {
-        console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`);
-    }
-};
-
-const downloadExcel = (data) => {
-    try {
-        if (typeof XLSX === "undefined") throw new Error("XLSX not loaded");
-
-        const worksheetData = data.map((o) => ({
-            Supplier: o.supplier_name || "",
-            "Purchase Date": o.purchase_date || "",
-            Status: o.status || "",
-            "Total Amount": o.total_amount ?? 0,
-        }));
-
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        worksheet["!cols"] = [
-            { wch: 25 },
-            { wch: 18 },
-            { wch: 15 },
-            { wch: 15 },
-        ];
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
-
-        const metaData = [
-            { Info: "Generated On", Value: new Date().toLocaleString() },
-            { Info: "Total Orders", Value: data.length },
-            { Info: "Exported By", Value: "Purchase Orders System" },
-        ];
-        const metaSheet = XLSX.utils.json_to_sheet(metaData);
-        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
-
-        XLSX.writeFile(
-            workbook,
-            `purchase_orders_${new Date().toISOString().split("T")[0]}.xlsx`
-        );
-        toast.success("Excel file downloaded successfully", {
-            autoClose: 2500,
-        });
-    } catch (error) {
-        console.error("Excel generation error:", error);
-        toast.error(`Excel generation failed: ${error.message}`);
-    }
-};
-
-// ===========================================================
-
-onMounted(() => window.feather?.replace());
-onUpdated(() => window.feather?.replace());
+/* =============== Lifecycle =============== */
+onMounted(() => {
+    fetchPurchaseOrders(1); // initial load
+});
+onUpdated(() => window.feather?.replace?.());
 </script>
 
 <template>
@@ -434,15 +301,26 @@ onUpdated(() => window.feather?.replace());
             <div class="container-fluid py-3">
                 <div class="card border-0 shadow-lg rounded-4">
                     <div class="card-body p-4">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div
+                            class="d-flex align-items-center justify-content-between mb-3"
+                        >
                             <div class="d-flex align-items-center gap-2">
                                 <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
                                 <div class="position-relative">
-                                    <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
-                                        <i class="bi bi-question-circle fs-5"></i>
+                                    <button
+                                        class="btn btn-link p-0 ms-2"
+                                        @click="showHelp = !showHelp"
+                                        title="Help"
+                                    >
+                                        <i
+                                            class="bi bi-question-circle fs-5"
+                                        ></i>
                                     </button>
-                                    <div v-if="showHelp" class="help-popover shadow rounded-4 p-3">
+                                    <div
+                                        v-if="showHelp"
+                                        class="help-popover shadow rounded-4 p-3"
+                                    >
                                         <p class="mb-2">
                                             This screen allows you to view,
                                             manage, and update all purchase
@@ -464,41 +342,72 @@ onUpdated(() => window.feather?.replace());
                             <div class="d-flex gap-2 align-items-center">
                                 <div class="search-wrap me-1">
                                     <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
+                                    <input
+                                        v-model="q"
+                                        type="text"
+                                        class="form-control search-input"
+                                        placeholder="Search"
+                                    />
                                 </div>
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addPurchaseModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addPurchaseModal"
+                                >
                                     Purchase
                                 </button>
-                                <PurchaseComponent :suppliers="supplierOptions" :items="p_filteredInv"
-                                    @refresh-data="fetchPurchaseOrders" />
+                                <PurchaseComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                    @refresh-data="fetchPurchaseOrders"
+                                />
 
-                                <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal"
-                                    data-bs-target="#addOrderModal">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addOrderModal"
+                                >
                                     Order
                                 </button>
-                                <OrderComponent :suppliers="supplierOptions" :items="p_filteredInv"
-                                    @refresh-data="fetchPurchaseOrders" />
+                                <OrderComponent
+                                    :suppliers="supplierOptions"
+                                    :items="p_filteredInv"
+                                    @refresh-data="fetchPurchaseOrders"
+                                />
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
+                                    <button
+                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                    >
                                         Download
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <ul
+                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                    >
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('pdf')">Download as PDF</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('pdf')"
+                                                >Download as PDF</a
+                                            >
                                         </li>
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('excel')">Download as Excel</a>
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('excel')"
+                                                >Download as Excel</a
+                                            >
                                         </li>
 
                                         <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('csv')">
+                                            <a
+                                                class="dropdown-item py-2"
+                                                href="javascript:;"
+                                                @click="onDownload('csv')"
+                                            >
                                                 Download as CSV
                                             </a>
                                         </li>
@@ -520,12 +429,34 @@ onUpdated(() => window.feather?.replace());
                                         <th class="text-end">Action</th>
                                     </tr>
                                 </thead>
+
                                 <tbody>
-                                    <!-- {{ orderData }} -->
-                                    <template v-for="(row, i) in orderData" :key="row.id">
+                                    <tr v-if="loading">
+                                        <td
+                                            colspan="6"
+                                            class="text-center text-muted py-4"
+                                        >
+                                            Loading…
+                                        </td>
+                                    </tr>
+
+                                    <template
+                                        v-else
+                                        v-for="(row, i) in orderData"
+                                        :key="row.id"
+                                    >
                                         <tr>
-                                            <td>{{ i + 1 }}</td>
+                                            <!-- S.# across pages -->
+                                            <td>
+                                                {{
+                                                    (meta.current_page - 1) *
+                                                        meta.per_page +
+                                                    (i + 1)
+                                                }}
+                                            </td>
+
                                             <td>{{ row.supplier }}</td>
+
                                             <td class="text-nowrap">
                                                 {{
                                                     fmtDateTime(
@@ -542,122 +473,177 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </td>
+
                                             <td class="text-start">
-                                                <span :class="[
-                                                    'badge rounded-pill w-20',
-                                                    row.status === 'pending'
-                                                        ? 'badge-pending'
-                                                        : '',
-                                                    row.status ===
-                                                        'completed'
-                                                        ? 'badge-completed'
-                                                        : '',
-                                                ]">
+                                                <span
+                                                    :class="[
+                                                        'badge rounded-pill',
+                                                        row.status === 'pending'
+                                                            ? 'bg-warning text-dark'
+                                                            : row.status ===
+                                                              'completed'
+                                                            ? 'bg-success'
+                                                            : 'bg-secondary',
+                                                    ]"
+                                                >
                                                     {{ row.status }}
                                                 </span>
                                             </td>
 
                                             <td>{{ money(row.total) }}</td>
+
                                             <td class="text-end">
-                                                <button @click="openModal(row)" data-bs-toggle="modal"
-                                                    data-bs-target="#viewItemModal" title="View Item"
-                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100">
-                                                    <Eye class="w-4 h-4" />
+                                                <button
+                                                    class="p-2 rounded-pill text-gray-600 hover:bg-gray-100 btn btn-light btn-sm"
+                                                >
+                                                    <Eye
+                                                        class="w-4 h-4"
+                                                        @click="openModal(row)"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#viewItemModal"
+                                                        title="View Item"
+                                                    />
                                                 </button>
                                             </td>
-                                            <!-- <td class="text-end">
-                                                <div class="dropdown">
-                                                    
-                                                    <button class="btn btn-link text-secondary p-0 fs-5"
-                                                        data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
-                                                    <ul
-                                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 overflow-hidden"
-                                                    >
-                                                        <li>
-                                                            <a
-                                                                class="dropdown-item py-2"
-                                                                href="javascript:void(0)"
-                                                                @click="
-                                                                    openModal(
-                                                                        row
-                                                                    )
-                                                                "
-                                                                >View</a
-                                                            >
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </td> -->
                                         </tr>
                                     </template>
 
-                                    <!-- Fix this line -->
-                                    <tr v-if="orderData?.length === 0">
-                                        <td colspan="6" class="text-center text-muted py-4">
+                                    <tr
+                                        v-if="
+                                            !loading && orderData?.length === 0
+                                        "
+                                    >
+                                        <td
+                                            colspan="6"
+                                            class="text-center text-muted py-4"
+                                        >
                                             No purchase orders found.
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- your GLOBAL Paginator component -->
+                        <Paginator
+                            class="mt-2"
+                            :meta="meta"
+                            :links="links"
+                            :disabled="loading"
+                            :show-sizes="true"
+                            :sizes="[10, 20, 30, 50, 100]"
+                            @go="onGo"
+                            @size="onSize"
+                        />
                     </div>
                 </div>
 
                 <!-- ====================View Modal either Purchase or Order ==================== -->
                 <!-- Unified Order Modal -->
                 <!-- Order / Purchase Details Modal -->
-                <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
+                <div
+                    class="modal fade"
+                    id="orderDetailsModal"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content rounded-4 shadow-lg border-0">
-
                             <!-- Header -->
                             <div class="modal-header align-items-center">
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-success rounded-circle p-2">
+                                    <span
+                                        class="badge bg-success rounded-circle p-2"
+                                    >
                                         <i class="bi bi-basket"></i>
                                     </span>
                                     <div class="d-flex flex-column">
                                         <h5 class="modal-title mb-0">
-                                            {{ isEditing ? "Edit Purchase Order" : "Purchase Details" }}
+                                            {{
+                                                isEditing
+                                                    ? "Edit Purchase Order"
+                                                    : "Purchase Details"
+                                            }}
                                         </h5>
                                         <small class="text-muted">
-                                            Supplier: {{ selectedOrder?.supplier?.name ?? "—" }}
+                                            Supplier:
+                                            {{
+                                                selectedOrder?.supplier?.name ??
+                                                "—"
+                                            }}
                                         </small>
                                     </div>
                                 </div>
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                    title="Close"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
                                     </svg>
                                 </button>
-
                             </div>
 
                             <!-- Body -->
-                            <div class="modal-body p-4 bg-light" v-if="selectedOrder">
-
+                            <div
+                                class="modal-body p-4 bg-light"
+                                v-if="selectedOrder"
+                            >
                                 <!-- Summary -->
                                 <h6 class="fw-semibold mb-3">Order Summary</h6>
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <small class="text-muted d-block">Purchase Date</small>
+                                        <small class="text-muted d-block"
+                                            >Purchase Date</small
+                                        >
                                         <div class="fw-semibold">
-                                            {{ fmtDateTime(selectedOrder.purchase_date).split(",")[0] }}
+                                            {{
+                                                fmtDateTime(
+                                                    selectedOrder.purchase_date
+                                                ).split(",")[0]
+                                            }}
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <small class="text-muted d-block">Status</small>
-                                        <span class="badge rounded-pill"
-                                            :class="selectedOrder.status === 'completed' ? 'bg-success' : 'bg-warning'">
+                                        <small class="text-muted d-block"
+                                            >Status</small
+                                        >
+                                        <span
+                                            class="badge rounded-pill"
+                                            :class="
+                                                selectedOrder.status ===
+                                                'completed'
+                                                    ? 'bg-success'
+                                                    : 'bg-warning'
+                                            "
+                                        >
                                             {{ selectedOrder.status }}
                                         </span>
                                     </div>
                                     <div class="col-md-6">
-                                        <small class="text-muted d-block">Total Amount</small>
-                                        <div class="fw-semibold">{{ money(selectedOrder.total_amount) }}</div>
+                                        <small class="text-muted d-block"
+                                            >Total Amount</small
+                                        >
+                                        <div class="fw-semibold">
+                                            {{
+                                                money(
+                                                    selectedOrder.total_amount
+                                                )
+                                            }}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -665,10 +651,16 @@ onUpdated(() => window.feather?.replace());
 
                                 <!-- Items Table -->
                                 <h6 class="fw-semibold mb-3">
-                                    {{ isEditing ? "Edit Items" : "Purchased Items" }}
+                                    {{
+                                        isEditing
+                                            ? "Edit Items"
+                                            : "Purchased Items"
+                                    }}
                                 </h6>
                                 <div class="table-responsive">
-                                    <table class="table table-bordered align-middle">
+                                    <table
+                                        class="table table-bordered align-middle"
+                                    >
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Product</th>
@@ -680,71 +672,155 @@ onUpdated(() => window.feather?.replace());
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="(item, index) in (isEditing ? editItems : selectedOrder.items)"
-                                                :key="item.id || index">
-
+                                            <tr
+                                                v-for="(
+                                                    item, index
+                                                ) in isEditing
+                                                    ? editItems
+                                                    : selectedOrder.items"
+                                                :key="item.id || index"
+                                            >
                                                 <!-- Product -->
                                                 <td>
-                                                    <span v-if="!isEditing">{{ item.product?.name || item.name ||
+                                                    <span v-if="!isEditing">{{
+                                                        item.product?.name ||
+                                                        item.name ||
                                                         "Unknown Product"
                                                     }}</span>
-                                                    <input v-else v-model="item.name" class="form-control" readonly />
+                                                    <input
+                                                        v-else
+                                                        v-model="item.name"
+                                                        class="form-control"
+                                                        readonly
+                                                    />
                                                 </td>
 
                                                 <!-- Quantity -->
                                                 <td>
-                                                    <span v-if="!isEditing">{{ item.quantity }}</span>
-                                                    <input v-else v-model.number="item.quantity" type="number"
-                                                        class="form-control" @input="calculateSubtotal(item)" />
+                                                    <span v-if="!isEditing">{{
+                                                        item.quantity
+                                                    }}</span>
+                                                    <input
+                                                        v-else
+                                                        v-model.number="
+                                                            item.quantity
+                                                        "
+                                                        type="number"
+                                                        class="form-control"
+                                                        @input="
+                                                            calculateSubtotal(
+                                                                item
+                                                            )
+                                                        "
+                                                    />
                                                 </td>
 
                                                 <!-- Unit Price -->
                                                 <td>
-                                                    <span v-if="!isEditing">{{ money(item.unit_price) }}</span>
-                                                    <input v-else v-model.number="item.unit_price" type="number"
-                                                        class="form-control" @input="calculateSubtotal(item)" />
+                                                    <span v-if="!isEditing">{{
+                                                        money(item.unit_price)
+                                                    }}</span>
+                                                    <input
+                                                        v-else
+                                                        v-model.number="
+                                                            item.unit_price
+                                                        "
+                                                        type="number"
+                                                        class="form-control"
+                                                        @input="
+                                                            calculateSubtotal(
+                                                                item
+                                                            )
+                                                        "
+                                                    />
                                                 </td>
 
                                                 <!-- Subtotal -->
                                                 <td>
-                                                    <span v-if="!isEditing">{{ money(item.sub_total) }}</span>
-                                                    <input v-else v-model="item.sub_total" class="form-control"
-                                                        readonly />
+                                                    <span v-if="!isEditing">{{
+                                                        money(item.sub_total)
+                                                    }}</span>
+                                                    <input
+                                                        v-else
+                                                        v-model="item.sub_total"
+                                                        class="form-control"
+                                                        readonly
+                                                    />
                                                 </td>
 
                                                 <!-- Expiry -->
                                                 <td>
-                                                    <span v-if="!isEditing">{{ item.expiry || "—" }}</span>
-                                                    <input v-else v-model="item.expiry" type="date"
-                                                        class="form-control" />
+                                                    <span v-if="!isEditing">{{
+                                                        item.expiry || "—"
+                                                    }}</span>
+                                                    <input
+                                                        v-else
+                                                        v-model="item.expiry"
+                                                        type="date"
+                                                        class="form-control"
+                                                    />
                                                 </td>
 
                                                 <!-- Action (only in edit mode) -->
                                                 <td v-if="isEditing">
                                                     <button
                                                         class="p-2 rounded-full transition transform hover:bg-gray-100 hover:scale-110"
-                                                        @click="editItems.splice(index, 1)" title="Delete">
-                                                        <Trash2 class="w-4 h-4 text-red-500" />
+                                                        @click="
+                                                            editItems.splice(
+                                                                index,
+                                                                1
+                                                            )
+                                                        "
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2
+                                                            class="w-4 h-4 text-red-500"
+                                                        />
                                                     </button>
                                                 </td>
-
                                             </tr>
 
                                             <tr
-                                                v-if="(isEditing ? editItems.length : selectedOrder.items.length) === 0">
-                                                <td :colspan="isEditing ? 6 : 5" class="text-center text-muted py-3">
+                                                v-if="
+                                                    (isEditing
+                                                        ? editItems.length
+                                                        : selectedOrder.items
+                                                              .length) === 0
+                                                "
+                                            >
+                                                <td
+                                                    :colspan="isEditing ? 6 : 5"
+                                                    class="text-center text-muted py-3"
+                                                >
                                                     No items found
                                                 </td>
                                             </tr>
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <td colspan="3" class="text-end fw-bold">Total:</td>
+                                                <td
+                                                    colspan="3"
+                                                    class="text-end fw-bold"
+                                                >
+                                                    Total:
+                                                </td>
                                                 <td class="fw-bold">
-                                                    {{money(
-                                                        (isEditing ? editItems : selectedOrder.items)
-                                                            .reduce((sum, i) => sum + parseFloat(i.sub_total || 0), 0)
-                                                    )}}
+                                                    {{
+                                                        money(
+                                                            (isEditing
+                                                                ? editItems
+                                                                : selectedOrder.items
+                                                            ).reduce(
+                                                                (sum, i) =>
+                                                                    sum +
+                                                                    parseFloat(
+                                                                        i.sub_total ||
+                                                                            0
+                                                                    ),
+                                                                0
+                                                            )
+                                                        )
+                                                    }}
                                                 </td>
                                                 <td colspan="2"></td>
                                             </tr>
@@ -753,33 +829,48 @@ onUpdated(() => window.feather?.replace());
                                 </div>
 
                                 <!-- Note (only in edit mode) -->
-                                <div v-if="isEditing" class="alert alert-info mt-3">
+                                <div
+                                    v-if="isEditing"
+                                    class="alert alert-info mt-3"
+                                >
                                     <i class="bi bi-info-circle me-2"></i>
-                                    Updating will mark this order as completed and create stock entries.
+                                    Updating will mark this order as completed
+                                    and create stock entries.
                                 </div>
                             </div>
 
                             <!-- Footer (only for edit mode) -->
                             <div class="modal-footer" v-if="isEditing">
-
-                                <button type="button" class="btn btn-primary rounded-pill px-4 py-2"
-                                    @click="updateOrder" :disabled="updating || editItems.length === 0
-                                        ">
+                                <button
+                                    type="button"
+                                    class="btn btn-primary rounded-pill px-4 py-2"
+                                    @click="updateOrder"
+                                    :disabled="
+                                        updating || editItems.length === 0
+                                    "
+                                >
                                     <span v-if="updating">
-                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span
+                                            class="spinner-border spinner-border-sm me-2"
+                                        ></span>
                                         Updating...
                                     </span>
-                                    <span v-else>Complete Order & Update Stock</span>
-                                           </button>
-                                <button type="button" class="btn btn-secondary rounded-pill px-4 py-2"
-                                    data-bs-dismiss="modal">Cancel</button>
+                                    <span v-else
+                                        >Complete Order & Update Stock</span
+                                    >
+                                           
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary rounded-pill px-4 py-2"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Cancel
+                                </button>
                             </div>
-
                         </div>
                     </div>
                 </div>
-
-
             </div>
         </div>
     </Master>

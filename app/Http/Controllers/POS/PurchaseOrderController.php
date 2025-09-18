@@ -20,7 +20,7 @@ class PurchaseOrderController extends Controller
     }
 
     public function index(Request $request)
-    {
+    { 
         $orders = $this->service->list($request->only(['q', 'status']));
         // Instead of JSON response, use Inertia:
         return Inertia::render('Backend/Inventory/PurchaseOrder/Index', [
