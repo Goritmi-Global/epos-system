@@ -30,7 +30,6 @@ use App\Http\Controllers\POS\{
     AnalyticsController,
     SettingsController,
 };
-
 /* ---------- References ---------- */
 use App\Http\Controllers\Reference\{
     ReferenceManagementController,
@@ -225,6 +224,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* -------- POS Live Screen -------- */
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
+        Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
         Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu-categories');
         Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu-items');
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('fetch.profile.tables');
@@ -253,6 +253,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [SettingsController::class, 'index'])->name('index');
         Route::post('/', [SettingsController::class, 'update'])->name('update');
     });
+
 });
 
 /* ---------- Public settings/locations page (if intended public) ---------- */
