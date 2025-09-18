@@ -3,6 +3,8 @@ import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted, watch } from "vue";
 import { toast } from "vue3-toastify";
+import ConfirmOrderModal from "./ConfirmOrderModal.vue";
+import ReceiptModal from "./ReceiptModal.vue";
 /* ----------------------------
    Categories (same keys/icons)
 -----------------------------*/
@@ -512,17 +514,11 @@ const note = ref("");
 //     }
 // };
 
+const showReceiptModal = ref(false);
+const lastOrder = ref(null);
 
 const showConfirmModal = ref(false);
-const paymentMethod = ref("Cash");
 const cashReceived = ref(0);
-
-const changeAmount = computed(() => {
-    if (paymentMethod.value === "Cash") {
-        return cashReceived.value - grandTotal.value;
-    }
-    return 0;
-});
 
 const openConfirmModal = () => {
     if (orderItems.value.length === 0) {
@@ -534,8 +530,9 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
-const confirmOrder = async () => {
+const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
     try {
+        console.log('payment methiod', paymentMethod);
         // build payload same as before
         const payload = {
             customer_name: customer.value,
@@ -556,9 +553,9 @@ const confirmOrder = async () => {
                             ? "Takeaway"
                             : "Collection",
             table_number: selectedTable.value?.name || null,
-            payment_method: paymentMethod.value,
-            cash_received: cashReceived.value,
-            change: changeAmount.value,
+            payment_method: paymentMethod,
+            cash_received: cashReceived,
+            change: changeAmount,
             items: orderItems.value.map((it) => ({
                 product_id: it.id,
                 title: it.title,
@@ -572,6 +569,10 @@ const confirmOrder = async () => {
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message);
+
+        // show receipt
+        lastOrder.value = payload;
+        showReceiptModal.value = true;
     } catch (err) {
         console.error("Order error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
@@ -579,14 +580,10 @@ const confirmOrder = async () => {
 };
 
 
+// ====================================================
+//                      Reciept
+// ====================================================
 
-// Format orderType → remove underscores & capitalize
-const formattedOrderType = computed(() => {
-    if (!orderType.value) return "";
-    return orderType.value
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-});
 
 
 
@@ -902,115 +899,12 @@ onMounted(() => {
         </div>
 
         <!-- Confirm Order Modal  -->
-        <div v-if="showConfirmModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content rounded-4 shadow-lg border-0">
+        <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+            :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
+            v-model:cashReceived="cashReceived" @close="showConfirmModal = false" @confirm="confirmOrder" />
 
-                    <!-- Header -->
-                    <div class="modal-header bg-gradient"
-                        style="background: linear-gradient(90deg,#0d6efd,#4e9fff);">
-                        <h5 class="modal-title fw-bold">
-                            <i class="bi bi-receipt-cutoff me-2"></i> Confirm Order
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white"
-                            @click="showConfirmModal = false"></button>
-                    </div>
+        <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money" @close="showReceiptModal = false" />
 
-                    <!-- Body -->
-                    <div class="modal-body">
-
-                        <!-- Order Summary -->
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-info-circle me-2"></i> Order
-                                    Summary</h6>
-                                <ul class="list-group list-group-flush small">
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Customer</strong></span>
-                                        <span>{{ customer || "Walk In" }}</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Service</strong></span>
-                                        <span>
-                                            <span class="badge bg-primary px-3 py-2">{{ formattedOrderType }}</span>
-                                        </span>
-                                    </li>
-                                    <li v-if="orderType === 'dine_in'"
-                                        class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Table No</strong></span>
-                                        <span>{{ selectedTable?.name || "N/A" }}</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Total Items</strong></span>
-                                        <span>{{ orderItems.length }}</span>
-                                    </li>
-                                    <li
-                                        class="list-group-item d-flex justify-content-between fs-5 fw-bold text-success">
-                                        <span>Total</span>
-                                        <span>{{ money(grandTotal) }}</span>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Payment Section -->
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold text-primary mb-3">
-                                    <i class="bi bi-credit-card me-2"></i> Payment Method
-                                </h6>
-
-                                <!-- Radio Buttons -->
-                                <div class="d-flex gap-4 mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" id="paymentCash" value="Cash"
-                                            v-model="paymentMethod">
-                                        <label class="form-check-label" for="paymentCash">Cash</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" id="paymentCard" value="Card"
-                                            v-model="paymentMethod">
-                                        <label class="form-check-label" for="paymentCard">Card</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" id="paymentSplit" value="Split"
-                                            v-model="paymentMethod">
-                                        <label class="form-check-label" for="paymentSplit">Split</label>
-                                    </div>
-                                </div>
-
-                                <!-- Cash Input -->
-                                <div v-if="paymentMethod === 'Cash'" class="border-top pt-3">
-                                    <label class="form-label fw-semibold">Cash Received</label>
-                                    <input type="number" v-model.number="cashReceived" class="form-control" />
-                                    <div class="mt-2">
-                                        <strong>Change:</strong>
-                                        <span
-                                            :class="changeAmount < 0 ? 'text-danger fw-bold' : 'text-success fw-bold'">
-                                            {{ money(changeAmount) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-
-
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button class="btn btn-outline-secondary bg-secondary text-white btn-sm px-3 rounded-pill py-2"
-                            @click="showConfirmModal = false"> Cancel
-                        </button>
-                        <button class="btn btn-success btn-sm px-3 rounded-pill py-2" @click="confirmOrder">
-                            <i class="bi bi-check2-circle me-1"></i> Confirm & Place
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
 
     </Master>
 </template>
