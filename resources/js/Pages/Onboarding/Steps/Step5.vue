@@ -1,14 +1,14 @@
 <script setup>
 import { reactive, toRaw, watch, ref } from "vue"
 
-const props = defineProps({ model: Object })
+const props = defineProps({ model: Object, formErrors: Object })
 const emit = defineEmits(["save"])
 
 const form = reactive({
-  order_types: props.model.order_types ?? [],        // ['dine_in','takeaway',...]
-  table_mgmt: props.model.table_mgmt ?? "yes",
-  tables: props.model.tables ?? 0,
-  online_ordering: props.model.online_ordering ?? "yes",
+  order_types: props.model.order_types ?? [],        
+  table_management_enabled: props.model.table_management_enabled ?? true,
+  tables: props.model.tables ?? "",
+  online_ordering: props.model.online_ordering ?? true,
   table_details: props.model.table_details ?? []    // new field
 
 })
@@ -71,7 +71,10 @@ const types = [
         { 'is-checked': form.order_types.includes(t.key) }
       ]">
         <input class="check-tile__input" type="checkbox" :checked="form.order_types.includes(t.key)"
-          @change="toggle(t.key)" />
+          @change="toggle(t.key)"
+           :class="{ 'is-invalid': formErrors?.order_types }" />
+
+         
         <span class="check-tile__badge">
           <svg class="check-icon" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
             <path fill="currentColor" d="M7.7 14.1 3.9 10.3l1.4-1.4 2.4 2.4 6-6 1.4 1.4-7.4 7.4z" />
@@ -79,31 +82,68 @@ const types = [
         </span>
         <span class="check-tile__text">{{ t.label }}</span>
       </label>
+
+        <small v-if="formErrors?.order_types" class="text-danger">
+          {{ formErrors.order_types[0] }}
+        </small>
     </div>
 
     <!-- Table management -->
-    <div class="mb-3">
-      <label class="form-label d-block mb-2">Enable Table Management?</label>
-      <div class="segmented">
-        <input class="segmented__input" type="radio" id="tm-yes" value="yes" v-model="form.table_mgmt"
-          @change="emitSave">
-        <label class="segmented__btn" :class="{ 'is-active': form.table_mgmt === 'yes' }" for="tm-yes">YES</label>
+  <div class="mb-3">
+  <label class="form-label d-block mb-2">Enable Table Management?</label>
+  <div class="segmented">
+    <!-- YES option -->
+    <input 
+      class="segmented__input" 
+      type="radio" 
+      id="tm-yes" 
+      :value="true" 
+      v-model="form.table_management_enabled"
+      @change="emitSave"
+      :class="{ 'is-invalid': formErrors?.table_management_enabled }"
+    >
+    <label 
+      class="segmented__btn" 
+      :class="{ 'is-active': form.table_management_enabled === true }" 
+      for="tm-yes"
+    >YES</label>
 
-        <input class="segmented__input" type="radio" id="tm-no" value="no" v-model="form.table_mgmt" @change="emitSave">
-        <label class="segmented__btn" :class="{ 'is-active': form.table_mgmt === 'no' }" for="tm-no">NO</label>
-      </div>
-    </div>
-    <div v-if="form.table_mgmt === 'yes'" class="mb-3" style="max-width:420px">
+    <!-- NO option -->
+    <input 
+      class="segmented__input" 
+      type="radio" 
+      id="tm-no" 
+      :value="false" 
+      v-model="form.table_management_enabled" 
+      @change="emitSave"
+    >
+    <label 
+      class="segmented__btn" 
+      :class="{ 'is-active': form.table_management_enabled === false }" 
+      for="tm-no"
+    >NO</label>
+  </div>
+
+  <br>
+  <small v-if="formErrors?.table_management_enabled" class="text-danger">
+    {{ formErrors.table_management_enabled[0] }}
+  </small>
+</div>
+
+    <div v-if="form.table_management_enabled === true" class="mb-3" style="max-width:420px">
       <label class="form-label">Number of Tables</label>
 
       <div class="d-flex align-items-center gap-2">
-        <input type="number" min="1" class="form-control" v-model.number="form.tables" @input="emitSave" />
+        <input type="number" min="1" class="form-control"  :class="{ 'is-invalid': formErrors?.tables }" v-model.number="form.tables" @input="emitSave"  />
 
         <button data-bs-toggle="modal" data-bs-target="#modalTableDetails"
           class="btn btn-primary btn-sm rounded-pill px-4 py-2" style="white-space: nowrap;">
           <i class="fa fa-plus me-1"></i> Enter Names
         </button>
       </div>
+        <small v-if="formErrors?.tables" class="text-danger">
+          {{ formErrors.tables[0] }}
+        </small>
     </div>
 
     <!-- Enter Table Details Modal -->
@@ -162,14 +202,17 @@ const types = [
     <div class="mb-3">
       <label class="form-label d-block mb-2">Enable Online Ordering Integration</label>
       <div class="segmented">
-        <input class="segmented__input" type="radio" id="oo-yes" value="yes" v-model="form.online_ordering"
+        <input class="segmented__input" type="radio"  :class="{ 'is-invalid': formErrors?.online_ordering }" id="oo-yes" :value="true" v-model="form.online_ordering"
           @change="emitSave">
-        <label class="segmented__btn" :class="{ 'is-active': form.online_ordering === 'yes' }" for="oo-yes">YES</label>
+        <label class="segmented__btn" :class="{ 'is-active': form.online_ordering === true }" for="oo-yes">YES</label>
 
-        <input class="segmented__input" type="radio" id="oo-no" value="no" v-model="form.online_ordering"
+        <input class="segmented__input" type="radio" id="oo-no" :value="false" v-model="form.online_ordering"
           @change="emitSave">
-        <label class="segmented__btn" :class="{ 'is-active': form.online_ordering === 'no' }" for="oo-no">NO</label>
+        <label class="segmented__btn" :class="{ 'is-active': form.online_ordering === false }" for="oo-no">NO</label>
       </div>
+       <small v-if="formErrors?.online_ordering" class="text-danger">
+          {{ formErrors.online_ordering[0] }}
+        </small>
     </div>
   </div>
 </template>

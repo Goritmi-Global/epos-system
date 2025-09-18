@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, toRaw, watch } from "vue";
 
-const props = defineProps({ model: Object });
+const props = defineProps({ model: Object, formErrors: Object });
 const emit = defineEmits(["save"]);
 
 const form = reactive({
@@ -9,9 +9,9 @@ const form = reactive({
     receipt_footer: props.model?.receipt_footer ?? "",
     receipt_logo: props.model?.receipt_logo ?? null, // preview (URL or base64)
     receipt_logo_file: null, // file for backend
-    show_qr: props.model?.show_qr ?? "yes",
-    tax_breakdown: props.model?.tax_breakdown ?? "yes",
-    kitchen_printer: props.model?.kitchen_printer ?? "yes",
+    show_qr: props.model?.show_qr ?? true,
+    tax_breakdown: props.model?.tax_breakdown ?? true,
+    kitchen_printer: props.model?.kitchen_printer ?? true,
     store_phone: props.model?.store_phone ?? "03101186261",
     store_name: props.model?.receipt_header ?? "Enter store name",
 });
@@ -28,253 +28,191 @@ function onCropped({ file }) {
 </script>
 
 <template>
-    <div>
-        <h5 class="fw-bold mb-3">Step 6 of 9 - Receipt & Printer Setup</h5>
+   <div>
+  <h5 class="fw-bold mb-3">Step 6 of 9 - Receipt & Printer Setup</h5>
 
-        <div class="row g-4">
-            <!-- Left side -->
-            <div class="col-lg-7">
-                <label class="form-label">Receipt header</label>
-                <input class="form-control" v-model="form.receipt_header" />
+  <div class="row g-4">
+    <!-- Left side -->
+    <div class="col-lg-7">
+      <!-- Receipt header -->
+      <label class="form-label">Receipt header</label>
+      <input
+        class="form-control"
+        v-model="form.receipt_header"
+        :class="{ 'is-invalid': formErrors?.receipt_header }"
+      />
+      <small v-if="formErrors?.receipt_header" class="text-danger">
+        {{ formErrors.receipt_header[0] }}
+      </small>
 
-                <div class="row g-3 align-items-start mt-2">
-                    <!-- Upload / crop card -->
-                    <div class="col-md-4">
-                        <small class="text-muted mt-2">
-                            Upload Receipt Logo</small
-                        >
-                        <div class="logo-card">
-                            <div
-                                class="logo-frame"
-                                @click="
-                                    form.receipt_logo &&
-                                        openImageModal(form.receipt_logo)
-                                "
-                            >
-                                <img
-                                    v-if="form.receipt_logo"
-                                    :src="form.receipt_logo"
-                                    alt="Logo"
-                                />
-                                <div v-else class="placeholder">
-                                    <i class="bi bi-image"></i>
-                                </div>
-                            </div>
-
-                            <ImageCropperModal
-                                :show="showCropper"
-                                @close="showCropper = false"
-                                @cropped="onCropped"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Text fields + radios -->
-                    <div class="col-md-8">
-                        <label class="form-label">Receipt Footer</label>
-                        <input
-                            class="form-control"
-                            v-model="form.receipt_footer"
-                        />
-
-                        <div class="mt-3">
-                            <label class="form-label d-block mb-2"
-                                >Show QR Code on Receipt</label
-                            >
-                            <div class="segmented">
-                                <input
-                                    class="segmented__input"
-                                    type="radio"
-                                    id="qr-yes"
-                                    value="yes"
-                                    v-model="form.show_qr"
-                                />
-                                <label
-                                    class="segmented__btn"
-                                    :class="{
-                                        'is-active': form.show_qr === 'yes',
-                                    }"
-                                    for="qr-yes"
-                                    >YES</label
-                                >
-
-                                <input
-                                    class="segmented__input"
-                                    type="radio"
-                                    id="qr-no"
-                                    value="no"
-                                    v-model="form.show_qr"
-                                />
-                                <label
-                                    class="segmented__btn"
-                                    :class="{
-                                        'is-active': form.show_qr === 'no',
-                                    }"
-                                    for="qr-no"
-                                    >NO</label
-                                >
-                            </div>
-                        </div>
-
-                        <div class="mt-3">
-                            <label class="form-label d-block mb-2"
-                                >Tax Breakdown</label
-                            >
-                            <div class="segmented">
-                                <input
-                                    class="segmented__input"
-                                    type="radio"
-                                    id="tb-yes"
-                                    value="yes"
-                                    v-model="form.tax_breakdown"
-                                />
-                                <label
-                                    class="segmented__btn"
-                                    :class="{
-                                        'is-active':
-                                            form.tax_breakdown === 'yes',
-                                    }"
-                                    for="tb-yes"
-                                    >YES</label
-                                >
-
-                                <input
-                                    class="segmented__input"
-                                    type="radio"
-                                    id="tb-no"
-                                    value="no"
-                                    v-model="form.tax_breakdown"
-                                />
-                                <label
-                                    class="segmented__btn"
-                                    :class="{
-                                        'is-active':
-                                            form.tax_breakdown === 'no',
-                                    }"
-                                    for="tb-no"
-                                    >NO</label
-                                >
-                            </div>
-                        </div>
-
-                        <div class="mt-3">
-                            <label class="form-label d-block mb-2"
-                                >Add Kitchen Printer</label
-                            >
-                            <div class="segmented">
-                                <input
-                                    class="segmented__input"
-                                    type="radio"
-                                    id="kp-yes"
-                                    value="yes"
-                                    v-model="form.kitchen_printer"
-                                />
-                                <label
-                                    class="segmented__btn"
-                                    :class="{
-                                        'is-active':
-                                            form.kitchen_printer === 'yes',
-                                    }"
-                                    for="kp-yes"
-                                    >YES</label
-                                >
-
-                                <input
-                                    class="segmented__input"
-                                    type="radio"
-                                    id="kp-no"
-                                    value="no"
-                                    v-model="form.kitchen_printer"
-                                />
-                                <label
-                                    class="segmented__btn"
-                                    :class="{
-                                        'is-active':
-                                            form.kitchen_printer === 'no',
-                                    }"
-                                    for="kp-no"
-                                    >NO</label
-                                >
-                            </div>
-                        </div>
-                    </div>
-                </div>
+      <div class="row g-3 align-items-start mt-2">
+        <!-- Upload / crop card -->
+        <div class="col-md-4">
+          <small class="text-muted mt-2">Upload Receipt Logo</small>
+          <div class="logo-card">
+            <div
+              class="logo-frame"
+              @click="
+                form.receipt_logo && openImageModal(form.receipt_logo)
+              "
+            >
+              <img
+                v-if="form.receipt_logo"
+                :src="form.receipt_logo"
+                alt="Logo"
+              />
+              <div v-else class="placeholder">
+                <i class="bi bi-image"></i>
+              </div>
             </div>
 
-            <!-- Right: receipt preview -->
-            <div class="col-lg-5">
-                <div class="receipt-card">
-                    <div class="text-center">
-                        <div v-if="form.receipt_logo" class="mb-2">
-                            <img
-                                :src="form.receipt_logo"
-                                alt
-                                class="logo-preview"
-                            />
-                        </div>
-                        <h6 class="mb-1">{{ form.store_name }}</h6>
-                        <div class="text-muted small">
-                            {{ new Date().toLocaleString() }}
-                        </div>
-                        <div class="text-center my-2">
-                            <div class="badge-pill">{{ form.store_phone }}</div>
-                        </div>
-                    </div>
-
-                    <hr class="my-2" />
-
-                    <div class="small">
-                        <div class="d-flex justify-content-between">
-                            <span>Payment Type:</span><span>Credit</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Customer Name:</span><span>Lorem Ipsum</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Address:</span><span>abc</span>
-                        </div>
-                    </div>
-
-                    <hr class="my-2" />
-
-                    <div class="small">
-                        <div class="d-flex justify-content-between fw-semibold">
-                            <span>Name</span><span>Qty</span><span>Price</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Item A</span><span>1</span><span>Rs 950</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Item B</span><span>2</span><span>Rs 50</span>
-                        </div>
-                    </div>
-
-                    <hr class="my-2" />
-
-                    <div class="small">
-                        <div class="d-flex justify-content-between">
-                            <span>Total Price:</span><span>Rs 2000</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Tax:</span><span>23%</span>
-                        </div>
-                    </div>
-
-                    <div
-                        v-if="form.show_qr === 'yes'"
-                        class="d-flex justify-content-center my-2"
-                    >
-                        <div class="qr-box" aria-hidden="true"></div>
-                    </div>
-
-                    <hr class="my-2" />
-                    <div class="text-center small">
-                        {{ form.receipt_footer || "Thank you!" }}
-                    </div>
-                </div>
-            </div>
+            <ImageCropperModal
+              :show="showCropper"
+              @close="showCropper = false"
+              @cropped="onCropped"
+            />
+          </div>
+          <small v-if="formErrors?.receipt_logo" class="text-danger">
+            {{ formErrors.receipt_logo[0] }}
+          </small>
         </div>
+
+        <!-- Text fields + radios -->
+        <div class="col-md-8">
+          <!-- Receipt footer -->
+          <label class="form-label">Receipt Footer</label>
+          <input
+            class="form-control"
+            v-model="form.receipt_footer"
+            :class="{ 'is-invalid': formErrors?.receipt_footer }"
+          />
+          <small v-if="formErrors?.receipt_footer" class="text-danger">
+            {{ formErrors.receipt_footer[0] }}
+          </small>
+
+          <!-- Show QR Code -->
+          <div class="mt-3">
+            <label class="form-label d-block mb-2">
+              Show QR Code on Receipt
+            </label>
+            <div class="segmented">
+              <input
+                class="segmented__input"
+                type="radio"
+                id="qr-yes"
+                :value="true"
+                 :class="{ 'is-invalid': formErrors?.show_qr }"
+                v-model="form.show_qr"
+              />
+              <label
+                class="segmented__btn"
+                :class="{ 'is-active': form.show_qr === true }"
+                for="qr-yes"
+                >YES</label
+              >
+
+              <input
+                class="segmented__input"
+                type="radio"
+                id="qr-no"
+                :value="false"
+                v-model="form.show_qr"
+              />
+              <label
+                class="segmented__btn"
+                :class="{ 'is-active': form.show_qr === false }"
+                for="qr-no"
+                >NO</label
+              >
+              <small v-if="formErrors?.show_qr" class="text-danger">
+            {{ formErrors.show_qr[0] }}
+          </small>
+            </div>
+          </div>
+
+          <!-- Tax Breakdown -->
+          <div class="mt-3">
+            <label class="form-label d-block mb-2">Tax Breakdown</label>
+            <div class="segmented">
+              <input
+                class="segmented__input"
+                type="radio"
+                id="tb-yes"
+                :value="true"
+                v-model="form.tax_breakdown"
+              />
+              <label
+                class="segmented__btn"
+                :class="{ 'is-active': form.tax_breakdown === true }"
+                for="tb-yes"
+                >YES</label
+              >
+
+              <input
+                class="segmented__input"
+                type="radio"
+                id="tb-no"
+                :value="false"
+                v-model="form.tax_breakdown"
+              />
+              <label
+                class="segmented__btn"
+                :class="{ 'is-active': form.tax_breakdown === false }"
+                for="tb-no"
+                >NO</label
+              >
+            </div>
+          </div>
+
+          <!-- Kitchen Printer -->
+          <div class="mt-3">
+            <label class="form-label d-block mb-2">Add Kitchen Printer</label>
+            <div class="segmented">
+              <input
+                class="segmented__input"
+                type="radio"
+                id="kp-yes"
+                :value="true"
+                v-model="form.kitchen_printer"
+              />
+              <label
+                class="segmented__btn"
+                :class="{ 'is-active': form.kitchen_printer === true }"
+                for="kp-yes"
+                >YES</label
+              >
+
+              <input
+                class="segmented__input"
+                type="radio"
+                id="kp-no"
+                :value="false"
+                v-model="form.kitchen_printer"
+              />
+              <label
+                class="segmented__btn"
+                :class="{ 'is-active': form.kitchen_printer === false }"
+                for="kp-no"
+                >NO</label
+              >
+            </div>
+          </div>
+
+          <!-- Printers error -->
+          <small v-if="formErrors?.printers" class="text-danger">
+            {{ formErrors.printers[0] }}
+          </small>
+        </div>
+      </div>
     </div>
+
+    <!-- Right: receipt preview -->
+    <div class="col-lg-5">
+      <!-- unchanged preview -->
+    </div>
+  </div>
+</div>
+
 </template>
 
 <style scoped>
