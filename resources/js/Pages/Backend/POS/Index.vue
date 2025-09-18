@@ -3,6 +3,8 @@ import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted, watch } from "vue";
 import { toast } from "vue3-toastify";
+import ConfirmOrderModal from "./ConfirmOrderModal.vue";
+import ReceiptModal from "./ReceiptModal.vue";
 /* ----------------------------
    Categories (same keys/icons)
 -----------------------------*/
@@ -49,7 +51,7 @@ const productsByCat = computed(() => {
             title: item.name,
             img: item.image_url || "/assets/img/default.png",
             // ingredientCount: item.ingredients?.length ?? 0, // optional rename
-            stock: calculateMenuStock(item),     // <-- computed menu stock
+            stock: calculateMenuStock(item), // <-- computed menu stock
             price: Number(item.price),
             family: catName,
             description: item.description,
@@ -62,8 +64,6 @@ const productsByCat = computed(() => {
 
     return grouped;
 });
-
-
 
 // calculate how many servings of a menu item can be made from its ingredients
 const calculateMenuStock = (item) => {
@@ -90,7 +90,6 @@ const calculateMenuStock = (item) => {
     return menuStock;
 };
 
-
 /* ----------------------------
    UI State
 -----------------------------*/
@@ -106,7 +105,6 @@ const setCat = (id) => {
 };
 const isCat = (id) => activeCat.value === id;
 
-
 const selectedCategory = ref(null);
 // function openCategory(id) {
 //     selectedCategory.value = id
@@ -115,8 +113,6 @@ const selectedCategory = ref(null);
 // function goBack() {
 //     selectedCategory.value = null
 // }
-
-
 
 const profileTables = ref({});
 const orderTypes = ref([]);
@@ -136,7 +132,9 @@ const fetchProfileTables = async () => {
     }
 };
 
-const visibleProducts = computed(() => productsByCat.value[activeCat.value] ?? []);
+const visibleProducts = computed(
+    () => productsByCat.value[activeCat.value] ?? []
+);
 
 const filteredProducts = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
@@ -147,10 +145,11 @@ const filteredProducts = computed(() => {
             p.title.toLowerCase().includes(q) ||
             (p.family || "").toLowerCase().includes(q) ||
             (p.description || "").toLowerCase().includes(q) ||
-            (p.tags?.map(t => t.name.toLowerCase()).join(", ") || "").includes(q)
+            (
+                p.tags?.map((t) => t.name.toLowerCase()).join(", ") || ""
+            ).includes(q)
     );
 });
-
 
 /* Horizontal scroll arrows for category tabs */
 const catScroller = ref(null);
@@ -177,11 +176,15 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             orderItems.value[idx].qty = newQty;
             if (note) orderItems.value[idx].note = note;
         } else {
-            toast.error("Not enough Ingredients stock available for this Menu.");
+            toast.error(
+                "Not enough Ingredients stock available for this Menu."
+            );
         }
     } else {
         if (qty > menuStock) {
-            toast.error("Not enough Ingredients stock available for this Menu.");
+            toast.error(
+                "Not enough Ingredients stock available for this Menu."
+            );
             return;
         }
 
@@ -192,13 +195,11 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             price: Number(baseItem.price) || 0,
             qty: qty,
             note: note || "",
-            stock: menuStock,                 // <-- store menu-level stock
+            stock: menuStock, // <-- store menu-level stock
             ingredients: baseItem.ingredients ?? [], // optional for UI
         });
     }
 };
-
-
 
 const incCart = async (i) => {
     const it = orderItems.value[i];
@@ -248,7 +249,6 @@ const decCart = async (i) => {
     }
 };
 
-
 const removeCart = (i) => orderItems.value.splice(i, 1);
 
 const subTotal = computed(() =>
@@ -285,8 +285,6 @@ const menuStockForSelected = computed(() => {
     return calculateMenuStock(selectedItem.value);
 });
 
-
-
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
 
@@ -295,12 +293,14 @@ const confirmAdd = async () => {
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
         console.log(selectedItem.value.ingredients);
         //  2) Stockout each ingredient
-        if (selectedItem.value.ingredients && selectedItem.value.ingredients.length) {
+        if (
+            selectedItem.value.ingredients &&
+            selectedItem.value.ingredients.length
+        ) {
             for (const ingredient of selectedItem.value.ingredients) {
-                const requiredQty =
-                    ingredient.pivot?.qty
-                        ? ingredient.pivot.qty * modalQty.value
-                        : modalQty.value;
+                const requiredQty = ingredient.pivot?.qty
+                    ? ingredient.pivot.qty * modalQty.value
+                    : modalQty.value;
 
                 //Payload matching your request rules
                 await axios.post("/stock_entries", {
@@ -319,18 +319,17 @@ const confirmAdd = async () => {
                     purchase_date: null,
                     user_id: ingredient.user_id,
                 });
-
             }
         }
 
         //  3) Close modal
         if (chooseItemModal) chooseItemModal.hide();
     } catch (err) {
-        alert("Stockout failed: " + (err.response?.data?.message || err.message));
+        alert(
+            "Stockout failed: " + (err.response?.data?.message || err.message)
+        );
     }
 };
-
-
 
 // ===============================================================
 //               Update sotck on inc and dec
@@ -338,7 +337,12 @@ const confirmAdd = async () => {
 
 const updateStock = async (item, qty, type = "stockout") => {
     console.log("updateStock called with:", { item: item.title, qty, type });
-    console.log("item.ingredients:", item.ingredients, "length:", item.ingredients?.length);
+    console.log(
+        "item.ingredients:",
+        item.ingredients,
+        "length:",
+        item.ingredients?.length
+    );
 
     if (!item.ingredients || !item.ingredients.length) {
         console.log("No ingredients found, skipping stock update");
@@ -353,7 +357,9 @@ const updateStock = async (item, qty, type = "stockout") => {
             const ingredientQty = Number(ingredient.quantity) || 1;
             const requiredQty = ingredientQty * qty;
 
-            console.log(`Ingredient ${ingredient.product_name}: ${ingredientQty} x ${qty} = ${requiredQty}`);
+            console.log(
+                `Ingredient ${ingredient.product_name}: ${ingredientQty} x ${qty} = ${requiredQty}`
+            );
 
             const payload = {
                 product_id: ingredient.inventory_item_id,
@@ -362,7 +368,8 @@ const updateStock = async (item, qty, type = "stockout") => {
                 available_quantity: ingredient.inventory_stock,
                 quantity: requiredQty, // Fixed calculation
                 value: 0,
-                operation_type: type === "stockout" ? "pos_stockout" : "pos_stockin",
+                operation_type:
+                    type === "stockout" ? "pos_stockout" : "pos_stockin",
                 stock_type: type,
                 expiry_date: null,
                 description: null,
@@ -384,55 +391,66 @@ const updateStock = async (item, qty, type = "stockout") => {
             console.log("Sending payload:", payload);
 
             const response = await axios.post("/stock_entries", payload);
-            console.log("Stock update successful for:", ingredient.product_name, response.data);
+            console.log(
+                "Stock update successful for:",
+                ingredient.product_name,
+                response.data
+            );
         }
 
         console.log("All stock updates completed successfully");
-
     } catch (err) {
         console.error("Stock update error:", err);
         console.error("Error response:", err.response?.data);
-        alert(`${type} failed: ` + (err.response?.data?.message || err.message));
+        alert(
+            `${type} failed: ` + (err.response?.data?.message || err.message)
+        );
         throw err; // Re-throw to handle it in calling function if needed
     }
 };
 
 // Also update your incQty and decQty functions to handle errors properly
 const incQty = async () => {
-    console.log('incQty called, current modalQty:', modalQty.value);
-    console.log('menuStockForSelected:', menuStockForSelected.value); // Add .value here
+    console.log("incQty called, current modalQty:", modalQty.value);
+    console.log("menuStockForSelected:", menuStockForSelected.value); // Add .value here
 
-    if (modalQty.value < menuStockForSelected.value) { // Add .value here
+    if (modalQty.value < menuStockForSelected.value) {
+        // Add .value here
         try {
             await updateStock(selectedItem.value, 1, "stockout");
             modalQty.value++; // Only increment after successful stock update
-            console.log('Stock updated successfully, new modalQty:', modalQty.value);
+            console.log(
+                "Stock updated successfully, new modalQty:",
+                modalQty.value
+            );
         } catch (error) {
-            console.error('Failed to update stock:', error);
+            console.error("Failed to update stock:", error);
             // Don't increment modalQty if stock update failed
         }
     } else {
-        console.log('Cannot increment: reached maximum stock limit');
+        console.log("Cannot increment: reached maximum stock limit");
     }
 };
 
 const decQty = async () => {
-    console.log('decQty called, current modalQty:', modalQty.value);
+    console.log("decQty called, current modalQty:", modalQty.value);
 
     if (modalQty.value > 1) {
         try {
             await updateStock(selectedItem.value, 1, "stockin");
             modalQty.value--; // Only decrement after successful stock update
-            console.log('Stock updated successfully, new modalQty:', modalQty.value);
+            console.log(
+                "Stock updated successfully, new modalQty:",
+                modalQty.value
+            );
         } catch (error) {
-            console.error('Failed to update stock:', error);
+            console.error("Failed to update stock:", error);
             // Don't decrement modalQty if stock update failed
         }
     } else {
-        console.log('Cannot decrement: minimum quantity is 1');
+        console.log("Cannot decrement: minimum quantity is 1");
     }
 };
-
 
 // ===============================================================
 //                      Submit Order
@@ -453,8 +471,6 @@ const resetCart = () => {
 watch(orderType, () => {
     formErrors.value = {};
 });
-
-
 
 const note = ref("");
 // const placeOrder = async () => {
@@ -512,17 +528,11 @@ const note = ref("");
 //     }
 // };
 
+const showReceiptModal = ref(false);
+const lastOrder = ref(null);
 
 const showConfirmModal = ref(false);
-const paymentMethod = ref("Cash");
 const cashReceived = ref(0);
-
-const changeAmount = computed(() => {
-    if (paymentMethod.value === "Cash") {
-        return cashReceived.value - grandTotal.value;
-    }
-    return 0;
-});
 
 const openConfirmModal = () => {
     if (orderItems.value.length === 0) {
@@ -534,8 +544,61 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
-const confirmOrder = async () => {
+function printReceipt() {
+    const receipt = `
+    <html>
+    <head>
+      <style>
+        @media print {
+          @page { size: 58mm auto; margin: 3mm; }
+          body { font-family: monospace; font-size: 12px; line-height: 1.3; }
+          .center { text-align: center; }
+          .row { display: flex; justify-content: space-between; }
+          hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="center">
+        <h3 style="margin:0;">Goritmi</h3>
+        <p style="margin:0;">Order ID: #75</p>
+        <p style="margin:0;">Date: ${new Date().toLocaleString()}</p>
+      </div>
+      <br/>
+      <p>Payment Type: Cash</p>
+      <p>Order Type: Dine In</p>
+      <p>Customer Name: Walk In</p>
+      <hr/>
+      <div class="row">
+        <b>Item</b><b>Qty</b><b>Price</b>
+      </div>
+      <div class="row"><span>Menu 1</span><span>x1</span><span>£180.00</span></div>
+      <div class="row"><span>Menu 3</span><span>x1</span><span>£120.00</span></div>
+      <div class="row"><span>Menu 5</span><span>x1</span><span>£180.00</span></div>
+      <hr/>
+      <div class="row"><span>Subtotal:</span><span>£480.00</span></div>
+      <div class="row"><b>Total Price:</b><b>£480.00</b></div>
+      <br/>
+      <p style="font-size:11px;">Location: Abdara Road, Peshawar</p>
+      <p style="font-size:11px;">Email: info@goritmi.com</p>
+      <div class="center"><p>Thank you for your visit!</p></div>
+    </body>
+    </html>
+  `;
+
+    const printWindow = window.open("", "", "width=400,height=600");
+    printWindow.document.write(receipt);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+}
+
+const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
+    printReceipt();
+    return;
     try {
+        console.log("payment methiod", paymentMethod);
         // build payload same as before
         const payload = {
             customer_name: customer.value,
@@ -551,14 +614,14 @@ const confirmOrder = async () => {
                 orderType.value === "dine_in"
                     ? "Dine In"
                     : orderType.value === "delivery"
-                        ? "Delivery"
-                        : orderType.value === "takeaway"
-                            ? "Takeaway"
-                            : "Collection",
+                    ? "Delivery"
+                    : orderType.value === "takeaway"
+                    ? "Takeaway"
+                    : "Collection",
             table_number: selectedTable.value?.name || null,
-            payment_method: paymentMethod.value,
-            cash_received: cashReceived.value,
-            change: changeAmount.value,
+            payment_method: paymentMethod,
+            cash_received: cashReceived,
+            change: changeAmount,
             items: orderItems.value.map((it) => ({
                 product_id: it.id,
                 title: it.title,
@@ -572,23 +635,19 @@ const confirmOrder = async () => {
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message);
+
+        // show receipt
+        lastOrder.value = payload;
+        showReceiptModal.value = true;
     } catch (err) {
         console.error("Order error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
     }
 };
 
-
-
-// Format orderType → remove underscores & capitalize
-const formattedOrderType = computed(() => {
-    if (!orderType.value) return "";
-    return orderType.value
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-});
-
-
+// ====================================================
+//                      Reciept
+// ====================================================
 
 onMounted(() => {
     // Bootstrap tooltips (if any) & Modal instance
@@ -609,7 +668,6 @@ onMounted(() => {
 </script>
 
 <template>
-
     <Head title="POS Order" />
 
     <Master>
@@ -617,51 +675,111 @@ onMounted(() => {
             <div class="container-fluid py-3">
                 <div class="row">
                     <!-- LEFT: Categories + Products -->
-                    <div class="col-lg-8 col-sm-12"> <!-- Search -->
-                        <div class="search-wrap mb-3"> <i class="bi bi-search"></i> <input v-model="searchQuery"
-                                type="text" class="form-control search-input" placeholder="Search" /> </div>
+                    <div class="col-lg-8 col-sm-12">
+                        <!-- Search -->
+                        <div class="search-wrap mb-3">
+                            <i class="bi bi-search"></i>
+                            <input
+                                v-model="searchQuery"
+                                type="text"
+                                class="form-control search-input"
+                                placeholder="Search"
+                            />
+                        </div>
                         <!-- Category tabs with arrows -->
-                        <div class="tabs-wrap"> <button v-if="showCatArrows" class="tab-arrow left" type="button"
-                                @click="scrollTabs('left')" aria-label="Previous categories"> <i
-                                    class="fa fa-chevron-left"></i> </button>
-                            <ul class="tabs border-0" id="catTabs" ref="catScroller">
-                                <li v-for="c in menuCategories" :key="c.id" :class="{ active: isCat(c.id) }"
-                                    @click="setCat(c.id)" role="button" tabindex="0"
-                                    class="product-details flex-column text-center">
+                        <div class="tabs-wrap">
+                            <button
+                                v-if="showCatArrows"
+                                class="tab-arrow left"
+                                type="button"
+                                @click="scrollTabs('left')"
+                                aria-label="Previous categories"
+                            >
+                                <i class="fa fa-chevron-left"></i>
+                            </button>
+                            <ul
+                                class="tabs border-0"
+                                id="catTabs"
+                                ref="catScroller"
+                            >
+                                <li
+                                    v-for="c in menuCategories"
+                                    :key="c.id"
+                                    :class="{ active: isCat(c.id) }"
+                                    @click="setCat(c.id)"
+                                    role="button"
+                                    tabindex="0"
+                                    class="product-details flex-column text-center"
+                                >
                                     <!-- if backend gives emoji in icon field -->
                                     <div class="text-2xl">{{ c.icon }}</div>
                                     <h6 class="mt-2 mb-0">{{ c.name }}</h6>
                                 </li>
-                            </ul> <button v-if="showCatArrows" class="tab-arrow right" type="button"
-                                @click="scrollTabs('right')" aria-label="Next categories"> <i
-                                    class="fa fa-chevron-right"></i> </button>
-                        </div> <!-- Products Grid -->
+                            </ul>
+                            <button
+                                v-if="showCatArrows"
+                                class="tab-arrow right"
+                                type="button"
+                                @click="scrollTabs('right')"
+                                aria-label="Next categories"
+                            >
+                                <i class="fa fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <!-- Products Grid -->
                         <div class="row g-3">
-                            <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
-                                <div class="productset flex-fill hoverable" @click="openItem(p)">
-                                    <div class="productsetimg"> <img :src="p.img" alt="img" />
+                            <div
+                                class="col-lg-3 col-sm-6 d-flex"
+                                v-for="p in filteredProducts"
+                                :key="p.title"
+                            >
+                                <div
+                                    class="productset flex-fill hoverable"
+                                    @click="openItem(p)"
+                                >
+                                    <div class="productsetimg">
+                                        <img :src="p.img" alt="img" />
 
                                         <h6>
-                                            Ingredients Qty: {{
-                                                p.ingredients && p.ingredients.length
-                                                    ? p.ingredients.reduce((sum, ing) => sum + Number(ing.quantity || 0), 0)
+                                            Ingredients Qty:
+                                            {{
+                                                p.ingredients &&
+                                                p.ingredients.length
+                                                    ? p.ingredients.reduce(
+                                                          (sum, ing) =>
+                                                              sum +
+                                                              Number(
+                                                                  ing.quantity ||
+                                                                      0
+                                                              ),
+                                                          0
+                                                      )
                                                     : 0
                                             }}
                                         </h6>
 
-
-                                        <div class="check-product"> <i class="fa fa-plus"></i> </div>
+                                        <div class="check-product">
+                                            <i class="fa fa-plus"></i>
+                                        </div>
                                     </div>
                                     <div class="productsetcontent">
-                                        <h5 class="text-muted small"> {{ p.family }} </h5>
+                                        <h5 class="text-muted small">
+                                            {{ p.family }}
+                                        </h5>
                                         <h4 class="mb-1">{{ p.title }}</h4>
                                         <h6>{{ money(p.price) }}</h6>
-
                                     </div>
                                 </div>
                             </div>
-                            <div v-if="filteredProducts.length === 0" class="col-12">
-                                <div class="alert alert-light border text-center"> No items found. </div>
+                            <div
+                                v-if="filteredProducts.length === 0"
+                                class="col-12"
+                            >
+                                <div
+                                    class="alert alert-light border text-center"
+                                >
+                                    No items found.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -670,44 +788,92 @@ onMounted(() => {
                     <div class="col-lg-4 col-sm-12">
                         <div class="card card-order shadow-sm">
                             <div class="card-body pb-2">
-                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div
+                                    class="d-flex align-items-center justify-content-between mb-3"
+                                >
                                     <div class="btn-group">
-                                        <button v-for="(type, index) in orderTypes" :key="index"
+                                        <button
+                                            v-for="(type, index) in orderTypes"
+                                            :key="index"
                                             class="btn btn-sm px-3 rounded-pill"
-                                            :class="orderType === type ? 'btn-primary ' : 'btn-light'"
-                                            @click="orderType = type">
-                                            {{type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}}
+                                            :class="
+                                                orderType === type
+                                                    ? 'btn-primary '
+                                                    : 'btn-light'
+                                            "
+                                            @click="orderType = type"
+                                        >
+                                            {{
+                                                type
+                                                    .replace(/_/g, " ")
+                                                    .replace(/\b\w/g, (c) =>
+                                                        c.toUpperCase()
+                                                    )
+                                            }}
                                         </button>
-
                                     </div>
-                                    <span class="badge btn btn-primary rounded-pill px-3 py-2">Order</span>
+                                    <span
+                                        class="badge btn btn-primary rounded-pill px-3 py-2"
+                                        >Order</span
+                                    >
                                 </div>
 
                                 <!-- Type-specific inputs -->
-                                <div v-if="orderType === 'dine_in'" class="mb-3">
-                                    <label class="form-label small mb-1">Table No:</label>
-                                    <select :P v-model="selectedTable" class="form-control"
-                                        :class="{ 'is-invalid': formErrors.table_number }">
-                                        <option v-for="(table, index) in profileTables.table_details" :key="index"
-                                            :value="table">
+                                <div
+                                    v-if="orderType === 'dine_in'"
+                                    class="mb-3"
+                                >
+                                    <label class="form-label small mb-1"
+                                        >Table No:</label
+                                    >
+                                    <select
+                                        :P
+                                        v-model="selectedTable"
+                                        class="form-control"
+                                        :class="{
+                                            'is-invalid':
+                                                formErrors.table_number,
+                                        }"
+                                    >
+                                        <option
+                                            v-for="(
+                                                table, index
+                                            ) in profileTables.table_details"
+                                            :key="index"
+                                            :value="table"
+                                        >
                                             {{ table.name }}
                                         </option>
                                     </select>
-                                    <small v-if="formErrors.table_number" class="text-danger">
+                                    <small
+                                        v-if="formErrors.table_number"
+                                        class="text-danger"
+                                    >
                                         {{ formErrors.table_number[0] }}
                                     </small>
                                     <br />
 
-                                    <label class="form-label small mt-3 mb-1">Customer</label>
-                                    <input v-model="customer" type="text" class="form-control"
-                                        placeholder="Customer Name" />
-
+                                    <label class="form-label small mt-3 mb-1"
+                                        >Customer</label
+                                    >
+                                    <input
+                                        v-model="customer"
+                                        type="text"
+                                        class="form-control"
+                                        placeholder="Customer Name"
+                                    />
                                 </div>
 
                                 <div v-else class="mb-3">
-                                    <label class="form-label small mb-1">Customer</label>
-                                    <input v-model="customer" type="text" class="form-control"
-                                        placeholder="Customer Name" />
+                                    <label class="form-label small mb-1"
+                                        >Customer</label
+                                    >
+                                    <input
+                                        v-model="customer"
+                                        type="text"
+                                        class="form-control"
+                                        placeholder="Customer Name"
+                                    />
 
                                     <!-- <div
                                         class="d-flex align-items-center gap-2 mt-3"
@@ -729,54 +895,91 @@ onMounted(() => {
 
                                 <!-- Order items -->
                                 <div>
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div
+                                        class="d-flex justify-content-between mb-2"
+                                    >
                                         <strong>Items</strong>
                                         <small class="text-muted">Qty</small>
                                         <small class="text-muted">Price</small>
                                     </div>
 
-                                    <div v-if="orderItems.length === 0" class="text-muted text-center py-3">
+                                    <div
+                                        v-if="orderItems.length === 0"
+                                        class="text-muted text-center py-3"
+                                    >
                                         No items added
                                     </div>
 
-                                    <div v-for="(it, i) in orderItems" :key="it.title"
-                                        class="d-flex align-items-center justify-content-between py-2 border-bottom">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <img :src="it.img" alt="" class="rounded" style="
+                                    <div
+                                        v-for="(it, i) in orderItems"
+                                        :key="it.title"
+                                        class="d-flex align-items-center justify-content-between py-2 border-bottom"
+                                    >
+                                        <div
+                                            class="d-flex align-items-center gap-3"
+                                        >
+                                            <img
+                                                :src="it.img"
+                                                alt=""
+                                                class="rounded"
+                                                style="
                                                     width: 36px;
                                                     height: 36px;
                                                     object-fit: cover;
-                                                " />
+                                                "
+                                            />
 
                                             <div>
-
                                                 <div class="fw-semibold">
                                                     {{ it.title }}
                                                 </div>
-                                                <small class="text-muted" v-if="it.note">{{ it.note }}</small>
+                                                <small
+                                                    class="text-muted"
+                                                    v-if="it.note"
+                                                    >{{ it.note }}</small
+                                                >
                                             </div>
                                         </div>
 
-                                        <div class="d-flex align-items-center gap-3">
-                                            <button class="px-2 py-1 btn btn-primary text-white text-center"
-                                                @click="decCart(i)">
+                                        <div
+                                            class="d-flex align-items-center gap-3"
+                                        >
+                                            <button
+                                                class="px-2 py-1 btn btn-primary text-white text-center"
+                                                @click="decCart(i)"
+                                            >
                                                 −
                                             </button>
 
-                                            <div class="px-2 bg-danger">{{ it.qty }}</div>
-                                            <button class="btn btn-sm"
-                                                :class="it.qty >= (it.stock ?? 0) ? 'btn-secondary' : 'btn-primary'"
-                                                @click="incCart(i)" :disabled="it.qty >= (it.stock ?? 0)">
+                                            <div class="px-2 bg-danger">
+                                                {{ it.qty }}
+                                            </div>
+                                            <button
+                                                class="btn btn-sm"
+                                                :class="
+                                                    it.qty >= (it.stock ?? 0)
+                                                        ? 'btn-secondary'
+                                                        : 'btn-primary'
+                                                "
+                                                @click="incCart(i)"
+                                                :disabled="
+                                                    it.qty >= (it.stock ?? 0)
+                                                "
+                                            >
                                                 +
                                             </button>
-
                                         </div>
 
-                                        <div class="d-flex align-items-center gap-3">
+                                        <div
+                                            class="d-flex align-items-center gap-3"
+                                        >
                                             <div class="text-nowrap">
                                                 {{ money(it.price) }}
                                             </div>
-                                            <button class="btn btn-sm btn-outline-danger" @click="removeCart(i)">
+                                            <button
+                                                class="btn btn-sm btn-outline-danger"
+                                                @click="removeCart(i)"
+                                            >
                                                 <i class="fa fa-trash"></i>
                                             </button>
                                         </div>
@@ -788,11 +991,18 @@ onMounted(() => {
                                 <!-- Totals -->
                                 <div class="d-flex flex-column gap-1">
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted">Sub Total</span>
+                                        <span class="text-muted"
+                                            >Sub Total</span
+                                        >
                                         <strong>{{ money(subTotal) }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between" v-if="orderType === 'delivery'">
-                                        <span class="text-muted">Delivery Charges</span>
+                                    <div
+                                        class="d-flex justify-content-between"
+                                        v-if="orderType === 'delivery'"
+                                    >
+                                        <span class="text-muted"
+                                            >Delivery Charges</span
+                                        >
                                         <strong>{{ deliveryPercent }}%</strong>
                                     </div>
                                     <div class="d-flex justify-content-between">
@@ -803,15 +1013,23 @@ onMounted(() => {
 
                                 <hr />
 
-                                <textarea class="form-control" v-model="note" rows="4"
-                                    placeholder="Add Note"></textarea>
+                                <textarea
+                                    class="form-control"
+                                    v-model="note"
+                                    rows="4"
+                                    placeholder="Add Note"
+                                ></textarea>
 
                                 <div class="d-flex gap-3 mt-3">
-                                    <button class="px-4 py-2 rounded-pill btn btn-primary text-white text-center w-full"
-                                        @click="openConfirmModal">
+                                    <button
+                                        class="px-4 py-2 rounded-pill btn btn-primary text-white text-center w-full"
+                                        @click="openConfirmModal"
+                                    >
                                         Place Order
                                     </button>
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2">
+                                    <button
+                                        class="btn btn-secondary rounded-pill px-4 ms-2"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -824,77 +1042,225 @@ onMounted(() => {
         </div>
 
         <!-- Choose Item Modal -->
-        <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
+        <div
+            class="modal fade"
+            id="chooseItem"
+            tabindex="-1"
+            aria-hidden="true"
+        >
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="modal-header border-0"> <!-- Show Item Name -->
-                        <h5 class="modal-title fw-bold">{{ selectedItem?.title || "Choose Item" }}</h5>
+                    <div class="modal-header border-0">
+                        <!-- Show Item Name -->
+                        <h5 class="modal-title fw-bold">
+                            {{ selectedItem?.title || "Choose Item" }}
+                        </h5>
                         <button
                             class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                            data-bs-dismiss="modal" aria-label="Close" title="Close">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            data-bs-dismiss="modal"
+                            aria-label="Close"
+                            title="Close"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-6 w-6 text-red-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
                             </svg>
                         </button>
                     </div>
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
-                            <div class="col-lg-5 mb-3"> <img
-                                    :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
-                                    class="img-fluid rounded shadow-sm w-100" alt="item" /> </div>
+                            <div class="col-lg-5 mb-3">
+                                <img
+                                    :src="
+                                        selectedItem?.image_url ||
+                                        selectedItem?.img ||
+                                        '/assets/img/product/product29.jpg'
+                                    "
+                                    class="img-fluid rounded shadow-sm w-100"
+                                    alt="item"
+                                />
+                            </div>
                             <div class="col-lg-7">
-                                <h3 class="mb-1 text-primary-dark">{{ selectedItem?.title }}</h3> <!-- PRICE -->
-                                <div class="h5 mb-3"> {{ money(selectedItem?.price || 0) }} </div>
+                                <h3 class="mb-1 text-primary-dark">
+                                    {{ selectedItem?.title }}
+                                </h3>
+                                <!-- PRICE -->
+                                <div class="h5 mb-3">
+                                    {{ money(selectedItem?.price || 0) }}
+                                </div>
                                 <!-- INGREDIENTS (top) -->
-                                <div class="mb-2"> <strong>Ingredients:</strong>
-                                    <div v-if="!(selectedItem?.ingredients?.length)"> <em class="text-muted">No
-                                            ingredients listed</em> </div>
-                                    <div v-else class="mt-2"> <!-- inline chips/list --> <span
-                                            v-for="ing in selectedItem.ingredients"
-                                            :key="'ing-' + (ing.id ?? ing.inventory_item_id ?? JSON.stringify(ing))"
-                                            class="chip" style="margin-right:6px;"> {{ ing.product_name || ing.name ||
-                                                'Item' }} <span class="text-muted" v-if="ing.quantity"> ({{
-                                                Number(ing.quantity).toFixed(2) }})</span> </span> </div>
-                                </div> <!-- NUTRITION / ALLERGIES / TAGS -->
-                                <div class="chips mb-3"> <!-- NUTRITION -->
-                                    <div class="mb-2"> <strong>Nutrition:</strong>
-                                        <div class="mt-1"> <span v-if="selectedItem?.nutrition?.calories"
-                                                class="chip chip-orange mx-1"> Calories: {{
-                                                    selectedItem.nutrition.calories }} </span> <span
-                                                v-if="selectedItem?.nutrition?.carbs" class="chip chip-green mx-1">
-                                                Carbs: {{ selectedItem.nutrition.carbs }} </span> <span
-                                                v-if="selectedItem?.nutrition?.fat" class="chip chip-purple mx-1"> Fats:
-                                                {{ selectedItem.nutrition.fat }} </span> <span
-                                                v-if="selectedItem?.nutrition?.protein" class="chip chip-blue mx-1">
-                                                Protein: {{ selectedItem.nutrition.protein }} </span> </div>
-                                    </div> <!-- ALLERGIES -->
-                                    <div class="mb-2"> <strong>Allergies:</strong>
-                                        <div class="mt-1"> <span v-for="(a, i) in selectedItem?.allergies || []"
-                                                :key="'allergy-' + (a.id ?? i)" class="chip chip-red mx-1"> {{ a.name }}
-                                            </span> </div>
-                                    </div> <!-- TAGS -->
-                                    <div> <strong>Tags:</strong>
-                                        <div class="mt-1"> <span v-for="(t, i) in selectedItem?.tags || []"
-                                                :key="'tag-' + (t.id ?? i)" class="chip chip-teal mx-1"> {{ t.name }}
-                                            </span> </div>
+                                <div class="mb-2">
+                                    <strong>Ingredients:</strong>
+                                    <div
+                                        v-if="
+                                            !selectedItem?.ingredients?.length
+                                        "
+                                    >
+                                        <em class="text-muted"
+                                            >No ingredients listed</em
+                                        >
                                     </div>
-                                </div> <!-- Qty control -->
-                                <div class="qty-group d-inline-flex align-items-center mb-3"> <button class="qty-btn"
-                                        @click="decQty">−</button>
+                                    <div v-else class="mt-2">
+                                        <!-- inline chips/list -->
+                                        <span
+                                            v-for="ing in selectedItem.ingredients"
+                                            :key="
+                                                'ing-' +
+                                                (ing.id ??
+                                                    ing.inventory_item_id ??
+                                                    JSON.stringify(ing))
+                                            "
+                                            class="chip"
+                                            style="margin-right: 6px"
+                                        >
+                                            {{
+                                                ing.product_name ||
+                                                ing.name ||
+                                                "Item"
+                                            }}
+                                            <span
+                                                class="text-muted"
+                                                v-if="ing.quantity"
+                                            >
+                                                ({{
+                                                    Number(
+                                                        ing.quantity
+                                                    ).toFixed(2)
+                                                }})</span
+                                            >
+                                        </span>
+                                    </div>
+                                </div>
+                                <!-- NUTRITION / ALLERGIES / TAGS -->
+                                <div class="chips mb-3">
+                                    <!-- NUTRITION -->
+                                    <div class="mb-2">
+                                        <strong>Nutrition:</strong>
+                                        <div class="mt-1">
+                                            <span
+                                                v-if="
+                                                    selectedItem?.nutrition
+                                                        ?.calories
+                                                "
+                                                class="chip chip-orange mx-1"
+                                            >
+                                                Calories:
+                                                {{
+                                                    selectedItem.nutrition
+                                                        .calories
+                                                }}
+                                            </span>
+                                            <span
+                                                v-if="
+                                                    selectedItem?.nutrition
+                                                        ?.carbs
+                                                "
+                                                class="chip chip-green mx-1"
+                                            >
+                                                Carbs:
+                                                {{
+                                                    selectedItem.nutrition.carbs
+                                                }}
+                                            </span>
+                                            <span
+                                                v-if="
+                                                    selectedItem?.nutrition?.fat
+                                                "
+                                                class="chip chip-purple mx-1"
+                                            >
+                                                Fats:
+                                                {{ selectedItem.nutrition.fat }}
+                                            </span>
+                                            <span
+                                                v-if="
+                                                    selectedItem?.nutrition
+                                                        ?.protein
+                                                "
+                                                class="chip chip-blue mx-1"
+                                            >
+                                                Protein:
+                                                {{
+                                                    selectedItem.nutrition
+                                                        .protein
+                                                }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <!-- ALLERGIES -->
+                                    <div class="mb-2">
+                                        <strong>Allergies:</strong>
+                                        <div class="mt-1">
+                                            <span
+                                                v-for="(
+                                                    a, i
+                                                ) in selectedItem?.allergies ||
+                                                []"
+                                                :key="'allergy-' + (a.id ?? i)"
+                                                class="chip chip-red mx-1"
+                                            >
+                                                {{ a.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <!-- TAGS -->
+                                    <div>
+                                        <strong>Tags:</strong>
+                                        <div class="mt-1">
+                                            <span
+                                                v-for="(
+                                                    t, i
+                                                ) in selectedItem?.tags || []"
+                                                :key="'tag-' + (t.id ?? i)"
+                                                class="chip chip-teal mx-1"
+                                            >
+                                                {{ t.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Qty control -->
+                                <div
+                                    class="qty-group d-inline-flex align-items-center mb-3"
+                                >
+                                    <button class="qty-btn" @click="decQty">
+                                        −
+                                    </button>
                                     <div class="qty-box">{{ modalQty }}</div>
-                                    <button class="qty-btn" @click="incQty" :disabled="modalQty >= menuStockForSelected"
-                                        :class="modalQty >= menuStockForSelected ? 'bg-secondary text-white' : 'btn-primary text-white'">
+                                    <button
+                                        class="qty-btn"
+                                        @click="incQty"
+                                        :disabled="
+                                            modalQty >= menuStockForSelected
+                                        "
+                                        :class="
+                                            modalQty >= menuStockForSelected
+                                                ? 'bg-secondary text-white'
+                                                : 'btn-primary text-white'
+                                        "
+                                    >
                                         +
                                     </button>
-
                                 </div>
-                                <div class="mb-3"> </div>
+                                <div class="mb-3"></div>
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
-                        <button class="btn btn-primary rounded-pill px-4 py-2" @click="confirmAdd">Add to Order
+                        <button
+                            class="btn btn-primary rounded-pill px-4 py-2"
+                            @click="confirmAdd"
+                        >
+                            Add to Order
                         </button>
                     </div>
                 </div>
@@ -902,116 +1268,25 @@ onMounted(() => {
         </div>
 
         <!-- Confirm Order Modal  -->
-        <div v-if="showConfirmModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content rounded-4 shadow-lg border-0">
+        <ConfirmOrderModal
+            :show="showConfirmModal"
+            :customer="customer"
+            :order-type="orderType"
+            :selected-table="selectedTable"
+            :order-items="orderItems"
+            :grand-total="grandTotal"
+            :money="money"
+            v-model:cashReceived="cashReceived"
+            @close="showConfirmModal = false"
+            @confirm="confirmOrder"
+        />
 
-                    <!-- Header -->
-                    <div class="modal-header bg-gradient"
-                        style="background: linear-gradient(90deg,#0d6efd,#4e9fff);">
-                        <h5 class="modal-title fw-bold">
-                            <i class="bi bi-receipt-cutoff me-2"></i> Confirm Order
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white"
-                            @click="showConfirmModal = false"></button>
-                    </div>
-
-                    <!-- Body -->
-                    <div class="modal-body">
-
-                        <!-- Order Summary -->
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-info-circle me-2"></i> Order
-                                    Summary</h6>
-                                <ul class="list-group list-group-flush small">
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Customer</strong></span>
-                                        <span>{{ customer || "Walk In" }}</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Service</strong></span>
-                                        <span>
-                                            <span class="badge bg-primary px-3 py-2">{{ formattedOrderType }}</span>
-                                        </span>
-                                    </li>
-                                    <li v-if="orderType === 'dine_in'"
-                                        class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Table No</strong></span>
-                                        <span>{{ selectedTable?.name || "N/A" }}</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span><strong>Total Items</strong></span>
-                                        <span>{{ orderItems.length }}</span>
-                                    </li>
-                                    <li
-                                        class="list-group-item d-flex justify-content-between fs-5 fw-bold text-success">
-                                        <span>Total</span>
-                                        <span>{{ money(grandTotal) }}</span>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Payment Section -->
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold text-primary mb-3">
-                                    <i class="bi bi-credit-card me-2"></i> Payment Method
-                                </h6>
-
-                                <!-- Radio Buttons -->
-                                <div class="d-flex gap-4 mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" id="paymentCash" value="Cash"
-                                            v-model="paymentMethod">
-                                        <label class="form-check-label" for="paymentCash">Cash</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" id="paymentCard" value="Card"
-                                            v-model="paymentMethod">
-                                        <label class="form-check-label" for="paymentCard">Card</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" id="paymentSplit" value="Split"
-                                            v-model="paymentMethod">
-                                        <label class="form-check-label" for="paymentSplit">Split</label>
-                                    </div>
-                                </div>
-
-                                <!-- Cash Input -->
-                                <div v-if="paymentMethod === 'Cash'" class="border-top pt-3">
-                                    <label class="form-label fw-semibold">Cash Received</label>
-                                    <input type="number" v-model.number="cashReceived" class="form-control" />
-                                    <div class="mt-2">
-                                        <strong>Change:</strong>
-                                        <span
-                                            :class="changeAmount < 0 ? 'text-danger fw-bold' : 'text-success fw-bold'">
-                                            {{ money(changeAmount) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-
-
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button class="btn btn-outline-secondary bg-secondary text-white btn-sm px-3 rounded-pill py-2"
-                            @click="showConfirmModal = false"> Cancel
-                        </button>
-                        <button class="btn btn-success btn-sm px-3 rounded-pill py-2" @click="confirmOrder">
-                            <i class="bi bi-check2-circle me-1"></i> Confirm & Place
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
+        <ReceiptModal
+            :show="showReceiptModal"
+            :order="lastOrder"
+            :money="money"
+            @close="showReceiptModal = false"
+        />
     </Master>
 </template>
 
@@ -1074,7 +1349,7 @@ onMounted(() => {
     display: none;
 }
 
-.tabs>li {
+.tabs > li {
     flex: 0 0 auto;
     width: 100px;
     height: 100px;
@@ -1089,14 +1364,13 @@ onMounted(() => {
     padding: 8px;
 }
 
-.tabs>li:hover {
+.tabs > li:hover {
     transform: translateY(-1px);
 }
 
-.tabs>li.active {
+.tabs > li.active {
     outline: 2px solid #6f61ff;
     color: white;
-
 }
 
 /* Product details container - this was missing! */
@@ -1128,7 +1402,6 @@ onMounted(() => {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 
 .productset.hoverable {
     transition: 0.15s;
