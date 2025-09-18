@@ -776,13 +776,12 @@ onUpdated(() => window.feather?.replace());
                                     </div>
                                     <div class="col-md-6">
                                         <p>
-                                            <strong>Current Status:</strong>
-                                            <span class="badge rounded-pill fw-semibold px-3 py-2">{{
-                                                selectedOrder.status 
-                                            }}</span> 
+                                            <strong>Current Status: </strong>{{ selectedOrder.status }}
+                                              
+                                              
                                         </p>
                                         <p>
-                                            <strong>Total:</strong>
+                                            <strong>Total Price:</strong>
                                             {{
                                                 money(
                                                     selectedOrder.total_amount
@@ -906,11 +905,7 @@ item, index
                             </div>
 
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    data-bs-dismiss="modal">
-                                    Cancel
-                                </button>
-                                <button type="button" class="btn btn-primary rounded-pill px-4" @click="updateOrder"
+                                <button type="button" class="btn btn-primary rounded-pill px-4  py-2" @click="updateOrder"
                                     :disabled="updating || editItems.length === 0
                                         ">
                                     <span v-if="updating">
@@ -918,6 +913,10 @@ item, index
                                         Updating...
                                     </span>
                                     <span v-else>Complete Order & Update Stock</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary rounded-pill  py-2 ms-2"
+                                    data-bs-dismiss="modal">
+                                    Cancel
                                 </button>
                             </div>
                         </div>
