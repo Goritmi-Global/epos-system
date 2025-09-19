@@ -20,7 +20,7 @@ const emitSave = () => {
   }
 }
 // sync parent profile whenever something in this step changes
-watch(form, emitSave, { deep: true })
+watch(form, emitSave, { deep: true, immediate: true })
 
 
 // const providers = ["Stripe Terminal","Square","SumUp","Ingenico"]
