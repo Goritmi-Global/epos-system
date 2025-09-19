@@ -514,7 +514,7 @@ const submitSubCategory = async () => {
     }
 
     submittingSub.value = true;
-    subCatErrors = "";
+    subCatErrors.value = "";
 
     try {
         const { data } = await axios.put(
@@ -546,11 +546,11 @@ const submitSubCategory = async () => {
             // Reset editing state
             editingSubCategory.value = { id: null, name: "", parent_id: null };
         } else {
-            subCatErrors = data.message || "Failed to update subcategory";
+            subCatErrors.value = data.message || "Failed to update subcategory";
         }
     } catch (err) {
         console.error(err);
-        subCatErrors =
+        subCatErrors.value =
             err.response?.data?.message || "An error occurred while updating";
     } finally {
         submittingSub.value = false;
@@ -1803,6 +1803,9 @@ const handleImport = (data) => {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
+
+
 
 /* Mobile */
 @media (max-width: 575.98px) {
