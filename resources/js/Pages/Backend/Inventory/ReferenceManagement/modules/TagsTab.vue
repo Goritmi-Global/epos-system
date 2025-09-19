@@ -51,8 +51,8 @@ const filteredTags = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
     return searchTerm
         ? tags.value.filter((tag) =>
-              tag.name.toLowerCase().includes(searchTerm)
-          )
+            tag.name.toLowerCase().includes(searchTerm)
+        )
         : tags.value;
 });
 
@@ -97,7 +97,7 @@ const deleteTag = async (row) => {
     try {
         await axios.delete(`/tags/${row.id}`);
         tags.value = tags.value.filter((t) => t.id !== row.id);
-        toast.success("Tag deleted");
+        toast.success("Tag deleted successfully");
     } catch (e) {
         toast.error("Delete failed ❌");
     }
@@ -114,7 +114,7 @@ const runQuery = async (payload) => {
         return axios.delete(`/tags/${payload.row.id}`);
     }
 };
-
+const isSubmitting = ref(false);
 const onSubmit = async () => {
     if (isEditing.value) {
         if (!customTag.value.trim()) {
@@ -127,6 +127,7 @@ const onSubmit = async () => {
             return;
         }
         try {
+            isSubmitting.value = true;
             const { data } = await axios.put(`/tags/${editingRow.value.id}`, {
                 name: customTag.value.trim(),
             });
@@ -144,7 +145,7 @@ const onSubmit = async () => {
         } catch (e) {
             if (e.response?.data?.errors) {
                 // Reset errors object
-                formErrors.value = {};  
+                formErrors.value = {};
                 // Loop through backend errors
                 Object.entries(e.response.data.errors).forEach(
                     ([field, msgs]) => {
@@ -158,6 +159,9 @@ const onSubmit = async () => {
             } else {
                 toast.error("Update failed");
             }
+        }
+        finally {
+            isSubmitting.value = false;
         }
     } else {
         if (commonTags.value.length === 0) {
@@ -179,9 +183,8 @@ const onSubmit = async () => {
 
         if (newTags.length === 0) {
             // Show which tags already exist
-            const msg = `Tag${
-                existingTags.length > 1 ? "s" : ""
-            } already exist: ${existingTags.join(", ")}`;
+            const msg = `Tag${existingTags.length > 1 ? "s" : ""
+                } already exist: ${existingTags.join(", ")}`;
 
             toast.error(msg);
             formErrors.value = { tags: [msg] };
@@ -191,6 +194,7 @@ const onSubmit = async () => {
         }
 
         try {
+            isSubmitting.value = true;
             const response = await axios.post("/tags", { tags: newTags });
 
             // If backend returns array directly
@@ -200,7 +204,7 @@ const onSubmit = async () => {
                 tags.value = [...tags.value, ...createdTags];
             }
 
-            toast.success("Tags added");
+            toast.success("Tags added successfully");
 
             resetForm();
             closeModal("modalTagForm");
@@ -218,6 +222,9 @@ const onSubmit = async () => {
                 console.error(e); // log actual error for debugging
                 toast.error("Create failed");
             }
+        }
+        finally {
+            isSubmitting.value = false;
         }
     }
 };
@@ -494,13 +501,13 @@ const handleImport = (data) => {
             fetchTags();
         })
         .catch((err) => {
-          if (err?.response?.status === 422 && err.response.data?.errors) {
+            if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
                 toast.error("There may some duplication in data", {
                     autoClose: 3000,
                 });
             }
-          
+
         });
 };
 
@@ -509,69 +516,42 @@ const handleImport = (data) => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div
-                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-            >
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Tags</h4>
                 <div class="d-flex gap-2">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input
-                            v-model="q"
-                            class="form-control search-input"
-                            placeholder="Search"
-                        />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" />
                     </div>
 
-                    <button
-                        data-bs-toggle="modal"
-                        data-bs-target="#modalTagForm"
-                        @click="
-                            () => {
-                                openAdd();
-                                resetForm();
-                                formErrors = {};
-                            }
-                        "
-                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                    >
+                    <button data-bs-toggle="modal" data-bs-target="#modalTagForm" @click="
+                        () => {
+                            openAdd();
+                            resetForm();
+                            formErrors = {};
+                        }
+                    " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Tag
                     </button>
- <ImportFile label="Import" @on-import="handleImport" />
+                    <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button
-                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown"
-                        >
+                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown">
                             Download all
                         </button>
-                        <ul
-                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                        >
+                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('pdf')"
-                                    >Download as PDF</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
+                                    PDF</a>
                             </li>
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('excel')"
-                                    >Download as Excel</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
+                                    as Excel</a>
                             </li>
 
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('csv')"
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
                                     Download as CSV
                                 </a>
                             </li>
@@ -596,35 +576,23 @@ const handleImport = (data) => {
                             <td class="fw-semibold">{{ r.name }}</td>
 
                             <td class="text-center">
-                                <div
-                                    class="d-inline-flex align-items-center gap-3"
-                                >
-                                    <button
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#modalTagForm"
-                                        @click="
-                                            () => {
-                                                openEdit(r);
-                                                formErrors = {};
-                                            }
-                                        "
-                                        title="Edit"
-                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                    >
+                                <div class="d-inline-flex align-items-center gap-3">
+                                    <button data-bs-toggle="modal" data-bs-target="#modalTagForm" @click="
+                                        () => {
+                                            openEdit(r);
+                                            formErrors = {};
+                                        }
+                                    " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                         <Pencil class="w-4 h-4" />
                                     </button>
 
-                                    <ConfirmModal
-                                        :title="'Confirm Delete'"
-                                        :message="`Are you sure you want to delete ${r.name}?`"
-                                        :showDeleteButton="true"
+                                    <ConfirmModal :title="'Confirm Delete'"
+                                        :message="`Are you sure you want to delete ${r.name}?`" :showDeleteButton="true"
                                         @confirm="
                                             () => {
                                                 deleteTag(r);
                                             }
-                                        "
-                                        @cancel="() => {}"
-                                    />
+                                        " @cancel="() => { }" />
                                 </div>
                             </td>
                         </tr>
@@ -656,81 +624,44 @@ const handleImport = (data) => {
 
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
                 <div class="modal-body">
                     <div v-if="isEditing">
                         <label class="form-label">Tag Name</label>
-                        <input
-                            v-model="customTag"
-                            class="form-control"
-                            placeholder="e.g., Vegan"
-                            :class="{ 'is-invalid': formErrors.customTag }"
-                        />
+                        <input v-model="customTag" class="form-control" placeholder="e.g., Vegan"
+                            :class="{ 'is-invalid': formErrors.customTag }" />
                         <span class="text-danger" v-if="formErrors.customTag">{{
                             formErrors.customTag[0]
-                        }}</span>
+                            }}</span>
                     </div>
                     <div v-else>
-                        <MultiSelect
-                            v-model="commonTags"
-                            :options="availableOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            :multiple="true"
-                            showClear
-                            :filter="true"
-                            display="chip"
-                            placeholder="Choose common  tags or add new one"
-                            class="w-100"
-                            appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')"
-                            :invalid="formErrors.tags?.length"
-                        >
+                        <MultiSelect v-model="commonTags" :options="availableOptions" optionLabel="label"
+                            optionValue="value" :multiple="true" showClear :filter="true" display="chip"
+                            placeholder="Choose common  tags or add new one" class="w-100" appendTo="self"
+                            @filter="(e) => (filterText = e.value || '')" :class="{ 'is-invalid': formErrors.tags }"
+                            :invalid="formErrors.tags?.length">
                             <template #header>
                                 <div class="w-100 d-flex justify-content-end">
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-link text-primary"
-                                        @click.stop="selectAll"
-                                    >
+                                    <button type="button" class="btn btn-sm btn-link text-primary"
+                                        @click.stop="selectAll">
                                         Select All
                                     </button>
                                 </div>
                             </template>
 
                             <template #footer>
-                                <div
-                                    v-if="filterText?.trim()"
-                                    class="p-2 border-top d-flex justify-content-between align-items-center"
-                                >
-                                    <small class="text-muted"
-                                        >Not found in the list? Add it as a
-                                        custom tag</small
-                                    >
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-primary rounded-pill"
-                                        @click="addCustom"
-                                    >
+                                <div v-if="filterText?.trim()"
+                                    class="p-2 border-top d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">Not found in the list? Add it as a
+                                        custom tag</small>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
+                                        @click="addCustom">
                                         Add "{{ filterText.trim() }}"
                                     </button>
                                 </div>
@@ -738,15 +669,14 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.tags">{{
                             formErrors.tags[0]
-                        }}</span>
+                            }}</span>
                     </div>
 
-                    <button
-                        class="btn btn-primary rounded-pill w-100 mt-4"
-                        @click="onSubmit"
-                    >
-                        {{ isEditing ? "Save Changes" : "Add Tag(s)" }}
+                    <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
+                        <span v-if="isSubmitting">Processing...</span>
+                        <span v-else>{{ isEditing ? "Save Changes" : "Add Tag(s)" }}</span>
                     </button>
+
                 </div>
             </div>
         </div>
@@ -786,7 +716,7 @@ const handleImport = (data) => {
     color: black !important;
 }
 
- 
+
 .dropdown-menu {
     position: absolute !important;
     z-index: 1050 !important;
@@ -803,4 +733,98 @@ const handleImport = (data) => {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
+
+/* ========================  MultiSelect Styling   ============================= */
+:deep(.p-multiselect-header) {
+    background-color: white !important;
+    color: black !important;
+
+}
+
+:deep(.p-multiselect-label) {
+    color: #000 !important;
+}
+
+:deep(.p-select .p-component .p-inputwrapper) {
+    background: #fff !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Options list container */
+:deep(.p-multiselect-list) {
+    background: #fff !important;
+}
+
+/* Each option */
+:deep(.p-multiselect-option) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Hover/selected option */
+:deep(.p-multiselect-option.p-highlight) {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+}
+
+:deep(.p-multiselect),
+:deep(.p-multiselect-panel),
+:deep(.p-multiselect-token) {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #a4a7aa;
+}
+
+/* Checkbox box in dropdown */
+:deep(.p-multiselect-overlay .p-checkbox-box) {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Search filter input */
+:deep(.p-multiselect-filter) {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Optional: adjust filter container */
+:deep(.p-multiselect-filter-container) {
+    background: #fff !important;
+}
+
+/* Selected chip inside the multiselect */
+:deep(.p-multiselect-chip) {
+    background: #e9ecef !important;
+    color: #000 !important;
+    border-radius: 12px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:deep(.p-multiselect-chip .p-chip-remove-icon) {
+    color: #555 !important;
+}
+
+:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #dc3545 !important;
+    /* red on hover */
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+
+:deep(.p-multiselect-overlay) {
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+/* ====================================================== */
 </style>

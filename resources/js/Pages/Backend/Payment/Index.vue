@@ -4,39 +4,51 @@ import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted, onUpdated } from "vue";
 import Select from "primevue/select";
 
-/* ===================== Demo Data (swap with API later) ===================== */
-const payments = ref([
-  {
-    id: 1,
-    orderId: 1,
-    user: "Ali Khan",
-    amount: 2.5,
-    type: "cash",
-    paidAt: new Date("2025-08-29T00:22:00"),
-  },
-  {
-    id: 2,
-    orderId: 2,
-    user: "Walk In",
-    amount: 2.5,
-    type: "cash",
-    paidAt: new Date("2025-08-30T03:05:00"),
-  },
-]);
+
+const orders = ref([]); // rename from payment -> orders for clarity
+
+const fetchOrdersWithPayment = async () => {
+  try {
+    const response = await axios.get("/orders/all-orders");
+    orders.value = response.data.data;
+    console.log(orders.value);
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+  }
+};
+onMounted(() => {
+  fetchOrdersWithPayment();
+});
 
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
-const typeFilter = ref("All"); // 'All' | 'cash' | 'card' | 'qr' | 'bank'
-const typeOptions = ref(["All", "cash", "card", "qr", "bank"]);
+const typeFilter = ref("All"); // 'All' | 'Cash' | 'Card' | 'QR' | 'Bank'
+const typeOptions = ref(["All", "Cash", "Card", "QR", "Bank"]);
+
+// Map orders → payments shape for easier UI handling
+const payments = computed(() =>
+  orders.value.map(o => ({
+    orderId: o.id,
+    customer: o.customer_name,
+    user: o.user?.name || "—",
+    type: o.payment?.payment_type || "—",
+    amount: o.payment?.amount_received || 0,
+    paidAt: o.payment?.payment_date || null,
+    status: o.status,
+  }))
+);
 
 const filtered = computed(() => {
   const term = q.value.trim().toLowerCase();
   return payments.value
-    .filter(p => (typeFilter.value === "All" ? true : p.type === typeFilter.value))
+    .filter(p =>
+      typeFilter.value === "All" ? true : p.type.toLowerCase() === typeFilter.value.toLowerCase()
+    )
     .filter(p => {
       if (!term) return true;
       return [
         String(p.orderId),
+        p.customer || "",
         p.user || "",
         p.type || "",
         String(p.amount),
@@ -55,7 +67,12 @@ const todaysPayments = computed(() => {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return payments.value.filter(p => p.paidAt >= start && p.paidAt < end).length;
+
+  return payments.value.filter(p => {
+    if (!p.paidAt) return false;
+    const dt = new Date(p.paidAt);
+    return dt >= start && dt < end;
+  }).length;
 });
 
 const totalAmount = computed(() =>
@@ -63,10 +80,11 @@ const totalAmount = computed(() =>
 );
 
 /* ===================== Helpers ===================== */
-const money = (n, currency = "GBP") =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
+const money = (n, currency = "PKR") =>
+  new Intl.NumberFormat("en-PK", { style: "currency", currency }).format(n);
 
 function formatDateTime(d) {
+  if (!d) return "—";
   const dt = new Date(d);
   return dt.toLocaleString("en-GB", {
     day: "2-digit",
@@ -77,6 +95,7 @@ function formatDateTime(d) {
     hour12: true,
   });
 }
+
 
 /* ===================== Stubs ===================== */
 const onDownload = (type) => console.log("Download:", type);
