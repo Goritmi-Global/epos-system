@@ -21,7 +21,16 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'items.*.product_id' => ['required_with:items', 'exists:inventory_items,id'],
             'items.*.qty'        => ['required_with:items', 'numeric', 'min:1'],
             'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0'],
-            'items.*.expiry'     => ['nullable', 'date'],
+            'items.*.expiry'     => ['required', 'date'], 
+        ];
+    }
+
+    
+    public function messages(): array
+    {
+        return [
+            'items.*.expiry.required'         => 'Expiry date is required',  
+            'items.*.expiry.date'             => 'Expiry must be a valid date',
         ];
     }
 }
