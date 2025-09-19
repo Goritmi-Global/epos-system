@@ -126,6 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
         Route::get('/fetchOrders', [PurchaseOrderController::class, 'fetchOrders'])->name('fetchOrders');
+        
         Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
         Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
@@ -205,6 +206,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
+Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import'); 
+
 
     /* -------- Menu Categories -------- */
     Route::prefix('menu-categories')->name('menu-categories.')->group(function () {
@@ -219,7 +222,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
         Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
         Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
+        Route::post('/import', [MenuCategoryController::class, 'import'])->name('menu_categories.import'); 
     });
+
+    
 
     /* -------- POS Live Screen -------- */
     Route::prefix('pos')->name('pos.')->group(function () {
