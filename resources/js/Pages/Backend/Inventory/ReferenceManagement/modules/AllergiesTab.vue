@@ -47,15 +47,15 @@ const filteredAllergys = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
     return searchTerm
         ? allergies.value.filter((allergy) =>
-              allergy.name.toLowerCase().includes(searchTerm)
-          )
+            allergy.name.toLowerCase().includes(searchTerm)
+        )
         : allergies.value;
 });
 
 const selectAll = () =>
-    (commonAllergies.value = commonExistingAllergiesList.value.map(
-        (o) => o.value
-    ));
+(commonAllergies.value = commonExistingAllergiesList.value.map(
+    (o) => o.value
+));
 
 const addCustom = () => {
     const name = (filterText.value || "").trim();
@@ -99,13 +99,14 @@ const deleteAllergy = async (row) => {
     try {
         await axios.delete(`/allergies/${row.id}`);
         allergies.value = allergies.value.filter((t) => t.id !== row.id);
-        toast.success("Allergy deleted");
+        toast.success("Allergy deleted successfully");
     } catch (e) {
         toast.error("Delete failed");
     }
 };
-
+const isSubmitting = ref(false);
 const onSubmit = async () => {
+    if (isSubmitting.value) return;
     if (isEditing.value) {
         if (!customAllergy.value.trim()) {
             toast.error("Please fill out the field can't save an empty field.");
@@ -117,6 +118,7 @@ const onSubmit = async () => {
             return;
         }
         try {
+            isSubmitting.value = true;
             const { data } = await axios.put(
                 `/allergies/${editingRow.value.id}`,
                 {
@@ -153,6 +155,8 @@ const onSubmit = async () => {
             } else {
                 toast.error("Update failed");
             }
+        } finally {
+            isSubmitting.value = false;
         }
     } else {
         if (commonAllergies.value.length === 0) {
@@ -174,9 +178,8 @@ const onSubmit = async () => {
 
         if (newAllergy.length === 0) {
             // Show which allergies already exist
-            const msg = `Allergy${
-                existingAllergy.length > 1 ? "s" : ""
-            } already exist: ${existingAllergy.join(", ")}`;
+            const msg = `Allergy${existingAllergy.length > 1 ? "s" : ""
+                } already exist: ${existingAllergy.join(", ")}`;
 
             toast.error(msg);
             formErrors.value = { allergies: [msg] };
@@ -186,6 +189,7 @@ const onSubmit = async () => {
         }
 
         try {
+            isSubmitting.value = true;
             const response = await axios.post("/allergies", {
                 allergies: newAllergy,
             });
@@ -197,7 +201,7 @@ const onSubmit = async () => {
                 allergies.value = [...allergies.value, ...createdTags];
             }
 
-            toast.success("Allergies added");
+            toast.success("Allergies added successfully");
 
             resetForm();
             closeModal("modalAllergyForm");
@@ -215,6 +219,9 @@ const onSubmit = async () => {
                 console.error(e); // log actual error for debugging
                 toast.error("Create failed");
             }
+        }
+        finally {
+            isSubmitting.value = false;
         }
     }
 };
@@ -380,9 +387,8 @@ const downloadPDF = (data) => {
         });
 
         // 💾 Save file
-        const fileName = `Allergys_${
-            new Date().toISOString().split("T")[0]
-        }.pdf`;
+        const fileName = `Allergys_${new Date().toISOString().split("T")[0]
+            }.pdf`;
         doc.save(fileName);
 
         toast.success("PDF downloaded successfully", { autoClose: 2500 });
@@ -434,9 +440,8 @@ const downloadExcel = (data) => {
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `Allergys_${
-            new Date().toISOString().split("T")[0]
-        }.xlsx`;
+        const fileName = `Allergys_${new Date().toISOString().split("T")[0]
+            }.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
@@ -481,7 +486,7 @@ const handleImport = (data) => {
     const allergiesToImport = rows.map((row) => {
         return {
             name: row[0] || "",
-           
+
         };
     });
 
@@ -493,13 +498,13 @@ const handleImport = (data) => {
             fetchAllergies();
         })
         .catch((err) => {
-          if (err?.response?.status === 422 && err.response.data?.errors) {
+            if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
                 toast.error("There may some duplication in data", {
                     autoClose: 3000,
                 });
             }
-          
+
         });
 };
 </script>
@@ -507,69 +512,42 @@ const handleImport = (data) => {
 <template>
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
-            <div
-                class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-            >
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Allergies</h4>
                 <div class="d-flex gap-2">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input
-                            v-model="q"
-                            class="form-control search-input"
-                            placeholder="Search"
-                        />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" />
                     </div>
 
-                    <button
-                        data-bs-toggle="modal"
-                        data-bs-target="#modalAllergyForm"
-                        @click="
-                            () => {
-                                openAdd();
-                                resetForm();
-                                formErrors = {};
-                            }
-                        "
-                        class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                    >
+                    <button data-bs-toggle="modal" data-bs-target="#modalAllergyForm" @click="
+                        () => {
+                            openAdd();
+                            resetForm();
+                            formErrors = {};
+                        }
+                    " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Allergy
                     </button>
                     <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button
-                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown"
-                        >
+                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown">
                             Download all
                         </button>
-                        <ul
-                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                        >
+                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('pdf')"
-                                    >Download as PDF</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
+                                    PDF</a>
                             </li>
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('excel')"
-                                    >Download as Excel</a
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
+                                    as Excel</a>
                             </li>
 
                             <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:;"
-                                    @click="onDownload('csv')"
-                                >
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
                                     Download as CSV
                                 </a>
                             </li>
@@ -594,35 +572,23 @@ const handleImport = (data) => {
                             <td class="fw-semibold">{{ r.name }}</td>
 
                             <td class="text-center">
-                                <div
-                                    class="d-inline-flex align-items-center gap-3"
-                                >
-                                    <button
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#modalAllergyForm"
-                                        @click="
-                                            () => {
-                                                openEdit(r);
-                                                formErrors = {};
-                                            }
-                                        "
-                                        title="Edit"
-                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                    >
+                                <div class="d-inline-flex align-items-center gap-3">
+                                    <button data-bs-toggle="modal" data-bs-target="#modalAllergyForm" @click="
+                                        () => {
+                                            openEdit(r);
+                                            formErrors = {};
+                                        }
+                                    " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                         <Pencil class="w-4 h-4" />
                                     </button>
 
-                                    <ConfirmModal
-                                        :title="'Confirm Delete'"
-                                        :message="`Are you sure you want to delete ${r.name}?`"
-                                        :showDeleteButton="true"
+                                    <ConfirmModal :title="'Confirm Delete'"
+                                        :message="`Are you sure you want to delete ${r.name}?`" :showDeleteButton="true"
                                         @confirm="
                                             () => {
                                                 deleteAllergy(r);
                                             }
-                                        "
-                                        @cancel="() => {}"
-                                    />
+                                        " @cancel="() => { }" />
                                 </div>
                             </td>
                         </tr>
@@ -644,12 +610,7 @@ const handleImport = (data) => {
     </div>
 
     <!-- Add/Edit Modal -->
-    <div
-        class="modal fade"
-        id="modalAllergyForm"
-        tabindex="-1"
-        aria-hidden="true"
-    >
+    <div class="modal fade" id="modalAllergyForm" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
@@ -659,83 +620,43 @@ const handleImport = (data) => {
 
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
                 <div class="modal-body">
                     <div v-if="isEditing">
                         <label class="form-label">Allergy Name</label>
-                        <input
-                            v-model="customAllergy"
-                            class="form-control"
-                            placeholder="e.g., Vegan"
-                            :class="{ 'is-invalid': formErrors.customAllergy }"
-                        />
-                        <span
-                            class="text-danger"
-                            v-if="formErrors.customAllergy"
-                            >{{ formErrors.customAllergy[0] }}</span
-                        >
+                        <input v-model="customAllergy" class="form-control" placeholder="e.g., Vegan"
+                            :class="{ 'is-invalid': formErrors.customAllergy }" />
+                        <span class="text-danger" v-if="formErrors.customAllergy">{{ formErrors.customAllergy[0]
+                            }}</span>
                     </div>
                     <div v-else>
-                        <MultiSelect
-                            v-model="commonAllergies"
-                            :options="availableOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            :multiple="true"
-                            showClear
-                            :filter="true"
-                            display="chip"
-                            placeholder="Choose common  allergies or add new one"
-                            class="w-100"
-                            appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')"
-                            :invalid="formErrors.allergies?.length"
-                        >
+                        <MultiSelect v-model="commonAllergies" :options="availableOptions" optionLabel="label"
+                            optionValue="value" :multiple="true" showClear :filter="true" display="chip"
+                            placeholder="Choose common  allergies or add new one" class="w-100" appendTo="self"
+                            @filter="(e) => (filterText = e.value || '')" :class="{ 'is-invalid': formErrors.allergies }"
+                            :invalid="formErrors.allergies?.length">
                             <template #header>
                                 <div class="w-100 d-flex justify-content-end">
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-link text-primary"
-                                        @click.stop="selectAll"
-                                    >
+                                    <button type="button" class="btn btn-sm btn-link text-primary"
+                                        @click.stop="selectAll">
                                         Select All
                                     </button>
                                 </div>
                             </template>
 
                             <template #footer>
-                                <div
-                                    v-if="filterText?.trim()"
-                                    class="p-2 border-top d-flex justify-content-between align-items-center"
-                                >
-                                    <small class="text-muted"
-                                        >Not found in the list? Add it as a
-                                        custom allergy</small
-                                    >
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-primary rounded-pill"
-                                        @click="addCustom"
-                                    >
+                                <div v-if="filterText?.trim()"
+                                    class="p-2 border-top d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">Not found in the list? Add it as a
+                                        custom allergy</small>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
+                                        @click="addCustom">
                                         Add "{{ filterText.trim() }}"
                                     </button>
                                 </div>
@@ -743,15 +664,14 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.allergies">{{
                             formErrors.allergies[0]
-                        }}</span>
+                            }}</span>
                     </div>
 
-                    <button
-                        class="btn btn-primary rounded-pill w-100 mt-4"
-                        @click="onSubmit"
-                    >
-                        {{ isEditing ? "Save Changes" : "Add Allergy(s)" }}
+                    <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
+                        <span v-if="isSubmitting">Processing...</span>
+                        <span v-else>{{ isEditing ? "Save Changes" : "Add Allergy(s)" }}</span>
                     </button>
+
                 </div>
             </div>
         </div>
@@ -790,7 +710,7 @@ const handleImport = (data) => {
     background-color: white !important;
     color: black !important;
 }
- 
+
 
 .dropdown-menu {
     position: absolute !important;
@@ -808,4 +728,97 @@ const handleImport = (data) => {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
+/* ========================  MultiSelect Styling   ============================= */
+:deep(.p-multiselect-header) {
+    background-color: white !important;
+    color: black !important;
+
+}
+
+:deep(.p-multiselect-label) {
+    color: #000 !important;
+}
+
+:deep(.p-select .p-component .p-inputwrapper) {
+    background: #fff !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Options list container */
+:deep(.p-multiselect-list) {
+    background: #fff !important;
+}
+
+/* Each option */
+:deep(.p-multiselect-option) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Hover/selected option */
+:deep(.p-multiselect-option.p-highlight) {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+}
+
+:deep(.p-multiselect),
+:deep(.p-multiselect-panel),
+:deep(.p-multiselect-token) {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #a4a7aa;
+}
+
+/* Checkbox box in dropdown */
+:deep(.p-multiselect-overlay .p-checkbox-box) {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Search filter input */
+:deep(.p-multiselect-filter) {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Optional: adjust filter container */
+:deep(.p-multiselect-filter-container) {
+    background: #fff !important;
+}
+
+/* Selected chip inside the multiselect */
+:deep(.p-multiselect-chip) {
+    background: #e9ecef !important;
+    color: #000 !important;
+    border-radius: 12px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:deep(.p-multiselect-chip .p-chip-remove-icon) {
+    color: #555 !important;
+}
+
+:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #dc3545 !important;
+    /* red on hover */
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+
+:deep(.p-multiselect-overlay) {
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+/* ====================================================== */
 </style>

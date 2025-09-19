@@ -34,10 +34,10 @@ class UpdateInventoryRequest extends FormRequest
             'minAlert'        => ['required','integer','min:0'],
 
             'nutrition'               => ['required','array'],
-            'nutrition.calories'      => ['required','numeric','gt:0'],
-            'nutrition.fat'           => ['required','numeric','gt:0'],
-            'nutrition.protein'       => ['required','numeric','gt:0'],
-            'nutrition.carbs'         => ['required','numeric','gt:0'],
+            'nutrition.calories'      => ['required','numeric'],
+            'nutrition.fat'           => ['required','numeric'],
+            'nutrition.protein'       => ['required','numeric'],
+            'nutrition.carbs'         => ['required','numeric'],
 
             'allergies'       => ['nullable','array'],
             'allergies.*'     => ['integer','distinct','exists:allergies,id'],

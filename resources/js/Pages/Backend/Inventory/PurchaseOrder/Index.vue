@@ -106,6 +106,10 @@ async function Purchase() {
 const selectedOrder = ref(null);
 const editItems = ref([]);
 const isEditing = ref(false);
+const formError = ref({});
+const  resetModal = () =>{
+    formError.value = {};
+}
 
 // Open modal function
 async function openModal(order) {
@@ -157,7 +161,6 @@ async function updateOrder() {
                 expiry: item.expiry || null,
             })),
         };
-        console.log("updateOrder Update payload:", payload);
         await axios.put(`/purchase-orders/${selectedOrder.value.id}`, payload);
 
         // Close modal and refresh orders
@@ -165,15 +168,27 @@ async function updateOrder() {
             document.getElementById("orderDetailsModal")
         );
         modal?.hide();
-
+        formError.value = {};
         // Refresh the orders list
         await fetchPurchaseOrders();
 
         toast.success("Order updated successfully and stock entries created!");
     } catch (error) {
-        console.error("Error updating order:", error);
-        toast.error("Failed to update order");
-    } finally {
+        if (error.response?.status === 422 && error.response?.data?.errors) {
+            formError.value = error.response.data.errors;
+
+            // Convert errors object to a single string
+            const messages = Object.values(formError.value)
+                .flat()   
+                .join("\n"); 
+
+            toast.error(messages); 
+        } else {
+            console.error("Error updating order:", error);
+            toast.error("Failed to update order");
+        }
+    }
+    finally {
         updating.value = false;
     }
 }
@@ -625,7 +640,8 @@ onUpdated(() => window.feather?.replace());
                                         </small>
                                     </div>
                                 </div>
-                                <button
+                                <button 
+                                    @click="resetModal"
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal" aria-label="Close" title="Close">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
@@ -716,8 +732,15 @@ onUpdated(() => window.feather?.replace());
                                                 <td>
                                                     <span v-if="!isEditing">{{ item.expiry || "—" }}</span>
                                                     <input v-else v-model="item.expiry" type="date"
+                                                        :class="{ 'is-invalid': formError[`items.${index}.expiry`] }"
                                                         class="form-control" />
+                                                    <small v-if="formError[`items.${index}.expiry`]"
+                                                        class="text-danger">
+                                                        {{ formError[`items.${index}.expiry`][0] }}
+                                                    </small>
                                                 </td>
+                                                <br />
+
 
                                                 <!-- Action (only in edit mode) -->
                                                 <td v-if="isEditing">
@@ -771,7 +794,7 @@ onUpdated(() => window.feather?.replace());
                                     </span>
                                     <span v-else>Complete Order & Update Stock</span>
                                            </button>
-                                <button type="button" class="btn btn-secondary rounded-pill px-4 py-2"
+                                <button type="button" @click="resetModal" class="btn btn-secondary rounded-pill px-4 py-2"
                                     data-bs-dismiss="modal">Cancel</button>
                             </div>
 

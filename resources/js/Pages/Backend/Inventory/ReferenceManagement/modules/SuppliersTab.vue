@@ -300,6 +300,12 @@ const resetForm = () => {
 };
 
 const submit = () => {
+    if (phoneError.value) {
+        toast.error("Please fix the phone number before submitting.");
+        formErrors.value.contact = [phoneError.value]; 
+        return;
+    }
+
     loading.value = true;
     formErrors.value = {};
     const payload = {
@@ -325,7 +331,6 @@ const submit = () => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 // store errors if you still want to show them near inputs
                 formErrors.value = err.response.data.errors;
-
                 toast.error("Please fill in all required fields correctly.");
             } else {
                 // toast.dismiss();
@@ -627,9 +632,9 @@ const handleImport = (data) => {
                             <label class="form-label">Phone</label>
                             <vue-tel-input v-model="form.phone" default-country="PK" mode="international"
                                 @validate="checkPhone" :auto-format="true" :enable-formatting="true"
-                                :input-options="{ showDialCode: true }" :class="{ 'is-invalid': formErrors.phone }" />
-                            <small v-if="formErrors.phone" class="text-danger">
-                                {{ formErrors.phone[0] }}
+                                :input-options="{ showDialCode: true }" :class="{ 'is-invalid': formErrors.contact }" />
+                            <small v-if="formErrors.contact" class="text-danger">
+                                {{ formErrors.contact[0] }}
                             </small>
                             <small v-else-if="phoneError" class="text-danger">
                                 {{ phoneError }}
@@ -639,12 +644,7 @@ const handleImport = (data) => {
                         <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
-                            <input class="form-control" v-model="form.preferred_items" :class="{
-                                'is-invalid': formErrors.preferred_items,
-                            }" />
-                            <small v-if="formErrors.preferred_items" class="text-danger">
-                                {{ formErrors.preferred_items[0] }}
-                            </small>
+                            <input class="form-control" v-model="form.preferred_items" />
                         </div>
 
                         <!-- Address -->
