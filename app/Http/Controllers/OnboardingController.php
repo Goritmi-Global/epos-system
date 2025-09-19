@@ -151,17 +151,15 @@ class OnboardingController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
-                'integrated_terminal' => 'nullable|string|max:50',
-                'custom_payment_options' => 'nullable|array',
-                'default_payment_method' => 'nullable|string|max:50',
+                
             ]),
             // 8 => $request->validate([
             //     'attendance_policy' => 'required|array',
             // ]),
-            9 => $request->validate([
-                'business_hours' => 'required|array',
-                'auto_disable_after_hours' => 'required|boolean',
-            ]),
+            // 9 => $request->validate([
+            //     'business_hours' => 'required|array',
+            //     'auto_disable_after_hours' => 'required|boolean',
+            // ]),
             default => []
         };
 
@@ -258,11 +256,11 @@ class OnboardingController extends Controller
 
         $toSave['status'] = 'complete';
 
-        // Create final restaurant profile
-        $profile = RestaurantProfile::updateOrCreate(
-            ['user_id' => $user->id],
-            $toSave
-        );
+        // // Create final restaurant profile
+        // $profile = RestaurantProfile::updateOrCreate(
+        //     ['user_id' => $user->id],
+        //     $toSave
+        // );
 
         // Mark progress as completed
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
