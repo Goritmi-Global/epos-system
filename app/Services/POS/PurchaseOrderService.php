@@ -12,21 +12,12 @@ use Illuminate\Support\Facades\Auth;
 
 class PurchaseOrderService
 {
-    public function list(array $filters = [])
-    {
-        $query = PurchaseOrder::with('supplier')
-            ->when($filters['q'] ?? null, function ($query, $q) {
-                $query->whereHas('supplier', function ($sq) use ($q) {
-                    $sq->where('name', 'like', "%$q%");
-                });
-            })
-            ->when($filters['status'] ?? null, function ($query, $status) {
-                $query->where('status', $status);
-            })
-            ->latest();
-
-        // paginate first, then map
-        return $query->paginate(20)->through(function ($order) {
+   public function list()
+{
+    return PurchaseOrder::with('supplier')
+        ->latest()
+        ->paginate(20)
+        ->through(function ($order) {
             return [
                 'id'          => $order->id,
                 'supplier'    => $order->supplier->name ?? 'N/A',
@@ -35,7 +26,8 @@ class PurchaseOrderService
                 'total'       => $order->total_amount,
             ];
         });
-    }
+}
+
 
     public function store(array $data): PurchaseOrder
     {
