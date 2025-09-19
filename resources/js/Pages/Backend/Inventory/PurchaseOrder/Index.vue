@@ -60,7 +60,10 @@ const p_filteredInv = computed(() => {
             .includes(t)
     );
 });
-
+onMounted(()=>{
+    fetchInventory();
+    fetchSuppliers();
+})
 /* =========================================================================
    === Pagination code starts here =========================================
    This uses your GLOBAL <Paginator> component.
@@ -278,7 +281,7 @@ async function updateOrder() {
         await fetchPurchaseOrders();
 
         // refresh current page after update
-        await fetchPage(meta.value.current_page);
+        await fetchPurchaseOrders(meta.value.current_page);
 
         toast.success("Order updated successfully and stock entries created!");
     } catch (error) {
