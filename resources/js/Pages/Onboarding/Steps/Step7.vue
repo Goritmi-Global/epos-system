@@ -6,8 +6,8 @@ const props = defineProps({ model: Object, formErrors: Object })
 const emit = defineEmits(["save"])
 
 const form = reactive({
-  cash_enabled: props.model?.cash_enabled ?? true,
-  card_enabled: props.model?.card_enabled ?? true,
+  cash_enabled: props.model?.cash_enabled ?? 1,
+  card_enabled: props.model?.card_enabled ?? 1,
   // card_provider: props.model?.card_provider ?? "Stripe Terminal",
   // provider_key:  props.model?.provider_key  ?? ""
 })
@@ -35,12 +35,12 @@ watch(form, emitSave, { deep: true, immediate: true })
       <span><i class="bi bi-wallet2 me-2"></i>Enable Cash Payment</span>
       <div class="segmented">
         <input class="segmented__input" type="radio" :class="{ 'is-invalid': formErrors?.cash_enabled }" id="cash-yes"
-          :value="true" v-model="form.cash_enabled">
-        <label class="segmented__btn" :class="{ 'is-active': form.cash_enabled === true }" for="cash-yes">YES</label>
+          :value="1" v-model="form.cash_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.cash_enabled === 1 }" for="cash-yes">YES</label>
 
 
-        <input class="segmented__input" type="radio" id="cash-no" :value="false" v-model="form.cash_enabled">
-        <label class="segmented__btn" :class="{ 'is-active': form.cash_enabled === false }" for="cash-no">NO</label>
+        <input class="segmented__input" type="radio" id="cash-no" :value="0" v-model="form.cash_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.cash_enabled === 0 }" for="cash-no">NO</label>
       </div>
 
     </div>
@@ -53,11 +53,11 @@ watch(form, emitSave, { deep: true, immediate: true })
       <span><i class="bi bi-credit-card me-2"></i>Enable Card Payment</span>
       <div class="segmented">
         <input class="segmented__input" type="radio" :class="{ 'is-invalid': formErrors?.card_enabled }" id="card-yes"
-          :value="true" v-model="form.card_enabled">
-        <label class="segmented__btn" :class="{ 'is-active': form.card_enabled === true }" for="card-yes">YES</label>
+          :value="1" v-model="form.card_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.card_enabled === 1 }" for="card-yes">YES</label>
 
-        <input class="segmented__input" type="radio" id="card-no" :value="false" v-model="form.card_enabled">
-        <label class="segmented__btn" :class="{ 'is-active': form.card_enabled === false }" for="card-no">NO</label>
+        <input class="segmented__input" type="radio" id="card-no" :value="0" v-model="form.card_enabled">
+        <label class="segmented__btn" :class="{ 'is-active': form.card_enabled === 0 }" for="card-no">NO</label>
       </div>
     </div>
 
