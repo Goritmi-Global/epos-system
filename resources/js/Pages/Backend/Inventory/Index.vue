@@ -301,15 +301,15 @@ const outOfStockCount = computed(
 );
 
 const expiredCount = computed(() =>
-  stockitems.value.filter((i) => {
-    if (!i.expiry_date) return false;
-    const expiry = new Date(i.expiry_date);
-    const today = new Date();
-    // reset hours to ignore time
-    expiry.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    return expiry < today;
-  }).length
+    stockitems.value.filter((i) => {
+        if (!i.expiry_date) return false;
+        const expiry = new Date(i.expiry_date);
+        const today = new Date();
+        // reset hours to ignore time
+        expiry.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return expiry < today;
+    }).length
 );
 
 const nearExpireCount = computed(() =>
@@ -1218,28 +1218,26 @@ const handleImport = (data) => {
 
                                 <!-- Filter By -->
                                 <!-- Replace your existing filter dropdown with this: -->
-                               
-                                    <FilterModal v-model="filters" title="Inventory Items"
-                                        modal-id="inventoryFilterModal" modal-size="modal-lg"
-                                        :categories="filterOptions.categories" :suppliers="filterOptions.suppliers"
-                                        :sort-options="filterOptions.sortOptions"
-                                        :stock-status-options="filterOptions.stockStatusOptions"
-                                        :show-price-range="true" :show-date-range="false" @apply="handleFilterApply"
-                                        @clear="handleFilterClear">
-                                        <!-- Custom filters slot (optional) -->
-                                        <template #customFilters="{ filters }">
-                                            <!-- Add any custom filter controls here if needed -->
-                                            <div class="col-12">
-                                                <label class="form-label fw-semibold text-dark">
-                                                    <i class="fas fa-star me-2 text-muted"></i>Custom Filter
-                                                </label>
-                                                <!-- Your custom filter controls -->
-                                            </div>
-                                        </template>
-                                    </FilterModal>
-                            
 
-                        
+                                <FilterModal v-model="filters" title="Inventory Items" modal-id="inventoryFilterModal"
+                                    modal-size="modal-lg" :categories="filterOptions.categories"
+                                    :suppliers="filterOptions.suppliers" :sort-options="filterOptions.sortOptions"
+                                    :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="true"
+                                    :show-date-range="false" @apply="handleFilterApply" @clear="handleFilterClear">
+                                    <!-- Custom filters slot (optional) -->
+                                    <template #customFilters="{ filters }">
+                                        <!-- Add any custom filter controls here if needed -->
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold text-dark">
+                                                <i class="fas fa-star me-2 text-muted"></i>Custom Filter
+                                            </label>
+                                            <!-- Your custom filter controls -->
+                                        </div>
+                                    </template>
+                                </FilterModal>
+
+
+
                                 <!-- Add Item -->
                                 <button data-bs-toggle="modal" data-bs-target="#addItemModal"
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
@@ -1391,8 +1389,7 @@ const handleImport = (data) => {
                                                         processStatus =
                                                             'Edit';
                                                     }
-                                                " data-bs-toggle="modal" data-bs-target="#addItemModal"
-                                                    title="Edit"
+                                                " data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit"
                                                     class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                     <Pencil class="w-4 h-4" />
                                                 </button>
@@ -1442,7 +1439,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.name,
                                         }" placeholder="e.g., Chicken Breast" />
                                         <small v-if="formErrors.name" class="text-danger">{{ formErrors.name[0]
-                                            }}</small>
+                                        }}</small>
                                     </div>
 
                                     <div class="col-md-6">
@@ -1453,9 +1450,9 @@ const handleImport = (data) => {
                                             @update:modelValue="
                                                 form.subcategory_id = null
                                                 " :class="{
-                                                'is-invalid':
-                                                    formErrors.category_id,
-                                            }" />
+                                                    'is-invalid':
+                                                        formErrors.category_id,
+                                                }" />
                                         <small v-if="formErrors.category_id" class="text-danger">
                                             {{ formErrors.category_id[0] }}
                                         </small>
@@ -1483,7 +1480,7 @@ const handleImport = (data) => {
                                                     formErrors.minAlert,
                                             }" placeholder="e.g., 5" />
                                         <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                            }}</small>
+                                        }}</small>
                                     </div>
 
                                     <div class="col-md-6">
@@ -1495,7 +1492,7 @@ const handleImport = (data) => {
                                                     formErrors.unit_id,
                                             }" />
                                         <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                            }}</small>
+                                        }}</small>
                                     </div>
 
                                     <div class="col-md-6">
@@ -1527,7 +1524,7 @@ const handleImport = (data) => {
                                         }" placeholder="Notes about this product"></textarea>
                                         <small v-if="formErrors.description" class="text-danger">{{
                                             formErrors.description[0]
-                                        }}</small>
+                                            }}</small>
                                     </div>
                                 </div>
 
@@ -1607,48 +1604,28 @@ const handleImport = (data) => {
                                 <div class="row g-4 mt-1">
                                     <!-- Allergies -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Allergies</label
-                                        >
-                                        <MultiSelect
-                                            v-model="form.allergies"
-                                            :options="props.allergies"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            filter
-                                            placeholder="Select Allergies"
-                                            class="w-full md:w-80"
-                                            appendTo="self"
-                                            display="chip" 
-                                            :class="{
+                                        <label class="form-label d-block">Allergies</label>
+                                        <MultiSelect v-model="form.allergies" :options="props.allergies"
+                                            optionLabel="name" optionValue="id" filter placeholder="Select Allergies"
+                                            class="w-full md:w-80" appendTo="self" display="chip" :class="{
                                                 'is-invalid':
                                                     formErrors.allergies,
                                             }" />
                                         <small v-if="formErrors.allergies" class="text-danger">{{
                                             formErrors.allergies[0]
-                                        }}</small>
+                                            }}</small>
                                     </div>
 
                                     <!-- Tags -->
                                     <div class="col-md-6">
-                                        <label class="form-label d-block"
-                                            >Tags (Halal, Haram, etc.)</label
-                                        >
-                                        <MultiSelect
-                                            v-model="form.tags"
-                                            :options="props.tags"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            filter
-                                            placeholder="Select Tags"
-                                            class="w-full md:w-80"
-                                            appendTo="self"
-                                            display="chip" 
-                                            :class="{
+                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                        <MultiSelect v-model="form.tags" :options="props.tags" optionLabel="name"
+                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                            appendTo="self" display="chip" :class="{
                                                 'is-invalid': formErrors.tags,
                                             }" />
                                         <small v-if="formErrors.tags" class="text-danger">{{ formErrors.tags[0]
-                                            }}</small>
+                                        }}</small>
                                     </div>
                                 </div>
 
@@ -1683,12 +1660,15 @@ const handleImport = (data) => {
                                 <div class="mt-4">
                                     <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
                                         @click="submitProduct">
-                                        {{
-                                            processStatus === "Edit"
-                                                ? "Update Item"
-                                                : "Add Item"
-                                        }}
+                                        <template v-if="submitting">
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            {{ processStatus === "Edit" ? "Updating Item..." : "Adding Item..." }}
+                                        </template>
+                                        <template v-else>
+                                            {{ processStatus === "Edit" ? "Update Item" : "Add Item" }}
+                                        </template>
                                     </button>
+
                                     <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
                                         @click="resetForm">
                                         Cancel
@@ -1712,7 +1692,7 @@ const handleImport = (data) => {
                                             View Inventory Item
                                         </h5>
                                         <small class="text-muted" v-if="viewItemRef?.sku">SKU: {{ viewItemRef.sku
-                                            }}</small>
+                                        }}</small>
                                     </div>
                                 </div>
                                 <button
@@ -1882,7 +1862,7 @@ const handleImport = (data) => {
                                                 <span class="text-muted">Stocked In</span>
                                                 <span class="  badge bg-gray-500 rounded-pill text-white p-2">{{
                                                     totals.notExpiredQty
-                                                    }}</span>
+                                                }}</span>
                                             </div>
 
                                             <div
@@ -1890,7 +1870,7 @@ const handleImport = (data) => {
                                                 <span class="text-muted">Updated On</span>
                                                 <span class="fw-semibold">{{
                                                     viewItemRef.updated_at
-                                                    }}</span>
+                                                }}</span>
                                             </div>
 
                                             <!-- <div
@@ -1940,7 +1920,7 @@ const handleImport = (data) => {
                                                 <span class="text-muted">Added By</span>
                                                 <span class="fw-semibold">{{
                                                     viewItemRef.user
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -2414,19 +2394,22 @@ row, i
 
 
 /* ========================  MultiSelect Styling   ============================= */
-:deep(.p-multiselect-header){
+:deep(.p-multiselect-header) {
     background-color: white !important;
-    color:black !important;
-    
+    color: black !important;
+
 }
-:deep(.p-multiselect-label){
+
+:deep(.p-multiselect-label) {
     color: #000 !important;
 }
-:deep(.p-select .p-component .p-inputwrapper ) {
+
+:deep(.p-select .p-component .p-inputwrapper) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 /* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
@@ -2437,6 +2420,7 @@ row, i
     background: #fff !important;
     color: #000 !important;
 }
+
 /* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
@@ -2450,11 +2434,13 @@ row, i
     color: #000 !important;
     border-color: #a4a7aa;
 }
+
 /* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
 }
+
 /* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
@@ -2466,6 +2452,7 @@ row, i
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 /* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
@@ -2498,38 +2485,41 @@ row, i
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
-  background-color: white !important;
-  color: black !important;
-  border-color: #9b9c9c
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-  background-color: white !important;
-  color: black !important;
+    background-color: white !important;
+    color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-  background-color: transparent !important; /* instead of 'none' */
-  color: black !important;
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
 }
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
-:deep(.p-select-label){
+
+:deep(.p-select-label) {
     color: #000 !important;
 }
-:deep(.p-placeholder){
+
+:deep(.p-placeholder) {
     color: #80878e !important;
 }
 

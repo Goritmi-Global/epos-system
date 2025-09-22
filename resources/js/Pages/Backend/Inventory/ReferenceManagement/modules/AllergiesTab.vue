@@ -633,14 +633,14 @@ const handleImport = (data) => {
                         <input v-model="customAllergy" class="form-control" placeholder="e.g., Vegan"
                             :class="{ 'is-invalid': formErrors.customAllergy }" />
                         <span class="text-danger" v-if="formErrors.customAllergy">{{ formErrors.customAllergy[0]
-                            }}</span>
+                        }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonAllergies" :options="availableOptions" optionLabel="label"
                             optionValue="value" :multiple="true" showClear :filter="true" display="chip"
                             placeholder="Choose common  allergies or add new one" class="w-100" appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')" :class="{ 'is-invalid': formErrors.allergies }"
-                            :invalid="formErrors.allergies?.length">
+                            @filter="(e) => (filterText = e.value || '')"
+                            :class="{ 'is-invalid': formErrors.allergies }" :invalid="formErrors.allergies?.length">
                             <template #header>
                                 <div class="w-100 d-flex justify-content-end">
                                     <button type="button" class="btn btn-sm btn-link text-primary"
@@ -664,13 +664,19 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.allergies">{{
                             formErrors.allergies[0]
-                            }}</span>
+                        }}</span>
                     </div>
 
                     <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
-                        <span v-if="isSubmitting">Processing...</span>
-                        <span v-else>{{ isEditing ? "Save Changes" : "Add Allergy(s)" }}</span>
+                        <template v-if="isSubmitting">
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            Saving...
+                        </template>
+                        <template v-else>
+                            {{ isEditing ? "Save Changes" : "Add Allergy(s)" }}
+                        </template>
                     </button>
+
 
                 </div>
             </div>
