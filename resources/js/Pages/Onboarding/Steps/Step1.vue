@@ -9,7 +9,7 @@ const emit = defineEmits(["save"])
 const selectedCountry = ref(null)
 const selectedLanguage = ref(null)
 const countries = ref([])
-
+const props = defineProps({ formErrors: Object });
 const languages = ref([
   { label: "English", value: "en", flag: "https://flagcdn.com/w20/gb.png" },
 ])
@@ -65,8 +65,8 @@ const fetchCountryDetails = async (code) => {
 const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
-    form.country_code = data.country_code || ""
-    form.country_name = data.country_name || ""
+    // form.country_code = data.country_code || ""
+    // form.country_name = data.country_name || ""
     if (data.timezone) form.timezone = data.timezone
     emitSave()
   } catch (error) {
@@ -141,6 +141,7 @@ watch(selectedLanguage, (opt) => {
             :filter="true"
             placeholder="Select a Country"
             class="w-100"
+            :class="{'is-invalid': formErrors.country_name}"
           >
             <!-- Selected -->
             <template #value="{ value, placeholder }">
@@ -159,6 +160,9 @@ watch(selectedLanguage, (opt) => {
               </div>
             </template>
           </Select>
+            <small v-if="formErrors?.country_name" class="text-danger">
+                    {{ formErrors.country_name[0] }}
+                </small>
         </div>
 
         <!-- Timezone -->
@@ -167,7 +171,10 @@ watch(selectedLanguage, (opt) => {
             
             Time Zone
           </label>
-          <input type="text" class="form-control" v-model="form.timezone" readonly />
+          <input type="text" class="form-control" v-model="form.timezone" :class="{'is-invalid': formErrors.timezone}"  />
+          <small v-if="formErrors?.timezone" class="text-danger">
+                    {{ formErrors.timezone[0] }}
+                </small>
         </div>
 
         <!-- Language -->
@@ -184,6 +191,7 @@ watch(selectedLanguage, (opt) => {
             :filter="false"
             placeholder="Select a Language"
             class="w-100"
+            :class="{'is-invalid': formErrors.language}"
           >
             <!-- Selected -->
             <template #value="{ value, placeholder }">
@@ -202,6 +210,9 @@ watch(selectedLanguage, (opt) => {
               </div>
             </template>
           </Select>
+          <small v-if="formErrors?.language" class="text-danger">
+                    {{ formErrors.language[0] }}
+                </small>
         </div>
       </div>
     </div>
