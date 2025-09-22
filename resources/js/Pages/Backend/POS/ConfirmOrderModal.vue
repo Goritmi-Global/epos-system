@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import StripePayment from "./StripePayment.vue";
-
+import SplitPayment from "./SplitPayment.vue";
 const props = defineProps({
     show: Boolean,
     customer: String,
@@ -64,6 +64,15 @@ const formattedOrderType = computed(() => {
         .replace(/_/g, " ")
         .replace(/\b\w/g, (char) => char.toUpperCase());
 });
+
+// Payment confirm handler
+function handleSplitConfirm(payload) {
+  // bubble up to the parent exactly like other flows
+  // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
+  // You can also create the order here if that’s your pattern.
+  // Keep your original event name:
+  emit("confirm", payload);
+}
 </script>
 
 <template>
@@ -461,27 +470,25 @@ const formattedOrderType = computed(() => {
                                         </div>
 
                                         <!-- Split (placeholder to be wired up later if needed) -->
-                                        <div
-                                            v-if="paymentMethod === 'Split'"
-                                            class="pt-3 border-top"
-                                        >
-                                            <div
-                                                class="pay-header d-flex align-items-center gap-2 mb-3"
-                                            >
-                                                <i
-                                                    class="bi bi-credit-card-2-front-fill"
-                                                ></i>
-                                                <h6 class="m-0">
-                                                    Split Payment
-                                                </h6>
-                                            </div>
-                                            <div
-                                                class="alert alert-info rounded-3 mb-2"
-                                            >
-                                                Split payments coming soon.
-                                                Choose Cash or Card meanwhile.
-                                            </div>
-                                        </div>
+                                       <div v-if="paymentMethod === 'Split'" class="pt-3 border-top">
+  <SplitPayment
+    :total="grandTotal"
+    :client_secret="client_secret"
+    :order_code="order_code"
+    :customer="customer"
+    :orderType="orderType"
+    :selectedTable="selectedTable"
+    :orderItems="orderItems"
+    :money="money"
+    :note="note"
+    :orderDate="orderDate"
+    :orderTime="orderTime"
+    :tax="tax ?? 0"
+    :serviceCharges="serviceCharges ?? 0"
+    :deliveryCharges="deliveryCharges ?? 0"
+    @confirm="handleSplitConfirm"
+  />
+</div>
 
                                         <div
                                             class="mt-auto small text-muted pt-2"
