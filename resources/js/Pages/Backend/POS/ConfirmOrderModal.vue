@@ -515,7 +515,7 @@ const formattedOrderType = computed(() => {
 
 /* ===== Header ===== */
 .brand-gradient {
-    background: linear-gradient(90deg, var(--brand), #3b2bb0);
+    background: #1B2850;
 }
 
 /* ===== Cards ===== */
