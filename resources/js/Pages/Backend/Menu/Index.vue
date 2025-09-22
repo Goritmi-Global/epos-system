@@ -566,7 +566,7 @@ const editItem = (item) => {
 
         return {
             id: ing.inventory_item_id || ing.id || ing.product_id,
-            image_url: inv.image_url || '—',
+            image_url: inv?.image_url || '—',
             name: ing.product_name || ing.name || inv?.name || '—',
             category: inv?.category || ing.category || { name: '' },
             unit: inv?.unit || ing.unit || '',
@@ -1079,14 +1079,14 @@ const downloadExcel = (data) => {
 const handleImport = (data) => {
     console.log("Imported Data:", data);
 
-    const headers = data[0]; 
+    const headers = data[0];
     // CSV headers: ["name","sku","category","purchase_price","sale_price","stock","active","calories","fat","protein","carbs"]
     const rows = data.slice(1);
 
     const itemsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",                       
-            category: row[1] || "", 
+            name: row[0] || "",
+            category: row[1] || "",
             active: row[2] == "0" ? 0 : 1,
             price: row[3] || 100,
             calories: parseFloat(row[4]) || 0,
@@ -1100,7 +1100,7 @@ const handleImport = (data) => {
         .post("/menu_items/import", { items: itemsToImport })
         .then(() => {
             toast.success("Items imported successfully");
-            fetchInventories(); 
+            fetchInventories();
         })
         .catch((err) => {
             console.error(err);
@@ -1200,7 +1200,7 @@ const handleImport = (data) => {
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                     <Plus class="w-4 h-4" /> Add Menu
                                 </button>
-<ImportFile label="Import" @on-import="handleImport" />
+                                <ImportFile label="Import" @on-import="handleImport" />
                                 <!-- Download all -->
                                 <div class="dropdown">
                                     <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
@@ -1247,15 +1247,9 @@ const handleImport = (data) => {
                                         <td>{{ idx + 1 }}</td>
 
                                         <td>
-                                            <ImageZoomModal 
-                                                v-if="item.image_url"
-                                                :file="item.image_url"
-                                                :alt="item.name"
-                                                :width="50"
-                                                :height="50"
-                                                :custom_class="'cursor-pointer'"
-                                               
-                                            />
+                                            <ImageZoomModal v-if="item.image_url" :file="item.image_url"
+                                                :alt="item.name" :width="50" :height="50"
+                                                :custom_class="'cursor-pointer'" />
                                         </td>
 
                                         <!-- Menu Name -->
@@ -1530,8 +1524,15 @@ const handleImport = (data) => {
                                 <div class="mt-4">
                                     <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
                                         @click="form.id ? submitEdit() : submitProduct()">
-                                        <span>{{ form.id ? 'Update Product' : 'Add Product' }}</span>
+                                        <template v-if="submitting">
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            {{ form.id ? "Updating Product..." : "Adding Product..." }}
+                                        </template>
+                                        <template v-else>
+                                            {{ form.id ? "Update Product" : "Add Product" }}
+                                        </template>
                                     </button>
+
                                     <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
                                         @click="resetForm">
                                         Cancel
@@ -1554,13 +1555,13 @@ const handleImport = (data) => {
 
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close"  @click="showMenuModal" title="Close">
+                                    data-bs-dismiss="modal" aria-label="Close" @click="showMenuModal" title="Close">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
-                               
+
                             </div>
 
                             <div class="modal-body">
@@ -1797,6 +1798,7 @@ const handleImport = (data) => {
 .table-container {
     overflow: visible !important;
 }
+
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
     color: #000 !important;
@@ -1887,40 +1889,44 @@ const handleImport = (data) => {
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
-  background-color: white !important;
-  color: black !important;
-  border-color: #9b9c9c
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-  background-color: white !important;
-  color: black !important;
+    background-color: white !important;
+    color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-  background-color: transparent !important; /* instead of 'none' */
-  color: black !important;
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
 }
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
-:deep(.p-select-label){
+
+:deep(.p-select-label) {
     color: #000 !important;
 }
-:deep(.p-placeholder){
+
+:deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 /* ======================================================== */
 
 

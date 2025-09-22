@@ -638,7 +638,7 @@ const handleImport = (data) => {
                             :class="{ 'is-invalid': formErrors.customTag }" />
                         <span class="text-danger" v-if="formErrors.customTag">{{
                             formErrors.customTag[0]
-                            }}</span>
+                        }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonTags" :options="availableOptions" optionLabel="label"
@@ -669,13 +669,19 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.tags">{{
                             formErrors.tags[0]
-                            }}</span>
+                        }}</span>
                     </div>
 
                     <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
-                        <span v-if="isSubmitting">Processing...</span>
-                        <span v-else>{{ isEditing ? "Save Changes" : "Add Tag(s)" }}</span>
+                        <template v-if="isSubmitting">
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            Saving...
+                        </template>
+                        <template v-else>
+                            {{ isEditing ? "Save Changes" : "Add Tag(s)" }}
+                        </template>
                     </button>
+
 
                 </div>
             </div>

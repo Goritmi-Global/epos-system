@@ -631,7 +631,7 @@ const handleImport = (data) => {
                             :class="{ 'is-invalid': formErrors.customUnit }" />
                         <span class="text-danger" v-if="formErrors.customUnit">{{
                             formErrors.customUnit[0]
-                        }}</span>
+                            }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonUnits" :options="availableOptions" optionLabel="label"
@@ -661,13 +661,19 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.units">{{
                             formErrors.units[0]
-                        }}</span>
+                            }}</span>
                     </div>
 
                     <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
-                        <span v-if="isSubmitting">Processing...</span>
-                        <span v-else>{{ isEditing ? "Save Changes" : "Add Unit(s)" }}</span>
+                        <template v-if="isSubmitting">
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            Saving...
+                        </template>
+                        <template v-else>
+                            {{ isEditing ? "Save Changes" : "Add Unit(s)" }}
+                        </template>
                     </button>
+
 
                 </div>
             </div>
