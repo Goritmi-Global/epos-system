@@ -1,3 +1,82 @@
+
+<script setup>
+import { computed, ref } from "vue";
+ 
+import StripePayment from "./StripePayment.vue";
+// Props
+// const props = defineProps({
+//     show: Boolean,
+//     customer: String,
+//     orderType: String,
+//     selectedTable: Object,
+//     orderItems: Array,
+//     grandTotal: Number,
+//     money: Function,
+//     cashReceived: Number,
+//     client_secret : String,
+//     order_code: String,
+// });
+
+const props = defineProps({
+  show: Boolean,
+  customer: String,
+  orderType: String,
+  selectedTable: Object,
+  orderItems: Array,
+  grandTotal: Number,
+  money: Function,
+  cashReceived: Number,
+  client_secret: String,
+  order_code: String,
+
+  // NEW (missing) fields
+  subTotal: Number,           // (if you used kebab in parent, this becomes subTotal here)
+  tax: Number,
+  serviceCharges: Number,
+  deliveryCharges: Number,
+  note: [String, null],
+  orderDate: String,          // "YYYY-MM-DD"
+  orderTime: String,          // "HH:MM:SS"
+  paymentMethod: String,
+  change: Number,
+});
+
+
+
+// Emits
+const emit = defineEmits(["close", "confirm", "update:cashReceived"]);
+
+const paymentMethod = ref("Cash");
+
+// Two-way binding for cashReceived
+const cashReceived = computed({
+    get: () => props.cashReceived,
+    set: (val) => emit("update:cashReceived", val),
+});
+
+// Computed change amount
+const changeAmount = computed(() => {
+    if (paymentMethod.value === "Cash") {
+        return cashReceived.value - props.grandTotal;
+    }
+    return 0;
+});
+
+// Only emit when button is clicked
+const handleConfirm = () => {
+    emit("confirm", {
+        paymentMethod: paymentMethod.value,
+        cashReceived: cashReceived.value,
+        changeAmount: changeAmount.value,
+    });
+};
+
+const formattedOrderType = computed(() => {
+    if (!props.orderType) return "";
+    return props.orderType.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+});
+</script>
+
 <template>
     <div v-if="show" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -83,72 +162,70 @@
                                         {{ money(changeAmount) }}
                                     </span>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Footer -->
-                <div class="modal-footer d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-secondary bg-secondary text-white btn-sm px-3 rounded-pill py-2"
+                                <button class="btn btn-outline-secondary bg-secondary text-white btn-sm px-3 rounded-pill py-2"
                         @click="$emit('close')">
                         Cancel
                     </button>
                     <button class="btn btn-success btn-sm px-3 rounded-pill py-2" @click="handleConfirm">
                         <i class="bi bi-check2-circle me-1"></i> Confirm & Place
                     </button>
+                    
+                            </div>
+                            <div v-if="paymentMethod === 'Card'" class="border-top pt-3">
+                                <label class="form-label fw-semibold">Card Payment</label>
+                                    <!-- <StripePayment
+                                        :client_secret="client_secret" :order_code="order_code"
+                                        
+                                        :show="show"
+                                        :customer="customer"
+                                        :orderType="orderType"
+                                        :selectedTable="selectedTable"
+                                        :orderItems="orderItems"
+                                        :grandTotal="grandTotal"
+                                        :money="money"
+                                        :cashReceived="cashReceived"
+                                    /> -->
 
+                                    <StripePayment
+  :client_secret="client_secret"
+  :order_code="order_code"
+
+  :show="show"
+  :customer="customer"
+  :orderType="orderType"
+  :selectedTable="selectedTable"
+  :orderItems="orderItems"
+  :grandTotal="grandTotal"
+  :money="money"
+  :cashReceived="cashReceived"
+
+  :subTotal="subTotal"
+  :tax="0"
+  :serviceCharges="0"
+  :deliveryCharges="0"
+  :note="note"
+  :orderDate="new Date().toISOString().split('T')[0]"
+  :orderTime="new Date().toTimeString().split(' ')[0]"
+  :paymentMethod="paymentMethod"
+  :change="changeAmount"
+/>
+
+
+                                <div class="mt-2">
+                                    <strong>Change:</strong>
+                                    <span :class="changeAmount < 0 ? 'text-danger fw-bold' : 'text-success fw-bold'">
+                                        {{ money(changeAmount) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Footer -->
+                 
             </div>
         </div>
     </div>
 </template>
-
-<script setup>
-import { computed, ref } from "vue";
-
-// Props
-const props = defineProps({
-    show: Boolean,
-    customer: String,
-    orderType: String,
-    selectedTable: Object,
-    orderItems: Array,
-    grandTotal: Number,
-    money: Function,
-    cashReceived: Number,
-});
-
-// Emits
-const emit = defineEmits(["close", "confirm", "update:cashReceived"]);
-
-const paymentMethod = ref("Cash");
-
-// Two-way binding for cashReceived
-const cashReceived = computed({
-    get: () => props.cashReceived,
-    set: (val) => emit("update:cashReceived", val),
-});
-
-// Computed change amount
-const changeAmount = computed(() => {
-    if (paymentMethod.value === "Cash") {
-        return cashReceived.value - props.grandTotal;
-    }
-    return 0;
-});
-
-// Only emit when button is clicked
-const handleConfirm = () => {
-    emit("confirm", {
-        paymentMethod: paymentMethod.value,
-        cashReceived: cashReceived.value,
-        changeAmount: changeAmount.value,
-    });
-};
-
-const formattedOrderType = computed(() => {
-    if (!props.orderType) return "";
-    return props.orderType.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-});
-</script>

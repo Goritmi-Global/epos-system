@@ -50,14 +50,32 @@ class PosOrderService
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-            Payment::create([
-            'order_id'        => $order->id,
-            'user_id'         => Auth::id(),
-            'amount_received' => $data['cash_received'] ?? $data['total_amount'],
-            'payment_type'    => $data['payment_method'],
-            'payment_date'    => now(),
-        ]);
+        //     Payment::create([
+        //     'order_id'        => $order->id,
+        //     'user_id'         => Auth::id(),
+        //     'amount_received' => $data['cash_received'] ?? $data['total_amount'],
+        //     'payment_type'    => $data['payment_method'],
+        //     'payment_date'    => now(),
+        // ]);
+        // dd("Test");
+        Payment::create([
+            'order_id'                 => $order->id,
+            'user_id'                  => Auth::id(),
+            'amount_received'          => $data['cash_received'] ?? $data['total_amount'],
+            'payment_type'             => $data['payment_method'] ?? 'Cash',
+            'payment_date'             => now(),
 
+            // New fields (Stripe-aware, Cash leaves them null/default)
+            'payment_status'           => $data['payment_status'] ?? null,
+            'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
+            'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
+            'last_digits'              => $data['last_digits'] ?? null,
+            'brand'                    => $data['brand'] ?? null,
+            'currency_code'            => $data['currency_code'] ?? null,
+            'exp_month'                => $data['exp_month'] ?? null,
+            'exp_year'                 => $data['exp_year'] ?? null,
+        ]);
+// dd("Service class Done ",$data);
             return $order;
         });
     }

@@ -29,11 +29,16 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $stripe_public_key = config('app.stripe_public_key');
+
+        // dd($stripe_public_key);
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                
             ],
+            'stripe_public_key' => $stripe_public_key,
         ];
     }
 }
