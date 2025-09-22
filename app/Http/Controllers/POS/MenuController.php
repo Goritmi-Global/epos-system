@@ -26,7 +26,6 @@ class MenuController extends Controller
             ->whereNull('parent_id')
             ->with('children')
             ->get(['id', 'name', 'parent_id']);
-
         $allergies = Allergy::all(['id', 'name']);
         $tags = Tag::all(['id', 'name']);
 

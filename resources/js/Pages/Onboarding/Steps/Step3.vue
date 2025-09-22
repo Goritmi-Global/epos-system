@@ -27,6 +27,16 @@ const timeFormats = [
   { label: "24 Hour", value: "24-hour" }
 ]
 
+watch(() => props.model, (newModel) => {
+  if (newModel) {
+    form.currency = newModel.currency ?? "PKR"
+    form.currency_symbol_position = newModel.currency_symbol_position ?? "after"
+    form.date_format = newModel.date_format ?? "dd/MM/yyyy"
+    form.number_format = newModel.number_format ?? "1,000"
+    form.time_format = newModel.time_format ?? "12-hour"
+  }
+}, { immediate: true })
+
 
 // sync parent profile whenever something in this step changes
 const emitSave = () => {
@@ -37,7 +47,7 @@ const emitSave = () => {
   }
 }
 
-watch(form, emitSave, { deep: true })
+watch(form, emitSave, { deep: true,  immediate: true })
 
 </script>
 

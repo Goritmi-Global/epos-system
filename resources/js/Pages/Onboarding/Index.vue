@@ -36,7 +36,33 @@ const comp = computed(() => ({
 
 const progressPercent = computed(() => (current.value / steps.length) * 100)
 
-function gotoStep(n) { current.value = n }
+ 
+function gotoStep(n) {
+
+  if (n === current.value) return
+
+
+  if (n < current.value) {
+    console.log('Prev: ', n);
+    current.value = n
+    return
+  }
+
+
+  if (progress.value.completed_steps.includes(n)) {
+    console.log('Steps Completed: ', n);
+    current.value = n
+    return
+  }
+
+  if (n === current.value + 1 && progress.value.completed_steps.includes(current.value)) {
+    current.value = n
+    return
+  }
+
+  toast.error("Please complete the Current step to proceed")
+}
+
 
 const saveStep = (payload) => {
   console.log(payload);
@@ -45,13 +71,13 @@ const saveStep = (payload) => {
     Object.assign(profile.value, payload?.data || {})
 
     // Log full payload
-    console.log("Full Payload Received:", payload)
+    // console.log("Full Payload Received:", payload)
 
     // Log just the data from the payload
-    console.log("Step Data:", payload?.data)
+    // console.log("Step Data:", payload?.data)
 
     // Log the profile after merge
-    console.log("Profile After Merge:", profile.value)
+    // console.log("Profile After Merge:", profile.value)
 
     // optionally debounce draft save here
   } catch (e) {
@@ -90,15 +116,30 @@ async function goNext(stepData) {
   formErrors.value = {} // clear old errors
   try {
     const { data } = await axios.post(`/onboarding/step/${current.value}`, stepData)
-    Object.assign(profile.value, data.profile)
-    current.value++ // move to next step
+
+    // merge profile
+    Object.assign(profile.value, data.profile || {})
+
+    // ✅ mark the current step as completed
+    if (!progress.value.completed_steps.includes(current.value)) {
+      progress.value.completed_steps.push(current.value)
+    }
+
+    // move forward
+    if (current.value < steps.length) {
+      current.value++
+    }
   } catch (err) {
     if (err?.response?.status === 422 && err.response.data?.errors) {
-      formErrors.value = err.response.data.errors // <-- store errors here
+      formErrors.value = err.response.data.errors
       toast.error("Please fill in all required fields correctly.")
+    } else {
+      toast.error("An unexpected error occurred.")
+      console.error(err)
     }
   }
 }
+
 
 
 
@@ -155,11 +196,9 @@ async function goNext(stepData) {
             <button class="btn btn-outline-secondary rounded-pill" :disabled="current === 1"
               @click="current--">Back</button>
 
-            <button v-if="current < steps.length"
-  class="btn btn-primary rounded-pill px-4"
-  @click="goNext(profile)">
-  Next
-</button>
+            <button v-if="current < steps.length" class="btn btn-primary rounded-pill px-4" @click="goNext(profile)">
+              Next
+            </button>
 
 
 

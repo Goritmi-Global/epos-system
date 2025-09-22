@@ -3,6 +3,7 @@ import { reactive, ref, toRaw, watch, onMounted } from "vue";
 import Select from "primevue/select";
 
 const props = defineProps({ model: Object, formErrors: Object });
+
 const emit = defineEmits(["save"]);
 
 /* ------------------ FORM ------------------ */
@@ -22,6 +23,8 @@ const form = reactive({
     logo: props.model?.logo ?? null,
     logo_file: null,
 });
+
+
 
 /* ------------------ BUSINESS TYPE ------------------ */
 const businessTypeOptions = [
@@ -107,6 +110,7 @@ function onCropped({ file }) {
 }
 
 
+
 function emitSave() {
     emit("save", { step: 2, data: toRaw(form) });
 }
@@ -143,8 +147,8 @@ const flagUrl = (iso, size = "24x18") =>
                     </div>
 
                     <!-- Validation for logo -->
-                    <small v-if="formErrors?.logo_path" class="text-danger">
-                        {{ formErrors.logo_path[0] }}
+                    <small v-if="formErrors?.logo" class="text-danger">
+                        {{ formErrors.logo[0] }}
                     </small>
 
                     <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
@@ -168,7 +172,7 @@ const flagUrl = (iso, size = "24x18") =>
                 <small v-if="formErrors?.business_type" class="text-danger">
                     {{ formErrors.business_type[0] }}
                 </small>
-
+<br>
                 <!-- Address -->
                 <label class="form-label mt-3">Address*</label>
                 <input class="form-control" v-model="form.address" @input="emitSave"
@@ -187,10 +191,10 @@ const flagUrl = (iso, size = "24x18") =>
                                     placeholder="Code" class="dial-select" />
                             </span>
                             <input class="form-control" inputmode="numeric" placeholder="Phone number"
-                                v-model="form.phone_local" :class="{ 'is-invalid': formErrors?.phone }" />
+                                v-model="form.phone_local" :class="{ 'is-invalid': formErrors?.phone_local }" />
                         </div>
-                        <small v-if="formErrors?.phone" class="text-danger">
-                            {{ formErrors.phone[0] }}
+                        <small v-if="formErrors?.phone_local" class="text-danger">
+                            {{ formErrors.phone_local[0] }}
                         </small>
                     </div>
 

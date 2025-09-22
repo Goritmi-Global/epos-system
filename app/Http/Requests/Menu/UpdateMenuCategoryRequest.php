@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Requests\Menu;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -55,30 +56,32 @@ class UpdateMenuCategoryRequest extends FormRequest
             $parentId = $this->input('parent_id');
             $subcategories = $this->input('subcategories', []);
 
-            // ✅ CHECK MAIN CATEGORY NAME FOR DUPLICATES
-            if (!empty($categoryName)) {
-                $duplicateCategory = \App\Models\InventoryCategory::where('name', $categoryName)
+            $currentCategory = \App\Models\MenuCategory::find($categoryId);
+
+            if (!empty($categoryName) && $categoryName !== $currentCategory->name) {
+                $duplicateCategory = \App\Models\MenuCategory::where('name', $categoryName)
                     ->where('parent_id', $parentId)
-                    ->where('id', '!=', $categoryId) // Exclude current category
+                    ->where('id', '!=', $categoryId)
                     ->first();
 
                 if ($duplicateCategory) {
-                    $parentInfo = $parentId ? ' under this parent category' : '';
                     $validator->errors()->add(
                         'name',
-                        "The category '{$categoryName}' already exists{$parentInfo}."
+                        "The category '{$categoryName}' already exists" .
+                            ($parentId ? ' under this parent category' : '') . '.'
                     );
                 }
             }
 
+
             // ✅ CHECK SUBCATEGORIES FOR DUPLICATES
             if (!empty($subcategories)) {
                 $subcategoryNames = [];
-                
+
                 foreach ($subcategories as $index => $subcategory) {
                     $subcategoryName = trim($subcategory['name'] ?? '');
                     $subcategoryId = $subcategory['id'] ?? null;
-                    
+
                     if (empty($subcategoryName)) {
                         continue;
                     }
@@ -97,12 +100,12 @@ class UpdateMenuCategoryRequest extends FormRequest
                     // Check for duplicates in database
                     $query = \App\Models\InventoryCategory::where('name', $subcategoryName)
                         ->where('parent_id', $categoryId);
-                        
+
                     // Exclude current subcategory if it has an ID
                     if ($subcategoryId) {
                         $query->where('id', '!=', $subcategoryId);
                     }
-                    
+
                     if ($query->exists()) {
                         $validator->errors()->add(
                             "subcategories.{$index}.name",

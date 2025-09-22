@@ -60,7 +60,10 @@ const p_filteredInv = computed(() => {
             .includes(t)
     );
 });
-
+onMounted(()=>{
+    fetchInventory();
+    fetchSuppliers();
+})
 /* =========================================================================
    === Pagination code starts here =========================================
    This uses  GLOBAL <Paginator> component. connect in the app.js file 
@@ -210,6 +213,10 @@ function onSize(size) {
 const selectedOrder = ref(null);
 const editItems = ref([]);
 const isEditing = ref(false);
+const formError = ref({});
+const  resetModal = () =>{
+    formError.value = {};
+}
 const updating = ref(false);
 
 async function openModal(order) {
@@ -262,15 +269,30 @@ async function updateOrder() {
             document.getElementById("orderDetailsModal")
         );
         modal?.hide();
+        formError.value = {};
+        // Refresh the orders list
+        await fetchPurchaseOrders();
 
         // refresh current page after update
-        await fetchPage(meta.value.current_page);
+        await fetchPurchaseOrders(meta.value.current_page);
 
         toast.success("Order updated successfully and stock entries created!");
     } catch (error) {
-        console.error("Error updating order:", error);
-        toast.error("Failed to update order");
-    } finally {
+        if (error.response?.status === 422 && error.response?.data?.errors) {
+            formError.value = error.response.data.errors;
+
+            // Convert errors object to a single string
+            const messages = Object.values(formError.value)
+                .flat()   
+                .join("\n"); 
+
+            toast.error(messages); 
+        } else {
+            console.error("Error updating order:", error);
+            toast.error("Failed to update order");
+        }
+    }
+    finally {
         updating.value = false;
     }
 }
@@ -567,7 +589,8 @@ onUpdated(() => window.feather?.replace?.());
                                         </small>
                                     </div>
                                 </div>
-                                <button
+                                <button 
+                                    @click="resetModal"
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                     data-bs-dismiss="modal"
                                     aria-label="Close"
@@ -743,16 +766,17 @@ onUpdated(() => window.feather?.replace?.());
 
                                                 <!-- Expiry -->
                                                 <td>
-                                                    <span v-if="!isEditing">{{
-                                                        item.expiry || "—"
-                                                    }}</span>
-                                                    <input
-                                                        v-else
-                                                        v-model="item.expiry"
-                                                        type="date"
-                                                        class="form-control"
-                                                    />
+                                                    <span v-if="!isEditing">{{ item.expiry || "—" }}</span>
+                                                    <input v-else v-model="item.expiry" type="date"
+                                                        :class="{ 'is-invalid': formError[`items.${index}.expiry`] }"
+                                                        class="form-control" />
+                                                    <small v-if="formError[`items.${index}.expiry`]"
+                                                        class="text-danger">
+                                                        {{ formError[`items.${index}.expiry`][0] }}
+                                                    </small>
                                                 </td>
+                                                <br />
+
 
                                                 <!-- Action (only in edit mode) -->
                                                 <td v-if="isEditing">
@@ -848,6 +872,7 @@ onUpdated(() => window.feather?.replace?.());
                                         ></span>
                                         Updating...
                                     </span>
+<<<<<<< HEAD
                                     <span v-else
                                         >Complete Order & Update Stock</span
                                     >
@@ -859,6 +884,12 @@ onUpdated(() => window.feather?.replace?.());
                                 >
                                     Cancel
                                 </button>
+=======
+                                    <span v-else>Complete Order & Update Stock</span>
+                                           </button>
+                                <button type="button" @click="resetModal" class="btn btn-secondary rounded-pill px-4 py-2"
+                                    data-bs-dismiss="modal">Cancel</button>
+>>>>>>> c602a659eebed9d152e71bc654a5cac22ebf7e88
                             </div>
                         </div>
                     </div>

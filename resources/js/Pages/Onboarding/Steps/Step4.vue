@@ -6,28 +6,35 @@ const props = defineProps({ model: Object, formErrors: Object });
 const emit = defineEmits(["save"]);
 
 const form = reactive({
-  tax_registered: props.model.tax_registered ?? true,
+  tax_registered: props.model.tax_registered ?? 1,
   tax_type: props.model.tax_type ?? "VAT",
   tax_rate: props.model.tax_rate ?? 0,
-  price_includes_tax: props.model.price_includes_tax ?? true,
-  tax_id: props.model.tax_id ?? "",
-  extra_tax_rates: props.model.extra_tax_rates ?? "", // ✅ Add this
+  price_includes_tax: props.model.price_includes_tax ?? 1,
+  tax_id: props.model.tax_id ?? null,
+  extra_tax_rates: props.model.extra_tax_rates ?? "", 
 });
 
 watch(form, () => {
-  emit("save", {
+  const payload = {
     step: 4,
     data: {
-      tax_registered: form.tax_registered ? 1 : 0, // send as 1/0
-      tax_type: form.tax_type,
-      tax_rate: Number(form.tax_rate),
-      extra_tax_rates: form.tax_registered && typeof form.extra_tax_rates === "string"
-        ? form.extra_tax_rates.split(",").map(rate => rate.trim())
-        : [],
+      tax_registered: form.tax_registered ? 1 : 0,
       price_includes_tax: form.price_includes_tax ? 1 : 0,
-      tax_id: form.tax_id,
     },
-  })
+  }
+
+  // ✅ Only include tax fields when tax_registered = 1
+  if (form.tax_registered) {
+    payload.data.tax_type = form.tax_type
+    payload.data.tax_rate = Number(form.tax_rate)
+    payload.data.tax_id = form.tax_id
+    payload.data.extra_tax_rates = typeof form.extra_tax_rates === "string" && form.extra_tax_rates.trim()
+      ? form.extra_tax_rates.split(",").map(rate => rate.trim())
+      : ""
+  }
+  // ✅ When tax_registered = 0, we don't send tax fields at all
+
+  emit("save", payload)
 }, { deep: true })
 
 
@@ -40,15 +47,15 @@ const taxTypeOptions = ref([
   { name: "Sales Tax", code: "Sales Tax" },
 ]);
 
-// PrimeVue Select expects object as value
-const selectedTaxType = ref(
-  taxTypeOptions.value.find((t) => t.code === form.tax_type) || null
-);
+// // PrimeVue Select expects object as value
+// const selectedTaxType = ref(
+//   taxTypeOptions.value.find((t) => t.code === form.tax_type) || null
+// );
 
-// Keep form in sync with Select
-watch(selectedTaxType, (opt) => {
-  form.tax_type = opt?.code || "";
-});
+// // Keep form in sync with Select
+// watch(selectedTaxType, (opt) => {
+//   form.tax_type = opt?.code || "";
+// });
 </script>
 
 <template>
@@ -59,16 +66,16 @@ watch(selectedTaxType, (opt) => {
     <div class="mb-3">
       <label class="form-label d-block mb-2">Is your business tax registered?</label>
       <div class="segmented">
-        <input type="radio" id="tax-yes" :value="true" v-model="form.tax_registered" class="segmented__input" />
-        <label for="tax-yes" class="segmented__btn" :class="{ 'is-active': form.tax_registered === true }">YES</label>
+        <input type="radio" id="tax-yes" :value="1" v-model="form.tax_registered" class="segmented__input" />
+        <label for="tax-yes" class="segmented__btn" :class="{ 'is-active': form.tax_registered === 1 }">YES</label>
 
-        <input type="radio" id="tax-no" :value="false" v-model="form.tax_registered" class="segmented__input" />
-        <label for="tax-no" class="segmented__btn" :class="{ 'is-active': form.tax_registered === false }">NO</label>
+        <input type="radio" id="tax-no" :value="0" v-model="form.tax_registered" class="segmented__input" />
+        <label for="tax-no" class="segmented__btn" :class="{ 'is-active': form.tax_registered === 0 }">NO</label>
       </div>
     </div>
 
     <!-- If registered -->
-    <div v-if="form.tax_registered === true" class="row g-3">
+    <div v-if="form.tax_registered === 1" class="row g-3">
       <div class="col-md-6">
         <label class="form-label">Tax Type</label>
         <Select v-model="form.tax_type" :options="taxTypeOptions" optionLabel="name" optionValue="code"
@@ -90,12 +97,17 @@ watch(selectedTaxType, (opt) => {
 
       <div class="col-md-3">
         <label class="form-label">Tax ID</label>
-        <input class="form-control" v-model="form.tax_id" />
+        <input  :class="{ 'is-invalid': formErrors?.tax_id }" class="form-control" v-model="form.tax_id" />
+         <small v-if="formErrors?.tax_id" class="text-danger">
+          {{ formErrors.tax_id[0] }}
+        </small>
       </div>
+
+       
     </div>
 
     <!-- Extra Tax Rates -->
-    <div v-if="form.tax_registered === true" class="mt-3">
+    <div v-if="form.tax_registered === 1" class="mt-3">
       <label class="form-label">Extra Tax Rates</label>
       <input class="form-control" v-model="form.extra_tax_rates" placeholder="e.g. 5%"
         :class="{ 'is-invalid': formErrors?.extra_tax_rates }" />
@@ -108,13 +120,13 @@ watch(selectedTaxType, (opt) => {
     <div class="mt-3">
       <label class="form-label d-block mb-2">Price includes tax?</label>
       <div class="segmented">
-        <input type="radio" id="price-yes" :value="true" v-model="form.price_includes_tax" class="segmented__input" />
+        <input type="radio" id="price-yes" :value="1" v-model="form.price_includes_tax" class="segmented__input" />
         <label for="price-yes" class="segmented__btn"
-          :class="{ 'is-active': form.price_includes_tax === true }">YES</label>
+          :class="{ 'is-active': form.price_includes_tax === 1 }">YES</label>
 
-        <input type="radio" id="price-no" :value="false" v-model="form.price_includes_tax" class="segmented__input" />
+        <input type="radio" id="price-no" :value="0" v-model="form.price_includes_tax" class="segmented__input" />
         <label for="price-no" class="segmented__btn"
-          :class="{ 'is-active': form.price_includes_tax === false }">NO</label>
+          :class="{ 'is-active': form.price_includes_tax === 0 }">NO</label>
       </div>
     </div>
   </div>
