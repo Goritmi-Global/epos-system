@@ -1722,6 +1722,44 @@ const handleImport = (data) => {
     z-index: 2000 !important;
 }
 
+/* ====================Select Styling===================== */
+/* Entire select container */
+:deep(.p-select) {
+  background-color: white !important;
+  color: black !important;
+  border-color: #9b9c9c
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+  background-color: white !important;
+  color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+  background-color: transparent !important; /* instead of 'none' */
+  color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+  background-color: #f0f0f0 !important;
+  color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+  background-color: #f0f0f0 !important;
+  color: black !important;
+}
+:deep(.p-select-label){
+    color: #000 !important;
+}
+:deep(.p-placeholder){
+    color: #80878e !important;
+}
+/* =========================================== */
 /* Mobile */
 @media (max-width: 575.98px) {
     .kpi-value {
