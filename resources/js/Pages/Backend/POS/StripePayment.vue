@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="pay-header d-flex align-items-center gap-2 mb-3">
       <i class="bi bi-credit-card-2-front-fill"></i>
-      <h2 class="m-0">Pay with Card</h2>
+      <h6 class="m-0">Pay with Card</h6>
     </div>
 
     <!-- Stripe Element -->
