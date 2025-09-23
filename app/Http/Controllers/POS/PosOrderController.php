@@ -158,10 +158,29 @@ public function placeStripeOrder(Request $request)
         'exp_year'       => $expYear,
     ];
 
+    
     $order = $this->service->create($data);
+
+    // for printing receipt
+    $printPayload = [
+        'id'             => $order->id,
+        'customer_name'  => $data['customer_name'] ?? null,
+        'order_type'     => $data['order_type'] ?? null,
+        'payment_method' => 'Card', // display text for receipt
+        'card_brand'     => $data['brand'] ?? null,
+        'last4'          => $data['last_digits'] ?? null,
+        'sub_total'      => $data['sub_total'] ?? 0,
+        'total_amount'   => $data['total_amount'] ?? 0,
+        'items'          => $data['items'] ?? [], // from your query params
+    ];
 
     // 🔔 Flash for the frontend toast
     $msg = "Payment successful! Order #{$order->id} placed. Card {$brand} •••• {$last4}.";
-    return redirect()->route('pos.order')->with('success', $msg);
+    return redirect()
+    ->route('pos.order')
+    ->with([
+        'success'        => $msg,
+        'print_payload'  => $printPayload, // 👈 add this
+    ]);
 }
 }

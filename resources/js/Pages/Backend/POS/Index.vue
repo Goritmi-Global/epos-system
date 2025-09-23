@@ -554,64 +554,142 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
+// function printReceipt(order) {
+//     const receipt = `
+//     <html>
+//     <head>
+//       <style>
+//         @media print {
+//           @page { size: 58mm auto; margin: 3mm; }
+//           body { font-family: monospace; font-size: 12px; line-height: 1.3; }
+//           .center { text-align: center; }
+//           .row { display: flex; justify-content: space-between; }
+//           hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+//         }
+//       </style>
+//     </head>
+//     <body>
+//       <div class="center">
+//         <h3 style="margin:0;">Goritmi</h3>
+//         <p style="margin:0;">Order ID: #${order.id ?? "N/A"}</p>
+//         <p style="margin:0;">Date: ${new Date().toLocaleString()}</p>
+//       </div>
+//       <br/>
+//       <p>Payment Type: ${order.payment_method}</p>
+//       <p>Order Type: ${order.order_type}</p>
+//       <p>Customer Name: ${order.customer_name || "Walk In"}</p>
+//       <hr/>
+//       <div class="row">
+//         <b>Item</b><b>Qty</b><b>Price</b>
+//       </div>
+//       ${(order.items || [])
+//           .map(
+//               (it) => `
+//       <div class="row">
+//         <span>${it.title}</span>
+//         <span>x${it.quantity}</span>
+//         <span>£${parseFloat(it.price).toFixed(2)}</span>
+//       </div>`
+//           )
+//           .join("")}
+
+//       <hr/>
+//       <div class="row"><span>Subtotal:</span><span>£${
+//           order.sub_total
+//       }</span></div>
+//       <div class="row"><b>Total Price:</b><b>£${order.total_amount}</b></div>
+//       <br/>
+//       <p style="font-size:11px;">Location: Abdara Road, Peshawar</p>
+//       <p style="font-size:11px;">Email: info@goritmi.com</p>
+//       <div class="center"><p>Thank you for your visit!</p></div>
+//     </body>
+//     </html>
+//   `;
+
+//     const printWindow = window.open("", "", "width=400,height=600");
+//     printWindow.document.write(receipt);
+//     printWindow.document.close();
+//     printWindow.focus();
+//     printWindow.print();
+//     printWindow.close();
+// }
 function printReceipt(order) {
-    const receipt = `
-    <html>
-    <head>
-      <style>
-        @media print {
-          @page { size: 58mm auto; margin: 3mm; }
-          body { font-family: monospace; font-size: 12px; line-height: 1.3; }
-          .center { text-align: center; }
-          .row { display: flex; justify-content: space-between; }
-          hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="center">
-        <h3 style="margin:0;">Goritmi</h3>
-        <p style="margin:0;">Order ID: #${order.id ?? "N/A"}</p>
-        <p style="margin:0;">Date: ${new Date().toLocaleString()}</p>
-      </div>
-      <br/>
-      <p>Payment Type: ${order.payment_method}</p>
-      <p>Order Type: ${order.order_type}</p>
-      <p>Customer Name: ${order.customer_name || "Walk In"}</p>
-      <hr/>
-      <div class="row">
-        <b>Item</b><b>Qty</b><b>Price</b>
-      </div>
-      ${(order.items || [])
-          .map(
-              (it) => `
-      <div class="row">
-        <span>${it.title}</span>
-        <span>x${it.quantity}</span>
-        <span>£${parseFloat(it.price).toFixed(2)}</span>
-      </div>`
-          )
-          .join("")}
+  const isCard = (order?.payment_method || '').toLowerCase() === 'card'
+              || (order?.payment_method || '').toLowerCase() === 'stripe';
 
-      <hr/>
-      <div class="row"><span>Subtotal:</span><span>£${
-          order.sub_total
-      }</span></div>
-      <div class="row"><b>Total Price:</b><b>£${order.total_amount}</b></div>
-      <br/>
-      <p style="font-size:11px;">Location: Abdara Road, Peshawar</p>
-      <p style="font-size:11px;">Email: info@goritmi.com</p>
-      <div class="center"><p>Thank you for your visit!</p></div>
-    </body>
-    </html>
-  `;
+  const payLine = isCard
+    ? `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""}${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""}`
+    : `Payment Type: ${order?.payment_method || "Cash"}`;
 
-    const printWindow = window.open("", "", "width=400,height=600");
-    printWindow.document.write(receipt);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+  const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Receipt</title>
+  <style>
+    :root { --w: 58mm; }
+    html, body { margin:0; padding:0; }
+    body { width: var(--w); font-family: monospace; font-size: 12px; line-height: 1.3; color:#000; }
+    .center { text-align:center; }
+    .row { display:flex; justify-content:space-between; }
+    hr { border:0; border-top:1px dashed #000; margin:4px 0; }
+    @page { size: var(--w) auto; margin: 3mm; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <h3 style="margin:0;">Goritmi</h3>
+    <p style="margin:0;">Order ID: #${order?.id ?? "N/A"}</p>
+    <p style="margin:0;">Date: ${new Date().toLocaleString()}</p>
+  </div>
+  <br/>
+  <p>${payLine}</p>
+  <p>Order Type: ${order?.order_type || "N/A"}</p>
+  <p>Customer Name: ${order?.customer_name || "Walk In"}</p>
+  <hr/>
+  <div class="row"><b>Item</b><b>Qty</b><b>Price</b></div>
+  ${(order?.items || []).map(it => `
+    <div class="row">
+      <span>${it.title}</span>
+      <span>x${it.quantity}</span>
+      <span>£${Number(it.price ?? 0).toFixed(2)}</span>
+    </div>
+  `).join("")}
+  <hr/>
+  <div class="row"><span>Subtotal:</span><span>£${Number(order?.sub_total ?? 0).toFixed(2)}</span></div>
+  <div class="row"><b>Total Price:</b><b>£${Number(order?.total_amount ?? 0).toFixed(2)}</b></div>
+  <br/>
+  <p style="font-size:11px;">Location: Abdara Road, Peshawar</p>
+  <p style="font-size:11px;">Email: info@goritmi.com</p>
+  <div class="center"><p>Thank you for your visit!</p></div>
+
+  <script>
+    async function ready() {
+      try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch(e){}
+      window.focus();
+      const mq = window.matchMedia && window.matchMedia('print');
+      if (mq && mq.addListener) {
+        mq.addListener(function(mql){ if(!mql.matches) setTimeout(function(){ window.close(); }, 300); });
+      }
+      window.onafterprint = function(){ setTimeout(function(){ window.close(); }, 300); };
+      setTimeout(function(){ window.print(); }, 200);
+    }
+    if (document.readyState === 'complete') ready();
+    else window.addEventListener('load', ready);
+  <\/script>
+<\/body>
+<\/html>
+`;
+
+  const w = window.open('', '', 'width=400,height=600');
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
@@ -699,6 +777,15 @@ function bumpToasts() {
 }
 // Fire once on load
 onMounted(() => bumpToasts());
+onMounted(() => {
+  const s = page.props.flash?.success;
+  const e = page.props.flash?.error;
+  if (s) toast.success(s);
+  if (e) toast.error(e);
+
+  const payload = page.props.flash?.print_payload; // from controller
+  if (payload) setTimeout(() => printReceipt(payload), 250);
+});
 // Also react if flash changes due to subsequent navigations
 watch(
     () => page.props.flash,
