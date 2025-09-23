@@ -290,7 +290,6 @@ const menuStockForSelected = computed(() => {
 
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
-
     try {
         //  1) Add to cart (UI only)
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);

@@ -4,15 +4,15 @@ namespace App\Services\POS;
 
 use App\Models\InventoryItem;
 use App\Models\StockEntry;
-use Illuminate\Http\Request; 
- 
+use Illuminate\Http\Request;
+
 use App\Models\StockOutAllocation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StockEntryService
 {
-     public function create(array $data): StockEntry
+    public function create(array $data): StockEntry
     {
         // frontend-only
         unset($data['available_quantity']);
@@ -37,7 +37,7 @@ class StockEntryService
             $batches = StockEntry::query()
                 ->where('product_id', $productId)
                 ->where('stock_type', 'stockin')
-                ->select(['id','quantity','price','expiry_date','created_at'])
+                ->select(['id', 'quantity', 'price', 'expiry_date', 'created_at'])
                 ->orderByRaw('expiry_date IS NULL, expiry_date ASC, created_at ASC, id ASC')
                 ->lockForUpdate()
                 ->get();
@@ -97,7 +97,7 @@ class StockEntryService
      * Compute current available quantity for a product without mutating stock-in rows.
      * Sum(IN) - Sum(allocations).
      */
-    
+
     public function availableQuantity(int $productId): int
     {
         $in = (int) StockEntry::where('product_id', $productId)
@@ -147,7 +147,7 @@ class StockEntryService
 
     // Get stock logs
     public function getStockLogs(): array
-    { 
+    {
         return StockEntry::with('product', 'supplier')
             ->latest()
             ->get()
@@ -188,5 +188,28 @@ class StockEntryService
     {
         $entry = StockEntry::findOrFail($id);
         return $entry->delete();
+    }
+    
+    // Stock Out Allocations 
+    public function getAllocations(int $id)
+    {
+        $stockOut = StockEntry::with(['allocationsForThisOut.stockIn.product'])->findOrFail($id);
+
+        if ($stockOut->stock_type !== 'stockout') {
+            throw ValidationException::withMessages([
+                'stock_type' => ['Allocations only exist for stockout entries.'],
+            ]);
+        }
+
+        return $stockOut->allocationsForThisOut->map(function ($a) {
+            return [
+                'id'           => $a->id,
+                'stock_in_id'  => $a->stock_in_entry_id,
+                'expiry_date'  => optional($a->stockIn)->expiry_date,
+                'unit_price'   => $a->unit_price ?? optional($a->stockIn)->price,
+                'quantity'     => $a->quantity,
+                'product_name' => optional($a->stockIn->product)->name ?? null,
+            ];
+        });
     }
 }

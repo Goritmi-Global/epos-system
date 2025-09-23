@@ -39,7 +39,9 @@ public function rules(): array
         'value'          => 'required|numeric|min:0',
         'operation_type' => 'required|string',
         'stock_type'     => 'required|string',
-        'expiry_date'    => 'nullable|date',
+        'expiry_date'    => $isStockOut
+            ? ['nullable','date']
+            : ['required','date'],
         'description'    => 'nullable|string',
         'purchase_date'  => 'nullable|date',
         'user_id'        => 'required|exists:users,id',

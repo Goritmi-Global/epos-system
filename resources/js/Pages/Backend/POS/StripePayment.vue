@@ -54,6 +54,8 @@ const props = defineProps({
   change: Number,
 });
 
+console.log(props.client_secret);
+
 const page = usePage();
 
 const stripe = ref(null);

@@ -26,7 +26,7 @@ class StockEntryController extends Controller
 
     // Store a new stock entry
     public function store(StoreStockEntryRequest $request)
-    { 
+    {
         $entry = $this->service->create($request->validated());
         return response()->json([
             'message' => 'Stock Entry created successfully',
@@ -73,7 +73,7 @@ class StockEntryController extends Controller
         return response()->json(['message' => 'Failed to delete log'], 500);
     }
 
-     public function byItem(InventoryItem $inventory)
+    public function byItem(InventoryItem $inventory)
     {
         $today   = Carbon::today();
         $cutoff  = Carbon::today()->addDays(15);
@@ -82,7 +82,7 @@ class StockEntryController extends Controller
             ->forItem($inventory->id)
             ->stockIn()
             ->orderBy('expiry_date', 'asc')
-            ->get(['id','quantity','price','value','description','purchase_date','expiry_date','created_at']);
+            ->get(['id', 'quantity', 'price', 'value', 'description', 'purchase_date', 'expiry_date', 'created_at']);
 
         $mapped = $rows->map(function ($r) use ($today, $cutoff) {
             $status = 'active';
@@ -119,4 +119,11 @@ class StockEntryController extends Controller
         ]);
     }
 
+    // Stockout Allocations
+    public function allocations($id)
+    {
+        $allocations = $this->service->getAllocations((int) $id);
+
+        return response()->json($allocations);
+    }
 }
