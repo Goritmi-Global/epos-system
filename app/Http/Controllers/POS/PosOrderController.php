@@ -15,25 +15,26 @@ class PosOrderController extends Controller
 
     public function index()
     {  
-        $order_code = date('Ymd-His') . rand(10, 99);
-        $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
+        // $order_code = date('Ymd-His') . rand(10, 99);
+        // $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
 
          
-        $response = $stripe->paymentIntents->create([
-            'amount' => 1000, // $10.00 -> 1000 cents
-            'currency' => 'USD',
-            'payment_method_types' => ['card'],
-            'description' => '10X-Global',
-            'metadata' => [
-                'order_code' => $order_code,
-            ],
-        ]);
+        // $response = $stripe->paymentIntents->create([
+        //     'amount' => 1000, // $10.00 -> 1000 cents
+        //     'currency' => 'USD',
+        //     'payment_method_types' => ['card'],
+        //     'description' => '10X-Global',
+        //     'metadata' => [
+        //         'order_code' => $order_code,
+        //     ],
+        // ]);
 
-        $client_secret = $response->client_secret ?? null;
+        // $client_secret = $response->client_secret ?? null;
 
-        return Inertia::render('Backend/POS/Index', [
-            'client_secret' => $client_secret,
-        ]); 
+        // return Inertia::render('Backend/POS/Index', [
+        //     'client_secret' => $client_secret,
+        // ]); 
+        return Inertia::render('Backend/POS/Index');
     }
 
 
@@ -141,4 +142,40 @@ class PosOrderController extends Controller
     return redirect()->route('pos.order')->with('success', 'Stripe order placed successfully.');
 }
 
+
+public function createIntent(Request $request)
+    { 
+        $amount     = (float) $request->input('amount', 0);
+        $currency   = strtolower($request->input('currency', 'usd'));
+        $orderCode  = $request->input('order_code') ?: (now()->format('Ymd-His') . rand(10, 99));
+
+        //  Convert to cents (integers)
+        $amountInCents = (int) round($amount * 100);
+        if ($amountInCents < 50) {
+            return response()->json(['error' => 'Amount must be at least 0.50'], 422);
+        }
+  
+       $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
+
+        //  Create PI with the real amount
+        $pi = $stripe->paymentIntents->create([
+            'amount'   => $amountInCents,
+            'currency' => $currency,
+            'automatic_payment_methods' => ['enabled' => true],
+            'metadata' => [
+                'order_code' => $orderCode,
+                'source'     => 'pos-web',
+            ],
+            'description' => "POS Order {$orderCode} ({$currency} {$amount})",
+        ]);
+
+        return response()->json([
+            'payment_intent' => $pi->id,
+            'client_secret'  => $pi->client_secret,
+            'order_code'     => $orderCode,
+            'amount'         => $amount,
+            'currency'       => $currency,
+        ]);
+    }
+    
 }

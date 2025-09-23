@@ -239,8 +239,13 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
         ->name('place-stripe-order');
 
+         
+
+
     });
 
+    Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])
+    ->name('stripe.pi.create');
     
 
     /* -------- Orders -------- */
