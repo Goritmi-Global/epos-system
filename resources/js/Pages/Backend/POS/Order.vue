@@ -159,6 +159,7 @@ function closePaymentModal() {
     showPaymentModal.value = false;
     selectedPayment.value = null;
 }
+
 </script>
 
 <template>
