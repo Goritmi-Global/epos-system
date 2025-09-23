@@ -58,20 +58,23 @@ class PosOrderService
         if (($data['payment_type'] ?? '') === 'Split') {
             $cashAmount = $data['cash_received'] ?? 0;
             $cardAmount = $data['card_payment'] ?? 0;
+            $payedUsing = $data['payment_type'];
         }
         elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
             $cashAmount = $data['amount_received'] ?? $data['total_amount'];
+            $payedUsing = $data['payment_method'];
             $cardAmount = 0;
         } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
             $cashAmount = 0;
             $cardAmount = $data['amount_received'] ?? $data['total_amount'];
+            $payedUsing = $data['payment_method'];
         }  
 
         Payment::create([
             'order_id'                 => $order->id,
             'user_id'                  => Auth::id(),
             'amount_received'          =>  $data['total_amount'],
-            'payment_type'             => $data['payment_method'] ?? 'Cash',
+            'payment_type'             =>  $payedUsing,
             'payment_date'             => now(),
 
             // Split fields (clean values)
