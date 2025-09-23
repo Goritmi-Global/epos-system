@@ -1,12 +1,12 @@
 <script setup>
 import StripePayment from "./StripePayment.vue";
 import Master from "@/Layouts/Master.vue";
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import { ref, computed, onMounted, watch } from "vue";
 import { toast } from "vue3-toastify";
 import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
-
+// import { usePage } from "@inertiajs/vue3";
 const props = defineProps(["client_secret", "order_code"]);
 /* ----------------------------
    Categories (same keys/icons)
@@ -688,6 +688,23 @@ onMounted(() => {
     fetchMenuItems();
     fetchProfileTables();
 });
+
+const page = usePage();
+
+function bumpToasts() {
+    const s = page.props.flash?.success;
+    const e = page.props.flash?.error;
+    if (s) toast.success(s, { autoClose: 4000 });
+    if (e) toast.error(e, { autoClose: 6000 });
+}
+// Fire once on load
+onMounted(() => bumpToasts());
+// Also react if flash changes due to subsequent navigations
+watch(
+    () => page.props.flash,
+    () => bumpToasts(),
+    { deep: true }
+);
 </script>
 
 <template>
