@@ -15,6 +15,10 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'stripe_secret_key' => env('STRIPE_SECRET'),
+    'stripe_public_key' => env('STRIPE_PUBLIC'),
+
+    
     /*
     |--------------------------------------------------------------------------
     | Application Environment

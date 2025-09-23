@@ -15,14 +15,23 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
 
-            // Relations
-            $table->foreignId('order_id')->constrained('pos_orders')->onDelete('cascade');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('order_id')->nullable()->constrained('pos_orders')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
 
             // Payment details
-            $table->decimal('amount_received', 10, 2);
-            $table->string('payment_type');
+            $table->decimal('amount_received', 10, 2)->nullable();
+            $table->string('payment_type')->nullable();
             $table->dateTime('payment_date')->default(DB::raw('CURRENT_TIMESTAMP'));
+
+
+            $table->string('payment_status', 32)->nullable();
+            $table->string('code', 64)->nullable()->index();
+            $table->string('stripe_payment_intent_id', 64)->nullable()->index();
+            $table->string('last_digits', 4)->nullable();
+            $table->string('brand', 32)->nullable();
+            $table->string('currency_code', 3)->nullable();
+            $table->unsignedTinyInteger('exp_month')->nullable();
+            $table->unsignedSmallInteger('exp_year')->nullable();
 
             $table->timestamps();
         });

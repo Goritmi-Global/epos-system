@@ -66,14 +66,7 @@ onMounted(()=>{
 })
 /* =========================================================================
    === Pagination code starts here =========================================
-   This uses your GLOBAL <Paginator> component.
-   Backend must return a standard Laravel LengthAwarePaginator JSON:
-     {
-       data: [...],
-       current_page, last_page, per_page, total, links: [...]
-     }
-   We’re calling /api/purchase-orders (JSON). If you only have an Inertia
-   route, add a tiny API controller/route for JSON.
+   This uses  GLOBAL <Paginator> component. connect in the app.js file 
    ========================================================================= */
 
 const loading = ref(false);
@@ -879,10 +872,24 @@ onUpdated(() => window.feather?.replace?.());
                                         ></span>
                                         Updating...
                                     </span>
+<<<<<<< HEAD
+                                    <span v-else
+                                        >Complete Order & Update Stock</span
+                                    >
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary rounded-pill px-4 py-2"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Cancel
+                                </button>
+=======
                                     <span v-else>Complete Order & Update Stock</span>
                                            </button>
                                 <button type="button" @click="resetModal" class="btn btn-secondary rounded-pill px-4 py-2"
                                     data-bs-dismiss="modal">Cancel</button>
+>>>>>>> c602a659eebed9d152e71bc654a5cac22ebf7e88
                             </div>
                         </div>
                     </div>

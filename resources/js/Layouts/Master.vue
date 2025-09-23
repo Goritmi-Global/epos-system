@@ -50,7 +50,7 @@ const sidebarMenus = ref([
                     { label: "Items", icon: "box", route: "menu.index" },
                 ],
             },
-            { label: "POS Order", icon: "shopping-bag", route: "pos.order" },
+            { label: "Sale", icon: "shopping-bag", route: "pos.order" },
             { label: "Orders", icon: "list", route: "orders.index" },
             { label: "Payment", icon: "credit-card", route: "payment.index" },
             {
