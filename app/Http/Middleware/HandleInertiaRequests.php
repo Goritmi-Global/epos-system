@@ -39,6 +39,11 @@ class HandleInertiaRequests extends Middleware
                 
             ],
             'stripe_public_key' => $stripe_public_key,
+             'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+            ],
+
         ];
     }
 }
