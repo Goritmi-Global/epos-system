@@ -240,10 +240,10 @@ function closePaymentModal() {
                                         <template #value="{ value, placeholder }">
                                             <span v-if="value">{{
                                                 value
-                                                }}</span>
+                                            }}</span>
                                             <span v-else>{{
                                                 placeholder
-                                                }}</span>
+                                            }}</span>
                                         </template>
                                     </Select>
                                 </div>
@@ -255,10 +255,10 @@ function closePaymentModal() {
                                         <template #value="{ value, placeholder }">
                                             <span v-if="value">{{
                                                 value
-                                                }}</span>
+                                            }}</span>
                                             <span v-else>{{
                                                 placeholder
-                                                }}</span>
+                                            }}</span>
                                         </template>
                                     </Select>
                                 </div>
@@ -295,7 +295,7 @@ function closePaymentModal() {
                                         <th>Customer</th>
                                         <th>Payment Type</th>
                                         <th>Total Price</th>
-                                        <th>Status</th>
+                                        <th class="text-center">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -314,18 +314,21 @@ function closePaymentModal() {
                                         </td>
 
                                         <td>{{ money(o.total_amount) }}</td>
-                                        <td>
-                                            <span class="badge rounded-pill fw-semibold px-3 py-2" :class="o.status === 'paid'
-                                                ? 'bg-success-subtle text-success'
-                                                : o.status === 'pending'
-                                                    ? 'bg-warning-subtle text-warning'
-                                                    : o.status === 'cancelled'
-                                                        ? 'bg-danger-subtle text-danger'
-                                                        : 'bg-secondary-subtle text-secondary'
-                                                ">
+                                        <td class="text-center">
+                                            <span
+                                                class="badge rounded-pill fw-semibold px-5 py-2 text-capitalize paid-text"
+                                                :class="o.status === 'paid'
+                                                    ? 'bg-success text-white'
+                                                    : o.status === 'pending'
+                                                        ? 'bg-warning text-dark'
+                                                        : o.status === 'cancelled'
+                                                            ? 'bg-danger text-white'
+                                                            : 'bg-secondary text-white'">
                                                 {{ o.status }}
                                             </span>
                                         </td>
+
+
                                     </tr>
 
                                     <tr v-if="filtered.length === 0">
@@ -419,7 +422,7 @@ function closePaymentModal() {
                                             <div class="info-card">
                                                 <span class="label">Payment Date</span>
                                                 <span class="value">{{ formatDate(selectedPayment?.payment_date)
-                                                }}</span>
+                                                    }}</span>
                                             </div>
                                         </div>
 
@@ -436,7 +439,7 @@ function closePaymentModal() {
                                             <div class="info-card">
                                                 <span class="label">Last 4 Digits</span>
                                                 <span class="value">**** **** **** {{ selectedPayment.last_digits
-                                                }}</span>
+                                                    }}</span>
                                             </div>
                                         </div>
 
@@ -446,7 +449,7 @@ function closePaymentModal() {
                                                 <span class="label">Expiry</span>
                                                 <span class="value">{{ selectedPayment.exp_month }}/{{
                                                     selectedPayment.exp_year
-                                                }}</span>
+                                                    }}</span>
                                             </div>
                                         </div>
 
@@ -571,7 +574,9 @@ function closePaymentModal() {
     font-weight: 600;
     color: #111827;
 }
-
+.paid-text{
+    font-size: 12px;
+}
 
 
 

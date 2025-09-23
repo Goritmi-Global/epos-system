@@ -48,7 +48,9 @@ import { ZiggyVue } from "../../vendor/tightenco/ziggy";
 import PrimeVue from "primevue/config";
 import Aura from "@primeuix/themes/aura";
 import VueTelInput from "vue-tel-input";
+import VueDatePicker from '@vuepic/vue-datepicker';
 import "vue-tel-input/vue-tel-input.css";
+import '@vuepic/vue-datepicker/dist/main.css'
 
 // Global Components
 import ConfirmModal from "@/Components/ConfirmModal.vue";
@@ -74,6 +76,7 @@ createInertiaApp({
         vueApp.component("ImageCropperModal", ImageCropperModal);
         vueApp.component("ImageZoomModal", ImageZoomModal);
         vueApp.component("ImageCropperAppCanvas", ImageCropperAppCanvas);
+        vueApp.component('VueDatePicker', VueDatePicker);
         vueApp.component("Paginator", Paginator);
         const VueTelInputOptions = {
             mode: "international",
@@ -94,6 +97,7 @@ createInertiaApp({
             theme: "light",
         });
         vueApp.use(VueTelInput);
+        
 
         const mountedApp = vueApp.mount(el);
 
