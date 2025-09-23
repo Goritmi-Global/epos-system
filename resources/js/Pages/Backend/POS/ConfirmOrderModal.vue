@@ -73,6 +73,13 @@ function handleSplitConfirm(payload) {
   // Keep your original event name:
   emit("confirm", payload);
 }
+function handleCardConfirm(payload) {
+  // bubble up to the parent exactly like other flows
+  // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
+  // You can also create the order here if that’s your pattern.
+  // Keep your original event name:
+  emit("confirm", payload);
+}
 </script>
 
 <template>
