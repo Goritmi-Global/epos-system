@@ -11,7 +11,7 @@ const props = defineProps({
     grandTotal: Number,
     money: Function,
     cashReceived: Number,
-    client_secret: String,
+  
     order_code: String,
 
     tax: Number,
@@ -67,18 +67,18 @@ const formattedOrderType = computed(() => {
 
 // Payment confirm handler
 function handleSplitConfirm(payload) {
-  // bubble up to the parent exactly like other flows
-  // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
-  // You can also create the order here if that’s your pattern.
-  // Keep your original event name:
-  emit("confirm", payload);
+    // bubble up to the parent exactly like other flows
+    // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
+    // You can also create the order here if that’s your pattern.
+    // Keep your original event name:
+    emit("confirm", payload);
 }
 function handleCardConfirm(payload) {
-  // bubble up to the parent exactly like other flows
-  // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
-  // You can also create the order here if that’s your pattern.
-  // Keep your original event name:
-  emit("confirm", payload);
+    // bubble up to the parent exactly like other flows
+    // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
+    // You can also create the order here if that’s your pattern.
+    // Keep your original event name:
+    emit("confirm", payload);
 }
 </script>
 
@@ -309,6 +309,7 @@ function handleCardConfirm(payload) {
                                 <div class="card border-0 brand-card h-100">
                                     <div class="card-body d-flex flex-column">
                                         <!-- Segmented radios -->
+                                         
                                         <div
                                             class="segmented mt-1 mb-3"
                                             role="tablist"
@@ -427,7 +428,7 @@ function handleCardConfirm(payload) {
                                             class="pt-3 border-top"
                                         >
                                             <StripePayment
-                                                :client_secret="client_secret"
+                                                
                                                 :order_code="order_code"
                                                 :show="show"
                                                 :customer="customer"
@@ -477,10 +478,13 @@ function handleCardConfirm(payload) {
                                         </div>
 
                                         <!-- Split (placeholder to be wired up later if needed) -->
-                                       <div v-if="paymentMethod === 'Split'" class="pt-3 border-top">
-                                            <SplitPayment
+                                        <div
+                                            v-if="paymentMethod === 'Split'"
+                                            class="pt-3 border-top"
+                                        >
+                                            <!-- <SplitPayment
                                                 :total="grandTotal"
-                                                :client_secret="client_secret"
+                                                 
                                                 :order_code="order_code"
                                                 :customer="customer"
                                                 :orderType="orderType"
@@ -491,9 +495,50 @@ function handleCardConfirm(payload) {
                                                 :orderDate="orderDate"
                                                 :orderTime="orderTime"
                                                 :tax="tax ?? 0"
-                                                :serviceCharges="serviceCharges ?? 0"
-                                                :deliveryCharges="deliveryCharges ?? 0"
+                                                :serviceCharges="
+                                                    serviceCharges ?? 0
+                                                "
+                                                :deliveryCharges="
+                                                    deliveryCharges ?? 0
+                                                "
                                                 @confirm="handleSplitConfirm"
+                                            /> -->
+
+                                            <SplitPayment
+                                            
+                                                :order_code="order_code"
+                                                :show="show"
+                                                :customer="customer"
+                                                :orderType="orderType"
+                                                :selectedTable="selectedTable"
+                                                :orderItems="orderItems"
+                                                :grandTotal="grandTotal"
+                                                :money="money"
+                                                :cashReceived="cashReceived"
+                                                :subTotal="subTotal"
+                                                :tax="tax ?? 0"
+                                                :serviceCharges="
+                                                    serviceCharges ?? 0
+                                                "
+                                                :deliveryCharges="
+                                                    deliveryCharges ?? 0
+                                                "
+                                                :note="note"
+                                                :orderDate="
+                                                    orderDate ??
+                                                    new Date()
+                                                        .toISOString()
+                                                        .split('T')[0]
+                                                "
+                                                :orderTime="
+                                                    orderTime ??
+                                                    new Date()
+                                                        .toTimeString()
+                                                        .split(' ')[0]
+                                                "
+                                                :paymentMethod="paymentMethod"
+                                                :change="changeAmount"
+                                                :paymentType="paymentMethod"
                                             />
                                         </div>
 
@@ -529,7 +574,7 @@ function handleCardConfirm(payload) {
 
 /* ===== Header ===== */
 .brand-gradient {
-    background: #1B2850;
+    background: #1b2850;
 }
 
 /* ===== Cards ===== */
@@ -551,7 +596,7 @@ function handleCardConfirm(payload) {
 .brand-btn {
     background: var(--brand);
     color: #fff;
-    border: none;  
+    border: none;
 }
 
 /* ===== Segmented radios ===== */

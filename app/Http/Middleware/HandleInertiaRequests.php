@@ -66,10 +66,10 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
             ],
             'stripe_public_key' => $stripe_public_key,
-            'onboarding' => $onboarding, 
-            'flash' => [
-                'success' => fn() => $request->session()->get('success'),
-                'error'   => fn() => $request->session()->get('error'),
+             'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+                'print_payload'  => fn () => $request->session()->get('print_payload'),
             ],
         ];
     }
