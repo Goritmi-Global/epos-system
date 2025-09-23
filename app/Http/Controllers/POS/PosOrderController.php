@@ -126,6 +126,7 @@ public function placeStripeOrder(Request $request)
 
         $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
 
+         
     $data = [
         'customer_name'    => $request->query('customer_name'),
         'sub_total'        => (float) $request->query('sub_total', 0),
@@ -138,14 +139,15 @@ public function placeStripeOrder(Request $request)
         'order_date'       => $request->query('order_date', now()->toDateString()),
         'order_time'       => $request->query('order_time', now()->toTimeString()),
         'order_type'       => $request->query('order_type'),
-        'table_number'     => $request->query('table_number'),
-        'items'            => $items,
+        'table_number'      => $request->query('table_number'),
+        'payment_type'      => $request->query('payment_type'),
+        'items'             => $items,
 
             // Payment block
             'payment_method'   => 'Stripe',
             'payment_status'   => $pi->status ?? 'succeeded',
             'cash_received'    => (float) $request->query('cash_received', $request->query('total_amount', 0)),
-
+            'card_payment' => (float) $request->query('card_payment',0),
             // Tracking
             'order_code'               => $code,
             'stripe_payment_intent_id' => $paymentIntentId,
@@ -158,7 +160,7 @@ public function placeStripeOrder(Request $request)
         'exp_year'       => $expYear,
     ];
 
-    
+     
     $order = $this->service->create($data);
 
     // for printing receipt
@@ -172,6 +174,7 @@ public function placeStripeOrder(Request $request)
         'sub_total'      => $data['sub_total'] ?? 0,
         'total_amount'   => $data['total_amount'] ?? 0,
         'items'          => $data['items'] ?? [], // from your query params
+        'payment_type'          => $data['payment_type'] ?? [], // from your query params
     ];
 
     // 🔔 Flash for the frontend toast

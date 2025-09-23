@@ -613,12 +613,18 @@ const openConfirmModal = () => {
 //     printWindow.close();
 // }
 function printReceipt(order) {
-  const isCard = (order?.payment_method || '').toLowerCase() === 'card'
-              || (order?.payment_method || '').toLowerCase() === 'stripe';
+  const type = (order?.payment_type || '').toLowerCase();
+  let payLine = "";
 
-  const payLine = isCard
-    ? `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""}${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""}`
-    : `Payment Type: ${order?.payment_method || "Cash"}`;
+  if (type === 'split') {
+    payLine = `Payment Type: Split 
+      (Cash: £${Number(order?.cash_amount ?? 0).toFixed(2)}, 
+       Card: £${Number(order?.card_amount ?? 0).toFixed(2)})`;
+  } else if (type === 'card' || type === 'stripe') {
+    payLine = `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""}${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""}`;
+  } else {
+    payLine = `Payment Type: ${order?.payment_method || "Cash"}`;
+  }
 
   const html = `
 <!doctype html>
@@ -691,7 +697,11 @@ function printReceipt(order) {
   w.document.close();
 }
 
+const paymentMethod = ref("cash");
+const changeAmount = ref(0);
 const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
+    paymentMethod  = paymentMethod;
+    changeAmount  = changeAmount;
     try {
         const payload = {
             customer_name: customer.value,
