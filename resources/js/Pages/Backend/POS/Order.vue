@@ -360,7 +360,6 @@ function closePaymentModal() {
                                 </button>
 
                             </div>
-
                             <!-- Body -->
                             <div class="modal-body p-4">
                                 <div class="payment-info">
@@ -377,9 +376,19 @@ function closePaymentModal() {
                                         <div class="col-6">
                                             <div class="info-card">
                                                 <span class="label">Status</span>
-                                                <span class="value">{{ selectedPayment?.payment_status ?? "-" }}</span>
+                                                <span
+                                                    class="badge rounded-pill fw-semibold py-2 d-inline-block small w-1/2 text-uppercase"
+                                                    :class="{
+                                                        'bg-success text-light': selectedPayment?.payment_status === 'succeeded',
+                                                        'bg-danger text-light': selectedPayment?.payment_status === 'failed',
+                                                        'bg-warning text-dark': selectedPayment?.payment_status === 'pending',
+                                                        'bg-secondary text-light': !['succeeded', 'failed', 'pending'].includes(selectedPayment?.payment_status)
+                                                    }">
+                                                    {{ selectedPayment?.payment_status ?? '-' }}
+                                                </span>
                                             </div>
                                         </div>
+
 
                                         <!-- Amount -->
                                         <div class="col-6">
@@ -388,6 +397,22 @@ function closePaymentModal() {
                                                 <span class="value">{{ money(selectedPayment?.amount_received) }}</span>
                                             </div>
                                         </div>
+
+                                        <!-- Split amounts -->
+                                        <div v-if="selectedPayment?.payment_type === 'Split'" class="col-6">
+                                            <div class="info-card">
+                                                <span class="label">Cash Amount</span>
+                                                <span class="value">{{ money(selectedPayment?.cash_amount) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="selectedPayment?.payment_type === 'Split'" class="col-6">
+                                            <div class="info-card">
+                                                <span class="label">Card Amount</span>
+                                                <span class="value">{{ money(selectedPayment?.card_amount) }}</span>
+                                            </div>
+                                        </div>
+
 
                                         <!-- Date -->
                                         <div class="col-6">
