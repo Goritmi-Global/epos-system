@@ -4,210 +4,236 @@ import { ref, computed, watch } from "vue";
 import StripePayment from "./StripePayment.vue";
 
 const props = defineProps({
-    // required
-    total: { type: Number, required: true },
- 
-    client_secret: String,
-    order_code: String,
-    customer: String,
-    orderType: String,
-    selectedTable: Object,
-    orderItems: Array,
-    money: Function,
-    note: [String, null],
-    orderDate: String,
-    orderTime: String,
-    tax: { type: Number, default: 0 },
-    serviceCharges: { type: Number, default: 0 },
-    deliveryCharges: { type: Number, default: 0 },
+  order_code: String,
+
+  show: Boolean,
+  customer: String,
+  orderType: String,
+  selectedTable: Object,
+  orderItems: Array,
+  grandTotal: Number,          // total to be paid (cash + card)
+  money: Function,
+  cashReceived: Number,        // optional initial cash
+  subTotal: Number,
+  tax: Number,
+  serviceCharges: Number,
+  deliveryCharges: Number,
+  note: [String, null],
+  orderDate: String,
+  orderTime: String,
+  paymentMethod: String,        
+  paymentType: String,        
+  change: Number,
 });
+
+
 
 const emit = defineEmits(["confirm"]);
-// Local state
-const cashReceived = ref(Math.max(0, Math.round((props.total || 0) / 2)));
-const cardCharge = ref(Math.max(0, (props.total || 0) - cashReceived.value));
 
-// Keep the two fields locked so cash + card === total
-let internalGuard = false;
-watch(cashReceived, (v) => {
-    if (internalGuard) return;
-    internalGuard = true;
-    const x = Number(v) || 0;
-    cardCharge.value = Math.max(0, props.total - x);
-    internalGuard = false;
+// ---------- helpers ----------
+const total = computed(() => Number(props.grandTotal ?? 0));
+
+// Split state (default: 50/50 integer amounts)
+const half = Math.floor(total.value / 2);
+
+// Cash = floor half
+const cash = ref(half);
+
+// Card = remainder (ensures sum == total)
+let remainder = total.value - half;
+const card = ref(remainder);
+
+// Guarantee card portion ≥ 0.50
+if (card.value < 0.5) {
+  card.value = 0.5;
+  cash.value = total.value - card.value;
+}
+
+ 
+/** lock to avoid recursive watch loops */
+let guard = false;
+watch(cash, (v) => {
+  if (guard) return;
+  guard = true;
+  const x = Number(v) || 0;
+  card.value = Math.max(0, Math.round((total.value * 100 - x * 100)) / 100);
+  guard = false;
 });
-watch(cardCharge, (v) => {
-    if (internalGuard) return;
-    internalGuard = true;
-    const x = Number(v) || 0;
-    cashReceived.value = Math.max(0, props.total - x);
-    internalGuard = false;
+watch(card, (v) => {
+  if (guard) return;
+  guard = true;
+  const x = Number(v) || 0;
+  cash.value = Math.max(0, Math.round((total.value * 100 - x * 100)) / 100);
+  guard = false;
 });
 
-// Deriveds
-const subTotal = computed(() =>
-    Array.isArray(props.orderItems)
-        ? props.orderItems.reduce(
-              (sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0),
-              0
-          )
-        : 0
+// Derived subTotal (from items) if not provided
+const derivedSubTotal = computed(() => {
+  if (!Array.isArray(props.orderItems)) return 0;
+  return props.orderItems.reduce((sum, i) => {
+    const price = Number(i.price) || 0;
+    const qty = Number(i.qty ?? i.quantity) || 0;
+    return sum + price * qty;
+  }, 0);
+});
+
+// Use provided subTotal or derived
+const subTotalToSend = computed(() =>
+  Number.isFinite(props.subTotal) ? Number(props.subTotal) : derivedSubTotal.value
 );
 
-// Validation
-const errors = computed(() => {
-    const errs = [];
-    if (props.total <= 0) errs.push("Total amount must be greater than 0.");
-    if (cashReceived.value < 0) errs.push("Cash cannot be negative.");
-    if (cardCharge.value < 0) errs.push("Card amount cannot be negative.");
-    const sum =
-        (Number(cashReceived.value) || 0) + (Number(cardCharge.value) || 0);
-    if (sum !== props.total) errs.push("Split must add up to the total.");
-    return errs;
-});
+// No change for strict split
+const changeAmount = computed(() => 0);
 
+// ---------- validation ----------
+function cents(n) { return Math.round((Number(n) || 0) * 100); }
+const errors = computed(() => {
+  const out = [];
+  if (total.value <= 0) out.push("Total amount must be greater than 0.");
+  if (cash.value < 0) out.push("Cash cannot be negative.");
+  if (card.value < 0) out.push("Card amount cannot be negative.");
+  if (cents(cash.value) + cents(card.value) !== cents(total.value)) {
+    out.push("Cash + Card must equal the total.");
+  }
+  return out;
+});
 const canConfirm = computed(() => errors.value.length === 0);
 
-// Emit to parent (parent will close modal / finalize order)
+// ---------- emit to parent (if you also save a cash movement right away) ----------
 function confirmSplit() {
-    if (!canConfirm.value) return;
-    emit("confirm", {
-        paymentMethod: "Split",
-        cashReceived: Number(cashReceived.value) || 0,
-        cardAmount: Number(cardCharge.value) || 0,
-        // No change since we force exact sum; if you want change, relax the lock above
-        changeAmount: 0,
-    });
+  if (!canConfirm.value) return;
+  emit("confirm", {
+    paymentMethod: "Split",
+    cashReceived: Number(cash.value) || 0,
+    cardAmount: Number(card.value) || 0,
+    changeAmount: 0,
+  });
 }
 </script>
 
 <template>
-    <div>
-        <!-- Header -->
-        <div class="pay-header d-flex align-items-center gap-2 mb-3">
-            <i class="bi bi-columns-gap"></i>
-            <h6 class="m-0">Split Payment</h6>
-        </div>
-
-        <!-- Amounts Row -->
-        <div class="row g-3">
-            <div class="col-12 col-sm-6">
-                <label class="form-label fw-semibold">Cash Portion</label>
-                <div class="input-group">
-                    <span class="input-group-text">$</span>
-                    <input
-                        type="number"
-                        min="0"
-                        :max="total"
-                        step="0.01"
-                        v-model.number="cashReceived"
-                        class="form-control rounded-3"
-                    />
-                </div>
-                <div class="small text-muted mt-1">
-                    {{ money ? money(cashReceived || 0) : cashReceived }}
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6">
-                <label class="form-label fw-semibold">Card Portion</label>
-                <div class="input-group">
-                    <span class="input-group-text">$</span>
-                    <input
-                        type="number"
-                        min="0"
-                        :max="total"
-                        step="0.01"
-                        v-model.number="cardCharge"
-                        class="form-control rounded-3"
-                    />
-                </div>
-                <div class="small text-muted mt-1">
-                    {{ money ? money(cardCharge || 0) : cardCharge }}
-                </div>
-            </div>
-        </div>
-
-        <!-- Totals & Check -->
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <div class="fw-semibold">
-                Total:
-                <span class="text-success">{{
-                    money ? money(total) : total
-                }}</span>
-            </div>
-            <div
-                class="small"
-                :class="
-                    cashReceived + cardCharge === total
-                        ? 'text-success'
-                        : 'text-danger'
-                "
-            >
-                Cash + Card =
-                {{
-                    money
-                        ? money((cashReceived || 0) + (cardCharge || 0))
-                        : (cashReceived || 0) + (cardCharge || 0)
-                }}
-            </div>
-        </div>
-
-        <!-- Errors -->
-        <div
-            v-if="errors.length"
-            class="alert alert-danger rounded-3 mt-3 mb-0"
-        >
-            <ul class="m-0 ps-3">
-                <li v-for="(e, i) in errors" :key="i">{{ e }}</li>
-            </ul>
-        </div>
-
-        <!-- Card Processor (Stripe) -->
-        <div class="pt-3 border-top mt-3">
-            <label class="form-label fw-semibold">Pay Card Portion</label>
-            <!-- We pass cardCharge as the grandTotal for this Stripe instance -->
-            <StripePayment
-                :client_secret="client_secret"
-                :order_code="order_code"
-                :show="true"
-                :customer="customer"
-                :orderType="orderType"
-                :selectedTable="selectedTable"
-                :orderItems="orderItems"
-                :grandTotal="cardCharge"
-                :money="money"
-                :cashReceived="cashReceived"
-                :subTotal="subTotal"
-                :tax="tax ?? 0"
-                :serviceCharges="serviceCharges ?? 0"
-                :deliveryCharges="deliveryCharges ?? 0"
-                :note="note"
-                :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
-                :orderTime="
-                    orderTime ?? new Date().toTimeString().split(' ')[0]
-                "
-                :paymentMethod="'Split'"
-                :change="0"
-            />
-        </div>
-
-        <!-- Actions -->
-        <div class="d-flex gap-2 mt-3">
-            <button
-                class="btn brand-btn rounded-pill px-3 py-2"
-                :disabled="!canConfirm"
-                @click="confirmSplit"
-            >
-                <i class="bi bi-check2-circle me-1"></i>
-                Confirm Split
-            </button>
-        </div>
+  <div>
+    <!-- Header -->
+    <div class="pay-header d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-columns-gap"></i>
+      <h6 class="m-0">Split Payment</h6>
     </div>
+
+    <!-- Amounts Row -->
+    <div class="row g-3">
+      <div class="col-12 col-sm-6">
+        <label class="form-label fw-semibold">Cash Portion</label>
+        <div class="input-group">
+          <span class="input-group-text">£</span>
+          <input
+            type="number"
+            min="0"
+            :max="total"
+            step="0.01"
+            v-model.number="cash"
+            class="form-control rounded-3"
+          />
+        </div>
+        <div class="small text-muted mt-1">
+          {{ money ? money(cash || 0) : (cash || 0) }}
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6">
+        <label class="form-label fw-semibold">Card Portion</label>
+        <div class="input-group">
+          <span class="input-group-text">£</span>
+          <input
+            type="number"
+            min="0"
+            :max="total"
+            step="0.01"
+            v-model.number="card"
+            class="form-control rounded-3"
+
+          />
+        </div>
+        <div class="small text-muted mt-1">
+          {{ money ? money(card || 0) : (card || 0) }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Totals & Check -->
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="fw-semibold">
+        Total:
+        <span class="text-success">{{ money ? money(total) : total }}</span>
+      </div>
+      <div
+        class="small"
+        :class="cents(cash) + cents(card) === cents(total) ? 'text-success' : 'text-danger'"
+      >
+        Cash + Card =
+        {{
+          money
+            ? money((cash || 0) + (card || 0))
+            : (Number(cash || 0) + Number(card || 0))
+        }}
+      </div>
+    </div>
+
+    <!-- Errors -->
+    <div v-if="errors.length" class="alert alert-danger rounded-3 mt-3 mb-0">
+      <ul class="m-0 ps-3">
+        <li v-for="(e, i) in errors" :key="i">{{ e }}</li>
+      </ul>
+    </div>
+
+    <!-- Card Processor (Stripe) -->
+    <div class="pt-3 border-top mt-3">
+      <label class="form-label fw-semibold">Pay Card Portion</label>
+
+      <!-- We pass card as grandTotal for Stripe; include split metadata -->
+        
+      <StripePayment
+        :order_code="order_code"
+        :show="show"
+        :customer="customer"
+        :orderType="orderType"
+        :selectedTable="selectedTable"
+        :orderItems="orderItems"
+
+        :grandTotal="grandTotal"           
+
+        :money="money"
+        :cashReceived="cash"           
+        :cardPayment="card"           
+        :subTotal="subTotalToSend"
+        :tax="tax ?? 0"
+        :serviceCharges="serviceCharges ?? 0"
+        :deliveryCharges="deliveryCharges ?? 0"
+        :note="note"
+        :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
+        :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
+
+        :paymentMethod="paymentMethod"       
+        :change="changeAmount"
+
+        :paymentType="paymentType"
+        :cardCharge="cardCharge"
+      />
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex gap-2 mt-3">
+      <button
+        class="btn brand-btn rounded-pill px-3 py-2"
+        :disabled="!canConfirm"
+        @click="confirmSplit"
+      >
+        <i class="bi bi-check2-circle me-1"></i>
+        Confirm Split
+      </button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.pay-header i {
-    color: var(--brand);
-}
+.pay-header i { color: var(--brand); }
 </style>

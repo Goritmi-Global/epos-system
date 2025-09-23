@@ -28,6 +28,8 @@ class PosOrderService
     {
         return DB::transaction(function () use ($data) {
 
+ 
+
             // 1 Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
@@ -49,15 +51,34 @@ class PosOrderService
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
+        $cashAmount = null;
+        $cardAmount = null;
+// dd($data);
+   
+        if (($data['payment_type'] ?? '') === 'Split') {
+            $cashAmount = $data['cash_received'] ?? 0;
+            $cardAmount = $data['card_payment'] ?? 0;
+        }
+        elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
+            $cashAmount = $data['amount_received'] ?? $data['total_amount'];
+            $cardAmount = 0;
+        } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
+            $cashAmount = 0;
+            $cardAmount = $data['amount_received'] ?? $data['total_amount'];
+        }  
 
         Payment::create([
             'order_id'                 => $order->id,
             'user_id'                  => Auth::id(),
-            'amount_received'          => $data['cash_received'] ?? $data['total_amount'],
+            'amount_received'          =>  $data['total_amount'],
             'payment_type'             => $data['payment_method'] ?? 'Cash',
             'payment_date'             => now(),
 
-            // New fields (Stripe-aware, Cash leaves them null/default)
+            // Split fields (clean values)
+            'cash_amount'              => $cashAmount,
+            'card_amount'              => $cardAmount,
+
+             
             'payment_status'           => $data['payment_status'] ?? null,
             'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
             'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
@@ -67,6 +88,7 @@ class PosOrderService
             'exp_month'                => $data['exp_month'] ?? null,
             'exp_year'                 => $data['exp_year'] ?? null,
         ]);
+
         // dd("Service class Done ",$data);
             return $order;
         });
