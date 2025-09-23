@@ -692,6 +692,11 @@ function printReceipt(order) {
 `;
 
   const w = window.open('', '', 'width=400,height=600');
+  if (!w) {
+    console.error('Popup blocked or failed to open');
+    alert('Please allow popups for this site to print receipts');
+    return;
+}
   w.document.open();
   w.document.write(html);
   w.document.close();
