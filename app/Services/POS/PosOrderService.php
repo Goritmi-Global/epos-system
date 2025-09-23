@@ -166,4 +166,7 @@ class PosOrderService
     {
         return RestaurantProfile::select('order_types', 'table_details')->first();
     }
+
+    
+
 }
