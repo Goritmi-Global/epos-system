@@ -1164,7 +1164,9 @@ watch(
                                     {{ money(selectedItem?.price || 0) }}
                                 </div>
                                 <!-- INGREDIENTS (top) -->
-                                <div class="mb-2">
+
+                                
+                                <!-- <div class="mb-2">
                                     <strong>Ingredients:</strong>
                                     <div
                                         v-if="
@@ -1176,7 +1178,6 @@ watch(
                                         >
                                     </div>
                                     <div v-else class="mt-2">
-                                        <!-- inline chips/list -->
                                         <span
                                             v-for="ing in selectedItem.ingredients"
                                             :key="
@@ -1205,7 +1206,10 @@ watch(
                                             >
                                         </span>
                                     </div>
-                                </div>
+                                </div> -->
+
+
+
                                 <!-- NUTRITION / ALLERGIES / TAGS -->
                                 <div class="chips mb-3">
                                     <!-- NUTRITION -->

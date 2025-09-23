@@ -65,7 +65,6 @@ const clientSecret = ref(null);
 const isReady = ref(false);
 const isPaying = ref(false);
 let paymentElement = null;
-console.log("key", page.props.stripe_public_key);
 
 // --- Create PI on the server with FINAL amount (GBP) ---
 async function createPI() {

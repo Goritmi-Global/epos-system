@@ -478,24 +478,24 @@ function handleCardConfirm(payload) {
 
                                         <!-- Split (placeholder to be wired up later if needed) -->
                                        <div v-if="paymentMethod === 'Split'" class="pt-3 border-top">
-  <SplitPayment
-    :total="grandTotal"
-    :client_secret="client_secret"
-    :order_code="order_code"
-    :customer="customer"
-    :orderType="orderType"
-    :selectedTable="selectedTable"
-    :orderItems="orderItems"
-    :money="money"
-    :note="note"
-    :orderDate="orderDate"
-    :orderTime="orderTime"
-    :tax="tax ?? 0"
-    :serviceCharges="serviceCharges ?? 0"
-    :deliveryCharges="deliveryCharges ?? 0"
-    @confirm="handleSplitConfirm"
-  />
-</div>
+                                            <SplitPayment
+                                                :total="grandTotal"
+                                                :client_secret="client_secret"
+                                                :order_code="order_code"
+                                                :customer="customer"
+                                                :orderType="orderType"
+                                                :selectedTable="selectedTable"
+                                                :orderItems="orderItems"
+                                                :money="money"
+                                                :note="note"
+                                                :orderDate="orderDate"
+                                                :orderTime="orderTime"
+                                                :tax="tax ?? 0"
+                                                :serviceCharges="serviceCharges ?? 0"
+                                                :deliveryCharges="deliveryCharges ?? 0"
+                                                @confirm="handleSplitConfirm"
+                                            />
+                                        </div>
 
                                         <div
                                             class="mt-auto small text-muted pt-2"
