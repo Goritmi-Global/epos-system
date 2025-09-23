@@ -1885,6 +1885,9 @@ const handleImport = (data) => {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+:deep(.p-multiselect-label){
+    color: #000 !important;
+}
 
 /* ====================Select Styling===================== */
 /* Entire select container */

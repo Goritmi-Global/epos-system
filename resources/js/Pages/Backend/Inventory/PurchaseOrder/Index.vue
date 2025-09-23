@@ -872,7 +872,6 @@ onUpdated(() => window.feather?.replace?.());
                                         ></span>
                                         Updating...
                                     </span>
-<<<<<<< HEAD
                                     <span v-else
                                         >Complete Order & Update Stock</span
                                     >
@@ -884,12 +883,6 @@ onUpdated(() => window.feather?.replace?.());
                                 >
                                     Cancel
                                 </button>
-=======
-                                    <span v-else>Complete Order & Update Stock</span>
-                                           </button>
-                                <button type="button" @click="resetModal" class="btn btn-secondary rounded-pill px-4 py-2"
-                                    data-bs-dismiss="modal">Cancel</button>
->>>>>>> c602a659eebed9d152e71bc654a5cac22ebf7e88
                             </div>
                         </div>
                     </div>

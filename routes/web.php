@@ -99,6 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
         Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
+        Route::get('/stock-logs/{id}/allocations', [StockEntryController::class, 'allocations'])->name('stock.logs.allocations');
 
         // Parameterized
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
