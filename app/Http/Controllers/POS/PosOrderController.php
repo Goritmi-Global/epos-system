@@ -29,20 +29,20 @@ class PosOrderController extends Controller
         ]);
     }
     public function fetchMenuCategories()
-    {  
+    {
         $menuCategories = $this->service->getMenuCategories();
-        return $menuCategories; 
+        return $menuCategories;
     }
     public function fetchMenuItems()
-    {  
+    {
         $menuItems = $this->service->getAllMenus();
-        return $menuItems; 
+        return $menuItems;
     }
 
-   public function fetchProfileTables()
-    {  
+    public function fetchProfileTables()
+    {
         $profileTables = $this->service->getProfileTable();
-        return $profileTables; 
+        return $profileTables;
     }
 
 
@@ -113,18 +113,18 @@ public function placeStripeOrder(Request $request)
         try { $items = json_decode($request->query('items'), true) ?? []; } catch (\Throwable $e) {}
     }
 
-    $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'USD'));
+        $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'USD'));
 
-    // Card details (prefer latest_charge)
-    $pm        = $pi->payment_method;
-    $chargePmd = $pi->latest_charge->payment_method_details->card ?? null;
+        // Card details (prefer latest_charge)
+        $pm        = $pi->payment_method;
+        $chargePmd = $pi->latest_charge->payment_method_details->card ?? null;
 
-    $brand     = $chargePmd->brand   ?? ($pm->card->brand   ?? null);
-    $last4     = $chargePmd->last4   ?? ($pm->card->last4   ?? null);
-    $expMonth  = $pm->card->exp_month ?? null;
-    $expYear   = $pm->card->exp_year  ?? null;
+        $brand     = $chargePmd->brand   ?? ($pm->card->brand   ?? null);
+        $last4     = $chargePmd->last4   ?? ($pm->card->last4   ?? null);
+        $expMonth  = $pm->card->exp_month ?? null;
+        $expYear   = $pm->card->exp_year  ?? null;
 
-    $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
+        $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
 
     $data = [
         'customer_name'    => $request->query('customer_name'),
@@ -141,14 +141,14 @@ public function placeStripeOrder(Request $request)
         'table_number'     => $request->query('table_number'),
         'items'            => $items,
 
-        // Payment block
-        'payment_method'   => 'Stripe',
-        'payment_status'   => $pi->status ?? 'succeeded',
-        'cash_received'    => (float) $request->query('cash_received', $request->query('total_amount', 0)),
+            // Payment block
+            'payment_method'   => 'Stripe',
+            'payment_status'   => $pi->status ?? 'succeeded',
+            'cash_received'    => (float) $request->query('cash_received', $request->query('total_amount', 0)),
 
-        // Tracking
-        'order_code'               => $code,
-        'stripe_payment_intent_id' => $paymentIntentId,
+            // Tracking
+            'order_code'               => $code,
+            'stripe_payment_intent_id' => $paymentIntentId,
 
         // Card details
         'last_digits'    => $last4,

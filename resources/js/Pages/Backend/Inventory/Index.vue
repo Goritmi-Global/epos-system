@@ -2143,7 +2143,10 @@ row, i
 
                                     <div class="col-md-12">
                                         <label class="form-label">Expiry Date</label>
-                                        <input type="date" v-model="stockForm.expiry_date" class="form-control" />
+                                        <input type="date" v-model="stockForm.expiry_date" class="form-control" :class="{ 'is-invalid': formErrors.expiry_date }" />
+                                        <small v-if="formErrors.expiry_date" class="text-danger">
+                                            {{ formErrors.expiry_date[0] }}
+                                        </small>
                                     </div>
 
                                     <div class="col-md-12">

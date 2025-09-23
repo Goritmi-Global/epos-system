@@ -50,14 +50,6 @@ class PosOrderService
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-        //     Payment::create([
-        //     'order_id'        => $order->id,
-        //     'user_id'         => Auth::id(),
-        //     'amount_received' => $data['cash_received'] ?? $data['total_amount'],
-        //     'payment_type'    => $data['payment_method'],
-        //     'payment_date'    => now(),
-        // ]);
-        // dd("Test");
         Payment::create([
             'order_id'                 => $order->id,
             'user_id'                  => Auth::id(),

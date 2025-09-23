@@ -551,12 +551,7 @@ function handleCardConfirm(payload) {
 .brand-btn {
     background: var(--brand);
     color: #fff;
-    border: none;
-    box-shadow: 0 8px 18px rgba(28, 13, 130, 0.25);
-}
-.brand-btn:hover {
-    background: var(--brand-700);
-    color: #fff;
+    border: none;  
 }
 
 /* ===== Segmented radios ===== */
