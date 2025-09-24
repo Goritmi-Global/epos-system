@@ -48,48 +48,57 @@ class PosOrderService
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
-        $cashAmount = null;
-        $cardAmount = null;
-// dd($data);
-   
-        if (($data['payment_type'] ?? '') === 'Split') {
-            $cashAmount = $data['cash_received'] ?? 0;
-            $cardAmount = $data['card_payment'] ?? 0;
-            $payedUsing = $data['payment_type'];
-        }
-        elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
-            $cashAmount = $data['amount_received'] ?? $data['total_amount'];
-            $payedUsing = $data['payment_method'];
-            $cardAmount = 0;
-        } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
-            $cashAmount = 0;
-            $cardAmount = $data['amount_received'] ?? $data['total_amount'];
-            $payedUsing = $data['payment_method'];
-        }  
 
-        Payment::create([
-            'order_id'                 => $order->id,
-            'user_id'                  => Auth::id(),
-            'amount_received'          =>  $data['total_amount'],
-            'payment_type'             =>  $payedUsing,
-            'payment_date'             => now(),
+            // Create Order items 
+            foreach ($data['items'] as $item) {
+                $order->items()->create([
+                    'menu_item_id' => $item['product_id'],
+                    'title' => $item['title'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'note' => $item['note'] ?? null,
+                ]);
+            }
+            $cashAmount = null;
+            $cardAmount = null;
 
-            // Split fields (clean values)
-            'cash_amount'              => $cashAmount,
-            'card_amount'              => $cardAmount,
+            if (($data['payment_type'] ?? '') === 'Split') {
+                $cashAmount = $data['cash_received'] ?? 0;
+                $cardAmount = $data['card_payment'] ?? 0;
+                $payedUsing = $data['payment_type'];
+            } elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
+                $cashAmount = $data['amount_received'] ?? $data['total_amount'];
+                $payedUsing = $data['payment_method'];
+                $cardAmount = 0;
+            } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
+                $cashAmount = 0;
+                $cardAmount = $data['amount_received'] ?? $data['total_amount'];
+                $payedUsing = $data['payment_method'];
+            }
 
-             
-            'payment_status'           => $data['payment_status'] ?? null,
-            'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
-            'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
-            'last_digits'              => $data['last_digits'] ?? null,
-            'brand'                    => $data['brand'] ?? null,
-            'currency_code'            => $data['currency_code'] ?? null,
-            'exp_month'                => $data['exp_month'] ?? null,
-            'exp_year'                 => $data['exp_year'] ?? null,
-        ]);
+            Payment::create([
+                'order_id'                 => $order->id,
+                'user_id'                  => Auth::id(),
+                'amount_received'          =>  $data['total_amount'],
+                'payment_type'             =>  $payedUsing,
+                'payment_date'             => now(),
 
-        // dd("Service class Done ",$data);
+                // Split fields (clean values)
+                'cash_amount'              => $cashAmount,
+                'card_amount'              => $cardAmount,
+
+
+                'payment_status'           => $data['payment_status'] ?? null,
+                'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
+                'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
+                'last_digits'              => $data['last_digits'] ?? null,
+                'brand'                    => $data['brand'] ?? null,
+                'currency_code'            => $data['currency_code'] ?? null,
+                'exp_month'                => $data['exp_month'] ?? null,
+                'exp_year'                 => $data['exp_year'] ?? null,
+            ]);
+
+            // dd("Service class Done ",$data);
             return $order;
         });
     }
@@ -180,7 +189,4 @@ class PosOrderService
     {
         return RestaurantProfile::select('order_types', 'table_details')->first();
     }
-
-    
-
 }
