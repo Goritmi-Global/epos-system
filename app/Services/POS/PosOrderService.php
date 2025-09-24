@@ -30,7 +30,6 @@ class PosOrderService
 
     public function create(array $data): PosOrder
     {
-        dd($data);
         return DB::transaction(function () use ($data) {
             //  Create the main order
             $order = PosOrder::create([
@@ -65,30 +64,56 @@ class PosOrderService
                     'note'         => $item['note'] ?? null,
                 ]);
 
-                // 👉 Stockout per item here
-                $product = InventoryItem::with('ingredients')->find($item['product_id']);
+                // // 👉 Stockout per item here
+                // $product = InventoryItem::with('ingredients')->find($item['product_id']);
 
-                if ($product && $product->ingredients->count()) {
-                    foreach ($product->ingredients as $ingredient) {
-                        $requiredQty = $ingredient->quantity * $item['quantity'];
+                // if ($product && $product->ingredients->count()) {
+                //     foreach ($product->ingredients as $ingredient) {
+                //         $requiredQty = $ingredient->quantity * $item['quantity'];
 
-                        $this->stockEntryService->create([
-                            'product_id'     => $ingredient->inventory_item_id,
-                            'name'           => $ingredient->product_name,
-                            'category_id'    => $product->category_id,
-                            'supplier_id'    => $product->supplier_id,
-                            'quantity'       => $requiredQty,
-                            'value'          => 0,
-                            'operation_type' => 'pos_stockout',
-                            'stock_type'     => 'stockout',
-                            'description'    => "Auto stockout from POS Order #{$order->id}",
-                            'user_id'        => Auth::id(),
-                        ]);
+                //         $this->stockEntryService->create([
+                //             'product_id'     => $ingredient->inventory_item_id,
+                //             'name'           => $ingredient->product_name,
+                //             'category_id'    => $product->category_id,
+                //             'supplier_id'    => $product->supplier_id,
+                //             'quantity'       => $requiredQty,
+                //             'value'          => 0,
+                //             'operation_type' => 'pos_stockout',
+                //             'stock_type'     => 'stockout',
+                //             'description'    => "Auto stockout from POS Order #{$order->id}",
+                //             'user_id'        => Auth::id(),
+                //         ]);
+                //     }
+                // }
+
+
+                // Fetch the MenuItem with its ingredients
+                $menuItem = MenuItem::with('ingredients')->find($item['product_id']);
+
+                if ($menuItem && $menuItem->ingredients->count()) {
+                    foreach ($menuItem->ingredients as $ingredient) {
+                        // Each MenuIngredient row points to an InventoryItem
+                        $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
+
+                        if ($inventoryItem) {
+                            $requiredQty = $ingredient->quantity * $item['quantity'];
+
+                            $this->stockEntryService->create([
+                                'product_id'     => $inventoryItem->id,
+                                'name'           => $inventoryItem->name,
+                                'category_id'    => $inventoryItem->category_id,
+                                'supplier_id'    => $inventoryItem->supplier_id,
+                                'quantity'       => $requiredQty,
+                                'value'          => 0,
+                                'operation_type' => 'pos_stockout',
+                                'stock_type'     => 'stockout',
+                                'description'    => "Auto stockout from POS Order #{$order->id}",
+                                'user_id'        => Auth::id(),
+                            ]);
+                        }
                     }
                 }
             }
-
-            dd($product);
 
             $cashAmount = null;
             $cardAmount = null;
@@ -107,7 +132,7 @@ class PosOrderService
                 $cardAmount = $data['amount_received'] ?? $data['total_amount'];
                 $payedUsing = 'Card';
             }
-  
+
             // Payment model data saving
             Payment::create([
                 'order_id'                 => $order->id,
