@@ -160,6 +160,7 @@ const resetModal = () => {
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
 const catFormErrors = ref({});
+const categoryColor = ref("#000000");
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 
@@ -954,7 +955,7 @@ const handleImport = (data) => {
                                                 class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                                 <span class="fs-5">{{
                                                     row.icon || "📦"
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </td>
                                         <td>{{ money(row.total_value) }}</td>
@@ -1091,7 +1092,7 @@ const handleImport = (data) => {
                                                 <span>
                                                     <span class="me-2">{{
                                                         manualIcon.value
-                                                        }}</span>
+                                                    }}</span>
                                                     {{ manualIcon.label }}
                                                 </span>
                                                 <i class="bi bi-caret-down-fill"></i>
@@ -1103,7 +1104,7 @@ const handleImport = (data) => {
                                                         ">
                                                         <span class="me-2">{{
                                                             opt.value
-                                                            }}</span>
+                                                        }}</span>
                                                         {{ opt.label }}
                                                     </a>
                                                 </li>
@@ -1142,6 +1143,19 @@ const handleImport = (data) => {
                                             {{ catFormErrors.name[0] }}
                                         </small>
                                     </div>
+
+                                    <!-- Category Color -->
+                                    <div class="col-12 mt-3">
+                                        <label class="form-label">Category Color</label>
+                                        <input type="color" v-model="categoryColor"
+                                            class="form-control form-control-color"
+                                            :class="{ 'is-invalid': catFormErrors?.color }" title="Choose a color" />
+                                        <small v-if="catFormErrors?.color" class="text-danger">
+                                            {{ catFormErrors.color[0] }}
+                                        </small>
+                                    </div>
+
+
 
                                     <!-- Subcategory Section -->
                                     <div class="col-12" v-if="isSub && !editingCategory">
@@ -1275,7 +1289,7 @@ const handleImport = (data) => {
                                         }" />
                                     <small class="text-danger">{{
                                         subCatErrors
-                                        }}</small>
+                                    }}</small>
                                 </div>
                                 <button type="button" class="btn btn-primary rounded-pill px-4"
                                     @click="submitSubCategory" :disabled="submittingSub">
