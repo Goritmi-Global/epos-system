@@ -2143,7 +2143,12 @@ row, i
 
                                     <div class="col-md-12">
                                         <label class="form-label">Expiry Date</label>
-                                        <input type="date" v-model="stockForm.expiry_date" class="form-control" :class="{ 'is-invalid': formErrors.expiry_date }" />
+                                        
+                                        <VueDatePicker 
+                                            v-model="stockForm.expiry_date"
+                                            :class="{ 'is-invalid': formErrors.expiry_date }"
+                                            :enableTimePicker="false"
+                                            placeholder="Select date" />
                                         <small v-if="formErrors.expiry_date" class="text-danger">
                                             {{ formErrors.expiry_date[0] }}
                                         </small>
