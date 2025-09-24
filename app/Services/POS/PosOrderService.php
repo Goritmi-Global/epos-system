@@ -182,15 +182,28 @@ class PosOrderService
     }
 
     public function getMenuCategories(bool $onlyActive = true)
-    {
-        $query = MenuCategory::with('children')
-            ->whereNull('parent_id');
-        if ($onlyActive) {
-            $query->active();
-        }
+{
+    $query = MenuCategory::with('children')
+        ->withCount('menuItems') // now works because relation exists
+        ->whereNull('parent_id');
 
-        return $query->get();
+    if ($onlyActive) {
+        $query->active();
     }
+
+    return $query->get()->map(function ($cat) {
+        return [
+            'id'    => $cat->id,
+            'name'  => $cat->name,
+            'icon'  => $cat->icon,
+            'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
+            'menu_items_count' => $cat->menu_items_count,
+            'children' => $cat->children,
+        ];
+    });
+}
+
+
     public function getAllMenus()
     {
         return MenuItem::with([

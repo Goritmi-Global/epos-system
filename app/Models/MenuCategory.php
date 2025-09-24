@@ -54,4 +54,9 @@ class MenuCategory extends Model
     {
         return $query->where('active', true);
     }
+    public function menuItems()
+    {
+        return $this->hasMany(MenuItem::class, 'category_id', 'id');
+    }
+
 }
