@@ -409,11 +409,9 @@ function printReceipt(order) {
       (Cash: £${Number(order?.cash_amount ?? 0).toFixed(2)}, 
        Card: £${Number(order?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${
-            order?.card_brand ? ` (${order.card_brand}` : ""
-        }${order?.last4 ? ` •••• ${order.last4}` : ""}${
-            order?.card_brand ? ")" : ""
-        }`;
+        payLine = `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""
+            }${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""
+            }`;
     } else {
         payLine = `Payment Type: ${order?.payment_method || "Cash"}`;
     }
@@ -542,40 +540,28 @@ watch(
                     <!-- LEFT: Menu -->
                     <div class="col-lg-8">
                         <!-- Categories Grid -->
-<div v-if="showCategories" class="row g-3">
-  <div
-    v-for="c in menuCategories"
-    :key="c.id"
-    class="col-6 col-md-4"
-  >
-    <div
-      class="cat-tile"
-      :style="{ background: c.box_bg_color || '#1b1670' }"
-      @click="openCategory(c)"
-    >
-      <div class="cat-icon">{{ c.icon }}</div>
-      <div class="cat-name">{{ c.name }}</div>
-      <div class="cat-sub">{{ c.menu_items_count }} items</div>
-    </div>
-  </div>
+                        <div v-if="showCategories" class="row g-3">
+                            <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4">
+                                <div class="cat-tile" :style="{ background: c.box_bg_color || '#1b1670' }"
+                                    @click="openCategory(c)">
+                                    <div class="cat-icon">{{ c.icon }}</div>
+                                    <div class="cat-name">{{ c.name }}</div>
+                                    <div class="cat-sub">{{ c.menu_items_count }} items</div>
+                                </div>
+                            </div>
 
-  <div v-if="menuCategories.length === 0" class="col-12">
-    <div class="alert alert-light border text-center rounded-4">
-      No categories found
-    </div>
-  </div>
-</div>
+                            <div v-if="menuCategories.length === 0" class="col-12">
+                                <div class="alert alert-light border text-center rounded-4">
+                                    No categories found
+                                </div>
+                            </div>
+                        </div>
 
 
                         <!-- Items in selected category -->
                         <div v-else>
-                            <div
-                                class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3"
-                            >
-                                <button
-                                    class="btn btn-light rounded-pill shadow-sm px-3"
-                                    @click="backToCategories"
-                                >
+                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+                                <button class="btn btn-light rounded-pill shadow-sm px-3" @click="backToCategories">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
                                 <h5 class="fw-bold mb-0">
@@ -589,31 +575,21 @@ watch(
                                 <!-- Search -->
                                 <div class="search-wrap ms-auto">
                                     <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="searchQuery"
-                                        class="form-control search-input"
-                                        type="text"
-                                        placeholder="Search items..."
-                                    />
+                                    <input v-model="searchQuery" class="form-control search-input" type="text"
+                                        placeholder="Search items..." />
                                 </div>
                             </div>
 
                             <div class="row g-3">
-                                <div
-                                    class="col-6 col-md-4 col-xl-3 d-flex"
-                                    v-for="p in filteredProducts"
-                                    :key="p.title"
-                                >
+                                <div class="col-6 col-md-4 col-xl-3 d-flex" v-for="p in filteredProducts"
+                                    :key="p.title">
                                     <div class="item-card" @click="openItem(p)">
                                         <div class="item-img">
                                             <img :src="p.img" alt="" />
                                             <span class="item-price">{{
                                                 money(p.price)
-                                            }}</span>
-                                            <span
-                                                v-if="(p.stock ?? 0) <= 0"
-                                                class="item-badge"
-                                            >
+                                                }}</span>
+                                            <span v-if="(p.stock ?? 0) <= 0" class="item-badge">
                                                 Out
                                             </span>
                                         </div>
@@ -627,13 +603,8 @@ watch(
                                         </div>
                                     </div>
                                 </div>
-                                <div
-                                    v-if="filteredProducts.length === 0"
-                                    class="col-12"
-                                >
-                                    <div
-                                        class="alert alert-light border text-center rounded-4"
-                                    >
+                                <div v-if="filteredProducts.length === 0" class="col-12">
+                                    <div class="alert alert-light border text-center rounded-4">
                                         No items found
                                     </div>
                                 </div>
@@ -647,13 +618,8 @@ watch(
                             <div class="cart-header">
                                 <div class="cart-title">Shopping Cart</div>
                                 <div class="order-type">
-                                    <button
-                                        v-for="(type, i) in orderTypes"
-                                        :key="i"
-                                        class="ot-pill"
-                                        :class="{ active: orderType === type }"
-                                        @click="orderType = type"
-                                    >
+                                    <button v-for="(type, i) in orderTypes" :key="i" class="ot-pill"
+                                        :class="{ active: orderType === type }" @click="orderType = type">
                                         {{ type.replace(/_/g, " ") }}
                                     </button>
                                 </div>
@@ -662,115 +628,67 @@ watch(
                             <div class="cart-body">
                                 <!-- Dine-in table / customer -->
                                 <div class="mb-3">
-                                    <div
-                                        v-if="orderType === 'dine_in'"
-                                        class="row g-2"
-                                    >
+                                    <div v-if="orderType === 'dine_in'" class="row g-2">
                                         <div class="col-6">
-                                            <label class="form-label small"
-                                                >Table</label
-                                            >
-                                            <select
-                                                v-model="selectedTable"
-                                                class="form-select form-select-sm"
-                                                :class="{
-                                                    'is-invalid':
-                                                        formErrors.table_number,
-                                                }"
-                                            >
-                                                <option
-                                                    v-for="(
-                                                        table, idx
-                                                    ) in profileTables.table_details"
-                                                    :key="idx"
-                                                    :value="table"
-                                                >
+                                            <label class="form-label small">Table</label>
+                                            <select v-model="selectedTable" class="form-select form-select-sm" :class="{
+                                                'is-invalid':
+                                                    formErrors.table_number,
+                                            }">
+                                                <option v-for="(
+table, idx
+                                                    ) in profileTables.table_details" :key="idx" :value="table">
                                                     {{ table.name }}
                                                 </option>
                                             </select>
-                                            <div
-                                                v-if="formErrors.table_number"
-                                                class="invalid-feedback d-block"
-                                            >
+                                            <div v-if="formErrors.table_number" class="invalid-feedback d-block">
                                                 {{ formErrors.table_number[0] }}
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <label class="form-label small"
-                                                >Customer</label
-                                            >
-                                            <input
-                                                v-model="customer"
-                                                class="form-control form-control-sm"
-                                                placeholder="Walk In"
-                                            />
+                                            <label class="form-label small">Customer</label>
+                                            <input v-model="customer" class="form-control form-control-sm"
+                                                placeholder="Walk In" />
                                         </div>
                                     </div>
 
                                     <div v-else>
-                                        <label class="form-label small"
-                                            >Customer</label
-                                        >
-                                        <input
-                                            v-model="customer"
-                                            class="form-control form-control-sm"
-                                            placeholder="Walk In"
-                                        />
+                                        <label class="form-label small">Customer</label>
+                                        <input v-model="customer" class="form-control form-control-sm"
+                                            placeholder="Walk In" />
                                     </div>
                                 </div>
 
                                 <!-- Line items -->
                                 <div class="cart-lines">
-                                    <div
-                                        v-if="orderItems.length === 0"
-                                        class="empty"
-                                    >
+                                    <div v-if="orderItems.length === 0" class="empty">
                                         Add items from the left
                                     </div>
 
-                                    <div
-                                        v-for="(it, i) in orderItems"
-                                        :key="it.title"
-                                        class="line"
-                                    >
+                                    <div v-for="(it, i) in orderItems" :key="it.title" class="line">
                                         <div class="line-left">
                                             <img :src="it.img" alt="" />
                                             <div class="meta">
-                                                <div
-                                                    class="name"
-                                                    :title="it.title"
-                                                >
+                                                <div class="name" :title="it.title">
                                                     {{ it.title }}
                                                 </div>
-                                                <div
-                                                    class="note"
-                                                    v-if="it.note"
-                                                >
+                                                <div class="note" v-if="it.note">
                                                     {{ it.note }}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="line-mid">
-                                            <button
-                                                class="qty-btn"
-                                                @click="decCart(i)"
-                                            >
+                                            <button class="qty-btn" @click="decCart(i)">
                                                 −
                                             </button>
                                             <div class="qty">{{ it.qty }}</div>
-                                            <button
-                                                class="qty-btn"
-                                                :class="{
-                                                    disabled:
-                                                        it.qty >=
-                                                        (it.stock ?? 0),
-                                                }"
-                                                @click="incCart(i)"
-                                                :disabled="
-                                                    it.qty >= (it.stock ?? 0)
-                                                "
-                                            >
+                                            <button class="qty-btn" :class="{
+                                                disabled:
+                                                    it.qty >=
+                                                    (it.stock ?? 0),
+                                            }" @click="incCart(i)" :disabled="it.qty >= (it.stock ?? 0)
+                                                    ">
                                                 +
                                             </button>
                                         </div>
@@ -779,10 +697,7 @@ watch(
                                             <div class="price">
                                                 {{ money(it.price) }}
                                             </div>
-                                            <button
-                                                class="del"
-                                                @click="removeCart(i)"
-                                            >
+                                            <button class="del" @click="removeCart(i)">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -795,10 +710,7 @@ watch(
                                         <span>Sub Total</span>
                                         <b>{{ money(subTotal) }}</b>
                                     </div>
-                                    <div
-                                        class="trow"
-                                        v-if="orderType === 'delivery'"
-                                    >
+                                    <div class="trow" v-if="orderType === 'delivery'">
                                         <span>Delivery</span>
                                         <b>{{ deliveryPercent }}%</b>
                                     </div>
@@ -808,22 +720,15 @@ watch(
                                     </div>
                                 </div>
 
-                                <textarea
-                                    v-model="note"
-                                    rows="3"
-                                    class="form-control form-control-sm rounded-3"
-                                    placeholder="Note"
-                                ></textarea>
+                                <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
+                                    placeholder="Note"></textarea>
                             </div>
 
                             <div class="cart-footer">
                                 <button class="btn-clear" @click="resetCart()">
                                     Clear
                                 </button>
-                                <button
-                                    class="btn-place"
-                                    @click="openConfirmModal"
-                                >
+                                <button class="btn-place" @click="openConfirmModal">
                                     Place Order
                                 </button>
                             </div>
@@ -833,23 +738,15 @@ watch(
             </div>
 
             <!-- Choose Item Modal (unchanged content/ids) -->
-            <div
-                class="modal fade"
-                id="chooseItem"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow">
                         <div class="modal-header border-0">
                             <h5 class="modal-title fw-bold">
                                 {{ selectedItem?.title || "Choose Item" }}
                             </h5>
-                            <button
-                                class="btn btn-light btn-sm rounded-pill"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                            >
+                            <button class="btn btn-light btn-sm rounded-pill" data-bs-dismiss="modal"
+                                aria-label="Close">
                                 ✕
                             </button>
                         </div>
@@ -857,15 +754,10 @@ watch(
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-5">
-                                    <img
-                                        :src="
-                                            selectedItem?.image_url ||
-                                            selectedItem?.img ||
-                                            '/assets/img/product/product29.jpg'
-                                        "
-                                        class="img-fluid rounded-3 w-100"
-                                        alt=""
-                                    />
+                                    <img :src="selectedItem?.image_url ||
+                                        selectedItem?.img ||
+                                        '/assets/img/product/product29.jpg'
+                                        " class="img-fluid rounded-3 w-100" alt="" />
                                 </div>
                                 <div class="col-md-7">
                                     <div class="h4 mb-1">
@@ -877,40 +769,28 @@ watch(
                                         <div class="mb-1">
                                             <strong>Nutrition:</strong>
                                         </div>
-                                        <span
-                                            v-if="
-                                                selectedItem?.nutrition
-                                                    ?.calories
-                                            "
-                                            class="chip chip-orange"
-                                        >
+                                        <span v-if="
+                                            selectedItem?.nutrition
+                                                ?.calories
+                                        " class="chip chip-orange">
                                             Cal:
                                             {{
                                                 selectedItem.nutrition.calories
                                             }}
                                         </span>
-                                        <span
-                                            v-if="
-                                                selectedItem?.nutrition?.carbs
-                                            "
-                                            class="chip chip-green"
-                                        >
+                                        <span v-if="
+                                            selectedItem?.nutrition?.carbs
+                                        " class="chip chip-green">
                                             Carbs:
                                             {{ selectedItem.nutrition.carbs }}
                                         </span>
-                                        <span
-                                            v-if="selectedItem?.nutrition?.fat"
-                                            class="chip chip-purple"
-                                        >
+                                        <span v-if="selectedItem?.nutrition?.fat" class="chip chip-purple">
                                             Fat:
                                             {{ selectedItem.nutrition.fat }}
                                         </span>
-                                        <span
-                                            v-if="
-                                                selectedItem?.nutrition?.protein
-                                            "
-                                            class="chip chip-blue"
-                                        >
+                                        <span v-if="
+                                            selectedItem?.nutrition?.protein
+                                        " class="chip chip-blue">
                                             Protein:
                                             {{ selectedItem.nutrition.protein }}
                                         </span>
@@ -918,26 +798,18 @@ watch(
                                         <div class="w-100 mt-2">
                                             <strong>Allergies:</strong>
                                         </div>
-                                        <span
-                                            v-for="(
-                                                a, i
-                                            ) in selectedItem?.allergies || []"
-                                            :key="'a-' + i"
-                                            class="chip chip-red"
-                                            >{{ a.name }}</span
-                                        >
+                                        <span v-for="(
+a, i
+                                            ) in selectedItem?.allergies || []" :key="'a-' + i"
+                                            class="chip chip-red">{{ a.name }}</span>
 
                                         <div class="w-100 mt-2">
                                             <strong>Tags:</strong>
                                         </div>
-                                        <span
-                                            v-for="(
-                                                t, i
-                                            ) in selectedItem?.tags || []"
-                                            :key="'t-' + i"
-                                            class="chip chip-teal"
-                                            >{{ t.name }}</span
-                                        >
+                                        <span v-for="(
+t, i
+                                            ) in selectedItem?.tags || []" :key="'t-' + i" class="chip chip-teal">{{
+                                            t.name }}</span>
                                     </div>
 
                                     <div class="qty-group">
@@ -947,13 +819,8 @@ watch(
                                         <div class="qty-box">
                                             {{ modalQty }}
                                         </div>
-                                        <button
-                                            class="qty-btn"
-                                            @click="incQty"
-                                            :disabled="
-                                                modalQty >= menuStockForSelected
-                                            "
-                                        >
+                                        <button class="qty-btn" @click="incQty" :disabled="modalQty >= menuStockForSelected
+                                            ">
                                             +
                                         </button>
                                     </div>
@@ -962,10 +829,7 @@ watch(
                         </div>
 
                         <div class="modal-footer border-0">
-                            <button
-                                class="btn btn-primary rounded-pill px-4"
-                                @click="confirmAdd"
-                            >
+                            <button class="btn btn-primary rounded-pill px-4" @click="confirmAdd">
                                 Add to Order
                             </button>
                         </div>
@@ -974,35 +838,15 @@ watch(
             </div>
 
             <!-- Confirm / Receipt (unchanged props) -->
-            <ConfirmOrderModal
-                :show="showConfirmModal"
-                :customer="customer"
-                :order-type="orderType"
-                :selected-table="selectedTable"
-                :order-items="orderItems"
-                :grand-total="grandTotal"
-                :money="money"
-                v-model:cashReceived="cashReceived"
-                :client_secret="client_secret"
-                :order_code="order_code"
-                :sub-total="subTotal"
-                :tax="0"
-                :service-charges="0"
-                :delivery-charges="0"
-                :note="note"
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
+                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
+                :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="0" :note="note"
                 :order-date="new Date().toISOString().split('T')[0]"
-                :order-time="new Date().toTimeString().split(' ')[0]"
-                :payment-method="paymentMethod"
-                :change="changeAmount"
-                @close="showConfirmModal = false"
-                @confirm="confirmOrder"
-            />
-            <ReceiptModal
-                :show="showReceiptModal"
-                :order="lastOrder"
-                :money="money"
-                @close="showReceiptModal = false"
-            />
+                :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
+                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
+            <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money"
+                @close="showReceiptModal = false" />
         </div>
     </Master>
 </template>
@@ -1023,28 +867,33 @@ watch(
     transition: 0.2s;
     color: #fff;
 }
+
 .cat-tile:hover {
     transform: translateY(-3px);
     box-shadow: 0 10px 24px rgba(17, 23, 31, 0.1);
 }
+
 .cat-icon {
     font-size: 2rem;
     margin-bottom: 0.5rem;
 }
+
 .cat-name {
     font-weight: 700;
     font-size: 1rem;
 }
+
 .cat-sub {
     font-size: 0.8rem;
     opacity: 0.9;
 }
- 
+
 /* ========== Search Pill ========== */
 .search-wrap {
     position: relative;
     min-width: 220px;
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 10px;
@@ -1052,6 +901,7 @@ watch(
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 34px;
     border-radius: 999px;
@@ -1070,21 +920,25 @@ watch(
     display: flex;
     flex-direction: column;
 }
+
 .item-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 22px rgba(17, 23, 31, 0.1);
 }
+
 .item-img {
     position: relative;
     aspect-ratio: 1/1;
     overflow: hidden;
 }
+
 .item-img img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
+
 .item-price {
     position: absolute;
     left: 10px;
@@ -1096,6 +950,7 @@ watch(
     border-radius: 8px;
     font-size: 0.9rem;
 }
+
 .item-badge {
     position: absolute;
     right: 10px;
@@ -1107,9 +962,11 @@ watch(
     font-weight: 700;
     font-size: 0.75rem;
 }
+
 .item-body {
     padding: 0.6rem 0.75rem 0.8rem;
 }
+
 .item-title {
     font-weight: 700;
     font-size: 0.98rem;
@@ -1118,6 +975,7 @@ watch(
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .item-sub {
     color: #8a8fa7;
     font-size: 0.8rem;
@@ -1128,6 +986,7 @@ watch(
     display: flex;
     flex-direction: column;
 }
+
 .cart-header {
     background: #1b1670;
     color: #fff;
@@ -1138,14 +997,17 @@ watch(
     align-items: center;
     justify-content: space-between;
 }
+
 .cart-title {
     font-weight: 800;
     letter-spacing: 0.3px;
 }
+
 .order-type {
     display: flex;
     gap: 0.4rem;
 }
+
 .ot-pill {
     background: rgba(255, 255, 255, 0.18);
     color: #fff;
@@ -1154,6 +1016,7 @@ watch(
     padding: 0.25rem 0.65rem;
     font-size: 0.8rem;
 }
+
 .ot-pill.active {
     background: #fff;
     color: #1b1670;
@@ -1164,6 +1027,7 @@ watch(
     padding: 1rem;
     background: #fff;
 }
+
 .cart-lines {
     background: #fff;
     border: 1px dashed #e8e9ef;
@@ -1172,6 +1036,7 @@ watch(
     max-height: 360px;
     overflow: auto;
 }
+
 .empty {
     color: #9aa0b6;
     text-align: center;
@@ -1186,21 +1051,25 @@ watch(
     padding: 0.45rem 0.35rem;
     border-bottom: 1px solid #f1f2f6;
 }
+
 .line:last-child {
     border-bottom: 0;
 }
+
 .line-left {
     display: flex;
     gap: 0.6rem;
     align-items: center;
     min-width: 0;
 }
+
 .line-left img {
     width: 38px;
     height: 38px;
     object-fit: cover;
     border-radius: 8px;
 }
+
 .meta .name {
     font-weight: 700;
     font-size: 0.92rem;
@@ -1208,6 +1077,7 @@ watch(
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .meta .note {
     font-size: 0.75rem;
     color: #8a8fa7;
@@ -1218,6 +1088,7 @@ watch(
     align-items: center;
     gap: 0.35rem;
 }
+
 .qty-btn {
     width: 28px;
     height: 28px;
@@ -1228,9 +1099,11 @@ watch(
     font-weight: 800;
     line-height: 1;
 }
+
 .qty-btn.disabled {
     background: #b9bdd4;
 }
+
 .qty {
     min-width: 30px;
     text-align: center;
@@ -1245,11 +1118,13 @@ watch(
     align-items: center;
     gap: 0.4rem;
 }
+
 .price {
     font-weight: 700;
     min-width: 64px;
     text-align: right;
 }
+
 .del {
     border: 0;
     background: #ffeded;
@@ -1262,12 +1137,14 @@ watch(
 .totals {
     padding: 0.75rem 0 0.25rem;
 }
+
 .trow {
     display: flex;
     justify-content: space-between;
     padding: 0.25rem 0;
     color: #4b5563;
 }
+
 .trow.total {
     border-top: 1px solid #eef0f6;
     margin-top: 0.25rem;
@@ -1285,6 +1162,7 @@ watch(
     border-bottom-left-radius: 1rem;
     border-bottom-right-radius: 1rem;
 }
+
 .btn-clear {
     flex: 1;
     border: 0;
@@ -1294,6 +1172,7 @@ watch(
     padding: 0.6rem;
     border-radius: 999px;
 }
+
 .btn-place {
     flex: 1;
     border: 0;
@@ -1310,6 +1189,7 @@ watch(
     flex-wrap: wrap;
     gap: 0.4rem;
 }
+
 .chip {
     font-size: 0.75rem;
     padding: 0.25rem 0.55rem;
@@ -1317,26 +1197,32 @@ watch(
     background: #f5f6fb;
     border: 1px solid #eceef7;
 }
+
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
 }
+
 .chip-blue {
     background: #e8f3ff;
     border-color: #d2e6ff;
 }
+
 .chip-purple {
     background: #f1e9ff;
     border-color: #e1d2ff;
 }
+
 .chip-orange {
     background: #fff3e6;
     border-color: #ffe1bf;
 }
+
 .chip-red {
     background: #ffe9ea;
     border-color: #ffd3d6;
 }
+
 .chip-teal {
     background: #e8fffb;
     border-color: #c9f4ee;
@@ -1348,6 +1234,7 @@ watch(
     border-radius: 12px;
     overflow: hidden;
 }
+
 .qty-box {
     min-width: 60px;
     display: flex;
@@ -1357,6 +1244,7 @@ watch(
     color: #fff;
     font-weight: 800;
 }
+
 .qty-group .qty-btn {
     width: 38px;
     height: 38px;
@@ -1368,22 +1256,27 @@ watch(
         font-size: 0.92rem;
     }
 }
+
 @media (max-width: 991.98px) {
     .cart-lines {
         max-height: 260px;
     }
+
     .search-wrap {
         width: 100%;
         margin-top: 0.4rem;
     }
 }
+
 @media (max-width: 575.98px) {
     .cat-tile {
         padding: 1.5rem 1rem;
     }
+
     .cat-name {
         font-size: 0.9rem;
     }
+
     .search-input {
         width: 100%;
     }
