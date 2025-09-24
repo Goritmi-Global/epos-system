@@ -29,6 +29,6 @@ class OrdersService
     }
     public function getAllOrders()
     {
-        return PosOrder::with(['type','payment','user'])->latest()->get();
+        return PosOrder::with(['type','payment','user', 'items'])->latest()->get();
     }
 }
