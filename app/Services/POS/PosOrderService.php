@@ -27,9 +27,6 @@ class PosOrderService
     public function create(array $data): PosOrder
     {
         return DB::transaction(function () use ($data) {
-
- 
-
             // 1 Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),

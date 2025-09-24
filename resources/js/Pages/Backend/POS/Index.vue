@@ -692,6 +692,11 @@ function printReceipt(order) {
 `;
 
   const w = window.open('', '', 'width=400,height=600');
+  if (!w) {
+    console.error('Popup blocked or failed to open');
+    alert('Please allow popups for this site to print receipts');
+    return;
+}
   w.document.open();
   w.document.write(html);
   w.document.close();
@@ -1261,7 +1266,9 @@ watch(
                                     {{ money(selectedItem?.price || 0) }}
                                 </div>
                                 <!-- INGREDIENTS (top) -->
-                                <div class="mb-2">
+
+                                
+                                <!-- <div class="mb-2">
                                     <strong>Ingredients:</strong>
                                     <div
                                         v-if="
@@ -1273,7 +1280,6 @@ watch(
                                         >
                                     </div>
                                     <div v-else class="mt-2">
-                                        <!-- inline chips/list -->
                                         <span
                                             v-for="ing in selectedItem.ingredients"
                                             :key="
@@ -1302,7 +1308,10 @@ watch(
                                             >
                                         </span>
                                     </div>
-                                </div>
+                                </div> -->
+
+
+
                                 <!-- NUTRITION / ALLERGIES / TAGS -->
                                 <div class="chips mb-3">
                                     <!-- NUTRITION -->

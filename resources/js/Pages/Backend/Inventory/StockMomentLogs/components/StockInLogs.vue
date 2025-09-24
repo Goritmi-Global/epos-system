@@ -116,8 +116,8 @@ const typeTextClass = (v) =>
     v === "stockin"
         ? "text-success"
         : v === "stockout"
-        ? "text-danger"
-        : "text-secondary";
+            ? "text-danger"
+            : "text-secondary";
 
 /* --------- View / Edit --------- */
 const selectedLog = ref(null);
@@ -231,86 +231,66 @@ onUpdated(() => window.feather?.replace());
                             <td class="fw-semibold text-capitalize">
                                 {{ row.itemName }}
                             </td>
-                             <td>{{ row.quantity }}</td>
-                             <td>{{ money(row.unitPrice) }}</td>
+                            <td>{{ row.quantity }}</td>
+                            <td>{{ money(row.unitPrice) }}</td>
                             <td>{{ money(row.totalPrice) }}</td>
                             <td>{{ row.category?.name || row.category }}</td>
                             <td>{{ fmtDateTime(row.dateTime) }}</td>
                             <td>
                                 <template v-if="row.expiryDate">
-                                    <span
-                                        :class="[
-                                            'badge',
-                                            'rounded-pill',
-                                            expiryBadgeClass(row.expiryDate),
-                                        ]"
-                                        :title="
-                                            daysUntil(row.expiryDate) !== null
+                                    <span :class="[
+                                        'badge',
+                                        'rounded-pill',
+                                        expiryBadgeClass(row.expiryDate),
+                                    ]" :title="daysUntil(row.expiryDate) !== null
                                                 ? daysUntil(row.expiryDate) < 0
                                                     ? Math.abs(
-                                                          daysUntil(
-                                                              row.expiryDate
-                                                          )
-                                                      ) + ' day(s) ago'
+                                                        daysUntil(
+                                                            row.expiryDate
+                                                        )
+                                                    ) + ' day(s) ago'
                                                     : daysUntil(
-                                                          row.expiryDate
-                                                      ) + ' day(s) left'
+                                                        row.expiryDate
+                                                    ) + ' day(s) left'
                                                 : ''
-                                        "
-                                    >
+                                            ">
                                         {{ fmtDate(row.expiryDate) }}
                                     </span>
                                     <small class="text-muted ms-2">
                                         {{
-                                            daysUntil(row.expiryDate) < 0
-                                                ? Math.abs(
-                                                      daysUntil(row.expiryDate)
-                                                  ) + " day(s) ago"
-                                                : daysUntil(row.expiryDate) +
-                                                  " day(s) left"
-                                        }}
-                                    </small>
+                                            daysUntil(row.expiryDate) < 0 ? Math.abs(daysUntil(row.expiryDate))
+                                                + " day(s) ago" : daysUntil(row.expiryDate) + " day(s) left" }} </small>
                                 </template>
                                 <span v-else class="text-muted">—</span>
                             </td>
 
-                           
+
                             <td class="text-break">
                                 <template v-if="row.operationType">
-                                    <span
-                                        :class="[
-                                            'fw-semibold',
-                                            opTextClass(row.operationType),
-                                        ]"
-                                    >
+                                    <span :class="[
+                                        'fw-semibold',
+                                        opTextClass(row.operationType),
+                                    ]">
                                         {{ formatOpType(row.operationType) }}
                                     </span>
                                 </template>
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td>
-                                <span
-                                    :class="[
-                                        'fw-semibold',
-                                        typeTextClass(row.type),
-                                    ]"
-                                >
+                                <span :class="[
+                                    'fw-semibold',
+                                    typeTextClass(row.type),
+                                ]">
                                     {{ formatType(row.type) }}
                                 </span>
                             </td>
                             <td class="text-end">
-                                <button
-                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                    @click="Edit(row)"
-                                    title="Adjustment"
-                                >
+                                <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="Edit(row)"
+                                    title="Adjustment">
                                     <Pencil class="w-4 h-4" />
                                 </button>
-                                <button
-                                    class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
-                                    @click="View(row)"
-                                    title="Show"
-                                >
+                                <button class="p-2 rounded-full text-gray-600 hover:bg-blue-100" @click="View(row)"
+                                    title="Show">
                                     <Eye class="w-4 h-4" />
                                 </button>
                             </td>
@@ -327,60 +307,30 @@ onUpdated(() => window.feather?.replace());
         </div>
 
         <!-- View Modal (Stock In) -->
-        <div
-            class="modal fade"
-            id="viewLogModal_in"
-            tabindex="-1"
-            aria-hidden="true"
-        >
+        <div class="modal fade" id="viewLogModal_in" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content rounded-4 shadow-lg border-0">
                     <div class="modal-header align-items-center">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-primary rounded-circle p-2">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="18"
-                                    height="18"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M3 7.5L12 12l9-4.5M3 7.5V17a2 2 0 002 2h14a2 2 0 002-2V7.5M21 7.5L12 3 3 7.5"
-                                    />
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M3 7.5L12 12l9-4.5M3 7.5V17a2 2 0 002 2h14a2 2 0 002-2V7.5M21 7.5L12 3 3 7.5" />
                                 </svg>
                             </span>
                             <div class="d-flex flex-column">
                                 <h5 class="modal-title mb-0">View Stock Log</h5>
-                                <small class="text-muted"
-                                    >Item:
-                                    {{ selectedLog?.itemName ?? "—" }}</small
-                                >
+                                <small class="text-muted">Item:
+                                    {{ selectedLog?.itemName ?? "—" }}</small>
                             </div>
                         </div>
                         <button
                             class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            title="Close"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-6 w-6 text-danger"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
+                            data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -388,19 +338,14 @@ onUpdated(() => window.feather?.replace());
                     <div class="modal-body p-4 bg-light">
                         <div v-if="selectedLog" class="row g-4">
                             <div class="col-lg-12">
-                                <div
-                                    class="card border-0 shadow-sm rounded-4 h-100"
-                                >
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
                                     <div class="card-body">
                                         <h6 class="fw-semibold mb-3">
                                             Details
                                         </h6>
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <small
-                                                    class="text-muted d-block"
-                                                    >Category</small
-                                                >
+                                                <small class="text-muted d-block">Category</small>
                                                 <div class="fw-semibold">
                                                     {{
                                                         selectedLog.category
@@ -412,10 +357,7 @@ onUpdated(() => window.feather?.replace());
                                             </div>
 
                                             <div class="col-md-6">
-                                                <small
-                                                    class="text-muted d-block"
-                                                    >Stock In Quantity</small
-                                                >
+                                                <small class="text-muted d-block">Stock In Quantity</small>
                                                 <div class="fw-semibold">
                                                     {{
                                                         selectedLog.quantity ??
@@ -424,13 +366,8 @@ onUpdated(() => window.feather?.replace());
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
-                                                <small
-                                                    class="text-muted d-block"
-                                                    >Operation</small
-                                                >
-                                                <div
-                                                    class="badge rounded-pill bg-success"
-                                                >
+                                                <small class="text-muted d-block">Operation</small>
+                                                <div class="badge rounded-pill bg-success">
                                                     {{
                                                         selectedLog.operationType ??
                                                         "—"
@@ -447,40 +384,26 @@ onUpdated(() => window.feather?.replace());
 
                                         <div class="row g-3 text-center">
                                             <div class="col-md-3">
-                                                <div
-                                                    class="p-3 bg-light rounded-3"
-                                                >
-                                                    <small
-                                                        class="text-muted d-block"
-                                                        >Unit Price</small
-                                                    >
-                                                    <div
-                                                        class="fs-6 fw-semibold"
-                                                    >
+                                                <div class="p-3 bg-light rounded-3">
+                                                    <small class="text-muted d-block">Unit Price</small>
+                                                    <div class="fs-6 fw-semibold">
                                                         {{
                                                             money(
                                                                 selectedLog.unitPrice ??
-                                                                    0
+                                                                0
                                                             )
                                                         }}
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
-                                                <div
-                                                    class="p-3 bg-light rounded-3"
-                                                >
-                                                    <small
-                                                        class="text-muted d-block"
-                                                        >Total Price</small
-                                                    >
-                                                    <div
-                                                        class="fs-6 fw-semibold"
-                                                    >
+                                                <div class="p-3 bg-light rounded-3">
+                                                    <small class="text-muted d-block">Total Price</small>
+                                                    <div class="fs-6 fw-semibold">
                                                         {{
                                                             money(
                                                                 selectedLog.totalPrice ??
-                                                                    0
+                                                                0
                                                             )
                                                         }}
                                                     </div>
@@ -488,37 +411,23 @@ onUpdated(() => window.feather?.replace());
                                             </div>
 
                                             <div class="col-md-3">
-                                                <div
-                                                    class="p-3 bg-light rounded-3"
-                                                >
-                                                    <small
-                                                        class="text-muted d-block"
-                                                        >Expiry Date</small
-                                                    >
-                                                    <div
-                                                        class="fs-6 fw-semibold"
-                                                    >
+                                                <div class="p-3 bg-light rounded-3">
+                                                    <small class="text-muted d-block">Expiry Date</small>
+                                                    <div class="fs-6 fw-semibold">
                                                         {{
                                                             selectedLog.expiryDate
                                                                 ? fmtDate(
-                                                                      selectedLog.expiryDate
-                                                                  )
+                                                                    selectedLog.expiryDate
+                                                                )
                                                                 : "—"
                                                         }}
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
-                                                <div
-                                                    class="p-3 bg-light rounded-3"
-                                                >
-                                                    <small
-                                                        class="text-muted d-block"
-                                                        >Date</small
-                                                    >
-                                                    <div
-                                                        class="fs-6 fw-semibold"
-                                                    >
+                                                <div class="p-3 bg-light rounded-3">
+                                                    <small class="text-muted d-block">Date</small>
+                                                    <div class="fs-6 fw-semibold">
                                                         {{
                                                             fmtDateTime(
                                                                 selectedLog.dateTime
@@ -539,36 +448,17 @@ onUpdated(() => window.feather?.replace());
         </div>
 
         <!-- Edit Modal (Stock In) -->
-        <div
-            class="modal fade"
-            id="editLogModal_in"
-            tabindex="-1"
-            aria-hidden="true"
-        >
+        <div class="modal fade" id="editLogModal_in" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content rounded-4">
                     <div class="modal-header">
                         <h5 class="modal-title fw-semibold">Edit Stock Log</h5>
                         <button
                             class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            title="Close"
-                            @click="resetErrors"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-6 w-6 text-red-500"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
+                            data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetErrors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -576,81 +466,41 @@ onUpdated(() => window.feather?.replace());
                         <div class="row g-3">
                             <div class="col-md-6 col-md-12">
                                 <label class="form-label">Item Name</label>
-                                <input
-                                    type="text"
-                                    class="form-control"
-                                    v-model="editForm.itemName"
-                                    disabled
-                                />
+                                <input type="text" class="form-control" v-model="editForm.itemName" disabled />
                             </div>
                             <div class="col-md-6 col-md-12">
                                 <label class="form-label">Quantity</label>
-                                <input
-                                    type="number"
-                                    class="form-control"
-                                    v-model="editForm.quantity"
-                                    :class="{
-                                        'is-invalid': formErrors.quantity,
-                                    }"
-                                    required
-                                />
-                                <small
-                                    v-if="formErrors.quantity"
-                                    class="text-danger"
-                                    >{{ formErrors.quantity[0] }}</small
-                                >
+                                <input type="number" class="form-control" v-model="editForm.quantity" :class="{
+                                    'is-invalid': formErrors.quantity,
+                                }" required />
+                                <small v-if="formErrors.quantity" class="text-danger">{{ formErrors.quantity[0]
+                                    }}</small>
                             </div>
                             <div class="col-md-6 col-md-12">
                                 <label class="form-label">Unit Price</label>
-                                <input
-                                    type="number"
-                                    class="form-control"
-                                    v-model="editForm.unitPrice"
-                                    :class="{
-                                        'is-invalid': formErrors.unitPrice,
-                                    }"
-                                    required
-                                />
-                                <small
-                                    v-if="formErrors.unitPrice"
-                                    class="text-danger"
-                                    >{{ formErrors.unitPrice[0] }}</small
-                                >
+                                <input type="number" class="form-control" v-model="editForm.unitPrice" :class="{
+                                    'is-invalid': formErrors.unitPrice,
+                                }" required />
+                                <small v-if="formErrors.unitPrice" class="text-danger">{{ formErrors.unitPrice[0]
+                                    }}</small>
                             </div>
                             <div class="col-md-6 col-md-12">
                                 <label class="form-label">Value</label>
-                                <input
-                                    type="number"
-                                    readonly
-                                    class="form-control"
-                                    v-model="editForm.totalPrice"
-                                />
+                                <input type="number" readonly class="form-control" v-model="editForm.totalPrice" />
                             </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Expiry Date</label>
-                                <input
-                                    type="date"
-                                    class="form-control"
-                                    v-model="expiryDateModel"
-                                />
-                            </div>
+                            <VueDatePicker v-model="expiryDateModel" :enableTimePicker="false"
+                                placeholder="Select date" />
+
 
                             <div class="mt-4">
-                                <button
-                                    class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
-                                    :disabled="isUpdating"
-                                    :aria-busy="isUpdating ? 'true' : 'false'"
-                                    @click="updateLog"
-                                >
-                                    <span
-                                        v-if="isUpdating"
-                                        class="spinner-border spinner-border-sm"
-                                        role="status"
-                                        aria-hidden="true"
-                                    ></span>
+                                <button class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
+                                    :disabled="isUpdating" :aria-busy="isUpdating ? 'true' : 'false'"
+                                    @click="updateLog">
+                                    <span v-if="isUpdating" class="spinner-border spinner-border-sm" role="status"
+                                        aria-hidden="true"></span>
                                     <span>{{
                                         isUpdating ? "Updating…" : "Update"
-                                    }}</span>
+                                        }}</span>
                                 </button>
                             </div>
                         </div>
