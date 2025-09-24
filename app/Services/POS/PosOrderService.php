@@ -8,13 +8,17 @@ use App\Models\PosOrder;
 use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
+use App\Models\InventoryItem;
 use App\Models\Payment;
 use App\Models\PosOrderType;
+use App\Models\StockEntry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class PosOrderService
 {
+    public function __construct(private StockEntryService $stockEntryService) {}
+
     public function list(array $filters = [])
     {
         return PosOrder::query()
@@ -25,7 +29,8 @@ class PosOrderService
     }
 
     public function create(array $data): PosOrder
-    { 
+    {
+        dd($data);
         return DB::transaction(function () use ($data) {
             //  Create the main order
             $order = PosOrder::create([
@@ -51,14 +56,40 @@ class PosOrderService
 
             // Create Order details , where for each order a detailed recods stored of items
             foreach ($data['items'] as $item) {
+                // Save order item
                 $order->items()->create([
                     'menu_item_id' => $item['product_id'],
-                    'title' => $item['title'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'note' => $item['note'] ?? null,
+                    'title'        => $item['title'],
+                    'quantity'     => $item['quantity'],
+                    'price'        => $item['price'],
+                    'note'         => $item['note'] ?? null,
                 ]);
+
+                // 👉 Stockout per item here
+                $product = InventoryItem::with('ingredients')->find($item['product_id']);
+
+                if ($product && $product->ingredients->count()) {
+                    foreach ($product->ingredients as $ingredient) {
+                        $requiredQty = $ingredient->quantity * $item['quantity'];
+
+                        $this->stockEntryService->create([
+                            'product_id'     => $ingredient->inventory_item_id,
+                            'name'           => $ingredient->product_name,
+                            'category_id'    => $product->category_id,
+                            'supplier_id'    => $product->supplier_id,
+                            'quantity'       => $requiredQty,
+                            'value'          => 0,
+                            'operation_type' => 'pos_stockout',
+                            'stock_type'     => 'stockout',
+                            'description'    => "Auto stockout from POS Order #{$order->id}",
+                            'user_id'        => Auth::id(),
+                        ]);
+                    }
+                }
             }
+
+            dd($product);
+
             $cashAmount = null;
             $cardAmount = null;
 
@@ -99,7 +130,11 @@ class PosOrderService
                 'exp_month'                => $data['exp_month'] ?? null,
                 'exp_year'                 => $data['exp_year'] ?? null,
             ]);
- 
+
+
+
+
+            // dd("Service class Done ",$data);
             return $order;
         });
     }

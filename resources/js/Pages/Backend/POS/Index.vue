@@ -108,15 +108,6 @@ const setCat = (id) => {
 };
 const isCat = (id) => activeCat.value === id;
 
-const selectedCategory = ref(null);
-// function openCategory(id) {
-//     selectedCategory.value = id
-// }
-
-// function goBack() {
-//     selectedCategory.value = null
-// }
-
 const profileTables = ref({});
 const orderTypes = ref([]);
 const selectedTable = ref(null);
@@ -218,18 +209,20 @@ const incCart = async (i) => {
         toast.error("Not enough stock to add more of this item.");
         return;
     }
+    it.qty++;
+    console.log(`Local increment. New qty for ${it.title}: ${it.qty}`);
 
-    try {
-        // Call backend to reduce stock (stock-out)
-        await updateStock(it, 1, "stockout");
+    // try {
+    //     // Call backend to reduce stock (stock-out)
+    //     await updateStock(it, 1, "stockout");
 
-        // Only increment if stock update succeeds
-        it.qty++;
-        console.log(`Stock-out successful. New qty for ${it.title}: ${it.qty}`);
-    } catch (err) {
-        console.error("Failed to update stock for increment:", err);
-        toast.error("Failed to add item. Please try again.");
-    }
+    //     // Only increment if stock update succeeds
+    //     it.qty++;
+    //     console.log(`Stock-out successful. New qty for ${it.title}: ${it.qty}`);
+    // } catch (err) {
+    //     console.error("Failed to update stock for increment:", err);
+    //     toast.error("Failed to add item. Please try again.");
+    // }
 };
 
 const decCart = async (i) => {
@@ -238,18 +231,20 @@ const decCart = async (i) => {
         toast.error("Cannot reduce below 1.");
         return;
     }
+    it.qty--;
+    console.log(`Local decrement. New qty for ${it.title}: ${it.qty}`);
 
-    try {
-        // Call backend to increase stock (stock-in)
-        await updateStock(it, 1, "stockin");
+    // try {
+    //     // Call backend to increase stock (stock-in)
+    //     await updateStock(it, 1, "stockin");
 
-        // Only decrement if stock update succeeds
-        it.qty--;
-        console.log(`Stock-in successful. New qty for ${it.title}: ${it.qty}`);
-    } catch (err) {
-        console.error("Failed to update stock for decrement:", err);
-        toast.error("Failed to remove item. Please try again.");
-    }
+    //     // Only decrement if stock update succeeds
+    //     it.qty--;
+    //     console.log(`Stock-in successful. New qty for ${it.title}: ${it.qty}`);
+    // } catch (err) {
+    //     console.error("Failed to update stock for decrement:", err);
+    //     toast.error("Failed to remove item. Please try again.");
+    // }
 };
 
 const removeCart = (i) => orderItems.value.splice(i, 1);
@@ -294,35 +289,36 @@ const confirmAdd = async () => {
         //  1) Add to cart (UI only)
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
         console.log(selectedItem.value.ingredients);
-        //  2) Stockout each ingredient
-        if (
-            selectedItem.value.ingredients &&
-            selectedItem.value.ingredients.length
-        ) {
-            for (const ingredient of selectedItem.value.ingredients) {
-                const requiredQty = ingredient.pivot?.qty
-                    ? ingredient.pivot.qty * modalQty.value
-                    : modalQty.value;
 
-                //Payload matching your request rules
-                await axios.post("/stock_entries", {
-                    product_id: ingredient.inventory_item_id,
-                    name: ingredient.product_name,
-                    category_id: ingredient.category_id,
-                    supplier_id: ingredient.supplier_id,
-                    available_quantity: ingredient.inventory_stock,
-                    quantity: ingredient.quantity * modalQty.value,
-                    price: null,
-                    value: 0,
-                    operation_type: "pos_stockout",
-                    stock_type: "stockout",
-                    expiry_date: null,
-                    description: null,
-                    purchase_date: null,
-                    user_id: ingredient.user_id,
-                });
-            }
-        }
+        //  2) Stockout each ingredient
+        // if (
+        //     selectedItem.value.ingredients &&
+        //     selectedItem.value.ingredients.length
+        // ) {
+        //     for (const ingredient of selectedItem.value.ingredients) {
+        //         const requiredQty = ingredient.pivot?.qty
+        //             ? ingredient.pivot.qty * modalQty.value
+        //             : modalQty.value;
+
+        //         //Payload matching your request rules
+        //         await axios.post("/stock_entries", {
+        //             product_id: ingredient.inventory_item_id,
+        //             name: ingredient.product_name,
+        //             category_id: ingredient.category_id,
+        //             supplier_id: ingredient.supplier_id,
+        //             available_quantity: ingredient.inventory_stock,
+        //             quantity: ingredient.quantity * modalQty.value,
+        //             price: null,
+        //             value: 0,
+        //             operation_type: "pos_stockout",
+        //             stock_type: "stockout",
+        //             expiry_date: null,
+        //             description: null,
+        //             purchase_date: null,
+        //             user_id: ingredient.user_id,
+        //         });
+        //     }
+        // }
 
         //  3) Close modal
         if (chooseItemModal) chooseItemModal.hide();
@@ -417,18 +413,19 @@ const incQty = async () => {
     console.log("menuStockForSelected:", menuStockForSelected.value); // Add .value here
 
     if (modalQty.value < menuStockForSelected.value) {
+        modalQty.value++;
         // Add .value here
-        try {
-            await updateStock(selectedItem.value, 1, "stockout");
-            modalQty.value++; // Only increment after successful stock update
-            console.log(
-                "Stock updated successfully, new modalQty:",
-                modalQty.value
-            );
-        } catch (error) {
-            console.error("Failed to update stock:", error);
-            // Don't increment modalQty if stock update failed
-        }
+        // try {
+        //     await updateStock(selectedItem.value, 1, "stockout");
+        //     modalQty.value++; // Only increment after successful stock update
+        //     console.log(
+        //         "Stock updated successfully, new modalQty:",
+        //         modalQty.value
+        //     );
+        // } catch (error) {
+        //     console.error("Failed to update stock:", error);
+        //     // Don't increment modalQty if stock update failed
+        // }
     } else {
         console.log("Cannot increment: reached maximum stock limit");
     }
@@ -438,17 +435,22 @@ const decQty = async () => {
     console.log("decQty called, current modalQty:", modalQty.value);
 
     if (modalQty.value > 1) {
-        try {
-            await updateStock(selectedItem.value, 1, "stockin");
-            modalQty.value--; // Only decrement after successful stock update
-            console.log(
-                "Stock updated successfully, new modalQty:",
-                modalQty.value
-            );
-        } catch (error) {
-            console.error("Failed to update stock:", error);
-            // Don't decrement modalQty if stock update failed
-        }
+        modalQty.value--;
+
+
+        // try {
+        //     await updateStock(selectedItem.value, 1, "stockin");
+        //     modalQty.value--; // Only decrement after successful stock update
+        //     console.log(
+        //         "Stock updated successfully, new modalQty:",
+        //         modalQty.value
+        //     );
+        // } catch (error) {
+        //     console.error("Failed to update stock:", error);
+        //     // Don't decrement modalQty if stock update failed
+        // }
+
+
     } else {
         console.log("Cannot decrement: minimum quantity is 1");
     }
@@ -475,60 +477,6 @@ watch(orderType, () => {
 });
 
 const note = ref("");
-// const placeOrder = async () => {
-//     if (!orderItems.value.length) {
-//         toast.error("Please add at least one item to the cart before placing the order.");
-//         return;
-//     }
-//     const payload = {
-//         customer_name: customer.value,
-//         sub_total: subTotal.value,
-//         total_amount: grandTotal.value,
-//         tax: 0,                  // temporarily 0
-//         service_charges: 0,      // temporarily 0
-//         delivery_charges: 0,     // temporarily 0
-//         note: note.value,
-//         order_date: new Date().toISOString().split('T')[0],
-//         order_time: new Date().toTimeString().split(' ')[0],
-//         order_type: orderType.value === "dine_in" ? "Dine In"
-//             : orderType.value === "delivery" ? "Delivery"
-//                 : orderType.value === "takeaway" ? "Takeaway"
-//                     : "Collection",
-//         table_number: selectedTable.value?.name || null,
-//         items: orderItems.value.map(it => ({
-//             product_id: it.id,
-//             title: it.title,
-//             quantity: it.qty,
-//             price: it.price,
-//             note: it.note || null,
-//         })),
-//     };
-
-//     console.log("sending payload...", payload);
-
-//     try {
-//         const res = await axios.post('/pos/order', payload);
-//         resetCart();
-//         formErrors.value = {};
-//         toast.success(res.data.message);
-//         // reset cart/form here if needed
-//     } catch (err) {
-
-//         console.error("Order error:", err);
-
-//         if (err.response?.status === 422) {
-//             // Store errors for later use
-//             formErrors.value = err.response.data.errors;
-
-//             // Also show them in toast
-//             Object.values(formErrors.value).forEach((messages) => {
-//                 messages.forEach((msg) => toast.error(msg));
-//             });
-//         } else {
-//             toast.error(err.response?.data?.message || "Failed to place order");
-//         }
-//     }
-// };
 
 const showReceiptModal = ref(false);
 const lastOrder = ref(null);
@@ -553,65 +501,6 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
-// function printReceipt(order) {
-//     const receipt = `
-//     <html>
-//     <head>
-//       <style>
-//         @media print {
-//           @page { size: 58mm auto; margin: 3mm; }
-//           body { font-family: monospace; font-size: 12px; line-height: 1.3; }
-//           .center { text-align: center; }
-//           .row { display: flex; justify-content: space-between; }
-//           hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
-//         }
-//       </style>
-//     </head>
-//     <body>
-//       <div class="center">
-//         <h3 style="margin:0;">Goritmi</h3>
-//         <p style="margin:0;">Order ID: #${order.id ?? "N/A"}</p>
-//         <p style="margin:0;">Date: ${new Date().toLocaleString()}</p>
-//       </div>
-//       <br/>
-//       <p>Payment Type: ${order.payment_method}</p>
-//       <p>Order Type: ${order.order_type}</p>
-//       <p>Customer Name: ${order.customer_name || "Walk In"}</p>
-//       <hr/>
-//       <div class="row">
-//         <b>Item</b><b>Qty</b><b>Price</b>
-//       </div>
-//       ${(order.items || [])
-//           .map(
-//               (it) => `
-//       <div class="row">
-//         <span>${it.title}</span>
-//         <span>x${it.quantity}</span>
-//         <span>£${parseFloat(it.price).toFixed(2)}</span>
-//       </div>`
-//           )
-//           .join("")}
-
-//       <hr/>
-//       <div class="row"><span>Subtotal:</span><span>£${
-//           order.sub_total
-//       }</span></div>
-//       <div class="row"><b>Total Price:</b><b>£${order.total_amount}</b></div>
-//       <br/>
-//       <p style="font-size:11px;">Location: Abdara Road, Peshawar</p>
-//       <p style="font-size:11px;">Email: info@goritmi.com</p>
-//       <div class="center"><p>Thank you for your visit!</p></div>
-//     </body>
-//     </html>
-//   `;
-
-//     const printWindow = window.open("", "", "width=400,height=600");
-//     printWindow.document.write(receipt);
-//     printWindow.document.close();
-//     printWindow.focus();
-//     printWindow.print();
-//     printWindow.close();
-// }
 function printReceipt(order) {
   const type = (order?.payment_type || '').toLowerCase();
   let payLine = "";
@@ -746,8 +635,10 @@ const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount,items })
     })),
         };
 
+        // 1) Save order
         const res = await axios.post("/pos/order", payload);
 
+        // 3) UI updates
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message);
@@ -1272,52 +1163,6 @@ watch(
                                 <div class="h5 mb-3">
                                     {{ money(selectedItem?.price || 0) }}
                                 </div>
-                                <!-- INGREDIENTS (top) -->
-
-                                
-                                <!-- <div class="mb-2">
-                                    <strong>Ingredients:</strong>
-                                    <div
-                                        v-if="
-                                            !selectedItem?.ingredients?.length
-                                        "
-                                    >
-                                        <em class="text-muted"
-                                            >No ingredients listed</em
-                                        >
-                                    </div>
-                                    <div v-else class="mt-2">
-                                        <span
-                                            v-for="ing in selectedItem.ingredients"
-                                            :key="
-                                                'ing-' +
-                                                (ing.id ??
-                                                    ing.inventory_item_id ??
-                                                    JSON.stringify(ing))
-                                            "
-                                            class="chip"
-                                            style="margin-right: 6px"
-                                        >
-                                            {{
-                                                ing.product_name ||
-                                                ing.name ||
-                                                "Item"
-                                            }}
-                                            <span
-                                                class="text-muted"
-                                                v-if="ing.quantity"
-                                            >
-                                                ({{
-                                                    Number(
-                                                        ing.quantity
-                                                    ).toFixed(2)
-                                                }})</span
-                                            >
-                                        </span>
-                                    </div>
-                                </div> -->
-
-
 
                                 <!-- NUTRITION / ALLERGIES / TAGS -->
                                 <div class="chips mb-3">

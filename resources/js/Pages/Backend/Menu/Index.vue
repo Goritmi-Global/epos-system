@@ -1551,7 +1551,7 @@ const handleImport = (data) => {
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content rounded-4">
                             <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">Add Ingredients</h5>
+                                <h5 class="modal-title fw-semibold">{{ isEditMode == true ? "Edit Ingredients" : "Add Ingredients" }}</h5>
 
                                 <button
                                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -1594,7 +1594,7 @@ const handleImport = (data) => {
 
                                                     </div>
 
-                                                    <button class="btn btn-primary px-3" @click="addIngredient(it)">{{
+                                                    <button class="btn btn-primary px-4 rounded-pill" @click="addIngredient(it)">{{
                                                         i_cart.some(c => c.id === it.id) ? 'Update' : 'Add'}}</button>
                                                 </div>
 
@@ -1670,7 +1670,7 @@ const handleImport = (data) => {
                                         </div>
 
                                         <div class="mt-3 text-center">
-                                            <button class="btn btn-primary px-5" @click="saveIngredients">Done</button>
+                                            <button class="btn btn-primary px-5 rounded-pill" @click="saveIngredients">Done</button>
 
                                         </div>
                                     </div>
