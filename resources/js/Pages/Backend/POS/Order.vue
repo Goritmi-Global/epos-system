@@ -3,6 +3,7 @@ import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
+import { Pencil, Eye } from "lucide-vue-next";
 
 /* ===================== Demo Data (swap with API later) ===================== */
 // const orders = ref([
@@ -149,6 +150,7 @@ function money(n) {
 
 const showPaymentModal = ref(false);
 const selectedPayment = ref(null);
+const selectedOrder = ref(null)
 
 function openPaymentModal(payment) {
     selectedPayment.value = payment;
@@ -158,8 +160,19 @@ function openPaymentModal(payment) {
 function closePaymentModal() {
     showPaymentModal.value = false;
     selectedPayment.value = null;
+    const modal = new bootstrap.Modal(
+        document.getElementById("orderDetailsModal")
+    );
+    modal.show();
 }
 
+const openOrderDetails = (order) => {
+    selectedOrder.value = order;
+    const modal = new bootstrap.Modal(
+        document.getElementById("orderDetailsModal")
+    );
+    modal.show();
+};
 </script>
 
 <template>
@@ -240,10 +253,10 @@ function closePaymentModal() {
                                         <template #value="{ value, placeholder }">
                                             <span v-if="value">{{
                                                 value
-                                            }}</span>
+                                                }}</span>
                                             <span v-else>{{
                                                 placeholder
-                                            }}</span>
+                                                }}</span>
                                         </template>
                                     </Select>
                                 </div>
@@ -255,10 +268,10 @@ function closePaymentModal() {
                                         <template #value="{ value, placeholder }">
                                             <span v-if="value">{{
                                                 value
-                                            }}</span>
+                                                }}</span>
                                             <span v-else>{{
                                                 placeholder
-                                            }}</span>
+                                                }}</span>
                                         </template>
                                     </Select>
                                 </div>
@@ -296,6 +309,7 @@ function closePaymentModal() {
                                         <th>Payment Type</th>
                                         <th>Total Price</th>
                                         <th class="text-center">Status</th>
+                                        <th class="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -327,6 +341,13 @@ function closePaymentModal() {
                                                 {{ o.status }}
                                             </span>
                                         </td>
+                                        <td class="text-center">
+                                            <button class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
+                                                @click="openOrderDetails(o)" title="View Order">
+                                                <Eye class="w-4 h-4" />
+                                            </button>
+                                        </td>
+
 
 
                                     </tr>
@@ -343,7 +364,7 @@ function closePaymentModal() {
                     </div>
                 </div>
 
-                <!-- Modern Payment Details Modal -->
+                <!-- Payment Details Modal -->
                 <div v-if="showPaymentModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.5)">
                     <div class="modal-dialog modal-md modal-dialog-centered">
                         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
@@ -422,7 +443,7 @@ function closePaymentModal() {
                                             <div class="info-card">
                                                 <span class="label">Payment Date</span>
                                                 <span class="value">{{ formatDate(selectedPayment?.payment_date)
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
 
@@ -439,7 +460,7 @@ function closePaymentModal() {
                                             <div class="info-card">
                                                 <span class="label">Last 4 Digits</span>
                                                 <span class="value">**** **** **** {{ selectedPayment.last_digits
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
 
@@ -449,7 +470,7 @@ function closePaymentModal() {
                                                 <span class="label">Expiry</span>
                                                 <span class="value">{{ selectedPayment.exp_month }}/{{
                                                     selectedPayment.exp_year
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
 
@@ -476,6 +497,107 @@ function closePaymentModal() {
                     </div>
                 </div>
 
+                <!-- Order View Modal -->
+                <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content rounded-4 shadow border-0">
+
+                            <!-- Header -->
+                            <div class="modal-header bg-white border-0 position-relative px-4 pt-4">
+
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-gradient rounded-circle p-3 shadow-sm"
+                                        style="background: linear-gradient(135deg, #4e73df, #224abe);">
+                                        <i class="bi bi-receipt fs-5 text-black"></i>
+                                    </span>
+                                    <div class="d-flex flex-column">
+                                        <h5 class="modal-title fw-bold mb-0">Order #{{ selectedOrder?.id }}</h5>
+                                        <small class="text-muted">
+                                            Customer: {{ selectedOrder?.customer_name ?? "—" }}
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <!-- Custom Close Button -->
+                                <button
+                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Body -->
+                            <div class="modal-body bg-light px-4 pb-4">
+                                <div v-if="selectedOrder" class="rounded-3 bg-white shadow-sm p-4">
+
+                                    <!-- Order Info -->
+                                    <div class="mb-4">
+                                        <h6 class="fw-bold mb-3 text-primary">Order Details</h6>
+                                        <div class="row text-muted small">
+                                            <div class="col-md-4 mb-2">
+                                                <span class="fw-semibold text-dark">Order Type:</span>
+                                                {{ selectedOrder?.type?.order_type ?? "—" }}
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <span class="fw-semibold text-dark">Date:</span>
+                                                {{ formatDate(selectedOrder?.created_at) }}
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <span class="fw-semibold text-dark">Status: </span>
+                                                <span class="badge rounded-pill"
+                                                    :class="selectedOrder?.status === 'paid' ? 'bg-success px-4 py-1 !text-xs uppercase' : 'bg-warning text-dark'">
+                                                    {{ selectedOrder?.status }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Order Items -->
+                                    <h6 class="fw-bold mb-3 text-primary">Order Items</h6>
+                                    <div class="table-responsive">
+                                        <table
+                                            class="table align-middle table-striped table-hover border rounded-3 overflow-hidden shadow-sm">
+                                            <thead class="bg-light text-muted small">
+                                                <tr>
+                                                    <th class="px-3">#</th>
+                                                    <th>Item</th>
+                                                    <th>Qty</th>
+                                                    <th>Price</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="(item, idx) in selectedOrder?.items ?? []" :key="item.id">
+                                                    <td class="px-3">{{ idx + 1 }}</td>
+                                                    <td>{{ item.title }}</td>
+                                                    <td>{{ item.quantity }}</td>
+                                                    <td class="fw-semibold">{{ money(item.price) }}</td>
+                                                </tr>
+                                                <tr v-if="(selectedOrder?.items ?? []).length === 0">
+                                                    <td colspan="4" class="text-center text-muted py-4">No items found
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="modal-footer bg-white border-0 shadow-sm px-4 py-3">
+                                <button class="btn btn-light border rounded-pill px-4 p-2" data-bs-dismiss="modal"> Close
+                                </button>
+                                <button class="btn btn-primary shadow-sm rounded-pill px-4 py-2">
+                                    <i class="bi bi-printer me-1"></i> Print Receipt
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </Master>
@@ -574,7 +696,8 @@ function closePaymentModal() {
     font-weight: 600;
     color: #111827;
 }
-.paid-text{
+
+.paid-text {
     font-size: 12px;
 }
 
