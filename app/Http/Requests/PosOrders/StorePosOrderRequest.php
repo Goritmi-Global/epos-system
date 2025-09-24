@@ -32,6 +32,16 @@ class StorePosOrderRequest extends FormRequest
             // Payment fields
             'payment_method' => 'required|in:Cash,Card,Split',
             'cash_received'  => 'nullable|numeric|min:0',
+            'change'         => 'nullable|numeric|min:0',
+
+            // 👇 Add items validation
+            'items'             => 'required|array|min:1',
+            'items.*.product_id'=> 'required|integer|exists:menu_items,id',
+            'items.*.title'     => 'required|string',
+            'items.*.quantity'  => 'required|numeric|min:1',
+            'items.*.price'     => 'required|numeric|min:0',
+            'items.*.note'      => 'nullable|string',
         ];
     }
+
 }

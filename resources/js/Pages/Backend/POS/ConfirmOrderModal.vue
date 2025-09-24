@@ -55,6 +55,7 @@ const handleConfirm = () => {
         paymentMethod: paymentMethod.value,
         cashReceived: cashReceived.value,
         changeAmount: changeAmount.value,
+        items: props.orderItems
     });
 };
 

@@ -704,7 +704,13 @@ function printReceipt(order) {
 
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
-const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
+const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount,items }) => {
+    console.log("confirmOrder called with:", {
+        paymentMethod,
+        cashReceived,
+        changeAmount,
+        items,
+    });
     paymentMethod  = paymentMethod;
     changeAmount  = changeAmount;
     try {
@@ -730,13 +736,14 @@ const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount }) => {
             payment_method: paymentMethod,
             cash_received: cashReceived,
             change: changeAmount,
-            items: orderItems.value.map((it) => ({
-                product_id: it.id,
-                title: it.title,
-                quantity: it.qty,
-                price: it.price,
-                note: it.note || null,
-            })),
+          
+            items: (orderItems.value ?? []).map(it => ({
+      product_id: it.id,
+      title: it.title,
+      quantity: it.qty,
+      price: it.price,
+      note: it.note ?? "",
+    })),
         };
 
         const res = await axios.post("/pos/order", payload);
