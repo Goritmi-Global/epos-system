@@ -88,7 +88,6 @@ const deliveryPercent = ref(10);
 
 const activeCat = ref(null);
 const setCat = (id) => (activeCat.value = id);
-const isCat = (id) => activeCat.value === id;
 
 const showCategories = ref(true);
 const openCategory = (c) => {
@@ -100,7 +99,9 @@ const backToCategories = () => (showCategories.value = true);
 const profileTables = ref({});
 const orderTypes = ref([]);
 const selectedTable = ref(null);
-
+/* ----------------------------
+   Fetch Profile Tables
+-----------------------------*/
 const fetchProfileTables = async () => {
     try {
         const response = await axios.get("/pos/fetch-profile-tables");
@@ -182,7 +183,7 @@ const incCart = async (i) => {
         return;
     }
     try {
-        await updateStock(it, 1, "stockout");
+        // await updateStock(it, 1, "stockout");
         it.qty++;
     } catch (err) {
         toast.error("Failed to add item. Please try again.");
@@ -196,7 +197,7 @@ const decCart = async (i) => {
         return;
     }
     try {
-        await updateStock(it, 1, "stockin");
+        // await updateStock(it, 1, "stockin");
         it.qty--;
     } catch (err) {
         toast.error("Failed to remove item. Please try again.");
@@ -280,7 +281,9 @@ const confirmAdd = async () => {
         );
     }
 };
-
+/* ----------------------------
+   Update Stock
+-----------------------------*/
 const updateStock = async (item, qty, type = "stockout") => {
     if (!item.ingredients || !item.ingredients.length) return;
     try {
@@ -395,7 +398,9 @@ const openConfirmModal = () => {
     cashReceived.value = grandTotal.value;
     showConfirmModal.value = true;
 };
-
+/* ----------------------------
+   Print Receipt 
+-----------------------------*/
 function printReceipt(order) {
     const type = (order?.payment_type || "").toLowerCase();
     let payLine = "";
@@ -426,6 +431,9 @@ function printReceipt(order) {
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
 
+/* ----------------------------
+   Confirm Order
+-----------------------------*/
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
