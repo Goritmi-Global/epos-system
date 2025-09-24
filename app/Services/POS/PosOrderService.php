@@ -32,7 +32,7 @@ class PosOrderService
     {
         dd($data);
         return DB::transaction(function () use ($data) {
-            // 1 Create the main order
+            //  Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
                 'customer_name' => $data['customer_name'] ?? null,
@@ -47,14 +47,14 @@ class PosOrderService
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
 
-            // 2 Create order type
+            //  Create order type
             PosOrderType::create([
                 'pos_order_id' => $order->id,
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-            // Create Order items 
+            // Create Order details , where for each order a detailed recods stored of items
             foreach ($data['items'] as $item) {
                 // Save order item
                 $order->items()->create([
@@ -93,6 +93,7 @@ class PosOrderService
             $cashAmount = null;
             $cardAmount = null;
 
+            // Payment field adjustment logic
             if (($data['payment_type'] ?? '') === 'Split') {
                 $cashAmount = $data['cash_received'] ?? 0;
                 $cardAmount = $data['card_payment'] ?? 0;
@@ -104,9 +105,10 @@ class PosOrderService
             } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
                 $cashAmount = 0;
                 $cardAmount = $data['amount_received'] ?? $data['total_amount'];
-                $payedUsing = $data['payment_method'];
+                $payedUsing = 'Card';
             }
-
+  
+            // Payment model data saving
             Payment::create([
                 'order_id'                 => $order->id,
                 'user_id'                  => Auth::id(),

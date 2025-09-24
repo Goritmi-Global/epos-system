@@ -20,9 +20,8 @@ class PosOrderController extends Controller
 
 
     public function store(StorePosOrderRequest $request)
-    {
-        $order = $this->service->create($request->validated());
-
+    { 
+        $order = $this->service->create($request->validated()); 
         return response()->json([
             'message' => 'Order created successfully',
             'order' => $order,
@@ -87,6 +86,7 @@ public function createIntent(Request $request)
 
 public function placeStripeOrder(Request $request)
 {
+    
     $paymentIntentId = $request->query('payment_intent');
     $redirectStatus  = $request->query('redirect_status'); // succeeded | failed | requires_action
 
@@ -159,7 +159,7 @@ public function placeStripeOrder(Request $request)
         'exp_month'      => $expMonth,
         'exp_year'       => $expYear,
     ];
-
+ 
      
     $order = $this->service->create($data);
 
@@ -177,6 +177,7 @@ public function placeStripeOrder(Request $request)
         'payment_type'          => $data['payment_type'] ?? [], // from your query params
     ];
 
+   
     // 🔔 Flash for the frontend toast
     $msg = "Payment successful! Order #{$order->id} placed. Card {$brand} •••• {$last4}.";
     return redirect()
