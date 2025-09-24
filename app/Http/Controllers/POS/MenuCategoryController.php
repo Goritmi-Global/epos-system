@@ -284,4 +284,7 @@ class MenuCategoryController extends Controller
 
         return response()->json(['message' => 'Categories imported successfully']);
     }
+     
+
+
 }

@@ -542,39 +542,30 @@ watch(
                     <!-- LEFT: Menu -->
                     <div class="col-lg-8">
                         <!-- Categories Grid -->
-                        <div v-if="showCategories" class="row g-3">
-                            <div
-                                v-for="c in menuCategories"
-                                :key="c.id"
-                                class="col-6 col-md-4"
-                            >
-                                <div
-                                    :class="[
-                                        'cat-tile',
-                                        'cat-' +
-                                            c.name
-                                                .toLowerCase()
-                                                .replace(/[^a-z0-9]+/g, '-'),
-                                    ]"
-                                    @click="openCategory(c)"
-                                >
-                                    <div class="cat-icon">{{ c.icon }}</div>
-                                    <div class="cat-name">{{ c.name }}</div>
-                                    <div class="cat-sub">Tap to view items</div>
-                                </div>
-                            </div>
+<div v-if="showCategories" class="row g-3">
+  <div
+    v-for="c in menuCategories"
+    :key="c.id"
+    class="col-6 col-md-4"
+  >
+    <div
+      class="cat-tile"
+      :style="{ background: c.box_bg_color || '#1b1670' }"
+      @click="openCategory(c)"
+    >
+      <div class="cat-icon">{{ c.icon }}</div>
+      <div class="cat-name">{{ c.name }}</div>
+      <div class="cat-sub">{{ c.menu_items_count }} items</div>
+    </div>
+  </div>
 
-                            <div
-                                v-if="menuCategories.length === 0"
-                                class="col-12"
-                            >
-                                <div
-                                    class="alert alert-light border text-center rounded-4"
-                                >
-                                    No categories found
-                                </div>
-                            </div>
-                        </div>
+  <div v-if="menuCategories.length === 0" class="col-12">
+    <div class="alert alert-light border text-center rounded-4">
+      No categories found
+    </div>
+  </div>
+</div>
+
 
                         <!-- Items in selected category -->
                         <div v-else>
@@ -1048,27 +1039,7 @@ watch(
     font-size: 0.8rem;
     opacity: 0.9;
 }
-
-/* Category color schemes */
-.cat-dairy {
-    background: linear-gradient(135deg, #ff6b6b, #c0392b);
-}
-.cat-oils-fats {
-    background: linear-gradient(135deg, #4facfe, #00c6ff);
-}
-.cat-spices-herbs {
-    background: linear-gradient(135deg, #56ab2f, #a8e063);
-}
-.cat-drinks {
-    background: linear-gradient(135deg, #ff9a9e, #fad0c4);
-}
-.cat-grains-rice {
-    background: linear-gradient(135deg, #f6d365, #fda085);
-}
-.cat-uncategorized {
-    background: #8a8fa7;
-}
-
+ 
 /* ========== Search Pill ========== */
 .search-wrap {
     position: relative;
