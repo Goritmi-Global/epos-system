@@ -73,7 +73,7 @@ class PosOrderService
             } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
                 $cashAmount = 0;
                 $cardAmount = $data['amount_received'] ?? $data['total_amount'];
-                $payedUsing = $data['payment_method'];
+                $payedUsing = 'Card';
             }
 
             Payment::create([
