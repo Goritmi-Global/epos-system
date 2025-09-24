@@ -189,8 +189,8 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             price: Number(baseItem.price) || 0,
             qty: qty,
             note: note || "",
-            stock: menuStock, // <-- store menu-level stock
-            ingredients: baseItem.ingredients ?? [], // optional for UI
+            stock: menuStock,
+            ingredients: baseItem.ingredients ?? [],
         });
     }
 };
@@ -502,20 +502,20 @@ const openConfirmModal = () => {
 };
 
 function printReceipt(order) {
-  const type = (order?.payment_type || '').toLowerCase();
-  let payLine = "";
+    const type = (order?.payment_type || '').toLowerCase();
+    let payLine = "";
 
-  if (type === 'split') {
-    payLine = `Payment Type: Split 
+    if (type === 'split') {
+        payLine = `Payment Type: Split 
       (Cash: £${Number(order?.cash_amount ?? 0).toFixed(2)}, 
        Card: £${Number(order?.card_amount ?? 0).toFixed(2)})`;
-  } else if (type === 'card' || type === 'stripe') {
-    payLine = `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""}${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""}`;
-  } else {
-    payLine = `Payment Type: ${order?.payment_method || "Cash"}`;
-  }
+    } else if (type === 'card' || type === 'stripe') {
+        payLine = `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""}${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""}`;
+    } else {
+        payLine = `Payment Type: ${order?.payment_method || "Cash"}`;
+    }
 
-  const html = `
+    const html = `
 <!doctype html>
 <html>
 <head>
@@ -580,28 +580,28 @@ function printReceipt(order) {
 <\/html>
 `;
 
-  const w = window.open('', '', 'width=400,height=600');
-  if (!w) {
-    console.error('Popup blocked or failed to open');
-    alert('Please allow popups for this site to print receipts');
-    return;
-}
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+    const w = window.open('', '', 'width=400,height=600');
+    if (!w) {
+        console.error('Popup blocked or failed to open');
+        alert('Please allow popups for this site to print receipts');
+        return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
 }
 
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
-const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount,items }) => {
+const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount, items }) => {
     console.log("confirmOrder called with:", {
         paymentMethod,
         cashReceived,
         changeAmount,
         items,
     });
-    paymentMethod  = paymentMethod;
-    changeAmount  = changeAmount;
+    paymentMethod = paymentMethod;
+    changeAmount = changeAmount;
     try {
         const payload = {
             customer_name: customer.value,
@@ -617,22 +617,22 @@ const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount,items })
                 orderType.value === "dine_in"
                     ? "Dine In"
                     : orderType.value === "delivery"
-                    ? "Delivery"
-                    : orderType.value === "takeaway"
-                    ? "Takeaway"
-                    : "Collection",
+                        ? "Delivery"
+                        : orderType.value === "takeaway"
+                            ? "Takeaway"
+                            : "Collection",
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
             cash_received: cashReceived,
             change: changeAmount,
-          
+
             items: (orderItems.value ?? []).map(it => ({
-      product_id: it.id,
-      title: it.title,
-      quantity: it.qty,
-      price: it.price,
-      note: it.note ?? "",
-    })),
+                product_id: it.id,
+                title: it.title,
+                quantity: it.qty,
+                price: it.price,
+                note: it.note ?? "",
+            })),
         };
 
         // 1) Save order
@@ -690,13 +690,13 @@ function bumpToasts() {
 // Fire once on load
 onMounted(() => bumpToasts());
 onMounted(() => {
-  const s = page.props.flash?.success;
-  const e = page.props.flash?.error;
-  if (s) toast.success(s);
-  if (e) toast.error(e);
+    const s = page.props.flash?.success;
+    const e = page.props.flash?.error;
+    if (s) toast.success(s);
+    if (e) toast.error(e);
 
-  const payload = page.props.flash?.print_payload; // from controller
-  if (payload) setTimeout(() => printReceipt(payload), 250);
+    const payload = page.props.flash?.print_payload; // from controller
+    if (payload) setTimeout(() => printReceipt(payload), 250);
 });
 // Also react if flash changes due to subsequent navigations
 watch(
@@ -707,6 +707,7 @@ watch(
 </script>
 
 <template>
+
     <Head title="POS Order" />
 
     <Master>
@@ -718,50 +719,26 @@ watch(
                         <!-- Search -->
                         <div class="search-wrap mb-3">
                             <i class="bi bi-search"></i>
-                            <input
-                                v-model="searchQuery"
-                                type="text"
-                                class="form-control search-input"
-                                placeholder="Search"
-                            />
+                            <input v-model="searchQuery" type="text" class="form-control search-input"
+                                placeholder="Search" />
                         </div>
                         <!-- Category tabs with arrows -->
                         <div class="tabs-wrap">
-                            <button
-                                v-if="showCatArrows"
-                                class="tab-arrow left"
-                                type="button"
-                                @click="scrollTabs('left')"
-                                aria-label="Previous categories"
-                            >
+                            <button v-if="showCatArrows" class="tab-arrow left" type="button"
+                                @click="scrollTabs('left')" aria-label="Previous categories">
                                 <i class="fa fa-chevron-left"></i>
                             </button>
-                            <ul
-                                class="tabs border-0"
-                                id="catTabs"
-                                ref="catScroller"
-                            >
-                                <li
-                                    v-for="c in menuCategories"
-                                    :key="c.id"
-                                    :class="{ active: isCat(c.id) }"
-                                    @click="setCat(c.id)"
-                                    role="button"
-                                    tabindex="0"
-                                    class="product-details flex-column text-center"
-                                >
+                            <ul class="tabs border-0" id="catTabs" ref="catScroller">
+                                <li v-for="c in menuCategories" :key="c.id" :class="{ active: isCat(c.id) }"
+                                    @click="setCat(c.id)" role="button" tabindex="0"
+                                    class="product-details flex-column text-center">
                                     <!-- if backend gives emoji in icon field -->
                                     <div class="text-2xl">{{ c.icon }}</div>
                                     <h6 class="mt-2 mb-0">{{ c.name }}</h6>
                                 </li>
                             </ul>
-                            <button
-                                v-if="showCatArrows"
-                                class="tab-arrow right"
-                                type="button"
-                                @click="scrollTabs('right')"
-                                aria-label="Next categories"
-                            >
+                            <button v-if="showCatArrows" class="tab-arrow right" type="button"
+                                @click="scrollTabs('right')" aria-label="Next categories">
                                 <i class="fa fa-chevron-right"></i>
                             </button>
                         </div>
@@ -794,15 +771,8 @@ watch(
                             /> -->
                         </div>
                         <div class="row g-3">
-                            <div
-                                class="col-lg-3 col-sm-6 d-flex"
-                                v-for="p in filteredProducts"
-                                :key="p.title"
-                            >
-                                <div
-                                    class="productset flex-fill hoverable"
-                                    @click="openItem(p)"
-                                >
+                            <div class="col-lg-3 col-sm-6 d-flex" v-for="p in filteredProducts" :key="p.title">
+                                <div class="productset flex-fill hoverable" @click="openItem(p)">
                                     <div class="productsetimg">
                                         <img :src="p.img" alt="img" />
 
@@ -810,16 +780,16 @@ watch(
                                             Ingredients Qty:
                                             {{
                                                 p.ingredients &&
-                                                p.ingredients.length
+                                                    p.ingredients.length
                                                     ? p.ingredients.reduce(
-                                                          (sum, ing) =>
-                                                              sum +
-                                                              Number(
-                                                                  ing.quantity ||
-                                                                      0
-                                                              ),
-                                                          0
-                                                      )
+                                                        (sum, ing) =>
+                                                            sum +
+                                                            Number(
+                                                                ing.quantity ||
+                                                                0
+                                                            ),
+                                                        0
+                                                    )
                                                     : 0
                                             }}
                                         </h6>
@@ -837,13 +807,8 @@ watch(
                                     </div>
                                 </div>
                             </div>
-                            <div
-                                v-if="filteredProducts.length === 0"
-                                class="col-12"
-                            >
-                                <div
-                                    class="alert alert-light border text-center"
-                                >
+                            <div v-if="filteredProducts.length === 0" class="col-12">
+                                <div class="alert alert-light border text-center">
                                     No items found.
                                 </div>
                             </div>
@@ -854,21 +819,13 @@ watch(
                     <div class="col-lg-4 col-sm-12">
                         <div class="card card-order shadow-sm">
                             <div class="card-body pb-2">
-                                <div
-                                    class="d-flex align-items-center justify-content-between mb-3"
-                                >
+                                <div class="d-flex align-items-center justify-content-between mb-3">
                                     <div class="btn-group">
-                                        <button
-                                            v-for="(type, index) in orderTypes"
-                                            :key="index"
-                                            class="btn btn-sm px-3 rounded-pill"
-                                            :class="
-                                                orderType === type
+                                        <button v-for="(type, index) in orderTypes" :key="index"
+                                            class="btn btn-sm px-3 rounded-pill" :class="orderType === type
                                                     ? 'btn-primary '
                                                     : 'btn-light'
-                                            "
-                                            @click="orderType = type"
-                                        >
+                                                " @click="orderType = type">
                                             {{
                                                 type
                                                     .replace(/_/g, " ")
@@ -878,67 +835,36 @@ watch(
                                             }}
                                         </button>
                                     </div>
-                                    <span
-                                        class="badge btn btn-primary rounded-pill px-3 py-2"
-                                        >Order</span
-                                    >
+                                    <span class="badge btn btn-primary rounded-pill px-3 py-2">Order</span>
                                 </div>
 
                                 <!-- Type-specific inputs -->
-                                <div
-                                    v-if="orderType === 'dine_in'"
-                                    class="mb-3"
-                                >
-                                    <label class="form-label small mb-1"
-                                        >Table No:</label
-                                    >
-                                    <select
-                                        v-model="selectedTable"
-                                        class="form-control"
-                                        :class="{
-                                            'is-invalid':
-                                                formErrors.table_number,
-                                        }"
-                                    >
-                                        <option
-                                            v-for="(
-                                                table, index
-                                            ) in profileTables.table_details"
-                                            :key="index"
-                                            :value="table"
-                                        >
+                                <div v-if="orderType === 'dine_in'" class="mb-3">
+                                    <label class="form-label small mb-1">Table No:</label>
+                                    <select v-model="selectedTable" class="form-control" :class="{
+                                        'is-invalid':
+                                            formErrors.table_number,
+                                    }">
+                                        <option v-for="(
+table, index
+                                            ) in profileTables.table_details" :key="index" :value="table">
                                             {{ table.name }}
                                         </option>
                                     </select>
-                                    <small
-                                        v-if="formErrors.table_number"
-                                        class="text-danger"
-                                    >
+                                    <small v-if="formErrors.table_number" class="text-danger">
                                         {{ formErrors.table_number[0] }}
                                     </small>
                                     <br />
 
-                                    <label class="form-label small mt-3 mb-1"
-                                        >Customer</label
-                                    >
-                                    <input
-                                        v-model="customer"
-                                        type="text"
-                                        class="form-control"
-                                        placeholder="Customer Name"
-                                    />
+                                    <label class="form-label small mt-3 mb-1">Customer</label>
+                                    <input v-model="customer" type="text" class="form-control"
+                                        placeholder="Customer Name" />
                                 </div>
 
                                 <div v-else class="mb-3">
-                                    <label class="form-label small mb-1"
-                                        >Customer</label
-                                    >
-                                    <input
-                                        v-model="customer"
-                                        type="text"
-                                        class="form-control"
-                                        placeholder="Customer Name"
-                                    />
+                                    <label class="form-label small mb-1">Customer</label>
+                                    <input v-model="customer" type="text" class="form-control"
+                                        placeholder="Customer Name" />
 
                                     <!-- <div
                                         class="d-flex align-items-center gap-2 mt-3"
@@ -960,91 +886,56 @@ watch(
 
                                 <!-- Order items -->
                                 <div>
-                                    <div
-                                        class="d-flex justify-content-between mb-2"
-                                    >
+                                    <div class="d-flex justify-content-between mb-2">
                                         <strong>Items</strong>
                                         <small class="text-muted">Qty</small>
                                         <small class="text-muted">Price</small>
                                     </div>
 
-                                    <div
-                                        v-if="orderItems.length === 0"
-                                        class="text-muted text-center py-3"
-                                    >
+                                    <div v-if="orderItems.length === 0" class="text-muted text-center py-3">
                                         No items added
                                     </div>
 
-                                    <div
-                                        v-for="(it, i) in orderItems"
-                                        :key="it.title"
-                                        class="d-flex align-items-center justify-content-between py-2 border-bottom"
-                                    >
-                                        <div
-                                            class="d-flex align-items-center gap-3"
-                                        >
-                                            <img
-                                                :src="it.img"
-                                                alt=""
-                                                class="rounded"
-                                                style="
+                                    <div v-for="(it, i) in orderItems" :key="it.title"
+                                        class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <img :src="it.img" alt="" class="rounded" style="
                                                     width: 36px;
                                                     height: 36px;
                                                     object-fit: cover;
-                                                "
-                                            />
+                                                " />
 
                                             <div>
                                                 <div class="fw-semibold">
                                                     {{ it.title }}
                                                 </div>
-                                                <small
-                                                    class="text-muted"
-                                                    v-if="it.note"
-                                                    >{{ it.note }}</small
-                                                >
+                                                <small class="text-muted" v-if="it.note">{{ it.note }}</small>
                                             </div>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center gap-3"
-                                        >
-                                            <button
-                                                class="px-2 py-1 btn btn-primary text-white text-center"
-                                                @click="decCart(i)"
-                                            >
+                                        <div class="d-flex align-items-center gap-3">
+                                            <button class="px-2 py-1 btn btn-primary text-white text-center"
+                                                @click="decCart(i)">
                                                 −
                                             </button>
 
                                             <div class="px-2 bg-danger">
                                                 {{ it.qty }}
                                             </div>
-                                            <button
-                                                class="btn btn-sm"
-                                                :class="
-                                                    it.qty >= (it.stock ?? 0)
-                                                        ? 'btn-secondary'
-                                                        : 'btn-primary'
-                                                "
-                                                @click="incCart(i)"
-                                                :disabled="
-                                                    it.qty >= (it.stock ?? 0)
-                                                "
-                                            >
+                                            <button class="btn btn-sm" :class="it.qty >= (it.stock ?? 0)
+                                                    ? 'btn-secondary'
+                                                    : 'btn-primary'
+                                                " @click="incCart(i)" :disabled="it.qty >= (it.stock ?? 0)
+                                                    ">
                                                 +
                                             </button>
                                         </div>
 
-                                        <div
-                                            class="d-flex align-items-center gap-3"
-                                        >
+                                        <div class="d-flex align-items-center gap-3">
                                             <div class="text-nowrap">
                                                 {{ money(it.price) }}
                                             </div>
-                                            <button
-                                                class="btn btn-sm btn-outline-danger"
-                                                @click="removeCart(i)"
-                                            >
+                                            <button class="btn btn-sm btn-outline-danger" @click="removeCart(i)">
                                                 <i class="fa fa-trash"></i>
                                             </button>
                                         </div>
@@ -1056,18 +947,11 @@ watch(
                                 <!-- Totals -->
                                 <div class="d-flex flex-column gap-1">
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted"
-                                            >Sub Total</span
-                                        >
+                                        <span class="text-muted">Sub Total</span>
                                         <strong>{{ money(subTotal) }}</strong>
                                     </div>
-                                    <div
-                                        class="d-flex justify-content-between"
-                                        v-if="orderType === 'delivery'"
-                                    >
-                                        <span class="text-muted"
-                                            >Delivery Charges</span
-                                        >
+                                    <div class="d-flex justify-content-between" v-if="orderType === 'delivery'">
+                                        <span class="text-muted">Delivery Charges</span>
                                         <strong>{{ deliveryPercent }}%</strong>
                                     </div>
                                     <div class="d-flex justify-content-between">
@@ -1078,23 +962,15 @@ watch(
 
                                 <hr />
 
-                                <textarea
-                                    class="form-control"
-                                    v-model="note"
-                                    rows="4"
-                                    placeholder="Add Note"
-                                ></textarea>
+                                <textarea class="form-control" v-model="note" rows="4"
+                                    placeholder="Add Note"></textarea>
 
                                 <div class="d-flex gap-3 mt-3">
-                                    <button
-                                        class="px-4 py-2 rounded-pill btn btn-primary text-white text-center w-full"
-                                        @click="openConfirmModal"
-                                    >
+                                    <button class="px-4 py-2 rounded-pill btn btn-primary text-white text-center w-full"
+                                        @click="openConfirmModal">
                                         Place Order
                                     </button>
-                                    <button
-                                        class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    >
+                                    <button class="btn btn-secondary rounded-pill px-4 ms-2">
                                         Cancel
                                     </button>
                                 </div>
@@ -1107,12 +983,7 @@ watch(
         </div>
 
         <!-- Choose Item Modal -->
-        <div
-            class="modal fade"
-            id="chooseItem"
-            tabindex="-1"
-            aria-hidden="true"
-        >
+        <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header border-0">
@@ -1122,38 +993,20 @@ watch(
                         </h5>
                         <button
                             class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            title="Close"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-6 w-6 text-red-500"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
+                            data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
                     <div class="modal-body pb-0">
                         <div class="row align-items-start">
                             <div class="col-lg-5 mb-3">
-                                <img
-                                    :src="
-                                        selectedItem?.image_url ||
-                                        selectedItem?.img ||
-                                        '/assets/img/product/product29.jpg'
-                                    "
-                                    class="img-fluid rounded shadow-sm w-100"
-                                    alt="item"
-                                />
+                                <img :src="selectedItem?.image_url ||
+                                    selectedItem?.img ||
+                                    '/assets/img/product/product29.jpg'
+                                    " class="img-fluid rounded shadow-sm w-100" alt="item" />
                             </div>
                             <div class="col-lg-7">
                                 <h3 class="mb-1 text-primary-dark">
@@ -1170,47 +1023,35 @@ watch(
                                     <div class="mb-2">
                                         <strong>Nutrition:</strong>
                                         <div class="mt-1">
-                                            <span
-                                                v-if="
-                                                    selectedItem?.nutrition
-                                                        ?.calories
-                                                "
-                                                class="chip chip-orange mx-1"
-                                            >
+                                            <span v-if="
+                                                selectedItem?.nutrition
+                                                    ?.calories
+                                            " class="chip chip-orange mx-1">
                                                 Calories:
                                                 {{
                                                     selectedItem.nutrition
                                                         .calories
                                                 }}
                                             </span>
-                                            <span
-                                                v-if="
-                                                    selectedItem?.nutrition
-                                                        ?.carbs
-                                                "
-                                                class="chip chip-green mx-1"
-                                            >
+                                            <span v-if="
+                                                selectedItem?.nutrition
+                                                    ?.carbs
+                                            " class="chip chip-green mx-1">
                                                 Carbs:
                                                 {{
                                                     selectedItem.nutrition.carbs
                                                 }}
                                             </span>
-                                            <span
-                                                v-if="
-                                                    selectedItem?.nutrition?.fat
-                                                "
-                                                class="chip chip-purple mx-1"
-                                            >
+                                            <span v-if="
+                                                selectedItem?.nutrition?.fat
+                                            " class="chip chip-purple mx-1">
                                                 Fats:
                                                 {{ selectedItem.nutrition.fat }}
                                             </span>
-                                            <span
-                                                v-if="
-                                                    selectedItem?.nutrition
-                                                        ?.protein
-                                                "
-                                                class="chip chip-blue mx-1"
-                                            >
+                                            <span v-if="
+                                                selectedItem?.nutrition
+                                                    ?.protein
+                                            " class="chip chip-blue mx-1">
                                                 Protein:
                                                 {{
                                                     selectedItem.nutrition
@@ -1223,14 +1064,10 @@ watch(
                                     <div class="mb-2">
                                         <strong>Allergies:</strong>
                                         <div class="mt-1">
-                                            <span
-                                                v-for="(
-                                                    a, i
+                                            <span v-for="(
+a, i
                                                 ) in selectedItem?.allergies ||
-                                                []"
-                                                :key="'allergy-' + (a.id ?? i)"
-                                                class="chip chip-red mx-1"
-                                            >
+                                                            []" :key="'allergy-' + (a.id ?? i)" class="chip chip-red mx-1">
                                                 {{ a.name }}
                                             </span>
                                         </div>
@@ -1239,38 +1076,26 @@ watch(
                                     <div>
                                         <strong>Tags:</strong>
                                         <div class="mt-1">
-                                            <span
-                                                v-for="(
-                                                    t, i
-                                                ) in selectedItem?.tags || []"
-                                                :key="'tag-' + (t.id ?? i)"
-                                                class="chip chip-teal mx-1"
-                                            >
+                                            <span v-for="(
+t, i
+                                                ) in selectedItem?.tags || []" :key="'tag-' + (t.id ?? i)"
+                                                class="chip chip-teal mx-1">
                                                 {{ t.name }}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
                                 <!-- Qty control -->
-                                <div
-                                    class="qty-group d-inline-flex align-items-center mb-3"
-                                >
+                                <div class="qty-group d-inline-flex align-items-center mb-3">
                                     <button class="qty-btn" @click="decQty">
                                         −
                                     </button>
                                     <div class="qty-box">{{ modalQty }}</div>
-                                    <button
-                                        class="qty-btn"
-                                        @click="incQty"
-                                        :disabled="
-                                            modalQty >= menuStockForSelected
-                                        "
-                                        :class="
-                                            modalQty >= menuStockForSelected
+                                    <button class="qty-btn" @click="incQty" :disabled="modalQty >= menuStockForSelected
+                                        " :class="modalQty >= menuStockForSelected
                                                 ? 'bg-secondary text-white'
                                                 : 'btn-primary text-white'
-                                        "
-                                    >
+                                            ">
                                         +
                                     </button>
                                 </div>
@@ -1279,10 +1104,7 @@ watch(
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
-                        <button
-                            class="btn btn-primary rounded-pill px-4 py-2"
-                            @click="confirmAdd"
-                        >
+                        <button class="btn btn-primary rounded-pill px-4 py-2" @click="confirmAdd">
                             Add to Order
                         </button>
                     </div>
@@ -1295,36 +1117,15 @@ watch(
             :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
             v-model:cashReceived="cashReceived" @close="showConfirmModal = false" @confirm="confirmOrder" :client_secret="client_secret" :order_code="order_code"/> -->
 
-        <ConfirmOrderModal
-            :show="showConfirmModal"
-            :customer="customer"
-            :order-type="orderType"
-            :selected-table="selectedTable"
-            :order-items="orderItems"
-            :grand-total="grandTotal"
-            :money="money"
-            v-model:cashReceived="cashReceived"
-            :client_secret="client_secret"
-            :order_code="order_code"
-            :sub-total="subTotal"
-            :tax="0"
-            :service-charges="0"
-            :delivery-charges="0"
-            :note="note"
-            :order-date="new Date().toISOString().split('T')[0]"
-            :order-time="new Date().toTimeString().split(' ')[0]"
-            :payment-method="paymentMethod"
-            :change="changeAmount"
-            @close="showConfirmModal = false"
-            @confirm="confirmOrder"
-        />
+        <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+            :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
+            v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
+            :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="0" :note="note"
+            :order-date="new Date().toISOString().split('T')[0]" :order-time="new Date().toTimeString().split(' ')[0]"
+            :payment-method="paymentMethod" :change="changeAmount" @close="showConfirmModal = false"
+            @confirm="confirmOrder" />
 
-        <ReceiptModal
-            :show="showReceiptModal"
-            :order="lastOrder"
-            :money="money"
-            @close="showReceiptModal = false"
-        />
+        <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money" @close="showReceiptModal = false" />
     </Master>
 </template>
 
@@ -1387,7 +1188,7 @@ watch(
     display: none;
 }
 
-.tabs > li {
+.tabs>li {
     flex: 0 0 auto;
     width: 100px;
     height: 100px;
@@ -1402,11 +1203,11 @@ watch(
     padding: 8px;
 }
 
-.tabs > li:hover {
+.tabs>li:hover {
     transform: translateY(-1px);
 }
 
-.tabs > li.active {
+.tabs>li.active {
     outline: 2px solid #6f61ff;
     color: white;
 }

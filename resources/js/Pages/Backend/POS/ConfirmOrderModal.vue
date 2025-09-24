@@ -23,6 +23,7 @@ const props = defineProps({
     paymentMethod: String,
     change: Number,
 });
+console.log("order items", props.orderItems);
 
 const emit = defineEmits(["close", "confirm", "update:cashReceived"]);
 
