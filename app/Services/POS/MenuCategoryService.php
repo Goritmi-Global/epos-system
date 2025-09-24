@@ -66,7 +66,10 @@ class MenuCategoryService
                         'icon'      => $cat['icon'] ?? '🧰',
                         'active'    => $cat['active'] ?? true,
                         'parent_id' => $cat['parent_id'] ?? null,
+                        'box_bg_color' => $cat['color'] ,
+                        
                     ]);
+                    // dd($cat['color']);
 
                     Log::info('Created category:', $category->toArray());
                     $createdCategories[] = $category;
@@ -106,6 +109,7 @@ class MenuCategoryService
     {
         $category = MenuCategory::create([
             'name' => $categoryData['name'],
+            'box_bg_color' => $categoryData['box_bg_color'],
             'icon' => $categoryData['icon'] ?? '🧰',
             'active' => $categoryData['active'] ?? true,
             'parent_id' => $categoryData['parent_id'],
@@ -188,6 +192,7 @@ class MenuCategoryService
             // ✅ UPDATE THE MAIN CATEGORY FIRST
             $category->update([
                 'name' => $data['name'] ?? $category->name,
+                'box_bg_color' => $data['color'] ?? $category->box_bg_color,
                 'icon' => $data['icon'] ?? $category->icon,
                 'active' => $data['active'] ?? $category->active,
                 'parent_id' => $data['parent_id'] ?? $category->parent_id,

@@ -16,6 +16,7 @@ class StoreMenuCategoryRequest extends FormRequest
     {
         return [
             'isSubCategory' => 'required|boolean',
+            'categories.*.color' => 'nullable|string|max:7',  
             
             // Categories array validation
             'categories' => 'required|array|min:1',
