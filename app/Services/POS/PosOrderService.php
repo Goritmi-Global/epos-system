@@ -64,28 +64,6 @@ class PosOrderService
                     'note'         => $item['note'] ?? null,
                 ]);
 
-                // // 👉 Stockout per item here
-                // $product = InventoryItem::with('ingredients')->find($item['product_id']);
-
-                // if ($product && $product->ingredients->count()) {
-                //     foreach ($product->ingredients as $ingredient) {
-                //         $requiredQty = $ingredient->quantity * $item['quantity'];
-
-                //         $this->stockEntryService->create([
-                //             'product_id'     => $ingredient->inventory_item_id,
-                //             'name'           => $ingredient->product_name,
-                //             'category_id'    => $product->category_id,
-                //             'supplier_id'    => $product->supplier_id,
-                //             'quantity'       => $requiredQty,
-                //             'value'          => 0,
-                //             'operation_type' => 'pos_stockout',
-                //             'stock_type'     => 'stockout',
-                //             'description'    => "Auto stockout from POS Order #{$order->id}",
-                //             'user_id'        => Auth::id(),
-                //         ]);
-                //     }
-                // }
-
 
                 // Fetch the MenuItem with its ingredients
                 $menuItem = MenuItem::with('ingredients')->find($item['product_id']);
