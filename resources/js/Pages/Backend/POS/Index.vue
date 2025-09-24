@@ -240,25 +240,39 @@ const confirmAdd = async () => {
     if (!selectedItem.value) return;
     try {
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
-        if (selectedItem.value.ingredients?.length) {
-            for (const ingredient of selectedItem.value.ingredients) {
-                await axios.post("/stock_entries", {
-                    product_id: ingredient.inventory_item_id,
-                    name: ingredient.product_name,
-                    category_id: ingredient.category_id,
-                    supplier_id: ingredient.supplier_id,
-                    available_quantity: ingredient.inventory_stock,
-                    quantity: ingredient.quantity * modalQty.value,
-                    value: 0,
-                    operation_type: "pos_stockout",
-                    stock_type: "stockout",
-                    expiry_date: null,
-                    description: null,
-                    purchase_date: null,
-                    user_id: ingredient.user_id,
-                });
-            }
-        }
+        console.log(selectedItem.value.ingredients);
+
+        //  2) Stockout each ingredient
+        // if (
+        //     selectedItem.value.ingredients &&
+        //     selectedItem.value.ingredients.length
+        // ) {
+        //     for (const ingredient of selectedItem.value.ingredients) {
+        //         const requiredQty = ingredient.pivot?.qty
+        //             ? ingredient.pivot.qty * modalQty.value
+        //             : modalQty.value;
+
+        //         //Payload matching your request rules
+        //         await axios.post("/stock_entries", {
+        //             product_id: ingredient.inventory_item_id,
+        //             name: ingredient.product_name,
+        //             category_id: ingredient.category_id,
+        //             supplier_id: ingredient.supplier_id,
+        //             available_quantity: ingredient.inventory_stock,
+        //             quantity: ingredient.quantity * modalQty.value,
+        //             price: null,
+        //             value: 0,
+        //             operation_type: "pos_stockout",
+        //             stock_type: "stockout",
+        //             expiry_date: null,
+        //             description: null,
+        //             purchase_date: null,
+        //             user_id: ingredient.user_id,
+        //         });
+        //     }
+        // }
+
+        //  3) Close modal
         if (chooseItemModal) chooseItemModal.hide();
     } catch (err) {
         alert(
@@ -307,22 +321,43 @@ const updateStock = async (item, qty, type = "stockout") => {
 
 const incQty = async () => {
     if (modalQty.value < menuStockForSelected.value) {
-        try {
-            await updateStock(selectedItem.value, 1, "stockout");
-            modalQty.value++;
-        } catch (error) {
-            console.error("Failed to update stock:", error);
-        }
+        modalQty.value++;
+        // Add .value here
+        // try {
+        //     await updateStock(selectedItem.value, 1, "stockout");
+        //     modalQty.value++; // Only increment after successful stock update
+        //     console.log(
+        //         "Stock updated successfully, new modalQty:",
+        //         modalQty.value
+        //     );
+        // } catch (error) {
+        //     console.error("Failed to update stock:", error);
+        //     // Don't increment modalQty if stock update failed
+        // }
+    } else {
+        console.log("Cannot increment: reached maximum stock limit");
     }
 };
 const decQty = async () => {
     if (modalQty.value > 1) {
-        try {
-            await updateStock(selectedItem.value, 1, "stockin");
-            modalQty.value--;
-        } catch (error) {
-            console.error("Failed to update stock:", error);
-        }
+        modalQty.value--;
+
+
+        // try {
+        //     await updateStock(selectedItem.value, 1, "stockin");
+        //     modalQty.value--; // Only decrement after successful stock update
+        //     console.log(
+        //         "Stock updated successfully, new modalQty:",
+        //         modalQty.value
+        //     );
+        // } catch (error) {
+        //     console.error("Failed to update stock:", error);
+        //     // Don't decrement modalQty if stock update failed
+        // }
+
+
+    } else {
+        console.log("Cannot decrement: minimum quantity is 1");
     }
 };
 
@@ -412,10 +447,10 @@ const confirmOrder = async ({
                 orderType.value === "dine_in"
                     ? "Dine In"
                     : orderType.value === "delivery"
-                    ? "Delivery"
-                    : orderType.value === "takeaway"
-                    ? "Takeaway"
-                    : "Collection",
+                        ? "Delivery"
+                        : orderType.value === "takeaway"
+                            ? "Takeaway"
+                            : "Collection",
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
             cash_received: cashReceived,
@@ -471,6 +506,16 @@ function bumpToasts() {
     if (e) toast.error(e, { autoClose: 6000 });
 }
 onMounted(() => bumpToasts());
+onMounted(() => {
+    const s = page.props.flash?.success;
+    const e = page.props.flash?.error;
+    if (s) toast.success(s);
+    if (e) toast.error(e);
+
+    const payload = page.props.flash?.print_payload; // from controller
+    if (payload) setTimeout(() => printReceipt(payload), 250);
+});
+// Also react if flash changes due to subsequent navigations
 watch(
     () => page.props.flash,
     () => bumpToasts(),
@@ -479,6 +524,7 @@ watch(
 </script>
 
 <template>
+
     <Head title="POS Order" />
 
     <Master>
