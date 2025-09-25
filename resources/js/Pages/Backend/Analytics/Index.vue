@@ -1,278 +1,135 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, watch, onMounted, onUpdated } from "vue";
 import Select from "primevue/select";
+import axios from "axios";
 
-/* ===================== Demo data (swap with API later) ===================== */
-/* Orders: used for revenue, orders count, avg order value, items sold, charts */
-const orders = ref([
-    {
-        id: 101,
-        createdAt: new Date("2025-08-17T11:15:00"),
-        type: "dine",
-        customer: "Walk In",
-        payment: "cash",
-        total: 8.5,
-        items: [
-            { name: "Karak Chai", qty: 2, price: 2.5 },
-            { name: "Cookie", qty: 1, price: 3.5 },
-        ],
-    },
-    {
-        id: 102,
-        createdAt: new Date("2025-08-20T14:20:00"),
-        type: "delivery",
-        customer: "Amir",
-        payment: "card",
-        total: 12.0,
-        items: [{ name: "Sandwich", qty: 2, price: 6.0 }],
-    },
-    {
-        id: 103,
-        createdAt: new Date("2025-08-22T18:45:00"),
-        type: "dine",
-        customer: "Walk In",
-        payment: "cash",
-        total: 5.0,
-        items: [{ name: "Karak Chai", qty: 2, price: 2.5 }],
-    },
-    {
-        id: 104,
-        createdAt: new Date("2025-08-25T09:02:00"),
-        type: "delivery",
-        customer: "Sara",
-        payment: "qr",
-        total: 14.5,
-        items: [
-            { name: "Latte", qty: 1, price: 3.5 },
-            { name: "Bagel", qty: 2, price: 5.5 },
-        ],
-    },
-    {
-        id: 105,
-        createdAt: new Date("2025-08-26T12:10:00"),
-        type: "dine",
-        customer: "Ali",
-        payment: "cash",
-        total: 2.5,
-        items: [{ name: "Karak Chai", qty: 1, price: 2.5 }],
-    },
-    {
-        id: 106,
-        createdAt: new Date("2025-08-28T16:30:00"),
-        type: "dine",
-        customer: "Walk In",
-        payment: "card",
-        total: 7.5,
-        items: [
-            { name: "Americano", qty: 1, price: 3.0 },
-            { name: "Brownie", qty: 1, price: 4.5 },
-        ],
-    },
-    {
-        id: 107,
-        createdAt: new Date("2025-08-29T00:22:00"),
-        type: "dine",
-        customer: "Ali Khan",
-        payment: "cash",
-        total: 2.5,
-        items: [{ name: "Karak Chai", qty: 1, price: 2.5 }],
-    },
-    {
-        id: 108,
-        createdAt: new Date("2025-08-30T03:05:00"),
-        type: "dine",
-        customer: "Walk In",
-        payment: "cash",
-        total: 2.5,
-        items: [{ name: "Karak Chai", qty: 1, price: 2.5 }],
-    },
-]);
-
-/* ===================== Filters ===================== */
-const q = ref(""); // table search (Top Items)
-const range = ref("last30"); // 'today' | 'last7' | 'last30' | 'thisMonth' | 'all'
-const orderType = ref("All"); // 'All' | 'dine' | 'delivery'
-const payType = ref("All"); // 'All' | 'cash' | 'card' | 'qr' | 'bank'
+/* ---------------- Filters (simple values to match your screenshot) ---------------- */
+const range = ref("last30"); // today | last7 | last30 | thisMonth | all
+const orderType = ref("All"); // All | dine | delivery
+const payType = ref("All"); // All | cash | card | qr | bank
 
 const rangeOptions = ["today", "last7", "last30", "thisMonth", "all"];
 const orderTypeOptions = ["All", "dine", "delivery"];
 const payTypeOptions = ["All", "cash", "card", "qr", "bank"];
 
-function inRange(date) {
-    const d = new Date(date);
-    const now = new Date();
-    if (range.value === "all") return true;
+/* ---------------- API state ---------------- */
+const loading = ref(false);
+const errorMsg = ref("");
 
-    if (range.value === "today") {
-        const start = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-        );
-        const end = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate() + 1
-        );
-        return d >= start && d < end;
-    }
-
-    if (range.value === "thisMonth") {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        return d >= start && d < end;
-    }
-
-    const days = range.value === "last7" ? 7 : 30;
-    const start = new Date(now);
-    start.setDate(start.getDate() - days);
-    return d >= start && d <= now;
-}
-
-const filteredOrders = computed(() =>
-    orders.value
-        .filter((o) => inRange(o.createdAt))
-        .filter((o) =>
-            orderType.value === "All" ? true : o.type === orderType.value
-        )
-        .filter((o) =>
-            payType.value === "All" ? true : o.payment === payType.value
-        )
-);
-
-/* ===================== KPIs ===================== */
-const revenue = computed(() =>
-    filteredOrders.value.reduce((s, o) => s + o.total, 0)
-);
-const ordersCount = computed(() => filteredOrders.value.length);
-const itemsSold = computed(() =>
-    filteredOrders.value.reduce(
-        (sum, o) => sum + o.items.reduce((s, it) => s + it.qty, 0),
-        0
-    )
-);
-const aov = computed(() =>
-    ordersCount.value ? revenue.value / ordersCount.value : 0
-);
-
-/* ===================== Series (sales over time) ===================== */
-function daysBack(n) {
-    const out = [];
-    for (let i = n - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() - i);
-        out.push(d);
-    }
-    return out;
-}
-const bucketDays = computed(() => {
-    if (range.value === "today")
-        return [new Date(new Date().setHours(0, 0, 0, 0))];
-    if (range.value === "last7") return daysBack(7);
-    if (range.value === "last30" || range.value === "thisMonth")
-        return daysBack(30);
-    return daysBack(30); // default resolution for "all"
-});
-
-const salesSeries = computed(() => {
-    const map = new Map(bucketDays.value.map((d) => [d.toDateString(), 0]));
-    filteredOrders.value.forEach((o) => {
-        const k = new Date(
-            new Date(o.createdAt).setHours(0, 0, 0, 0)
-        ).toDateString();
-        if (map.has(k)) map.set(k, map.get(k) + o.total);
-    });
-    return bucketDays.value.map((d) => ({
-        x: d,
-        y: map.get(d.toDateString()) || 0,
-    }));
-});
-
-/* spark/line path utilities (no external chart libs) */
-function buildPath(points, w, h, pad = 8) {
-    if (!points.length) return "";
-    const xs = points.map((p) => +p.x);
-    const ys = points.map((p) => +p.y);
-    const minX = +xs[0],
-        maxX = +xs[xs.length - 1];
-    const maxY = Math.max(1, ...ys);
-    const minY = 0;
-
-    const xScale = (x) =>
-        pad + ((x - minX) / Math.max(1, maxX - minX)) * (w - pad * 2);
-    const yScale = (y) =>
-        h - pad - ((y - minY) / Math.max(1, maxY - minY)) * (h - pad * 2);
-
-    return points
-        .map((p, i) => `${i ? "L" : "M"}${xScale(+p.x)},${yScale(+p.y)}`)
-        .join(" ");
-}
-const revenueSpark = computed(() =>
-    buildPath(
-        salesSeries.value.map((d, i) => ({ x: i, y: d.y })),
-        160,
-        50,
-        6
-    )
-);
-
-/* ===================== Breakdowns ===================== */
-const ordersByType = computed(() => {
-    const dine = filteredOrders.value.filter((o) => o.type === "dine").length;
-    const delivery = filteredOrders.value.filter(
-        (o) => o.type === "delivery"
-    ).length;
-    const total = dine + delivery || 1;
-    return {
-        dine,
-        delivery,
-        dinePct: Math.round((dine / total) * 100),
-        deliveryPct: Math.round((delivery / total) * 100),
-    };
-});
-const paymentsMix = computed(() => {
-    const counts = filteredOrders.value.reduce((m, o) => {
-        m[o.payment] = (m[o.payment] || 0) + 1;
-        return m;
-    }, {});
-    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-    const keys = ["cash", "card", "qr", "bank"];
-    return keys.map((k) => ({
-        method: k,
-        count: counts[k] || 0,
-        pct: Math.round(((counts[k] || 0) / total) * 100),
-    }));
-});
-
-/* ===================== Top Items table ===================== */
-const itemsAgg = computed(() => {
-    const map = new Map();
-    filteredOrders.value.forEach((o) =>
-        o.items.forEach((it) => {
-            const n = it.name;
-            const prev = map.get(n) || { name: n, qty: 0, revenue: 0 };
-            prev.qty += it.qty;
-            prev.revenue += it.qty * it.price;
-            map.set(n, prev);
-        })
-    );
-    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
-});
-
+const revenue = ref(0);
+const ordersCount = ref(0);
+const aov = ref(0);
+const itemsSold = ref(0);
+const salesSeries = ref([]); // [{day:'YYYY-MM-DD', total:number}]
+const ordersByType = ref({ dine: 0, delivery: 0, dinePct: 0, deliveryPct: 0 });
+const paymentsMix = ref([]); // [{method,count,pct}]
+const topItems = ref([]); // [{name,qty,revenue}]
 const qItems = ref("");
+
+let debounceId;
+const fetchAnalytics = () => {
+    clearTimeout(debounceId);
+    debounceId = setTimeout(async () => {
+        loading.value = true;
+        errorMsg.value = "";
+        try {
+            const { data } = await axios.get("/api/analytics", {
+                params: {
+                    range: range.value,
+                    orderType: orderType.value,
+                    payType: payType.value,
+                },
+            });
+            revenue.value = data.revenue ?? 0;
+            ordersCount.value = data.ordersCount ?? 0;
+            aov.value = data.aov ?? 0;
+            itemsSold.value = data.itemsSold ?? 0;
+            salesSeries.value = data.salesSeries ?? [];
+            ordersByType.value = data.ordersByType ?? {
+                dine: 0,
+                delivery: 0,
+                dinePct: 0,
+                deliveryPct: 0,
+            };
+            paymentsMix.value = data.paymentsMix ?? [];
+            topItems.value = data.topItems ?? [];
+        } catch (e) {
+            console.error(e);
+            errorMsg.value = "Failed to load analytics.";
+        } finally {
+            loading.value = false;
+        }
+    }, 180);
+};
+watch([range, orderType, payType], fetchAnalytics, { immediate: true });
+
+/* ---------------- Helpers ---------------- */
+const money = (n, c = "GBP") =>
+    new Intl.NumberFormat("en-GB", { style: "currency", currency: c }).format(
+        n
+    );
+
+// Build pretty line path (with margins) from salesSeries
+// Build pretty line with margins. Draw a teeny segment if only 1 point.
+function buildLine(series, W, H, m = { l: 40, r: 10, t: 16, b: 28 }) {
+    if (!series?.length) return "";
+    const xs = series.map((_, i) => i);
+    const ys = series.map((d) => +d.total || 0);
+
+    const minX = 0,
+        maxX = Math.max(1, xs.length - 1);
+    const minY = 0,
+        maxY = Math.max(1, ...ys);
+
+    const iw = Math.max(1, W - m.l - m.r);
+    const ih = Math.max(1, H - m.t - m.b);
+
+    const sx = (x) => m.l + ((x - minX) / (maxX - minX)) * iw;
+    const sy = (y) => m.t + ih - ((y - minY) / (maxY - minY)) * ih;
+
+    if (xs.length === 1) {
+        const x = sx(0),
+            y = sy(ys[0]);
+        // tiny visible segment
+        return `M${x},${y} L${x + 0.01},${y}`;
+    }
+    return xs.map((x, i) => `${i ? "L" : "M"}${sx(x)},${sy(ys[i])}`).join(" ");
+}
+
+// For visible dots on the line (works for any number of points)
+function buildMarkers(series, W, H, m = { l: 40, r: 10, t: 16, b: 28 }) {
+    if (!series?.length) return [];
+    const xs = series.map((_, i) => i);
+    const ys = series.map((d) => +d.total || 0);
+
+    const minX = 0,
+        maxX = Math.max(1, xs.length - 1);
+    const minY = 0,
+        maxY = Math.max(1, ...ys);
+
+    const iw = Math.max(1, W - m.l - m.r);
+    const ih = Math.max(1, H - m.t - m.b);
+
+    const sx = (x) => m.l + ((x - minX) / (maxX - minX)) * iw;
+    const sy = (y) => m.t + ih - ((y - minY) / (maxY - minY)) * ih;
+
+    return xs.map((x, i) => ({ x: sx(x), y: sy(ys[i]) }));
+}
+
+// use them
+const bigLinePath = computed(() => buildLine(salesSeries.value, 840, 280));
+const markerPoints = computed(() => buildMarkers(salesSeries.value, 840, 280));
+
 const topItemsFiltered = computed(() => {
     const t = qItems.value.trim().toLowerCase();
-    if (!t) return itemsAgg.value;
-    return itemsAgg.value.filter((i) => i.name.toLowerCase().includes(t));
+    return t
+        ? (topItems.value || []).filter((i) =>
+              (i.name || "").toLowerCase().includes(t)
+          )
+        : topItems.value || [];
 });
-
-/* ===================== Helpers & stubs ===================== */
-const money = (n, currency = "GBP") =>
-    new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
-const onDownload = (type) => console.log("Download analytics:", type);
 
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
@@ -282,160 +139,153 @@ onUpdated(() => window.feather?.replace());
     <Head title="Analytics" />
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-1">
-                <!-- Title -->
-                <h4 class="fw-semibold mb-3">Analytics</h4>
-
-                <!-- Filters -->
-                <div class="card border-0 shadow-sm rounded-4 mb-3">
-                    <div
-                        class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between"
-                    >
-                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                            <div style="min-width: 180px">
-                                <Select
-                                    v-model="range"
-                                    :options="rangeOptions"
-                                    placeholder="Range"
-                                    class="w-100"
-                                    :appendTo="'body'"
-                                    :autoZIndex="true"
-                                    :baseZIndex="2000"
-                                >
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span
-                                        ><span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div>
-
-                            <div style="min-width: 160px">
-                                <Select
-                                    v-model="orderType"
-                                    :options="orderTypeOptions"
-                                    placeholder="Order Type"
-                                    class="w-100"
-                                    :appendTo="'body'"
-                                    :autoZIndex="true"
-                                    :baseZIndex="2000"
-                                >
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span
-                                        ><span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div>
-
-                            <div style="min-width: 160px">
-                                <Select
-                                    v-model="payType"
-                                    :options="payTypeOptions"
-                                    placeholder="Payment Type"
-                                    class="w-100"
-                                    :appendTo="'body'"
-                                    :autoZIndex="true"
-                                    :baseZIndex="2000"
-                                >
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span
-                                        ><span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div class="dropdown">
-                            <button
-                                class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                data-bs-toggle="dropdown"
+            <div class="container-fluid py-2">
+                <!-- Filters row -->
+                <div
+                    class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3"
+                >
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="filter">
+                            <Select
+                                v-model="range"
+                                :options="rangeOptions"
+                                class="w-100"
+                                :appendTo="'body'"
                             >
-                                Download reports
-                            </button>
-                            <ul
-                                class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                            >
-                                <li>
-                                    <a
-                                        class="dropdown-item py-2"
-                                        href="javascript:void(0)"
-                                        @click="onDownload('pdf')"
-                                        >Download as PDF</a
-                                    >
-                                </li>
-                                <li>
-                                    <a
-                                        class="dropdown-item py-2"
-                                        href="javascript:void(0)"
-                                        @click="onDownload('excel')"
-                                        >Download as Excel</a
-                                    >
-                                </li>
-                            </ul>
+                                <template #value="{ value, placeholder }"
+                                    ><span>{{
+                                        value || placeholder
+                                    }}</span></template
+                                >
+                            </Select>
                         </div>
+                        <div class="filter">
+                            <Select
+                                v-model="orderType"
+                                :options="orderTypeOptions"
+                                class="w-100"
+                                :appendTo="'body'"
+                            >
+                                <template #value="{ value, placeholder }"
+                                    ><span>{{
+                                        value || placeholder
+                                    }}</span></template
+                                >
+                            </Select>
+                        </div>
+                        <div class="filter">
+                            <Select
+                                v-model="payType"
+                                :options="payTypeOptions"
+                                class="w-100"
+                                :appendTo="'body'"
+                            >
+                                <template #value="{ value, placeholder }"
+                                    ><span>{{
+                                        value || placeholder
+                                    }}</span></template
+                                >
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div class="dropdown">
+                        <button
+                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                            data-bs-toggle="dropdown"
+                        >
+                            Download reports
+                        </button>
+                        <ul
+                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                        >
+                            <li>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:void(0)"
+                                    >Download as PDF</a
+                                >
+                            </li>
+                            <li>
+                                <a
+                                    class="dropdown-item py-2"
+                                    href="javascript:void(0)"
+                                    >Download as Excel</a
+                                >
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
-                <!-- KPI Cards -->
+                <!-- Error -->
+                <div
+                    v-if="errorMsg"
+                    class="alert alert-warning border-0 rounded-4 shadow-sm"
+                >
+                    {{ errorMsg }}
+                </div>
+
+                <!-- KPIs -->
                 <div class="row g-3">
-                    <div class="col-6 col-md-3">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body text-center">
-                                <div class="icon-wrap mb-1">
-                                    <i class="bi bi-currency-pound"></i>
+                    <div class="col-6 col-lg-3">
+                        <div class="card kpi shadow-sm rounded-4 h-100">
+                            <div class="card-body">
+                                <div class="kpi-top">
+                                    <div class="kpi-icon">
+                                        <i class="bi bi-currency-pound"></i>
+                                    </div>
+                                    <svg viewBox="0 0 160 44" class="spark">
+                                        <path
+                                            :d="sparkPath"
+                                            class="spark-line"
+                                        />
+                                    </svg>
                                 </div>
-                                <div class="kpi-label text-muted">Revenue</div>
+                                <div class="kpi-label">Revenue</div>
                                 <div class="kpi-value">
                                     {{ money(revenue) }}
                                 </div>
-                                <svg
-                                    viewBox="0 0 160 50"
-                                    class="spark mt-2"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        :d="revenueSpark"
-                                        class="spark-line"
-                                    ></path>
-                                </svg>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-6 col-md-3">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body text-center">
-                                <div class="icon-wrap mb-1">
-                                    <i class="bi bi-receipt"></i>
+                    <div class="col-6 col-lg-3">
+                        <div class="card kpi shadow-sm rounded-4 h-100">
+                            <div class="card-body">
+                                <div class="kpi-top">
+                                    <div class="kpi-icon">
+                                        <i class="bi bi-receipt"></i>
+                                    </div>
                                 </div>
-                                <div class="kpi-label text-muted">Orders</div>
+                                <div class="kpi-label">Orders</div>
                                 <div class="kpi-value">{{ ordersCount }}</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-6 col-md-3">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body text-center">
-                                <div class="icon-wrap mb-1">
-                                    <i class="bi bi-graph-up"></i>
+                    <div class="col-6 col-lg-3">
+                        <div class="card kpi shadow-sm rounded-4 h-100">
+                            <div class="card-body">
+                                <div class="kpi-top">
+                                    <div class="kpi-icon">
+                                        <i class="bi bi-graph-up"></i>
+                                    </div>
                                 </div>
-                                <div class="kpi-label text-muted">
-                                    Avg. Order Value
-                                </div>
+                                <div class="kpi-label">Avg. Order Value</div>
                                 <div class="kpi-value">{{ money(aov) }}</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-6 col-md-3">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body text-center">
-                                <div class="icon-wrap mb-1">
-                                    <i class="bi bi-basket"></i>
+                    <div class="col-6 col-lg-3">
+                        <div class="card kpi shadow-sm rounded-4 h-100">
+                            <div class="card-body">
+                                <div class="kpi-top">
+                                    <div class="kpi-icon">
+                                        <i class="bi bi-basket"></i>
+                                    </div>
                                 </div>
-                                <div class="kpi-label text-muted">
-                                    Items Sold
-                                </div>
+                                <div class="kpi-label">Items Sold</div>
                                 <div class="kpi-value">{{ itemsSold }}</div>
                             </div>
                         </div>
@@ -444,151 +294,121 @@ onUpdated(() => window.feather?.replace());
 
                 <!-- Charts row -->
                 <div class="row g-3 mt-1">
-                    <!-- Sales over time -->
                     <div class="col-lg-8">
                         <div class="card border-0 shadow-sm rounded-4 h-100">
                             <div class="card-body">
-                                <div
-                                    class="d-flex justify-content-between align-items-center mb-2"
-                                >
-                                    <h5 class="mb-0 fw-semibold">
-                                        Sales Over Time
-                                    </h5>
-                                </div>
-
+                                <h6 class="fw-semibold mb-2">
+                                    Sales Over Time
+                                </h6>
                                 <div class="chart">
-                                    <svg
-                                        viewBox="0 0 720 220"
-                                        class="w-100 h-100"
-                                    >
-                                        <!-- axes -->
+                                    <svg viewBox="0 0 840 280">
+                                        <!-- Axes -->
                                         <line
                                             x1="40"
-                                            y1="10"
+                                            y1="16"
                                             x2="40"
-                                            y2="190"
+                                            y2="252"
                                             class="axis"
                                         />
                                         <line
                                             x1="40"
-                                            y1="190"
-                                            x2="710"
-                                            y2="190"
+                                            y1="252"
+                                            x2="830"
+                                            y2="252"
                                             class="axis"
                                         />
-                                        <!-- grid -->
-                                        <g v-for="i in 5" :key="i">
+                                        <!-- Grid -->
+                                        <g v-for="i in 6" :key="'g' + i">
                                             <line
                                                 :x1="40"
-                                                :x2="710"
-                                                :y1="190 - i * 30"
-                                                :y2="190 - i * 30"
+                                                :x2="830"
+                                                :y1="252 - i * 36"
+                                                :y2="252 - i * 36"
                                                 class="grid"
                                             />
                                         </g>
-                                        <!-- path -->
-                                        <path
-                                            :d="
-                                                buildPath(
-                                                    salesSeries.map((d, i) => ({
-                                                        x: i,
-                                                        y: d.y,
-                                                    })),
-                                                    670,
-                                                    180,
-                                                    10
-                                                )
-                                                    .replace(/(^M| L)/g, (m) =>
-                                                        m === ' L' ? ' L' : 'M'
-                                                    )
-                                                    .replace(
-                                                        /(^| )M/,
-                                                        `M 40,190 `
-                                                    )
-                                            "
-                                            class="line"
-                                        />
+                                        <!-- Series -->
+                                        <path :d="bigLinePath" class="line" />
+                                        <text
+                                            v-if="!salesSeries.length"
+                                            x="430"
+                                            y="140"
+                                            text-anchor="middle"
+                                            class="muted"
+                                        >
+                                            No data
+                                        </text>
                                     </svg>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Breakdown -->
                     <div class="col-lg-4">
                         <div class="card border-0 shadow-sm rounded-4 mb-3">
                             <div class="card-body">
-                                <h6 class="fw-semibold mb-2">Orders by Type</h6>
-                                <div
-                                    class="d-flex justify-content-between small mb-1"
-                                >
-                                    <span>Dine In</span
-                                    ><span
-                                        >{{ ordersByType.dine }} ({{
-                                            ordersByType.dinePct
-                                        }}%)</span
-                                    >
+                                <h6 class="fw-semibold mb-3">Orders by Type</h6>
+
+                                <div class="stack">
+                                    <div class="stack-row">
+                                        <span>Dine In</span>
+                                        <span class="stack-val"
+                                            >{{ ordersByType.dine }} ({{
+                                                ordersByType.dinePct
+                                            }}%)</span
+                                        >
+                                    </div>
+                                    <div class="progress thin">
+                                        <div
+                                            class="progress-bar bg-success"
+                                            :style="{
+                                                width:
+                                                    ordersByType.dinePct + '%',
+                                            }"
+                                        ></div>
+                                    </div>
                                 </div>
-                                <div
-                                    class="progress rounded-pill mb-2"
-                                    style="height: 12px"
-                                >
-                                    <div
-                                        class="progress-bar bg-success"
-                                        role="progressbar"
-                                        :style="{
-                                            width: ordersByType.dinePct + '%',
-                                        }"
-                                    ></div>
-                                </div>
-                                <div
-                                    class="d-flex justify-content-between small mb-1"
-                                >
-                                    <span>Delivery</span
-                                    ><span
-                                        >{{ ordersByType.delivery }} ({{
-                                            ordersByType.deliveryPct
-                                        }}%)</span
-                                    >
-                                </div>
-                                <div
-                                    class="progress rounded-pill"
-                                    style="height: 12px"
-                                >
-                                    <div
-                                        class="progress-bar bg-primary"
-                                        role="progressbar"
-                                        :style="{
-                                            width:
-                                                ordersByType.deliveryPct + '%',
-                                        }"
-                                    ></div>
+
+                                <div class="stack mt-2">
+                                    <div class="stack-row">
+                                        <span>Delivery</span>
+                                        <span class="stack-val"
+                                            >{{ ordersByType.delivery }} ({{
+                                                ordersByType.deliveryPct
+                                            }}%)</span
+                                        >
+                                    </div>
+                                    <div class="progress thin">
+                                        <div
+                                            class="progress-bar bg-primary"
+                                            :style="{
+                                                width:
+                                                    ordersByType.deliveryPct +
+                                                    '%',
+                                            }"
+                                        ></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="card border-0 shadow-sm rounded-4">
                             <div class="card-body">
-                                <h6 class="fw-semibold mb-2">Payments Mix</h6>
+                                <h6 class="fw-semibold mb-3">Payments Mix</h6>
                                 <div
                                     v-for="p in paymentsMix"
                                     :key="p.method"
                                     class="mb-2"
                                 >
-                                    <div
-                                        class="d-flex justify-content-between small"
-                                    >
+                                    <div class="stack-row">
                                         <span class="text-capitalize">{{
                                             p.method
                                         }}</span>
-                                        <span
+                                        <span class="stack-val"
                                             >{{ p.count }} ({{ p.pct }}%)</span
                                         >
                                     </div>
-                                    <div
-                                        class="progress rounded-pill"
-                                        style="height: 10px"
-                                    >
+                                    <div class="progress thin">
                                         <div
                                             class="progress-bar"
                                             :class="{
@@ -599,22 +419,27 @@ onUpdated(() => window.feather?.replace());
                                                 'bg-dark': p.method === 'bank',
                                             }"
                                             :style="{ width: p.pct + '%' }"
-                                        ></div>
+                                        />
                                     </div>
+                                </div>
+                                <div
+                                    v-if="!paymentsMix.length"
+                                    class="small text-muted"
+                                >
+                                    No payment data.
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Top Items table -->
-                <div class="card border-0 shadow-lg rounded-4 mt-3">
+                <!-- Top Items -->
+                <div class="card border-0 shadow-sm rounded-4 mt-3">
                     <div class="card-body">
                         <div
                             class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
                         >
-                            <h5 class="mb-0 fw-semibold">Top Items</h5>
-
+                            <h6 class="fw-semibold mb-0">Top Items</h6>
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
                                 <input
@@ -627,16 +452,13 @@ onUpdated(() => window.feather?.replace());
                         </div>
 
                         <div class="table-responsive">
-                            <table
-                                class="table table-hover align-middle"
-                                style="min-height: 320px"
-                            >
-                                <thead class="border-top small text-muted">
+                            <table class="table table-hover align-middle">
+                                <thead class="small text-muted">
                                     <tr>
-                                        <th>S.#</th>
+                                        <th style="width: 60px">S.#</th>
                                         <th>Item</th>
-                                        <th>Qty Sold</th>
-                                        <th>Revenue</th>
+                                        <th style="width: 140px">Qty Sold</th>
+                                        <th style="width: 160px">Revenue</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -651,12 +473,25 @@ onUpdated(() => window.feather?.replace());
                                         <td>{{ r.qty }}</td>
                                         <td>{{ money(r.revenue) }}</td>
                                     </tr>
-                                    <tr v-if="topItemsFiltered.length === 0">
+                                    <tr
+                                        v-if="
+                                            !loading &&
+                                            topItemsFiltered.length === 0
+                                        "
+                                    >
                                         <td
                                             colspan="4"
                                             class="text-center text-muted py-4"
                                         >
                                             No items in this range.
+                                        </td>
+                                    </tr>
+                                    <tr v-if="loading">
+                                        <td
+                                            colspan="4"
+                                            class="text-center text-muted py-4"
+                                        >
+                                            Loading…
                                         </td>
                                     </tr>
                                 </tbody>
@@ -674,43 +509,39 @@ onUpdated(() => window.feather?.replace());
     --brand: #1c0d82;
 }
 
-/* KPI cards */
-.icon-wrap {
-    font-size: 2rem;
+/* Filters: small width like screenshot */
+.filter {
+    min-width: 140px;
+}
+
+/* KPI */
+.kpi .card-body {
+    padding: 1rem 1.25rem;
+}
+.kpi-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.kpi-icon {
+    font-size: 1.8rem;
     color: var(--brand);
 }
 .kpi-label {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
 }
 .kpi-value {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: #111827;
 }
 
-/* Search pill */
-.search-wrap {
-    position: relative;
-    width: clamp(220px, 28vw, 360px);
-}
-.search-wrap .bi-search {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6b7280;
-    font-size: 1rem;
-}
-.search-input {
-    padding-left: 38px;
-    border-radius: 9999px;
-    background: #fff;
-}
-
-/* Sparkline */
+/* Spark */
 .spark {
     width: 160px;
-    height: 50px;
+    height: 44px;
 }
 .spark-line {
     fill: none;
@@ -719,16 +550,12 @@ onUpdated(() => window.feather?.replace());
     opacity: 0.9;
 }
 
-/* Chart (SVG) */
+/* Chart */
 .chart {
     width: 100%;
-    min-height: 240px;
-}
-.chart svg {
-    display: block;
 }
 .axis {
-    stroke: #111;
+    stroke: #0f172a;
     stroke-width: 1.5;
 }
 .grid {
@@ -740,26 +567,59 @@ onUpdated(() => window.feather?.replace());
     stroke: #1c0d82;
     stroke-width: 2.5;
 }
-
-/* Progress overrides */
-.progress {
-    background: #eef2ff;
+.muted {
+    fill: #6b7280;
+    font-size: 12px;
 }
 
-/* Table polish */
+/* Progress blocks */
+.progress.thin {
+    height: 8px;
+    background: #eef2ff;
+}
+.stack-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+.stack-val {
+    color: #6b7280;
+}
+
+/* Search pill */
+.search-wrap {
+    position: relative;
+    width: clamp(220px, 30vw, 360px);
+}
+.search-wrap .bi-search {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+}
+.search-input {
+    padding-left: 36px;
+    border-radius: 9999px;
+}
+
+/* Table */
 .table thead th {
     font-weight: 600;
 }
-.table tbody td {
-    vertical-align: middle;
-}
 
-/* Buttons theme */
-.btn-primary {
-    background-color: var(--brand);
-    border-color: var(--brand);
-}
-.btn-primary:hover {
-    filter: brightness(1.05);
+/* Responsive polish */
+@media (max-width: 576px) {
+    .kpi-value {
+        font-size: 1.3rem;
+    }
+    .filter {
+        min-width: 46%;
+    }
+    .search-wrap {
+        width: 100%;
+    }
 }
 </style>

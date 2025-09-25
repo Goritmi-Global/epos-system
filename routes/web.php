@@ -264,7 +264,7 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
 
     /* -------- Analytics -------- */
     Route::prefix('analytics')->name('analytics.')->group(function () {
-        Route::get('/', [AnalyticsController::class, 'index'])->name('index');
+        Route::get('/', [AnalyticsController::class, 'page'])->name('index');
     });
 
     /* -------- Settings -------- */
