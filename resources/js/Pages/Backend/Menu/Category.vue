@@ -160,6 +160,7 @@ const resetModal = () => {
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
 const catFormErrors = ref({});
+const categoryColor = ref("#1b1670");
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 
@@ -199,6 +200,7 @@ const submitCategory = async () => {
                 icon: manualIcon.value.value,
                 active: manualActive.value,
                 parent_id: selectedParentId.value || null,
+                color: categoryColor.value,
             };
 
             // ✅ Handle subcategories only if it's a MAIN CATEGORY
@@ -289,12 +291,14 @@ const submitCategory = async () => {
                     icon: manualIcon.value.value,
                     active: manualActive.value,
                     parent_id: null,
+                    color: categoryColor.value,
                 }));
             }
 
             const createPayload = {
                 isSubCategory: isSub.value,
                 categories: categoriesPayload,
+                
             };
 
             console.log("Creating categories with payload:", createPayload);
@@ -354,6 +358,7 @@ const manualSubcategoriesInput = ref("");
 
 // Also update your editRow function to better handle subcategory IDs
 const editRow = (row) => {
+    
     resetErrors();
     editingCategory.value = row;
     isSub.value = !!row.parent_id;
@@ -373,6 +378,7 @@ const editRow = (row) => {
     }
 
     manualActive.value = row.active;
+    categoryColor.value = row.box_bg_color;
 
     // Handle subcategories
     if (row.subcategories && row.subcategories.length > 0) {
@@ -954,7 +960,7 @@ const handleImport = (data) => {
                                                 class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                                 <span class="fs-5">{{
                                                     row.icon || "📦"
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </td>
                                         <td>{{ money(row.total_value) }}</td>
@@ -1091,7 +1097,7 @@ const handleImport = (data) => {
                                                 <span>
                                                     <span class="me-2">{{
                                                         manualIcon.value
-                                                        }}</span>
+                                                    }}</span>
                                                     {{ manualIcon.label }}
                                                 </span>
                                                 <i class="bi bi-caret-down-fill"></i>
@@ -1103,7 +1109,7 @@ const handleImport = (data) => {
                                                         ">
                                                         <span class="me-2">{{
                                                             opt.value
-                                                            }}</span>
+                                                        }}</span>
                                                         {{ opt.label }}
                                                     </a>
                                                 </li>
@@ -1142,6 +1148,19 @@ const handleImport = (data) => {
                                             {{ catFormErrors.name[0] }}
                                         </small>
                                     </div>
+
+                                    <!-- Category Color -->
+                                    <div class="col-12 mt-3">
+                                        <label class="form-label">Category Box Background Color</label>
+                                        <input type="color" v-model="categoryColor"
+                                            class="form-control form-control-color"
+                                            :class="{ 'is-invalid': catFormErrors?.color }" title="Choose a color" />
+                                        <small v-if="catFormErrors?.color" class="text-danger">
+                                            {{ catFormErrors.color[0] }}
+                                        </small>
+                                    </div>
+
+
 
                                     <!-- Subcategory Section -->
                                     <div class="col-12" v-if="isSub && !editingCategory">
@@ -1275,7 +1294,7 @@ const handleImport = (data) => {
                                         }" />
                                     <small class="text-danger">{{
                                         subCatErrors
-                                        }}</small>
+                                    }}</small>
                                 </div>
                                 <button type="button" class="btn btn-primary rounded-pill px-4"
                                     @click="submitSubCategory" :disabled="submittingSub">

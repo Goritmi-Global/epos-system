@@ -13,6 +13,7 @@ class MenuCategory extends Model
 
     protected $fillable = [
         'name',
+        'box_bg_color',
         'icon',
         'active',
         'parent_id',
