@@ -38,4 +38,8 @@ class PosOrder extends Model
     {
         return $this->hasMany(PosOrderItem::class, 'pos_order_id');
     }
+    public function kot()
+    {
+        return $this->hasOne(KitchenOrder::class, 'pos_order_type_id', 'id');
+    }
 }

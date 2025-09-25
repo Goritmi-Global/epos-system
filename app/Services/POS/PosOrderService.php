@@ -9,6 +9,7 @@ use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
+use App\Models\KitchenOrder;
 use App\Models\Payment;
 use App\Models\PosOrderType;
 use App\Models\StockEntry;
@@ -47,9 +48,9 @@ class PosOrderService
             ]);
 
             //  Create order type
-            PosOrderType::create([
+            $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
-                'order_type' => $data['order_type'],
+                'order_type'   => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
@@ -93,6 +94,41 @@ class PosOrderService
                 }
             }
 
+            $order->load('items');
+            $kot = null;
+
+            // 2. Handle KOT (after items exist)
+            if (!empty($data['auto_print_kot'])) {
+
+                $kot = KitchenOrder::create([
+                    'pos_order_type_id' => $orderType->id,
+                    'status'            => KitchenOrder::STATUS_WAITING,
+                    'order_time'        => now()->toTimeString(),
+                    'order_date'        => now()->toDateString(),
+                    'note'              => $data['note'] ?? null,
+                ]);
+
+                foreach ($order->items as $orderItem) {
+                    $menuItem = MenuItem::with('ingredients')->find($orderItem->menu_item_id);
+
+                    $ingredientsArray = [];
+                    if ($menuItem && $menuItem->ingredients->count()) {
+                        foreach ($menuItem->ingredients as $ingredient) {
+                            $ingredientsArray[] = $ingredient->product_name; 
+                        }
+                    }
+
+                    $kot->items()->create([
+                        'item_name'    => $orderItem->title,
+                        'quantity'     => $orderItem->quantity,
+                        'variant_name' => $orderItem->variant_name ?? null,
+                        'ingredients'  => $ingredientsArray, 
+                    ]);
+                }
+                $kot->load('items');
+            }
+
+
             $cashAmount = null;
             $cardAmount = null;
 
@@ -134,11 +170,10 @@ class PosOrderService
                 'exp_year'                 => $data['exp_year'] ?? null,
             ]);
 
-
-
-
+            $order->load(['items', 'kot.items']);
             // dd("Service class Done ",$data);
             return $order;
+
         });
     }
 
@@ -182,26 +217,26 @@ class PosOrderService
     }
 
     public function getMenuCategories(bool $onlyActive = true)
-{
-    $query = MenuCategory::with('children')
-        ->withCount('menuItems') // now works because relation exists
-        ->whereNull('parent_id');
+    {
+        $query = MenuCategory::with('children')
+            ->withCount('menuItems') // now works because relation exists
+            ->whereNull('parent_id');
 
-    if ($onlyActive) {
-        $query->active();
+        if ($onlyActive) {
+            $query->active();
+        }
+
+        return $query->get()->map(function ($cat) {
+            return [
+                'id'    => $cat->id,
+                'name'  => $cat->name,
+                'icon'  => $cat->icon,
+                'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
+                'menu_items_count' => $cat->menu_items_count,
+                'children' => $cat->children,
+            ];
+        });
     }
-
-    return $query->get()->map(function ($cat) {
-        return [
-            'id'    => $cat->id,
-            'name'  => $cat->name,
-            'icon'  => $cat->icon,
-            'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
-            'menu_items_count' => $cat->menu_items_count,
-            'children' => $cat->children,
-        ];
-    });
-}
 
 
     public function getAllMenus()

@@ -5,6 +5,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { toast } from "vue3-toastify";
 import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
+import KotModal from "./KotModal.vue";
 
 const props = defineProps(["client_secret", "order_code"]);
 
@@ -430,14 +431,126 @@ const paymentMethod = ref("cash");
 const changeAmount = ref(0);
 
 /* ----------------------------
+   Print KOT - FIXED
+-----------------------------*/
+
+function printKot(order) {
+    // Convert reactive object to plain object
+    const plainOrder = JSON.parse(JSON.stringify(order));
+
+    const type = (plainOrder?.payment_method || "").toLowerCase();
+    let payLine = "";
+    if (type === "split") {
+        payLine = `Payment Type: Split 
+      (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
+       Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
+    } else if (type === "card" || type === "stripe") {
+        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""
+            }${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""
+            }`;
+    } else {
+        payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
+    }
+
+    const html = `
+    <html>
+    <head>
+      <title>Kitchen Order Ticket</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        html, body {
+          width: 80mm;
+          margin: 0;
+          padding: 8px;
+          font-family: monospace, Arial, sans-serif;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+        .header { text-align: center; margin-bottom: 10px; }
+        .order-info { margin: 10px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 4px 0; text-align: left; }
+        th { border-bottom: 1px solid #000; }
+        td:last-child, th:last-child { text-align: right; }
+        .totals { margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px; }
+        .footer { text-align: center; margin-top: 10px; font-size: 11px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>KITCHEN ORDER TICKET</h2>
+      </div>
+      
+      <div class="order-info">
+        <div><strong>Date:</strong> ${plainOrder.order_date}</div>
+        <div><strong>Time:</strong> ${plainOrder.order_time}</div>
+        <div><strong>Customer:</strong> ${plainOrder.customer_name}</div>
+        <div><strong>Order Type:</strong> ${plainOrder.order_type}</div>
+        ${plainOrder.note ? `<div><strong>Note:</strong> ${plainOrder.note}</div>` : ''}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(plainOrder.items || []).map(item => {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const total = qty * price;
+        return `
+            <tr>
+              <td>${item.title || 'Unknown Item'}</td>
+              <td>${qty}</td>
+              <td>£${total.toFixed(2)}</td>
+            </tr>
+          `;
+    }).join('')}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div>Subtotal: £${Number(plainOrder.sub_total).toFixed(2)}</div>
+        <div><strong>Total: £${Number(plainOrder.total_amount).toFixed(2)}</strong></div>
+        <div>${payLine}</div>
+        ${plainOrder.cash_received ? `<div>Cash Received: £${Number(plainOrder.cash_received).toFixed(2)}</div>` : ''}
+        ${plainOrder.change ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>` : ''}
+      </div>
+
+      <div class="footer">
+        Kitchen Copy - Thank you!
+      </div>
+    </body>
+    </html>
+  `;
+
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) {
+        alert("Please allow popups for this site to print KOT");
+        return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.onload = () => {
+        w.print();
+        w.close();
+    };
+}
+
+
+const showKotModal = ref(false);
+const kotData = ref(null);
+const ShowKotDataInModal  = ref(null);
+
+/* ----------------------------
    Confirm Order
 -----------------------------*/
-const confirmOrder = async ({
-    paymentMethod,
-    cashReceived,
-    changeAmount,
-    items,
-}) => {
+const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount, items, autoPrintKot }) => {
     try {
         const payload = {
             customer_name: customer.value,
@@ -449,19 +562,19 @@ const confirmOrder = async ({
             note: note.value,
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
-            order_type:
-                orderType.value === "dine_in"
-                    ? "Dine In"
-                    : orderType.value === "delivery"
-                        ? "Delivery"
-                        : orderType.value === "takeaway"
-                            ? "Takeaway"
-                            : "Collection",
+            order_type: orderType.value === "dine_in"
+                ? "Dine In"
+                : orderType.value === "delivery"
+                    ? "Delivery"
+                    : orderType.value === "takeaway"
+                        ? "Takeaway"
+                        : "Collection",
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
+            auto_print_kot: autoPrintKot,
             cash_received: cashReceived,
             change: changeAmount,
-            items: (orderItems.value ?? []).map((it) => ({
+            items: (orderItems.value ?? []).map(it => ({
                 product_id: it.id,
                 title: it.title,
                 quantity: it.qty,
@@ -469,17 +582,25 @@ const confirmOrder = async ({
                 note: it.note ?? "",
             })),
         };
+
         const res = await axios.post("/pos/order", payload);
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message);
-        lastOrder.value = {
-            ...res.data.order,
-            ...payload,
-            items: payload.items,
-        };
-        printReceipt(lastOrder.value);
+
+        lastOrder.value = { ...res.data.order, ...payload, items: payload.items };
+
+        // Open KOT modal after confirmation
+        kotData.value = JSON.parse(JSON.stringify(lastOrder.value));
+        ShowKotDataInModal.value = res.data.kot; 
+        showKotModal.value = true;
+        console.log("ShowKotDataInModal", ShowKotDataInModal.value);
+        // Print receipt immediately
+        printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
+        printKot(JSON.parse(JSON.stringify(lastOrder.value)));
+
     } catch (err) {
+        console.error("Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
     }
 };
@@ -520,6 +641,7 @@ onMounted(() => {
 
     const payload = page.props.flash?.print_payload; // from controller
     if (payload) setTimeout(() => printReceipt(payload), 250);
+    if (payload) setTimeout(() => printKot(payload), 250);
 });
 // Also react if flash changes due to subsequent navigations
 watch(
@@ -527,6 +649,16 @@ watch(
     () => bumpToasts(),
     { deep: true }
 );
+
+
+// In parent
+const handleKotStatusUpdated = ({ id, status, message }) => {
+    const kot = kotList.find(k => k.id === id);
+    if (kot) kot.status = status;
+    toast.success(message); // only one toast here
+};
+
+
 </script>
 
 <template>
@@ -688,7 +820,7 @@ table, idx
                                                     it.qty >=
                                                     (it.stock ?? 0),
                                             }" @click="incCart(i)" :disabled="it.qty >= (it.stock ?? 0)
-                                                    ">
+                                                ">
                                                 +
                                             </button>
                                         </div>
@@ -809,7 +941,7 @@ a, i
                                         <span v-for="(
 t, i
                                             ) in selectedItem?.tags || []" :key="'t-' + i" class="chip chip-teal">{{
-                                            t.name }}</span>
+                                                t.name }}</span>
                                     </div>
 
                                     <div class="qty-group">
@@ -836,6 +968,16 @@ t, i
                     </div>
                 </div>
             </div>
+
+
+            <KotModal
+    :show="showKotModal"
+    :kot="ShowKotDataInModal"
+    @close="showKotModal = false"
+    @status-updated="handleKotStatusUpdated"
+/>
+
+
 
             <!-- Confirm / Receipt (unchanged props) -->
             <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
