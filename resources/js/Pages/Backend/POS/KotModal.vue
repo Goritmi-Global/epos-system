@@ -2,52 +2,91 @@
     <div v-if="show" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content rounded-4 border-0">
+
                 <!-- Header -->
-                <div class="modal-header text-black">
-                    <h5 class="modal-title"> Kitchen Order Ticket
+                <div class="modal-header d-flex align-items-center text-black">
+                    <h5 class="modal-title mb-0 d-flex align-items-center">
+                        Kitchen Order Ticket
+                        <span class="badge bg-primary rounded-pill ms-2 px-2 py-1">{{ kotCount }}</span>
                     </h5>
-                    <button type="button" class="btn-close" @click="$emit('close')"></button>
+
+                    <!-- Search input wrapper -->
+                    <div class="ms-auto position-relative">
+                        <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3"></i>
+                        <input v-model="searchQuery" type="text" class="form-control rounded-pill ps-5"
+                            placeholder="Search items..." style="width: 250px; height: 38px;" />
+                    </div>
+
+                    <!-- Close button -->
+                    <button type="button"
+                        class="btn btn-light ms-3 d-flex align-items-center justify-content-center rounded-circle p-1"
+                        @click="$emit('close')" title="Close" style="width: 36px; height: 36px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-danger" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Body -->
-                <div class="modal-body" v-if="kot">
+                <div class="modal-body" v-if="kot && kot.length">
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
                                     <th>#</th>
+                                    <th>Order ID</th>
                                     <th>Item Name</th>
                                     <th>Variant</th>
                                     <th>Ingredients</th>
                                     <th>Status</th>
-                                    <th>Action</th>
+                                    <th class="text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(item, index) in kot.items" :key="item.id || index">
+                                <tr v-for="(item, index) in filteredItems" :key="item.uniqueId || index">
                                     <td>{{ index + 1 }}</td>
+                                    <td>{{ item.orderIndex + 1 }}</td>
                                     <td>{{ item.item_name }}</td>
                                     <td>{{ item.variant_name || '-' }}</td>
-                                    <td>{{ item.ingredients.join(', ') }}</td>
-                                    <td>{{ kot.status }}</td>
+                                    <td>{{ item.ingredients?.join(', ') || '-' }}</td>
                                     <td>
-                                        <div class="dropdown position-static">
-                                            <a class="text-dark" href="#" role="button" data-bs-toggle="dropdown"
-                                                aria-expanded="false" style="font-size: 18px;">
-                                                &#8942;
-                                            </a>
-                                            <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="#"
-                                                        @click.prevent="updateKotStatus(kot, 'Waiting')">Waiting</a>
-                                                </li>
-                                                <li><a class="dropdown-item" href="#"
-                                                        @click.prevent="updateKotStatus(kot, 'Done')">Done</a></li>
-                                                <li><a class="dropdown-item" href="#"
-                                                        @click.prevent="updateKotStatus(kot, 'Cancelled')">Cancelled</a>
-                                                </li>
-                                            </ul>
+                                        <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
+                                            style="width: 70px; display: inline-flex; justify-content: center; align-items: center; height: 25px;">
+                                            {{ item.status }}
+                                        </span>
+                                    </td>
+
+
+
+                                    <td>
+                                        <div class="d-flex justify-content-center align-items-center gap-2">
+                                            <!-- Waiting -->
+                                            <button @click="updateKotStatus(item.order, 'Waiting')" title="Waiting"
+                                                class="p-2 rounded-full text-warning hover:bg-gray-100">
+                                                <Clock class="w-5 h-5" />
+                                            </button>
+
+                                            <!-- Done -->
+                                            <button @click="updateKotStatus(item.order, 'Done')" title="Done"
+                                                class="p-2 rounded-full text-success hover:bg-gray-100">
+                                                <CheckCircle class="w-5 h-5" />
+                                            </button>
+
+                                            <!-- Cancelled -->
+                                            <button @click="updateKotStatus(item.order, 'Cancelled')" title="Cancelled"
+                                                class="p-2 rounded-full text-danger hover:bg-gray-100">
+                                                <XCircle class="w-5 h-5" />
+                                            </button>
+
+                                            <!-- Print -->
+                                            <button class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                @click.prevent="printOrder(item.order)" title="Print">
+                                                <Printer class="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
+
                                 </tr>
                             </tbody>
                         </table>
@@ -58,34 +97,235 @@
                 <div class="modal-footer">
                     <button class="btn btn-primary rounded-pill py-2" @click="$emit('close')">Close</button>
                 </div>
+
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
+import { computed, ref } from 'vue';
 import axios from 'axios';
-import { toast } from 'vue3-toastify'; 
+import { toast } from 'vue3-toastify';
+import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
 
-// Props
-defineProps({
-  show: Boolean,
-  kot: Object
+
+// ✅ Props
+const props = defineProps({
+    show: Boolean,
+    kot: Array
 });
 
-// Emit to parent
+const kotCount = computed(() => props.kot?.length || 0);
 const emit = defineEmits(['close', 'status-updated']);
 
-// Function to update KOT status
-// In KotModal.vue
-const updateKotStatus = async (kot, status) => {
-  try {
-    const response = await axios.put(`/pos/kot/${kot.id}/status`, { status });
-    // don't mutate prop directly
-    emit('status-updated', { id: kot.id, status: response.data.status, message: response.data.message });
-  } catch (err) {
-    toast.error(err.response?.data?.message || 'Failed to update status');
-  }
+
+// Flatten all items into one array
+// In your KOT modal component
+const allItems = computed(() => {
+    
+    if (!props.kot || props.kot.length === 0) {
+        return [];
+    }
+
+    const flattened = props.kot.flatMap((order, orderIndex) => {
+        
+        return order.items?.map((item, itemIndex) => ({
+            ...item,
+            status: order.status,
+            orderIndex,
+            order,
+            uniqueId: `${order.id}-${itemIndex}`
+        })) || [];
+    });
+    
+    return flattened;
+});
+
+
+const searchQuery = ref('');
+
+// Filtered items based on search
+const filteredItems = computed(() => {
+    if (!searchQuery.value) return allItems.value;
+
+    const query = searchQuery.value.toLowerCase();
+    return allItems.value.filter(item =>
+        item.item_name.toLowerCase().includes(query) ||
+        (item.variant_name?.toLowerCase().includes(query)) ||
+        (item.ingredients?.join(', ').toLowerCase().includes(query)) ||
+        item.status.toLowerCase().includes(query)
+    );
+});
+
+
+const updateKotStatus = async (order, status) => {
+    try {
+        console.log(`Updating KOT status: Order ID ${order.id} -> ${status}`);
+        const response = await axios.put(`/pos/kot/${order.id}/status`, { status });
+        emit('status-updated', { id: order.id, status: response.data.status, message: response.data.message });
+    } catch (err) {
+        console.error("Failed to update status:", err);
+        toast.error(err.response?.data?.message || 'Failed to update status');
+    }
+};
+
+const getStatusBadge = (status) => {
+    switch (status) {
+        case 'Done':
+            return 'bg-success';       // green badge
+        case 'Cancelled':
+            return 'bg-danger';        // red badge
+        case 'Waiting':
+            return 'bg-warning text-dark'; // yellow badge with dark text
+        default:
+            return 'bg-secondary';     // gray badge for unknown
+    }
+};
+
+
+// Print function for individual orders
+const printOrder = (order) => {
+    console.log(order);
+    // Convert reactive object to plain object
+    const plainOrder = JSON.parse(JSON.stringify(order));
+    
+    // Get data from related models
+    const posOrder = plainOrder?.pos_order_type?.order;
+    const posOrderType = plainOrder?.pos_order_type;
+    const payment = posOrder?.payment;
+    const posOrderItems = posOrder?.items || [];
+    
+    const customerName = posOrder?.customer_name || 'Walk-in Customer';
+    const orderType = posOrderType?.order_type || 'Dine In';
+    const tableNumber = posOrderType?.table_number;
+    const subTotal = posOrder?.sub_total || 0;
+    const totalAmount = posOrder?.total_amount || 0;
+    
+    // Payment method from payment table
+    const type = (payment?.payment_method || "cash").toLowerCase();
+    let payLine = "";
+    if (type === "split") {
+        payLine = `Payment Type: Split 
+      (Cash: £${Number(payment?.cash_amount ?? 0).toFixed(2)}, 
+       Card: £${Number(payment?.card_amount ?? 0).toFixed(2)})`;
+    } else if (type === "card" || type === "stripe") {
+        payLine = `Payment Type: Card${payment?.card_brand ? ` (${payment.card_brand}` : ""
+            }${payment?.last4 ? ` •••• ${payment.last4}` : ""}${payment?.card_brand ? ")" : ""
+            }`;
+    } else {
+        payLine = `Payment Type: ${payment?.payment_method || "Cash"}`;
+    }
+
+    // Match KOT items with POS items to get prices
+    const itemsWithPrices = (plainOrder.items || []).map(kotItem => {
+        const matchingPosItem = posOrderItems.find(posItem => 
+            posItem.title === kotItem.item_name || 
+            posItem.product_id === kotItem.product_id
+        );
+        return {
+            ...kotItem,
+            price: matchingPosItem?.price || 0
+        };
+    });
+
+    const html = `
+    <html>
+    <head>
+      <title>Kitchen Order Ticket</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        html, body {
+          width: 80mm;
+          margin: 0;
+          padding: 8px;
+          font-family: monospace, Arial, sans-serif;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+        .header { text-align: center; margin-bottom: 10px; }
+        .order-info { margin: 10px 0; }
+        .order-info div { margin-bottom: 3px; }
+        .payment-info { margin-top: 8px; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 4px 0; text-align: left; }
+        th { border-bottom: 1px solid #000; }
+        td:last-child, th:last-child { text-align: right; }
+        .totals { margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px; }
+        .footer { text-align: center; margin-top: 10px; font-size: 11px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>KITCHEN ORDER TICKET</h2>
+      </div>
+      
+      <div class="order-info">
+        <div>KOT ID: #${plainOrder.id}</div>
+        <div>Date: ${plainOrder.order_date}</div>
+        <div>Time: ${plainOrder.order_time}</div>
+        <div>Customer: ${customerName}</div>
+        <div>Order Type: ${orderType}</div>
+        ${tableNumber ? `<div>Table: ${tableNumber}</div>` : ''}
+        
+        <div class="payment-info">
+          <div>${payLine}</div>
+        </div>
+        
+        <div>Status: ${plainOrder.status}</div>
+        ${plainOrder.note ? `<div>Note: ${plainOrder.note}</div>` : ''}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+         ${itemsWithPrices.map(item => {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.price) || 0;
+      // Show price per item, not total
+      return `
+      <tr>
+        <td>${item.item_name || 'Unknown Item'}</td>
+        <td>${qty}</td>
+        <td>£${price.toFixed(2)}</td>
+      </tr>
+    `;
+    }).join('')}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div>Subtotal: £${Number(subTotal).toFixed(2)}</div>
+        <div>Total: £${Number(totalAmount).toFixed(2)}</div>
+        ${payment?.cash_received ? `<div>Cash Received: £${Number(payment.cash_received).toFixed(2)}</div>` : ''}
+        ${payment?.change ? `<div>Change: £${Number(payment.change).toFixed(2)}</div>` : ''}
+      </div>
+
+      <div class="footer">
+        Kitchen Copy - Thank you!
+      </div>
+    </body>
+    </html>
+  `;
+
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) {
+        alert("Please allow popups for this site to print KOT");
+        return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.onload = () => {
+        w.print();
+        w.close();
+    };
 };
 
 </script>

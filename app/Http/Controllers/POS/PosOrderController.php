@@ -62,6 +62,13 @@ class PosOrderController extends Controller
         ]);
     }
 
+    // Fetch Today KOT order
+    public function getTodaysOrders()
+    {
+        $todayKotOrders = $this->service->getTodaysOrders();
+
+        return response()->json(['orders' => $todayKotOrders]);
+    }
 
     // Paymet Using Stript
     public function createIntent(Request $request)

@@ -237,6 +237,7 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('fetch.profile.tables');
 
         Route::put('/kot/{kot}/status', [PosOrderController::class, 'updateKotStatus']);
+        Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders']);
 
         // Stripe redirect/callback (creates order after successful payment
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
