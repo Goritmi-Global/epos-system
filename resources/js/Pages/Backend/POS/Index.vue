@@ -545,7 +545,23 @@ function printKot(order) {
 
 const showKotModal = ref(false);
 const kotData = ref(null);
-const ShowKotDataInModal  = ref(null);
+const ShowKotDataInModal = ref(null);
+
+
+
+
+const fetchTodaysOrders = async () => {
+    try {
+        const res = await axios.get(`/pos/orders/today`);
+        return res.data.orders;
+    } catch (err) {
+        console.error("Failed to fetch today's orders:", err);
+        toast.error(err.response?.data?.message || "Failed to fetch today's orders");
+        return [];
+    }
+};
+
+
 
 /* ----------------------------
    Confirm Order
@@ -591,13 +607,14 @@ const confirmOrder = async ({ paymentMethod, cashReceived, changeAmount, items, 
         lastOrder.value = { ...res.data.order, ...payload, items: payload.items };
 
         // Open KOT modal after confirmation
-        kotData.value = JSON.parse(JSON.stringify(lastOrder.value));
-        ShowKotDataInModal.value = res.data.kot; 
-        showKotModal.value = true;
-        console.log("ShowKotDataInModal", ShowKotDataInModal.value);
+        if (autoPrintKot) {
+            ShowKotDataInModal.value = await fetchTodaysOrders(); // kotData not needed
+            printKot(JSON.parse(JSON.stringify(lastOrder.value))); // still prints last order
+            showKotModal.value = true;
+        }
+
         // Print receipt immediately
         printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
-        printKot(JSON.parse(JSON.stringify(lastOrder.value)));
 
     } catch (err) {
         console.error("Order submission error:", err);
@@ -651,12 +668,17 @@ watch(
 );
 
 
-// In parent
 const handleKotStatusUpdated = ({ id, status, message }) => {
-    const kot = kotList.find(k => k.id === id);
-    if (kot) kot.status = status;
-    toast.success(message); // only one toast here
+  console.log("KOT updated:", id, status, message);
+
+  ShowKotDataInModal.value = ShowKotDataInModal.value.map(kot =>
+    kot.id === id ? { ...kot, status } : kot
+  );
+
+  toast.success(message); // optional
 };
+
+
 
 
 </script>
@@ -970,12 +992,8 @@ t, i
             </div>
 
 
-            <KotModal
-    :show="showKotModal"
-    :kot="ShowKotDataInModal"
-    @close="showKotModal = false"
-    @status-updated="handleKotStatusUpdated"
-/>
+            <KotModal :show="showKotModal" :kot="ShowKotDataInModal" @close="showKotModal = false"
+                @status-updated="handleKotStatusUpdated" />
 
 
 

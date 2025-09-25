@@ -98,7 +98,7 @@ class PosOrderService
             $kot = null;
 
             // 2. Handle KOT (after items exist)
-            if (!empty($data['auto_print_kot'])) {
+            
 
                 $kot = KitchenOrder::create([
                     'pos_order_type_id' => $orderType->id,
@@ -126,7 +126,6 @@ class PosOrderService
                     ]);
                 }
                 $kot->load('items');
-            }
 
 
             $cashAmount = null;
@@ -275,5 +274,16 @@ class PosOrderService
     public function getProfileTable()
     {
         return RestaurantProfile::select('order_types', 'table_details')->first();
+    }
+
+     public function getTodaysOrders()
+    {
+        $today = now()->toDateString();
+
+        return KitchenOrder::with([
+            'items',
+            'posOrderType.order.payment',
+            'posOrderType.order.items' // PosOrderItems with prices
+        ])->whereDate('order_date', $today)->get();
     }
 }
