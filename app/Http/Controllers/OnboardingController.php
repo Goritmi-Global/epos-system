@@ -114,7 +114,7 @@ class OnboardingController extends Controller
                 'phone_local' => 'required|string|max:60',
                 'email' => 'required|email|max:190',
                 'address' => 'required|string|max:500',
-                'website' => 'required|url|max:190',
+                'website' => 'required|max:190',
                 'logo' => 'nullable',
             ]),
             3 => $request->validate([

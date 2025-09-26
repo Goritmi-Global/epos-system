@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, onMounted, onUpdated, onBeforeUnmount } from "vue";
 import MultiSelect from "primevue/multiselect";
 import {
     Shapes,
@@ -557,6 +557,24 @@ const submitSubCategory = async () => {
     }
 };
 
+
+onMounted(() => {
+  const modalEl = document.getElementById("editSubCatModal");
+  if (modalEl) {
+    modalEl.addEventListener("hidden.bs.modal", () => {
+      subCatErrors.value = "";
+      editingSubCategory.value = { id: null, name: "", parent_id: null };
+    });
+  }
+});
+
+onBeforeUnmount(() => {
+  const modalEl = document.getElementById("editSubCatModal");
+  if (modalEl) {
+    modalEl.removeEventListener("hidden.bs.modal", () => {});
+  }
+});
+
 const onDownload = (type) => {
     if (!parentCategories.value || parentCategories.value.length === 0) {
         toast.error("No Units data to download");
@@ -861,8 +879,13 @@ const handleImport = (data) => {
                                         placeholder="Search" />
                                 </div>
 
-                                <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="resetErrors"
-                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
+                                <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
+                                    () => {
+                                        resetErrors();
+                                        editingCategory.value = null;
+                                        resetModal();
+                                    }
+                                " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                     <Plus class="w-4 h-4" /> Add Category
                                 </button>
                                 <ImportFile label="Import" @on-import="handleImport" />
@@ -944,7 +967,7 @@ const handleImport = (data) => {
                                                 class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                                 <span class="fs-5">{{
                                                     row.icon || "📦"
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </td>
                                         <td>{{ money(row.total_value) }}</td>
@@ -954,8 +977,8 @@ const handleImport = (data) => {
                                         <td>{{ row.in_stock }}</td>
                                         <td class="text-center">
                                             <span :class="row.active
-                                                    ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20'
-                                                    : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'
+                                                ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20'
+                                                : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'
                                                 ">
                                                 {{
                                                     row.active
@@ -1022,7 +1045,7 @@ const handleImport = (data) => {
                                     <strong>Icon:</strong>
                                     <span class="fs-4">{{
                                         viewingCategory.icon
-                                        }}</span>
+                                    }}</span>
                                 </p>
                                 <p>
                                     <strong>Status:</strong>
@@ -1139,7 +1162,7 @@ const handleImport = (data) => {
                                                 <span>
                                                     <span class="me-2">{{
                                                         manualIcon.value
-                                                        }}</span>
+                                                    }}</span>
                                                     {{ manualIcon.label }}
                                                 </span>
                                                 <i class="bi bi-caret-down-fill"></i>
@@ -1151,7 +1174,7 @@ const handleImport = (data) => {
                                                         ">
                                                         <span class="me-2">{{
                                                             opt.value
-                                                            }}</span>
+                                                        }}</span>
                                                         {{ opt.label }}
                                                     </a>
                                                 </li>
@@ -1322,7 +1345,7 @@ const handleImport = (data) => {
                                         v-model="editingSubCategory.name" :disabled="submittingSub" />
                                     <small class="text-danger">{{
                                         subCatErrors
-                                        }}</small>
+                                    }}</small>
                                 </div>
                                 <button type="button"
                                     class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"

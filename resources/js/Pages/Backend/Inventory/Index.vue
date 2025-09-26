@@ -621,7 +621,6 @@ const stockForm = ref({
 
 const submittingStock = ref(false);
 const processStatus = ref();
-
 function openStockModal(item) {
     resetErrors();
     const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
@@ -1063,6 +1062,7 @@ async function loadStockins(itemId) {
     try {
         const { data } = await axios.get(`/stock_entries/by-item/${itemId}`);
         const payload = data?.data || {};
+        console.log(payload);
 
         stockedInItems.value = payload.records || [];
 
@@ -1077,6 +1077,7 @@ async function loadStockins(itemId) {
         nearExpireQty.value = expiredQty.value = 0;
     }
 }
+console.log('stockedInItems', stockedInItems.value);
 // helpers for badges
 function stockStatusLabel(s) {
     return s === "expired"
@@ -1109,7 +1110,7 @@ const totals = computed(() => {
     today.setHours(0, 0, 0, 0);
 
     for (const r of rows) {
-        const qty = Number(r?.quantity ?? 0);
+        const qty = r?.quantity ?? 0;
 
         totalQty += qty;
         totalPrice += Number(r?.price ?? 0);
@@ -1952,9 +1953,7 @@ const handleImport = (data) => {
                                             </thead>
 
                                             <tbody>
-                                                <tr v-for="(
-row, i
-                                                    ) in stockedInItems" :key="row.id">
+                                                <tr v-for="(row, i) in stockedInItems" :key="row.id">
                                                     <td class="fw-semibold">
                                                         {{ i + 1 }}
                                                     </td>

@@ -482,18 +482,23 @@ watch(commonTags, (newVal) => {
 const handleImport = (data) => {
     console.log("Imported Data:", data);
 
+    if (!data || data.length <= 1) {
+        toast.error("The file is empty", {
+            autoClose: 3000,
+        });
+        return;
+    }
+
     // data is 2D array: [ [col1, col2, ...], [val1, val2, ...] ]
-    // Example: map to supplier objects
     const headers = data[0];
     const rows = data.slice(1);
-    console.log(data.slice(1));
+
     const tagsToImport = rows.map((row) => {
         return {
             name: row[0] || "",
         };
     });
 
-    // Send to backend API
     axios
         .post("/tags/import", { tags: tagsToImport })
         .then(() => {
@@ -503,13 +508,13 @@ const handleImport = (data) => {
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
-                toast.error("There may some duplication in data", {
+                toast.error("There may be some duplication in data", {
                     autoClose: 3000,
                 });
             }
-
         });
 };
+
 
 </script>
 

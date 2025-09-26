@@ -476,17 +476,25 @@ watch(commonUnits, (newVal) => {
 });
 const handleImport = (data) => {
     console.log("Imported Data:", data);
+
+    // ✅ Stop if file is empty (only headers or nothing)
+    if (!data || data.length <= 1) {
+        toast.error("The file is empty", {
+            autoClose: 3000,
+        });
+        return;
+    }
+
     const headers = data[0];
     const rows = data.slice(1);
-    console.log(data.slice(1));
+    console.log(rows);
+
     const unitsToImport = rows.map((row) => {
         return {
             name: row[0] || "",
-
         };
     });
 
-    // Send to backend API
     axios
         .post("/units/import", { units: unitsToImport })
         .then(() => {
@@ -496,13 +504,13 @@ const handleImport = (data) => {
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
-                toast.error("There may some duplication in data", {
+                toast.error("There may be some duplication in data", {
                     autoClose: 3000,
                 });
             }
-
         });
 };
+
 
 </script>
 
@@ -631,7 +639,7 @@ const handleImport = (data) => {
                             :class="{ 'is-invalid': formErrors.customUnit }" />
                         <span class="text-danger" v-if="formErrors.customUnit">{{
                             formErrors.customUnit[0]
-                            }}</span>
+                        }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonUnits" :options="availableOptions" optionLabel="label"
@@ -661,7 +669,7 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.units">{{
                             formErrors.units[0]
-                            }}</span>
+                        }}</span>
                     </div>
 
                     <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
