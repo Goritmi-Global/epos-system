@@ -31,7 +31,7 @@ return new class extends Migration
                 ->constrained('users')
                 ->cascadeOnDelete();
 
-            $table->integer('quantity')->default(0);
+            $table->decimal('quantity', 10, 2)->default(0);
             $table->decimal('price', 10, 2)->default(0);
             $table->decimal('value', 12, 2)->default(0);
 

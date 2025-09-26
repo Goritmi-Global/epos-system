@@ -45,10 +45,10 @@ use App\Http\Controllers\Reference\{
 |========================================================= */
 
 // health/test helper
-Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+Route::get('/test-helper', fn() => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
 
 // root -> login screen (Inertia)
-Route::get('/', fn () => Inertia::render('Auth/Login'));
+Route::get('/', fn() => Inertia::render('Auth/Login'));
 
 // email verification links & OTP verify
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
@@ -127,7 +127,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
         Route::get('/fetchOrders', [PurchaseOrderController::class, 'fetchOrders'])->name('fetchOrders');
-        
+
         Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
         Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
@@ -151,6 +151,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/update', [SupplierController::class, 'update'])->name('update');
         Route::delete('/{supplier}', [SupplierController::class, 'destroy'])->name('destroy');
         Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck'); // special
+
     });
     Route::post('/suppliers/import', [SupplierController::class, 'import'])->name('suppliers.import');
 
@@ -207,7 +208,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
-Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import'); 
+    Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import');
 
 
     /* -------- Menu Categories -------- */
@@ -223,10 +224,10 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
         Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
         Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
         Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
-        Route::post('/import', [MenuCategoryController::class, 'import'])->name('menu_categories.import'); 
+        Route::post('/import', [MenuCategoryController::class, 'import'])->name('menu_categories.import');
     });
 
-    
+
 
     /* -------- POS Live Screen -------- */
     Route::prefix('pos')->name('pos.')->group(function () {
@@ -241,16 +242,12 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
 
         // Stripe redirect/callback (creates order after successful payment
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
-        ->name('place-stripe-order');
-
-         
-
-
+            ->name('place-stripe-order');
     });
 
     Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])
-    ->name('stripe.pi.create');
-    
+        ->name('stripe.pi.create');
+
 
     /* -------- Orders -------- */
     Route::prefix('orders')->name('orders.')->group(function () {
@@ -272,10 +269,9 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
 
     /* -------- Settings -------- */
     Route::prefix('settings')->name('settings.')->group(function () {
-        Route::get('/', [SettingsController::class, 'index'])->name('index');
-        Route::post('/', [SettingsController::class, 'update'])->name('update');
+        Route::get('/', [SettingsController::class, 'index'])->name('settings.index');
+        Route::post('/save-step/{step}', [SettingsController::class, 'saveStep']);
     });
-
 });
 
 /* ---------- Public settings/locations page (if intended public) ---------- */

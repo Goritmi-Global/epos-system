@@ -22,6 +22,22 @@ const formErrors = ref({});
   const p_search = ref("");
 const o_submitting = ref(false);
 
+const filteredItems = computed(() => {
+  const term = o_search.value.trim().toLowerCase();
+  if (!term) return props.items;
+
+  return props.items.filter((i) =>
+    [
+      i.name,
+      i.category?.name ?? "",
+      i.unit_name ?? "",
+      String(i.stock ?? "")
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(term)
+  );
+});
 const p_cart = ref([]);
 const resteErrors = () => {
     formErrors.value = {};
@@ -256,7 +272,7 @@ const formatDate = (date) => {
                             </div>
 
                             <div
-                                v-for="it in items"
+                                v-for="it in filteredItems"
                                 :key="it.id"
                                 class="card shadow-sm border-0 rounded-4 mb-3"
                             >

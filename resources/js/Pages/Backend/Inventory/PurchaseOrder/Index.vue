@@ -60,6 +60,25 @@ const p_filteredInv = computed(() => {
             .includes(t)
     );
 });
+const filteredOrders = computed(() => {
+  const term = p_search.value.trim().toLowerCase();
+  if (!term) return orderData.value;
+
+  return orderData.value.filter((row) =>
+    [
+      row.supplier ?? "",
+      row.status ?? "",
+      String(row.total ?? ""),
+      fmtDateTime(row.purchasedAt) ?? "",
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(term)
+  );
+});
+
+
+
 onMounted(()=>{
     fetchInventory();
     fetchSuppliers();
@@ -303,6 +322,12 @@ function calculateSubtotal(item) {
     item.sub_total = (quantity * unitPrice).toFixed(2);
 }
 
+// In parent component
+const updateSearch = (value) => {
+    console.log("Parent: received search update:", value);
+    p_search.value = value;
+};
+
 /* =============== Lifecycle =============== */
 onMounted(() => {
     fetchPurchaseOrders(1); // initial load
@@ -358,7 +383,7 @@ onUpdated(() => window.feather?.replace?.());
                                 <div class="search-wrap me-1">
                                     <i class="bi bi-search"></i>
                                     <input
-                                        v-model="q"
+                                        v-model="p_search"
                                         type="text"
                                         class="form-control search-input"
                                         placeholder="Search"
@@ -376,6 +401,7 @@ onUpdated(() => window.feather?.replace?.());
                                     :suppliers="supplierOptions"
                                     :items="p_filteredInv"
                                     @refresh-data="fetchPurchaseOrders"
+                                    @update:search="p_search = $event"
                                 />
 
                                 <button
@@ -457,7 +483,7 @@ onUpdated(() => window.feather?.replace?.());
 
                                     <template
                                         v-else
-                                        v-for="(row, i) in orderData"
+                                        v-for="(row, i) in filteredOrders"
                                         :key="row.id"
                                     >
                                         <tr>
@@ -525,7 +551,7 @@ onUpdated(() => window.feather?.replace?.());
 
                                     <tr
                                         v-if="
-                                            !loading && orderData?.length === 0
+                                            !loading && filteredOrders?.length === 0
                                         "
                                     >
                                         <td

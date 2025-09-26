@@ -21,6 +21,22 @@ const o_submitting = ref(false);
 const p_total = computed(() =>
     round2(p_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
 );
+const filteredItems = computed(() => {
+  const term = p_search.value.trim().toLowerCase();
+  if (!term) return props.items;
+
+  return props.items.filter((i) =>
+    [
+      i.name,
+      i.category?.name ?? "",
+      i.unit_name ?? "",
+      String(i.stock ?? "")
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(term)
+  );
+});
 
 // set error for an item
 const setItemError = (item, field, message) => {
@@ -221,7 +237,7 @@ const formatDate = (date) => {
 
                             <!-- Scrollable container -->
                             <div class="purchase-scroll">
-                                <div v-for="it in items" :key="it.id" class="card shadow-sm border-0 rounded-4 mb-3">
+                                <div v-for="it in filteredItems" :key="it.id" class="card shadow-sm border-0 rounded-4 mb-3">
                                     <div class="card-body">
                                         <div class="d-flex align-items-start gap-3">
                                             <img :src="it.image_url" alt="" style="

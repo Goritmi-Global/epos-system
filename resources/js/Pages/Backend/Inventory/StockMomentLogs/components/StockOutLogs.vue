@@ -193,7 +193,6 @@ onUpdated(() => window.feather?.replace());
                         <th>Date &amp; Time</th>
                         <!-- <th>Expiry Date</th> -->
                         <th>Operation Type</th>
-                        <th>Type</th>
                         <th class="text-end">Action</th>
                     </tr>
                 </thead>
@@ -226,16 +225,7 @@ onUpdated(() => window.feather?.replace());
                                 </template>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td>
-                                <span
-                                    :class="[
-                                        'fw-semibold',
-                                        typeTextClass(row.type),
-                                    ]"
-                                >
-                                    {{ formatType(row.type) }}
-                                </span>
-                            </td>
+                            
                             <td class="text-end">
                                 <button
                                     class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
