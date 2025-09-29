@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BusinessHour;
+use App\Models\Country;
+use App\Models\DisableOrderAfterHour;
 use App\Models\OnboardingProgress;
 use App\Models\ProfileStep1;
 use App\Models\ProfileStep2;
@@ -84,8 +87,12 @@ class OnboardingController extends Controller
 
         // normalize yes/no strings to booleans for likely fields
         $boolKeys = [
-            'is_tax_registered', 'table_management_enabled', 'online_ordering_enabled',
-            'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled',
+            'is_tax_registered',
+            'table_management_enabled',
+            'online_ordering_enabled',
+            'show_qr_on_receipt',
+            'tax_breakdown_on_receipt',
+            'kitchen_printer_enabled',
             'price_includes_tax',
         ];
         foreach ($boolKeys as $k) {
@@ -100,11 +107,9 @@ class OnboardingController extends Controller
         // Validate per step
         $data = match ($step) {
             1 => $request->validate([
-                'country_name' => 'required',
+                'country_code' => 'required|string|exists:countries,iso2',
                 'timezone' => 'required|string|max:100',
                 'language' => 'required|string|max:10',
-                'languages_supported' => 'nullable|array',
-                'languages_supported.*' => 'string|max:10',
             ]),
             2 => $request->validate([
                 'business_name' => 'required|string|max:190',
@@ -157,20 +162,41 @@ class OnboardingController extends Controller
                 'card_enabled' => 'required|boolean',
 
             ]),
-            // 8 => $request->validate([
-            //     'attendance_policy' => 'required|array',
-            // ]),
-            // 9 => $request->validate([
-            //     'business_hours' => 'required|array',
-            //     'auto_disable_after_hours' => 'required|boolean',
-            // ]),
+            8 => $request->validate([
+                'auto_disable' => 'required|in:yes,no',
+                'hours' => 'required|array|size:7', // 7 days a week
+                'hours.*.name' => 'required|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+                'hours.*.open' => 'required|boolean',
+                'hours.*.start' => 'required_if:hours.*.open,1|date_format:H:i',
+                'hours.*.end' => 'required_if:hours.*.open,1|date_format:H:i|after:hours.*.start',
+                'hours.*.breaks' => 'nullable|array',
+                'hours.*.breaks.*.start' => 'required_with:hours.*.breaks|date_format:H:i',
+                'hours.*.breaks.*.end' => 'required_with:hours.*.breaks|date_format:H:i|after:hours.*.breaks.*.start',
+            ]),
+            9 => $request->validate([
+                'feat_loyalty'      => 'required|in:yes,no',
+                'feat_inventory'    => 'required|in:yes,no',
+                'feat_backup'       => 'required|in:yes,no',
+                'feat_multilocation' => 'required|in:yes,no',
+                'feat_theme'     => 'required|in:yes,no',
+            ]),
             default => []
         };
 
+
+        if ($step === 1 && !empty($data['country_code'])) {
+            $country = Country::where('iso2', $data['country_code'])->first();
+            $data['country_id'] = $country->id ?? null;
+        }
+
         // Store data temporarily in session
+        // $tempData = session()->get('onboarding_data', []);
+        // $tempData = array_merge($tempData, $data);
+        // session()->put('onboarding_data', $tempData);
         $tempData = session()->get('onboarding_data', []);
-        $tempData = array_merge($tempData, $data);
+        $tempData[$step] = $data; // store per step
         session()->put('onboarding_data', $tempData);
+
 
         // Update progress tracking
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
@@ -184,7 +210,7 @@ class OnboardingController extends Controller
             'ok' => true,
             'profile' => $tempData,
             'progress' => $progress,
-            'message' => 'Step '.$step.' data saved temporarily',
+            'message' => 'Step ' . $step . ' data saved temporarily',
         ]);
     }
 
@@ -194,7 +220,6 @@ class OnboardingController extends Controller
     public function complete(Request $request)
     {
         $user = $request->user();
-
         // Get all temporary data from session
         $tempData = session()->get('onboarding_data', []);
 
@@ -206,7 +231,6 @@ class OnboardingController extends Controller
 
         // Separate data by steps for saving to respective tables
         $stepData = $this->separateDataBySteps($tempData);
-
         // Save to individual step tables
         if (! empty($stepData[1])) {
             ProfileStep1::updateOrCreate(['user_id' => $user->id], $stepData[1]);
@@ -229,12 +253,65 @@ class OnboardingController extends Controller
         if (! empty($stepData[7])) {
             ProfileStep7::updateOrCreate(['user_id' => $user->id], $stepData[7]);
         }
-        if (! empty($stepData[8])) {
-            ProfileStep8::updateOrCreate(['user_id' => $user->id], $stepData[8]);
+        if (!empty($stepData[8])) {
+            $step8 = $stepData[8];
+
+            // 1️⃣ Save disable_order_after_hours
+            $disable = DisableOrderAfterHour::updateOrCreate(
+                ['user_id' => $user->id],
+                ['status' => $step8['auto_disable'] === 'yes']
+            );
+
+            // 2️⃣ Save business_hours (all 7 days)
+            $businessHourIds = [];
+            foreach ($step8['hours'] as $day) {
+                $bh = BusinessHour::updateOrCreate(
+                    ['user_id' => $user->id, 'day' => $day['name']],
+                    [
+                        'from' => $day['start'] ?? null,
+                        'to' => $day['end'] ?? null,
+                        'is_open' => $day['open'] ?? false,
+                    ]
+                );
+
+                // Save breaks if any (optional: you might want a separate table if multiple breaks per day)
+                if (!empty($day['breaks'])) {
+                    foreach ($day['breaks'] as $break) {
+                        $bh->break_from = $break['start'];
+                        $bh->break_to = $break['end'];
+                        $bh->save();
+                    }
+                }
+
+                $businessHourIds[] = $bh->id;
+            }
+
+            // 3️⃣ Save profile_step_8 linking table
+            ProfileStep8::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'disable_order_after_hours_id' => $disable->id,
+                    'business_hours_id' => $businessHourIds[0] ?? null, // or handle multiple IDs differently
+                ]
+            );
         }
+
         if (! empty($stepData[9])) {
-            ProfileStep9::updateOrCreate(['user_id' => $user->id], $stepData[9]);
+            $step9 = $stepData[9];
+
+            ProfileStep9::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'enable_loyalty_system'     => $step9['feat_loyalty'] === 'yes',
+                    'enable_inventory_tracking' => $step9['feat_inventory'] === 'yes',
+                    'enable_cloud_backup'       => $step9['feat_backup'] === 'yes',
+                    'enable_multi_location'     => $step9['feat_multilocation'] === 'yes',
+                    'theme_preference'          => $step9['feat_theme'] === 'yes' ? 'default_theme' : null,
+                ]
+            );
         }
+
+
 
         // Map step fields -> restaurant_profiles columns
         $map = [
@@ -286,30 +363,38 @@ class OnboardingController extends Controller
     private function separateDataBySteps(array $tempData): array
     {
         $stepFields = [
-            1 => ['timezone', 'language', 'languages_supported'],
-            2 => ['business_name', 'legal_name', 'phone', 'email', 'address', 'website', 'logo_path'],
+            1 => ['country_id', 'timezone', 'language', 'languages_supported'],
+            2 => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'logo_path'],
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
-            4 => ['is_tax_registered', 'tax_type', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
+            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
             5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details'],
             6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
             7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
-            8 => ['attendance_policy'],
-            9 => ['business_hours', 'auto_disable_after_hours'],
+            8 => ['auto_disable', 'hours'],
+            9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
         ];
 
         $stepData = [];
 
         foreach ($stepFields as $stepNumber => $fields) {
             $stepData[$stepNumber] = [];
+
+            // 🔑 Only check inside this step’s data
+            if (!isset($tempData[$stepNumber])) {
+                continue;
+            }
+
             foreach ($fields as $field) {
-                if (array_key_exists($field, $tempData)) {
-                    $stepData[$stepNumber][$field] = $tempData[$field];
+                if (array_key_exists($field, $tempData[$stepNumber])) {
+                    $stepData[$stepNumber][$field] = $tempData[$stepNumber][$field];
                 }
             }
         }
 
         return $stepData;
     }
+
+
 
     /**
      * Optional: Clear temporary data if user wants to restart

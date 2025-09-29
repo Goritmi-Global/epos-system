@@ -10,9 +10,14 @@ return new class extends Migration {
         Schema::create('profile_step_1', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+
+            // Add country_id foreign key
+            $table->string('country_id', 3)->nullable(); 
+            $table->foreign('country_id')->references('id')->on('countries');
+
             $table->string('timezone')->nullable();
             $table->string('language')->nullable();
-            $table->json('languages_supported')->nullable();
+
             $table->unique('user_id');
             $table->timestamps();
         });

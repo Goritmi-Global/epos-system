@@ -3,7 +3,6 @@ import { reactive, toRaw } from "vue"
 
 const props = defineProps({ model: Object })
 const emit  = defineEmits(["save"])
-
 const form = reactive({
   feat_loyalty:       props.model?.feat_loyalty       ?? "yes",
   feat_inventory:     props.model?.feat_inventory     ?? "no",
@@ -66,6 +65,17 @@ const icons = {
     </svg>
   `,
 }
+import { watch } from "vue"
+
+watch(
+  () => props.model,
+  (newVal) => {
+    if (newVal) {
+      console.log("Model loaded:", newVal.feat_loyalty)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

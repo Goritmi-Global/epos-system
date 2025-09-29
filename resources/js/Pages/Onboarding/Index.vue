@@ -2,15 +2,15 @@
 import { computed, ref } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
-import Step1 from "./steps/Step1.vue"
-import Step2 from "./steps/Step2.vue"
-import Step3 from "./steps/Step3.vue"
-import Step4 from "./steps/Step4.vue"
-import Step5 from "./steps/Step5.vue"
-import Step6 from "./steps/Step6.vue"
-import Step7 from "./steps/Step7.vue"
-import Step8 from "./steps/Step8.vue"
-import Step9 from "./steps/Step9.vue"
+import Step1 from "./Steps/Step1.vue"
+import Step2 from "./Steps/Step2.vue"
+import Step3 from "./Steps/Step3.vue"
+import Step4 from "./Steps/Step4.vue"
+import Step5 from "./Steps/Step5.vue"
+import Step6 from "./Steps/Step6.vue"
+import Step7 from "./Steps/Step7.vue"
+import Step8 from "./Steps/Step8.vue"
+import Step9 from "./Steps/Step9.vue"
 
 const profile = ref({})
 const progress = ref({ current_step: 1, completed_steps: [] })
@@ -71,13 +71,13 @@ const saveStep = (payload) => {
     Object.assign(profile.value, payload?.data || {})
 
     // Log full payload
-    // console.log("Full Payload Received:", payload)
+    console.log("Full Payload Received:", payload)
 
     // Log just the data from the payload
-    // console.log("Step Data:", payload?.data)
+    console.log("Step Data:", payload?.data)
 
     // Log the profile after merge
-    // console.log("Profile After Merge:", profile.value)
+    console.log("Profile After Merge:", profile.value)
 
     // optionally debounce draft save here
   } catch (e) {
