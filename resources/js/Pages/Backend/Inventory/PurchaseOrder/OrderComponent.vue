@@ -22,6 +22,22 @@ const formErrors = ref({});
   const p_search = ref("");
 const o_submitting = ref(false);
 
+const filteredItems = computed(() => {
+  const term = o_search.value.trim().toLowerCase();
+  if (!term) return props.items;
+
+  return props.items.filter((i) =>
+    [
+      i.name,
+      i.category?.name ?? "",
+      i.unit_name ?? "",
+      String(i.stock ?? "")
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(term)
+  );
+});
 const p_cart = ref([]);
 const resteErrors = () => {
     formErrors.value = {};
@@ -171,6 +187,15 @@ async function orderSubmit() {
     }
 }
 
+// Date formate
+const formatDate = (date) => {
+  if (!date) return "—";
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${month}/${day}/${year}`;
+};
 </script>
 <template>
     <div class="modal fade" id="addOrderModal" tabindex="-1" aria-hidden="true">
@@ -247,7 +272,7 @@ async function orderSubmit() {
                             </div>
 
                             <div
-                                v-for="it in items"
+                                v-for="it in filteredItems"
                                 :key="it.id"
                                 class="card shadow-sm border-0 rounded-4 mb-3"
                             >
@@ -347,17 +372,14 @@ async function orderSubmit() {
                                             <label class="small text-muted"
                                                 >Expiry Date</label
                                             >
-                                            <input
+                                            
+                                            <VueDatePicker 
                                                 v-model="it.expiry"
-                                                type="date"
-                                                class="form-control form-control"
+                                                :enableTimePicker="false"
+                                                placeholder="Select date"
                                                 :class="{
-                                                    'is-invalid':
-                                                        formErrors[it.id] &&
-                                                        formErrors[it.id]
-                                                            .expiry_date,
-                                                }"
-                                            />
+                                                    'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date,
+                                                }" />
                                             <small
                                                 v-if="
                                                     formErrors[it.id] &&
@@ -407,7 +429,7 @@ async function orderSubmit() {
                                                     {{ r.unitPrice }}
                                                 </td>
                                                 <td>
-                                                    {{ r.expiry || "—" }}
+                                                    {{ formatDate(r.expiry) || "—" }}
                                                 </td>
                                                 <td>
                                                     {{ r.cost }}

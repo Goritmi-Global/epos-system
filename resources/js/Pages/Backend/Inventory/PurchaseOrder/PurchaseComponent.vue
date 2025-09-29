@@ -16,11 +16,27 @@ const props = defineProps({
 const emit = defineEmits(["refresh-data"]);
 
 const p_cart = ref([]);
-  const p_search = ref("");
+const p_search = ref("");
 const o_submitting = ref(false);
 const p_total = computed(() =>
     round2(p_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
 );
+const filteredItems = computed(() => {
+  const term = p_search.value.trim().toLowerCase();
+  if (!term) return props.items;
+
+  return props.items.filter((i) =>
+    [
+      i.name,
+      i.category?.name ?? "",
+      i.unit_name ?? "",
+      String(i.stock ?? "")
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(term)
+  );
+});
 
 // set error for an item
 const setItemError = (item, field, message) => {
@@ -132,12 +148,12 @@ async function quickPurchaseSubmit() {
 
     try {
         const res = await axios.post("/purchase-orders", payload);
-        
+
         // reset modal
         emit("refresh-data");
         p_cart.value = [];
         p_supplier.value = null;
-        
+
         const modal = bootstrap.Modal.getInstance(
             document.getElementById("addPurchaseModal")
         );
@@ -163,41 +179,33 @@ const money = (n, currency = "GBP") =>
         Number(n || 0)
     );
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-  
+
 const p_supplier = ref(null);
- 
+
+// Date formate
+const formatDate = (date) => {
+  if (!date) return "—";
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${month}/${day}/${year}`;
+};
+
+
 </script>
 <template>
-    <div
-        class="modal fade"
-        id="addPurchaseModal"
-        tabindex="-1"
-        aria-hidden="true"
-    >
+    <div class="modal fade" id="addPurchaseModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">Add Purchase</h5>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                        @click="resteErrors"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resteErrors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -205,29 +213,14 @@ const p_supplier = ref(null);
                 <div class="modal-body">
                     <div class="row g-3 align-items-center">
                         <div class="col-md-5">
-                            <label class="form-label small text-muted d-block"
-                                >Preferred supplier</label
-                            >
+                            <label class="form-label small text-muted d-block">Preferred supplier</label>
 
-                            <Select
-                                v-model="p_supplier"
-                                :options="suppliers"
-                                optionLabel="name"
-                                optionValue="id"
-                                placeholder="Select Supplier"
-                                class="w-100"
-                                :class="{
+                            <Select v-model="p_supplier" :options="suppliers" optionLabel="name" optionValue="id"
+                                placeholder="Select Supplier" class="w-100" :class="{
                                     'is-invalid': formErrors.supplier_id,
-                                }"
-                                appendTo="self"
-                                :autoZIndex="true"
-                                :baseZIndex="2000"
-                            />
+                                }" appendTo="self" :autoZIndex="true" :baseZIndex="2000" />
 
-                            <small
-                                v-if="formErrors.supplier_id"
-                                class="text-danger"
-                            >
+                            <small v-if="formErrors.supplier_id" class="text-danger">
                                 {{ formErrors.supplier_id[0] }}
                             </small>
                         </div>
@@ -238,35 +231,21 @@ const p_supplier = ref(null);
                         <div class="col-lg-5">
                             <div class="search-wrap mb-2">
                                 <i class="bi bi-search"></i>
-                                <input
-                                    v-model="p_search"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search..."
-                                />
+                                <input v-model="p_search" type="text" class="form-control search-input"
+                                    placeholder="Search..." />
                             </div>
 
                             <!-- Scrollable container -->
                             <div class="purchase-scroll">
-                                <div
-                                    v-for="it in items"
-                                    :key="it.id"
-                                    class="card shadow-sm border-0 rounded-4 mb-3"
-                                >
+                                <div v-for="it in filteredItems" :key="it.id" class="card shadow-sm border-0 rounded-4 mb-3">
                                     <div class="card-body">
-                                        <div
-                                            class="d-flex align-items-start gap-3"
-                                        >
-                                            <img
-                                                :src="it.image_url"
-                                                alt=""
-                                                style="
+                                        <div class="d-flex align-items-start gap-3">
+                                            <img :src="it.image_url" alt="" style="
                                                     width: 76px;
                                                     height: 76px;
                                                     object-fit: cover;
                                                     border-radius: 6px;
-                                                "
-                                            />
+                                                " />
                                             <div class="flex-grow-1">
                                                 <div class="fw-semibold">
                                                     {{ it.name }}
@@ -283,69 +262,45 @@ const p_supplier = ref(null);
                                                     Stock: 12
                                                 </div>
                                             </div>
-                                            <button
-                                                class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
-                                                @click="addPurchaseItem(it)"
-                                            >
+                                            <button class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
+                                                @click="addPurchaseItem(it)">
                                                 Add
                                             </button>
                                         </div>
 
                                         <div class="row g-2 mt-3">
                                             <div class="col-4">
-                                                <label class="small text-muted"
-                                                    >Quantity</label
-                                                >
-                                                <input
-                                                    v-model.number="it.qty"
-                                                    type="number"
-                                                    min="0"
-                                                    class="form-control"
-                                                    :class="{
+                                                <label class="small text-muted">Quantity</label>
+                                                <input v-model.number="it.qty" type="number" min="0"
+                                                    class="form-control" :class="{
                                                         'is-invalid':
                                                             formErrors[it.id] &&
                                                             formErrors[it.id]
                                                                 .qty,
-                                                    }"
-                                                />
-                                                <small
-                                                    v-if="
-                                                        formErrors[it.id] &&
-                                                        formErrors[it.id].qty
-                                                    "
-                                                    class="text-danger"
-                                                >
+                                                    }" />
+                                                <small v-if="
+                                                    formErrors[it.id] &&
+                                                    formErrors[it.id].qty
+                                                " class="text-danger">
                                                     {{
                                                         formErrors[it.id].qty[0]
                                                     }}
                                                 </small>
                                             </div>
                                             <div class="col-4">
-                                                <label class="small text-muted"
-                                                    >Unit Price</label
-                                                >
-                                                <input
-                                                    v-model.number="
-                                                        it.unitPrice
-                                                    "
-                                                    type="number"
-                                                    min="0"
-                                                    class="form-control"
-                                                    :class="{
+                                                <label class="small text-muted">Unit Price</label>
+                                                <input v-model.number="it.unitPrice
+                                                    " type="number" min="0" class="form-control" :class="{
                                                         'is-invalid':
                                                             formErrors[it.id] &&
                                                             formErrors[it.id]
                                                                 .unit_price,
-                                                    }"
-                                                />
-                                                <small
-                                                    v-if="
-                                                        formErrors[it.id] &&
-                                                        formErrors[it.id]
-                                                            .unit_price
-                                                    "
-                                                    class="text-danger"
-                                                >
+                                                    }" />
+                                                <small v-if="
+                                                    formErrors[it.id] &&
+                                                    formErrors[it.id]
+                                                        .unit_price
+                                                " class="text-danger">
                                                     {{
                                                         formErrors[it.id]
                                                             .unit_price[0]
@@ -353,28 +308,18 @@ const p_supplier = ref(null);
                                                 </small>
                                             </div>
                                             <div class="col-4">
-                                                <label class="small text-muted"
-                                                    >Expiry Date</label
-                                                >
-                                                <input
-                                                    v-model="it.expiry"
-                                                    type="date"
-                                                    class="form-control"
+                                                <label class="small text-muted">Expiry Date</label>
+                                                <VueDatePicker v-model="it.expiry" :enableTimePicker="false"
+                                                    placeholder="Select date"
                                                     :class="{
-                                                        'is-invalid':
-                                                            formErrors[it.id] &&
-                                                            formErrors[it.id]
-                                                                .expiry_date,
-                                                    }"
-                                                />
-                                                <small
-                                                    v-if="
-                                                        formErrors[it.id] &&
-                                                        formErrors[it.id]
-                                                            .expiry_date
-                                                    "
-                                                    class="text-danger"
-                                                >
+                                                        'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date
+                                                    }" />
+
+                                                <small v-if="
+                                                    formErrors[it.id] &&
+                                                    formErrors[it.id]
+                                                        .expiry_date
+                                                " class="text-danger">
                                                     {{
                                                         formErrors[it.id]
                                                             .expiry_date[0]
@@ -404,10 +349,7 @@ const p_supplier = ref(null);
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr
-                                                v-for="(r, idx) in p_cart"
-                                                :key="idx"
-                                            >
+                                            <tr v-for="(r, idx) in p_cart" :key="idx">
                                                 <td>
                                                     {{ r.name }}
                                                 </td>
@@ -417,40 +359,27 @@ const p_supplier = ref(null);
                                                     {{ money(r.unitPrice) }}
                                                 </td>
                                                 <td>
-                                                    {{ r.expiry || "—" }}
+                                                    {{ formatDate(r.expiry) || "—" }}
                                                 </td>
                                                 <td>
                                                     {{ money(r.cost) }}
                                                 </td>
                                                 <td class="text-end">
-                                                    <button
-                                                        @click="
-                                                            delPurchaseRow(idx)
+                                                    <button @click="
+                                                        delPurchaseRow(idx)
                                                         "
                                                         class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
-                                                        title="Delete"
-                                                    >
-                                                        <svg
-                                                            class="w-5 h-5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z"
-                                                            />
+                                                        title="Delete">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                            stroke-width="2" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
                                                         </svg>
                                                     </button>
                                                 </td>
                                             </tr>
                                             <tr v-if="p_cart.length === 0">
-                                                <td
-                                                    colspan="7"
-                                                    class="text-center text-muted py-4"
-                                                >
+                                                <td colspan="7" class="text-center text-muted py-4">
                                                     No items added.
                                                 </td>
                                             </tr>
@@ -463,16 +392,9 @@ const p_supplier = ref(null);
                             </div>
 
                             <div class="mt-4 text-center">
-                                <button
-                                    class="btn btn-primary rounded-pill px-5 py-2"
-                                    :disabled="
-                                        p_submitting || p_cart.length === 0
-                                    "
-                                    @click="quickPurchaseSubmit"
-                                >
-                                    <span v-if="!p_submitting"
-                                        >Quick Purchase</span
-                                    >
+                                <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="p_submitting || p_cart.length === 0
+                                    " @click="quickPurchaseSubmit">
+                                    <span v-if="!p_submitting">Quick Purchase</span>
                                     <span v-else>Saving...</span>
                                 </button>
                             </div>
@@ -489,38 +411,41 @@ const p_supplier = ref(null);
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
-  background-color: white !important;
-  color: black !important;
-  border-color: #9b9c9c
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-  background-color: white !important;
-  color: black !important;
+    background-color: white !important;
+    color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-  background-color: transparent !important; /* instead of 'none' */
-  color: black !important;
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
 }
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
-:deep(.p-select-label){
+
+:deep(.p-select-label) {
     color: #000 !important;
 }
-:deep(.p-placeholder){
+
+:deep(.p-placeholder) {
     color: #80878e !important;
 }
 </style>

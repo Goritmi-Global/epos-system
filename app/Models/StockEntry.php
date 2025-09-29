@@ -29,7 +29,7 @@ class StockEntry extends Model
     ];
 
     protected $casts = [
-        'quantity'      => 'integer',
+        'quantity'      => 'decimal:2',
         'price'         => 'decimal:2',
         'value'         => 'decimal:2',
         'expiry_date'   => 'date',

@@ -481,16 +481,46 @@ watch(commonAllergies, (newVal) => {
 
 const handleImport = (data) => {
     console.log("Imported Data:", data);
-    const headers = data[0];
-    const rows = data.slice(1);
-    const allergiesToImport = rows.map((row) => {
-        return {
-            name: row[0] || "",
 
-        };
-    });
+    // basic guard
+    if (!Array.isArray(data) || data.length === 0) {
+        toast.error("File is empty.");
+        return;
+    }
 
-    // Send to backend API
+    const headers = data[0] || [];
+    const rows = data.slice(1); // everything after header row
+
+    // remove rows that are entirely empty (no non-empty cells)
+    const nonEmptyRows = rows.filter((row) =>
+        Array.isArray(row) && row.some((cell) => String(cell ?? "").trim() !== "")
+    );
+
+    if (nonEmptyRows.length === 0) {
+        toast.error("No data rows found the file is empty or contains only headers.");
+        return;
+    }
+
+    // Map rows to objects and trim values; ignore rows without a name
+    const allergiesToImport = nonEmptyRows
+        .map((row) => ({ name: String(row[0] ?? "").trim() }))
+        .filter((r) => r.name !== "");
+
+    if (allergiesToImport.length === 0) {
+        toast.error("No valid allergy names found in the file.");
+        return;
+    }
+
+    // Optional: detect duplicates inside the file before sending
+    const namesLower = allergiesToImport.map((a) => a.name.toLowerCase());
+    const dupes = namesLower.filter((n, i) => namesLower.indexOf(n) !== i);
+    if (dupes.length) {
+        const uniqueDupes = [...new Set(dupes)];
+        toast.error(`Duplicate entries found in file: ${uniqueDupes.join(", ")}`);
+        return; // ask user to fix file before sending
+    }
+
+    // All good -> send to backend
     axios
         .post("/allergies/import", { allergies: allergiesToImport })
         .then(() => {
@@ -500,13 +530,18 @@ const handleImport = (data) => {
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
-                toast.error("There may some duplication in data", {
-                    autoClose: 3000,
-                });
+                // prefer a backend message if available, otherwise generic
+                const msg =
+                    err.response.data.message ||
+                    "There may be duplication or validation errors in the data.";
+                toast.error(msg, { autoClose: 3000 });
+            } else {
+                toast.error("Import failed. Please try again.", { autoClose: 3000 });
+                console.error(err);
             }
-
         });
 };
+
 </script>
 
 <template>
@@ -633,7 +668,7 @@ const handleImport = (data) => {
                         <input v-model="customAllergy" class="form-control" placeholder="e.g., Vegan"
                             :class="{ 'is-invalid': formErrors.customAllergy }" />
                         <span class="text-danger" v-if="formErrors.customAllergy">{{ formErrors.customAllergy[0]
-                        }}</span>
+                            }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonAllergies" :options="availableOptions" optionLabel="label"
@@ -664,7 +699,7 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.allergies">{{
                             formErrors.allergies[0]
-                        }}</span>
+                            }}</span>
                     </div>
 
                     <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">

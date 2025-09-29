@@ -6,12 +6,13 @@ import { toast } from "vue3-toastify";
 const props = defineProps({
   accept: {
     type: String,
-    default: ".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+    default:
+      ".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel",
   },
   label: {
     type: String,
-    default: "Import"
-  }
+    default: "Import",
+  },
 });
 
 const emit = defineEmits(["on-import"]);
@@ -42,6 +43,8 @@ const handleFile = async (e) => {
       // Emit data back to parent
       emit("on-import", jsonData);
 
+      // ✅ Reset input so selecting the same file again works
+      fileInput.value.value = "";
     };
 
     reader.readAsBinaryString(file);
@@ -54,7 +57,10 @@ const handleFile = async (e) => {
 
 <template>
   <div>
-    <button class="btn btn-outline-primary rounded-pill px-4" @click="triggerFile">
+    <button
+      class="btn btn-outline-primary rounded-pill px-4"
+      @click="triggerFile"
+    >
       {{ label }}
     </button>
     <input

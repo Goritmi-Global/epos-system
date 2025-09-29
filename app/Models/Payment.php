@@ -9,7 +9,7 @@ class Payment extends Model
     protected $fillable = [
   'order_id','user_id','amount_received','payment_type','payment_date',
   'payment_status','code','stripe_payment_intent_id','last_digits','brand',
-  'currency_code','exp_month','exp_year',
+  'currency_code','exp_month','exp_year','cash_amount','card_amount',
 ];
 
 

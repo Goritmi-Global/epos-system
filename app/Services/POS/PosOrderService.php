@@ -8,13 +8,18 @@ use App\Models\PosOrder;
 use App\Models\RestaurantProfile;
 use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
+use App\Models\InventoryItem;
+use App\Models\KitchenOrder;
 use App\Models\Payment;
 use App\Models\PosOrderType;
+use App\Models\StockEntry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class PosOrderService
 {
+    public function __construct(private StockEntryService $stockEntryService) {}
+
     public function list(array $filters = [])
     {
         return PosOrder::query()
@@ -27,8 +32,7 @@ class PosOrderService
     public function create(array $data): PosOrder
     {
         return DB::transaction(function () use ($data) {
-
-            // 1 Create the main order
+            //  Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
                 'customer_name' => $data['customer_name'] ?? null,
@@ -43,32 +47,132 @@ class PosOrderService
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
 
-            // 2 Create order type
-            PosOrderType::create([
+            //  Create order type
+            $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
-                'order_type' => $data['order_type'],
+                'order_type'   => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-        Payment::create([
-            'order_id'                 => $order->id,
-            'user_id'                  => Auth::id(),
-            'amount_received'          => $data['cash_received'] ?? $data['total_amount'],
-            'payment_type'             => $data['payment_method'] ?? 'Cash',
-            'payment_date'             => now(),
+            // Create Order details , where for each order a detailed recods stored of items
+            foreach ($data['items'] as $item) {
+                // Save order item
+                $order->items()->create([
+                    'menu_item_id' => $item['product_id'],
+                    'title'        => $item['title'],
+                    'quantity'     => $item['quantity'],
+                    'price'        => $item['price'],
+                    'note'         => $item['note'] ?? null,
+                ]);
 
-            // New fields (Stripe-aware, Cash leaves them null/default)
-            'payment_status'           => $data['payment_status'] ?? null,
-            'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
-            'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
-            'last_digits'              => $data['last_digits'] ?? null,
-            'brand'                    => $data['brand'] ?? null,
-            'currency_code'            => $data['currency_code'] ?? null,
-            'exp_month'                => $data['exp_month'] ?? null,
-            'exp_year'                 => $data['exp_year'] ?? null,
-        ]);
-        // dd("Service class Done ",$data);
+
+                // Fetch the MenuItem with its ingredients
+                $menuItem = MenuItem::with('ingredients')->find($item['product_id']);
+
+                if ($menuItem && $menuItem->ingredients->count()) {
+                    foreach ($menuItem->ingredients as $ingredient) {
+                        // Each MenuIngredient row points to an InventoryItem
+                        $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
+
+                        if ($inventoryItem) {
+                            $requiredQty = $ingredient->quantity * $item['quantity'];
+
+                            $this->stockEntryService->create([
+                                'product_id'     => $inventoryItem->id,
+                                'name'           => $inventoryItem->name,
+                                'category_id'    => $inventoryItem->category_id,
+                                'supplier_id'    => $inventoryItem->supplier_id,
+                                'quantity'       => $requiredQty,
+                                'value'          => 0,
+                                'operation_type' => 'pos_stockout',
+                                'stock_type'     => 'stockout',
+                                'description'    => "Auto stockout from POS Order #{$order->id}",
+                                'user_id'        => Auth::id(),
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            $order->load('items');
+            $kot = null;
+
+            // 2. Handle KOT (after items exist)
+            
+
+                $kot = KitchenOrder::create([
+                    'pos_order_type_id' => $orderType->id,
+                    'status'            => KitchenOrder::STATUS_WAITING,
+                    'order_time'        => now()->toTimeString(),
+                    'order_date'        => now()->toDateString(),
+                    'note'              => $data['note'] ?? null,
+                ]);
+
+                foreach ($order->items as $orderItem) {
+                    $menuItem = MenuItem::with('ingredients')->find($orderItem->menu_item_id);
+
+                    $ingredientsArray = [];
+                    if ($menuItem && $menuItem->ingredients->count()) {
+                        foreach ($menuItem->ingredients as $ingredient) {
+                            $ingredientsArray[] = $ingredient->product_name; 
+                        }
+                    }
+
+                    $kot->items()->create([
+                        'item_name'    => $orderItem->title,
+                        'quantity'     => $orderItem->quantity,
+                        'variant_name' => $orderItem->variant_name ?? null,
+                        'ingredients'  => $ingredientsArray, 
+                    ]);
+                }
+                $kot->load('items');
+
+
+            $cashAmount = null;
+            $cardAmount = null;
+
+            // Payment field adjustment logic
+            if (($data['payment_type'] ?? '') === 'Split') {
+                $cashAmount = $data['cash_received'] ?? 0;
+                $cardAmount = $data['card_payment'] ?? 0;
+                $payedUsing = $data['payment_type'];
+            } elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
+                $cashAmount = $data['amount_received'] ?? $data['total_amount'];
+                $payedUsing = $data['payment_method'];
+                $cardAmount = 0;
+            } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
+                $cashAmount = 0;
+                $cardAmount = $data['amount_received'] ?? $data['total_amount'];
+                $payedUsing = 'Card';
+            }
+
+            // Payment model data saving
+            Payment::create([
+                'order_id'                 => $order->id,
+                'user_id'                  => Auth::id(),
+                'amount_received'          =>  $data['total_amount'],
+                'payment_type'             =>  $payedUsing,
+                'payment_date'             => now(),
+
+                // Split fields (clean values)
+                'cash_amount'              => $cashAmount,
+                'card_amount'              => $cardAmount,
+
+
+                'payment_status'           => $data['payment_status'] ?? null,
+                'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
+                'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
+                'last_digits'              => $data['last_digits'] ?? null,
+                'brand'                    => $data['brand'] ?? null,
+                'currency_code'            => $data['currency_code'] ?? null,
+                'exp_month'                => $data['exp_month'] ?? null,
+                'exp_year'                 => $data['exp_year'] ?? null,
+            ]);
+
+            $order->load(['items', 'kot.items']);
+            // dd("Service class Done ",$data);
             return $order;
+
         });
     }
 
@@ -114,13 +218,26 @@ class PosOrderService
     public function getMenuCategories(bool $onlyActive = true)
     {
         $query = MenuCategory::with('children')
+            ->withCount('menuItems') // now works because relation exists
             ->whereNull('parent_id');
+
         if ($onlyActive) {
             $query->active();
         }
 
-        return $query->get();
+        return $query->get()->map(function ($cat) {
+            return [
+                'id'    => $cat->id,
+                'name'  => $cat->name,
+                'icon'  => $cat->icon,
+                'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
+                'menu_items_count' => $cat->menu_items_count,
+                'children' => $cat->children,
+            ];
+        });
     }
+
+
     public function getAllMenus()
     {
         return MenuItem::with([
@@ -159,6 +276,14 @@ class PosOrderService
         return RestaurantProfile::select('order_types', 'table_details')->first();
     }
 
-    
+     public function getTodaysOrders()
+    {
+        $today = now()->toDateString();
 
+        return KitchenOrder::with([
+            'items',
+            'posOrderType.order.payment',
+            'posOrderType.order.items' // PosOrderItems with prices
+        ])->whereDate('order_date', $today)->get();
+    }
 }

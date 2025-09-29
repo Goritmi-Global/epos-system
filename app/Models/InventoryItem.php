@@ -12,10 +12,17 @@ class InventoryItem extends BaseModel
     protected $appends = ['stock'];
 
     protected $fillable = [
-    'name','minAlert','sku','description',
-    'supplier_id','unit_id','user_id','upload_id','category_id',
-];
- 
+        'name',
+        'minAlert',
+        'sku',
+        'description',
+        'supplier_id',
+        'unit_id',
+        'user_id',
+        'upload_id',
+        'category_id',
+    ];
+
     // ----- Belongs To -----
     public function user()
     {
@@ -61,11 +68,11 @@ class InventoryItem extends BaseModel
     }
 
     public function category()
-{
-    return $this->belongsTo(\App\Models\InventoryCategory::class, 'category_id');
-}
+    {
+        return $this->belongsTo(\App\Models\InventoryCategory::class, 'category_id');
+    }
 
- 
+
 
     // ----- Nutrition: one row per inventory item in its own table -----
     public function nutrition()
@@ -84,6 +91,11 @@ class InventoryItem extends BaseModel
     {
         return $this->hasMany(PurchaseItem::class, 'product_id');
     }
+    public function ingredients()
+    {
+        return $this->hasMany(MenuIngredient::class, 'inventory_item_id');
+    }
+
 
     protected function stock(): Attribute
     {

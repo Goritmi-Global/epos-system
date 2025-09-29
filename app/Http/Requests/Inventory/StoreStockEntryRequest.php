@@ -28,8 +28,8 @@ public function rules(): array
             'exists:suppliers,id',
         ],
 
-        'available_quantity' => 'required|integer|min:0',
-        'quantity'           => 'required|integer|min:1',
+        'available_quantity' => 'required|min:0',
+        'quantity'           => 'required|min:1',
 
         //  For stockout → nullable only. For stockin → required|numeric|min:1
         'price' => $isStockOut

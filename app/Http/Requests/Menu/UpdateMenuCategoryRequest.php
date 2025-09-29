@@ -17,6 +17,7 @@ class UpdateMenuCategoryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'color' => 'nullable|string|max:7', 
             'icon' => 'nullable|string|max:10',
             'active' => 'boolean',
             'parent_id' => 'nullable|exists:menu_categories,id',

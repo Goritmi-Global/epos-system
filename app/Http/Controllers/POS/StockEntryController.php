@@ -83,7 +83,6 @@ class StockEntryController extends Controller
             ->stockIn()
             ->orderBy('expiry_date', 'asc')
             ->get(['id', 'quantity', 'price', 'value', 'description', 'purchase_date', 'expiry_date', 'created_at']);
-
         $mapped = $rows->map(function ($r) use ($today, $cutoff) {
             $status = 'active';
             if ($r->expiry_date) {
@@ -96,7 +95,7 @@ class StockEntryController extends Controller
 
             return [
                 'id'            => $r->id,
-                'quantity'      => (int) $r->quantity,
+                'quantity'      => (float) $r->quantity,
                 'price'         => (float) $r->price,
                 'value'         => (float) $r->value,
                 'description'   => $r->description,

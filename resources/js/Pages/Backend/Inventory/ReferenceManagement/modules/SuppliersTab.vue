@@ -297,14 +297,10 @@ const resetForm = () => {
         preferred_items: "",
     };
     formErrors.value = {};
+    selectedSupplier.value = null; 
 };
 
 const submit = () => {
-    if (phoneError.value) {
-        toast.error("Please fix the phone number before submitting.");
-        formErrors.value.contact = [phoneError.value]; 
-        return;
-    }
 
     loading.value = true;
     formErrors.value = {};
@@ -443,22 +439,27 @@ const deleteSupplier = (id) => {
 const handleImport = (data) => {
     console.log("Imported Data:", data);
 
+    if (!data || data.length <= 1) {
+        toast.error("The file is empty", {
+            autoClose: 3000,
+        });
+        return;
+    }
+
     // data is 2D array: [ [col1, col2, ...], [val1, val2, ...] ]
-    // Example: map to supplier objects
     const headers = data[0];
     const rows = data.slice(1);
-    console.log(data.slice(1));
+
     const suppliersToImport = rows.map((row) => {
         return {
             name: row[0] || "",
             email: row[1] || "",
             contact: row[2] || "",
             address: row[3] || "",
-            preferred_items: row[4] || ""
+            preferred_items: row[4] || "",
         };
     });
 
-    // Send to backend API
     axios
         .post("/suppliers/import", { suppliers: suppliersToImport })
         .then(() => {
@@ -466,15 +467,15 @@ const handleImport = (data) => {
             fetchSuppliers();
         })
         .catch((err) => {
-          if (err?.response?.status === 422 && err.response.data?.errors) {
+            if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
-                toast.error("There may some duplication in data", {
+                toast.error("There may be some duplication in data", {
                     autoClose: 3000,
                 });
             }
-          
         });
 };
+
 
 </script>
 
@@ -494,6 +495,7 @@ const handleImport = (data) => {
                         () => {
                             resetForm();
                             formErrors = {};
+                             processStatus = 'Add';
                         }
                     " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier

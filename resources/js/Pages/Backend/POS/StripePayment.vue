@@ -40,9 +40,9 @@ const props = defineProps({
   selectedTable: Object,
   orderItems: Array,
   grandTotal: Number,
-  money: Function,
+  money: Function, 
   cashReceived: Number,
-
+  cardPayment: Number,
   subTotal: Number,
   tax: Number,
   serviceCharges: Number,
@@ -51,7 +51,10 @@ const props = defineProps({
   orderDate: String,
   orderTime: String,
   paymentMethod: String,
+  paymentType: String,
   change: Number,
+  type: String, // 'full-payment' | 'split-payment'
+  cardCharge: Number, // required if type is 'split-payment'  
 });
 
 
@@ -65,7 +68,6 @@ const clientSecret = ref(null);
 const isReady = ref(false);
 const isPaying = ref(false);
 let paymentElement = null;
-console.log("key", page.props.stripe_public_key);
 
 // --- Create PI on the server with FINAL amount (GBP) ---
 async function createPI() {
@@ -137,9 +139,14 @@ async function pay() {
     customer_name: props.customer ?? "",
     sub_total: String(props.subTotal ?? props.grandTotal ?? 0),
     total_amount: String(props.grandTotal ?? 0),
+    // for split payment
+    cardCharge: String(props.cardCharge ?? 0),
+    type: String(props.type ?? 0),
+    
     tax: String(props.tax ?? 0),
     service_charges: String(props.serviceCharges ?? 0),
     delivery_charges: String(props.deliveryCharges ?? 0),
+
     note: props.note ?? "",
     order_date: props.orderDate ?? new Date().toISOString().split("T")[0],
     order_time: props.orderTime ?? new Date().toTimeString().split(" ")[0],
@@ -153,7 +160,9 @@ async function pay() {
         : "Collection",
     table_number: props.selectedTable?.name ?? "",
     payment_method: props.paymentMethod ?? "Stripe",
+    payment_type: props.paymentType ?? props.paymentMethod,
     cash_received: String(props.cashReceived ?? props.grandTotal ?? 0),
+    card_payment: String(props.cardPayment ?? 0),
     change: String(props.change ?? 0),
     items: JSON.stringify(
       (props.orderItems ?? []).map((it) => ({

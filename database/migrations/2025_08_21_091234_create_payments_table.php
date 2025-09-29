@@ -19,11 +19,14 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
 
             // Payment details
-            $table->decimal('amount_received', 10, 2)->nullable();
-            $table->string('payment_type')->nullable();
+            $table->decimal('amount_received', 10, 2)->nullable(); // full total
+            $table->decimal('cash_amount', 10, 2)->nullable();     // for split
+            $table->decimal('card_amount', 10, 2)->nullable();     // for split
+
+            $table->string('payment_type')->nullable();            // Cash | Card | Split
             $table->dateTime('payment_date')->default(DB::raw('CURRENT_TIMESTAMP'));
 
-
+            // Stripe / card details
             $table->string('payment_status', 32)->nullable();
             $table->string('code', 64)->nullable()->index();
             $table->string('stripe_payment_intent_id', 64)->nullable()->index();

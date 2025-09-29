@@ -71,7 +71,6 @@ class MenuCategoryController extends Controller
      */
     public function store(StoreMenuCategoryRequest $request): JsonResponse
     {
-
         try {
             $result = $this->MenuCategoryService->createCategories($request->validated());
 
@@ -284,4 +283,7 @@ class MenuCategoryController extends Controller
 
         return response()->json(['message' => 'Categories imported successfully']);
     }
+     
+
+
 }

@@ -17,4 +17,8 @@ class PosOrderType extends Model
     {
         return $this->belongsTo(PosOrder::class, 'pos_order_id');
     }
+    public function kitchenOrders()
+    {
+        return $this->hasMany(KitchenOrder::class, 'pos_order_type_id');
+    }
 }
