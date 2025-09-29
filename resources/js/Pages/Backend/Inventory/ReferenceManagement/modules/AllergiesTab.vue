@@ -7,7 +7,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
-import ImportFile from "@/Components/ImportFile.vue";
+import ImportFile from "@/Components/importFile.vue";
 
 const commonExistingAllergiesList = ref([
     { label: "Crustaceans", value: "Crustaceans" },
@@ -720,6 +720,7 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
+
 :root {
     --brand: #1c0d82;
 }

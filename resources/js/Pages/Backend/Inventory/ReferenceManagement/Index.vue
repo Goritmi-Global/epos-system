@@ -42,6 +42,19 @@ const active = ref("suppliers");
 </template>
 
 <style scoped>
+
+.dark .nav-tabs .nav-link{
+    color: #ffffff;
+}
+
+.dark .nav-link{
+    color: #ffffff;
+}
+
+.dark .nav-tabs .nav-link.active{
+    color: #ffffff;
+     border-bottom: 2px solid #ffffff;
+}
 .nav-tabs .nav-link {
     border: 0;
     color: #6c757d;

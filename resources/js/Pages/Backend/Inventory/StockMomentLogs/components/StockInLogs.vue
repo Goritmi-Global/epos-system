@@ -376,7 +376,7 @@ onUpdated(() => window.feather?.replace());
 
                                         <div class="row g-3 text-center">
                                             <div class="col-md-3">
-                                                <div class="p-3 bg-light rounded-3">
+                                                <div class="p-3 bg-light rounded-3 card">
                                                     <small class="text-muted d-block">Unit Price</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
@@ -389,7 +389,7 @@ onUpdated(() => window.feather?.replace());
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
-                                                <div class="p-3 bg-light rounded-3">
+                                                <div class="p-3 bg-light rounded-3 card">
                                                     <small class="text-muted d-block">Total Price</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
@@ -403,7 +403,7 @@ onUpdated(() => window.feather?.replace());
                                             </div>
 
                                             <div class="col-md-3">
-                                                <div class="p-3 bg-light rounded-3">
+                                                <div class="p-3 bg-light rounded-3 card">
                                                     <small class="text-muted d-block">Expiry Date</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
@@ -417,7 +417,7 @@ onUpdated(() => window.feather?.replace());
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
-                                                <div class="p-3 bg-light rounded-3">
+                                                <div class="p-3 bg-light rounded-3 card">
                                                     <small class="text-muted d-block">Date</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
@@ -503,3 +503,33 @@ onUpdated(() => window.feather?.replace());
     </div>
     <!-- /wrapper -->
 </template>
+
+<style setup>
+.dark .modal-body{
+    background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;  
+}
+
+.dark .modal-header{
+      background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;  
+}
+.dark input{
+       background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;  
+}
+.dark .table thead th{
+  background-color:#111827 !important; ;
+  color: #ffffff;
+}
+
+.dark .card-body{
+     background-color:#111827 !important; ;
+  color: #ffffff;
+}
+
+.dark .card{
+     background-color:#111827 !important; ;
+  color: #ffffff;
+}
+</style>

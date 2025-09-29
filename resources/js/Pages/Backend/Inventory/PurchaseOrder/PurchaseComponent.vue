@@ -408,6 +408,52 @@ const formatDate = (date) => {
 </template>
 
 <style scoped>
+
+.dark .modal-body{
+    background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;  
+}
+
+.dark .modal-header{
+      background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;  
+}
+
+.dark .table {
+  background-color: #111827 !important; /* gray-900 */
+  color: #f9fafb !important;
+}
+
+.dark .table thead{
+    background-color:  #111827;
+    color: #f9fafb;
+}
+.dark .table thead th{
+    background-color:  #111827;
+    color: #f9fafb;
+}
+
+.dark .table tbody td{
+    background-color:  #111827;
+    color: #f9fafb;
+}
+.dark .cart{
+     background-color:  #111827;
+    color: #f9fafb;
+}
+
+.dark .card-body{
+      background-color:  #111827;
+    color: #f9fafb;
+}
+
+.dark input{
+      background-color:  #111827;
+    color: #f9fafb;
+}
+
+
+
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
