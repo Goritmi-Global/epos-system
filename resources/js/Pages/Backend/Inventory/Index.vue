@@ -503,7 +503,8 @@ watch(
 // =============== Edit item ===============
 import { nextTick } from "vue";
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
-import ImportFile from "@/Components/ImportFile.vue";
+import ImportFile from "@/Components/importFile.vue";
+
 
 const editItem = (item) => {
     const toNum = (v) =>
@@ -1447,7 +1448,7 @@ const handleImport = (data) => {
                                         <label class="form-label">Category</label>
                                         <Select v-model="form.category_id" :options="parentCategories"
                                             optionLabel="name" optionValue="id" placeholder="Select Category"
-                                            class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                            class="w-100 select" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
                                             @update:modelValue="
                                                 form.subcategory_id = null
                                                 " :class="{
@@ -1464,7 +1465,7 @@ const handleImport = (data) => {
                                         <label class="form-label">Subcategory</label>
                                         <Select v-model="form.subcategory_id" :options="subcatOptions"
                                             optionLabel="name" optionValue="id" placeholder="Select Subcategory"
-                                            class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
+                                            class="w-100 select" appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
                                                 'is-invalid':
                                                     formErrors.subcategory_id,
                                             }" />
@@ -1487,7 +1488,7 @@ const handleImport = (data) => {
                                     <div class="col-md-6">
                                         <label class="form-label">Unit Type</label>
                                         <Select v-model="form.unit_id" :options="props.units" optionLabel="name"
-                                            optionValue="id" placeholder="Select Unit" class="w-100" appendTo="self"
+                                            optionValue="id" placeholder="Select Unit" class="w-100 select" appendTo="self"
                                             :autoZIndex="true" :baseZIndex="2000" :class="{
                                                 'is-invalid':
                                                     formErrors.unit_id,
@@ -1499,7 +1500,7 @@ const handleImport = (data) => {
                                     <div class="col-md-6">
                                         <label class="form-label">Preferred Supplier</label>
                                         <Select v-model="form.supplier_id" :options="props.suppliers" optionLabel="name"
-                                            optionValue="id" placeholder="Select Supplier" class="w-100" appendTo="self"
+                                            optionValue="id" placeholder="Select Supplier" class="w-100 select" appendTo="self"
                                             :autoZIndex="true" :baseZIndex="2000" :class="{
                                                 'is-invalid':
                                                     formErrors.supplier_id,
@@ -1608,7 +1609,7 @@ const handleImport = (data) => {
                                         <label class="form-label d-block">Allergies</label>
                                         <MultiSelect v-model="form.allergies" :options="props.allergies"
                                             optionLabel="name" optionValue="id" filter placeholder="Select Allergies"
-                                            class="w-full md:w-80" appendTo="self" display="chip" :class="{
+                                            class="w-full md:w-80 select" appendTo="self" display="chip" :class="{
                                                 'is-invalid':
                                                     formErrors.allergies,
                                             }" />
@@ -1621,7 +1622,7 @@ const handleImport = (data) => {
                                     <div class="col-md-6">
                                         <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
                                         <MultiSelect v-model="form.tags" :options="props.tags" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80 select"
                                             appendTo="self" display="chip" :class="{
                                                 'is-invalid': formErrors.tags,
                                             }" />
@@ -2278,6 +2279,19 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
+.dark h5{
+     color: white;
+}
+
+.dark .select{
+background-color: #111827 !important;
+  color: #f9fafb !important;    
+}
+
+.dark .card-header{
+    background-color: #111827;
+}
+
 :root {
     --brand: #1c0d82;
 }

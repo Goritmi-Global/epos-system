@@ -571,3 +571,10 @@ onUpdated(() => window.feather?.replace());
     </div>
     <!-- /wrapper -->
 </template>
+
+<style>
+.dark .table thead th{
+  background-color:#111827 !important; ;
+  color: #ffffff;
+}
+</style>

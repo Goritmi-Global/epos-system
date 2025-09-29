@@ -7,7 +7,8 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
-import ImportFile from "@/Components/ImportFile.vue";
+import ImportFile from "@/Components/importFile.vue";
+
 
 const options = ref([
     { label: "Vegan", value: "Vegan" },
@@ -648,7 +649,7 @@ const handleImport = (data) => {
                     <div v-else>
                         <MultiSelect v-model="commonTags" :options="availableOptions" optionLabel="label"
                             optionValue="value" :multiple="true" showClear :filter="true" display="chip"
-                            placeholder="Choose common  tags or add new one" class="w-100" appendTo="self"
+                            placeholder="Choose common  tags or add new one" class="w-100 select" appendTo="self"
                             @filter="(e) => (filterText = e.value || '')" :class="{ 'is-invalid': formErrors.tags }"
                             :invalid="formErrors.tags?.length">
                             <template #header>
@@ -695,6 +696,7 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
+
 :root {
     --brand: #1c0d82;
 }

@@ -839,7 +839,7 @@ onUpdated(() => window.feather?.replace?.());
                                                 </td>
                                             </tr>
                                         </tbody>
-                                        <tfoot>
+                                        <tfoot class="footer">
                                             <tr>
                                                 <td
                                                     colspan="3"
@@ -919,6 +919,14 @@ onUpdated(() => window.feather?.replace?.());
 </template>
 
 <style scoped>
+.dark .modal-footer{
+      background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;   
+}
+.dark button{
+background-color: #111827 !important; /* gray-800 */
+  color: #f9fafb !important;   
+}
 /* Search pill */
 .search-wrap {
     position: relative;

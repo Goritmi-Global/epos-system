@@ -1314,6 +1314,30 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
+
+.dark h4{
+    color: white;
+}
+.dark .card {
+  background-color: #111827!important; /* gray-800 */
+  color: #ffffff !important;           /* gray-50 */
+}
+
+.dark .table {
+  background-color: #111827 !important; /* gray-900 */
+  color: #f9fafb !important;
+}
+
+.dark .table thead{
+    background-color: #111827 !important; /* gray-900 */
+  color: #f9fafb !important;
+}
+
+.dark .table thead th{
+    background-color: #111827 !important; /* gray-900 */
+  color: #f9fafb !important;
+} 
+
 :root {
     --brand: #1c0d82;
 }
