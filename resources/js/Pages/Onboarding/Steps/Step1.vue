@@ -101,6 +101,23 @@ onMounted(async () => {
   }
 })
 
+watch(
+  [countries, () => form.country_code],
+  () => {
+    console.log("WATCH TRIGGERED")
+    console.log("form.country_code:", form.country_code)
+    console.log("countries.value:", countries.value)
+    if (!form.country_code || !countries.value.length) return
+    selectedCountry.value =
+      countries.value.find(
+        c => String(c.code).toUpperCase() === String(form.country_code).toUpperCase()
+      ) || null
+    console.log("selectedCountry synced:", selectedCountry.value)
+  },
+  { immediate: true }
+)
+
+
 watch(selectedCountry, (opt) => {
   try {
     if (!opt) return

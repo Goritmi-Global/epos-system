@@ -64,22 +64,50 @@ function gotoStep(n) {
 }
 
 
+// const saveStep = (payload) => {
+//   console.log(payload);
+//   try {
+//     // Merge the step data into the main profile
+//     Object.assign(profile.value, payload?.data || {})
+
+//     // Log full payload
+//     console.log("Full Payload Received:", payload)
+
+//     // Log just the data from the payload
+//     console.log("Step Data:", payload?.data)
+
+//     // Log the profile after merge
+//     console.log("Profile After Merge:", profile.value)
+
+//     // optionally debounce draft save here
+//   } catch (e) {
+//     console.error("saveStep error:", e)
+//   }
+// }
+
 const saveStep = (payload) => {
-  console.log(payload);
+  console.log("Payload received:", payload);
+  
   try {
-    // Merge the step data into the main profile
-    Object.assign(profile.value, payload?.data || {})
+    // Extract step number and data
+    const stepNumber = payload?.step || current.value;
+    const stepData = payload?.data || {};
 
-    // Log full payload
-    console.log("Full Payload Received:", payload)
+    // Get existing session data
+    const existingData = profile.value || {};
+    
+    // Merge step data into profile
+    Object.assign(profile.value, stepData)
 
-    // Log just the data from the payload
-    console.log("Step Data:", payload?.data)
-
-    // Log the profile after merge
+    // IMPORTANT: Ensure the data structure matches what backend expects
+    console.log("Step Number:", stepNumber)
+    console.log("Step Data:", stepData)
     console.log("Profile After Merge:", profile.value)
 
-    // optionally debounce draft save here
+    // Optionally save draft to backend immediately for Step 9
+    if (stepNumber === 9) {
+      goNext(profile.value);
+    }
   } catch (e) {
     console.error("saveStep error:", e)
   }

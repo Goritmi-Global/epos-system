@@ -6,7 +6,7 @@ const emit = defineEmits(["save"])
 
 const form = reactive({
   order_types: props.model.order_types ?? [],
-  table_management_enabled: props.model.table_management_enabled ?? 0,
+  table_management_enabled: props.model.table_management_enabled ? 1 : 0,
   tables: props.model.tables ?? "",
   online_ordering: props.model.online_ordering ?? true,
   table_details: props.model.table_details ?? [],

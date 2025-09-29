@@ -27,11 +27,6 @@ class IndexController extends Controller
         ])
         ->values();
 }
-
-
-
-
- 
  
 public function countryDetails(Request $request, $country_code)
 {
