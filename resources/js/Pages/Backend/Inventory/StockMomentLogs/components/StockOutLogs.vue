@@ -106,6 +106,7 @@ const fetchAllocations = async (logId) => {
         const { data } = await axios.get(
             `stock_entries/stock-logs/${logId}/allocations`
         );
+        console.log(data);
         selectedAllocations.value = data || [];
     } catch (e) {
         selectedAllocations.value = [];
@@ -421,10 +422,7 @@ onUpdated(() => window.feather?.replace());
                                                 </thead>
                                                 <tbody>
                                                     <tr
-                                                        v-for="(
-                                                            a, idx
-                                                        ) in selectedAllocations"
-                                                        :key="a.id"
+                                                        v-for="(a, idx) in selectedAllocations" :key="a.id"
                                                     >
                                                         <td>{{ idx + 1 }}</td>
                                                         <!-- <td>{{ a.stock_in_entry_id }}</td> -->

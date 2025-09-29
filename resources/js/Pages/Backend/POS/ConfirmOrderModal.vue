@@ -73,6 +73,13 @@ function handleSplitConfirm(payload) {
   // Keep your original event name:
   emit("confirm", payload);
 }
+function handleCardConfirm(payload) {
+  // bubble up to the parent exactly like other flows
+  // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
+  // You can also create the order here if that’s your pattern.
+  // Keep your original event name:
+  emit("confirm", payload);
+}
 </script>
 
 <template>
@@ -544,12 +551,7 @@ function handleSplitConfirm(payload) {
 .brand-btn {
     background: var(--brand);
     color: #fff;
-    border: none;
-    box-shadow: 0 8px 18px rgba(28, 13, 130, 0.25);
-}
-.brand-btn:hover {
-    background: var(--brand-700);
-    color: #fff;
+    border: none;  
 }
 
 /* ===== Segmented radios ===== */

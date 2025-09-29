@@ -114,7 +114,7 @@ class OnboardingController extends Controller
                 'phone_local' => 'required|string|max:60',
                 'email' => 'required|email|max:190',
                 'address' => 'required|string|max:500',
-                'website' => 'required|url|max:190',
+                'website' => 'required|string|max:190',
                 'logo' => 'nullable',
             ]),
             3 => $request->validate([
@@ -133,19 +133,15 @@ class OnboardingController extends Controller
                 'price_includes_tax' => 'required|boolean',
             ]),
 
-            5 =>$request->validate([
-    'order_types' => 'required|array|min:1',
-    'table_management_enabled' => 'required|boolean',
-    'online_ordering' => 'required|boolean',
-    'tables' => 'required_if:table_management_enabled,1|integer|min:1',
-    'table_details' => 'required_if:table_management_enabled,1|array|min:1',
-    'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
-    'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
+            5 => $request->validate([
+                'order_types' => 'required|array|min:1',
+                'table_management_enabled' => 'required|boolean',
+                'online_ordering' => 'required|boolean',
+                'tables' => 'required_if:table_management_enabled,1|integer|min:1',
+                'table_details' => 'required_if:table_management_enabled,1|array|min:1',
+                'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
+                'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
             ]),
-
-
-
-
 
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',

@@ -99,6 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
         Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
+        Route::get('/stock-logs/{id}/allocations', [StockEntryController::class, 'allocations'])->name('stock.logs.allocations');
 
         // Parameterized
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
@@ -239,8 +240,13 @@ Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
         ->name('place-stripe-order');
 
+         
+
+
     });
 
+    Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])
+    ->name('stripe.pi.create');
     
 
     /* -------- Orders -------- */

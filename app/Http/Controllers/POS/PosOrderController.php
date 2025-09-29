@@ -14,26 +14,8 @@ class PosOrderController extends Controller
     public function __construct(private PosOrderService $service) {}
 
     public function index()
-    {  
-        $order_code = date('Ymd-His') . rand(10, 99);
-        $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
-
-         
-        $response = $stripe->paymentIntents->create([
-            'amount' => 1000, // $10.00 -> 1000 cents
-            'currency' => 'USD',
-            'payment_method_types' => ['card'],
-            'description' => '10X-Global',
-            'metadata' => [
-                'order_code' => $order_code,
-            ],
-        ]);
-
-        $client_secret = $response->client_secret ?? null;
-
-        return Inertia::render('Backend/POS/Index', [
-            'client_secret' => $client_secret,
-        ]); 
+    {   
+        return Inertia::render('Backend/POS/Index');
     }
 
 
@@ -47,34 +29,82 @@ class PosOrderController extends Controller
         ]);
     }
     public function fetchMenuCategories()
-    {  
+    {
         $menuCategories = $this->service->getMenuCategories();
-        return $menuCategories; 
+        return $menuCategories;
     }
     public function fetchMenuItems()
-    {  
+    {
         $menuItems = $this->service->getAllMenus();
-        return $menuItems; 
+        return $menuItems;
     }
 
-   public function fetchProfileTables()
-    {  
+    public function fetchProfileTables()
+    {
         $profileTables = $this->service->getProfileTable();
-        return $profileTables; 
+        return $profileTables;
     }
 
 
 
-    // Payment using stripe
-   public function placeStripeOrder(Request $request)
-{
+// Paymet Using Stript
+public function createIntent(Request $request)
+    { 
+        $amount     = (float) $request->input('amount', 0);
+        $currency   = strtolower($request->input('currency', 'usd'));
+        $orderCode  = $request->input('order_code') ?: (now()->format('Ymd-His') . rand(10, 99));
 
+        //  Convert to cents (integers)
+        $amountInCents = (int) round($amount * 100);
+        if ($amountInCents < 50) {
+            return response()->json(['error' => 'Amount must be at least 0.50'], 422);
+        }
+  
+       $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
+
+        //  Create PI with the real amount
+        $pi = $stripe->paymentIntents->create([
+            'amount'   => $amountInCents,
+            'currency' => $currency,
+            'automatic_payment_methods' => ['enabled' => true],
+            'metadata' => [
+                'order_code' => $orderCode,
+                'source'     => 'pos-web',
+            ],
+            'description' => "POS Order {$orderCode} ({$currency} {$amount})",
+        ]);
+
+        return response()->json([
+            'payment_intent' => $pi->id,
+            'client_secret'  => $pi->client_secret,
+            'order_code'     => $orderCode,
+            'amount'         => $amount,
+            'currency'       => $currency,
+        ]);
+    }
     
+
+
+public function placeStripeOrder(Request $request)
+{
     $paymentIntentId = $request->query('payment_intent');
     $redirectStatus  = $request->query('redirect_status'); // succeeded | failed | requires_action
 
-    if ($redirectStatus !== 'succeeded') {
+    if ($redirectStatus !== 'succeeded' || empty($paymentIntentId)) {
         return redirect()->route('pos.order')->with('error', 'Stripe payment not successful.');
+    }
+
+    try {
+        $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
+        $pi = $stripe->paymentIntents->retrieve($paymentIntentId, [
+            'expand' => ['payment_method', 'latest_charge.payment_method_details']
+        ]);
+    } catch (\Throwable $e) {
+        return redirect()->route('pos.order')->with('error', 'Unable to verify payment with Stripe.');
+    }
+
+    if (($pi->status ?? null) !== 'succeeded') {
+        return redirect()->route('pos.order')->with('error', 'Payment not captured yet.');
     }
 
     // Items JSON from query
@@ -83,26 +113,19 @@ class PosOrderController extends Controller
         try { $items = json_decode($request->query('items'), true) ?? []; } catch (\Throwable $e) {}
     }
 
-    // Retrieve PI to read card + currency details
-    $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
-    $pi = $stripe->paymentIntents->retrieve($paymentIntentId, [
-        'expand' => ['payment_method', 'latest_charge.payment_method_details']
-    ]);
+        $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'USD'));
 
-    $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'USD'));
+        // Card details (prefer latest_charge)
+        $pm        = $pi->payment_method;
+        $chargePmd = $pi->latest_charge->payment_method_details->card ?? null;
 
-    // Card details (prefer latest_charge)
-    $pm        = $pi->payment_method;
-    $chargePmd = $pi->latest_charge->payment_method_details->card ?? null;
+        $brand     = $chargePmd->brand   ?? ($pm->card->brand   ?? null);
+        $last4     = $chargePmd->last4   ?? ($pm->card->last4   ?? null);
+        $expMonth  = $pm->card->exp_month ?? null;
+        $expYear   = $pm->card->exp_year  ?? null;
 
-    $brand     = $chargePmd->brand   ?? ($pm->card->brand   ?? null);
-    $last4     = $chargePmd->last4   ?? ($pm->card->last4   ?? null);
-    $expMonth  = $pm->card->exp_month ?? null;
-    $expYear   = $pm->card->exp_year  ?? null;
+        $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
 
-    $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
-
-    // Build a unified payload for the service
     $data = [
         'customer_name'    => $request->query('customer_name'),
         'sub_total'        => (float) $request->query('sub_total', 0),
@@ -118,14 +141,14 @@ class PosOrderController extends Controller
         'table_number'     => $request->query('table_number'),
         'items'            => $items,
 
-        // Payment block
-        'payment_method'   => 'Stripe',
-        'payment_status'   => $pi->status ?? 'succeeded',
-        'cash_received'    => (float) $request->query('cash_received', $request->query('total_amount', 0)),
+            // Payment block
+            'payment_method'   => 'Stripe',
+            'payment_status'   => $pi->status ?? 'succeeded',
+            'cash_received'    => (float) $request->query('cash_received', $request->query('total_amount', 0)),
 
-        // Tracking
-        'order_code'               => $code,
-        'stripe_payment_intent_id' => $paymentIntentId,
+            // Tracking
+            'order_code'               => $code,
+            'stripe_payment_intent_id' => $paymentIntentId,
 
         // Card details
         'last_digits'    => $last4,
@@ -135,10 +158,10 @@ class PosOrderController extends Controller
         'exp_year'       => $expYear,
     ];
 
-     
     $order = $this->service->create($data);
 
-    return redirect()->route('pos.order')->with('success', 'Stripe order placed successfully.');
+    // 🔔 Flash for the frontend toast
+    $msg = "Payment successful! Order #{$order->id} placed. Card {$brand} •••• {$last4}.";
+    return redirect()->route('pos.order')->with('success', $msg);
 }
-
 }

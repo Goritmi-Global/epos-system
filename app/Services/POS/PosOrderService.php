@@ -28,7 +28,7 @@ class PosOrderService
     {
         return DB::transaction(function () use ($data) {
 
-            // 1️⃣ Create the main order
+            // 1 Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
                 'customer_name' => $data['customer_name'] ?? null,
@@ -43,21 +43,13 @@ class PosOrderService
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
 
-            // 2️⃣ Create order type
+            // 2 Create order type
             PosOrderType::create([
                 'pos_order_id' => $order->id,
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-        //     Payment::create([
-        //     'order_id'        => $order->id,
-        //     'user_id'         => Auth::id(),
-        //     'amount_received' => $data['cash_received'] ?? $data['total_amount'],
-        //     'payment_type'    => $data['payment_method'],
-        //     'payment_date'    => now(),
-        // ]);
-        // dd("Test");
         Payment::create([
             'order_id'                 => $order->id,
             'user_id'                  => Auth::id(),
@@ -75,7 +67,7 @@ class PosOrderService
             'exp_month'                => $data['exp_month'] ?? null,
             'exp_year'                 => $data['exp_year'] ?? null,
         ]);
-// dd("Service class Done ",$data);
+        // dd("Service class Done ",$data);
             return $order;
         });
     }
@@ -166,4 +158,7 @@ class PosOrderService
     {
         return RestaurantProfile::select('order_types', 'table_details')->first();
     }
+
+    
+
 }
