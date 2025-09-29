@@ -505,7 +505,7 @@ const handleImport = (data) => {
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
-                            Download all
+                            Download
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
@@ -592,7 +592,7 @@ const handleImport = (data) => {
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">
                         {{
-                            processStatus === "Edit"
+                            processStatus === "Add"
                                 ? "Edit Supplier"
                                 : "Add Supplier"
                         }}
