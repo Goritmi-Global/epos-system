@@ -21,6 +21,5 @@ class ProfileStep9 extends Model
         'enable_inventory_tracking' => 'boolean',
         'enable_cloud_backup'       => 'boolean',
         'enable_multi_location'     => 'boolean',
-        'theme_preference'     => 'boolean',
     ];
 }

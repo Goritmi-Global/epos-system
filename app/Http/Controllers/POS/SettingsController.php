@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessHour;
 use App\Models\RestaurantProfile;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -213,17 +214,35 @@ class SettingsController extends Controller
      * Load all step data for display
      */
     private function loadAllStepData(int $userId): array
-    {
-        $data = [];
-        
-        for ($i = 1; $i <= 9; $i++) {
-            $modelClass = "App\\Models\\ProfileStep{$i}";
-            if (class_exists($modelClass)) {
-                $stepData = $modelClass::where('user_id', $userId)->first();
-                $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
+{
+    $data = [];
+
+    for ($i = 1; $i <= 9; $i++) {
+        $modelClass = "App\\Models\\ProfileStep{$i}";
+        if (class_exists($modelClass)) {
+            $stepData = $modelClass::where('user_id', $userId)->first();
+            $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
+
+            // ✅ Special handling for step 8 (business hours)
+            if ($i === 8 && $stepData) {
+                $businessHours = BusinessHour::where('user_id', $userId)->get();
+
+                $data['step8']['hours'] = $businessHours->map(function($h){
+                    return [
+                        'id' => $h->id,
+                        'day' => $h->day,
+                        'is_open' => (bool)$h->is_open,
+                        'from' => $h->from ?? '09:00',
+                        'to' => $h->to ?? '17:00',
+                        'breaks' => $h->break_from && $h->break_to ? [
+                            ['start' => $h->break_from, 'end' => $h->break_to]
+                        ] : [],
+                    ];
+                })->toArray();
             }
         }
-
-        return $data;
     }
+
+    return $data;
+}
 }

@@ -17,6 +17,7 @@ use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
 use App\Models\RestaurantProfile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class OnboardingController extends Controller
@@ -131,10 +132,10 @@ class OnboardingController extends Controller
             ]),
             4 => $request->validate([
                 'tax_registered' => 'required|boolean',
-                'tax_type' => 'required_if:tax_registered,1|string|max:50',
-                'tax_rate' => 'required_if:tax_registered,1|numeric|min:0|max:100',
-                'tax_id' => 'required_if:tax_registered,1',
-                'extra_tax_rates' => 'required_if:tax_registered,1',
+                'tax_type' => 'nullable|string|max:50', // Changed from required_if
+                'tax_rate' => 'nullable|numeric|min:0|max:100', // Changed from required_if
+                'tax_id' => 'nullable|string', // Changed from required_if
+                'extra_tax_rates' => 'nullable|string', // Changed from required_if, removed array validation
                 'price_includes_tax' => 'required|boolean',
             ]),
 
@@ -183,21 +184,33 @@ class OnboardingController extends Controller
             default => []
         };
 
-
         if ($step === 1 && !empty($data['country_code'])) {
             $country = Country::where('iso2', $data['country_code'])->first();
             $data['country_id'] = $country->id ?? null;
+            $data['country_code'] = $country->iso2 ?? null;
         }
 
         // Store data temporarily in session
         // $tempData = session()->get('onboarding_data', []);
         // $tempData = array_merge($tempData, $data);
         // session()->put('onboarding_data', $tempData);
+
+
         $tempData = session()->get('onboarding_data', []);
         $tempData[$step] = $data; // store per step
+        // session()->put('onboarding_data', $tempData);
+
+
+        // ALSO store flattened data for backward compatibility
+        // This ensures the complete() method can access all fields easily
+        foreach ($data as $key => $value) {
+            $tempData[$key] = $value;
+        }
+
         session()->put('onboarding_data', $tempData);
 
 
+        // Update progress tracking
         // Update progress tracking
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
         $completed = collect($progress->completed_steps ?? []);
@@ -360,15 +373,50 @@ class OnboardingController extends Controller
     /**
      * Helper method to separate merged data back into step-specific arrays
      */
+    // private function separateDataBySteps(array $tempData): array
+    // {
+    //     $stepFields = [
+    //         1 => ['country_id', 'timezone', 'language', 'languages_supported'],
+    //         2 => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'logo_path'],
+    //         3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
+    //         4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
+    //         5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details'],
+    //         6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
+    //         7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
+    //         8 => ['auto_disable', 'hours'],
+    //         9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
+    //     ];
+
+    //     $stepData = [];
+
+    //     foreach ($stepFields as $stepNumber => $fields) {
+    //         $stepData[$stepNumber] = [];
+
+    //         // 🔑 Only check inside this step’s data
+    //         if (!isset($tempData[$stepNumber])) {
+    //             continue;
+    //         }
+
+    //         foreach ($fields as $field) {
+    //             if (array_key_exists($field, $tempData[$stepNumber])) {
+    //                 $stepData[$stepNumber][$field] = $tempData[$stepNumber][$field];
+    //             }
+    //         }
+    //     }
+
+    //     return $stepData;
+    // }
+
+
     private function separateDataBySteps(array $tempData): array
     {
         $stepFields = [
-            1 => ['country_id', 'timezone', 'language', 'languages_supported'],
-            2 => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'logo_path'],
+            1 => ['country_id', 'timezone', 'language', 'languages_supported', 'country_code'],
+            2 => ['business_name', 'business_type', 'legal_name', 'phone', 'phone_local', 'email', 'address', 'website', 'logo_path', 'logo'],
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
-            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
-            5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details'],
-            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
+            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax', 'tax_registered'],
+            5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'table_mgmt', 'tables', 'online_ordering'],
+            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers', 'receipt_logo', 'show_qr', 'tax_breakdown', 'kitchen_printer'],
             7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
             8 => ['auto_disable', 'hours'],
             9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
@@ -379,14 +427,19 @@ class OnboardingController extends Controller
         foreach ($stepFields as $stepNumber => $fields) {
             $stepData[$stepNumber] = [];
 
-            // 🔑 Only check inside this step’s data
-            if (!isset($tempData[$stepNumber])) {
-                continue;
-            }
-
-            foreach ($fields as $field) {
-                if (array_key_exists($field, $tempData[$stepNumber])) {
-                    $stepData[$stepNumber][$field] = $tempData[$stepNumber][$field];
+            // Check if data exists in nested format (preferred)
+            if (isset($tempData[$stepNumber]) && is_array($tempData[$stepNumber])) {
+                foreach ($fields as $field) {
+                    if (array_key_exists($field, $tempData[$stepNumber])) {
+                        $stepData[$stepNumber][$field] = $tempData[$stepNumber][$field];
+                    }
+                }
+            } else {
+                // Fallback: check in flat structure
+                foreach ($fields as $field) {
+                    if (array_key_exists($field, $tempData)) {
+                        $stepData[$stepNumber][$field] = $tempData[$field];
+                    }
                 }
             }
         }
