@@ -65,8 +65,8 @@ const fetchCountryDetails = async (code) => {
 const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
-    // form.country_code = data.country_code || ""
-    // form.country_name = data.country_name || ""
+    form.country_code = data.country_code || ""
+    form.country_name = data.country_name || ""
     if (data.timezone) form.timezone = data.timezone
     emitSave()
   } catch (error) {
@@ -109,7 +109,7 @@ watch(selectedCountry, (opt) => {
     fetchCountryDetails(opt.code)
     emitSave()
   } catch (e) { console.error("selectedCountry watch error:", e) }
-})
+}) 
 
 watch(selectedLanguage, (opt) => {
   try {
@@ -118,6 +118,7 @@ watch(selectedLanguage, (opt) => {
     emitSave()
   } catch (e) { console.error("selectedLanguage watch error:", e) }
 })
+
 </script>
 
 

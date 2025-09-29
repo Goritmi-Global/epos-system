@@ -10,13 +10,19 @@ return new class extends Migration {
         Schema::create('profile_step_9', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->json('business_hours')->nullable();
-            $table->boolean('auto_disable_after_hours')->default(true);
+
+            $table->boolean('enable_loyalty_system')->default(false);
+            $table->boolean('enable_inventory_tracking')->default(false);
+            $table->boolean('enable_cloud_backup')->default(false);
+            $table->boolean('enable_multi_location')->default(false);
+
+            $table->string('theme_preference')->nullable(); 
+
             $table->unique('user_id');
             $table->timestamps();
-          
         });
     }
+
 
     public function down(): void
     {

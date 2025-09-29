@@ -12,9 +12,6 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->boolean('cash_enabled')->default(true);
             $table->boolean('card_enabled')->default(false);
-            $table->string('integrated_terminal')->nullable();
-            $table->json('custom_payment_options')->nullable();
-            $table->string('default_payment_method')->nullable();
             $table->unique('user_id');
             $table->timestamps();
            

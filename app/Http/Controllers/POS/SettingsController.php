@@ -3,71 +3,107 @@
 namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Settings\UpdateSettingRequest;
-use App\Models\ProfileStep1;
-use App\Models\ProfileStep2;
-use App\Models\ProfileStep3;
-use App\Models\ProfileStep4;
-use App\Models\ProfileStep5;
-use App\Models\ProfileStep6;
-use App\Models\ProfileStep7;
-use App\Models\ProfileStep8;
-use App\Models\ProfileStep9;
 use App\Models\RestaurantProfile;
-use App\Services\POS\SettingsService;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
 {
-    public function __construct(private SettingsService $service) {}
-
-    public function index()
+    /**
+     * Show settings page with all profile data
+     */
+    public function index(Request $request)
     {
-        $user = auth()->user();
-
-        if (! $user) {
-            return redirect()->route('login');
+        $user = $request->user();
+        
+        // Get the complete profile
+        $profile = RestaurantProfile::where('user_id', $user->id)->first();
+        
+        if (!$profile) {
+            return redirect()->route('onboarding.index')
+                ->with('message', 'Please complete onboarding first');
         }
 
-        // Fetch all step data
-        $profile = RestaurantProfile::where('user_id', $user->id)->first();
-        $step1 = ProfileStep1::where('user_id', $user->id)->first();
-        $step2 = ProfileStep2::where('user_id', $user->id)->first();
-        $step3 = ProfileStep3::where('user_id', $user->id)->first();
-        $step4 = ProfileStep4::where('user_id', $user->id)->first();
-        $step5 = ProfileStep5::where('user_id', $user->id)->first();
-        $step6 = ProfileStep6::where('user_id', $user->id)->first();
-        $step7 = ProfileStep7::where('user_id', $user->id)->first();
-        $step8 = ProfileStep8::where('user_id', $user->id)->first();
-        $step9 = ProfileStep9::where('user_id', $user->id)->first();
-
-        // Merge into single object
-        $mergedProfile = array_merge(
-            $step1?->toArray() ?? [],
-            $step2?->toArray() ?? [],
-            $step3?->toArray() ?? [],
-            $step4?->toArray() ?? [],
-            $step5?->toArray() ?? [],
-            $step6?->toArray() ?? [],
-            $step7?->toArray() ?? [],
-            $step8?->toArray() ?? [],
-            $step9?->toArray() ?? [],
-            $profile?->toArray() ?? []
-        );
+        // Load all step data
+        $profileData = $this->loadAllStepData($user->id);
 
         return Inertia::render('Backend/Settings/Index', [
-            'profile' => $mergedProfile,
-            'completed_steps' => range(1, 9), // all steps completed
+            'profile' => $profile,
+            'profileData' => $profileData,
         ]);
     }
 
-    public function saveStep(Request $request, int $step)
+    /**
+     * Update a specific step/section
+     */
+    public function updateStep(Request $request, int $step)
     {
         $user = $request->user();
-        $payload = $request->all();
+        
+        // Check if profile exists
+        $profile = RestaurantProfile::where('user_id', $user->id)->first();
+        if (!$profile) {
+            return response()->json(['error' => 'Profile not found'], 404);
+        }
 
-        // Validate like onboarding
-        $data = match ($step) {
+        // Apply the same alias mapping as onboarding
+        $payload = $request->all();
+        $aliasMap = [
+            'tax_registered' => 'is_tax_registered',
+            'table_mgmt' => 'table_management_enabled',
+            'tables' => 'number_of_tables',
+            'online_ordering' => 'online_ordering_enabled',
+            'show_qr' => 'show_qr_on_receipt',
+            'tax_breakdown' => 'tax_breakdown_on_receipt',
+            'kitchen_printer' => 'kitchen_printer_enabled',
+            'receipt_logo_file' => 'receipt_logo_path',
+            'order_types' => 'order_types',
+        ];
+
+        foreach ($aliasMap as $alias => $canonical) {
+            if (array_key_exists($alias, $payload) && !array_key_exists($canonical, $payload)) {
+                $payload[$canonical] = $payload[$alias];
+            }
+        }
+
+        // Normalize booleans
+        $boolKeys = [
+            'is_tax_registered', 'table_management_enabled', 'online_ordering_enabled',
+            'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled',
+            'price_includes_tax',
+        ];
+        foreach ($boolKeys as $k) {
+            if (isset($payload[$k]) && is_string($payload[$k])) {
+                $lower = strtolower($payload[$k]);
+                $payload[$k] = in_array($lower, ['1', 'true', 'yes', 'on']) ? true : 
+                               (in_array($lower, ['0', 'false', 'no', 'off']) ? false : $payload[$k]);
+            }
+        }
+
+        $request->replace($payload);
+
+        // Use the same validation rules from OnboardingController
+        $data = $this->validateStep($request, $step);
+
+        // Update the appropriate step model
+        $this->updateStepModel($user->id, $step, $data);
+
+        // Update main restaurant profile if needed
+        $this->updateMainProfile($user->id, $data);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Settings updated successfully',
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Validate step data (reuse validation from onboarding)
+     */
+    private function validateStep(Request $request, int $step): array
+    {
+        return match ($step) {
             1 => $request->validate([
                 'country_name' => 'required',
                 'timezone' => 'required|string|max:100',
@@ -101,7 +137,6 @@ class SettingsController extends Controller
                 'extra_tax_rates' => 'required_if:tax_registered,1',
                 'price_includes_tax' => 'required|boolean',
             ]),
-
             5 => $request->validate([
                 'order_types' => 'required|array|min:1',
                 'table_management_enabled' => 'required|boolean',
@@ -123,29 +158,72 @@ class SettingsController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
-
             ]),
             default => []
         };
+    }
 
-        // Save per step table
-        $stepModel = match ($step) {
-            1 => ProfileStep1::class,
-            2 => ProfileStep2::class,
-            3 => ProfileStep3::class,
-            4 => ProfileStep4::class,
-            5 => ProfileStep5::class,
-            6 => ProfileStep6::class,
-            7 => ProfileStep7::class,
-            8 => ProfileStep8::class,
-            9 => ProfileStep9::class,
-        };
+    /**
+     * Update individual step model
+     */
+    private function updateStepModel(int $userId, int $step, array $data): void
+    {
+        $modelClass = "App\\Models\\ProfileStep{$step}";
+        
+        if (class_exists($modelClass)) {
+            $modelClass::updateOrCreate(
+                ['user_id' => $userId],
+                $data
+            );
+        }
+    }
 
-        $stepModel::updateOrCreate(['user_id' => $user->id], $data);
+    /**
+     * Update main restaurant profile
+     */
+    private function updateMainProfile(int $userId, array $data): void
+    {
+        $profile = RestaurantProfile::where('user_id', $userId)->first();
+        
+        if (!$profile) return;
 
-        // Merge into RestaurantProfile if needed
-        RestaurantProfile::updateOrCreate(['user_id' => $user->id], $data);
+        // Map fields that should be updated in main profile
+        $mainProfileFields = [
+            'is_tax_registered', 'order_types', 'table_management_enabled',
+            'online_ordering_enabled', 'number_of_tables', 'table_details',
+            'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt',
+            'kitchen_printer_enabled', 'business_hours', 'auto_disable_after_hours',
+            'business_name', 'legal_name', 'phone', 'email', 'address', 'website',
+            'currency', 'timezone', 'language',
+        ];
 
-        return response()->json(['ok' => true, 'profile' => $data]);
+        $updateData = [];
+        foreach ($data as $key => $value) {
+            if (in_array($key, $mainProfileFields)) {
+                $updateData[$key] = $value;
+            }
+        }
+
+        if (!empty($updateData)) {
+            $profile->update($updateData);
+        }
+    }
+
+    /**
+     * Load all step data for display
+     */
+    private function loadAllStepData(int $userId): array
+    {
+        $data = [];
+        
+        for ($i = 1; $i <= 9; $i++) {
+            $modelClass = "App\\Models\\ProfileStep{$i}";
+            if (class_exists($modelClass)) {
+                $stepData = $modelClass::where('user_id', $userId)->first();
+                $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
+            }
+        }
+
+        return $data;
     }
 }
