@@ -7,7 +7,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Pencil, Plus } from "lucide-vue-next";
-import ImportFile from "@/Components/ImportFile.vue";
+import ImportFile from "@/Components/importFile.vue";
+
 
 const suppliers = ref([]);
 const page = ref(1);
@@ -632,7 +633,7 @@ const handleImport = (data) => {
                         <!-- Phone (vue-tel-input) -->
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
-                            <vue-tel-input v-model="form.phone" default-country="PK" mode="international"
+                            <vue-tel-input v-model="form.phone" default-country="PK" mode="international" class="phone"
                                 @validate="checkPhone" :auto-format="true" :enable-formatting="true"
                                 :input-options="{ showDialCode: true }" :class="{ 'is-invalid': formErrors.contact }" />
                             <small v-if="formErrors.contact" class="text-danger">
@@ -718,6 +719,37 @@ const handleImport = (data) => {
 /* Ensure the table container doesn't clip the dropdown */
 .table-container {
     overflow: visible !important;
+}
+
+
+/* Responsive tweaks between 450px and 992px */
+@media (min-width: 450px) and (max-width: 992px) {
+    /* Make search bar full width */
+    .search-wrap {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Stack buttons and controls */
+    .d-flex.flex-wrap.gap-2.align-items-center {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+    }
+
+    /* Ensure inputs, buttons & dropdowns stretch */
+    .btn, 
+    .dropdown, 
+    .search-input {
+        width: 100% !important;
+    }
+
+    /* Table responsiveness - allow wrapping long text */
+    .table td,
+    .table th {
+        white-space: normal !important;
+        word-break: break-word;
+    }
 }
 
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */

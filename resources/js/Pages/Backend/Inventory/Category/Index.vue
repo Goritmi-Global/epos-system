@@ -165,7 +165,8 @@ const resetModal = () => {
 const submitting = ref(false);
 const catFormErrors = ref({});
 import axios from "axios";
-import ImportFile from "@/Components/ImportFile.vue";
+import ImportFile from "@/Components/importFile.vue";
+
 
 const submitCategory = async () => {
     if (isSub.value && !selectedParentId.value) {
@@ -1199,7 +1200,7 @@ const handleImport = (data) => {
                                             :class="{
                                                 'is-invalid':
                                                     catFormErrors.name,
-                                            }" placeholder="Select or add categories..." class="w-100" appendTo="self"
+                                            }" placeholder="Select or add categories..." class="w-100 select" appendTo="self"
                                             @keydown.enter.prevent="
                                                 addCustomCategory
                                             " @blur="addCustomCategory" @filter="
@@ -1362,6 +1363,8 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
+
+
 :root {
     --brand: #1c0d82;
 }

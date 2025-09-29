@@ -296,6 +296,7 @@ const downloadExcel = (data) => {
 </template>
 
 <style scoped>
+
 /* Search pill like other pages */
 .search-wrap { position: relative; width: clamp(220px, 28vw, 360px); }
 .search-wrap .bi-search {

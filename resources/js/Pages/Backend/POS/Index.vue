@@ -669,13 +669,13 @@ watch(
 
 
 const handleKotStatusUpdated = ({ id, status, message }) => {
-  console.log("KOT updated:", id, status, message);
+    console.log("KOT updated:", id, status, message);
 
-  ShowKotDataInModal.value = ShowKotDataInModal.value.map(kot =>
-    kot.id === id ? { ...kot, status } : kot
-  );
+    ShowKotDataInModal.value = ShowKotDataInModal.value.map(kot =>
+        kot.id === id ? { ...kot, status } : kot
+    );
 
-  toast.success(message); // optional
+    toast.success(message); // optional
 };
 
 
@@ -742,7 +742,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                             <img :src="p.img" alt="" />
                                             <span class="item-price">{{
                                                 money(p.price)
-                                                }}</span>
+                                            }}</span>
                                             <span v-if="(p.stock ?? 0) <= 0" class="item-badge">
                                                 Out
                                             </span>
@@ -1012,6 +1012,50 @@ t, i
 </template>
 
 <style scoped>
+
+.dark .ot-pill{
+    background-color: #111827;
+    color: #fff;
+}
+.dark .cart-body {
+    background-color: #111827;
+}
+
+.dark .cart-footer {
+    background-color: #111827;
+}
+
+.dark .form-control {
+    background-color: #111827;
+    color: white;
+}
+
+.dark .cart-lines {
+    background-color: #111827;
+}
+
+.dark .alert {
+    background-color: #111827;
+}
+
+.dark .table {
+    background-color: #111827 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
+}
+
+.dark .table thead {
+    background-color: #4d4d4d !important;
+    ;
+    color: #ffffff;
+}
+
+.dark .table thead th {
+    background-color: #4d4d4d !important;
+    ;
+    color: #ffffff;
+}
+
 /* ========== Page Base ========== */
 .page-wrapper {
     background: #f5f7fb;
@@ -1145,6 +1189,8 @@ t, i
 .cart {
     display: flex;
     flex-direction: column;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
 }
 
 .cart-header {
@@ -1177,9 +1223,24 @@ t, i
     font-size: 0.8rem;
 }
 
+.dark .ot-pill{
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.8rem;
+}
+
 .ot-pill.active {
     background: #fff;
     color: #1b1670;
+    font-weight: 700;
+}
+
+.dark .ot-pill.active{
+   background-color: #111827;
+   color: #fff;
     font-weight: 700;
 }
 
@@ -1328,6 +1389,16 @@ t, i
     border: 0;
     background: #eef1ff;
     color: #1b1670;
+    font-weight: 700;
+    padding: 0.6rem;
+    border-radius: 999px;
+}
+
+.dark .btn-clear{
+     flex: 1;
+    border: 0;
+   background-color: #4b5563;;
+   color: #fff;
     font-weight: 700;
     padding: 0.6rem;
     border-radius: 999px;
