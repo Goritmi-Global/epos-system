@@ -1,4 +1,24 @@
 // --------------------------------------------------
+// 🌙 Force Dark Mode by Default BEFORE Vue mounts
+// --------------------------------------------------
+if (typeof window !== "undefined") {
+    try {
+        const KEY = "vueuse-color-scheme"; // default key used by useDark
+        const stored = localStorage.getItem(KEY);
+
+        if (stored === "dark") {
+            document.documentElement.classList.add("dark");
+        } else if (!stored) {
+            // No stored preference → default to dark
+            localStorage.setItem(KEY, "dark");
+            document.documentElement.classList.add("dark");
+        }
+        // If stored === "light", user previously chose light → leave it
+    } catch (e) {
+        console.warn("Dark mode init error:", e);
+    }
+}
+// --------------------------------------------------
 // 🌐 Tailwind & Application Styles
 // --------------------------------------------------
 import "../css/app.css";
