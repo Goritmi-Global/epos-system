@@ -58,8 +58,8 @@ function onCropped({ file }) {
 
               <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
             </div>
-            <small v-if="formErrors?.receipt_logo" class="text-danger">
-              {{ formErrors.receipt_logo[0] }}
+            <small v-if="formErrors?.receipt_logo_file" class="text-danger">
+              {{ formErrors.receipt_logo_file[0] }}
             </small>
           </div>
 

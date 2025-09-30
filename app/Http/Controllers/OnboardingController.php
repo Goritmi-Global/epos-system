@@ -113,18 +113,24 @@ class OnboardingController extends Controller
                 'timezone' => 'required|string|max:100',
                 'language' => 'required|string|max:10',
             ]),
-            2 => $request->validate([
-                'business_name' => 'required|string|max:190',
-                'legal_name' => 'required|string|max:190',
-                'business_type' => 'required',
-                'phone' => 'required|string|max:60',
-                'phone_local' => 'required|string|max:60',
-                'email' => 'required|email|max:190',
-                'address' => 'required|string|max:500',
-                'website' => 'nullable|max:190',
-                'logo' => 'nullable',
-                'logo_file' => 'nullable',
-            ]),
+            2 => $request->validate(
+                [
+                    'business_name' => 'required|string|max:190',
+                    'legal_name'    => 'required|string|max:190',
+                    'business_type' => 'required',
+                    'phone'         => 'required|string|max:60',
+                    'phone_local'   => 'required|string|max:60',
+                    'email'         => 'required|email|max:190',
+                    'address'       => 'required|string|max:500',
+                    'website'       => 'required|max:190',
+                    'logo'          => 'nullable',
+                    'logo_file'     => 'required',
+                ],
+                [
+                    'phone_local.required' => 'The phone field is required.',
+                ]
+            ),
+
             3 => $request->validate([
                 'currency' => 'required|string|max:8',
                 'currency_symbol_position' => 'required|in:before,after',
@@ -133,13 +139,14 @@ class OnboardingController extends Controller
                 'time_format' => 'required|in:12-hour,24-hour',
             ]),
             4 => $request->validate([
-                'tax_registered' => 'required|boolean',
-                'tax_type' => 'nullable|string|max:50',
-                'tax_rate' => 'nullable|numeric|min:0|max:100',
-                'tax_id' => 'nullable|string',
-                'extra_tax_rates' => 'nullable|string',
+                'tax_registered'    => 'required|boolean',
+                'tax_type'          => 'required_if:tax_registered,1|max:50',
+                'tax_rate'          => 'required_if:tax_registered,1|numeric|min:0|max:100',
+                'tax_id'            => 'required_if:tax_registered,1',
+                'extra_tax_rates'   => 'required_if:tax_registered,1',
                 'price_includes_tax' => 'required|boolean',
             ]),
+
             5 => $request->validate([
                 'order_types' => 'required|array|min:1',
                 'table_management_enabled' => 'required|boolean',
@@ -153,7 +160,7 @@ class OnboardingController extends Controller
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
                 'receipt_logo' => 'nullable',
-                'receipt_logo_file' => 'nullable',
+                'receipt_logo_file' => 'required',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',

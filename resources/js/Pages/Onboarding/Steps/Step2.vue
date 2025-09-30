@@ -168,7 +168,7 @@ const flagUrl = (iso, size = "24x18") =>
             <!-- Logo -->
             <div class="col-md-3">
                 <small class="text-muted mt-2">Upload Logo</small>
-                <div class="logo-card">
+                <div class="logo-card" >
                     <div class="logo-frame" @click="form.logo_url && openImageModal()">
                         <img v-if="form.logo_url" :src="form.logo_url" alt="Logo" />
                         <div v-else class="placeholder">
@@ -176,13 +176,11 @@ const flagUrl = (iso, size = "24x18") =>
                         </div>
                     </div>
 
-
-                    <!-- Validation for logo -->
-                    <small v-if="formErrors?.logo" class="text-danger">
-                        {{ formErrors.logo[0] }}
-                    </small>
-
                     <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
+                    <!-- Validation for logo -->
+                    <small v-if="formErrors?.logo_file" class="text-danger">
+                        {{ formErrors.logo_file[0] }}
+                    </small>
                 </div>
             </div>
 
