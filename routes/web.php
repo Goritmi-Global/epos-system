@@ -270,7 +270,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* -------- Settings -------- */
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [SettingsController::class, 'index'])->name('index');
-        Route::post('/save-step/{step}', [SettingsController::class, 'saveStep']);
+        Route::post('/update/{step}', [SettingsController::class, 'updateStep']);
     });
 });
 

@@ -58,23 +58,40 @@ const selectedDial = ref(null);
 
 function syncDialFromIso(iso) {
     if (!iso) return;
+
     const opt = dialOptions.find((o) => o.iso === iso.toUpperCase());
+
     if (opt) {
         selectedDial.value = opt;
         form.phone_country = opt.iso;
         form.phone_code = opt.dial;
     }
 }
+
 function buildFullPhone() {
     const code = (form.phone_code || "").trim();
     const local = (form.phone_local || "").replace(/\D+/g, "");
     form.phone = code + local;
 }
 
-// default from Step 1’s country_code if present
 onMounted(() => {
-    const iso = props.model?.country_code || form.phone_country;
+    console.log("onMounted -> props.model:", props.model);
+
+    let iso = props.model?.phone_country || props.model?.country_code || "";
+    let phoneLocal = props.model?.phone_local || "";
+
+    // If phone_local is empty but full phone exists, extract it
+    if (!phoneLocal && props.model?.phone) {
+        const full = props.model.phone; // e.g. "+441234567890"
+        const matched = dialOptions.find(opt => full.startsWith(opt.dial));
+        if (matched) {
+            iso = matched.iso;
+            phoneLocal = full.slice(matched.dial.length);
+        }
+    }
+
     if (iso) syncDialFromIso(iso);
+    form.phone_local = phoneLocal;
     buildFullPhone();
 });
 
@@ -85,6 +102,14 @@ watch(selectedDial, (opt) => {
     buildFullPhone();
     emitSave();
 });
+
+watch(() => form.phone_local, (val) => {
+    console.log("watch -> form.phone_local changed:", val);
+    buildFullPhone();
+    console.log("watch -> form.phone after phone_local change:", form.phone);
+    emitSave();
+});
+
 watch(
     () => form.phone_local,
     () => {

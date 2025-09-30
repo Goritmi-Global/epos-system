@@ -65,8 +65,8 @@ const fetchCountryDetails = async (code) => {
 const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
-    // form.country_code = data.country_code || ""
-    // form.country_name = data.country_name || ""
+    form.country_code = data.country_code || ""
+    form.country_name = data.country_name || ""
     if (data.timezone) form.timezone = data.timezone
     emitSave()
   } catch (error) {
@@ -101,6 +101,23 @@ onMounted(async () => {
   }
 })
 
+watch(
+  [countries, () => form.country_code],
+  () => {
+    console.log("WATCH TRIGGERED")
+    console.log("form.country_code:", form.country_code)
+    console.log("countries.value:", countries.value)
+    if (!form.country_code || !countries.value.length) return
+    selectedCountry.value =
+      countries.value.find(
+        c => String(c.code).toUpperCase() === String(form.country_code).toUpperCase()
+      ) || null
+    console.log("selectedCountry synced:", selectedCountry.value)
+  },
+  { immediate: true }
+)
+
+
 watch(selectedCountry, (opt) => {
   try {
     if (!opt) return
@@ -109,7 +126,7 @@ watch(selectedCountry, (opt) => {
     fetchCountryDetails(opt.code)
     emitSave()
   } catch (e) { console.error("selectedCountry watch error:", e) }
-})
+}) 
 
 watch(selectedLanguage, (opt) => {
   try {
@@ -118,6 +135,7 @@ watch(selectedLanguage, (opt) => {
     emitSave()
   } catch (e) { console.error("selectedLanguage watch error:", e) }
 })
+
 </script>
 
 

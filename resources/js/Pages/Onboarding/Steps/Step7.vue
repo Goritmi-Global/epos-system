@@ -6,8 +6,8 @@ const props = defineProps({ model: Object, formErrors: Object })
 const emit = defineEmits(["save"])
 
 const form = reactive({
-  cash_enabled: props.model?.cash_enabled ?? 1,
-  card_enabled: props.model?.card_enabled ?? 1,
+  cash_enabled: props.model?.cash_enabled ? 1 : 0,
+  card_enabled: props.model?.card_enabled ? 1 : 0,
   // card_provider: props.model?.card_provider ?? "Stripe Terminal",
   // provider_key:  props.model?.provider_key  ?? ""
 })

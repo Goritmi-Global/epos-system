@@ -1,9 +1,8 @@
 <script setup>
-import { reactive, toRaw } from "vue"
+import { reactive, toRaw, watch } from "vue"
 
 const props = defineProps({ model: Object })
 const emit  = defineEmits(["save"])
-
 const form = reactive({
   feat_loyalty:       props.model?.feat_loyalty       ?? "yes",
   feat_inventory:     props.model?.feat_inventory     ?? "no",
@@ -12,8 +11,15 @@ const form = reactive({
   feat_theme:         props.model?.feat_theme         ?? "yes",
 })
 
+// Watch for changes and log them
+watch(() => form, (newVal) => {
+  console.log("Step 9 Form Updated:", toRaw(newVal));
+}, { deep: true });
+
 function emitSave() {
-  emit("save", { step: 9, data: toRaw(form) })
+  const rawForm = toRaw(form);
+  console.log("Step 9 - Emitting save with data:", rawForm);
+  emit("save", { step: 9, data: rawForm })
 }
 
 /* Rows + icons (we bind v-model to form[row.key]) */

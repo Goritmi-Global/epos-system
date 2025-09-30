@@ -9,7 +9,7 @@ const form = reactive({
   tax_registered: props.model.tax_registered ?? 1,
   tax_type: props.model.tax_type ?? "VAT",
   tax_rate: props.model.tax_rate ?? 0,
-  price_includes_tax: props.model.price_includes_tax ?? 1,
+  price_includes_tax: props.model.price_includes_tax ? 1 : 0,
   tax_id: props.model.tax_id ?? null,
   extra_tax_rates: props.model.extra_tax_rates ?? "", 
 });
@@ -23,20 +23,23 @@ watch(form, () => {
     },
   }
 
-  // ✅ Only include tax fields when tax_registered = 1
-  if (form.tax_registered) {
+  // Only include tax fields when tax_registered = 1
+  if (form.tax_registered === 1) {
     payload.data.tax_type = form.tax_type
     payload.data.tax_rate = Number(form.tax_rate)
     payload.data.tax_id = form.tax_id
-    payload.data.extra_tax_rates = typeof form.extra_tax_rates === "string" && form.extra_tax_rates.trim()
-      ? form.extra_tax_rates.split(",").map(rate => rate.trim())
-      : ""
+    // Send as string, not array
+    payload.data.extra_tax_rates = form.extra_tax_rates || ""
+  } else {
+    // When not registered, send empty/default values to pass validation
+    payload.data.tax_type = ""
+    payload.data.tax_rate = 0
+    payload.data.tax_id = ""
+    payload.data.extra_tax_rates = ""
   }
-  // ✅ When tax_registered = 0, we don't send tax fields at all
 
   emit("save", payload)
 }, { deep: true })
-
 
 
 

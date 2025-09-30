@@ -10,12 +10,23 @@ return new class extends Migration {
         Schema::create('profile_step_8', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->json('attendance_policy')->nullable();
+
+            // Relations
+            $table->foreignId('disable_order_after_hours_id')
+                  ->nullable()
+                  ->constrained('disable_order_after_hours')
+                  ->cascadeOnDelete();
+
+            $table->foreignId('business_hours_id')
+                  ->nullable()
+                  ->constrained('business_hours')
+                  ->cascadeOnDelete();
+
             $table->unique('user_id');
             $table->timestamps();
-           
         });
     }
+
 
     public function down(): void
     {
