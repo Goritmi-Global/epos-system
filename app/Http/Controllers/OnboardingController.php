@@ -139,13 +139,14 @@ class OnboardingController extends Controller
                 'time_format' => 'required|in:12-hour,24-hour',
             ]),
             4 => $request->validate([
-                'tax_registered' => 'required|boolean',
-                'tax_type' => 'required|string|max:50',
-                'tax_rate' => 'required|numeric|min:0|max:100',
-                'tax_id' => 'required|string',
-                'extra_tax_rates' => 'required|string',
+                'tax_registered'    => 'required|boolean',
+                'tax_type'          => 'required_if:tax_registered,1|max:50',
+                'tax_rate'          => 'required_if:tax_registered,1|numeric|min:0|max:100',
+                'tax_id'            => 'required_if:tax_registered,1',
+                'extra_tax_rates'   => 'required_if:tax_registered,1',
                 'price_includes_tax' => 'required|boolean',
             ]),
+
             5 => $request->validate([
                 'order_types' => 'required|array|min:1',
                 'table_management_enabled' => 'required|boolean',
