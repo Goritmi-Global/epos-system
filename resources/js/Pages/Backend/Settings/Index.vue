@@ -177,7 +177,7 @@ function changeSection(sectionId) {
       <!-- Left Sidebar Navigation -->
       <div class="col-lg-3">
         <div class="settings-sidebar">
-          <div class="settings-nav shadow-sm rounded-4 bg-white p-3">
+          <div class="settings-nav shadow-sm rounded-4 p-3">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
               <h6 class="text-muted text-uppercase small fw-bold mb-0">
                 <i class="bi bi-gear-fill me-2"></i>
@@ -210,7 +210,7 @@ function changeSection(sectionId) {
       <div class="col-lg-9">
         <div class="card shadow-sm border-0 rounded-4">
           <!-- Section Header -->
-          <div class="card-header bg-gradient border-0 p-4">
+          <div class="card-header border-0 p-4">
             <div class="d-flex align-items-start gap-3">
               <div class="icon-wrapper">
                 <i :class="currentSectionInfo?.icon" class="fs-3"></i>
@@ -291,6 +291,18 @@ function changeSection(sectionId) {
   padding-left: 300px;
 }
 
+.dark .logo-card{
+   background: #374151;
+}
+.dark .card-header {
+   background: linear-gradient(135deg, #111827 0%, #111827 100%);
+}
+
+.dark .settings-wrapper{
+  background: #374151;
+    color: #fff;
+}
+
 .settings-header {
   padding: 10px 0 20px;
 }
@@ -325,8 +337,15 @@ function changeSection(sectionId) {
 }
 
 .settings-nav {
+  background-color: white;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(250, 250, 250, 0.3);
+}
+
+.dark .settings-nav{
+  background: #111827;
+  color: #fff !important;
+  border: 1px solid #111827;
 }
 
 .nav-link {
@@ -335,6 +354,10 @@ function changeSection(sectionId) {
   transition: all 0.25s ease;
   cursor: pointer;
   border: 1px solid transparent;
+}
+
+.dark .nav-link{
+   color: #fff;
 }
 
 .nav-link:hover {
@@ -405,6 +428,10 @@ function changeSection(sectionId) {
 .card-footer {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, #f8f9fa 100%);
   border-top: 1px solid #edf0f6;
+}
+
+.dark .card-footer {
+    background: linear-gradient(180deg, #111827  0%, #111827  100%);
 }
 
 /* Quick Navigation */

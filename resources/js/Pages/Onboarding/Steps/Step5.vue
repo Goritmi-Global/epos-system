@@ -292,6 +292,12 @@ const types = [
   font-size: 0.85rem;
 }
 
+.dark .check-tile{
+      --accent: #1c0d82;
+     background-color: #111827 !important;
+    color: #ffffff !important;
+}
+
 .check-tile:hover {
   border-color: #cfd6e4;
   box-shadow: 0 4px 10px rgba(17, 38, 146, .06);
@@ -344,10 +350,18 @@ const types = [
   color: #2b2f3b;
 }
 
+.dark .check-tile__text{
+  color: #fff !important;
+}
+
 /* Variants (all same brand color now) */
 .check-tile--default {
   --accent: #1c0d82;
 }
+.dark .check-tile--default{
+  color: #fff !important;
+}
+
 
 .check-tile--primary {
   --accent: #1c0d82;

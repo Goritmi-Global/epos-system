@@ -238,6 +238,13 @@ watch(selectedLanguage, (opt) => {
 </template>
 
 <style scoped>
+.dark .section{
+   background-color: #111827 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
+}
+
+
 :root { --brand:#1C0D82; }
 
 /* Section wrapper to match other steps */
