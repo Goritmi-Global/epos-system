@@ -421,6 +421,7 @@ onUpdated(() => window.feather?.replace());
 }
 
 
+
 .dark input {
     background-color: #111827 !important;
     /* gray-800 */
@@ -440,17 +441,26 @@ onUpdated(() => window.feather?.replace());
 }
 
 .dark h4 {
-    color: white;
+    color: #fff !important;
 }
 
 .dark h5 {
-    color: white;
+    color: #fff !important;
 }
 
+.dark h6{
+      color: #fff !important;
+}
+
+.dark span{
+     color: #fff !important;
+}
 .dark button {
     color: #f9fafb !important;
 }
-
+.dark a{
+    color: #fff !important;
+}
 .dark .card {
     background-color: #111827 !important;
     /* gray-800 */
@@ -865,7 +875,7 @@ li.active>.side-link {
 }
 
 .sidebar .list-unstyled li.active>.side-link {
-    background: #1d3888;
+    background: var(--brand);
     /* brand background */
     color: #fff;
     font-weight: 500;

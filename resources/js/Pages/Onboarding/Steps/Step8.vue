@@ -187,4 +187,9 @@ const timeItems = computed(() => {
   background: #fff;
   box-shadow: 0 4px 14px rgba(17, 38, 146, .05);
 }
+
+.dark .day-row{
+ background-color: #111827 !important;
+    color: #ffffff !important;
+}
 </style>

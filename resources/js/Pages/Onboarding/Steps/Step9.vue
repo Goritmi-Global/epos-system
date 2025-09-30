@@ -109,13 +109,23 @@ const icons = {
   background:#fff;
   box-shadow:0 3px 10px rgba(17,38,146,.05);
 }
+
 .feat-text{ color:#2b2f3b; font-weight:500; }
 
+.dark .feat-text{ color:#fff; font-weight:500; }
+.dark .feat-row{
+  background-color: #111827 !important;
+    color: #ffffff !important;
+}
 /* Icon chip */
 .fi{
   display:inline-flex; align-items:center; justify-content:center;
   width:34px; height:34px; border-radius:8px;
   background:rgba(28,13,130,.08); color:#1C0D82;
+}
+
+.dark .fi{
+  background:rgba(28,13,130,.08); color:#ffffff;
 }
 .fi svg{ width:18px; height:18px; display:block; }
 

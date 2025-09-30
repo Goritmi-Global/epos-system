@@ -158,7 +158,7 @@ const flagUrl = (iso, size = "24x18") =>
             <!-- Business Name -->
             <div class="col-12">
                 <label class="form-label">Business Name*</label>
-                <input class="form-control" v-model="form.business_name" @input="emitSave"
+                <input  class="form-control" v-model="form.business_name" @input="emitSave"
                     :class="{ 'is-invalid': formErrors?.business_name }" />
                 <small v-if="formErrors?.business_name" class="text-danger">
                     {{ formErrors.business_name[0] }}
@@ -275,6 +275,11 @@ const flagUrl = (iso, size = "24x18") =>
     box-shadow: 0 6px 18px rgba(17, 38, 146, 0.05);
 }
 
+.dark .logo-card{
+    background-color: #111827;
+    color: #fff !important;
+}
+
 .logo-frame {
     width: 140px;
     height: 140px;
@@ -288,6 +293,10 @@ const flagUrl = (iso, size = "24x18") =>
     cursor: pointer;
 }
 
+.dark .logo-frame{
+     background-color: #111827;
+    color: #fff !important;
+}
 .logo-frame img {
     max-width: 100%;
     max-height: 100%;
@@ -313,4 +322,15 @@ const flagUrl = (iso, size = "24x18") =>
 .input-group .form-control {
     border-left: 0;
 }
+
+.dark input{
+    background-color: #111827 !important;
+    color: #ffffff;
+}
+
+.dark textarea{
+    background-color: #111827 !important;
+    color: #ffffff;
+}
+
 </style>
