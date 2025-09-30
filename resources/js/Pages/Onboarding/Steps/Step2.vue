@@ -21,6 +21,7 @@ const form = reactive({
     phone: props.model?.phone ?? "", // "+441234567890"
     // logo
     logo: props.model?.logo ?? null,
+    logo_url: props.model?.logo_url ?? null,
     logo_file: null,
 });
 
@@ -44,6 +45,7 @@ watch(selectedBusinessType, (opt) => {
     form.business_type = opt?.name || "";
     emitSave();
 });
+
 
 /* ------------------ PHONE (flag + dial) ------------------ */
 const dialOptions = [

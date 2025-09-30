@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\POS;
 
+use App\Helpers\UploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessHour;
 use App\Models\RestaurantProfile;
+use App\Models\Upload;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -16,10 +18,10 @@ class SettingsController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
         // Get the complete profile
         $profile = RestaurantProfile::where('user_id', $user->id)->first();
-        
+
         if (!$profile) {
             return redirect()->route('onboarding.index')
                 ->with('message', 'Please complete onboarding first');
@@ -40,7 +42,7 @@ class SettingsController extends Controller
     public function updateStep(Request $request, int $step)
     {
         $user = $request->user();
-        
+
         // Check if profile exists
         $profile = RestaurantProfile::where('user_id', $user->id)->first();
         if (!$profile) {
@@ -69,22 +71,76 @@ class SettingsController extends Controller
 
         // Normalize booleans
         $boolKeys = [
-            'is_tax_registered', 'table_management_enabled', 'online_ordering_enabled',
-            'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled',
+            'is_tax_registered',
+            'table_management_enabled',
+            'online_ordering_enabled',
+            'show_qr_on_receipt',
+            'tax_breakdown_on_receipt',
+            'kitchen_printer_enabled',
             'price_includes_tax',
         ];
         foreach ($boolKeys as $k) {
             if (isset($payload[$k]) && is_string($payload[$k])) {
                 $lower = strtolower($payload[$k]);
-                $payload[$k] = in_array($lower, ['1', 'true', 'yes', 'on']) ? true : 
-                               (in_array($lower, ['0', 'false', 'no', 'off']) ? false : $payload[$k]);
+                $payload[$k] = in_array($lower, ['1', 'true', 'yes', 'on']) ? true : (in_array($lower, ['0', 'false', 'no', 'off']) ? false : $payload[$k]);
             }
         }
 
-        $request->replace($payload);
 
+        $request->replace($payload);
         // Use the same validation rules from OnboardingController
         $data = $this->validateStep($request, $step);
+
+        // ✅ Step 2
+        // ✅ Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
+        if ($step === 2 && $request->hasFile('logo_file')) {
+            try {
+                $existingStep = \App\Models\ProfileStep2::where('user_id', $user->id)->first();
+                $oldUploadId = $existingStep->upload_id ?? null;
+
+                $upload = UploadHelper::store(
+                    $request->file('logo_file'),
+                    'logos',
+                    'public'
+                );
+
+                $data['upload_id'] = $upload->id;
+
+                if ($oldUploadId) {
+                    UploadHelper::delete($oldUploadId);
+                }
+
+                unset($data['logo_file']);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Failed to upload logo'], 500);
+            }
+        }
+
+
+        // ✅ Step 6
+        if ($step === 6 && $request->hasFile('receipt_logo_file')) {
+            try {
+                $existingStep = \App\Models\ProfileStep6::where('user_id', $user->id)->first();
+                $oldUploadId = $existingStep->upload_id ?? null;
+
+                $upload = UploadHelper::store(
+                    $request->file('receipt_logo_file'),
+                    'receipt_logos',
+                    'public'
+                );
+
+                $data['upload_id'] = $upload->id;
+
+                if ($oldUploadId) {
+                    UploadHelper::delete($oldUploadId); // ✅ FIXED
+                }
+
+                unset($data['receipt_logo_file']);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Failed to upload receipt logo'], 500);
+            }
+        }
+
 
         // Update the appropriate step model
         $this->updateStepModel($user->id, $step, $data);
@@ -120,8 +176,10 @@ class SettingsController extends Controller
                 'phone_local' => 'required|string|max:60',
                 'email' => 'required|email|max:190',
                 'address' => 'required|string|max:500',
-                'website' => 'required|max:190',
+                'website' => 'nullable|max:190',
                 'logo' => 'nullable',
+                'logo_file' => 'nullable',
+                'upload_id' => 'nullable|integer',
             ]),
             3 => $request->validate([
                 'currency' => 'required|string|max:8',
@@ -150,7 +208,8 @@ class SettingsController extends Controller
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
-                'receipt_logo' => 'required|string|max:255',
+                'receipt_logo' => 'required',
+                'receipt_logo_file' => 'nullable',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',
@@ -170,7 +229,7 @@ class SettingsController extends Controller
     private function updateStepModel(int $userId, int $step, array $data): void
     {
         $modelClass = "App\\Models\\ProfileStep{$step}";
-        
+
         if (class_exists($modelClass)) {
             $modelClass::updateOrCreate(
                 ['user_id' => $userId],
@@ -185,17 +244,32 @@ class SettingsController extends Controller
     private function updateMainProfile(int $userId, array $data): void
     {
         $profile = RestaurantProfile::where('user_id', $userId)->first();
-        
+
         if (!$profile) return;
 
         // Map fields that should be updated in main profile
         $mainProfileFields = [
-            'is_tax_registered', 'order_types', 'table_management_enabled',
-            'online_ordering_enabled', 'number_of_tables', 'table_details',
-            'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt',
-            'kitchen_printer_enabled', 'business_hours', 'auto_disable_after_hours',
-            'business_name', 'legal_name', 'phone', 'email', 'address', 'website',
-            'currency', 'timezone', 'language',
+            'is_tax_registered',
+            'order_types',
+            'table_management_enabled',
+            'online_ordering_enabled',
+            'number_of_tables',
+            'table_details',
+            'receipt_logo_path',
+            'show_qr_on_receipt',
+            'tax_breakdown_on_receipt',
+            'kitchen_printer_enabled',
+            'business_hours',
+            'auto_disable_after_hours',
+            'business_name',
+            'legal_name',
+            'phone',
+            'email',
+            'address',
+            'website',
+            'currency',
+            'timezone',
+            'language',
         ];
 
         $updateData = [];
@@ -214,35 +288,45 @@ class SettingsController extends Controller
      * Load all step data for display
      */
     private function loadAllStepData(int $userId): array
-{
-    $data = [];
+    {
+        $data = [];
 
-    for ($i = 1; $i <= 9; $i++) {
-        $modelClass = "App\\Models\\ProfileStep{$i}";
-        if (class_exists($modelClass)) {
-            $stepData = $modelClass::where('user_id', $userId)->first();
-            $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
+        for ($i = 1; $i <= 9; $i++) {
+            $modelClass = "App\\Models\\ProfileStep{$i}";
+            if (class_exists($modelClass)) {
+                $stepData = $modelClass::where('user_id', $userId)->first();
+                $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
 
-            // ✅ Special handling for step 8 (business hours)
-            if ($i === 8 && $stepData) {
-                $businessHours = BusinessHour::where('user_id', $userId)->get();
+                // ✅ Special handling for step 8 (business hours)
+                if ($i === 8 && $stepData) {
+                    $businessHours = BusinessHour::where('user_id', $userId)->get();
 
-                $data['step8']['hours'] = $businessHours->map(function($h){
-                    return [
-                        'id' => $h->id,
-                        'day' => $h->day,
-                        'is_open' => (bool)$h->is_open,
-                        'from' => $h->from ?? '09:00',
-                        'to' => $h->to ?? '17:00',
-                        'breaks' => $h->break_from && $h->break_to ? [
-                            ['start' => $h->break_from, 'end' => $h->break_to]
-                        ] : [],
-                    ];
-                })->toArray();
+                    $data['step8']['hours'] = $businessHours->map(function ($h) {
+                        return [
+                            'id' => $h->id,
+                            'day' => $h->day,
+                            'is_open' => (bool)$h->is_open,
+                            'from' => $h->from ?? '09:00',
+                            'to' => $h->to ?? '17:00',
+                            'breaks' => $h->break_from && $h->break_to ? [
+                                ['start' => $h->break_from, 'end' => $h->break_to]
+                            ] : [],
+                        ];
+                    })->toArray();
+                }
+
+                // ✅ Step 2: Logo using UploadHelper
+                if ($i === 2 && $stepData) {
+                    $uploadId = $stepData->upload_id ?? null;
+                    $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
+                }
+                if ($i === 6 && $stepData) {
+                    $uploadId = $stepData->upload_id ?? null;
+                    $data['step6']['receipt_logo'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
+                }
             }
         }
-    }
 
-    return $data;
-}
+        return $data;
+    }
 }
