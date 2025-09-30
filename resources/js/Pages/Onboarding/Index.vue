@@ -36,7 +36,7 @@ const comp = computed(() => ({
 
 const progressPercent = computed(() => (current.value / steps.length) * 100)
 
- 
+
 function gotoStep(n) {
 
   if (n === current.value) return
@@ -87,7 +87,7 @@ function gotoStep(n) {
 
 const saveStep = (payload) => {
   console.log("Payload received:", payload);
-  
+
   try {
     // Extract step number and data
     const stepNumber = payload?.step || current.value;
@@ -95,7 +95,7 @@ const saveStep = (payload) => {
 
     // Get existing session data
     const existingData = profile.value || {};
-    
+
     // Merge step data into profile
     Object.assign(profile.value, stepData)
 
@@ -138,22 +138,43 @@ async function finish() {
   }
 }
 
-
-
 async function goNext(stepData) {
-  formErrors.value = {} // clear old errors
-  try {
-    const { data } = await axios.post(`/onboarding/step/${current.value}`, stepData)
+  formErrors.value = {}
 
-    // merge profile
+  try {
+    let payload;
+
+    // Handle file uploads for Step 2 (logo) and Step 6 (receipt_logo)
+    if ((current.value === 2 && stepData.logo_file) ||
+      (current.value === 6 && stepData.receipt_logo_file)) {
+      payload = new FormData();
+
+      // Append all fields
+      Object.keys(stepData).forEach(key => {
+        if (stepData[key] !== null && stepData[key] !== undefined) {
+          payload.append(key, stepData[key]);
+        }
+      });
+    } else {
+      payload = stepData;
+    }
+
+    const { data } = await axios.post(
+      `/onboarding/step/${current.value}`,
+      payload,
+      // Send as multipart/form-data if we have files
+      ((current.value === 2 && stepData.logo_file) ||
+        (current.value === 6 && stepData.receipt_logo_file)) ? {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      } : {}
+    )
+
     Object.assign(profile.value, data.profile || {})
 
-    // ✅ mark the current step as completed
     if (!progress.value.completed_steps.includes(current.value)) {
       progress.value.completed_steps.push(current.value)
     }
 
-    // move forward
     if (current.value < steps.length) {
       current.value++
     }
@@ -167,7 +188,6 @@ async function goNext(stepData) {
     }
   }
 }
-
 
 
 

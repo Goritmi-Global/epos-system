@@ -92,16 +92,33 @@ const saveStep = (payload) => {
 async function updateSection() {
   formErrors.value = {}
   isSaving.value = true
-  
+
   try {
+    let payload;
+    let config = {}
+
+    // If step 2 or step 6, use FormData
+    if ((currentSection.value === 2 && profile.value.logo_file) ||
+        (currentSection.value === 6 && profile.value.receipt_logo_file)) {
+      payload = new FormData()
+      Object.keys(profile.value).forEach(key => {
+        if (profile.value[key] !== null && profile.value[key] !== undefined) {
+          payload.append(key, profile.value[key])
+        }
+      })
+      config.headers = { 'Content-Type': 'multipart/form-data' }
+    } else {
+      payload = profile.value
+    }
+
     const { data } = await axios.post(
       `/settings/update/${currentSection.value}`, 
-      profile.value
+      payload,
+      config
     )
-    
-    // Update local profile with response
+
     Object.assign(profile.value, data.data || {})
-    
+
     toast.success("Settings updated successfully!")
   } catch (err) {
     if (err?.response?.status === 422 && err.response.data?.errors) {
@@ -115,6 +132,7 @@ async function updateSection() {
     isSaving.value = false
   }
 }
+
 
 function changeSection(sectionId) {
   console.log('Changing to section:', sectionId)

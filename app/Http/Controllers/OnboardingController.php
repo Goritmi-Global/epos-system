@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\UploadHelper;
 use App\Models\BusinessHour;
 use App\Models\Country;
 use App\Models\DisableOrderAfterHour;
@@ -64,11 +65,10 @@ class OnboardingController extends Controller
     {
         $user = $request->user();
 
-        // Accept aliases from frontend (common)
+        // Accept aliases from frontend
         $payload = $request->all();
 
         $aliasMap = [
-
             'tax_registered' => 'is_tax_registered',
             'table_mgmt' => 'table_management_enabled',
             'tables' => 'number_of_tables',
@@ -81,12 +81,12 @@ class OnboardingController extends Controller
         ];
 
         foreach ($aliasMap as $alias => $canonical) {
-            if (array_key_exists($alias, $payload) && ! array_key_exists($canonical, $payload)) {
+            if (array_key_exists($alias, $payload) && !array_key_exists($canonical, $payload)) {
                 $payload[$canonical] = $payload[$alias];
             }
         }
 
-        // normalize yes/no strings to booleans for likely fields
+        // Normalize booleans
         $boolKeys = [
             'is_tax_registered',
             'table_management_enabled',
@@ -96,15 +96,16 @@ class OnboardingController extends Controller
             'kitchen_printer_enabled',
             'price_includes_tax',
         ];
+
         foreach ($boolKeys as $k) {
             if (isset($payload[$k]) && is_string($payload[$k])) {
                 $lower = strtolower($payload[$k]);
                 $payload[$k] = in_array($lower, ['1', 'true', 'yes', 'on']) ? true : (in_array($lower, ['0', 'false', 'no', 'off']) ? false : $payload[$k]);
             }
         }
-        // dd($request->all());
-        // merge normalized payload into request so we can reuse $request->validate(...)
+
         $request->replace($payload);
+
         // Validate per step
         $data = match ($step) {
             1 => $request->validate([
@@ -120,8 +121,9 @@ class OnboardingController extends Controller
                 'phone_local' => 'required|string|max:60',
                 'email' => 'required|email|max:190',
                 'address' => 'required|string|max:500',
-                'website' => 'required|max:190',
+                'website' => 'nullable|max:190',
                 'logo' => 'nullable',
+                'logo_file' => 'nullable',
             ]),
             3 => $request->validate([
                 'currency' => 'required|string|max:8',
@@ -132,13 +134,12 @@ class OnboardingController extends Controller
             ]),
             4 => $request->validate([
                 'tax_registered' => 'required|boolean',
-                'tax_type' => 'nullable|string|max:50', // Changed from required_if
-                'tax_rate' => 'nullable|numeric|min:0|max:100', // Changed from required_if
-                'tax_id' => 'nullable|string', // Changed from required_if
-                'extra_tax_rates' => 'nullable|string', // Changed from required_if, removed array validation
+                'tax_type' => 'nullable|string|max:50',
+                'tax_rate' => 'nullable|numeric|min:0|max:100',
+                'tax_id' => 'nullable|string',
+                'extra_tax_rates' => 'nullable|string',
                 'price_includes_tax' => 'required|boolean',
             ]),
-
             5 => $request->validate([
                 'order_types' => 'required|array|min:1',
                 'table_management_enabled' => 'required|boolean',
@@ -148,11 +149,11 @@ class OnboardingController extends Controller
                 'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
                 'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
             ]),
-
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
-                'receipt_logo' => 'required|string|max:255',
+                'receipt_logo' => 'nullable',
+                'receipt_logo_file' => 'nullable',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',
@@ -161,11 +162,10 @@ class OnboardingController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
-
             ]),
             8 => $request->validate([
                 'auto_disable' => 'required|in:yes,no',
-                'hours' => 'required|array|size:7', // 7 days a week
+                'hours' => 'required|array|size:7',
                 'hours.*.name' => 'required|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
                 'hours.*.open' => 'required|boolean',
                 'hours.*.start' => 'required_if:hours.*.open,1|date_format:H:i',
@@ -175,43 +175,84 @@ class OnboardingController extends Controller
                 'hours.*.breaks.*.end' => 'required_with:hours.*.breaks|date_format:H:i|after:hours.*.breaks.*.start',
             ]),
             9 => $request->validate([
-                'feat_loyalty'      => 'required|in:yes,no',
-                'feat_inventory'    => 'required|in:yes,no',
-                'feat_backup'       => 'required|in:yes,no',
+                'feat_loyalty' => 'required|in:yes,no',
+                'feat_inventory' => 'required|in:yes,no',
+                'feat_backup' => 'required|in:yes,no',
                 'feat_multilocation' => 'required|in:yes,no',
-                'feat_theme'     => 'required|in:yes,no',
+                'feat_theme' => 'required|in:yes,no',
             ]),
             default => []
         };
 
+        // Handle Step 1: Country lookup
         if ($step === 1 && !empty($data['country_code'])) {
             $country = Country::where('iso2', $data['country_code'])->first();
             $data['country_id'] = $country->id ?? null;
             $data['country_code'] = $country->iso2 ?? null;
         }
 
-        // Store data temporarily in session
-        // $tempData = session()->get('onboarding_data', []);
-        // $tempData = array_merge($tempData, $data);
-        // session()->put('onboarding_data', $tempData);
+        // ⚠️ CRITICAL: Handle Step 2 file upload IMMEDIATELY
+        if ($step === 2 && $request->hasFile('logo_file')) {
+            try {
+                // Upload the file using your helper
+                $upload = UploadHelper::store(
+                    $request->file('logo_file'),
+                    'logos',
+                    'public'
+                );
 
+                // Store only the upload ID and path (not the file object)
+                $data['upload_id'] = $upload->id;
+                $data['logo_path'] = $upload->path;
+                $data['logo_url'] = $upload->url; // if your helper provides this
 
+                // Remove the file object from data
+                unset($data['logo_file']);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => 'Failed to upload logo. Please try again.',
+                ], 500);
+            }
+        }
+
+        // In saveStep() method, add after Step 2 file handling:
+
+        // Handle Step 6 receipt logo upload
+        if ($step === 6 && $request->hasFile('receipt_logo_file')) {
+            try {
+                $upload = UploadHelper::store(
+                    $request->file('receipt_logo_file'),
+                    'receipt_logos',
+                    'public'
+                );
+
+                $data['upload_id'] = $upload->id;
+                $data['receipt_logo_path'] = $upload->path;
+                $data['receipt_logo_url'] = $upload->url;
+
+                unset($data['receipt_logo_file']);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => 'Failed to upload receipt logo. Please try again.',
+                ], 500);
+            }
+        }
+
+        // Get existing session data
         $tempData = session()->get('onboarding_data', []);
-        $tempData[$step] = $data; // store per step
-        // session()->put('onboarding_data', $tempData);
 
+        // Store step data in nested format
+        $tempData[$step] = $data;
 
-        // ALSO store flattened data for backward compatibility
-        // This ensures the complete() method can access all fields easily
+        // Also flatten for backward compatibility
         foreach ($data as $key => $value) {
             $tempData[$key] = $value;
         }
 
+        // Save to session (now without file objects)
         session()->put('onboarding_data', $tempData);
 
-
-        // Update progress tracking
-        // Update progress tracking
+        // Update progress
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
         $completed = collect($progress->completed_steps ?? []);
         $completed = $completed->merge([$step])->unique()->values();
@@ -223,7 +264,7 @@ class OnboardingController extends Controller
             'ok' => true,
             'profile' => $tempData,
             'progress' => $progress,
-            'message' => 'Step ' . $step . ' data saved temporarily',
+            'message' => 'Step ' . $step . ' data saved successfully',
         ]);
     }
 
@@ -233,7 +274,6 @@ class OnboardingController extends Controller
     public function complete(Request $request)
     {
         $user = $request->user();
-        // Get all temporary data from session
         $tempData = session()->get('onboarding_data', []);
 
         if (empty($tempData)) {
@@ -242,40 +282,81 @@ class OnboardingController extends Controller
             ], 400);
         }
 
-        // Separate data by steps for saving to respective tables
+        // Separate data by steps
         $stepData = $this->separateDataBySteps($tempData);
-        // Save to individual step tables
-        if (! empty($stepData[1])) {
+        // dd($stepData);
+        // Save Step 1
+        if (!empty($stepData[1])) {
             ProfileStep1::updateOrCreate(['user_id' => $user->id], $stepData[1]);
         }
-        if (! empty($stepData[2])) {
+
+        // Save Step 2 (logo already uploaded in saveStep)
+        if (!empty($stepData[2])) {
+            // ✅ No need to upload again - already done in saveStep()
+            // Just save the upload_id that was stored
             ProfileStep2::updateOrCreate(['user_id' => $user->id], $stepData[2]);
         }
-        if (! empty($stepData[3])) {
+
+        // Save Step 3
+        if (!empty($stepData[3])) {
             ProfileStep3::updateOrCreate(['user_id' => $user->id], $stepData[3]);
         }
-        if (! empty($stepData[4])) {
+
+        // Save Step 4
+        if (!empty($stepData[4])) {
             ProfileStep4::updateOrCreate(['user_id' => $user->id], $stepData[4]);
         }
-        if (! empty($stepData[5])) {
-            ProfileStep5::updateOrCreate(['user_id' => $user->id], $stepData[5]);
+
+        // Save Step 5
+        if (!empty($stepData[5])) {
+            $step5 = $stepData[5];
+
+            // First, save profile_tables entry
+            $profileTable = null;
+            if (!empty($step5['table_details'])) {
+                $profileTable = \App\Models\ProfileTable::updateOrCreate(
+                    ['id' => $step5['profile_table_id'] ?? null], // reuse if exists
+                    [
+                        'number_of_tables' => $step5['number_of_tables'] ?? count($step5['table_details']),
+                        'table_details' => $step5['table_details'],
+                    ]
+                );
+            }
+
+            // Then save step 5 with reference to profile_table_id
+            ProfileStep5::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'order_types' => $step5['order_types'] ?? [],
+                    'table_management_enabled' => $step5['table_management_enabled'] ?? false,
+                    'online_ordering_enabled' => $step5['online_ordering_enabled'] ?? false,
+                    'profile_table_id' => $profileTable?->id,
+                ]
+            );
         }
-        if (! empty($stepData[6])) {
+
+
+        // Save Step 6
+        if (!empty($stepData[6])) {
             ProfileStep6::updateOrCreate(['user_id' => $user->id], $stepData[6]);
         }
-        if (! empty($stepData[7])) {
+
+        // Save Step 7
+        if (!empty($stepData[7])) {
             ProfileStep7::updateOrCreate(['user_id' => $user->id], $stepData[7]);
         }
+
+        // Save Step 8 (Business Hours)
         if (!empty($stepData[8])) {
             $step8 = $stepData[8];
 
-            // 1️⃣ Save disable_order_after_hours
+            // Save disable_order_after_hours
             $disable = DisableOrderAfterHour::updateOrCreate(
                 ['user_id' => $user->id],
                 ['status' => $step8['auto_disable'] === 'yes']
             );
 
-            // 2️⃣ Save business_hours (all 7 days)
+            // Save business_hours (all 7 days)
             $businessHourIds = [];
             foreach ($step8['hours'] as $day) {
                 $bh = BusinessHour::updateOrCreate(
@@ -287,7 +368,7 @@ class OnboardingController extends Controller
                     ]
                 );
 
-                // Save breaks if any (optional: you might want a separate table if multiple breaks per day)
+                // Save breaks if any
                 if (!empty($day['breaks'])) {
                     foreach ($day['breaks'] as $break) {
                         $bh->break_from = $break['start'];
@@ -299,34 +380,33 @@ class OnboardingController extends Controller
                 $businessHourIds[] = $bh->id;
             }
 
-            // 3️⃣ Save profile_step_8 linking table
+            // Save profile_step_8 linking table
             ProfileStep8::updateOrCreate(
                 ['user_id' => $user->id],
                 [
                     'disable_order_after_hours_id' => $disable->id,
-                    'business_hours_id' => $businessHourIds[0] ?? null, // or handle multiple IDs differently
+                    'business_hours_id' => $businessHourIds[0] ?? null,
                 ]
             );
         }
 
-        if (! empty($stepData[9])) {
+        // Save Step 9
+        if (!empty($stepData[9])) {
             $step9 = $stepData[9];
 
             ProfileStep9::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'enable_loyalty_system'     => $step9['feat_loyalty'] === 'yes',
+                    'enable_loyalty_system' => $step9['feat_loyalty'] === 'yes',
                     'enable_inventory_tracking' => $step9['feat_inventory'] === 'yes',
-                    'enable_cloud_backup'       => $step9['feat_backup'] === 'yes',
-                    'enable_multi_location'     => $step9['feat_multilocation'] === 'yes',
-                    'theme_preference'          => $step9['feat_theme'] === 'yes' ? 'default_theme' : null,
+                    'enable_cloud_backup' => $step9['feat_backup'] === 'yes',
+                    'enable_multi_location' => $step9['feat_multilocation'] === 'yes',
+                    'theme_preference' => $step9['feat_theme'] === 'yes' ? 'default_theme' : null,
                 ]
             );
         }
 
-
-
-        // Map step fields -> restaurant_profiles columns
+        // Map fields to restaurant_profiles
         $map = [
             'is_tax_registered' => 'is_tax_registered',
             'order_types' => 'order_types',
@@ -344,79 +424,48 @@ class OnboardingController extends Controller
 
         $toSave = [];
         foreach ($tempData as $k => $v) {
+            // Skip nested step arrays
+            if (is_numeric($k)) continue;
+
             $targetKey = $map[$k] ?? $k;
             $toSave[$targetKey] = $v;
         }
 
         $toSave['status'] = 'complete';
+        $toSave['user_id'] = $user->id;
 
         // Create final restaurant profile
-        $profile = RestaurantProfile::updateOrCreate(
+        RestaurantProfile::updateOrCreate(
             ['user_id' => $user->id],
             $toSave
         );
 
         // Mark progress as completed
         $progress = OnboardingProgress::firstOrCreate(['user_id' => $user->id]);
-        $progress->completed_steps = collect($progress->completed_steps ?? [])->merge(range(1, 9))->unique()->values();
+        $progress->completed_steps = range(1, 9);
         $progress->current_step = 10;
         $progress->is_completed = true;
         $progress->completed_at = now();
         $progress->save();
 
-        // Clear temporary session data
+        // Clear session
         session()->forget('onboarding_data');
 
-        return redirect('/dashboard');
+        return redirect('/dashboard')->with('success', 'Onboarding completed successfully!');
     }
 
     /**
      * Helper method to separate merged data back into step-specific arrays
      */
-    // private function separateDataBySteps(array $tempData): array
-    // {
-    //     $stepFields = [
-    //         1 => ['country_id', 'timezone', 'language', 'languages_supported'],
-    //         2 => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'logo_path'],
-    //         3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
-    //         4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
-    //         5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details'],
-    //         6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
-    //         7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
-    //         8 => ['auto_disable', 'hours'],
-    //         9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
-    //     ];
-
-    //     $stepData = [];
-
-    //     foreach ($stepFields as $stepNumber => $fields) {
-    //         $stepData[$stepNumber] = [];
-
-    //         // 🔑 Only check inside this step’s data
-    //         if (!isset($tempData[$stepNumber])) {
-    //             continue;
-    //         }
-
-    //         foreach ($fields as $field) {
-    //             if (array_key_exists($field, $tempData[$stepNumber])) {
-    //                 $stepData[$stepNumber][$field] = $tempData[$stepNumber][$field];
-    //             }
-    //         }
-    //     }
-
-    //     return $stepData;
-    // }
-
-
     private function separateDataBySteps(array $tempData): array
     {
         $stepFields = [
             1 => ['country_id', 'timezone', 'language', 'languages_supported', 'country_code'],
-            2 => ['business_name', 'business_type', 'legal_name', 'phone', 'phone_local', 'email', 'address', 'website', 'logo_path', 'logo'],
+            2 => ['business_name', 'business_type', 'legal_name', 'phone', 'phone_local', 'email', 'address', 'website', 'upload_id', 'logo_path', 'logo_url'],
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
-            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax', 'tax_registered'],
-            5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'table_mgmt', 'tables', 'online_ordering'],
-            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers', 'receipt_logo', 'show_qr', 'tax_breakdown', 'kitchen_printer'],
+            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
+            5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'profile_table_id'],
+            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'upload_id', 'receipt_logo_url', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
             7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
             8 => ['auto_disable', 'hours'],
             9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
@@ -427,7 +476,7 @@ class OnboardingController extends Controller
         foreach ($stepFields as $stepNumber => $fields) {
             $stepData[$stepNumber] = [];
 
-            // Check if data exists in nested format (preferred)
+            // Check nested format first
             if (isset($tempData[$stepNumber]) && is_array($tempData[$stepNumber])) {
                 foreach ($fields as $field) {
                     if (array_key_exists($field, $tempData[$stepNumber])) {
@@ -435,7 +484,7 @@ class OnboardingController extends Controller
                     }
                 }
             } else {
-                // Fallback: check in flat structure
+                // Fallback to flat structure
                 foreach ($fields as $field) {
                     if (array_key_exists($field, $tempData)) {
                         $stepData[$stepNumber][$field] = $tempData[$field];
