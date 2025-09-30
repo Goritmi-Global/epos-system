@@ -74,6 +74,12 @@ const sidebarMenus = ref([
                 icon: "bar-chart-2",
                 route: "analytics.index",
             },
+
+            {
+                label: "Promo",
+                icon: "bar-chart-2",
+                route: "promos.index",
+            },
         ],
     },
 
@@ -274,7 +280,7 @@ onUpdated(() => window.feather?.replace());
                                 <i :data-feather="block.icon" class="me-2 icons"></i>
                                 <span class="truncate-when-mini">{{
                                     block.label
-                                }}</span>
+                                    }}</span>
                                 </Link>
                             </li>
 
@@ -305,7 +311,7 @@ onUpdated(() => window.feather?.replace());
                                                 ">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
+                                            }}</span>
                                             <i :data-feather="openGroups.has(
                                                 item.label
                                             ) ||
@@ -332,7 +338,7 @@ onUpdated(() => window.feather?.replace());
                                                     " class="me-2"></i>
                                                 <span>{{
                                                     child.label
-                                                }}</span>
+                                                    }}</span>
                                                 </Link>
                                             </li>
                                         </ul>
@@ -347,7 +353,7 @@ onUpdated(() => window.feather?.replace());
                                         <i :data-feather="item.icon" class="me-2"></i>
                                         <span class="truncate-when-mini">{{
                                             item.label
-                                        }}</span>
+                                            }}</span>
                                         </Link>
                                     </li>
                                 </template>
@@ -397,7 +403,7 @@ onUpdated(() => window.feather?.replace());
     --border: #eef0f3;
 }
 
-.dark .icons{
+.dark .icons {
     color: #fff;
 }
 
@@ -720,7 +726,7 @@ html.dark .main {
 }
 
 .dark .side-link:hover {
-    background:#111827;
+    background: #111827;
     color: #fff;
 }
 
