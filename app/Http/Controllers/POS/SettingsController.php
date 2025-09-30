@@ -168,19 +168,24 @@ class SettingsController extends Controller
                 'languages_supported' => 'nullable|array',
                 'languages_supported.*' => 'string|max:10',
             ]),
-            2 => $request->validate([
-                'business_name' => 'required|string|max:190',
-                'legal_name' => 'required|string|max:190',
-                'business_type' => 'required',
-                'phone' => 'required|string|max:60',
-                'phone_local' => 'required|string|max:60',
-                'email' => 'required|email|max:190',
-                'address' => 'required|string|max:500',
-                'website' => 'nullable|max:190',
-                'logo' => 'nullable',
-                'logo_file' => 'nullable',
-                'upload_id' => 'nullable|integer',
-            ]),
+            2 => $request->validate(
+                [
+                    'business_name' => 'required|string|max:190',
+                    'legal_name' => 'required|string|max:190',
+                    'business_type' => 'required',
+                    'phone' => 'required|string|max:60',
+                    'phone_local' => 'required|string|max:60',
+                    'email' => 'required|email|max:190',
+                    'address' => 'required|string|max:500',
+                    'website' => 'required|max:190',
+                    'logo' => 'nullable',
+                    'logo_file' => 'nullable',
+                    'upload_id' => 'required|integer',
+                ],
+                [
+                    'phone_local.required' => 'The phone field is required.',
+                ]
+            ),
             3 => $request->validate([
                 'currency' => 'required|string|max:8',
                 'currency_symbol_position' => 'required|in:before,after',
