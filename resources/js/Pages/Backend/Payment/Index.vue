@@ -9,7 +9,7 @@ const orders = ref([]); // rename from payment -> orders for clarity
 
 const fetchOrdersWithPayment = async () => {
   try {
-    const response = await axios.get("/orders/all-orders");
+    const response = await axios.get("/api/orders/all");
     orders.value = response.data.data;
     console.log(orders.value);
   } catch (error) {

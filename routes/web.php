@@ -253,7 +253,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* -------- Orders -------- */
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrdersController::class, 'index'])->name('index');
-        Route::get('/all-orders', [OrdersController::class, 'fetchAllOrders'])->name('all');
+        // Route::get('/all-orders', [OrdersController::class, 'fetchAllOrders'])->name('all');
         Route::get('/{order}', [OrdersController::class, 'show'])->name('show');
     });
 

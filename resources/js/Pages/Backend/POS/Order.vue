@@ -9,7 +9,7 @@ const orders = ref([]);
 
 const fetchOrders = async () => {
     try {
-        const response = await axios.get("/orders/all-orders");
+        const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
     } catch (error) {
         console.error("Error fetching inventory:", error);

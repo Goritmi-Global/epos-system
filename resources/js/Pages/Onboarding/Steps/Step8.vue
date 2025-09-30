@@ -11,6 +11,7 @@ const form = reactive({
   auto_disable: props.model?.auto_disable ?? "yes",
   hours: props.model?.hours?.map(h => ({
     ...h,
+    name: h.day,
     open: h.is_open,
     start: h.from?.slice(0, 5),   // keep only HH:MM
     end: h.to?.slice(0, 5),
@@ -27,6 +28,8 @@ const form = reactive({
 
 
 function emitSave() { emit("save", { step: 8, data: toRaw(form) }) }
+
+
 
 function addBreak(d) {
   d.breaks.push({ start: "13:00", end: "14:00" })
