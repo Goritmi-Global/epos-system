@@ -17,7 +17,7 @@ return new class extends Migration {
             $table->string('email')->nullable();
             $table->string('address')->nullable();
             $table->string('website')->nullable();
-            $table->string('logo_path')->nullable();
+            $table->foreignId('upload_id')->nullable()->constrained('uploads')->nullOnDelete();
             $table->unique('user_id');
             $table->timestamps();
            

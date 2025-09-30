@@ -24,6 +24,9 @@ const form = reactive({
     logo_file: null,
 });
 
+console.log("props.model?.logo", props.model?.logo);
+console.log("props.logo_file", form.logo_file);
+
 
 
 /* ------------------ BUSINESS TYPE ------------------ */
@@ -104,9 +107,7 @@ watch(selectedDial, (opt) => {
 });
 
 watch(() => form.phone_local, (val) => {
-    console.log("watch -> form.phone_local changed:", val);
     buildFullPhone();
-    console.log("watch -> form.phone after phone_local change:", form.phone);
     emitSave();
 });
 
@@ -124,15 +125,17 @@ const showImageModal = ref(false);
 const previewImage = ref(null);
 
 function openImageModal(src) {
-    previewImage.value = src || form.logo;
+    previewImage.value = src || form.logo_url;
     if (!previewImage.value) return;
     showImageModal.value = true;
 }
 
 function onCropped({ file }) {
     form.logo_file = file;
-    form.logo = URL.createObjectURL(file);
+    form.logo_url = URL.createObjectURL(file);
+    emitSave();
 }
+
 
 
 
@@ -164,12 +167,13 @@ const flagUrl = (iso, size = "24x18") =>
             <div class="col-md-3">
                 <small class="text-muted mt-2">Upload Logo</small>
                 <div class="logo-card">
-                    <div class="logo-frame" @click="form.logo && openImageModal(form.logo)">
-                        <img v-if="form.logo" :src="form.logo" alt="Logo" />
+                    <div class="logo-frame" @click="form.logo_url && openImageModal()">
+                        <img v-if="form.logo_url" :src="form.logo_url" alt="Logo" />
                         <div v-else class="placeholder">
                             <i class="bi bi-image"></i>
                         </div>
                     </div>
+
 
                     <!-- Validation for logo -->
                     <small v-if="formErrors?.logo" class="text-danger">
@@ -197,7 +201,7 @@ const flagUrl = (iso, size = "24x18") =>
                 <small v-if="formErrors?.business_type" class="text-danger">
                     {{ formErrors.business_type[0] }}
                 </small>
-<br>
+                <br>
                 <!-- Address -->
                 <label class="form-label mt-3">Address*</label>
                 <input class="form-control" v-model="form.address" @input="emitSave"

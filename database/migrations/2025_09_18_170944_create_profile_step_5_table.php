@@ -13,8 +13,7 @@ return new class extends Migration {
             $table->json('order_types')->nullable();
             $table->boolean('table_management_enabled')->default(false);
             $table->boolean('online_ordering_enabled')->default(false);
-            $table->unsignedInteger('number_of_tables')->nullable();
-            $table->json('table_details')->nullable();
+            $table->foreignId('profile_table_id')->nullable()->constrained('profile_tables')->nullOnDelete();
             $table->unique('user_id');
             $table->timestamps();
            
