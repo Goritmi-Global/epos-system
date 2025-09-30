@@ -90,7 +90,7 @@ class SettingsController extends Controller
         $request->replace($payload);
         // Use the same validation rules from OnboardingController
         $data = $this->validateStep($request, $step);
-
+        // dd($data);
         // ✅ Step 2
         // ✅ Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
         if ($step === 2 && $request->hasFile('logo_file')) {
@@ -140,6 +140,45 @@ class SettingsController extends Controller
                 return response()->json(['error' => 'Failed to upload receipt logo'], 500);
             }
         }
+
+        if ($step === 8 && isset($data['hours'])) {
+            // Update disable order after hours
+            $disableStatus = isset($data['auto_disable']) && $data['auto_disable'] === 'yes';
+            $disable = \App\Models\DisableOrderAfterHour::updateOrCreate(
+                ['user_id' => $user->id],
+                ['status' => $disableStatus]
+            );
+
+            $businessHourIds = [];
+            foreach ($data['hours'] as $day) {
+                $bh = \App\Models\BusinessHour::updateOrCreate(
+                    ['user_id' => $user->id, 'day' => $day['name']],
+                    [
+                        'from' => $day['start'] ?? null,
+                        'to' => $day['end'] ?? null,
+                        'is_open' => $day['open'] ?? false,
+                    ]
+                );
+
+                if (!empty($day['breaks'])) {
+                    $break = $day['breaks'][0]; // only first break
+                    $bh->break_from = $break['start'];
+                    $bh->break_to = $break['end'];
+                    $bh->save();
+                }
+
+                $businessHourIds[] = $bh->id;
+            }
+
+            \App\Models\ProfileStep8::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'disable_order_after_hours_id' => $disable->id,
+                    'business_hours_id' => $businessHourIds[0] ?? null,
+                ]
+            );
+        }
+
 
 
         // Update the appropriate step model
@@ -223,6 +262,24 @@ class SettingsController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
+            ]),
+            8 => $request->validate([
+                'auto_disable' => 'required|in:yes,no',
+                'hours' => 'required|array|size:7',
+                'hours.*.name' => 'required|string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+                'hours.*.open' => 'required|boolean',
+                'hours.*.start' => 'required_if:hours.*.open,1|date_format:H:i',
+                'hours.*.end' => 'required_if:hours.*.open,1|date_format:H:i|after:hours.*.start',
+                'hours.*.breaks' => 'nullable|array',
+                'hours.*.breaks.*.start' => 'required_with:hours.*.breaks|date_format:H:i',
+                'hours.*.breaks.*.end' => 'required_with:hours.*.breaks|date_format:H:i|after:hours.*.breaks.*.start',
+            ]),
+            9 => $request->validate([
+                'feat_loyalty' => 'required|in:yes,no',
+                'feat_inventory' => 'required|in:yes,no',
+                'feat_backup' => 'required|in:yes,no',
+                'feat_multilocation' => 'required|in:yes,no',
+                'feat_theme' => 'required|in:yes,no',
             ]),
             default => []
         };
