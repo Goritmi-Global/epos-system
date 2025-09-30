@@ -30,6 +30,7 @@ use App\Http\Controllers\POS\{
     AnalyticsController,
     SettingsController,
 };
+use App\Http\Controllers\PromoController;
 /* ---------- References ---------- */
 use App\Http\Controllers\Reference\{
     ReferenceManagementController,
@@ -266,6 +267,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('/', [AnalyticsController::class, 'page'])->name('index');
     });
+    
+   Route::prefix('promos')->name('promos.')->group(function () {
+    Route::get('/', [PromoController::class, 'index'])->name('index');
+    Route::get('/all-promos', [PromoController::class, 'fetchAllPromos'])->name('all-promos');
+    Route::post('/', [PromoController::class, 'store'])->name('store');
+    Route::post('/{id}', [PromoController::class, 'update'])->name('update');
+    Route::get('/{id}', [PromoController::class, 'show'])->name('show');
+    // Route::delete('/{id}', [PromoController::class, 'destroy'])->name('destroy');
+    Route::patch('/{id}/toggle-status', [PromoController::class, 'toggleStatus'])->name('toggle');
+});
 
     /* -------- Settings -------- */
     Route::prefix('settings')->name('settings.')->group(function () {
