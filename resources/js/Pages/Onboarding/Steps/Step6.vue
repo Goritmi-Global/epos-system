@@ -172,6 +172,10 @@ function onCropped({ file }) {
   --brand: #1c0d82;
 }
 
+.dark .logo-frame{
+     background-color: #111827;
+    color: #fff !important;
+}
 /* -------- Match Step 5 segmented style -------- */
 .segmented {
   display: inline-flex;
@@ -259,6 +263,16 @@ function onCropped({ file }) {
   border-radius: 16px;
   padding: 16px;
   box-shadow: 0 6px 20px rgba(17, 38, 146, 0.06);
+}
+
+.dark .receipt-card{
+ background-color: #111827 !important;
+    color: #ffffff !important;
+}
+
+.dark input{
+   background-color: #111827 !important;
+    color: #ffffff !important;
 }
 
 .badge-pill {

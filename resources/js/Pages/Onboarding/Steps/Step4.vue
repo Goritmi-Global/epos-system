@@ -137,6 +137,15 @@ const taxTypeOptions = ref([
 </template>
 
 <style scoped>
+.dark input{
+    background-color: #111827 !important;
+    color: #ffffff;
+}
+
+.dark textarea{
+    background-color: #111827 !important;
+    color: #ffffff;
+}
 .segmented {
   display: inline-flex;
   border-radius: 999px;
