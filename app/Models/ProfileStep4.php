@@ -14,7 +14,7 @@ class ProfileStep4 extends Model
         'tax_type',
         'tax_id',
         'tax_rate',
-        'extra_tax_rate', 
+        'extra_tax_rates', 
         'price_includes_tax'
     ];
     

@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->string('tax_type')->nullable();
             $table->decimal('tax_rate', 8, 2)->nullable();
             $table->string('tax_id')->nullable();
-            $table->decimal('extra_tax_rate', 8, 2)->nullable();
+            $table->decimal('extra_tax_rates', 8, 2)->nullable();
             $table->boolean('price_includes_tax')->default(false);
             $table->unique('user_id');
             $table->timestamps();

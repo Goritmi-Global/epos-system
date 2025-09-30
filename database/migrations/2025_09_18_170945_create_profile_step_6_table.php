@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->text('receipt_header')->nullable();
             $table->text('receipt_footer')->nullable();
-            $table->string('receipt_logo_path')->nullable();
+            $table->foreignId('upload_id')->nullable()->constrained('uploads')->nullOnDelete();
             $table->boolean('show_qr_on_receipt')->default(false);
             $table->boolean('tax_breakdown_on_receipt')->default(false);
             $table->boolean('kitchen_printer_enabled')->default(false);
