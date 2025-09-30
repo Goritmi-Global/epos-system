@@ -187,8 +187,8 @@ onUpdated(() => window.feather?.replace());
             <ul class="nav user-menu">
                 <li class="nav-item">
                     <button class="icon-btn" @click="toggleDark()">
-                        <Moon v-if="isDark" :size="20" />
-                        <Sun v-else :size="20" />
+                        <Sun v-if="isDark" :size="20"  />
+                        <Moon  v-else :size="20"/>
                     </button>
                 </li>
                 <li class="nav-item dropdown has-arrow flag-nav">
@@ -403,6 +403,8 @@ onUpdated(() => window.feather?.replace());
     --border: #eef0f3;
 }
 
+
+/* Css for dark mood */
 .dark .icons {
     color: #fff;
 }
