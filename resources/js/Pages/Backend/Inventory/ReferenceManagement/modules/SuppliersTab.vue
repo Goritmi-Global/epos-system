@@ -722,26 +722,118 @@ const handleImport = (data) => {
 }
 
 
-/* Responsive tweaks between 450px and 992px */
-@media (min-width: 450px) and (max-width: 992px) {
-    /* Make search bar full width */
-    .search-wrap {
-        width: 100% !important;
-        margin-bottom: 10px;
+
+@media (min-width: 768px) and (max-width: 992px) {
+  .search-wrap {
+        width: 22% !important;
+        margin-bottom: 0;
+        min-width: 150px;
+        flex-shrink: 1;
     }
 
-    /* Stack buttons and controls */
-    .d-flex.flex-wrap.gap-2.align-items-center {
-        flex-direction: column;
-        align-items: stretch !important;
-        gap: 10px;
-    }
-
-    /* Ensure inputs, buttons & dropdowns stretch */
-    .btn, 
-    .dropdown, 
     .search-input {
         width: 100% !important;
+        font-size: 14px !important;
+        padding: 8px 12px !important;
+    }
+
+ 
+    .d-flex.flex-wrap.gap-2.align-items-center {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex-wrap: nowrap !important;
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        width: auto !important;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 14px !important;
+        padding: 8px 14px !important;
+    }
+    
+
+    .dropdown,
+    .dropdown-toggle {
+        width: auto !important;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 14px !important;
+        padding: 8px 14px !important;
+    }
+
+
+    .suppliers-container,
+    .card-body {
+        overflow-x: auto !important;
+        padding: 20px 15px !important;
+    }
+
+    .table-responsive {
+        overflow-x: auto !important;
+    }
+
+    .table td,
+    .table th {
+        white-space: normal !important;
+        word-break: break-word;
+        font-size: 14px !important;
+        padding: 10px 8px !important;
+    }
+}
+
+
+@media (min-width: 450px) and (max-width: 767px) {
+    /* Make search bar smaller to fit everything */
+    .search-wrap {
+        width: 18% !important;
+        margin-bottom: 0;
+        min-width: 130px;
+        flex-shrink: 1;
+    }
+
+    /* Reduce search input font size */
+    .search-input {
+        width: 100% !important;
+        font-size: 13px !important;
+        padding: 6px 10px !important;
+    }
+
+    /* Keep items in a row with proper spacing */
+    .d-flex.flex-wrap.gap-2.align-items-center {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 5px !important;
+        flex-wrap: nowrap !important;
+        margin-bottom: 15px;
+    }
+
+    /* Reduce button sizes */
+    .btn {
+        width: auto !important;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 13px !important;
+        padding: 7px 12px !important;
+    }
+    
+    /* Reduce dropdown size */
+    .dropdown,
+    .dropdown-toggle {
+        width: auto !important;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 13px !important;
+        padding: 7px 12px !important;
+    }
+
+    /* Ensure container doesn't overflow */
+    .suppliers-container,
+    .card-body {
+        overflow-x: auto !important;
+        padding: 15px 10px !important;
     }
 
     /* Table responsiveness - allow wrapping long text */
@@ -749,9 +841,46 @@ const handleImport = (data) => {
     .table th {
         white-space: normal !important;
         word-break: break-word;
+        font-size: 13px !important;
+        padding: 8px 6px !important;
     }
 }
 
+
+@media (max-width: 449px) {
+   
+    .search-wrap {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    .d-flex.flex-wrap.gap-2.align-items-center {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px;
+    }
+
+    .btn, 
+    .dropdown {
+        width: 100% !important;
+    }
+
+    .search-input {
+        width: 100% !important;
+        font-size: 14px !important;
+    }
+
+    .table {
+        font-size: 12px !important;
+    }
+
+    .table td,
+    .table th {
+        padding: 6px 4px !important;
+        white-space: normal !important;
+        word-break: break-word;
+    }
+}
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
