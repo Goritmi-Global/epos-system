@@ -216,7 +216,7 @@ const fetchInventories = async () => {
 const menuItems = ref([]);
 const fetchMenus = async () => {
     try {
-        const res = await axios.get("/menu/menu-items");
+        const res = await axios.get("/api/menu/items");
         menuItems.value = res.data.data || [];
     } catch (err) {
         console.error("❌ Error fetching menus:", err);
@@ -1097,7 +1097,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/menu_items/import", { items: itemsToImport })
+        .post("/api/menu/menu_items/import", { items: itemsToImport })
         .then(() => {
             toast.success("Items imported successfully");
             fetchInventories();
