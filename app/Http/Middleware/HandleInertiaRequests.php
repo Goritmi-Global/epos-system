@@ -82,7 +82,11 @@ class HandleInertiaRequests extends Middleware
  
         return [
             ...parent::share($request),
-            'current_user' => ['user' => $user],
+            'current_user' => $user ? [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+            ] : null,
             'stripe_public_key' => $stripe_public_key,
             'onboarding' => $onboarding,
             'flash' => [

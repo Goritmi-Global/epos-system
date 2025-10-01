@@ -1,12 +1,17 @@
 <script setup>
-import { ref, onMounted, nextTick, onBeforeUnmount, onUpdated } from "vue";
+import { ref, onMounted,computed , nextTick, onBeforeUnmount, onUpdated } from "vue";
 import { Link } from "@inertiajs/vue3";
 import { useDark, useToggle } from "@vueuse/core";
 import { Moon, Sun } from 'lucide-vue-next';
+import { usePage } from "@inertiajs/vue3";
 /* =========================
    Sidebar structure (array)
    ========================= */
+const page = usePage()
 
+
+const logedIUser = computed(() => page.props.current_user ?? {})
+ 
 const isDark = useDark({
     selector: "html",
     attribute: "class",
@@ -245,7 +250,7 @@ onUpdated(() => window.feather?.replace());
                                     <span class="status online"></span>
                                 </span>
                                 <div class="profilesets">
-                                    <h6>John Doe</h6>
+                                    <h6>{{ logedIUser.name }}</h6>
                                     <h5>Admin</h5>
                                 </div>
                             </div>
