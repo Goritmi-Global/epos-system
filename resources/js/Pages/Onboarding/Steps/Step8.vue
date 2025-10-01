@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, toRaw, computed, onMounted } from "vue"
+import { reactive, toRaw, computed, onMounted, watch } from "vue"
 import Select from "primevue/select"
 
 const props = defineProps({ model: Object, formErrors: Object })
@@ -11,21 +11,46 @@ const form = reactive({
   auto_disable: props.model?.auto_disable ?? "yes",
   hours: props.model?.hours?.map(h => ({
     ...h,
-    name: h.day,
-    open: h.is_open,
-    start: h.from?.slice(0, 5),   // keep only HH:MM
-    end: h.to?.slice(0, 5),
+    name: h.name ?? h.day,         // <-- use h.name first
+    open: h.open ?? h.is_open ?? true, // <-- use h.open first
+    start: h.start ?? h.from?.slice(0,5) ?? "09:00",
+    end: h.end ?? h.to?.slice(0,5) ?? "17:00",
     breaks: h.breaks?.map(b => ({
       ...b,
-      start: b.start?.slice(0, 5),
-      end: b.end?.slice(0, 5)
-    })) || [],
+      start: b.start?.slice(0, 5) ?? "13:00",
+      end: b.end?.slice(0, 5) ?? "14:00"
+    })) || []
   })) ?? [
-      defaultDay("Monday"), defaultDay("Tuesday"), defaultDay("Wednesday"),
-      defaultDay("Thursday"), defaultDay("Friday"), defaultDay("Saturday"), defaultDay("Sunday")
-    ]
+    defaultDay("Monday"), defaultDay("Tuesday"), defaultDay("Wednesday"),
+    defaultDay("Thursday"), defaultDay("Friday"), defaultDay("Saturday"), defaultDay("Sunday")
+  ]
 })
 
+
+watch(
+  form,
+  () => {
+    const payload = {
+      step: 8,
+      data: {
+        auto_disable: form.auto_disable, // 'yes' or 'no' as backend expects
+        hours: form.hours.map(h => ({
+          name: h.name,
+          open: h.open,
+          start: h.start,
+          end: h.end,
+          breaks: h.breaks.map(b => ({
+            start: b.start,
+            end: b.end
+          }))
+        }))
+      }
+    };
+
+    emit("save", payload);
+  },
+  { deep: true, immediate: true }
+);
 
 function emitSave() { emit("save", { step: 8, data: toRaw(form) }) }
 

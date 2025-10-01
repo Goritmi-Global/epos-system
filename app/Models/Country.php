@@ -27,7 +27,8 @@ class Country extends Model
         'native',
         'region',
         'subregion',
-        'languages'
+        'languages',
+        'default_timezone_id'
     ];
 
     protected $casts = [
@@ -42,5 +43,11 @@ class Country extends Model
     public function cities()
     {
         return $this->hasMany(City::class, 'country_code', 'iso2');
+    }
+
+    // ✅ Correct one (default timezone)
+    public function defaultTimezone()
+    {
+        return $this->belongsTo(Timezone::class, 'default_timezone_id');
     }
 }

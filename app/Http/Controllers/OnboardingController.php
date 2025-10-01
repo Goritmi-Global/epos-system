@@ -65,6 +65,9 @@ class OnboardingController extends Controller
     {
         $user = $request->user();
 
+        // Get existing session data BEFORE validation
+        $tempData = session()->get('onboarding_data', []);
+
         // Accept aliases from frontend
         $payload = $request->all();
 
@@ -110,9 +113,15 @@ class OnboardingController extends Controller
         $data = match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone' => 'required|string|max:100',
-                'language' => 'required|string|max:10',
+                'timezone'     => 'required|string|max:100',
+                'language'     => 'required|string|max:10',
+            ], [
+                'country_code.required' => 'Country field is required',
+                'country_code.exists'   => 'Selected country is invalid',
+                'timezone.required'     => 'Timezone field is required',
+                'language.required'     => 'Language field is required',
             ]),
+
             2 => $request->validate(
                 [
                     'business_name' => 'required|string|max:190',
@@ -124,10 +133,14 @@ class OnboardingController extends Controller
                     'address'       => 'required|string|max:500',
                     'website'       => 'required|max:190',
                     'logo'          => 'nullable',
-                    'logo_file'     => 'required',
+                    // Check if logo was already uploaded
+                    'logo_file'     => (!empty($tempData['upload_id']) || !empty($tempData['logo_url']))
+                        ? 'nullable'
+                        : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 ],
                 [
                     'phone_local.required' => 'The phone field is required.',
+                    'logo_file.required' => 'Please upload a business logo.',
                 ]
             ),
 
@@ -138,13 +151,23 @@ class OnboardingController extends Controller
                 'date_format' => 'required|string|max:20',
                 'time_format' => 'required|in:12-hour,24-hour',
             ]),
+
             4 => $request->validate([
                 'tax_registered'    => 'required|boolean',
                 'tax_type'          => 'required_if:tax_registered,1|max:50',
                 'tax_rate'          => 'required_if:tax_registered,1|numeric|min:0|max:100',
                 'tax_id'            => 'required_if:tax_registered,1',
-                'extra_tax_rates'   => 'required_if:tax_registered,1',
+                'extra_tax_rates'   => 'required_if:tax_registered,1|numeric|min:0|max:100',
                 'price_includes_tax' => 'required|boolean',
+            ], [
+                'tax_type.required_if'        => 'The Tax Type field is required when Tax Registered is checked Yes.',
+                'tax_rate.required_if'        => 'The Tax Rate field is required when Tax Registered is checked Yes.',
+                'tax_rate.min'                => 'The Tax Rate cannot be less than 0%.',
+                'tax_rate.max'                => 'The Tax Rate cannot exceed 100%.',
+                'extra_tax_rates.min'                => 'The Extra Tax Rate cannot be less than 0%.',
+                'extra_tax_rates.max'                => 'The Extra Tax Rate cannot exceed 100%.',
+                'tax_id.required_if'          => 'The Tax ID field is required when Tax Registered is checked Yes.',
+                'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
             ]),
 
             5 => $request->validate([
@@ -156,20 +179,26 @@ class OnboardingController extends Controller
                 'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
                 'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
             ]),
+
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
                 'receipt_logo' => 'nullable',
-                'receipt_logo_file' => 'required',
+                // Same logic for receipt logo
+                'receipt_logo_file' => (!empty($tempData['upload_id']) || !empty($tempData['receipt_logo_url']))
+                    ? 'nullable'
+                    : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',
                 'printers' => 'nullable|array',
             ]),
+
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
             ]),
+
             8 => $request->validate([
                 'auto_disable' => 'required|in:yes,no',
                 'hours' => 'required|array|size:7',
@@ -181,6 +210,7 @@ class OnboardingController extends Controller
                 'hours.*.breaks.*.start' => 'required_with:hours.*.breaks|date_format:H:i',
                 'hours.*.breaks.*.end' => 'required_with:hours.*.breaks|date_format:H:i|after:hours.*.breaks.*.start',
             ]),
+
             9 => $request->validate([
                 'feat_loyalty' => 'required|in:yes,no',
                 'feat_inventory' => 'required|in:yes,no',
@@ -188,6 +218,7 @@ class OnboardingController extends Controller
                 'feat_multilocation' => 'required|in:yes,no',
                 'feat_theme' => 'required|in:yes,no',
             ]),
+
             default => []
         };
 
@@ -198,31 +229,31 @@ class OnboardingController extends Controller
             $data['country_code'] = $country->iso2 ?? null;
         }
 
-        // ⚠️ CRITICAL: Handle Step 2 file upload IMMEDIATELY
+        // Handle Step 2 file upload
         if ($step === 2 && $request->hasFile('logo_file')) {
             try {
-                // Upload the file using your helper
                 $upload = UploadHelper::store(
                     $request->file('logo_file'),
                     'logos',
                     'public'
                 );
 
-                // Store only the upload ID and path (not the file object)
                 $data['upload_id'] = $upload->id;
-                $data['logo_path'] = $upload->path;
-                $data['logo_url'] = $upload->url; // if your helper provides this
+                $data['logo_path'] = $upload->file_name;
+                $data['logo_url'] = UploadHelper::url($upload->id, 'public');
 
-                // Remove the file object from data
                 unset($data['logo_file']);
             } catch (\Exception $e) {
                 return response()->json([
                     'error' => 'Failed to upload logo. Please try again.',
                 ], 500);
             }
+        } else if ($step === 2 && !empty($tempData['logo_url'])) {
+            // If no new file uploaded, keep existing upload data
+            $data['upload_id'] = $tempData['upload_id'];
+            $data['logo_path'] = $tempData['logo_path'];
+            $data['logo_url'] = $tempData['logo_url'];
         }
-
-        // In saveStep() method, add after Step 2 file handling:
 
         // Handle Step 6 receipt logo upload
         if ($step === 6 && $request->hasFile('receipt_logo_file')) {
@@ -243,10 +274,12 @@ class OnboardingController extends Controller
                     'error' => 'Failed to upload receipt logo. Please try again.',
                 ], 500);
             }
+        } else if ($step === 6 && !empty($tempData['receipt_logo_url'])) {
+            // Keep existing receipt logo
+            $data['upload_id'] = $tempData[6]['upload_id'] ?? null;
+            $data['receipt_logo_path'] = $tempData[6]['receipt_logo_path'] ?? null;
+            $data['receipt_logo_url'] = $tempData[6]['receipt_logo_url'] ?? null;
         }
-
-        // Get existing session data
-        $tempData = session()->get('onboarding_data', []);
 
         // Store step data in nested format
         $tempData[$step] = $data;
@@ -256,7 +289,7 @@ class OnboardingController extends Controller
             $tempData[$key] = $value;
         }
 
-        // Save to session (now without file objects)
+        // Save to session
         session()->put('onboarding_data', $tempData);
 
         // Update progress

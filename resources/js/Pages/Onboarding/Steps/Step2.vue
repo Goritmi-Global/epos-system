@@ -98,6 +98,11 @@ onMounted(() => {
     if (iso) syncDialFromIso(iso);
     form.phone_local = phoneLocal;
     buildFullPhone();
+
+    // ✅ LOGO: initialize logo_url if we have upload_id or logo_path
+    if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
+        form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`;
+    }
 });
 
 watch(selectedDial, (opt) => {
@@ -216,7 +221,7 @@ const flagUrl = (iso, size = "24x18") =>
                         <label class="form-label">Phone*</label>
                         <div class="input-group">
                             <span class="input-group-text p-0">
-                                <Select v-model="selectedDial" :options="dialOptions" optionLabel="name" :filter="true"
+                                <Select v-model="selectedDial" :options="dialOptions" optionLabel="dial" :filter="true"
                                     placeholder="Code" class="dial-select" />
                             </span>
                             <input class="form-control" inputmode="numeric" placeholder="Phone number"

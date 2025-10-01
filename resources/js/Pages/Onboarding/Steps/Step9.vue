@@ -12,9 +12,22 @@ const form = reactive({
 })
 
 // Watch for changes and log them
-watch(() => form, (newVal) => {
-  console.log("Step 9 Form Updated:", toRaw(newVal));
-}, { deep: true });
+// watch(() => form, (newVal) => {
+//   console.log("Step 9 Form Updated:", toRaw(newVal));
+// }, { deep: true });
+
+watch(
+  () => form,
+  (newVal) => {
+    const rawForm = toRaw(form);
+    console.log("Step 9 Form Updated (watch):", rawForm);
+
+    // Emit save immediately, even if user hasn't changed anything
+    emit("save", { step: 9, data: rawForm });
+  },
+  { deep: true, immediate: true } // <-- add immediate: true
+);
+
 
 function emitSave() {
   const rawForm = toRaw(form);
