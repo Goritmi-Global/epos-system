@@ -195,7 +195,7 @@ onUpdated(() => window.feather?.replace());
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
+             
                 <h4 class="fw-semibold mb-3">Promo Management</h4>
 
                 <!-- KPI Cards -->
@@ -445,7 +445,7 @@ onUpdated(() => window.feather?.replace());
                     </div>
                 </div>
                 <!-- /modal -->
-            </div>
+            
         </div>
     </Master>
 </template>

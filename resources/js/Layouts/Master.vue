@@ -416,13 +416,13 @@ onUpdated(() => window.feather?.replace());
 
 /* style for daek mode  */
 .dark .modal-body {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .modal-header {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
@@ -430,19 +430,19 @@ onUpdated(() => window.feather?.replace());
 
 
 .dark input {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark textarea {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .select {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
@@ -469,30 +469,30 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
 }
 .dark .card {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-800 */
     color: #ffffff !important;
     /* gray-50 */
 }
 
 .dark .table {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-900 */
     color: #f9fafb !important;
 }
 
 .dark .table thead {
-    background-color: #111827;
+    background-color: #000000;
     color: #f9fafb;
 }
 
 .dark .table thead th {
-    background-color: #111827;
+    background-color: #000000;
     color: #f9fafb;
 }
 
 .dark .table tbody td {
-    background-color: #111827;
+    background-color: #000000;
     color: #f9fafb;
 }
 
@@ -500,7 +500,7 @@ html.dark {
     --brand: #ffffff;
     --bg-muted: #1f2937;
     --border: #374151;
-    background: #111827;
+    background: #000000;
     color: #f9fafb;
 }
 
@@ -510,12 +510,12 @@ html.dark .page-wrapper {
 }
 
 html.dark .header {
-    background: #1f2937;
-    border-bottom-color: #374151;
+    background: #000000;
+    border-bottom-color: #ffffff;
 }
 
 html.dark .sidebar {
-    background: #1f2937;
+    background: #000000;
     /* border-right-color: #374151; */
     color: white;
 }
@@ -525,8 +525,8 @@ html.dark .side-link {
 }
 
 html.dark .side-link:hover {
-    background: #374151;
-    color: #fff;
+    background: #ffffff;
+    color: #000000 !important;
 }
 
 html.dark .main {
@@ -535,19 +535,19 @@ html.dark .main {
 }
 
 .dark .dash-widget {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h5 {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h6 {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     ;
     color: #ffffff;
 }
@@ -603,7 +603,7 @@ html.dark .main {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--bg-muted);
+    
     border-radius: 9999px;
     padding: 6px 10px;
     width: 100%;
@@ -611,11 +611,28 @@ html.dark .main {
 }
 
 .top-nav-search input {
-    background: transparent;
-    border: none;
-    outline: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-muted);
+    border-radius: 9999px;
+    padding: 6px 10px;
     width: 100%;
+    max-width: 420px;
 }
+ 
+.dark .top-nav-search input {
+     display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white !important;
+    border-radius: 9999px;
+    padding: 6px 10px;
+    width: 100%;
+    max-width: 420px;
+    color: black !important;
+}
+ 
 
 .nav.user-menu {
     list-style: none;
@@ -743,7 +760,7 @@ html.dark .main {
 }
 
 .dark .side-link:hover {
-    background: #111827;
+    background: #000000;
     color: #fff;
 }
 
@@ -756,8 +773,8 @@ li.active>.side-link {
 
 .dark .side-link.active,
 li.active>.side-link {
-    background: #111827;
-    color: #eef2ff;
+    background: #ffffff !important;
+    color: #000000 !important;
     font-weight: 600;
 }
 
@@ -876,20 +893,20 @@ li.active>.side-link {
 }
 
 .dark .sidebar .list-unstyled li .side-link:hover {
-    color: #fff;
-    background: #111827;
+    color: #000000 !important;
+    background: #ffffff !important;
     /* light hover */
 }
 
 .sidebar .list-unstyled li.active>.side-link {
-    background: var(--brand);
+    background: var(--brand) !important;
     /* brand background */
-    color: #fff;
+    color: #fff !important;
     font-weight: 500;
 }
 
 .dark .sidebar .list-unstyled li.active>.side-link {
-    background: #111827;
+    background: #000000;
     /* brand background */
     color: #fff;
     font-weight: 500;

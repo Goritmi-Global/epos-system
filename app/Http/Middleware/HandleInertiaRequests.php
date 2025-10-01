@@ -73,9 +73,9 @@ class HandleInertiaRequests extends Middleware
         $onboarding = [];
         if ($user) {
             foreach ($models as $key => $modelClass) {
-                $cols = $fields[$key] ?? ['id']; // safe fallback
+                $cols = $fields[$key] ?? ['id'];  
                 // select only needed columns, return as plain array (or null)
-                $row = $modelClass::where('user_id', $user->id)->select($cols)->first();
+                $row = $modelClass::where('user_id', $user->id)->select($cols)->first(); 
                 $onboarding[$key] = $row ? $row->toArray() : null;
             }
         }

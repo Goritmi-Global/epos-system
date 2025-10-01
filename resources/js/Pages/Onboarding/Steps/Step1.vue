@@ -239,7 +239,7 @@ watch(selectedLanguage, (opt) => {
 
 <style scoped>
 .dark .section{
-   background-color: #111827 !important;
+   background-color: #000000 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }

@@ -826,7 +826,7 @@ const handleImport = (data) => {
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
+           
                 <h4 class="fw-semibold mb-3">Categories</h4>
 
                 <!-- KPI -->
@@ -1308,7 +1308,7 @@ const handleImport = (data) => {
                         </div>
                     </div>
                 </div>
-            </div>
+            
         </div>
     </Master>
 </template>
@@ -1319,22 +1319,22 @@ const handleImport = (data) => {
     color: white;
 }
 .dark .card {
-  background-color: #111827!important; /* gray-800 */
+  background-color: #000000!important; /* gray-800 */
   color: #ffffff !important;           /* gray-50 */
 }
 
 .dark .table {
-  background-color: #111827 !important; /* gray-900 */
+  background-color: #000000 !important; /* gray-900 */
   color: #f9fafb !important;
 }
 
 .dark .table thead{
-    background-color: #111827 !important; /* gray-900 */
+    background-color: #000000 !important; /* gray-900 */
   color: #f9fafb !important;
 }
 
 .dark .table thead th{
-    background-color: #111827 !important; /* gray-900 */
+    background-color: #000000 !important; /* gray-900 */
   color: #f9fafb !important;
 } 
 
@@ -1350,7 +1350,7 @@ const handleImport = (data) => {
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #111827;
+    color: #000000;
 }
 
 /* Search pill */
