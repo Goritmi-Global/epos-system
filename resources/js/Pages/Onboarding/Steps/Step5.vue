@@ -4,26 +4,38 @@ import { reactive, toRaw, watch, ref } from "vue"
 const props = defineProps({ model: Object, formErrors: Object })
 const emit = defineEmits(["save"])
 
+// const form = reactive({
+//   order_types: props.model.order_types ?? [],
+//   table_management_enabled: props.model.table_management_enabled ?? 1,
+//   tables: props.model.tables ?? "",
+//   online_ordering: props.model.online_ordering ?? true,
+//   table_details: props.model.table_details ?? [],
+//   number_of_tables: props.model.number_of_tables ?? []   // new field
+
+// })
+
+// Step 5 reactive form
 const form = reactive({
   order_types: props.model.order_types ?? [],
-  table_management_enabled: props.model.table_management_enabled ? 1 : 0,
-  tables: props.model.tables ?? "",
+  table_management_enabled: props.model.table_management_enabled ?? 0,
+  tables: props.model.tables ?? 0, // <-- use 0 instead of empty string
   online_ordering: props.model.online_ordering ?? true,
   table_details: props.model.table_details ?? [],
-  number_of_tables: props.model.number_of_tables ?? []   // new field
+});
 
-})
+console.log("props.model.table_management_enabled", props.model.table_management_enabled);
+console.log("table_management_enabled", form.table_management_enabled);
 
-watch(
-  () => form.tables,
-  (newCount) => {
-    form.table_details = Array.from({ length: newCount }, (_, i) => ({
-      name: "",
-      chairs: ""
-    }));
-  },
-  { immediate: true }
-);
+// watch(
+//   () => form.tables,
+//   (newCount) => {
+//     form.table_details = Array.from({ length: newCount }, (_, i) => ({
+//       name: "",
+//       chairs: ""
+//     }));
+//   },
+//   { immediate: true }
+// );
 
 
 const submitting = ref(false);
@@ -47,24 +59,83 @@ const resetTableDetails = () => {
 
 // function emitSave() { emit("save", { step: 5, data: toRaw(form) }) }
 
-function emitSave() {
-  const payload = {
-    step: 5,
-    data: {
-      order_types: form.order_types,
-      table_management_enabled: form.table_management_enabled,
-      online_ordering: form.online_ordering,
+// function emitSave() {
+//   const payload = {
+//     step: 5,
+//     data: {
+//       order_types: form.order_types,
+//       table_management_enabled: form.table_management_enabled,
+//       online_ordering: form.online_ordering,
+//     }
+//   };
+
+//   // Only include tables & table_details if dine_in is selected
+//   if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
+//     payload.data.tables = form.tables;
+//     payload.data.table_details = form.table_details;
+//   }
+
+//   emit("save", payload);
+// }
+
+// Watch for number of tables and initialize table_details
+watch(
+  () => form.tables,
+  (newCount) => {
+    form.table_details = Array.from({ length: newCount }, (_, i) => ({
+      name: form.table_details[i]?.name ?? "",
+      chairs: form.table_details[i]?.chairs ?? "",
+    }));
+  },
+  { immediate: true }
+);
+
+// Watch entire form and emit payload
+watch(
+  form,
+  () => {
+    const payload = {
+      step: 5,
+      data: {
+        order_types: form.order_types,
+        table_management_enabled: form.table_management_enabled,
+        online_ordering: form.online_ordering,
+      },
+    };
+
+    if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
+      payload.data.tables = form.tables;
+      payload.data.table_details = form.table_details;
     }
-  };
 
-  // Only include tables & table_details if dine_in is selected
-  if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
-    payload.data.tables = form.tables;
-    payload.data.table_details = form.table_details;
-  }
+    emit("save", payload);
+  },
+  { deep: true, immediate: true }
+);
 
-  emit("save", payload);
-}
+watch(
+  form,
+  () => {
+    const payload = {
+      step: 5,
+      data: {
+        order_types: form.order_types,
+        table_management_enabled: form.table_management_enabled,
+        online_ordering: form.online_ordering,
+      }
+    };
+
+    // Only include tables & table_details if dine_in is selected
+    if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
+      payload.data.tables = form.tables;
+      payload.data.table_details = form.table_details;
+    }
+
+    emit("save", payload);
+  },
+  { deep: true, immediate: true }
+);
+
 
 function toggle(type) {
   const i = form.order_types.indexOf(type)

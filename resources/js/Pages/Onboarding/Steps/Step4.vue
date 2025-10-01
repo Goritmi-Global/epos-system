@@ -14,32 +14,32 @@ const form = reactive({
   extra_tax_rates: props.model.extra_tax_rates ?? "", 
 });
 
+console.log("props.model.tax_registered",props.model.tax_registered);
+console.log("tax_registered", form.tax_registered);
 watch(form, () => {
   const payload = {
     step: 4,
     data: {
-      tax_registered: form.tax_registered ? 1 : 0,
-      price_includes_tax: form.price_includes_tax ? 1 : 0,
+      tax_registered: Number(form.tax_registered),
+      price_includes_tax: Number(form.price_includes_tax),
     },
   }
 
-  // Only include tax fields when tax_registered = 1
-  if (form.tax_registered === 1) {
-    payload.data.tax_type = form.tax_type
-    payload.data.tax_rate = Number(form.tax_rate)
-    payload.data.tax_id = form.tax_id
-    // Send as string, not array
-    payload.data.extra_tax_rates = form.extra_tax_rates || ""
+  if (Number(form.tax_registered) === 1) {
+    payload.data.tax_type = form.tax_type;
+    payload.data.tax_rate = Number(form.tax_rate);
+    payload.data.tax_id = form.tax_id;
+    payload.data.extra_tax_rates = form.extra_tax_rates || "";
   } else {
-    // When not registered, send empty/default values to pass validation
-    payload.data.tax_type = ""
-    payload.data.tax_rate = 0
-    payload.data.tax_id = ""
-    payload.data.extra_tax_rates = ""
+    payload.data.tax_type = "";
+    payload.data.tax_rate = 0;
+    payload.data.tax_id = "";
+    payload.data.extra_tax_rates = 0;
   }
 
-  emit("save", payload)
-}, { deep: true })
+  emit("save", payload);
+}, { deep: true, immediate: true });
+
 
 
 
@@ -69,10 +69,10 @@ const taxTypeOptions = ref([
     <div class="mb-3">
       <label class="form-label d-block mb-2">Is your business tax registered?</label>
       <div class="segmented">
-        <input type="radio" id="tax-yes" :value="1" v-model="form.tax_registered" class="segmented__input" />
+        <input type="radio" id="tax-yes" :value="1" v-model.number="form.tax_registered" class="segmented__input" />
         <label for="tax-yes" class="segmented__btn" :class="{ 'is-active': form.tax_registered === 1 }">YES</label>
 
-        <input type="radio" id="tax-no" :value="0" v-model="form.tax_registered" class="segmented__input" />
+        <input type="radio" id="tax-no" :value="0" v-model.number="form.tax_registered" class="segmented__input" />
         <label for="tax-no" class="segmented__btn" :class="{ 'is-active': form.tax_registered === 0 }">NO</label>
       </div>
     </div>
