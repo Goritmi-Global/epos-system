@@ -462,7 +462,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/suppliers/import", { suppliers: suppliersToImport })
+        .post("/api/suppliers/import", { suppliers: suppliersToImport })
         .then(() => {
             toast.success("Suppliers imported successfully");
             fetchSuppliers();
