@@ -365,7 +365,7 @@ const types = [
 
 .dark .check-tile{
       --accent: #1c0d82;
-     background-color: #111827 !important;
+     background-color: #000000 !important;
     color: #ffffff !important;
 }
 

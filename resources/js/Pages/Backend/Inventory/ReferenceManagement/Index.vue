@@ -19,41 +19,38 @@ const active = ref("suppliers");
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
-                <!-- Tabs -->
-                <ul class="nav nav-tabs border-0">
-                    <li class="nav-item" v-for="t in tabs" :key="t.key">
-                        <button
-                            class="nav-link px-3"
-                            :class="{ active: active === t.key }"
-                            @click="active = t.key"
-                        >
-                            {{ t.label }}
-                        </button>
-                    </li>
-                </ul>
+            <!-- Tabs -->
+            <ul class="nav nav-tabs border-0">
+                <li class="nav-item" v-for="t in tabs" :key="t.key">
+                    <button
+                        class="nav-link px-3"
+                        :class="{ active: active === t.key }"
+                        @click="active = t.key"
+                    >
+                        {{ t.label }}
+                    </button>
+                </li>
+            </ul>
 
-                <div class="mt-3">
-                    <component :is="tabs.find((t) => t.key === active)?.comp" />
-                </div>
+            <div class="mt-3">
+                <component :is="tabs.find((t) => t.key === active)?.comp" />
             </div>
         </div>
     </Master>
 </template>
 
 <style scoped>
-
-.dark .nav-tabs .nav-link{
+.dark .nav-tabs .nav-link {
     color: #ffffff;
 }
 
-.dark .nav-link{
+.dark .nav-link {
     color: #ffffff;
 }
 
-.dark .nav-tabs .nav-link.active{
+.dark .nav-tabs .nav-link.active {
     color: #ffffff;
-     border-bottom: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
 }
 .nav-tabs .nav-link {
     border: 0;

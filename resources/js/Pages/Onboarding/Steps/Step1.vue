@@ -202,10 +202,10 @@ watch(selectedLanguage, (opt) => {
 </template>
 
 <style scoped>
-.dark .section {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+.dark .section{
+   background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 

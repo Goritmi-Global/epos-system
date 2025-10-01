@@ -139,364 +139,354 @@ onUpdated(() => window.feather?.replace());
     <Head title="Analytics" />
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-2">
-                <!-- Filters row -->
-                <div
-                    class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3"
-                >
-                    <div class="d-flex flex-wrap gap-2">
-                        <div class="filter">
-                            <Select
-                                v-model="range"
-                                :options="rangeOptions"
-                                class="w-100"
-                                :appendTo="'body'"
-                            >
-                                <template #value="{ value, placeholder }"
-                                    ><span>{{
-                                        value || placeholder
-                                    }}</span></template
-                                >
-                            </Select>
-                        </div>
-                        <div class="filter">
-                            <Select
-                                v-model="orderType"
-                                :options="orderTypeOptions"
-                                class="w-100"
-                                :appendTo="'body'"
-                            >
-                                <template #value="{ value, placeholder }"
-                                    ><span>{{
-                                        value || placeholder
-                                    }}</span></template
-                                >
-                            </Select>
-                        </div>
-                        <div class="filter">
-                            <Select
-                                v-model="payType"
-                                :options="payTypeOptions"
-                                class="w-100"
-                                :appendTo="'body'"
-                            >
-                                <template #value="{ value, placeholder }"
-                                    ><span>{{
-                                        value || placeholder
-                                    }}</span></template
-                                >
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div class="dropdown">
-                        <button
-                            class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                            data-bs-toggle="dropdown"
+            <!-- Filters row -->
+            <div
+                class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3"
+            >
+                <div class="d-flex flex-wrap gap-2">
+                    <div class="filter">
+                        <Select
+                            v-model="range"
+                            :options="rangeOptions"
+                            class="w-100"
+                            :appendTo="'body'"
                         >
-                            Download reports
-                        </button>
-                        <ul
-                            class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                            <template #value="{ value, placeholder }"
+                                ><span>{{
+                                    value || placeholder
+                                }}</span></template
+                            >
+                        </Select>
+                    </div>
+                    <div class="filter">
+                        <Select
+                            v-model="orderType"
+                            :options="orderTypeOptions"
+                            class="w-100"
+                            :appendTo="'body'"
                         >
-                            <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:void(0)"
-                                    >Download as PDF</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="dropdown-item py-2"
-                                    href="javascript:void(0)"
-                                    >Download as Excel</a
-                                >
-                            </li>
-                        </ul>
+                            <template #value="{ value, placeholder }"
+                                ><span>{{
+                                    value || placeholder
+                                }}</span></template
+                            >
+                        </Select>
+                    </div>
+                    <div class="filter">
+                        <Select
+                            v-model="payType"
+                            :options="payTypeOptions"
+                            class="w-100"
+                            :appendTo="'body'"
+                        >
+                            <template #value="{ value, placeholder }"
+                                ><span>{{
+                                    value || placeholder
+                                }}</span></template
+                            >
+                        </Select>
                     </div>
                 </div>
 
-                <!-- Error -->
-                <div
-                    v-if="errorMsg"
-                    class="alert alert-warning border-0 rounded-4 shadow-sm"
-                >
-                    {{ errorMsg }}
+                <div class="dropdown">
+                    <button
+                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                        data-bs-toggle="dropdown"
+                    >
+                        Download reports
+                    </button>
+                    <ul
+                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                    >
+                        <li>
+                            <a
+                                class="dropdown-item py-2"
+                                href="javascript:void(0)"
+                                >Download as PDF</a
+                            >
+                        </li>
+                        <li>
+                            <a
+                                class="dropdown-item py-2"
+                                href="javascript:void(0)"
+                                >Download as Excel</a
+                            >
+                        </li>
+                    </ul>
                 </div>
+            </div>
 
-                <!-- KPIs -->
-                <div class="row g-3">
-                    <div class="col-6 col-lg-3">
-                        <div class="card kpi shadow-sm rounded-4 h-100">
-                            <div class="card-body">
-                                <div class="kpi-top">
-                                    <div class="kpi-icon">
-                                        <i class="bi bi-currency-pound"></i>
-                                    </div>
-                                    <svg viewBox="0 0 160 44" class="spark">
-                                        <path
-                                            :d="sparkPath"
-                                            class="spark-line"
-                                        />
-                                    </svg>
+            <!-- Error -->
+            <div
+                v-if="errorMsg"
+                class="alert alert-warning border-0 rounded-4 shadow-sm"
+            >
+                {{ errorMsg }}
+            </div>
+
+            <!-- KPIs -->
+            <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                    <div class="card kpi shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <div class="kpi-top">
+                                <div class="kpi-icon">
+                                    <i class="bi bi-currency-pound"></i>
                                 </div>
-                                <div class="kpi-label">Revenue</div>
-                                <div class="kpi-value">
-                                    {{ money(revenue) }}
-                                </div>
+                                <svg viewBox="0 0 160 44" class="spark">
+                                    <path :d="sparkPath" class="spark-line" />
+                                </svg>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-lg-3">
-                        <div class="card kpi shadow-sm rounded-4 h-100">
-                            <div class="card-body">
-                                <div class="kpi-top">
-                                    <div class="kpi-icon">
-                                        <i class="bi bi-receipt"></i>
-                                    </div>
-                                </div>
-                                <div class="kpi-label">Orders</div>
-                                <div class="kpi-value">{{ ordersCount }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-lg-3">
-                        <div class="card kpi shadow-sm rounded-4 h-100">
-                            <div class="card-body">
-                                <div class="kpi-top">
-                                    <div class="kpi-icon">
-                                        <i class="bi bi-graph-up"></i>
-                                    </div>
-                                </div>
-                                <div class="kpi-label">Avg. Order Value</div>
-                                <div class="kpi-value">{{ money(aov) }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-6 col-lg-3">
-                        <div class="card kpi shadow-sm rounded-4 h-100">
-                            <div class="card-body">
-                                <div class="kpi-top">
-                                    <div class="kpi-icon">
-                                        <i class="bi bi-basket"></i>
-                                    </div>
-                                </div>
-                                <div class="kpi-label">Items Sold</div>
-                                <div class="kpi-value">{{ itemsSold }}</div>
+                            <div class="kpi-label">Revenue</div>
+                            <div class="kpi-value">
+                                {{ money(revenue) }}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Charts row -->
-                <div class="row g-3 mt-1">
-                    <div class="col-lg-8">
-                        <div class="card border-0 shadow-sm rounded-4 h-100">
-                            <div class="card-body">
-                                <h6 class="fw-semibold mb-2">
-                                    Sales Over Time
-                                </h6>
-                                <div class="chart">
-                                    <svg viewBox="0 0 840 280">
-                                        <!-- Axes -->
+                <div class="col-6 col-lg-3">
+                    <div class="card kpi shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <div class="kpi-top">
+                                <div class="kpi-icon">
+                                    <i class="bi bi-receipt"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-label">Orders</div>
+                            <div class="kpi-value">{{ ordersCount }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="card kpi shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <div class="kpi-top">
+                                <div class="kpi-icon">
+                                    <i class="bi bi-graph-up"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-label">Avg. Order Value</div>
+                            <div class="kpi-value">{{ money(aov) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="card kpi shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <div class="kpi-top">
+                                <div class="kpi-icon">
+                                    <i class="bi bi-basket"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-label">Items Sold</div>
+                            <div class="kpi-value">{{ itemsSold }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts row -->
+            <div class="row g-3 mt-1">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-2">Sales Over Time</h6>
+                            <div class="chart">
+                                <svg viewBox="0 0 840 280">
+                                    <!-- Axes -->
+                                    <line
+                                        x1="40"
+                                        y1="16"
+                                        x2="40"
+                                        y2="252"
+                                        class="axis"
+                                    />
+                                    <line
+                                        x1="40"
+                                        y1="252"
+                                        x2="830"
+                                        y2="252"
+                                        class="axis"
+                                    />
+                                    <!-- Grid -->
+                                    <g v-for="i in 6" :key="'g' + i">
                                         <line
-                                            x1="40"
-                                            y1="16"
-                                            x2="40"
-                                            y2="252"
-                                            class="axis"
+                                            :x1="40"
+                                            :x2="830"
+                                            :y1="252 - i * 36"
+                                            :y2="252 - i * 36"
+                                            class="grid"
                                         />
-                                        <line
-                                            x1="40"
-                                            y1="252"
-                                            x2="830"
-                                            y2="252"
-                                            class="axis"
-                                        />
-                                        <!-- Grid -->
-                                        <g v-for="i in 6" :key="'g' + i">
-                                            <line
-                                                :x1="40"
-                                                :x2="830"
-                                                :y1="252 - i * 36"
-                                                :y2="252 - i * 36"
-                                                class="grid"
-                                            />
-                                        </g>
-                                        <!-- Series -->
-                                        <path :d="bigLinePath" class="line" />
-                                        <text
-                                            v-if="!salesSeries.length"
-                                            x="430"
-                                            y="140"
-                                            text-anchor="middle"
-                                            class="muted"
-                                        >
-                                            No data
-                                        </text>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4">
-                        <div class="card border-0 shadow-sm rounded-4 mb-3">
-                            <div class="card-body">
-                                <h6 class="fw-semibold mb-3">Orders by Type</h6>
-
-                                <div class="stack">
-                                    <div class="stack-row">
-                                        <span>Dine In</span>
-                                        <span class="stack-val"
-                                            >{{ ordersByType.dine }} ({{
-                                                ordersByType.dinePct
-                                            }}%)</span
-                                        >
-                                    </div>
-                                    <div class="progress thin">
-                                        <div
-                                            class="progress-bar bg-success"
-                                            :style="{
-                                                width:
-                                                    ordersByType.dinePct + '%',
-                                            }"
-                                        ></div>
-                                    </div>
-                                </div>
-
-                                <div class="stack mt-2">
-                                    <div class="stack-row">
-                                        <span>Delivery</span>
-                                        <span class="stack-val"
-                                            >{{ ordersByType.delivery }} ({{
-                                                ordersByType.deliveryPct
-                                            }}%)</span
-                                        >
-                                    </div>
-                                    <div class="progress thin">
-                                        <div
-                                            class="progress-bar bg-primary"
-                                            :style="{
-                                                width:
-                                                    ordersByType.deliveryPct +
-                                                    '%',
-                                            }"
-                                        ></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body">
-                                <h6 class="fw-semibold mb-3">Payments Mix</h6>
-                                <div
-                                    v-for="p in paymentsMix"
-                                    :key="p.method"
-                                    class="mb-2"
-                                >
-                                    <div class="stack-row">
-                                        <span class="text-capitalize">{{
-                                            p.method
-                                        }}</span>
-                                        <span class="stack-val"
-                                            >{{ p.count }} ({{ p.pct }}%)</span
-                                        >
-                                    </div>
-                                    <div class="progress thin">
-                                        <div
-                                            class="progress-bar"
-                                            :class="{
-                                                'bg-secondary':
-                                                    p.method === 'cash',
-                                                'bg-info': p.method === 'card',
-                                                'bg-warning': p.method === 'qr',
-                                                'bg-dark': p.method === 'bank',
-                                            }"
-                                            :style="{ width: p.pct + '%' }"
-                                        />
-                                    </div>
-                                </div>
-                                <div
-                                    v-if="!paymentsMix.length"
-                                    class="small text-muted"
-                                >
-                                    No payment data.
-                                </div>
+                                    </g>
+                                    <!-- Series -->
+                                    <path :d="bigLinePath" class="line" />
+                                    <text
+                                        v-if="!salesSeries.length"
+                                        x="430"
+                                        y="140"
+                                        text-anchor="middle"
+                                        class="muted"
+                                    >
+                                        No data
+                                    </text>
+                                </svg>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Top Items -->
-                <div class="card border-0 shadow-sm rounded-4 mt-3">
-                    <div class="card-body">
-                        <div
-                            class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-                        >
-                            <h6 class="fw-semibold mb-0">Top Items</h6>
-                            <div class="search-wrap">
-                                <i class="bi bi-search"></i>
-                                <input
-                                    v-model="qItems"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search item name"
-                                />
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-4 mb-3">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Orders by Type</h6>
+
+                            <div class="stack">
+                                <div class="stack-row">
+                                    <span>Dine In</span>
+                                    <span class="stack-val"
+                                        >{{ ordersByType.dine }} ({{
+                                            ordersByType.dinePct
+                                        }}%)</span
+                                    >
+                                </div>
+                                <div class="progress thin">
+                                    <div
+                                        class="progress-bar bg-success"
+                                        :style="{
+                                            width: ordersByType.dinePct + '%',
+                                        }"
+                                    ></div>
+                                </div>
+                            </div>
+
+                            <div class="stack mt-2">
+                                <div class="stack-row">
+                                    <span>Delivery</span>
+                                    <span class="stack-val"
+                                        >{{ ordersByType.delivery }} ({{
+                                            ordersByType.deliveryPct
+                                        }}%)</span
+                                    >
+                                </div>
+                                <div class="progress thin">
+                                    <div
+                                        class="progress-bar bg-primary"
+                                        :style="{
+                                            width:
+                                                ordersByType.deliveryPct + '%',
+                                        }"
+                                    ></div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="small text-muted">
-                                    <tr>
-                                        <th style="width: 60px">S.#</th>
-                                        <th>Item</th>
-                                        <th style="width: 140px">Qty Sold</th>
-                                        <th style="width: 160px">Revenue</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr
-                                        v-for="(r, i) in topItemsFiltered"
-                                        :key="r.name"
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Payments Mix</h6>
+                            <div
+                                v-for="p in paymentsMix"
+                                :key="p.method"
+                                class="mb-2"
+                            >
+                                <div class="stack-row">
+                                    <span class="text-capitalize">{{
+                                        p.method
+                                    }}</span>
+                                    <span class="stack-val"
+                                        >{{ p.count }} ({{ p.pct }}%)</span
                                     >
-                                        <td>{{ i + 1 }}</td>
-                                        <td class="fw-semibold">
-                                            {{ r.name }}
-                                        </td>
-                                        <td>{{ r.qty }}</td>
-                                        <td>{{ money(r.revenue) }}</td>
-                                    </tr>
-                                    <tr
-                                        v-if="
-                                            !loading &&
-                                            topItemsFiltered.length === 0
-                                        "
-                                    >
-                                        <td
-                                            colspan="4"
-                                            class="text-center text-muted py-4"
-                                        >
-                                            No items in this range.
-                                        </td>
-                                    </tr>
-                                    <tr v-if="loading">
-                                        <td
-                                            colspan="4"
-                                            class="text-center text-muted py-4"
-                                        >
-                                            Loading…
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                </div>
+                                <div class="progress thin">
+                                    <div
+                                        class="progress-bar"
+                                        :class="{
+                                            'bg-secondary': p.method === 'cash',
+                                            'bg-info': p.method === 'card',
+                                            'bg-warning': p.method === 'qr',
+                                            'bg-dark': p.method === 'bank',
+                                        }"
+                                        :style="{ width: p.pct + '%' }"
+                                    />
+                                </div>
+                            </div>
+                            <div
+                                v-if="!paymentsMix.length"
+                                class="small text-muted"
+                            >
+                                No payment data.
+                            </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Items -->
+            <div class="card border-0 shadow-sm rounded-4 mt-3">
+                <div class="card-body">
+                    <div
+                        class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+                    >
+                        <h6 class="fw-semibold mb-0">Top Items</h6>
+                        <div class="search-wrap">
+                            <i class="bi bi-search"></i>
+                            <input
+                                v-model="qItems"
+                                type="text"
+                                class="form-control search-input"
+                                placeholder="Search item name"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="small text-muted">
+                                <tr>
+                                    <th style="width: 60px">S.#</th>
+                                    <th>Item</th>
+                                    <th style="width: 140px">Qty Sold</th>
+                                    <th style="width: 160px">Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="(r, i) in topItemsFiltered"
+                                    :key="r.name"
+                                >
+                                    <td>{{ i + 1 }}</td>
+                                    <td class="fw-semibold">
+                                        {{ r.name }}
+                                    </td>
+                                    <td>{{ r.qty }}</td>
+                                    <td>{{ money(r.revenue) }}</td>
+                                </tr>
+                                <tr
+                                    v-if="
+                                        !loading &&
+                                        topItemsFiltered.length === 0
+                                    "
+                                >
+                                    <td
+                                        colspan="4"
+                                        class="text-center text-muted py-4"
+                                    >
+                                        No items in this range.
+                                    </td>
+                                </tr>
+                                <tr v-if="loading">
+                                    <td
+                                        colspan="4"
+                                        class="text-center text-muted py-4"
+                                    >
+                                        Loading…
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -505,26 +495,26 @@ onUpdated(() => window.feather?.replace());
 </template>
 
 <style scoped>
-.dark h4{
+.dark h4 {
     color: white;
 }
 .dark .card {
-  background-color: #111827 !important; /* gray-800 */
-  color: #ffffff !important;           /* gray-50 */
+    background-color: #000000 !important; /* gray-800 */
+    color: #ffffff !important; /* gray-50 */
 }
 
 .dark .table {
-  background-color: #111827 !important; /* gray-900 */
-  color: #f9fafb !important;
+    background-color: #000000 !important; /* gray-900 */
+    color: #f9fafb !important;
 }
-.dark .table thead{
-background-color:#111827 !important; ;
- color: #ffffff;
+.dark .table thead {
+    background-color: #000000 !important;
+    color: #ffffff;
 }
 
-.dark .table thead th{
-  background-color:#111827 !important; ;
-  color: #ffffff;
+.dark .table thead th {
+    background-color: #000000 !important;
+    color: #ffffff;
 }
 :root {
     --brand: #1c0d82;
@@ -556,7 +546,7 @@ background-color:#111827 !important; ;
 .kpi-value {
     font-size: 1.6rem;
     font-weight: 700;
-    color: #111827;
+    color: #000000;
 }
 
 /* Spark */

@@ -506,30 +506,30 @@ onUpdated(() => window.feather?.replace());
 
 <style setup>
 .dark .modal-body{
-    background-color: #111827 !important; /* gray-800 */
+    background-color: #000000 !important; /* gray-800 */
   color: #f9fafb !important;  
 }
 
 .dark .modal-header{
-      background-color: #111827 !important; /* gray-800 */
+      background-color: #000000 !important; /* gray-800 */
   color: #f9fafb !important;  
 }
 .dark input{
-       background-color: #111827 !important; /* gray-800 */
+       background-color: #000000 !important; /* gray-800 */
   color: #f9fafb !important;  
 }
 .dark .table thead th{
-  background-color:#111827 !important; ;
+  background-color:#000000 !important; ;
   color: #ffffff;
 }
 
 .dark .card-body{
-     background-color:#111827 !important; ;
+     background-color:#000000 !important; ;
   color: #ffffff;
 }
 
 .dark .card{
-     background-color:#111827 !important; ;
+     background-color:#000000 !important; ;
   color: #ffffff;
 }
 </style>

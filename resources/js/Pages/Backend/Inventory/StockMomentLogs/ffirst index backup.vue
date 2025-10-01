@@ -99,15 +99,14 @@ function Edit(row) {
     modal.show();
 }
 const isUpdating = ref(false);
- const resetErrors = () => {
-         formErrors.value = {};
-     }
+const resetErrors = () => {
+    formErrors.value = {};
+};
 async function updateLog() {
     if (isUpdating.value) return; // prevent double click
     isUpdating.value = true;
-     formErrors.value = {};
+    formErrors.value = {};
 
-    
     try {
         await axios.put(
             `stock_entries/stock-logs/${editForm.value.id}`,
@@ -121,16 +120,15 @@ async function updateLog() {
         );
         if (modal) modal.hide();
     } catch (err) {
-   
         if (err?.response?.status === 422 && err.response.data?.errors) {
-                formErrors.value = err.response.data.errors;
-            
-                 toast.error("Please fill in all required fields correctly.");
-            } else {
-                // toast.dismiss();
-                toast.error("Something went wrong. Please try again.");
-                console.error(err);
-            }
+            formErrors.value = err.response.data.errors;
+
+            toast.error("Please fill in all required fields correctly.");
+        } else {
+            // toast.dismiss();
+            toast.error("Something went wrong. Please try again.");
+            console.error(err);
+        }
     } finally {
         isUpdating.value = false;
     }
@@ -485,303 +483,251 @@ watch(
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
-                <div class="card border-0 shadow-lg rounded-4">
-                    <div class="card-body p-4">
-                        <div
-                            class="d-flex align-items-center justify-content-between mb-3"
-                        >
-                            <h4 class="fw-semibold mb-0">Stock Moment Logs</h4>
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-body p-4">
+                    <div
+                        class="d-flex align-items-center justify-content-between mb-3"
+                    >
+                        <h4 class="fw-semibold mb-0">Stock Moment Logs</h4>
 
-                            <div class="d-flex gap-2 align-items-center">
-                                <div class="search-wrap">
-                                    <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="q"
-                                        type="text"
-                                        class="form-control search-input"
-                                        placeholder="Search"
-                                    />
-                                </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <div class="search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input
+                                    v-model="q"
+                                    type="text"
+                                    class="form-control search-input"
+                                    placeholder="Search"
+                                />
+                            </div>
 
-                                <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
-                                        Download all
-                                    </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('pdf')"
-                                                >Download as PDF</a
-                                            >
-                                        </li>
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('excel')"
-                                                >Download as Excel</a
-                                            >
-                                        </li>
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('csv')"
-                                            >
-                                                Download as CSV
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                            <div class="dropdown">
+                                <button
+                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown"
+                                >
+                                    Download all
+                                </button>
+                                <ul
+                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                >
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('pdf')"
+                                            >Download as PDF</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('excel')"
+                                            >Download as Excel</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('csv')"
+                                        >
+                                            Download as CSV
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Table -->
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="small text-muted">
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="small text-muted">
+                                <tr>
+                                    <th>Item name</th>
+                                    <th>Total Price</th>
+                                    <th>Category</th>
+                                    <th>Unit Price</th>
+                                    <th>Date &amp; Time</th>
+                                    <th>Expiry Date</th>
+                                    <th>Quantity</th>
+                                    <th>Operation Type</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template
+                                    v-for="(row, i) in filtered"
+                                    :key="row.id"
+                                >
                                     <tr>
-                                        <th>Item name</th>
-                                        <th>Total Price</th>
-                                        <th>Category</th>
-                                        <th>Unit Price</th>
-                                        <th>Date &amp; Time</th>
-                                        <th>Expiry Date</th>
-                                        <th>Quantity</th>
-                                        <th>Operation Type</th>
-                                        <th>Type</th>
-                                        <th class="text-end">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template
-                                        v-for="(row, i) in filtered"
-                                        :key="row.id"
-                                    >
-                                        <tr>
-                                            <td
-                                                class="fw-semibold text-capitalize"
-                                            >
-                                                {{ row.itemName }}
-                                            </td>
-                                            <td>{{ money(row.totalPrice) }}</td>
-                                            <td>{{ row.category.name }}</td>
-                                            <td>{{ money(row.unitPrice) }}</td>
-                                            <td>
-                                                {{ fmtDateTime(row.dateTime) }}
-                                            </td>
-                                            <td>
-                                                <template v-if="row.expiryDate">
-                                                    <span
-                                                        :class="[
-                                                            'badge',
-                                                            'rounded-pill',
-                                                            expiryBadgeClass(
-                                                                row.expiryDate
-                                                            ),
-                                                        ]"
-                                                        :title="
-                                                            daysUntil(
-                                                                row.expiryDate
-                                                            ) !== null
-                                                                ? daysUntil(
-                                                                      row.expiryDate
-                                                                  ) < 0
-                                                                    ? Math.abs(
-                                                                          daysUntil(
-                                                                              row.expiryDate
-                                                                          )
-                                                                      ) +
-                                                                      ' day(s) ago'
-                                                                    : daysUntil(
-                                                                          row.expiryDate
-                                                                      ) +
-                                                                      ' day(s) left'
-                                                                : ''
-                                                        "
-                                                    >
-                                                        {{
-                                                            fmtDate(
-                                                                row.expiryDate
-                                                            )
-                                                        }}
-                                                    </span>
-                                                    <!-- Optional helper text -->
-                                                    <small
-                                                        class="text-muted ms-2"
-                                                    >
-                                                        {{
-                                                            daysUntil(
-                                                                row.expiryDate
-                                                            ) < 0
+                                        <td class="fw-semibold text-capitalize">
+                                            {{ row.itemName }}
+                                        </td>
+                                        <td>{{ money(row.totalPrice) }}</td>
+                                        <td>{{ row.category.name }}</td>
+                                        <td>{{ money(row.unitPrice) }}</td>
+                                        <td>
+                                            {{ fmtDateTime(row.dateTime) }}
+                                        </td>
+                                        <td>
+                                            <template v-if="row.expiryDate">
+                                                <span
+                                                    :class="[
+                                                        'badge',
+                                                        'rounded-pill',
+                                                        expiryBadgeClass(
+                                                            row.expiryDate
+                                                        ),
+                                                    ]"
+                                                    :title="
+                                                        daysUntil(
+                                                            row.expiryDate
+                                                        ) !== null
+                                                            ? daysUntil(
+                                                                  row.expiryDate
+                                                              ) < 0
                                                                 ? Math.abs(
                                                                       daysUntil(
                                                                           row.expiryDate
                                                                       )
                                                                   ) +
-                                                                  " day(s) ago"
+                                                                  ' day(s) ago'
                                                                 : daysUntil(
                                                                       row.expiryDate
                                                                   ) +
-                                                                  " day(s) left"
-                                                        }}
-                                                    </small>
-                                                </template>
-                                                <span v-else class="text-muted"
-                                                    >—</span
+                                                                  ' day(s) left'
+                                                            : ''
+                                                    "
                                                 >
-                                            </td>
+                                                    {{
+                                                        fmtDate(row.expiryDate)
+                                                    }}
+                                                </span>
+                                                <!-- Optional helper text -->
+                                                <small class="text-muted ms-2">
+                                                    {{
+                                                        daysUntil(
+                                                            row.expiryDate
+                                                        ) < 0
+                                                            ? Math.abs(
+                                                                  daysUntil(
+                                                                      row.expiryDate
+                                                                  )
+                                                              ) + " day(s) ago"
+                                                            : daysUntil(
+                                                                  row.expiryDate
+                                                              ) + " day(s) left"
+                                                    }}
+                                                </small>
+                                            </template>
+                                            <span v-else class="text-muted"
+                                                >—</span
+                                            >
+                                        </td>
 
-                                            <td>{{ row.quantity }}</td>
-                                            <!-- Operation Type -->
-                                            <td class="text-break">
-                                                <template
-                                                    v-if="row.operationType"
+                                        <td>{{ row.quantity }}</td>
+                                        <!-- Operation Type -->
+                                        <td class="text-break">
+                                            <template v-if="row.operationType">
+                                                <span
+                                                    :class="[
+                                                        'fw-semibold',
+                                                        opTextClass(
+                                                            row.operationType
+                                                        ),
+                                                    ]"
                                                 >
-                                                    <span
-                                                        :class="[
-                                                            'fw-semibold',
-                                                            opTextClass(
-                                                                row.operationType
-                                                            ),
-                                                        ]"
-                                                    >
-                                                        {{
-                                                            formatOpType(
-                                                                row.operationType
-                                                            )
-                                                        }}
-                                                    </span>
-                                                </template>
-                                                <span v-else class="text-muted"
-                                                    >—</span
-                                                >
-                                            </td>
+                                                    {{
+                                                        formatOpType(
+                                                            row.operationType
+                                                        )
+                                                    }}
+                                                </span>
+                                            </template>
+                                            <span v-else class="text-muted"
+                                                >—</span
+                                            >
+                                        </td>
 
-                                            <!-- Type -->
-                                            <td>
-                                                <template v-if="row.type">
-                                                    <span
-                                                        :class="[
-                                                            'fw-semibold',
-                                                            typeTextClass(
-                                                                row.type
-                                                            ),
-                                                        ]"
-                                                    >
-                                                        {{
-                                                            formatType(row.type)
-                                                        }}
-                                                    </span>
-                                                </template>
-                                                <span v-else class="text-muted"
-                                                    >—</span
+                                        <!-- Type -->
+                                        <td>
+                                            <template v-if="row.type">
+                                                <span
+                                                    :class="[
+                                                        'fw-semibold',
+                                                        typeTextClass(row.type),
+                                                    ]"
                                                 >
-                                            </td>
+                                                    {{ formatType(row.type) }}
+                                                </span>
+                                            </template>
+                                            <span v-else class="text-muted"
+                                                >—</span
+                                            >
+                                        </td>
 
-                                            <td class="text-end">
-                                                <button
-                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                                    @click="Edit(row)"
-                                                    title="Adjustment"
-                                                >
-                                                    <Pencil class="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
-                                                    @click="View(row)"
-                                                    title="Show"
-                                                >
-                                                    <Eye class="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <!-- separator line between rows to match screenshot -->
-                                    </template>
-
-                                    <tr v-if="filtered.length === 0">
-                                        <td
-                                            colspan="10"
-                                            class="text-center text-muted py-4"
-                                        >
-                                            No logs found.
+                                        <td class="text-end">
+                                            <button
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                                @click="Edit(row)"
+                                                title="Adjustment"
+                                            >
+                                                <Pencil class="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
+                                                @click="View(row)"
+                                                title="Show"
+                                            >
+                                                <Eye class="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                                    <!-- separator line between rows to match screenshot -->
+                                </template>
 
-                        <!-- View Log Modal -->
+                                <tr v-if="filtered.length === 0">
+                                    <td
+                                        colspan="10"
+                                        class="text-center text-muted py-4"
+                                    >
+                                        No logs found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- View Log Modal -->
+                    <div
+                        class="modal fade"
+                        id="viewLogModal"
+                        tabindex="-1"
+                        aria-hidden="true"
+                    >
                         <div
-                            class="modal fade"
-                            id="viewLogModal"
-                            tabindex="-1"
-                            aria-hidden="true"
+                            class="modal-dialog modal-lg modal-dialog-centered"
                         >
                             <div
-                                class="modal-dialog modal-lg modal-dialog-centered"
+                                class="modal-content rounded-4 shadow-lg border-0"
                             >
-                                <div
-                                    class="modal-content rounded-4 shadow-lg border-0"
-                                >
-                                    <!-- Header -->
+                                <!-- Header -->
+                                <div class="modal-header align-items-center">
                                     <div
-                                        class="modal-header align-items-center"
+                                        class="d-flex align-items-center gap-2"
                                     >
-                                        <div
-                                            class="d-flex align-items-center gap-2"
+                                        <span
+                                            class="badge bg-primary rounded-circle p-2"
                                         >
-                                            <span
-                                                class="badge bg-primary rounded-circle p-2"
-                                            >
-                                                <!-- box icon -->
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    width="18"
-                                                    height="18"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    stroke-width="2"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        d="M3 7.5L12 12l9-4.5M3 7.5V17a2 2 0 002 2h14a2 2 0 002-2V7.5M21 7.5L12 3 3 7.5"
-                                                    />
-                                                </svg>
-                                            </span>
-                                            <div class="d-flex flex-column">
-                                                <h5 class="modal-title mb-0">
-                                                    View Stock Log
-                                                </h5>
-                                                <small class="text-muted"
-                                                    >Item:
-                                                    {{
-                                                        selectedLog?.itemName ??
-                                                        "—"
-                                                    }}</small
-                                                >
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                            data-bs-dismiss="modal"
-                                            aria-label="Close"
-                                            title="Close"
-                                        >
+                                            <!-- box icon -->
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
-                                                class="h-6 w-6 text-danger"
+                                                width="18"
+                                                height="18"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
                                                 stroke="currentColor"
@@ -790,195 +736,190 @@ watch(
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
-                                                    d="M6 18L18 6M6 6l12 12"
+                                                    d="M3 7.5L12 12l9-4.5M3 7.5V17a2 2 0 002 2h14a2 2 0 002-2V7.5M21 7.5L12 3 3 7.5"
                                                 />
                                             </svg>
-                                        </button>
+                                        </span>
+                                        <div class="d-flex flex-column">
+                                            <h5 class="modal-title mb-0">
+                                                View Stock Log
+                                            </h5>
+                                            <small class="text-muted"
+                                                >Item:
+                                                {{
+                                                    selectedLog?.itemName ?? "—"
+                                                }}</small
+                                            >
+                                        </div>
                                     </div>
 
-                                    <!-- Body -->
-                                    <div class="modal-body p-4 bg-light">
-                                        <div v-if="selectedLog" class="row g-4">
-                                            <!-- LEFT: Details card -->
-                                            <div class="col-lg-12">
-                                                <div
-                                                    class="card border-0 shadow-sm rounded-4 h-100"
-                                                >
-                                                    <div class="card-body">
-                                                        <!-- Top: Key attributes (like screenshot style) -->
-                                                        <h6
-                                                            class="fw-semibold mb-3"
-                                                        >
-                                                            Details
-                                                        </h6>
+                                    <button
+                                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Close"
+                                        title="Close"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-6 w-6 text-danger"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6 18L18 6M6 6l12 12"
+                                            />
+                                        </svg>
+                                    </button>
+                                </div>
 
-                                                        <div class="row g-3">
-                                                            <div
-                                                                class="col-md-6"
-                                                            >
-                                                                <small
-                                                                    class="text-muted d-block"
-                                                                    >Category</small
-                                                                >
-                                                                <div
-                                                                    class="fw-semibold"
-                                                                >
-                                                                    {{
-                                                                        selectedLog
-                                                                            .category
-                                                                            ?.name ??
-                                                                        "—"
-                                                                    }}
-                                                                </div>
-                                                            </div>
+                                <!-- Body -->
+                                <div class="modal-body p-4 bg-light">
+                                    <div v-if="selectedLog" class="row g-4">
+                                        <!-- LEFT: Details card -->
+                                        <div class="col-lg-12">
+                                            <div
+                                                class="card border-0 shadow-sm rounded-4 h-100"
+                                            >
+                                                <div class="card-body">
+                                                    <!-- Top: Key attributes (like screenshot style) -->
+                                                    <h6
+                                                        class="fw-semibold mb-3"
+                                                    >
+                                                        Details
+                                                    </h6>
 
-                                                            <div
-                                                                class="col-md-6"
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <small
+                                                                class="text-muted d-block"
+                                                                >Category</small
                                                             >
-                                                                <small
-                                                                    class="text-muted d-block"
-                                                                    >Operation</small
-                                                                >
-                                                                <div
-                                                                    class="fw-semibold"
-                                                                >
-                                                                    {{
-                                                                        selectedLog.operationType ??
-                                                                        "—"
-                                                                    }}
-                                                                </div>
-                                                            </div>
-
                                                             <div
-                                                                class="col-md-6"
+                                                                class="fw-semibold"
                                                             >
-                                                                <small
-                                                                    class="text-muted d-block"
-                                                                    >Quantity</small
-                                                                >
-                                                                <div
-                                                                    class="fw-semibold"
-                                                                >
-                                                                    {{
-                                                                        selectedLog.quantity ??
-                                                                        "—"
-                                                                    }}
-                                                                </div>
-                                                            </div>
-
-                                                            <div
-                                                                class="col-md-6"
-                                                            >
-                                                                <small
-                                                                    class="text-muted d-block"
-                                                                    >Type</small
-                                                                >
-                                                                <span
-                                                                    class="badge rounded-pill"
-                                                                    :class="
-                                                                        selectedLog.type ===
-                                                                        'stockin'
-                                                                            ? 'bg-success'
-                                                                            : 'bg-danger'
-                                                                    "
-                                                                >
-                                                                    {{
-                                                                        selectedLog.type ??
-                                                                        "—"
-                                                                    }}
-                                                                </span>
+                                                                {{
+                                                                    selectedLog
+                                                                        .category
+                                                                        ?.name ??
+                                                                    "—"
+                                                                }}
                                                             </div>
                                                         </div>
 
-                                                        <hr class="my-4" />
-
-                                                        <!-- Prices row (centered boxes like KPIs) -->
-                                                        <div
-                                                            class="row g-3 text-center"
-                                                        >
-                                                            <div
-                                                                class="col-md-4"
+                                                        <div class="col-md-6">
+                                                            <small
+                                                                class="text-muted d-block"
+                                                                >Operation</small
                                                             >
-                                                                <div
-                                                                    class="p-3 bg-light rounded-3"
-                                                                >
-                                                                    <small
-                                                                        class="text-muted d-block"
-                                                                        >Unit
-                                                                        Price</small
-                                                                    >
-                                                                    <div
-                                                                        class="fs-6 fw-semibold"
-                                                                    >
-                                                                        {{
-                                                                            money(
-                                                                                selectedLog.unitPrice ??
-                                                                                    0
-                                                                            )
-                                                                        }}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
                                                             <div
-                                                                class="col-md-4"
+                                                                class="fw-semibold"
                                                             >
-                                                                <div
-                                                                    class="p-3 bg-light rounded-3"
-                                                                >
-                                                                    <small
-                                                                        class="text-muted d-block"
-                                                                        >Total
-                                                                        Price</small
-                                                                    >
-                                                                    <div
-                                                                        class="fs-6 fw-semibold"
-                                                                    >
-                                                                        {{
-                                                                            money(
-                                                                                selectedLog.totalPrice ??
-                                                                                    0
-                                                                            )
-                                                                        }}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div
-                                                                class="col-md-4"
-                                                            >
-                                                                <div
-                                                                    class="p-3 bg-light rounded-3"
-                                                                >
-                                                                    <small
-                                                                        class="text-muted d-block"
-                                                                        >Date</small
-                                                                    >
-                                                                    <div
-                                                                        class="fs-6 fw-semibold"
-                                                                    >
-                                                                        {{
-                                                                            fmtDateTime(
-                                                                                selectedLog.dateTime
-                                                                            )
-                                                                        }}
-                                                                    </div>
-                                                                </div>
+                                                                {{
+                                                                    selectedLog.operationType ??
+                                                                    "—"
+                                                                }}
                                                             </div>
                                                         </div>
 
-                                                        <hr class="my-4" />
-
-                                                        <!-- Dates section -->
-                                                        <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <small
+                                                                class="text-muted d-block"
+                                                                >Quantity</small
+                                                            >
                                                             <div
-                                                                class="col-md-6"
+                                                                class="fw-semibold"
+                                                            >
+                                                                {{
+                                                                    selectedLog.quantity ??
+                                                                    "—"
+                                                                }}
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="col-md-6">
+                                                            <small
+                                                                class="text-muted d-block"
+                                                                >Type</small
+                                                            >
+                                                            <span
+                                                                class="badge rounded-pill"
+                                                                :class="
+                                                                    selectedLog.type ===
+                                                                    'stockin'
+                                                                        ? 'bg-success'
+                                                                        : 'bg-danger'
+                                                                "
+                                                            >
+                                                                {{
+                                                                    selectedLog.type ??
+                                                                    "—"
+                                                                }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <hr class="my-4" />
+
+                                                    <!-- Prices row (centered boxes like KPIs) -->
+                                                    <div
+                                                        class="row g-3 text-center"
+                                                    >
+                                                        <div class="col-md-4">
+                                                            <div
+                                                                class="p-3 bg-light rounded-3"
                                                             >
                                                                 <small
                                                                     class="text-muted d-block"
-                                                                    >Recorded
-                                                                    On</small
+                                                                    >Unit
+                                                                    Price</small
                                                                 >
                                                                 <div
-                                                                    class="fw-semibold"
+                                                                    class="fs-6 fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        money(
+                                                                            selectedLog.unitPrice ??
+                                                                                0
+                                                                        )
+                                                                    }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div
+                                                                class="p-3 bg-light rounded-3"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Total
+                                                                    Price</small
+                                                                >
+                                                                <div
+                                                                    class="fs-6 fw-semibold"
+                                                                >
+                                                                    {{
+                                                                        money(
+                                                                            selectedLog.totalPrice ??
+                                                                                0
+                                                                        )
+                                                                    }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div
+                                                                class="p-3 bg-light rounded-3"
+                                                            >
+                                                                <small
+                                                                    class="text-muted d-block"
+                                                                    >Date</small
+                                                                >
+                                                                <div
+                                                                    class="fs-6 fw-semibold"
                                                                 >
                                                                     {{
                                                                         fmtDateTime(
@@ -987,25 +928,45 @@ watch(
                                                                     }}
                                                                 </div>
                                                             </div>
-                                                            <div
-                                                                class="col-md-6"
+                                                        </div>
+                                                    </div>
+
+                                                    <hr class="my-4" />
+
+                                                    <!-- Dates section -->
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <small
+                                                                class="text-muted d-block"
+                                                                >Recorded
+                                                                On</small
                                                             >
-                                                                <small
-                                                                    class="text-muted d-block"
-                                                                    >Expiry
-                                                                    Date</small
-                                                                >
-                                                                <div
-                                                                    class="fw-semibold"
-                                                                >
-                                                                    {{
-                                                                        selectedLog.expiryDate
-                                                                            ? fmtDate(
-                                                                                  selectedLog.expiryDate
-                                                                              )
-                                                                            : "—"
-                                                                    }}
-                                                                </div>
+                                                            <div
+                                                                class="fw-semibold"
+                                                            >
+                                                                {{
+                                                                    fmtDateTime(
+                                                                        selectedLog.dateTime
+                                                                    )
+                                                                }}
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <small
+                                                                class="text-muted d-block"
+                                                                >Expiry
+                                                                Date</small
+                                                            >
+                                                            <div
+                                                                class="fw-semibold"
+                                                            >
+                                                                {{
+                                                                    selectedLog.expiryDate
+                                                                        ? fmtDate(
+                                                                              selectedLog.expiryDate
+                                                                          )
+                                                                        : "—"
+                                                                }}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1013,125 +974,135 @@ watch(
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- (No footer needed, like screenshot) -->
                                 </div>
+
+                                <!-- (No footer needed, like screenshot) -->
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Edit Log Modal -->
+                    <!-- Edit Log Modal -->
+                    <div
+                        class="modal fade"
+                        id="editLogModal"
+                        tabindex="-1"
+                        aria-hidden="true"
+                    >
                         <div
-                            class="modal fade"
-                            id="editLogModal"
-                            tabindex="-1"
-                            aria-hidden="true"
+                            class="modal-dialog modal-lg modal-dialog-centered"
                         >
-                            <div
-                                class="modal-dialog modal-lg modal-dialog-centered"
-                            >
-                                <div class="modal-content rounded-4">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title fw-semibold">
-                                            Edit Stock Log
-                                        </h5>
-                                        <button
-                                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                            data-bs-dismiss="modal"
-                                            aria-label="Close"
-                                            title="Close"
-                                            @click="resetErrors"
+                            <div class="modal-content rounded-4">
+                                <div class="modal-header">
+                                    <h5 class="modal-title fw-semibold">
+                                        Edit Stock Log
+                                    </h5>
+                                    <button
+                                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Close"
+                                        title="Close"
+                                        @click="resetErrors"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-6 w-6 text-red-500"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="2"
                                         >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                class="h-6 w-6 text-red-500"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                                stroke-width="2"
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M6 18L18 6M6 6l12 12"
+                                            />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6 col-md-12">
+                                            <label class="form-label"
+                                                >Item Name</label
                                             >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    d="M6 18L18 6M6 6l12 12"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <div class="row g-3">
-                                            <div class="col-md-6 col-md-12">
-                                                <label class="form-label"
-                                                    >Item Name</label
-                                                >
-                                                <input
-                                                    type="text"
-                                                    class="form-control"
-                                                    v-model="editForm.itemName"
-                                                    disabled
-                                                />
-                                            </div>
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                v-model="editForm.itemName"
+                                                disabled
+                                            />
+                                        </div>
 
-                                            <div class="col-md-6 col-md-12">
-                                                <label class="form-label"
-                                                    >Quantity</label
-                                                >
-                                                <input
-                                                    type="number"
-                                                    class="form-control"
-                                                    v-model="editForm.quantity"
-                                                    :class="{ 'is-invalid': formErrors.quantity }"
-                                                    required
-                                                />
-                                               
-                                                <small v-if="formErrors.quantity" class="text-danger">
-                                                    {{ formErrors.quantity[0] }}
-                                                </small>
-                                            </div>
+                                        <div class="col-md-6 col-md-12">
+                                            <label class="form-label"
+                                                >Quantity</label
+                                            >
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                v-model="editForm.quantity"
+                                                :class="{
+                                                    'is-invalid':
+                                                        formErrors.quantity,
+                                                }"
+                                                required
+                                            />
 
-                                            <div class="col-md-6 col-md-12">
-                                                <label class="form-label"
-                                                    >Unit Price</label
-                                                >
-                                                <input
-                                                    type="number"
-                                                    class="form-control"
-                                                    v-model="editForm.unitPrice"
-                                                    
-                                                    :class="{ 'is-invalid': formErrors.unitPrice }"
-                                                    required
-                                                />
-                                                
-                                                <small v-if="formErrors.unitPrice" class="text-danger">
-                                                    {{ formErrors.unitPrice[0] }}
-                                                </small>
-                                            </div>
-                                            <div class="col-md-6 col-md-12">
-                                                <label class="form-label"
-                                                    >Value</label
-                                                >
-                                                <input
-                                                    type="number"
-                                                    readonly
-                                                    class="form-control"
-                                                    v-model="
-                                                        editForm.totalPrice
-                                                    "
-                                                />
-                                            </div>
+                                            <small
+                                                v-if="formErrors.quantity"
+                                                class="text-danger"
+                                            >
+                                                {{ formErrors.quantity[0] }}
+                                            </small>
+                                        </div>
 
-                                            <div class="col-12 col-md-6">
-                                                <label class="form-label"
-                                                    >Expiry Date</label
-                                                >
-                                                <!-- remove the debug {{ editForm.expiryDate }} line -->
-                                                <input
-                                                    type="date"
-                                                    class="form-control"
-                                                    v-model="expiryDateModel"
-                                                />
-                                            </div>
+                                        <div class="col-md-6 col-md-12">
+                                            <label class="form-label"
+                                                >Unit Price</label
+                                            >
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                v-model="editForm.unitPrice"
+                                                :class="{
+                                                    'is-invalid':
+                                                        formErrors.unitPrice,
+                                                }"
+                                                required
+                                            />
 
-                                            <!-- <div class="mb-3">
+                                            <small
+                                                v-if="formErrors.unitPrice"
+                                                class="text-danger"
+                                            >
+                                                {{ formErrors.unitPrice[0] }}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-6 col-md-12">
+                                            <label class="form-label"
+                                                >Value</label
+                                            >
+                                            <input
+                                                type="number"
+                                                readonly
+                                                class="form-control"
+                                                v-model="editForm.totalPrice"
+                                            />
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label"
+                                                >Expiry Date</label
+                                            >
+                                            <!-- remove the debug {{ editForm.expiryDate }} line -->
+                                            <input
+                                                type="date"
+                                                class="form-control"
+                                                v-model="expiryDateModel"
+                                            />
+                                        </div>
+
+                                        <!-- <div class="mb-3">
                                                 <label class="form-label">Operation Type</label>
                                                 <select class="form-select" v-model="editForm.operationType">
                                                     <option value="purchase">Purchase</option>
@@ -1140,30 +1111,29 @@ watch(
                                                 </select>
                                             </div> -->
 
-                                            <div class="mt-4">
-                                                <button
-                                                    class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
-                                                    :disabled="isUpdating"
-                                                    :aria-busy="
-                                                        isUpdating
-                                                            ? 'true'
-                                                            : 'false'
-                                                    "
-                                                    @click="updateLog"
-                                                >
-                                                    <span
-                                                        v-if="isUpdating"
-                                                        class="spinner-border spinner-border-sm"
-                                                        role="status"
-                                                        aria-hidden="true"
-                                                    ></span>
-                                                    <span>{{
-                                                        isUpdating
-                                                            ? "Updating…"
-                                                            : "Update"
-                                                    }}</span>
-                                                </button>
-                                            </div>
+                                        <div class="mt-4">
+                                            <button
+                                                class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
+                                                :disabled="isUpdating"
+                                                :aria-busy="
+                                                    isUpdating
+                                                        ? 'true'
+                                                        : 'false'
+                                                "
+                                                @click="updateLog"
+                                            >
+                                                <span
+                                                    v-if="isUpdating"
+                                                    class="spinner-border spinner-border-sm"
+                                                    role="status"
+                                                    aria-hidden="true"
+                                                ></span>
+                                                <span>{{
+                                                    isUpdating
+                                                        ? "Updating…"
+                                                        : "Update"
+                                                }}</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

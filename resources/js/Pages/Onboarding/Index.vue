@@ -285,52 +285,52 @@ async function goNext(stepData) {
   --brand: #1C0D82;
 }
 
-.dark .steps-nav {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+.dark .steps-nav{
+   background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark .icons {
   color: #fff;
 }
 
-.dark .onboarding-wrapper {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+.dark .onboarding-wrapper{
+   background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 /* style for daek mode  */
 .dark .modal-body {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+    background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark .modal-header {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+    background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 
 .dark input {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+    background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark textarea {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+    background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark .select {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #f9fafb !important;
+    background-color: #000000 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark h4 {
@@ -346,39 +346,39 @@ async function goNext(stepData) {
 }
 
 .dark .card {
-  background-color: #111827 !important;
-  /* gray-800 */
-  color: #ffffff !important;
-  /* gray-50 */
+    background-color: #000000 !important;
+    /* gray-800 */
+    color: #ffffff !important;
+    /* gray-50 */
 }
 
 .dark .table {
-  background-color: #111827 !important;
-  /* gray-900 */
-  color: #f9fafb !important;
+    background-color: #000000 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
 }
 
 .dark .table thead {
-  background-color: #111827;
-  color: #f9fafb;
+    background-color: #000000;
+    color: #f9fafb;
 }
 
 .dark .table thead th {
-  background-color: #111827;
-  color: #f9fafb;
+    background-color: #000000;
+    color: #f9fafb;
 }
 
 .dark .table tbody td {
-  background-color: #111827;
-  color: #f9fafb;
+    background-color: #000000;
+    color: #f9fafb;
 }
 
 html.dark {
-  --brand: #ffffff;
-  --bg-muted: #1f2937;
-  --border: #374151;
-  background: #111827;
-  color: #f9fafb;
+    --brand: #ffffff;
+    --bg-muted: #1f2937;
+    --border: #374151;
+    background: #000000;
+    color: #f9fafb;
 }
 
 html.dark .page-wrapper {
@@ -412,21 +412,21 @@ html.dark .main {
 }
 
 .dark .dash-widget {
-  background-color: #111827 !important;
-  ;
-  color: #ffffff;
+    background-color: #000000 !important;
+    ;
+    color: #ffffff;
 }
 
 .dark .dash-widgetcontent h5 {
-  background-color: #111827 !important;
-  ;
-  color: #ffffff;
+    background-color: #000000 !important;
+    ;
+    color: #ffffff;
 }
 
 .dark .dash-widgetcontent h6 {
-  background-color: #111827 !important;
-  ;
-  color: #ffffff;
+    background-color: #000000 !important;
+    ;
+    color: #ffffff;
 }
 
 .onboarding-wrapper {
@@ -518,10 +518,10 @@ html.dark .main {
   border-bottom-right-radius: 1rem;
 }
 
-.dark .wizard-footer {
-
-  flex: 0 0 auto;
-  background: #111827;
+.dark .wizard-footer{
+ 
+   flex: 0 0 auto;
+  background:  #000000;
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
 
@@ -530,7 +530,7 @@ html.dark .main {
 
 
 .dark .btn {
-  background-color: #111827;
+  background-color: #000000;
 }
 
 /* Stack on small screens */

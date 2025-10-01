@@ -127,7 +127,7 @@ const icons = {
 
 .dark .feat-text{ color:#fff; font-weight:500; }
 .dark .feat-row{
-  background-color: #111827 !important;
+  background-color: #000000 !important;
     color: #ffffff !important;
 }
 /* Icon chip */
