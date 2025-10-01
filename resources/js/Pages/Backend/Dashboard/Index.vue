@@ -78,12 +78,12 @@ const chartOptions = {
         strokeDashArray: 4,
     },
 };
-const totalPurchaseDueMinor = 30714400      // 307,144.00
+const totalPurchaseDueMinor = 123123123.33      // 307,144.00
 const totalSalesDueMinor    = 438500        // 4,385.00
 const totalSaleAmountMinor  = 38565650      // 385,656.50
 const anotherSaleMinor      = 40000         // 400.00
 
-const customersCount  = 1400
+const customersCount  = 1.400
 const suppliersCount  = 1030
 const purchaseInvCnt  = 1020
 const salesInvCnt     = 1435
