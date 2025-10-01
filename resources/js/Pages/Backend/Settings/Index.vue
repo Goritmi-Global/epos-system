@@ -14,17 +14,6 @@ import Step8 from "../../Onboarding/Steps/Step8.vue"
 import Step9 from "../../Onboarding/Steps/Step9.vue"
 import Master from "@/Layouts/Master.vue";
 
-// Debug: Log all imported components
-console.log('Step1:', Step1?.__name)
-console.log('Step2:', Step2?.__name)
-console.log('Step3:', Step3?.__name)
-console.log('Step4:', Step4?.__name)
-console.log('Step5:', Step5?.__name)
-console.log('Step6:', Step6?.__name)
-console.log('Step7:', Step7?.__name)
-console.log('Step8:', Step8?.__name)
-console.log('Step9:', Step9?.__name)
-
 const props = defineProps({
   profile: Object,
   profileData: Object,
@@ -46,6 +35,8 @@ const profile = ref({
   ...props.profileData.step8,
   ...props.profileData.step9,
 })
+
+console.log('Merged profile on init:', profile.value)
 
 const sections = [
   { id: 1, title: "Language & Location", icon: "bi-globe", description: "Set your timezone, language, and regional preferences" },

@@ -30,14 +30,23 @@ class OnboardingController extends Controller
             return redirect()->route('login');
         }
 
-        // If a final profile already exists and complete -> go to dashboard
-        $profile = RestaurantProfile::where('user_id', $user->id)->first();
-        if ($profile && $profile->status === 'complete') {
+        $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+            && ProfileStep2::where('user_id', $user->id)->exists()
+            && ProfileStep3::where('user_id', $user->id)->exists()
+            && ProfileStep4::where('user_id', $user->id)->exists()
+            && ProfileStep5::where('user_id', $user->id)->exists()
+            && ProfileStep6::where('user_id', $user->id)->exists()
+            && ProfileStep7::where('user_id', $user->id)->exists()
+            && ProfileStep8::where('user_id', $user->id)->exists()
+            && ProfileStep9::where('user_id', $user->id)->exists();
+
+        if ($stepsCompleted) {
             return redirect()->route('dashboard');
         }
 
         return Inertia::render('Onboarding/Index');
     }
+
 
     /**
      * Return merged step data and progress for the frontend
@@ -354,13 +363,13 @@ class OnboardingController extends Controller
             // First, save profile_tables entry
             $profileTable = null;
             if (!empty($step5['table_details'])) {
-                $profileTable = \App\Models\ProfileTable::updateOrCreate(
-                    ['id' => $step5['profile_table_id'] ?? null], // reuse if exists
-                    [
-                        'number_of_tables' => $step5['number_of_tables'] ?? count($step5['table_details']),
-                        'table_details' => $step5['table_details'],
-                    ]
-                );
+                $tableCount = $step5['tables'] ?? $step5['number_of_tables'] ?? count($step5['table_details']);
+
+                // Create new ProfileTable (don't try to reuse old one)
+                $profileTable = \App\Models\ProfileTable::create([
+                    'number_of_tables' => $tableCount,
+                    'table_details' => $step5['table_details'],
+                ]);
             }
 
             // Then save step 5 with reference to profile_table_id
@@ -374,7 +383,6 @@ class OnboardingController extends Controller
                 ]
             );
         }
-
 
         // Save Step 6
         if (!empty($stepData[6])) {
@@ -441,7 +449,7 @@ class OnboardingController extends Controller
                     'enable_inventory_tracking' => $step9['feat_inventory'] === 'yes',
                     'enable_cloud_backup' => $step9['feat_backup'] === 'yes',
                     'enable_multi_location' => $step9['feat_multilocation'] === 'yes',
-                    'theme_preference' => $step9['feat_theme'] === 'yes' ? 'default_theme' : null,
+                    'theme_preference' => $step9['feat_theme'] === 'yes',
                 ]
             );
         }

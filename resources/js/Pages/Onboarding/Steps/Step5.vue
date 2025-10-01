@@ -4,20 +4,10 @@ import { reactive, toRaw, watch, ref } from "vue"
 const props = defineProps({ model: Object, formErrors: Object })
 const emit = defineEmits(["save"])
 
-// const form = reactive({
-//   order_types: props.model.order_types ?? [],
-//   table_management_enabled: props.model.table_management_enabled ?? 1,
-//   tables: props.model.tables ?? "",
-//   online_ordering: props.model.online_ordering ?? true,
-//   table_details: props.model.table_details ?? [],
-//   number_of_tables: props.model.number_of_tables ?? []   // new field
-
-// })
-
 // Step 5 reactive form
 const form = reactive({
   order_types: props.model.order_types ?? [],
-  table_management_enabled: props.model.table_management_enabled ?? 0,
+  table_management_enabled: props.model.table_management_enabled ? 1 : 0,
   tables: props.model.tables ?? 0, // <-- use 0 instead of empty string
   online_ordering: props.model.online_ordering ?? true,
   table_details: props.model.table_details ?? [],
@@ -25,17 +15,6 @@ const form = reactive({
 
 console.log("props.model.table_management_enabled", props.model.table_management_enabled);
 console.log("table_management_enabled", form.table_management_enabled);
-
-// watch(
-//   () => form.tables,
-//   (newCount) => {
-//     form.table_details = Array.from({ length: newCount }, (_, i) => ({
-//       name: "",
-//       chairs: ""
-//     }));
-//   },
-//   { immediate: true }
-// );
 
 
 const submitting = ref(false);

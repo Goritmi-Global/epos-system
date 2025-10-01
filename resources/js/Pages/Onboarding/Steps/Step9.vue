@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, toRaw, watch } from "vue"
+import { onMounted, reactive, toRaw, watch } from "vue"
 
 const props = defineProps({ model: Object })
 const emit  = defineEmits(["save"])
@@ -16,6 +16,12 @@ const form = reactive({
 //   console.log("Step 9 Form Updated:", toRaw(newVal));
 // }, { deep: true });
 
+
+// Add this after your props definition
+onMounted(() => {
+  console.log("Step 9 - Props received:", props.model);
+  console.log("Step 9 - Form initialized:", toRaw(form));
+})
 watch(
   () => form,
   (newVal) => {
