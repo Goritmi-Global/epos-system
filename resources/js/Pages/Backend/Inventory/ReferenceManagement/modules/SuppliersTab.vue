@@ -498,13 +498,13 @@ const handleImport = (data) => {
                             formErrors = {};
                              processStatus = 'Add';
                         }
-                    " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
+                    " class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn-sm btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
                     <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
                             Download
                         </button>

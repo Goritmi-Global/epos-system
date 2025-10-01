@@ -536,13 +536,13 @@ const handleImport = (data) => {
                             resetForm();
                             formErrors = {};
                         }
-                    " class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
+                    " class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Tag
                     </button>
                     <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
                             Download all
                         </button>
@@ -653,7 +653,7 @@ const handleImport = (data) => {
                             @filter="(e) => (filterText = e.value || '')" :class="{ 'is-invalid': formErrors.tags }"
                             :invalid="formErrors.tags?.length">
                             <template #header>
-                                <div class="w-100 d-flex justify-content-end">
+                                <div class="w-100 d-flex header justify-content-end">
                                     <button type="button" class="btn btn-sm btn-link text-primary"
                                         @click.stop="selectAll">
                                         Select All
@@ -838,6 +838,8 @@ const handleImport = (data) => {
     background-color: #fff !important;
     color: #000 !important;
 }
-
+.dark .header{
+    background-color: #000;
+}
 /* ====================================================== */
 </style>

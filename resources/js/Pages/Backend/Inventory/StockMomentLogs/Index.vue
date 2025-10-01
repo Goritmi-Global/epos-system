@@ -255,7 +255,7 @@ const downloadExcel = (data) => {
                     <div
                         class="d-flex align-items-center justify-content-between mb-3"
                     >
-                        <h4 class="fw-semibold mb-0">Stock Moment Logs</h4>
+                        <h4 class="mb-0">Stock Moment Logs</h4>
 
                         <div class="d-flex gap-2 align-items-center">
                             <div class="search-wrap">
@@ -313,14 +313,14 @@ const downloadExcel = (data) => {
                     <!-- Underline Tabs like screenshot -->
                     <div class="tabs-underline mb-2">
                         <button
-                            class="tab-link"
+                            class="tab-link fw-semibold"
                             :class="{ active: activeTab === 'stockin' }"
                             @click="activeTab = 'stockin'"
                         >
                             Stock In
                         </button>
                         <button
-                            class="tab-link"
+                            class="tab-link fw-semibold"
                             :class="{ active: activeTab === 'stockout' }"
                             @click="activeTab = 'stockout'"
                         >

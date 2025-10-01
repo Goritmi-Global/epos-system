@@ -511,6 +511,10 @@ const formatDate = (date) => {
   color: #f9fafb !important;
 }
 
+.dark .btn-primary{
+    background-color: #181818 !important;
+    border: #181818 !important;
+}
 .dark .table thead{
     background-color:  #000000;
     color: #f9fafb;
