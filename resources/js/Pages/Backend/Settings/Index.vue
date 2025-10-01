@@ -479,4 +479,65 @@ function changeSection(sectionId) {
 .card {
   animation: fadeIn 0.3s ease-out;
 }
+
+
+/* 🎯 iPad Pro Portrait */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: portrait) {
+
+  .settings-wrapper {
+    padding-left: 220px; /* smaller than desktop */
+    padding-right: 15px;
+  }
+
+  .settings-header h3 {
+    font-size: 1.4rem;
+  }
+
+  .card {
+    margin-bottom: 15px; /* reduce gaps between cards */
+  }
+
+  .card-body, .card-header, .card-footer {
+    padding: 15px !important; /* reduce padding */
+  }
+
+  .quick-nav .btn {
+    padding: 6px 14px; /* smaller buttons */
+    font-size: 0.9rem;
+    min-width: 110px;
+  }
+}
+
+/* 🎯 iPad Pro Landscape */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: landscape) {
+
+  .settings-wrapper {
+    padding-left: 240px;
+    padding-right: 20px;
+  }
+
+  .settings-header h3 {
+    font-size: 1.5rem;
+  }
+
+  .card {
+    margin-bottom: 18px;
+  }
+
+  .card-body, .card-header, .card-footer {
+    padding: 18px !important;
+  }
+
+  .quick-nav .btn {
+    padding: 7px 16px;
+    font-size: 0.95rem;
+    min-width: 120px;
+  }
+}
 </style>

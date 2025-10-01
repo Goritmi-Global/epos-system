@@ -1023,4 +1023,88 @@ background-color: #111827 !important; /* gray-800 */
 .purchase-scroll::-webkit-scrollbar-track {
     background: transparent;
 }
+
+/* 🎯 iPad Pro 12.9" Portrait (1024 x 1366) */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: portrait) {
+
+  .page-wrapper {
+    padding: 12px !important;
+  }
+
+  .card {
+    border-radius: 16px !important;
+  }
+
+  .d-flex.align-items-center.justify-content-between {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+
+  .d-flex.gap-2.align-items-center {
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
+  }
+
+  .search-wrap {
+    width: 30% !important;
+    margin-bottom: 10px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.table th, 
+  table.table td {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+/* 🎯 iPad Pro 12.9" Landscape (1366 x 1024) */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: landscape) {
+
+  .page-wrapper {
+    padding: 16px !important;
+  }
+
+  .card-body {
+    padding: 20px !important;
+  }
+
+  .d-flex.align-items-center.justify-content-between {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .d-flex.gap-2.align-items-center {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .search-wrap {
+    min-width: 250px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+  }
+
+  table.table th, 
+  table.table td {
+    font-size: 15px;
+  }
+}
+
+
 </style>
