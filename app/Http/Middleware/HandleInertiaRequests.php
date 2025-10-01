@@ -38,40 +38,59 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
+    // app/Http/Middleware/HandleInertiaRequests.php
+
     public function share(Request $request): array
     {
-        $stripe_public_key = config('app.stripe_public_key');
         $user = $request->user();
+        $stripe_public_key = config('app.stripe_public_key');
+
+        // Collect onboarding data if user is logged in
+        $fields = [
+            'language_and_location' => ['country_id', 'timezone', 'language'],
+            'business_information'  => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'upload_id'],
+            'currency_and_locale'   => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
+            'tax_and_vat'           => ['is_tax_registered', 'tax_type', 'tax_rate', 'tax_id', 'extra_tax_rates', 'price_includes_tax'],
+            'service_options'       => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'profile_table_id'],
+            'receipt_and_printers'  => ['receipt_header', 'receipt_footer', 'upload_id', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
+            'payment_methods'       => ['cash_enabled', 'card_enabled'],
+            'business_hours'        => ['disable_order_after_hours_id', 'business_hours_id'],
+            'optional_features'     => ['enable_loyalty_system','enable_inventory_tracking','enable_cloud_backup','enable_multi_location','theme_preference'],
+        ];
+
+        $models = [
+            'language_and_location' => ProfileStep1::class,
+            'business_information'  => ProfileStep2::class,
+            'currency_and_locale'   => ProfileStep3::class,
+            'tax_and_vat'           => ProfileStep4::class,
+            'service_options'       => ProfileStep5::class,
+            'receipt_and_printers'  => ProfileStep6::class,
+            'payment_methods'       => ProfileStep7::class,
+            'business_hours'        => ProfileStep8::class,
+            'optional_features'     => ProfileStep9::class,
+        ];
 
         $onboarding = [];
         if ($user) {
-            $onboarding = [
-                'progress'  => OnboardingProgress::where('user_id', $user->id)->first(),
-                'step1'     => ProfileStep1::where('user_id', $user->id)->first(),
-                'step2'     => ProfileStep2::where('user_id', $user->id)->first(),
-                'step3'     => ProfileStep3::where('user_id', $user->id)->first(),
-                'step4'     => ProfileStep4::where('user_id', $user->id)->first(),
-                'step5'     => ProfileStep5::where('user_id', $user->id)->first(),
-                'step6'     => ProfileStep6::where('user_id', $user->id)->first(),
-                'step7'     => ProfileStep7::where('user_id', $user->id)->first(),
-                'step8'     => ProfileStep8::where('user_id', $user->id)->first(),
-                'step9'     => ProfileStep9::where('user_id', $user->id)->first(),
-                'profile'   => RestaurantProfile::where('user_id', $user->id)->first(),
-            ];
+            foreach ($models as $key => $modelClass) {
+                $cols = $fields[$key] ?? ['id']; // safe fallback
+                // select only needed columns, return as plain array (or null)
+                $row = $modelClass::where('user_id', $user->id)->select($cols)->first();
+                $onboarding[$key] = $row ? $row->toArray() : null;
+            }
         }
-
+ 
         return [
             ...parent::share($request),
-            'auth' => [
-                'user' => $user,
-            ],
+            'current_user' => ['user' => $user],
             'stripe_public_key' => $stripe_public_key,
             'onboarding' => $onboarding,
-             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error'   => fn () => $request->session()->get('error'),
-                'print_payload'  => fn () => $request->session()->get('print_payload'),
+            'flash' => [
+                'success'       => fn () => $request->session()->get('success'),
+                'error'         => fn () => $request->session()->get('error'),
+                'print_payload' => fn () => $request->session()->get('print_payload'),
             ],
         ];
     }
+
 }

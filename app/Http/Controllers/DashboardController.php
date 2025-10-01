@@ -13,7 +13,7 @@ class DashboardController extends Controller
 
         // If profile missing, send to onboarding
         $hasProfile = RestaurantProfile::where('user_id', $user->id)->exists();
-        dd($user,$hasProfile);
+        // dd($user,$hasProfile);
         if (! $hasProfile) {
             // optional: make extra-sure no stale intended redirect lingers
             session()->forget('url.intended');
