@@ -18,7 +18,7 @@ import {
     Pencil,
     CheckCircle,
     Eye,
-    EyeOff
+    EyeOff,
 } from "lucide-vue-next";
 
 const props = defineProps({
@@ -83,21 +83,19 @@ function addIngredient(item) {
     formErrors.value = {};
 
     if (!qty || qty <= 0) formErrors.value.qty = "Enter a valid quantity.";
-    if (!price || price <= 0) formErrors.value.unitPrice = "Enter a valid unit price.";
+    if (!price || price <= 0)
+        formErrors.value.unitPrice = "Enter a valid unit price.";
 
     if (Object.keys(formErrors.value).length > 0) {
-        const messages = Object.values(formErrors.value)
-            .flat()
-            .join("\n");
+        const messages = Object.values(formErrors.value).flat().join("\n");
         toast.error(messages, {
-            style: { whiteSpace: "pre-line" }
+            style: { whiteSpace: "pre-line" },
         });
 
         return;
     }
 
-
-    const found = i_cart.value.find(r => r.id === item.id);
+    const found = i_cart.value.find((r) => r.id === item.id);
 
     if (found) {
         found.qty = qty;
@@ -111,15 +109,19 @@ function addIngredient(item) {
             qty,
             unitPrice: price,
             cost: round2(qty * price),
-            nutrition: item.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
+            nutrition: item.nutrition || {
+                calories: 0,
+                protein: 0,
+                carbs: 0,
+                fat: 0,
+            },
         });
     }
 
     if (!isEditMode.value) {
-        item.qty = null
-        item.unitPrice = null
+        item.qty = null;
+        item.unitPrice = null;
     }
-
 }
 
 function removeIngredient(idx) {
@@ -130,7 +132,7 @@ function removeIngredient(idx) {
     i_cart.value.splice(idx, 1);
 
     // reset fields on left side card
-    const found = i_displayInv.value.find(i => i.id === ing.id);
+    const found = i_displayInv.value.find((i) => i.id === ing.id);
     if (found) {
         found.qty = null;
         found.unitPrice = null;
@@ -138,21 +140,22 @@ function removeIngredient(idx) {
     }
 }
 
-
 // calulate Ingredient when qty or price changes
 const i_totalNutrition = computed(() => {
-    return i_cart.value.reduce((totals, ing) => {
-        const qty = Number(ing.qty) || 0
+    return i_cart.value.reduce(
+        (totals, ing) => {
+            const qty = Number(ing.qty) || 0;
 
-        totals.calories += Number(ing.nutrition?.calories || 0) * qty
-        totals.protein += Number(ing.nutrition?.protein || 0) * qty
-        totals.carbs += Number(ing.nutrition?.carbs || 0) * qty
-        totals.fat += Number(ing.nutrition?.fat || 0) * qty
+            totals.calories += Number(ing.nutrition?.calories || 0) * qty;
+            totals.protein += Number(ing.nutrition?.protein || 0) * qty;
+            totals.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+            totals.fat += Number(ing.nutrition?.fat || 0) * qty;
 
-        return totals
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0 })
-})
-
+            return totals;
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+});
 
 // Save ingredients to main form
 function saveIngredients() {
@@ -177,7 +180,7 @@ const showMenuModal = () => {
         document.getElementById("addItemModal")
     );
     menuModal.show();
-}
+};
 
 onMounted(() => {
     fetchInventory();
@@ -223,7 +226,6 @@ const fetchMenus = async () => {
     }
 };
 
-
 onMounted(() => {
     fetchInventories();
     fetchMenus();
@@ -259,19 +261,18 @@ const sortedItems = computed(() => {
     }
 });
 
-
 /* ===================== KPIs ===================== */
 const categoriesCount = computed(
     () => new Set(items.value.map((i) => i.category)).size
 );
 const totalItems = computed(() => items.value.length);
 const totalMenuItems = computed(() => menuItems.value.length);
-const activeMenuItems = computed(() =>
-    menuItems.value.filter(item => item.status === 1).length
+const activeMenuItems = computed(
+    () => menuItems.value.filter((item) => item.status === 1).length
 );
 
-const deactiveMenuItems = computed(() =>
-    menuItems.value.filter(item => item.status === 0).length
+const deactiveMenuItems = computed(
+    () => menuItems.value.filter((item) => item.status === 0).length
 );
 const lowStockCount = computed(
     () =>
@@ -352,7 +353,6 @@ function resetErrors() {
     formErrors.value = {};
 }
 
-
 const form = ref({
     name: "",
     category_id: null,
@@ -368,7 +368,6 @@ const form = ref({
     imageFile: null,
     imageUrl: null,
 });
-
 
 const showCropper = ref(false);
 const showImageModal = ref(false);
@@ -411,14 +410,11 @@ const submitProduct = async () => {
     formData.append("nutrition[protein]", i_totalNutrition.value.protein);
     formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
 
-
     // allergies + tags
     form.value.allergies.forEach((id, i) =>
         formData.append(`allergies[${i}]`, id)
     );
-    form.value.tags.forEach((id, i) =>
-        formData.append(`tags[${i}]`, id)
-    );
+    form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // ingredients cart
     i_cart.value.forEach((ing, i) => {
@@ -465,14 +461,16 @@ const submitProduct = async () => {
             // toast.error(allMessages);
             toast.error("Please filled all the required fields");
         } else {
-            console.error("❌ Error saving:", err.response?.data || err.message);
+            console.error(
+                "❌ Error saving:",
+                err.response?.data || err.message
+            );
             toast.error("Failed to save menu item");
         }
     } finally {
         submitting.value = false;
     }
 };
-
 
 //  One deep watcher for the entire form
 watch(
@@ -491,7 +489,7 @@ watch(
                     value !== null &&
                     value !== undefined &&
                     value !== "" &&
-                    (!(Array.isArray(value)) || value.length > 0)
+                    (!Array.isArray(value) || value.length > 0)
                 ) {
                     delete formErrors.value[key];
                 }
@@ -501,31 +499,31 @@ watch(
     { deep: true }
 );
 
-
 // ===============Edit item ==================
-const savedNutrition = ref({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+const savedNutrition = ref({ calories: 0, protein: 0, carbs: 0, fat: 0 });
 const isEditMode = ref(false);
 
 const i_displayInv = computed(() => {
-    return i_filteredInv.value.map(inv => {
-        const found = i_cart.value.find(c => c.id === inv.id);
-        return found ? {
-            ...inv,
-            qty: found.qty,
-            unitPrice: found.unitPrice,
-            cost: found.cost
-        } : {
-            ...inv,
-            qty: 0,
-            unitPrice: 0,
-            cost: 0
-        };
+    return i_filteredInv.value.map((inv) => {
+        const found = i_cart.value.find((c) => c.id === inv.id);
+        return found
+            ? {
+                  ...inv,
+                  qty: found.qty,
+                  unitPrice: found.unitPrice,
+                  cost: found.cost,
+              }
+            : {
+                  ...inv,
+                  qty: 0,
+                  unitPrice: 0,
+                  cost: 0,
+              };
     });
 });
 
-
 const editItem = (item) => {
-    if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
+    if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
 
@@ -540,8 +538,8 @@ const editItem = (item) => {
         category_id: itemData.category?.id || null,
         description: itemData.description,
         ingredients: itemData.ingredients || [],
-        allergies: itemData.allergies?.map(a => a.id) || [],
-        tags: itemData.tags?.map(t => t.id) || [],
+        allergies: itemData.allergies?.map((a) => a.id) || [],
+        tags: itemData.tags?.map((t) => t.id) || [],
         imageFile: null,
         imageUrl: itemData.image_url || null,
     };
@@ -550,42 +548,48 @@ const editItem = (item) => {
         calories: parseFloat(itemData.nutrition?.calories || 0),
         protein: parseFloat(itemData.nutrition?.protein || 0),
         carbs: parseFloat(itemData.nutrition?.carbs || 0),
-        fat: parseFloat(itemData.nutrition?.fat || 0)
+        fat: parseFloat(itemData.nutrition?.fat || 0),
     };
 
     // Build i_cart with enriched inventory details
-    i_cart.value = (itemData.ingredients || []).map(ing => {
+    i_cart.value = (itemData.ingredients || []).map((ing) => {
         const quantity = parseFloat(ing.quantity || ing.qty || 0);
         const cost = parseFloat(ing.cost || 0);
         const unitPrice = quantity > 0 ? cost / quantity : 0;
 
         // find the matching inventory item (for category, unit, nutrition, etc.)
-        const inv = i_filteredInv.value.find(inv =>
-            inv.id === (ing.inventory_item_id || ing.id || ing.product_id)
+        const inv = i_filteredInv.value.find(
+            (inv) =>
+                inv.id === (ing.inventory_item_id || ing.id || ing.product_id)
         );
 
         return {
             id: ing.inventory_item_id || ing.id || ing.product_id,
-            image_url: inv?.image_url || '—',
-            name: ing.product_name || ing.name || inv?.name || '—',
-            category: inv?.category || ing.category || { name: '' },
-            unit: inv?.unit || ing.unit || '',
+            image_url: inv?.image_url || "—",
+            name: ing.product_name || ing.name || inv?.name || "—",
+            category: inv?.category || ing.category || { name: "" },
+            unit: inv?.unit || ing.unit || "",
             qty: quantity,
             unitPrice: unitPrice,
             cost: cost,
             nutrition: ing.nutrition
-                ? (typeof ing.nutrition === 'string' ? JSON.parse(ing.nutrition) : ing.nutrition)
-                : inv?.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 },
+                ? typeof ing.nutrition === "string"
+                    ? JSON.parse(ing.nutrition)
+                    : ing.nutrition
+                : inv?.nutrition || {
+                      calories: 0,
+                      protein: 0,
+                      carbs: 0,
+                      fat: 0,
+                  },
         };
     });
 
-    console.log('Hydrated cart with details:', i_cart.value);
+    console.log("Hydrated cart with details:", i_cart.value);
 
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
 };
-
-
 
 const submitEdit = async () => {
     submitting.value = true;
@@ -593,14 +597,17 @@ const submitEdit = async () => {
 
     try {
         // Recalculate nutrition totals
-        const totalNutrition = i_cart.value.reduce((acc, ing) => {
-            const qty = Number(ing.qty || 0);
-            acc.calories += (Number(ing.nutrition?.calories || 0) * qty);
-            acc.protein += (Number(ing.nutrition?.protein || 0) * qty);
-            acc.carbs += (Number(ing.nutrition?.carbs || 0) * qty);
-            acc.fat += (Number(ing.nutrition?.fat || 0) * qty);
-            return acc;
-        }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+        const totalNutrition = i_cart.value.reduce(
+            (acc, ing) => {
+                const qty = Number(ing.qty || 0);
+                acc.calories += Number(ing.nutrition?.calories || 0) * qty;
+                acc.protein += Number(ing.nutrition?.protein || 0) * qty;
+                acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+                acc.fat += Number(ing.nutrition?.fat || 0) * qty;
+                return acc;
+            },
+            { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        );
 
         // Use FormData for proper file upload handling
         const formData = new FormData();
@@ -623,9 +630,7 @@ const submitEdit = async () => {
         form.value.allergies.forEach((id, i) =>
             formData.append(`allergies[${i}]`, id)
         );
-        form.value.tags.forEach((id, i) =>
-            formData.append(`tags[${i}]`, id)
-        );
+        form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
         // Ingredients from cart
         i_cart.value.forEach((ing, i) => {
@@ -647,7 +652,7 @@ const submitEdit = async () => {
         // Make the API call
         await axios.post(`/menu/${form.value.id}`, formData, {
             headers: {
-                "Content-Type": "multipart/form-data"
+                "Content-Type": "multipart/form-data",
             },
         });
 
@@ -657,9 +662,10 @@ const submitEdit = async () => {
         resetForm();
         await fetchMenus();
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
+        const modal = bootstrap.Modal.getInstance(
+            document.getElementById("addItemModal")
+        );
         modal?.hide();
-
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
@@ -671,7 +677,10 @@ const submitEdit = async () => {
 
             toast.error(allMessages);
         } else {
-            console.error("❌ Update failed:", err.response?.data || err.message);
+            console.error(
+                "❌ Update failed:",
+                err.response?.data || err.message
+            );
             toast.error("Failed to update menu item");
         }
     } finally {
@@ -679,12 +688,13 @@ const submitEdit = async () => {
     }
 };
 
-
 const toggleStatus = async (item) => {
     try {
         const newStatus = item.status === 1 ? 0 : 1;
         await axios.patch(`/menu/${item.id}/status`, { status: newStatus });
-        toast.success(`Menu item is now ${newStatus === 1 ? "Active" : "Inactive"}`);
+        toast.success(
+            `Menu item is now ${newStatus === 1 ? "Active" : "Inactive"}`
+        );
         await fetchMenus();
     } catch (err) {
         console.error("Failed to toggle status", err);
@@ -692,12 +702,11 @@ const toggleStatus = async (item) => {
     }
 };
 
-
 // ============================= reset form =========================
 
 function resetForm() {
     // revoke blob URL if exists
-    if (form.value.imageUrl && form.value.imageUrl.startsWith('blob:')) {
+    if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
 
@@ -735,7 +744,6 @@ function resetForm() {
         fat: 0,
     };
 }
-
 
 // code fo download files like  PDF, Excel and CSV
 
@@ -857,7 +865,6 @@ const downloadCSV = (data) => {
     }
 };
 
-
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
@@ -896,14 +903,15 @@ const downloadPDF = (data) => {
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
                 return wantedKeys
                     .map((key) =>
-                        nutri[key] !== undefined ? `${key}: ${nutri[key]}` : null
+                        nutri[key] !== undefined
+                            ? `${key}: ${nutri[key]}`
+                            : null
                     )
                     .filter(Boolean)
                     .join(", ");
             }
             return String(nutri ?? "");
         };
-
 
         const tableRows = data.map((s) => [
             s.name || "",
@@ -912,14 +920,13 @@ const downloadPDF = (data) => {
             s.nutrition_text || formatNutrition(s.nutrition),
             // Allergies
             Array.isArray(s.allergies)
-                ? s.allergies.map(a => a.name || a).join(", ")
+                ? s.allergies.map((a) => a.name || a).join(", ")
                 : s.allergies || "",
 
             // Tags
             Array.isArray(s.tags)
-                ? s.tags.map(t => t.name || t).join(", ")
+                ? s.tags.map((t) => t.name || t).join(", ")
                 : s.tags || "",
-
         ]);
 
         autoTable(doc, {
@@ -952,8 +959,9 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `menu_items_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        const fileName = `menu_items_${
+            new Date().toISOString().split("T")[0]
+        }.pdf`;
         doc.save(fileName);
         toast.success("PDF downloaded successfully ", { autoClose: 2500 });
     } catch (error) {
@@ -1057,9 +1065,9 @@ const downloadExcel = (data) => {
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
         // Generate file name
-        const fileName = `menu_items_${new Date()
-            .toISOString()
-            .split("T")[0]}.xlsx`;
+        const fileName = `menu_items_${
+            new Date().toISOString().split("T")[0]
+        }.xlsx`;
 
         // Save the file
         XLSX.writeFile(workbook, fileName);
@@ -1074,7 +1082,6 @@ const downloadExcel = (data) => {
         });
     }
 };
-
 
 const handleImport = (data) => {
     console.log("Imported Data:", data);
@@ -1107,183 +1114,260 @@ const handleImport = (data) => {
             toast.error("Import failed");
         });
 };
-
 </script>
 
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
-                <!-- Title -->
-                <h4 class="fw-semibold mb-3">Menus</h4>
-                <!-- KPI Cards -->
-                <div class="row g-3">
-                    <div v-for="c in kpis" :key="c.label" class="col">
-                        <div class="card border-0 shadow-sm rounded-4 h-100">
-                            <div class="card-body d-flex align-items-center justify-content-between ">
-                                <!-- left: value + label -->
-                                <div>
-                                    <div class="fw-bold fs-4">
-                                        {{ c.value }}
-                                    </div>
-                                    <div class="text-muted fs-6">
-                                        {{ c.label }}
-                                    </div>
+            <!-- Title -->
+            <h4 class="fw-semibold mb-3">Menus</h4>
+            <!-- KPI Cards -->
+            <div class="row g-3">
+                <div v-for="c in kpis" :key="c.label" class="col">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div
+                            class="card-body d-flex align-items-center justify-content-between"
+                        >
+                            <!-- left: value + label -->
+                            <div>
+                                <div class="fw-bold fs-4">
+                                    {{ c.value }}
                                 </div>
-                                <!-- right: soft icon chip -->
-                                <div :class="['icon-chip', c.iconBg]">
-                                    <component :is="c.icon" :class="c.iconColor" size="26" />
+                                <div class="text-muted fs-6">
+                                    {{ c.label }}
                                 </div>
+                            </div>
+                            <!-- right: soft icon chip -->
+                            <div :class="['icon-chip', c.iconBg]">
+                                <component
+                                    :is="c.icon"
+                                    :class="c.iconColor"
+                                    size="26"
+                                />
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Main Table -->
-                <div class="card border-0 shadow-lg rounded-4 mt-3">
-                    <div class="card-body">
-                        <!-- Toolbar -->
-                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                            <h2 class="mb-0 fw-semibold fs-6">Menu</h2>
+            <!-- Main Table -->
+            <div class="card border-0 shadow-lg rounded-4 mt-3">
+                <div class="card-body">
+                    <!-- Toolbar -->
+                    <div
+                        class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
+                    >
+                        <h2 class="mb-0 fw-semibold fs-6">Menu</h2>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                <div class="search-wrap">
-                                    <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
-                                </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div class="search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input
+                                    v-model="q"
+                                    type="text"
+                                    class="form-control search-input"
+                                    placeholder="Search"
+                                />
+                            </div>
 
-                                <!-- Filter By -->
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
-                                        Filter By
-                                        <span v-if="sortBy" class="ms-1 text-muted small">
-                                            {{
-                                                sortBy === "stock_desc"
-                                                    ? "High→Low"
-                                                    : sortBy === "stock_asc"
-                                                        ? "Low→High"
-                                                        : sortBy === "name_asc"
-                                                            ? "A→Z"
-                                                            : sortBy === "name_desc"
-                                                                ? "Z→A"
-                                                                : ""
-                                            }}
-                                        </span>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'stock_desc'">From High to Low</a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'stock_asc'">From Low to High</a>
-                                        </li>
-                                        <li>
-                                            <hr class="dropdown-divider" />
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'name_asc'">Ascending</a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:void(0)"
-                                                @click="sortBy = 'name_desc'">Descending</a>
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <!-- Add Item -->
-                                <button data-bs-toggle="modal" @click="resetErrors" data-bs-target="#addItemModal"
-                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
-                                    <Plus class="w-4 h-4" /> Add Menu
+                            <!-- Filter By -->
+                            <div class="dropdown">
+                                <button
+                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown"
+                                >
+                                    Filter By
+                                    <span
+                                        v-if="sortBy"
+                                        class="ms-1 text-muted small"
+                                    >
+                                        {{
+                                            sortBy === "stock_desc"
+                                                ? "High→Low"
+                                                : sortBy === "stock_asc"
+                                                ? "Low→High"
+                                                : sortBy === "name_asc"
+                                                ? "A→Z"
+                                                : sortBy === "name_desc"
+                                                ? "Z→A"
+                                                : ""
+                                        }}
+                                    </span>
                                 </button>
-                                <ImportFile label="Import" @on-import="handleImport" />
-                                <!-- Download all -->
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
-                                        Download
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('pdf')">Download as PDF</a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('excel')">Download as Excel</a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('csv')">
-                                                Download as CSV
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                                <ul
+                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                >
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:void(0)"
+                                            @click="sortBy = 'stock_desc'"
+                                            >From High to Low</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:void(0)"
+                                            @click="sortBy = 'stock_asc'"
+                                            >From Low to High</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <hr class="dropdown-divider" />
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:void(0)"
+                                            @click="sortBy = 'name_asc'"
+                                            >Ascending</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:void(0)"
+                                            @click="sortBy = 'name_desc'"
+                                            >Descending</a
+                                        >
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Add Item -->
+                            <button
+                                data-bs-toggle="modal"
+                                @click="resetErrors"
+                                data-bs-target="#addItemModal"
+                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                            >
+                                <Plus class="w-4 h-4" /> Add Menu
+                            </button>
+                            <ImportFile
+                                label="Import"
+                                @on-import="handleImport"
+                            />
+                            <!-- Download all -->
+                            <div class="dropdown">
+                                <button
+                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown"
+                                >
+                                    Download
+                                </button>
+                                <ul
+                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                >
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('pdf')"
+                                            >Download as PDF</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('excel')"
+                                            >Download as Excel</a
+                                        >
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('csv')"
+                                        >
+                                            Download as CSV
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Table -->
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead class="border-top small text-muted">
-                                    <tr>
-                                        <th>S.#</th>
-                                        <th>Image</th>
-                                        <th>Menu Name</th>
-                                        <th>Category</th>
-                                        <th>Price</th>
-                                        <th>Status</th>
-                                        <th class="text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
-                                        <!-- S.# -->
-                                        <td>{{ idx + 1 }}</td>
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="border-top small text-muted">
+                                <tr>
+                                    <th>S.#</th>
+                                    <th>Image</th>
+                                    <th>Menu Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="(item, idx) in sortedItems"
+                                    :key="item.id"
+                                >
+                                    <!-- S.# -->
+                                    <td>{{ idx + 1 }}</td>
 
-                                        <td>
-                                            <ImageZoomModal v-if="item.image_url" :file="item.image_url"
-                                                :alt="item.name" :width="50" :height="50"
-                                                :custom_class="'cursor-pointer'" />
-                                        </td>
+                                    <td>
+                                        <ImageZoomModal
+                                            v-if="item.image_url"
+                                            :file="item.image_url"
+                                            :alt="item.name"
+                                            :width="50"
+                                            :height="50"
+                                            :custom_class="'cursor-pointer'"
+                                        />
+                                    </td>
 
-                                        <!-- Menu Name -->
-                                        <td class="fw-semibold">
-                                            {{ item.name }}
-                                        </td>
+                                    <!-- Menu Name -->
+                                    <td class="fw-semibold">
+                                        {{ item.name }}
+                                    </td>
 
-                                        <!-- Category -->
-                                        <td class="text-truncate" style="max-width: 260px">
-                                            {{ item.category?.name || '—' }}
-                                        </td>
+                                    <!-- Category -->
+                                    <td
+                                        class="text-truncate"
+                                        style="max-width: 260px"
+                                    >
+                                        {{ item.category?.name || "—" }}
+                                    </td>
 
-                                        <!-- Price -->
-                                        <td>
-                                            {{ money(item.price || 0, "GBP") }}
-                                        </td>
+                                    <!-- Price -->
+                                    <td>
+                                        {{ money(item.price || 0, "GBP") }}
+                                    </td>
 
-                                        <!-- Status -->
-                                        <td>
-                                            <span v-if="item.status === 0"
-                                                class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">Inactive</span>
-                                            <span v-else
-                                                class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">Active</span>
-                                        </td>
+                                    <!-- Status -->
+                                    <td>
+                                        <span
+                                            v-if="item.status === 0"
+                                            class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1"
+                                            >Inactive</span
+                                        >
+                                        <span
+                                            v-else
+                                            class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1"
+                                            >Active</span
+                                        >
+                                    </td>
 
-                                        <!-- Actions -->
-                                        <td class="text-center">
-                                            <div class="d-inline-flex align-items-center gap-3">
-
-                                                <button @click="editItem(item)" data-bs-toggle="modal" title="Edit"
-                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                    <Pencil class="w-4 h-4" />
-                                                </button>
-                                                <!-- <button
+                                    <!-- Actions -->
+                                    <td class="text-center">
+                                        <div
+                                            class="d-inline-flex align-items-center gap-3"
+                                        >
+                                            <button
+                                                @click="editItem(item)"
+                                                data-bs-toggle="modal"
+                                                title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                            >
+                                                <Pencil class="w-4 h-4" />
+                                            </button>
+                                            <!-- <button
   @click="() => { statusTargetItem.value = item; showStatusModal.value = true; }"
   class="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200"
   :class="item.status === 1
@@ -1295,384 +1379,752 @@ const handleImport = (data) => {
     :class="item.status === 1 ? 'bi bi-check-circle' : 'bi bi-x-circle'"
     class="text-lg"
   ></i> -->
-                                                <!-- </button> -->
+                                            <!-- </button> -->
 
-
-                                                <ConfirmModal :title="'Confirm Status'"
-                                                    :message="`Are you sure you want to change status to ${item.status === 1 ? 'Inactive' : 'Active'}?`"
-                                                    :showDeleteButton="true" @confirm="() => {
+                                            <ConfirmModal
+                                                :title="'Confirm Status'"
+                                                :message="`Are you sure you want to change status to ${
+                                                    item.status === 1
+                                                        ? 'Inactive'
+                                                        : 'Active'
+                                                }?`"
+                                                :showDeleteButton="true"
+                                                @confirm="
+                                                    () => {
                                                         toggleStatus(item);
-                                                    }" @cancel="() => { }" />
+                                                    }
+                                                "
+                                                @cancel="() => {}"
+                                            />
+                                        </div>
+                                    </td>
+                                </tr>
 
-
-
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Empty state -->
-                                    <tr v-if="sortedItems.length === 0">
-                                        <td colspan="7" class="text-center text-muted py-4">
-                                            No Menu items found.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
+                                <!-- Empty state -->
+                                <tr v-if="sortedItems.length === 0">
+                                    <td
+                                        colspan="7"
+                                        class="text-center text-muted py-4"
+                                    >
+                                        No Menu items found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
 
-                <!-- ===================== Add New menu Item Modal ===================== -->
-                <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">
-                                    {{ isEditMode == true ? "Edit Menu" : "Add Menu" }}
-                                </h5>
-                                <button @click="resetForm"
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+            <!-- ===================== Add New menu Item Modal ===================== -->
+            <div
+                class="modal fade"
+                id="addItemModal"
+                tabindex="-1"
+                aria-hidden="true"
+            >
+                <div
+                    class="modal-dialog modal-lg modal-dialog-centered"
+                    role="document"
+                >
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-semibold">
+                                {{
+                                    isEditMode == true
+                                        ? "Edit Menu"
+                                        : "Add Menu"
+                                }}
+                            </h5>
+                            <button
+                                @click="resetForm"
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"
+                                title="Close"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6 text-red-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <!-- top row -->
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Menu Name</label>
+                                    <input
+                                        v-model="form.name"
+                                        type="text"
+                                        class="form-control"
+                                        :class="{
+                                            'is-invalid': formErrors.name,
+                                        }"
+                                        placeholder="e.g., Chicken Breast"
+                                    />
+                                    <small
+                                        v-if="formErrors.name"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.name[0] }}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label d-block"
+                                        >Base Price</label
+                                    >
+                                    <input
+                                        v-model="form.price"
+                                        type="number"
+                                        min="0"
+                                        class="form-control"
+                                        :class="{
+                                            'is-invalid': formErrors.price,
+                                        }"
+                                        placeholder="e.g., 0.00"
+                                    />
+                                    <small
+                                        v-if="formErrors.price"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.price[0] }}
+                                    </small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Category</label>
+                                    <Select
+                                        v-model="form.category_id"
+                                        :options="categories"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        placeholder="Select Category"
+                                        class="w-100"
+                                        appendTo="self"
+                                        :autoZIndex="true"
+                                        :baseZIndex="2000"
+                                        @update:modelValue="
+                                            form.subcategory = ''
+                                        "
+                                        :class="{
+                                            'is-invalid':
+                                                formErrors.category_id,
+                                        }"
+                                    />
+                                    <small
+                                        v-if="formErrors.category_id"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.category_id[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Subcategory -->
+                                <div
+                                    class="col-md-6"
+                                    v-if="subcatOptions.length"
+                                >
+                                    <label class="form-label"
+                                        >Subcategory</label
+                                    >
+                                    <Select
+                                        v-model="form.subcategory"
+                                        :options="subcatOptions"
+                                        optionLabel="name"
+                                        optionValue="value"
+                                        placeholder="Select Subcategory"
+                                        class="w-100"
+                                        :appendTo="body"
+                                        :autoZIndex="true"
+                                        :baseZIndex="2000"
+                                        :class="{
+                                            'is-invalid':
+                                                formErrors.subcategory,
+                                        }"
+                                    />
+                                    <small
+                                        v-if="formErrors.subcategory"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.subcategory[0] }}
+                                    </small>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label"
+                                        >Description</label
+                                    >
+                                    <textarea
+                                        v-model="form.description"
+                                        rows="4"
+                                        class="form-control"
+                                        :class="{
+                                            'is-invalid':
+                                                formErrors.description,
+                                        }"
+                                        placeholder="Notes about this product"
+                                    ></textarea>
+                                    <small
+                                        v-if="formErrors.description"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.description[0] }}
+                                    </small>
+                                </div>
                             </div>
 
-                            <div class="modal-body">
-                                <!-- top row -->
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Menu Name</label>
-                                        <input v-model="form.name" type="text" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.name }"
-                                            placeholder="e.g., Chicken Breast" />
-                                        <small v-if="formErrors.name" class="text-danger">
-                                            {{ formErrors.name[0] }}
-                                        </small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label d-block">Base Price</label>
-                                        <input v-model="form.price" type="number" min="0" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.price }" placeholder="e.g., 0.00" />
-                                        <small v-if="formErrors.price" class="text-danger">
-                                            {{ formErrors.price[0] }}
-                                        </small>
-                                    </div>
+                            <hr class="my-4" />
 
-                                    <div class="col-md-6">
-                                        <label class="form-label">Category</label>
-                                        <Select v-model="form.category_id" :options="categories" optionLabel="name"
-                                            optionValue="id" placeholder="Select Category" class="w-100" appendTo="self"
-                                            :autoZIndex="true" :baseZIndex="2000"
-                                            @update:modelValue="form.subcategory = ''"
-                                            :class="{ 'is-invalid': formErrors.category_id }" />
-                                        <small v-if="formErrors.category_id" class="text-danger">
-                                            {{ formErrors.category_id[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Subcategory -->
-                                    <div class="col-md-6" v-if="subcatOptions.length">
-                                        <label class="form-label">Subcategory</label>
-                                        <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
-                                            optionValue="value" placeholder="Select Subcategory" class="w-100"
-                                            :appendTo="body" :autoZIndex="true" :baseZIndex="2000"
-                                            :class="{ 'is-invalid': formErrors.subcategory }" />
-                                        <small v-if="formErrors.subcategory" class="text-danger">
-                                            {{ formErrors.subcategory[0] }}
-                                        </small>
-                                    </div>
-
-
-                                    <div class="col-12">
-                                        <label class="form-label">Description</label>
-                                        <textarea v-model="form.description" rows="4" class="form-control"
-                                            :class="{ 'is-invalid': formErrors.description }"
-                                            placeholder="Notes about this product"></textarea>
-                                        <small v-if="formErrors.description" class="text-danger">
-                                            {{ formErrors.description[0] }}
-                                        </small>
-                                    </div>
+                            <div class="row g-4 mt-1">
+                                <!-- Allergies -->
+                                <div class="col-md-6">
+                                    <label class="form-label d-block"
+                                        >Allergies</label
+                                    >
+                                    <MultiSelect
+                                        v-model="form.allergies"
+                                        :options="allergies"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        filter
+                                        placeholder="Select Allergies"
+                                        class="w-full md:w-80"
+                                        appendTo="self"
+                                        :class="{
+                                            'is-invalid': formErrors.allergies,
+                                        }"
+                                    />
+                                    <br />
+                                    <small
+                                        v-if="formErrors.allergies"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.allergies[0] }}
+                                    </small>
                                 </div>
 
-                                <hr class="my-4" />
-
-                                <div class="row g-4 mt-1">
-                                    <!-- Allergies -->
-                                    <div class="col-md-6">
-                                        <label class="form-label d-block">Allergies</label>
-                                        <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Allergies"
-                                            class="w-full md:w-80" appendTo="self"
-                                            :class="{ 'is-invalid': formErrors.allergies }" />
-                                        <br />
-                                        <small v-if="formErrors.allergies" class="text-danger">
-                                            {{ formErrors.allergies[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Tags -->
-                                    <div class="col-md-6">
-                                        <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
-                                        <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
-                                            optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
-                                            appendTo="self" :class="{ 'is-invalid': formErrors.tags }" />
-                                        <br />
-                                        <small v-if="formErrors.tags" class="text-danger">
-                                            {{ formErrors.tags[0] }}
-                                        </small>
-                                    </div>
+                                <!-- Tags -->
+                                <div class="col-md-6">
+                                    <label class="form-label d-block"
+                                        >Tags (Halal, Haram, etc.)</label
+                                    >
+                                    <MultiSelect
+                                        v-model="form.tags"
+                                        :options="tags"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        filter
+                                        placeholder="Select Tags"
+                                        class="w-full md:w-80"
+                                        appendTo="self"
+                                        :class="{
+                                            'is-invalid': formErrors.tags,
+                                        }"
+                                    />
+                                    <br />
+                                    <small
+                                        v-if="formErrors.tags"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.tags[0] }}
+                                    </small>
                                 </div>
+                            </div>
 
-                                <!-- Image -->
-                                <div class="row g-3 mt-2 align-items-center">
-                                    <div class="col-md-4">
-                                        <div class="logo-card" :class="{
+                            <!-- Image -->
+                            <div class="row g-3 mt-2 align-items-center">
+                                <div class="col-md-4">
+                                    <div
+                                        class="logo-card"
+                                        :class="{
                                             'is-invalid': formErrors.image,
-                                        }">
-                                            <div class="logo-frame"
-                                                @click="form.imageUrl ? openImageModal() : showCropper = true">
-                                                <img v-if="form.imageUrl" :src="form.imageUrl" alt="Menu Item Image" />
-                                                <div v-else class="placeholder">
-                                                    <i class="bi bi-image"></i>
-                                                </div>
-                                            </div>
-
-                                            <small class="text-muted mt-2 d-block">Upload Image</small>
-
-                                            <!-- Image Cropper Modal -->
-                                            <ImageCropperModal :show="showCropper" @close="showCropper = false"
-                                                @cropped="onCropped" />
-
-                                            <!-- Image Preview/Zoom Modal (Optional) -->
-                                            <ImageZoomModal v-if="showImageModal" :show="showImageModal"
-                                                :image="previewImage" @close="showImageModal = false" />
-
-
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-4 col-sm-6 col-md-8">
-                                        <button class="btn btn-outline-primary rounded-pill px-4"
-                                            :class="{ 'is-invalid': formErrors.ingredients }" data-bs-toggle="modal"
-                                            data-bs-target="#addIngredientModal">
-                                            {{ isEditMode == true ? "Ingredients" : "+ Add Ingredients" }}
-                                        </button>
-                                        <small v-if="formErrors.ingredients" class="text-danger d-block mt-1">
-                                            {{ formErrors.ingredients[0] }}
-                                        </small>
-
-                                        <div v-if="i_cart.length > 0" class="mt-3">
-
-                                            <!-- Nutrition Card -->
-                                            <div class="card border rounded-4 mb-3">
-                                                <div class="p-3 fw-semibold">
-                                                    <div class="mb-2">Total Nutrition (Menu)</div>
-                                                    <div class="d-flex flex-wrap gap-2">
-                                                        <span class="badge bg-primary px-3 py-2 rounded-pill">
-                                                            Calories: {{ i_totalNutrition.calories }}
-                                                        </span>
-                                                        <span class="badge bg-success px-3 py-2 rounded-pill">
-                                                            Protein: {{ i_totalNutrition.protein }} g
-                                                        </span>
-                                                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                                            Carbs: {{ i_totalNutrition.carbs }} g
-                                                        </span>
-                                                        <span class="badge bg-danger px-3 py-2 rounded-pill">
-                                                            Fat: {{ i_totalNutrition.fat }} g
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                            </div>
-
-                                            <!-- Ingredients Table -->
-                                            <div class="card border rounded-4">
-                                                <div class="table-responsive">
-                                                    <table class="table align-middle mb-0">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Name</th>
-                                                                <th>Qty</th>
-                                                                <th>Unit Price</th>
-                                                                <th>Cost</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr v-for="(ing, idx) in i_cart" :key="idx">
-                                                                <td>{{ ing.name }}</td>
-                                                                <td>{{ ing.qty }}</td>
-                                                                <td>{{ ing.unitPrice }}</td>
-                                                                <td>{{ ing.cost }}</td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div class="p-3 fw-semibold text-end">
-                                                    Total Cost: {{ money(i_total) }}
-                                                </div>
+                                        }"
+                                    >
+                                        <div
+                                            class="logo-frame"
+                                            @click="
+                                                form.imageUrl
+                                                    ? openImageModal()
+                                                    : (showCropper = true)
+                                            "
+                                        >
+                                            <img
+                                                v-if="form.imageUrl"
+                                                :src="form.imageUrl"
+                                                alt="Menu Item Image"
+                                            />
+                                            <div v-else class="placeholder">
+                                                <i class="bi bi-image"></i>
                                             </div>
                                         </div>
+
+                                        <small class="text-muted mt-2 d-block"
+                                            >Upload Image</small
+                                        >
+
+                                        <!-- Image Cropper Modal -->
+                                        <ImageCropperModal
+                                            :show="showCropper"
+                                            @close="showCropper = false"
+                                            @cropped="onCropped"
+                                        />
+
+                                        <!-- Image Preview/Zoom Modal (Optional) -->
+                                        <ImageZoomModal
+                                            v-if="showImageModal"
+                                            :show="showImageModal"
+                                            :image="previewImage"
+                                            @close="showImageModal = false"
+                                        />
                                     </div>
-
-
                                 </div>
 
-                                <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-5 py-2" :disabled="submitting"
-                                        @click="form.id ? submitEdit() : submitProduct()">
-                                        <template v-if="submitting">
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                            {{ form.id ? "Updating Product..." : "Adding Product..." }}
-                                        </template>
-                                        <template v-else>
-                                            {{ form.id ? "Update Product" : "Add Product" }}
-                                        </template>
+                                <div class="mt-4 col-sm-6 col-md-8">
+                                    <button
+                                        class="btn btn-outline-primary rounded-pill px-4"
+                                        :class="{
+                                            'is-invalid':
+                                                formErrors.ingredients,
+                                        }"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#addIngredientModal"
+                                    >
+                                        {{
+                                            isEditMode == true
+                                                ? "Ingredients"
+                                                : "+ Add Ingredients"
+                                        }}
                                     </button>
+                                    <small
+                                        v-if="formErrors.ingredients"
+                                        class="text-danger d-block mt-1"
+                                    >
+                                        {{ formErrors.ingredients[0] }}
+                                    </small>
 
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetForm">
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-                <!-- /modal -->
-
-
-                <!-- Add Ingredient Modal -->
-                <div class="modal fade" id="addIngredientModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-xl modal-dialog-centered">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">{{ isEditMode == true ? "Edit Ingredients" : "Add Ingredients" }}</h5>
-
-                                <button
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" @click="showMenuModal" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-
-                            </div>
-
-                            <div class="modal-body">
-                                <div class="row g-4">
-                                    <!-- Left side -->
-                                    <div class="col-lg-5">
-                                        <div class="search-wrap mb-2">
-                                            <input v-model="i_search" type="text" class="form-control search-input"
-                                                placeholder="Search Items..." />
-                                        </div>
-
-                                        <div v-for="it in i_displayInv" :key="it.id"
-                                            class="card shadow-sm border-0 rounded-4 mb-3">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-start gap-3">
-                                                    <img :src="it.image_url ? `${it.image_url}` : '/default.png'"
-                                                        class="rounded"
-                                                        style="width: 56px; height: 56px; object-fit: cover;" />
-                                                    <div class="flex-grow-1">
-                                                        <div class="fw-semibold">{{ it.name }}</div>
-                                                        <div class="text-muted small">Category: {{ it.category.name }}
-                                                        </div>
-                                                        <div class="text-muted small">Unit: {{ it.unit }}</div>
-                                                        <div class="small mt-2 text-muted">
-                                                            Calories: {{ it.nutrition?.calories || 0 }},
-                                                            Protein: {{ it.nutrition?.protein || 0 }},
-                                                            Carbs: {{ it.nutrition?.carbs || 0 }} ,
-                                                            Fat: {{ it.nutrition?.fat || 0 }}
-                                                        </div>
-
-                                                    </div>
-
-                                                    <button class="btn btn-primary px-4 rounded-pill" @click="addIngredient(it)">{{
-                                                        i_cart.some(c => c.id === it.id) ? 'Update' : 'Add'}}</button>
-                                                </div>
-
-                                                <div class="row g-2 mt-3">
-                                                    <div class="col-4">
-                                                        <label class="small text-muted">Quantity</label>
-                                                        <input v-model.number="it.qty" type="number" min="0"
-                                                            class="form-control form-control-sm" />
-                                                        <small v-if="formErrors.qty" class="text-danger">
-                                                            {{ formErrors.qty }}
-                                                        </small>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <label class="small text-muted">Unit Price</label>
-                                                        <input v-model.number="it.unitPrice" type="number" min="0"
-                                                            class="form-control form-control-sm" />
-                                                        <small v-if="formErrors.unitPrice" class="text-danger">
-                                                            {{ formErrors.unitPrice }}
-                                                        </small>
-                                                    </div>
-
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right side -->
-                                    <div class="col-lg-7">
+                                    <div v-if="i_cart.length > 0" class="mt-3">
+                                        <!-- Nutrition Card -->
                                         <div class="card border rounded-4 mb-3">
                                             <div class="p-3 fw-semibold">
-                                                <div>Total Nutrition (Menu)</div>
-                                                <div>Calories: {{ i_totalNutrition.calories }}</div>
-                                                <div>Protein: {{ i_totalNutrition.protein }} g</div>
-                                                <div>Carbs: {{ i_totalNutrition.carbs }} g</div>
-                                                <div>Fat: {{ i_totalNutrition.fat }} g</div>
+                                                <div class="mb-2">
+                                                    Total Nutrition (Menu)
+                                                </div>
+                                                <div
+                                                    class="d-flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        class="badge bg-primary px-3 py-2 rounded-pill"
+                                                    >
+                                                        Calories:
+                                                        {{
+                                                            i_totalNutrition.calories
+                                                        }}
+                                                    </span>
+                                                    <span
+                                                        class="badge bg-success px-3 py-2 rounded-pill"
+                                                    >
+                                                        Protein:
+                                                        {{
+                                                            i_totalNutrition.protein
+                                                        }}
+                                                        g
+                                                    </span>
+                                                    <span
+                                                        class="badge bg-warning text-dark px-3 py-2 rounded-pill"
+                                                    >
+                                                        Carbs:
+                                                        {{
+                                                            i_totalNutrition.carbs
+                                                        }}
+                                                        g
+                                                    </span>
+                                                    <span
+                                                        class="badge bg-danger px-3 py-2 rounded-pill"
+                                                    >
+                                                        Fat:
+                                                        {{
+                                                            i_totalNutrition.fat
+                                                        }}
+                                                        g
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
 
+                                        <!-- Ingredients Table -->
                                         <div class="card border rounded-4">
                                             <div class="table-responsive">
-                                                <table class="table align-middle mb-0">
+                                                <table
+                                                    class="table align-middle mb-0"
+                                                >
                                                     <thead>
                                                         <tr>
                                                             <th>Name</th>
                                                             <th>Qty</th>
                                                             <th>Unit Price</th>
                                                             <th>Cost</th>
-                                                            <th class="text-end">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        <tr v-for="(ing, idx) in i_cart" :key="idx">
-                                                            <td>{{ ing.name }}</td>
-                                                            <td>{{ ing.qty }}</td>
-                                                            <td>{{ ing.unitPrice }}</td>
-                                                            <td>{{ ing.cost }}</td>
-                                                            <td class="text-end">
-                                                                <button class="btn btn-sm btn-danger"
-                                                                    @click="removeIngredient(idx)">Remove</button>
+                                                        <tr
+                                                            v-for="(
+                                                                ing, idx
+                                                            ) in i_cart"
+                                                            :key="idx"
+                                                        >
+                                                            <td>
+                                                                {{ ing.name }}
                                                             </td>
-                                                        </tr>
-                                                        <tr v-if="i_cart.length === 0">
-                                                            <td colspan="6" class="text-center text-muted py-3">No
-                                                                ingredients added.
+                                                            <td>
+                                                                {{ ing.qty }}
+                                                            </td>
+                                                            <td>
+                                                                {{
+                                                                    ing.unitPrice
+                                                                }}
+                                                            </td>
+                                                            <td>
+                                                                {{ ing.cost }}
                                                             </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
                                             </div>
-                                            <div class="p-3 fw-semibold text-end">
+                                            <div
+                                                class="p-3 fw-semibold text-end"
+                                            >
                                                 Total Cost: {{ money(i_total) }}
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                                        <div class="mt-3 text-center">
-                                            <button class="btn btn-primary px-5 rounded-pill" @click="saveIngredients">Done</button>
+                            <div class="mt-4">
+                                <button
+                                    class="btn btn-primary rounded-pill px-5 py-2"
+                                    :disabled="submitting"
+                                    @click="
+                                        form.id ? submitEdit() : submitProduct()
+                                    "
+                                >
+                                    <template v-if="submitting">
+                                        <span
+                                            class="spinner-border spinner-border-sm me-2"
+                                        ></span>
+                                        {{
+                                            form.id
+                                                ? "Updating Product..."
+                                                : "Adding Product..."
+                                        }}
+                                    </template>
+                                    <template v-else>
+                                        {{
+                                            form.id
+                                                ? "Update Product"
+                                                : "Add Product"
+                                        }}
+                                    </template>
+                                </button>
 
+                                <button
+                                    class="btn btn-secondary rounded-pill px-4 ms-2"
+                                    data-bs-dismiss="modal"
+                                    @click="resetForm"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /modal -->
+
+            <!-- Add Ingredient Modal -->
+            <div
+                class="modal fade"
+                id="addIngredientModal"
+                tabindex="-1"
+                aria-hidden="true"
+            >
+                <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-semibold">
+                                {{
+                                    isEditMode == true
+                                        ? "Edit Ingredients"
+                                        : "Add Ingredients"
+                                }}
+                            </h5>
+
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"
+                                @click="showMenuModal"
+                                title="Close"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6 text-red-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="row g-4">
+                                <!-- Left side -->
+                                <div class="col-lg-5">
+                                    <div class="search-wrap mb-2">
+                                        <input
+                                            v-model="i_search"
+                                            type="text"
+                                            class="form-control search-input"
+                                            placeholder="Search Items..."
+                                        />
+                                    </div>
+
+                                    <div
+                                        v-for="it in i_displayInv"
+                                        :key="it.id"
+                                        class="card shadow-sm border-0 rounded-4 mb-3"
+                                    >
+                                        <div class="card-body">
+                                            <div
+                                                class="d-flex align-items-start gap-3"
+                                            >
+                                                <img
+                                                    :src="
+                                                        it.image_url
+                                                            ? `${it.image_url}`
+                                                            : '/default.png'
+                                                    "
+                                                    class="rounded"
+                                                    style="
+                                                        width: 56px;
+                                                        height: 56px;
+                                                        object-fit: cover;
+                                                    "
+                                                />
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-semibold">
+                                                        {{ it.name }}
+                                                    </div>
+                                                    <div
+                                                        class="text-muted small"
+                                                    >
+                                                        Category:
+                                                        {{ it.category.name }}
+                                                    </div>
+                                                    <div
+                                                        class="text-muted small"
+                                                    >
+                                                        Unit: {{ it.unit }}
+                                                    </div>
+                                                    <div
+                                                        class="small mt-2 text-muted"
+                                                    >
+                                                        Calories:
+                                                        {{
+                                                            it.nutrition
+                                                                ?.calories || 0
+                                                        }}, Protein:
+                                                        {{
+                                                            it.nutrition
+                                                                ?.protein || 0
+                                                        }}, Carbs:
+                                                        {{
+                                                            it.nutrition
+                                                                ?.carbs || 0
+                                                        }}
+                                                        , Fat:
+                                                        {{
+                                                            it.nutrition?.fat ||
+                                                            0
+                                                        }}
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    class="btn btn-primary px-4 rounded-pill"
+                                                    @click="addIngredient(it)"
+                                                >
+                                                    {{
+                                                        i_cart.some(
+                                                            (c) =>
+                                                                c.id === it.id
+                                                        )
+                                                            ? "Update"
+                                                            : "Add"
+                                                    }}
+                                                </button>
+                                            </div>
+
+                                            <div class="row g-2 mt-3">
+                                                <div class="col-4">
+                                                    <label
+                                                        class="small text-muted"
+                                                        >Quantity</label
+                                                    >
+                                                    <input
+                                                        v-model.number="it.qty"
+                                                        type="number"
+                                                        min="0"
+                                                        class="form-control form-control-sm"
+                                                    />
+                                                    <small
+                                                        v-if="formErrors.qty"
+                                                        class="text-danger"
+                                                    >
+                                                        {{ formErrors.qty }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <label
+                                                        class="small text-muted"
+                                                        >Unit Price</label
+                                                    >
+                                                    <input
+                                                        v-model.number="
+                                                            it.unitPrice
+                                                        "
+                                                        type="number"
+                                                        min="0"
+                                                        class="form-control form-control-sm"
+                                                    />
+                                                    <small
+                                                        v-if="
+                                                            formErrors.unitPrice
+                                                        "
+                                                        class="text-danger"
+                                                    >
+                                                        {{
+                                                            formErrors.unitPrice
+                                                        }}
+                                                    </small>
+                                                </div>
+                                            </div>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right side -->
+                                <div class="col-lg-7">
+                                    <div class="card border rounded-4 mb-3">
+                                        <div class="p-3 fw-semibold">
+                                            <div>Total Nutrition (Menu)</div>
+                                            <div>
+                                                Calories:
+                                                {{ i_totalNutrition.calories }}
+                                            </div>
+                                            <div>
+                                                Protein:
+                                                {{ i_totalNutrition.protein }} g
+                                            </div>
+                                            <div>
+                                                Carbs:
+                                                {{ i_totalNutrition.carbs }} g
+                                            </div>
+                                            <div>
+                                                Fat:
+                                                {{ i_totalNutrition.fat }} g
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card border rounded-4">
+                                        <div class="table-responsive">
+                                            <table
+                                                class="table align-middle mb-0"
+                                            >
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Qty</th>
+                                                        <th>Unit Price</th>
+                                                        <th>Cost</th>
+                                                        <th class="text-end">
+                                                            Action
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr
+                                                        v-for="(
+                                                            ing, idx
+                                                        ) in i_cart"
+                                                        :key="idx"
+                                                    >
+                                                        <td>{{ ing.name }}</td>
+                                                        <td>{{ ing.qty }}</td>
+                                                        <td>
+                                                            {{ ing.unitPrice }}
+                                                        </td>
+                                                        <td>{{ ing.cost }}</td>
+                                                        <td class="text-end">
+                                                            <button
+                                                                class="btn btn-sm btn-danger"
+                                                                @click="
+                                                                    removeIngredient(
+                                                                        idx
+                                                                    )
+                                                                "
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr
+                                                        v-if="
+                                                            i_cart.length === 0
+                                                        "
+                                                    >
+                                                        <td
+                                                            colspan="6"
+                                                            class="text-center text-muted py-3"
+                                                        >
+                                                            No ingredients
+                                                            added.
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="p-3 fw-semibold text-end">
+                                            Total Cost: {{ money(i_total) }}
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 text-center">
+                                        <button
+                                            class="btn btn-primary px-5 rounded-pill"
+                                            @click="saveIngredients"
+                                        >
+                                            Done
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1685,26 +2137,26 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
-.dark h4{
+.dark h4 {
     color: white;
 }
 .dark .card {
-  background-color: #111827 !important; /* gray-800 */
-  color: #ffffff !important;           /* gray-50 */
+    background-color: #000000 !important; /* gray-800 */
+    color: #ffffff !important; /* gray-50 */
 }
 
 .dark .table {
-  background-color: #111827 !important; /* gray-900 */
-  color: #f9fafb !important;
+    background-color: #000000 !important; /* gray-900 */
+    color: #f9fafb !important;
 }
-.dark .table thead{
-background-color:#111827 !important; ;
- color: #ffffff;
+.dark .table thead {
+    background-color: #000000 !important;
+    color: #ffffff;
 }
 
-.dark .table thead th{
-  background-color:#111827 !important; ;
-  color: #ffffff;
+.dark .table thead th {
+    background-color: #000000 !important;
+    color: #ffffff;
 }
 :root {
     --brand: #1c0d82;
@@ -1723,7 +2175,7 @@ background-color:#111827 !important; ;
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #111827;
+    color: #000000;
 }
 
 /* Search pill */
@@ -1808,7 +2260,6 @@ background-color:#111827 !important; ;
     font-size: 0.95rem;
     color: #333;
 }
-
 
 .dropdown-menu {
     position: absolute !important;
@@ -1906,7 +2357,7 @@ background-color:#111827 !important; ;
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-:deep(.p-multiselect-label){
+:deep(.p-multiselect-label) {
     color: #000 !important;
 }
 
@@ -1915,7 +2366,7 @@ background-color:#111827 !important; ;
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
-    border-color: #9b9c9c
+    border-color: #9b9c9c;
 }
 
 /* Options container */
@@ -1952,7 +2403,6 @@ background-color:#111827 !important; ;
 }
 
 /* ======================================================== */
-
 
 /* Mobile tweaks */
 @media (max-width: 575.98px) {

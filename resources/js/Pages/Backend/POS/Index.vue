@@ -1014,32 +1014,32 @@ t, i
 <style scoped>
 
 .dark .ot-pill{
-    background-color: #111827;
+    background-color: #000000;
     color: #fff;
 }
 .dark .cart-body {
-    background-color: #111827;
+    background-color: #000000;
 }
 
 .dark .cart-footer {
-    background-color: #111827;
+    background-color: #000000;
 }
 
 .dark .form-control {
-    background-color: #111827;
+    background-color: #000000;
     color: white;
 }
 
 .dark .cart-lines {
-    background-color: #111827;
+    background-color: #000000;
 }
 
 .dark .alert {
-    background-color: #111827;
+    background-color: #000000;
 }
 
 .dark .table {
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     /* gray-900 */
     color: #f9fafb !important;
 }
@@ -1239,7 +1239,7 @@ t, i
 }
 
 .dark .ot-pill.active{
-   background-color: #111827;
+   background-color: #000000;
    color: #fff;
     font-weight: 700;
 }
@@ -1370,7 +1370,7 @@ t, i
     border-top: 1px solid #eef0f6;
     margin-top: 0.25rem;
     padding-top: 0.6rem;
-    color: #111827;
+    color: #000000;
     font-size: 1.05rem;
     font-weight: 800;
 }

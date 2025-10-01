@@ -61,28 +61,26 @@ const p_filteredInv = computed(() => {
     );
 });
 const filteredOrders = computed(() => {
-  const term = p_search.value.trim().toLowerCase();
-  if (!term) return orderData.value;
+    const term = p_search.value.trim().toLowerCase();
+    if (!term) return orderData.value;
 
-  return orderData.value.filter((row) =>
-    [
-      row.supplier ?? "",
-      row.status ?? "",
-      String(row.total ?? ""),
-      fmtDateTime(row.purchasedAt) ?? "",
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(term)
-  );
+    return orderData.value.filter((row) =>
+        [
+            row.supplier ?? "",
+            row.status ?? "",
+            String(row.total ?? ""),
+            fmtDateTime(row.purchasedAt) ?? "",
+        ]
+            .join(" ")
+            .toLowerCase()
+            .includes(term)
+    );
 });
 
-
-
-onMounted(()=>{
+onMounted(() => {
     fetchInventory();
     fetchSuppliers();
-})
+});
 /* =========================================================================
    === Pagination code starts here =========================================
    This uses  GLOBAL <Paginator> component. connect in the app.js file 
@@ -233,9 +231,9 @@ const selectedOrder = ref(null);
 const editItems = ref([]);
 const isEditing = ref(false);
 const formError = ref({});
-const  resetModal = () =>{
+const resetModal = () => {
     formError.value = {};
-}
+};
 const updating = ref(false);
 
 async function openModal(order) {
@@ -301,17 +299,14 @@ async function updateOrder() {
             formError.value = error.response.data.errors;
 
             // Convert errors object to a single string
-            const messages = Object.values(formError.value)
-                .flat()   
-                .join("\n"); 
+            const messages = Object.values(formError.value).flat().join("\n");
 
-            toast.error(messages); 
+            toast.error(messages);
         } else {
             console.error("Error updating order:", error);
             toast.error("Failed to update order");
         }
-    }
-    finally {
+    } finally {
         updating.value = false;
     }
 }
@@ -338,578 +333,571 @@ onUpdated(() => window.feather?.replace?.());
 <template>
     <Master>
         <div class="page-wrapper">
-            <div class="container-fluid py-3">
-                <div class="card border-0 shadow-lg rounded-4">
-                    <div class="card-body p-4">
-                        <div
-                            class="d-flex align-items-center justify-content-between mb-3"
-                        >
-                            <div class="d-flex align-items-center gap-2">
-                                <h3 class="fw-semibold mb-0">Purchase Order</h3>
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-body p-4">
+                    <div
+                        class="d-flex align-items-center justify-content-between mb-3"
+                    >
+                        <div class="d-flex align-items-center gap-2">
+                            <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
-                                <div class="position-relative">
-                                    <button
-                                        class="btn btn-link p-0 ms-2"
-                                        @click="showHelp = !showHelp"
-                                        title="Help"
-                                    >
-                                        <i
-                                            class="bi bi-question-circle fs-5"
-                                        ></i>
-                                    </button>
-                                    <div
-                                        v-if="showHelp"
-                                        class="help-popover shadow rounded-4 p-3"
-                                    >
-                                        <p class="mb-2">
-                                            This screen allows you to view,
-                                            manage, and update all purchase
-                                            orders.
-                                        </p>
-                                        <p class="mb-2">
-                                            <strong>Add Purchase</strong>:
-                                            create a purchase and stock-in
-                                            immediately.
-                                        </p>
-                                        <p class="mb-0">
-                                            <strong>Add Order</strong>: create a
-                                            purchase order for later delivery.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="d-flex gap-2 align-items-center">
-                                <div class="search-wrap me-1">
-                                    <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="p_search"
-                                        type="text"
-                                        class="form-control search-input"
-                                        placeholder="Search"
-                                    />
-                                </div>
-
+                            <div class="position-relative">
                                 <button
-                                    class="btn btn-primary rounded-pill px-4"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#addPurchaseModal"
+                                    class="btn btn-link p-0 ms-2"
+                                    @click="showHelp = !showHelp"
+                                    title="Help"
                                 >
-                                    Purchase
+                                    <i class="bi bi-question-circle fs-5"></i>
                                 </button>
-                                <PurchaseComponent
-                                    :suppliers="supplierOptions"
-                                    :items="p_filteredInv"
-                                    @refresh-data="fetchPurchaseOrders"
-                                    @update:search="p_search = $event"
-                                />
-
-                                <button
-                                    class="btn btn-primary rounded-pill px-4"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#addOrderModal"
+                                <div
+                                    v-if="showHelp"
+                                    class="help-popover shadow rounded-4 p-3"
                                 >
-                                    Order
-                                </button>
-                                <OrderComponent
-                                    :suppliers="supplierOptions"
-                                    :items="p_filteredInv"
-                                    @refresh-data="fetchPurchaseOrders"
-                                />
-                                <div class="dropdown">
-                                    <button
-                                        class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown"
-                                    >
-                                        Download
-                                    </button>
-                                    <ul
-                                        class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                    >
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('pdf')"
-                                                >Download as PDF</a
-                                            >
-                                        </li>
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('excel')"
-                                                >Download as Excel</a
-                                            >
-                                        </li>
-
-                                        <li>
-                                            <a
-                                                class="dropdown-item py-2"
-                                                href="javascript:;"
-                                                @click="onDownload('csv')"
-                                            >
-                                                Download as CSV
-                                            </a>
-                                        </li>
-                                    </ul>
+                                    <p class="mb-2">
+                                        This screen allows you to view, manage,
+                                        and update all purchase orders.
+                                    </p>
+                                    <p class="mb-2">
+                                        <strong>Add Purchase</strong>: create a
+                                        purchase and stock-in immediately.
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Add Order</strong>: create a
+                                        purchase order for later delivery.
+                                    </p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Table -->
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead class="small text-muted">
-                                    <tr>
-                                        <th style="width: 80px">S. #</th>
-                                        <th>Supplier Name</th>
-                                        <th>Purchase date</th>
-                                        <th class="text-start">Status</th>
-                                        <th>Total value</th>
-                                        <th class="text-end">Action</th>
-                                    </tr>
-                                </thead>
+                        <div class="d-flex gap-2 align-items-center">
+                            <div class="search-wrap me-1">
+                                <i class="bi bi-search"></i>
+                                <input
+                                    v-model="p_search"
+                                    type="text"
+                                    class="form-control search-input"
+                                    placeholder="Search"
+                                />
+                            </div>
 
-                                <tbody>
-                                    <tr v-if="loading">
-                                        <td
-                                            colspan="6"
-                                            class="text-center text-muted py-4"
+                            <button
+                                class="btn btn-primary rounded-pill px-4"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addPurchaseModal"
+                            >
+                                Purchase
+                            </button>
+                            <PurchaseComponent
+                                :suppliers="supplierOptions"
+                                :items="p_filteredInv"
+                                @refresh-data="fetchPurchaseOrders"
+                                @update:search="p_search = $event"
+                            />
+
+                            <button
+                                class="btn btn-primary rounded-pill px-4"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addOrderModal"
+                            >
+                                Order
+                            </button>
+                            <OrderComponent
+                                :suppliers="supplierOptions"
+                                :items="p_filteredInv"
+                                @refresh-data="fetchPurchaseOrders"
+                            />
+                            <div class="dropdown">
+                                <button
+                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown"
+                                >
+                                    Download
+                                </button>
+                                <ul
+                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
+                                >
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('pdf')"
+                                            >Download as PDF</a
                                         >
-                                            Loading…
+                                    </li>
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('excel')"
+                                            >Download as Excel</a
+                                        >
+                                    </li>
+
+                                    <li>
+                                        <a
+                                            class="dropdown-item py-2"
+                                            href="javascript:;"
+                                            @click="onDownload('csv')"
+                                        >
+                                            Download as CSV
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="small text-muted">
+                                <tr>
+                                    <th style="width: 80px">S. #</th>
+                                    <th>Supplier Name</th>
+                                    <th>Purchase date</th>
+                                    <th class="text-start">Status</th>
+                                    <th>Total value</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <tr v-if="loading">
+                                    <td
+                                        colspan="6"
+                                        class="text-center text-muted py-4"
+                                    >
+                                        Loading…
+                                    </td>
+                                </tr>
+
+                                <template
+                                    v-else
+                                    v-for="(row, i) in filteredOrders"
+                                    :key="row.id"
+                                >
+                                    <tr>
+                                        <!-- S.# across pages -->
+                                        <td>
+                                            {{
+                                                (meta.current_page - 1) *
+                                                    meta.per_page +
+                                                (i + 1)
+                                            }}
+                                        </td>
+
+                                        <td>{{ row.supplier }}</td>
+
+                                        <td class="text-nowrap">
+                                            {{
+                                                fmtDateTime(
+                                                    row.purchasedAt
+                                                ).split(",")[0]
+                                            }},
+                                            <div class="small text-muted">
+                                                {{
+                                                    fmtDateTime(row.purchasedAt)
+                                                        .split(",")[1]
+                                                        ?.trim()
+                                                }}
+                                            </div>
+                                        </td>
+
+                                        <td class="text-start">
+                                            <span
+                                                :class="[
+                                                    'badge rounded-pill',
+                                                    row.status === 'pending'
+                                                        ? 'bg-warning text-dark'
+                                                        : row.status ===
+                                                          'completed'
+                                                        ? 'bg-success'
+                                                        : 'bg-secondary',
+                                                ]"
+                                            >
+                                                {{ row.status }}
+                                            </span>
+                                        </td>
+
+                                        <td>{{ money(row.total) }}</td>
+
+                                        <td class="text-end">
+                                            <button
+                                                class="p-2 rounded-pill text-gray-600 hover:bg-gray-100 btn btn-light btn-sm"
+                                            >
+                                                <Eye
+                                                    class="w-4 h-4"
+                                                    @click="openModal(row)"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal"
+                                                    title="View Item"
+                                                />
+                                            </button>
                                         </td>
                                     </tr>
+                                </template>
 
-                                    <template
-                                        v-else
-                                        v-for="(row, i) in filteredOrders"
-                                        :key="row.id"
+                                <tr
+                                    v-if="
+                                        !loading && filteredOrders?.length === 0
+                                    "
+                                >
+                                    <td
+                                        colspan="6"
+                                        class="text-center text-muted py-4"
                                     >
+                                        No purchase orders found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- your GLOBAL Paginator component -->
+                    <Paginator
+                        class="mt-2"
+                        :meta="meta"
+                        :links="links"
+                        :disabled="loading"
+                        :show-sizes="true"
+                        :sizes="[10, 20, 30, 50, 100]"
+                        @go="onGo"
+                        @size="onSize"
+                    />
+                </div>
+            </div>
+
+            <!-- ====================View Modal either Purchase or Order ==================== -->
+            <!-- Unified Order Modal -->
+            <!-- Order / Purchase Details Modal -->
+            <div
+                class="modal fade"
+                id="orderDetailsModal"
+                tabindex="-1"
+                aria-hidden="true"
+            >
+                <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content rounded-4 shadow-lg border-0">
+                        <!-- Header -->
+                        <div class="modal-header align-items-center">
+                            <div class="d-flex align-items-center gap-2">
+                                <span
+                                    class="badge bg-success rounded-circle p-2"
+                                >
+                                    <i class="bi bi-basket"></i>
+                                </span>
+                                <div class="d-flex flex-column">
+                                    <h5 class="modal-title mb-0">
+                                        {{
+                                            isEditing
+                                                ? "Edit Purchase Order"
+                                                : "Purchase Details"
+                                        }}
+                                    </h5>
+                                    <small class="text-muted">
+                                        Supplier:
+                                        {{
+                                            selectedOrder?.supplier?.name ?? "—"
+                                        }}
+                                    </small>
+                                </div>
+                            </div>
+                            <button
+                                @click="resetModal"
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"
+                                title="Close"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6 text-red-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Body -->
+                        <div
+                            class="modal-body p-4 bg-light"
+                            v-if="selectedOrder"
+                        >
+                            <!-- Summary -->
+                            <h6 class="fw-semibold mb-3">Order Summary</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block"
+                                        >Purchase Date</small
+                                    >
+                                    <div class="fw-semibold">
+                                        {{
+                                            fmtDateTime(
+                                                selectedOrder.purchase_date
+                                            ).split(",")[0]
+                                        }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block"
+                                        >Status</small
+                                    >
+                                    <span
+                                        class="badge rounded-pill"
+                                        :class="
+                                            selectedOrder.status === 'completed'
+                                                ? 'bg-success'
+                                                : 'bg-warning'
+                                        "
+                                    >
+                                        {{ selectedOrder.status }}
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block"
+                                        >Total Amount</small
+                                    >
+                                    <div class="fw-semibold">
+                                        {{ money(selectedOrder.total_amount) }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4" />
+
+                            <!-- Items Table -->
+                            <h6 class="fw-semibold mb-3">
+                                {{
+                                    isEditing ? "Edit Items" : "Purchased Items"
+                                }}
+                            </h6>
+                            <div class="table-responsive">
+                                <table
+                                    class="table table-bordered align-middle"
+                                >
+                                    <thead class="table-light">
                                         <tr>
-                                            <!-- S.# across pages -->
+                                            <th>Product</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Subtotal</th>
+                                            <th>Expiry</th>
+                                            <th v-if="isEditing">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="(item, index) in isEditing
+                                                ? editItems
+                                                : selectedOrder.items"
+                                            :key="item.id || index"
+                                        >
+                                            <!-- Product -->
                                             <td>
-                                                {{
-                                                    (meta.current_page - 1) *
-                                                        meta.per_page +
-                                                    (i + 1)
-                                                }}
+                                                <span v-if="!isEditing">{{
+                                                    item.product?.name ||
+                                                    item.name ||
+                                                    "Unknown Product"
+                                                }}</span>
+                                                <input
+                                                    v-else
+                                                    v-model="item.name"
+                                                    class="form-control"
+                                                    readonly
+                                                />
                                             </td>
 
-                                            <td>{{ row.supplier }}</td>
+                                            <!-- Quantity -->
+                                            <td>
+                                                <span v-if="!isEditing">{{
+                                                    item.quantity
+                                                }}</span>
+                                                <input
+                                                    v-else
+                                                    v-model.number="
+                                                        item.quantity
+                                                    "
+                                                    type="number"
+                                                    class="form-control"
+                                                    @input="
+                                                        calculateSubtotal(item)
+                                                    "
+                                                />
+                                            </td>
 
-                                            <td class="text-nowrap">
-                                                {{
-                                                    fmtDateTime(
-                                                        row.purchasedAt
-                                                    ).split(",")[0]
-                                                }},
-                                                <div class="small text-muted">
+                                            <!-- Unit Price -->
+                                            <td>
+                                                <span v-if="!isEditing">{{
+                                                    money(item.unit_price)
+                                                }}</span>
+                                                <input
+                                                    v-else
+                                                    v-model.number="
+                                                        item.unit_price
+                                                    "
+                                                    type="number"
+                                                    class="form-control"
+                                                    @input="
+                                                        calculateSubtotal(item)
+                                                    "
+                                                />
+                                            </td>
+
+                                            <!-- Subtotal -->
+                                            <td>
+                                                <span v-if="!isEditing">{{
+                                                    money(item.sub_total)
+                                                }}</span>
+                                                <input
+                                                    v-else
+                                                    v-model="item.sub_total"
+                                                    class="form-control"
+                                                    readonly
+                                                />
+                                            </td>
+
+                                            <!-- Expiry -->
+                                            <td>
+                                                <span v-if="!isEditing">{{
+                                                    item.expiry || "—"
+                                                }}</span>
+                                                <input
+                                                    v-else
+                                                    v-model="item.expiry"
+                                                    type="date"
+                                                    :class="{
+                                                        'is-invalid':
+                                                            formError[
+                                                                `items.${index}.expiry`
+                                                            ],
+                                                    }"
+                                                    class="form-control"
+                                                />
+                                                <small
+                                                    v-if="
+                                                        formError[
+                                                            `items.${index}.expiry`
+                                                        ]
+                                                    "
+                                                    class="text-danger"
+                                                >
                                                     {{
-                                                        fmtDateTime(
-                                                            row.purchasedAt
-                                                        )
-                                                            .split(",")[1]
-                                                            ?.trim()
+                                                        formError[
+                                                            `items.${index}.expiry`
+                                                        ][0]
                                                     }}
-                                                </div>
+                                                </small>
                                             </td>
+                                            <br />
 
-                                            <td class="text-start">
-                                                <span
-                                                    :class="[
-                                                        'badge rounded-pill',
-                                                        row.status === 'pending'
-                                                            ? 'bg-warning text-dark'
-                                                            : row.status ===
-                                                              'completed'
-                                                            ? 'bg-success'
-                                                            : 'bg-secondary',
-                                                    ]"
-                                                >
-                                                    {{ row.status }}
-                                                </span>
-                                            </td>
-
-                                            <td>{{ money(row.total) }}</td>
-
-                                            <td class="text-end">
+                                            <!-- Action (only in edit mode) -->
+                                            <td v-if="isEditing">
                                                 <button
-                                                    class="p-2 rounded-pill text-gray-600 hover:bg-gray-100 btn btn-light btn-sm"
+                                                    class="p-2 rounded-full transition transform hover:bg-gray-100 hover:scale-110"
+                                                    @click="
+                                                        editItems.splice(
+                                                            index,
+                                                            1
+                                                        )
+                                                    "
+                                                    title="Delete"
                                                 >
-                                                    <Eye
-                                                        class="w-4 h-4"
-                                                        @click="openModal(row)"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#viewItemModal"
-                                                        title="View Item"
+                                                    <Trash2
+                                                        class="w-4 h-4 text-red-500"
                                                     />
                                                 </button>
                                             </td>
                                         </tr>
-                                    </template>
 
-                                    <tr
-                                        v-if="
-                                            !loading && filteredOrders?.length === 0
-                                        "
-                                    >
-                                        <td
-                                            colspan="6"
-                                            class="text-center text-muted py-4"
-                                        >
-                                            No purchase orders found.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- your GLOBAL Paginator component -->
-                        <Paginator
-                            class="mt-2"
-                            :meta="meta"
-                            :links="links"
-                            :disabled="loading"
-                            :show-sizes="true"
-                            :sizes="[10, 20, 30, 50, 100]"
-                            @go="onGo"
-                            @size="onSize"
-                        />
-                    </div>
-                </div>
-
-                <!-- ====================View Modal either Purchase or Order ==================== -->
-                <!-- Unified Order Modal -->
-                <!-- Order / Purchase Details Modal -->
-                <div
-                    class="modal fade"
-                    id="orderDetailsModal"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
-                    <div class="modal-dialog modal-xl modal-dialog-centered">
-                        <div class="modal-content rounded-4 shadow-lg border-0">
-                            <!-- Header -->
-                            <div class="modal-header align-items-center">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span
-                                        class="badge bg-success rounded-circle p-2"
-                                    >
-                                        <i class="bi bi-basket"></i>
-                                    </span>
-                                    <div class="d-flex flex-column">
-                                        <h5 class="modal-title mb-0">
-                                            {{
-                                                isEditing
-                                                    ? "Edit Purchase Order"
-                                                    : "Purchase Details"
-                                            }}
-                                        </h5>
-                                        <small class="text-muted">
-                                            Supplier:
-                                            {{
-                                                selectedOrder?.supplier?.name ??
-                                                "—"
-                                            }}
-                                        </small>
-                                    </div>
-                                </div>
-                                <button 
-                                    @click="resetModal"
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal"
-                                    aria-label="Close"
-                                    title="Close"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-6 w-6 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <!-- Body -->
-                            <div
-                                class="modal-body p-4 bg-light"
-                                v-if="selectedOrder"
-                            >
-                                <!-- Summary -->
-                                <h6 class="fw-semibold mb-3">Order Summary</h6>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block"
-                                            >Purchase Date</small
-                                        >
-                                        <div class="fw-semibold">
-                                            {{
-                                                fmtDateTime(
-                                                    selectedOrder.purchase_date
-                                                ).split(",")[0]
-                                            }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block"
-                                            >Status</small
-                                        >
-                                        <span
-                                            class="badge rounded-pill"
-                                            :class="
-                                                selectedOrder.status ===
-                                                'completed'
-                                                    ? 'bg-success'
-                                                    : 'bg-warning'
+                                        <tr
+                                            v-if="
+                                                (isEditing
+                                                    ? editItems.length
+                                                    : selectedOrder.items
+                                                          .length) === 0
                                             "
                                         >
-                                            {{ selectedOrder.status }}
-                                        </span>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <small class="text-muted d-block"
-                                            >Total Amount</small
-                                        >
-                                        <div class="fw-semibold">
-                                            {{
-                                                money(
-                                                    selectedOrder.total_amount
-                                                )
-                                            }}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <hr class="my-4" />
-
-                                <!-- Items Table -->
-                                <h6 class="fw-semibold mb-3">
-                                    {{
-                                        isEditing
-                                            ? "Edit Items"
-                                            : "Purchased Items"
-                                    }}
-                                </h6>
-                                <div class="table-responsive">
-                                    <table
-                                        class="table table-bordered align-middle"
-                                    >
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Product</th>
-                                                <th>Qty</th>
-                                                <th>Unit Price</th>
-                                                <th>Subtotal</th>
-                                                <th>Expiry</th>
-                                                <th v-if="isEditing">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr
-                                                v-for="(
-                                                    item, index
-                                                ) in isEditing
-                                                    ? editItems
-                                                    : selectedOrder.items"
-                                                :key="item.id || index"
+                                            <td
+                                                :colspan="isEditing ? 6 : 5"
+                                                class="text-center text-muted py-3"
                                             >
-                                                <!-- Product -->
-                                                <td>
-                                                    <span v-if="!isEditing">{{
-                                                        item.product?.name ||
-                                                        item.name ||
-                                                        "Unknown Product"
-                                                    }}</span>
-                                                    <input
-                                                        v-else
-                                                        v-model="item.name"
-                                                        class="form-control"
-                                                        readonly
-                                                    />
-                                                </td>
-
-                                                <!-- Quantity -->
-                                                <td>
-                                                    <span v-if="!isEditing">{{
-                                                        item.quantity
-                                                    }}</span>
-                                                    <input
-                                                        v-else
-                                                        v-model.number="
-                                                            item.quantity
-                                                        "
-                                                        type="number"
-                                                        class="form-control"
-                                                        @input="
-                                                            calculateSubtotal(
-                                                                item
-                                                            )
-                                                        "
-                                                    />
-                                                </td>
-
-                                                <!-- Unit Price -->
-                                                <td>
-                                                    <span v-if="!isEditing">{{
-                                                        money(item.unit_price)
-                                                    }}</span>
-                                                    <input
-                                                        v-else
-                                                        v-model.number="
-                                                            item.unit_price
-                                                        "
-                                                        type="number"
-                                                        class="form-control"
-                                                        @input="
-                                                            calculateSubtotal(
-                                                                item
-                                                            )
-                                                        "
-                                                    />
-                                                </td>
-
-                                                <!-- Subtotal -->
-                                                <td>
-                                                    <span v-if="!isEditing">{{
-                                                        money(item.sub_total)
-                                                    }}</span>
-                                                    <input
-                                                        v-else
-                                                        v-model="item.sub_total"
-                                                        class="form-control"
-                                                        readonly
-                                                    />
-                                                </td>
-
-                                                <!-- Expiry -->
-                                                <td>
-                                                    <span v-if="!isEditing">{{ item.expiry || "—" }}</span>
-                                                    <input v-else v-model="item.expiry" type="date"
-                                                        :class="{ 'is-invalid': formError[`items.${index}.expiry`] }"
-                                                        class="form-control" />
-                                                    <small v-if="formError[`items.${index}.expiry`]"
-                                                        class="text-danger">
-                                                        {{ formError[`items.${index}.expiry`][0] }}
-                                                    </small>
-                                                </td>
-                                                <br />
-
-
-                                                <!-- Action (only in edit mode) -->
-                                                <td v-if="isEditing">
-                                                    <button
-                                                        class="p-2 rounded-full transition transform hover:bg-gray-100 hover:scale-110"
-                                                        @click="
-                                                            editItems.splice(
-                                                                index,
-                                                                1
-                                                            )
-                                                        "
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2
-                                                            class="w-4 h-4 text-red-500"
-                                                        />
-                                                    </button>
-                                                </td>
-                                            </tr>
-
-                                            <tr
-                                                v-if="
-                                                    (isEditing
-                                                        ? editItems.length
-                                                        : selectedOrder.items
-                                                              .length) === 0
-                                                "
+                                                No items found
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="footer">
+                                        <tr>
+                                            <td
+                                                colspan="3"
+                                                class="text-end fw-bold"
                                             >
-                                                <td
-                                                    :colspan="isEditing ? 6 : 5"
-                                                    class="text-center text-muted py-3"
-                                                >
-                                                    No items found
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                        <tfoot class="footer">
-                                            <tr>
-                                                <td
-                                                    colspan="3"
-                                                    class="text-end fw-bold"
-                                                >
-                                                    Total:
-                                                </td>
-                                                <td class="fw-bold">
-                                                    {{
-                                                        money(
-                                                            (isEditing
-                                                                ? editItems
-                                                                : selectedOrder.items
-                                                            ).reduce(
-                                                                (sum, i) =>
-                                                                    sum +
-                                                                    parseFloat(
-                                                                        i.sub_total ||
-                                                                            0
-                                                                    ),
-                                                                0
-                                                            )
+                                                Total:
+                                            </td>
+                                            <td class="fw-bold">
+                                                {{
+                                                    money(
+                                                        (isEditing
+                                                            ? editItems
+                                                            : selectedOrder.items
+                                                        ).reduce(
+                                                            (sum, i) =>
+                                                                sum +
+                                                                parseFloat(
+                                                                    i.sub_total ||
+                                                                        0
+                                                                ),
+                                                            0
                                                         )
-                                                    }}
-                                                </td>
-                                                <td colspan="2"></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-
-                                <!-- Note (only in edit mode) -->
-                                <div
-                                    v-if="isEditing"
-                                    class="alert alert-info mt-3"
-                                >
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    Updating will mark this order as completed
-                                    and create stock entries.
-                                </div>
+                                                    )
+                                                }}
+                                            </td>
+                                            <td colspan="2"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
 
-                            <!-- Footer (only for edit mode) -->
-                            <div class="modal-footer" v-if="isEditing">
-                                <button
-                                    type="button"
-                                    class="btn btn-primary rounded-pill px-4 py-2"
-                                    @click="updateOrder"
-                                    :disabled="
-                                        updating || editItems.length === 0
-                                    "
-                                >
-                                    <span v-if="updating">
-                                        <span
-                                            class="spinner-border spinner-border-sm me-2"
-                                        ></span>
-                                        Updating...
-                                    </span>
-                                    <span v-else
-                                        >Complete Order & Update Stock</span
-                                    >
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-secondary rounded-pill px-4 py-2"
-                                    data-bs-dismiss="modal"
-                                >
-                                    Cancel
-                                </button>
+                            <!-- Note (only in edit mode) -->
+                            <div v-if="isEditing" class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Updating will mark this order as completed and
+                                create stock entries.
                             </div>
+                        </div>
+
+                        <!-- Footer (only for edit mode) -->
+                        <div class="modal-footer" v-if="isEditing">
+                            <button
+                                type="button"
+                                class="btn btn-primary rounded-pill px-4 py-2"
+                                @click="updateOrder"
+                                :disabled="updating || editItems.length === 0"
+                            >
+                                <span v-if="updating">
+                                    <span
+                                        class="spinner-border spinner-border-sm me-2"
+                                    ></span>
+                                    Updating...
+                                </span>
+                                <span v-else
+                                    >Complete Order & Update Stock</span
+                                >
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-secondary rounded-pill px-4 py-2"
+                                data-bs-dismiss="modal"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -919,13 +907,13 @@ onUpdated(() => window.feather?.replace?.());
 </template>
 
 <style scoped>
-.dark .modal-footer{
-      background-color: #111827 !important; /* gray-800 */
-  color: #f9fafb !important;   
+.dark .modal-footer {
+    background-color: #000000 !important; /* gray-800 */
+    color: #f9fafb !important;
 }
-.dark button{
-background-color: #111827 !important; /* gray-800 */
-  color: #f9fafb !important;   
+.dark button {
+    background-color: #000000 !important; /* gray-800 */
+    color: #f9fafb !important;
 }
 /* Search pill */
 .search-wrap {

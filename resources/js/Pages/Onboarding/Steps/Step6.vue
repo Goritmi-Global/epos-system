@@ -173,7 +173,7 @@ function onCropped({ file }) {
 }
 
 .dark .logo-frame{
-     background-color: #111827;
+     background-color: #000000;
     color: #fff !important;
 }
 /* -------- Match Step 5 segmented style -------- */
@@ -266,12 +266,12 @@ function onCropped({ file }) {
 }
 
 .dark .receipt-card{
- background-color: #111827 !important;
+ background-color: #000000 !important;
     color: #ffffff !important;
 }
 
 .dark input{
-   background-color: #111827 !important;
+   background-color: #000000 !important;
     color: #ffffff !important;
 }
 

@@ -295,7 +295,7 @@ function changeSection(sectionId) {
    background: #374151;
 }
 .dark .card-header {
-   background: linear-gradient(135deg, #111827 0%, #111827 100%);
+   background: linear-gradient(135deg, #000000 0%, #000000 100%);
 }
 
 .dark .settings-wrapper{
@@ -343,9 +343,9 @@ function changeSection(sectionId) {
 }
 
 .dark .settings-nav{
-  background: #111827;
+  background: #000000;
   color: #fff !important;
-  border: 1px solid #111827;
+  border: 1px solid #000000;
 }
 
 .nav-link {
@@ -431,7 +431,7 @@ function changeSection(sectionId) {
 }
 
 .dark .card-footer {
-    background: linear-gradient(180deg, #111827  0%, #111827  100%);
+    background: linear-gradient(180deg, #000000  0%, #000000  100%);
 }
 
 /* Quick Navigation */
