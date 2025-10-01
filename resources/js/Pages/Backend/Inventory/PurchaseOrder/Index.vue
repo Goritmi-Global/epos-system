@@ -34,7 +34,7 @@ const showHelp = ref(false);
 /* =============== Data you already fetch =============== */
 const supplierOptions = ref([]);
 const fetchSuppliers = async () => {
-    const res = await axios.get("/suppliers/pluck");
+    const res = await axios.get("/api/suppliers/pluck");
     supplierOptions.value = res.data;
 };
 
@@ -184,7 +184,7 @@ function normalizeFromFetchOrders(raw) {
 const fetchPurchaseOrders = async (page = 1) => {
     loading.value = true;
     try {
-        const res = await axios.get("/purchase-orders/fetchOrders", {
+        const res = await axios.get("/api/purchase-orders/fetch-orders", {
             params: { page, per_page: perPage.value },
         });
 

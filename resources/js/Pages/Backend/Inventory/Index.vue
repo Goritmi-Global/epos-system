@@ -1162,7 +1162,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/items/import", { items: itemsToImport })
+        .post("/api/inventory/import", { items: itemsToImport })
         .then(() => {
             toast.success("Items imported successfully");
             fetchInventories();

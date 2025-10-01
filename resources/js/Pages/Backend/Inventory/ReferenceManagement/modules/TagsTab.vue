@@ -501,7 +501,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/tags/import", { tags: tagsToImport })
+        .post("/api/tags/import", { tags: tagsToImport })
         .then(() => {
             toast.success("Tags imported successfully");
             fetchTags();

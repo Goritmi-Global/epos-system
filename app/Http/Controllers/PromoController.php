@@ -24,7 +24,6 @@ class PromoController extends Controller
     {
 
         return Inertia::render('Backend/Promo/Index');
-
     }
 
     public function fetchAllPromos()
@@ -36,11 +35,10 @@ class PromoController extends Controller
                 'success' => true,
                 'data' => $promos,
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: '.$e->getMessage(),
+                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -57,7 +55,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo created successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->withErrors(['error' => 'Failed to create promo: '.$e->getMessage()])
+                ->withErrors(['error' => 'Failed to create promo: ' . $e->getMessage()])
                 ->withInput();
         }
     }
@@ -90,7 +88,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo updated successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->withErrors(['error' => 'Failed to update promo: '.$e->getMessage()])
+                ->withErrors(['error' => 'Failed to update promo: ' . $e->getMessage()])
                 ->withInput();
         }
     }
@@ -106,7 +104,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo deleted successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to delete promo: '.$e->getMessage());
+                ->with('error', 'Failed to delete promo: ' . $e->getMessage());
         }
     }
 
@@ -116,12 +114,18 @@ class PromoController extends Controller
     public function toggleStatus(int $id)
     {
         try {
-            $this->promoService->toggleStatus($id);
+            $promo = $this->promoService->toggleStatus($id);
 
-            return redirect()->back()->with('success', 'Promo status updated successfully');
+            return response()->json([
+                'success' => true,
+                'message' => 'Promo status updated successfully',
+                'data' => $promo
+            ]);
         } catch (Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Failed to update promo status: '.$e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update promo status: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

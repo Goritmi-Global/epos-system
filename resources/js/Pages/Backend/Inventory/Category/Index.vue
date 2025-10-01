@@ -519,7 +519,7 @@ const submitSubCategory = async () => {
 
     try {
         const { data } = await axios.put(
-            `/categories/subcategories/${editingSubCategory.value.id}`,
+            `/api/categories/subcategories/${editingSubCategory.value.id}`,
             {
                 name: editingSubCategory.value.name.trim(),
             }
@@ -821,7 +821,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/categories/import", { categories: categoriesToImport })
+        .post("/api/categories/import", { categories: categoriesToImport })
         .then(() => {
             toast.success("Categories imported successfully");
             fetchCategories();

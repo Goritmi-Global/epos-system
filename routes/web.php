@@ -87,7 +87,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{inventory}', [InventoryController::class, 'update'])->name('update');
         Route::delete('/{inventory}', [InventoryController::class, 'destroy'])->name('destroy');
     });
-    Route::post('/items/import', [InventoryController::class, 'import'])->name('items.import');
 
     /* -------- Stock Entries & Logs -------- */
     Route::prefix('stock_entries')->name('stock_entries.')->group(function () {
@@ -127,7 +126,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* -------- Purchase Orders -------- */
     Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
-        Route::get('/fetchOrders', [PurchaseOrderController::class, 'fetchOrders'])->name('fetchOrders');
 
         Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
         Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
@@ -151,10 +149,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [SupplierController::class, 'store'])->name('store');
         Route::post('/update', [SupplierController::class, 'update'])->name('update');
         Route::delete('/{supplier}', [SupplierController::class, 'destroy'])->name('destroy');
-        Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck'); // special
+        
 
     });
-    Route::post('/suppliers/import', [SupplierController::class, 'import'])->name('suppliers.import');
+    
 
     /* -------- Tags -------- */
     Route::prefix('tags')->name('tags.')->group(function () {
@@ -163,7 +161,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{tag}', [TagController::class, 'update'])->name('update');
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
     });
-    Route::post('/tags/import', [TagController::class, 'import'])->name('tags.import');
+    
 
     /* -------- Categories -------- */
     Route::prefix('categories')->name('categories.')->group(function () {
@@ -172,13 +170,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{id}', [CategoryController::class, 'show'])->name('show');
         Route::put('/{id}', [CategoryController::class, 'update'])->name('update');
         Route::delete('/{id}', [CategoryController::class, 'destroy'])->name('destroy');
-        Route::put('/subcategories/{id}', [CategoryController::class, 'updateSubcategory'])->name('updateSubcategory');
 
-        Route::get('/parents/list', [CategoryController::class, 'getParents'])->name('parents');
-        Route::get('/statistics/summary', [CategoryController::class, 'statistics'])->name('stats');
-        Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('toggle');
+        // Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('toggle');
     });
-    Route::post('/categories/import', [CategoryController::class, 'import'])->name('categories.import');
 
     /* -------- Units -------- */
     Route::prefix('units')->name('units.')->group(function () {
@@ -187,7 +181,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{unit}', [UnitController::class, 'update'])->name('update');
         Route::delete('/{unit}', [UnitController::class, 'destroy'])->name('destroy');
     });
-    Route::post('/units/import', [UnitController::class, 'import'])->name('units.import');
 
     /* -------- Allergies -------- */
     Route::prefix('allergies')->name('allergies.')->group(function () {
@@ -196,12 +189,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{allergy}', [AllergyController::class, 'update'])->name('update');
         Route::delete('/{allergy}', [AllergyController::class, 'destroy'])->name('destroy');
     });
-    Route::post('/allergies/import', [AllergyController::class, 'import'])->name('allergies.import');
 
-    /* -------- Menu -------- */
+    /* -------- Menu Items -------- */
     Route::prefix('menu')->name('menu.')->group(function () {
         Route::get('/', [MenuController::class, 'index'])->name('index');
-        Route::get('/menu-items', [MenuController::class, 'apiIndex'])->name('items');
         Route::get('/create', [MenuController::class, 'create'])->name('create');
         Route::post('/', [MenuController::class, 'store'])->name('store');
         Route::get('/{menu}/edit', [MenuController::class, 'edit'])->name('edit');
@@ -209,7 +200,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
-    Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import');
 
 
     /* -------- Menu Categories -------- */
@@ -221,11 +211,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{id}', [MenuCategoryController::class, 'update'])->name('update');
         Route::delete('/{id}', [MenuCategoryController::class, 'destroy'])->name('destroy');
         Route::put('/subcategories/{id}', [MenuCategoryController::class, 'updateSubcategory'])->name('updateSubcategory');
-
-        Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
-        Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
-        Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
-        Route::post('/import', [MenuCategoryController::class, 'import'])->name('menu_categories.import');
     });
 
 
@@ -234,12 +219,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
-        Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu-categories');
-        Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu-items');
-        Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('fetch.profile.tables');
-
-        Route::put('/kot/{kot}/status', [PosOrderController::class, 'updateKotStatus']);
-        Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders']);
 
         // Stripe redirect/callback (creates order after successful payment
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
@@ -253,7 +232,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* -------- Orders -------- */
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrdersController::class, 'index'])->name('index');
-        // Route::get('/all-orders', [OrdersController::class, 'fetchAllOrders'])->name('all');
         Route::get('/{order}', [OrdersController::class, 'show'])->name('show');
     });
 
@@ -267,16 +245,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('/', [AnalyticsController::class, 'page'])->name('index');
     });
-    
-   Route::prefix('promos')->name('promos.')->group(function () {
-    Route::get('/', [PromoController::class, 'index'])->name('index');
-    Route::get('/all-promos', [PromoController::class, 'fetchAllPromos'])->name('all-promos');
-    Route::post('/', [PromoController::class, 'store'])->name('store');
-    Route::post('/{id}', [PromoController::class, 'update'])->name('update');
-    Route::get('/{id}', [PromoController::class, 'show'])->name('show');
-    // Route::delete('/{id}', [PromoController::class, 'destroy'])->name('destroy');
-    Route::patch('/{id}/toggle-status', [PromoController::class, 'toggleStatus'])->name('toggle');
-});
+
+    Route::prefix('promos')->name('promos.')->group(function () {
+        Route::get('/', [PromoController::class, 'index'])->name('index');
+        Route::post('/', [PromoController::class, 'store'])->name('store');
+        Route::post('/{id}', [PromoController::class, 'update'])->name('update');
+        Route::get('/{id}', [PromoController::class, 'show'])->name('show');
+        // Route::delete('/{id}', [PromoController::class, 'destroy'])->name('destroy');
+        
+    });
 
     /* -------- Settings -------- */
     Route::prefix('settings')->name('settings.')->group(function () {

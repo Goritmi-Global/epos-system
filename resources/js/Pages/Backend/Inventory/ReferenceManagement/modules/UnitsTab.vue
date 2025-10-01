@@ -497,7 +497,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/units/import", { units: unitsToImport })
+        .post("/api/units/import", { units: unitsToImport })
         .then(() => {
             toast.success("Units imported successfully");
             fetchUnits();

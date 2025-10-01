@@ -162,7 +162,7 @@ const filteredItems = computed(() => {
 const updateKotStatus = async (order, status) => {
     try {
         console.log(`Updating KOT status: Order ID ${order.id} -> ${status}`);
-        const response = await axios.put(`/pos/kot/${order.id}/status`, { status });
+        const response = await axios.put(`/api/pos/kot/${order.id}/status`, { status });
         emit('status-updated', { id: order.id, status: response.data.status, message: response.data.message });
     } catch (err) {
         console.error("Failed to update status:", err);
