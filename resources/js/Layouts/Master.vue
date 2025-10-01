@@ -414,18 +414,7 @@ onUpdated(() => window.feather?.replace());
     color: #fff;
 }
 
-/* style for daek mode  */
-.dark .modal-body {
-    background-color: #000000 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
-}
 
-.dark .modal-header {
-    background-color: #000000 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
-}
 
 
 
@@ -957,4 +946,23 @@ li.active>.side-link {
     font-size: 28px;
     line-height: 0;
 }
+
+/* dark code for modal */
+.dark .modal-content {
+ 
+    color: #f9fafb !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 1px !important  ;
+}
+  
+.dark .modal-body {
+    background-color: #141414 !important; 
+    color: #f9fafb !important;
+}
+
+.dark .modal-header {
+    background-color: #141414 !important; 
+    color: #f9fafb !important;
+}
+ 
 </style>
