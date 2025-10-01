@@ -26,7 +26,7 @@ const manualSubcategories = ref([]);
 
 const fetchCategories = async () => {
     try {
-        const res = await axios.get("/menu-categories/parents/list");
+        const res = await axios.get("/api/menu-categories/parents/list");
         categories.value = res.data.data;
         console.log("Fetched categories:", categories.value);
     } catch (err) {
@@ -810,7 +810,7 @@ const handleImport = (data) => {
     });
 
     axios
-        .post("/menu_categories/import", { categories: categoriesToImport })
+        .post("/api/menu-categories/import", { categories: categoriesToImport })
         .then(() => {
             toast.success("Categories imported successfully");
             fetchCategories();

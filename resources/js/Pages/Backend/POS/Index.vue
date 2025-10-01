@@ -15,7 +15,7 @@ const props = defineProps(["client_secret", "order_code"]);
 const menuCategories = ref([]);
 const fetchMenuCategories = async () => {
     try {
-        const response = await axios.get("/pos/fetch-menu-categories");
+        const response = await axios.get("/api/pos/fetch-menu-categories");
         menuCategories.value = response.data;
         if (menuCategories.value.length > 0) {
             activeCat.value = menuCategories.value[0].id;
@@ -28,7 +28,7 @@ const fetchMenuCategories = async () => {
 const menuItems = ref([]);
 const fetchMenuItems = async () => {
     try {
-        const response = await axios.get("/pos/fetch-menu-items");
+        const response = await axios.get("/api/pos/fetch-menu-items");
         menuItems.value = response.data;
     } catch (error) {
         console.error("Error fetching inventory:", error);
@@ -105,7 +105,7 @@ const selectedTable = ref(null);
 -----------------------------*/
 const fetchProfileTables = async () => {
     try {
-        const response = await axios.get("/pos/fetch-profile-tables");
+        const response = await axios.get("/api/pos/fetch-profile-tables");
         profileTables.value = response.data;
         if (profileTables.value.order_types) {
             orderTypes.value = profileTables.value.order_types;
@@ -552,7 +552,7 @@ const ShowKotDataInModal = ref(null);
 
 const fetchTodaysOrders = async () => {
     try {
-        const res = await axios.get(`/pos/orders/today`);
+        const res = await axios.get(`/api/pos/orders/today`);
         return res.data.orders;
     } catch (err) {
         console.error("Failed to fetch today's orders:", err);

@@ -522,7 +522,7 @@ const handleImport = (data) => {
 
     // All good -> send to backend
     axios
-        .post("/allergies/import", { allergies: allergiesToImport })
+        .post("/api/allergies/import", { allergies: allergiesToImport })
         .then(() => {
             toast.success("Allergies imported successfully");
             fetchAllergies();

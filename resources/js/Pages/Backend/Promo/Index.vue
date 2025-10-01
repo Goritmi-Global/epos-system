@@ -1,10 +1,11 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
-import { Percent, Calendar, AlertTriangle, XCircle, Pencil, Plus } from "lucide-vue-next";
+import { Percent, Calendar, AlertTriangle, XCircle, Pencil, Plus, CheckCircle } from "lucide-vue-next";
 import { toast } from "vue3-toastify";
 import axios from "axios";
 import Select from "primevue/select";
+import ConfirmModal from "@/Components/ConfirmModal.vue";
 // import ConfirmModal from "@/Components/ConfirmModal.vue";
 
 /* ---------------- Data ---------------- */
@@ -19,7 +20,7 @@ const discountOptions = [
 ];
 
 const statusOptions = [
-     { label: "Active", value: "active" },
+    { label: "Active", value: "active" },
     { label: "Deactive", value: "inactive" },
 ]
 
@@ -27,7 +28,7 @@ const statusOptions = [
 /* ---------------- Fetch Promos ---------------- */
 const fetchPromos = async () => {
     try {
-        const res = await axios.get("/promos/all-promos");
+        const res = await axios.get("api/promos/all");
         promos.value = res.data.data;
     } catch (err) {
         console.error("Failed to fetch promos:", err);
@@ -180,6 +181,22 @@ const editRow = (row) => {
 //     }
 // };
 
+
+// ----------------Toggle Status----------------------
+
+
+const toggleStatus = async (row) => {
+    const newStatus = row.status === "active" ? "inactive" : "active";
+
+    try {
+        await axios.patch(`/api/promos/${row.id}/toggle-status`, {
+            status: newStatus,
+        });
+        row.status = newStatus;
+    } catch (error) {
+        console.error("Failed to update status:", error);
+    }
+};
 /* ---------------- Helpers ---------------- */
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
@@ -287,9 +304,20 @@ onUpdated(() => window.feather?.replace());
                                                     <Pencil class="w-4 h-4" />
                                                 </button>
 
-                                                <!-- <ConfirmModal :title="'Confirm Delete'"
-                                                    :message="`Are you sure you want to delete ${row.name}?`"
-                                                    :showDeleteButton="true" @confirm="deletePromo(row)" /> -->
+                                                <ConfirmModal :title="'Confirm Status Change'"
+                                                    :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
+                                                    :showDeleteButton="true" confirmText="Yes, Change"
+                                                    cancelText="Cancel" @confirm="toggleStatus(row)">
+                                                    <button
+                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'"
+                                                        class="p-2 rounded-full hover:bg-gray-100 flex items-center justify-center">
+                                                        <CheckCircle v-if="row.status === 'active'"
+                                                            class="w-6 h-6 text-green-600" />
+                                                        <XCircle v-else class="w-6 h-6 text-red-600" />
+                                                    </button>
+                                                </ConfirmModal>
+
+
                                             </div>
                                         </td>
                                     </tr>
@@ -342,8 +370,8 @@ onUpdated(() => window.feather?.replace());
                                     <div class="col-md-6">
                                         <label class="form-label">Discount Type</label>
                                         <Select v-model="promoForm.type" :options="discountOptions" optionLabel="label"
-                                          appendTo="self" :autoZIndex="true" :baseZIndex="2000"  optionValue="value" class="form-select"
-                                            :class="{ 'is-invalid': promoFormErrors.type }" />
+                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000" optionValue="value"
+                                            class="form-select" :class="{ 'is-invalid': promoFormErrors.type }" />
                                         <small v-if="promoFormErrors.type" class="text-danger">
                                             {{ promoFormErrors.type[0] }}
                                         </small>
@@ -353,8 +381,9 @@ onUpdated(() => window.feather?.replace());
                                     <!-- Status -->
                                     <div class="col-md-6">
                                         <label class="form-label">Status</label>
-                                        <Select v-model="promoForm.status" :options="statusOptions" optionLabel="label"  optionValue="value" class="form-select"
-                                          appendTo="self" :autoZIndex="true" :baseZIndex="2000"  :class="{ 'is-invalid': promoFormErrors.status }">
+                                        <Select v-model="promoForm.status" :options="statusOptions" optionLabel="label"
+                                            optionValue="value" class="form-select" appendTo="self" :autoZIndex="true"
+                                            :baseZIndex="2000" :class="{ 'is-invalid': promoFormErrors.status }">
                                         </Select>
                                         <small v-if="promoFormErrors.status" class="text-danger">
                                             {{ promoFormErrors.status[0] }}
