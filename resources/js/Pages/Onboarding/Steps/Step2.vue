@@ -276,7 +276,7 @@ const flagUrl = (iso, size = "24x18") =>
 }
 
 .dark .logo-card{
-    background-color: #111827;
+    background-color: #000000;
     color: #fff !important;
 }
 
@@ -294,7 +294,7 @@ const flagUrl = (iso, size = "24x18") =>
 }
 
 .dark .logo-frame{
-     background-color: #111827;
+     background-color: #000000;
     color: #fff !important;
 }
 .logo-frame img {
@@ -324,12 +324,12 @@ const flagUrl = (iso, size = "24x18") =>
 }
 
 .dark input{
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     color: #ffffff;
 }
 
 .dark textarea{
-    background-color: #111827 !important;
+    background-color: #000000 !important;
     color: #ffffff;
 }
 
