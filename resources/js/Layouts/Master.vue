@@ -252,7 +252,7 @@ const updateProfile = async () => {
 
             toast.error("Please fill in all required fields correctly.");
         }
-        toast.error("Failed to update profile ❌");
+       
     }
 };
 
