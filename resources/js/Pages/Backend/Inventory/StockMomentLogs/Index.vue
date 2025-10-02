@@ -234,7 +234,7 @@ const downloadExcel = (data) => {
             new Date().toISOString().split("T")[0]
         }.xlsx`;
         XLSX.writeFile(workbook, fileName);
-        toast.success("Excel file downloaded successfully ✅", {
+        toast.success("Excel file downloaded successfully ", {
             autoClose: 2500,
         });
     } catch (error) {

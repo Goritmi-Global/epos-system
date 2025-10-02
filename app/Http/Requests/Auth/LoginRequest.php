@@ -58,7 +58,7 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // ✅ Login with email/password
+        //  Login with email/password
         if ($this->filled('email')) {
             $credentials = $this->only('email', 'password');
 
@@ -72,7 +72,7 @@ class LoginRequest extends FormRequest
 
             $user = Auth::user();
 
-            // ✅ Check if account is verified
+            //  Check if account is verified
             if (is_null($user->email_verified_at)) {
                 Auth::logout();
                 RateLimiter::hit($this->throttleKey());
@@ -94,7 +94,7 @@ class LoginRequest extends FormRequest
             return;
         }
 
-        // ✅ Login with PIN
+        //  Login with PIN
         if ($this->filled('pin')) {
             $user = \App\Models\User::whereNotNull('pin')->get()->first(function ($user) {
                 return \Hash::check($this->pin, $user->pin);
@@ -108,7 +108,7 @@ class LoginRequest extends FormRequest
                 ]);
             }
 
-            // ✅ Check if account is verified
+            //  Check if account is verified
             if (is_null($user->email_verified_at)) {
                 RateLimiter::hit($this->throttleKey());
 

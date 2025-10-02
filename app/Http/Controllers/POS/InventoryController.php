@@ -130,8 +130,8 @@ class InventoryController extends Controller
                 'sku' => $row['sku'],
                 'category_id' => $category?->id,
                 'minAlert' => $row['min_alert'],
-                'unit_id' => $unit?->id, // ✅ added
-                'supplier_id' => $supplier?->id,        // ✅ added
+                'unit_id' => $unit?->id, 
+                'supplier_id' => $supplier?->id,
                 'purchase_price' => $row['purchase_price'],
                 'sale_price' => $row['sale_price'],
                 'stock' => $row['stock'],

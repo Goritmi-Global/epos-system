@@ -48,12 +48,12 @@ const submit = () => {
     form.post(route("login"), {
         preserveScroll: true,
 
-        // ✅ Success: go to dashboard
+        //  Success: go to dashboard
         onSuccess: () => {
             // window.location.href = route("dashboard");
         },
 
-        // ✅ Error: check if it's unverified and show modal
+        //  Error: check if it's unverified and show modal
         onError: (errors) => {
             if (errors.unverified && errors.email_address) {
                 registeredEmail.value = errors.email_address;

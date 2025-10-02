@@ -143,7 +143,11 @@ onMounted(async () => {
     form.phone_local = phoneLocal
     buildFullPhone()
 
+<<<<<<< HEAD
+    //  LOGO: initialize logo_url if we have upload_id or logo_path
+=======
     // Initialize logo if needed
+>>>>>>> e2dad8fcbab51dbe58ba05d6883ff3c719bfcd1a
     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
         form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`
     }

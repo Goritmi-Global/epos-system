@@ -121,7 +121,7 @@ createInertiaApp({
 
         const mountedApp = vueApp.mount(el);
 
-        // ✅ Trigger Feather Icons after DOM is ready
+        //  Trigger Feather Icons after DOM is ready
         nextTick(() => {
             window.feather?.replace();
         });
