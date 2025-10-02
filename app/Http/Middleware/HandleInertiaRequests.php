@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\OnboardingProgress;
 use App\Models\ProfileStep1;
 use App\Models\ProfileStep2;
 use App\Models\ProfileStep3;
@@ -12,7 +11,6 @@ use App\Models\ProfileStep6;
 use App\Models\ProfileStep7;
 use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
-use App\Models\RestaurantProfile;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -38,14 +36,12 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
-    // app/Http/Middleware/HandleInertiaRequests.php
-
     public function share(Request $request): array
     {
         $user = $request->user();
         $stripe_public_key = config('app.stripe_public_key');
 
-        // Collect onboarding data if user is logged in
+        // Select only required columns per step
         $fields = [
             'language_and_location' => ['country_id', 'timezone', 'language'],
             'business_information'  => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'upload_id'],
@@ -57,7 +53,7 @@ class HandleInertiaRequests extends Middleware
             'business_hours'        => ['disable_order_after_hours_id', 'business_hours_id'],
             'optional_features'     => ['enable_loyalty_system','enable_inventory_tracking','enable_cloud_backup','enable_multi_location','theme_preference'],
         ];
-
+ 
         $models = [
             'language_and_location' => ProfileStep1::class,
             'business_information'  => ProfileStep2::class,
@@ -70,25 +66,46 @@ class HandleInertiaRequests extends Middleware
             'optional_features'     => ProfileStep9::class,
         ];
 
+        // Build onboarding payload (only when logged in)
         $onboarding = [];
         if ($user) {
             foreach ($models as $key => $modelClass) {
-                $cols = $fields[$key] ?? ['id'];  
-                // select only needed columns, return as plain array (or null)
-                $row = $modelClass::where('user_id', $user->id)->select($cols)->first(); 
+                $cols = $fields[$key] ?? ['id'];
+                $row  = $modelClass::where('user_id', $user->id)
+                    ->select($cols)
+                    ->first();
+
                 $onboarding[$key] = $row ? $row->toArray() : null;
             }
         }
- 
+
+        // Normalized formatting block for the SPA
+       $fmt = [
+            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), // ✅ real locale
+            'dateFormat'       => data_get($onboarding, 'currency_and_locale.date_format', 'yyyy-MM-dd'),
+            'timeFormat'       => data_get($onboarding, 'currency_and_locale.time_format', 'HH:mm'),
+            'currency'         => strtoupper(data_get($onboarding, 'currency_and_locale.currency', 'PKR')),
+            'currencyPosition' => data_get($onboarding, 'currency_and_locale.currency_symbol_position', 'before'),
+            'timezone'         => data_get($onboarding, 'language_and_location.timezone', 'UTC'),
+
+            // Optional: keep the human pattern if you want (but DO NOT pass to Intl as locale)
+            'numberPattern'    => data_get($onboarding, 'currency_and_locale.number_format', '1,234.56'),
+        ];
+
         return [
             ...parent::share($request),
+
             'current_user' => $user ? [
                 'id'    => $user->id,
                 'name'  => $user->name,
                 'email' => $user->email,
             ] : null,
-            'stripe_public_key' => $stripe_public_key,
+
+            'stripe_public_key' => $stripe_public_key, 
             'onboarding' => $onboarding,
+            // Normalized formatting data
+            'formatting' => $fmt,
+
             'flash' => [
                 'success'       => fn () => $request->session()->get('success'),
                 'error'         => fn () => $request->session()->get('error'),
@@ -96,5 +113,4 @@ class HandleInertiaRequests extends Middleware
             ],
         ];
     }
-
 }
