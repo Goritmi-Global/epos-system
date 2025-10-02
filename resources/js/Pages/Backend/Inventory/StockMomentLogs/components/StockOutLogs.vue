@@ -3,6 +3,9 @@ import { ref, computed, onMounted, onUpdated } from "vue";
 import { toast } from "vue3-toastify";
 import axios from "axios";
 import { Pencil, Eye } from "lucide-vue-next";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps({
     logs: { type: Array, default: () => [] },
@@ -207,7 +210,7 @@ onUpdated(() => window.feather?.replace());
                             <td>{{ money(row.totalPrice) }}</td> -->
                             <td>{{ row.category?.name || row.category }}</td>
                             <!-- Unit Price hidden for stockout -->
-                            <td>{{ fmtDateTime(row.dateTime) }}</td>
+                            <td>{{ dateFmt(row.dateTime) }}</td>
                             <!-- Expiry hidden for stockout -->
                             <!-- <td><span class="text-muted">—</span></td> -->
 
@@ -382,7 +385,7 @@ onUpdated(() => window.feather?.replace());
                                                         class="fs-6 fw-semibold"
                                                     >
                                                         {{
-                                                            fmtDateTime(
+                                                            dateFmt(
                                                                 selectedLog.dateTime
                                                             )
                                                         }}
@@ -419,7 +422,7 @@ onUpdated(() => window.feather?.replace());
                                                         <!-- <td>{{ a.product_name }}</td> -->
                                                         <td>
                                                             {{
-                                                                a.expiry_date
+                                                               dateFmt( a.expiry_date
                                                                     ? new Date(
                                                                           a.expiry_date
                                                                       )
@@ -428,12 +431,12 @@ onUpdated(() => window.feather?.replace());
                                                                               0,
                                                                               10
                                                                           )
-                                                                    : "—"
+                                                                    : "—")
                                                             }}
                                                         </td>
                                                         <td>
                                                             {{
-                                                                money(
+                                                                formatMoney(
                                                                     a.unit_price ??
                                                                         0
                                                                 )
@@ -559,7 +562,7 @@ onUpdated(() => window.feather?.replace());
                                         aria-hidden="true"
                                     ></span>
                                     <span>{{
-                                        isUpdating ? "Updating…" : "Update"
+                                        isUpdating ? "Saving…" : "Save"
                                     }}</span>
                                 </button>
                             </div>

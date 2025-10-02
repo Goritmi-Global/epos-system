@@ -187,7 +187,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
                         </h2>
                         <div class="flex items-center gap-2">
                             <button
-                                class="btn btn-outline-secondary"
+                                class="btn btn-sm btn-outline-secondary"
                                 @click="openPicker"
                             >
                                 Change Image

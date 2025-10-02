@@ -9,6 +9,10 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
+
 import {
     Package,
     XCircle,
@@ -516,6 +520,7 @@ watch(
 import { nextTick } from "vue";
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
+import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 
 const editItem = (item) => {
     const toNum = (v) =>
@@ -1289,7 +1294,7 @@ const handleImport = (data) => {
                             <!-- Download all -->
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Download
@@ -1403,7 +1408,7 @@ const handleImport = (data) => {
                                         }}
                                     </td>
                                     <td>
-                                        {{ money(item.stockValue || 0, "GBP") }}
+                                        {{ formatMoney(item.stockValue || 0) }}
                                     </td>
                                     <td class="text-center">
                                         <span
@@ -1920,7 +1925,7 @@ const handleImport = (data) => {
 
                             <div class="mt-4">
                                 <button
-                                    class="btn btn-primary rounded-pill px-5 py-2"
+                                    class="btn btn-primary btn-sm rounded-pill px-5 py-2"
                                     :disabled="submitting"
                                     @click="submitProduct"
                                 >
@@ -1930,15 +1935,15 @@ const handleImport = (data) => {
                                         ></span>
                                         {{
                                             processStatus === "Edit"
-                                                ? "Updating Item..."
-                                                : "Adding Item..."
+                                                ? "Saving..."
+                                                : "Saving..."
                                         }}
                                     </template>
                                     <template v-else>
                                         {{
                                             processStatus === "Edit"
-                                                ? "Update Item"
-                                                : "Add Item"
+                                                ? "Save"
+                                                : "Save"
                                         }}
                                     </template>
                                 </button>
@@ -2204,7 +2209,7 @@ const handleImport = (data) => {
                                                 >Updated On</span
                                             >
                                             <span class="fw-semibold">{{
-                                                viewItemRef.updated_at
+                                               dateFmt( viewItemRef.updated_at)
                                             }}</span>
                                         </div>
 
@@ -2301,24 +2306,24 @@ const handleImport = (data) => {
                                                 </td>
                                                 <td>{{ row.quantity }}</td>
                                                 <td>
-                                                    {{ money(row.price) }}
+                                                    {{ formatMoney(row.price) }}
                                                 </td>
                                                 <td class="fw-semibold">
-                                                    {{ money(row.value) }}
+                                                    {{ formatMoney(row.value) }}
                                                 </td>
                                                 <td class="text-muted">
                                                     {{ row.description || "—" }}
                                                 </td>
                                                 <td class="text-muted">
                                                     {{
-                                                        fmtDate(
+                                                        dateFmt(
                                                             row.purchase_date
                                                         )
                                                     }}
                                                 </td>
                                                 <td class="text-muted">
                                                     {{
-                                                        fmtDate(row.expiry_date)
+                                                        dateFmt(row.expiry_date)
                                                     }}
                                                 </td>
                                                 <td class="text-center">
@@ -2359,12 +2364,12 @@ const handleImport = (data) => {
                                                 </th>
                                                 <th>
                                                     {{
-                                                        money(totals.totalPrice)
+                                                        formatMoney(totals.totalPrice)
                                                     }}
                                                 </th>
                                                 <th class="fw-semibold">
                                                     {{
-                                                        money(totals.totalValue)
+                                                        formatMoney(totals.totalValue)
                                                     }}
                                                 </th>
                                                 <th colspan="4"></th>
@@ -2563,6 +2568,7 @@ const handleImport = (data) => {
 
                                     <VueDatePicker
                                         v-model="stockForm.expiry_date"
+                                        :format="dateFmt"
                                         :class="{
                                             'is-invalid':
                                                 formErrors.expiry_date,

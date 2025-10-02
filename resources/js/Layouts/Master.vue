@@ -253,7 +253,7 @@ onUpdated(() => window.feather?.replace());
 
             <div class="header-center">
                 <div class="top-nav-search">
-                    <i class="fa fa-search me-2"></i>
+                    <!-- <i class="fa fa-search me-2"></i> -->
                     <input type="text" placeholder="Search Here ..." />
                 </div>
             </div>
@@ -467,10 +467,10 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
 }
 
-.dark button {
+/* .dark button {
     background-color: #181818 !important;
     color: #f9fafb !important;
-}
+} */
 
 .dark a {
     color: #fff !important;
@@ -922,7 +922,17 @@ li.active>.side-link {
     /* muted text */
 }
 
+.sidebar .sidebar-menu>ul>li>a svg{
+    width: 24px;
+}
+.dark .icon-btn{
+    color: #fff !important;
+}
 
+.dark .top-nav-search input{
+    background-color: #181818 !important;
+    color: #fff !important;
+}
 .dark .sidebar .sidebar-menu>ul>li.active a{
      color: #fff;
     /* your brand color */

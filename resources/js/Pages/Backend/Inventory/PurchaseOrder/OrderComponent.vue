@@ -2,6 +2,9 @@
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import { ref, computed } from "vue";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps({
     suppliers: {
@@ -375,6 +378,7 @@ const formatDate = (date) => {
                                             
                                             <VueDatePicker 
                                                 v-model="it.expiry"
+                                                :format="dateFmt"
                                                 :enableTimePicker="false"
                                                 placeholder="Select date"
                                                 :class="{
@@ -429,7 +433,7 @@ const formatDate = (date) => {
                                                     {{ r.unitPrice }}
                                                 </td>
                                                 <td>
-                                                    {{ formatDate(r.expiry) || "—" }}
+                                                    {{ dateFmt(r.expiry) || "—" }}
                                                 </td>
                                                 <td>
                                                     {{ r.cost }}
@@ -470,7 +474,7 @@ const formatDate = (date) => {
                                     </table>
                                 </div>
                                 <div class="text-end p-3 fw-semibold">
-                                    Total Bill: {{ money(o_total) }}
+                                    Total Bill: {{ formatMoney(o_total) }}
                                 </div>
                             </div>
 

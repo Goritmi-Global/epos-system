@@ -6,6 +6,9 @@ import { toast } from "vue3-toastify";
 import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
 import KotModal from "./KotModal.vue";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps(["client_secret", "order_code"]);
 
@@ -740,8 +743,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                     <div class="item-card" @click="openItem(p)">
                                         <div class="item-img">
                                             <img :src="p.img" alt="" />
-                                            <span class="item-price">{{
-                                                money(p.price)
+                                            <span class="item-price rounded-pill">{{
+                                                formatMoney(p.price)
                                             }}</span>
                                             <span v-if="(p.stock ?? 0) <= 0" class="item-badge">
                                                 Out
@@ -849,7 +852,7 @@ table, idx
 
                                         <div class="line-right">
                                             <div class="price">
-                                                {{ money(it.price) }}
+                                                {{ formatMoney(it.price) }}
                                             </div>
                                             <button class="del" @click="removeCart(i)">
                                                 <i class="bi bi-trash"></i>
@@ -862,7 +865,7 @@ table, idx
                                 <div class="totals">
                                     <div class="trow">
                                         <span>Sub Total</span>
-                                        <b>{{ money(subTotal) }}</b>
+                                        <b>{{ formatMoney(subTotal) }}</b>
                                     </div>
                                     <div class="trow" v-if="orderType === 'delivery'">
                                         <span>Delivery</span>
@@ -870,7 +873,7 @@ table, idx
                                     </div>
                                     <div class="trow total">
                                         <span>Total</span>
-                                        <b>{{ money(grandTotal) }}</b>
+                                        <b>{{ formatMoney(grandTotal) }}</b>
                                     </div>
                                 </div>
 
@@ -899,10 +902,27 @@ table, idx
                             <h5 class="modal-title fw-bold">
                                 {{ selectedItem?.title || "Choose Item" }}
                             </h5>
-                            <button class="btn btn-light btn-sm rounded-pill" data-bs-dismiss="modal"
-                                aria-label="Close">
-                                ✕
-                            </button>
+                          <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                         </div>
 
                         <div class="modal-body">
@@ -915,7 +935,7 @@ table, idx
                                 </div>
                                 <div class="col-md-7">
                                     <div class="h4 mb-1">
-                                        {{ money(selectedItem?.price || 0) }}
+                                        {{ formatMoney(selectedItem?.price || 0) }}
                                     </div>
 
                                     <!-- Chips -->
@@ -966,11 +986,11 @@ t, i
                                                 t.name }}</span>
                                     </div>
 
-                                    <div class="qty-group">
+                                    <div class="qty-group gap-1">
                                         <button class="qty-btn" @click="decQty">
                                             −
                                         </button>
-                                        <div class="qty-box">
+                                        <div class="qty-box rounded-pill">
                                             {{ modalQty }}
                                         </div>
                                         <button class="qty-btn" @click="incQty" :disabled="modalQty >= menuStockForSelected
@@ -983,8 +1003,8 @@ t, i
                         </div>
 
                         <div class="modal-footer border-0">
-                            <button class="btn btn-primary rounded-pill px-4" @click="confirmAdd">
-                                Add to Order
+                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" @click="confirmAdd">
+                                Add to Cart
                             </button>
                         </div>
                     </div>
@@ -1029,11 +1049,19 @@ t, i
     background-color: #181818;
     color: white;
 }
-
+.dark .item-card{
+     background-color: #181818 !important;
+     color: white !important;
+}
 .dark .cart-lines {
     background-color: #181818;
 }
-
+.dark .chip-orange{
+    color: #0000;
+}
+.dark .modal-footer{
+    background-color: #181818;
+}
 .dark .alert {
     background-color: #181818;
 }
@@ -1429,6 +1457,14 @@ t, i
     border: 1px solid #eceef7;
 }
 
+.dark .chip{
+    font-size: 0.75rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    background: #181818;
+    border: 1px solid #eceef7;
+}
+
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
@@ -1461,7 +1497,7 @@ t, i
 
 .qty-group {
     display: inline-flex;
-    border: 1px solid #d0cfd7;
+    /* border: 1px solid #d0cfd7; */
     border-radius: 12px;
     overflow: hidden;
 }

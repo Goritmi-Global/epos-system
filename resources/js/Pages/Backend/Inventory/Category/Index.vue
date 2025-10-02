@@ -15,6 +15,9 @@ import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Demo data (swap with API later) ---------------- */
 const manualCategories = ref([]);
@@ -901,7 +904,7 @@ const handleImport = (data) => {
                             />
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary rounded-pill btn-sm px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Download
@@ -1007,7 +1010,7 @@ const handleImport = (data) => {
                                             }}</span>
                                         </div>
                                     </td>
-                                    <td>{{ money(row.total_value) }}</td>
+                                    <td>{{ formatMoney(row.total_value) }}</td>
                                     <td>{{ row.total_items }}</td>
                                     <td>{{ row.out_of_stock }}</td>
                                     <td>{{ row.low_stock }}</td>
@@ -1526,7 +1529,7 @@ const handleImport = (data) => {
 
                             <div class="mt-4">
                                 <button
-                                    class="btn btn-primary rounded-pill px-4"
+                                    class="btn btn-primary btn-sm rounded-pill px-4"
                                     :disabled="submitting"
                                     @click="submitCategory()"
                                 >
@@ -1539,14 +1542,14 @@ const handleImport = (data) => {
                                     <template v-else>
                                         {{
                                             editingCategory
-                                                ? "Update Category"
-                                                : "Add Category(ies)"
+                                                ? "Save"
+                                                : "Save"
                                         }}
                                     </template>
                                 </button>
 
                                 <button
-                                    class="btn btn-secondary rounded-pill px-4 ms-2"
+                                    class="btn btn-secondary rounded-pill btn-sm px-4 ms-2"
                                     data-bs-dismiss="modal"
                                     @click="resetModal"
                                 >
