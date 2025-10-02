@@ -1,17 +1,24 @@
 <script setup>
-import { ref, onMounted,computed , nextTick, onBeforeUnmount, onUpdated } from "vue";
+import {
+    ref,
+    onMounted,
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onUpdated,
+} from "vue";
 import { Link } from "@inertiajs/vue3";
 import { useDark, useToggle } from "@vueuse/core";
-import { Moon, Sun } from 'lucide-vue-next';
+import { Moon, Sun } from "lucide-vue-next";
 import { usePage } from "@inertiajs/vue3";
 /* =========================
    Sidebar structure (array)
    ========================= */
-const page = usePage()
+const page = usePage();
 
+const logedIUser = computed(() => page.props.current_user ?? {});
+const businessInfo = computed(() => page.props.business_info ?? {});
 
-const logedIUser = computed(() => page.props.current_user ?? {})
- 
 const isDark = useDark({
     selector: "html",
     attribute: "class",
@@ -24,7 +31,6 @@ const toggleDark = useToggle(isDark);
 onMounted(() => {
     window.feather?.replace();
 });
-
 
 const sidebarMenus = ref([
     { label: "Dashboard", icon: "grid", route: "dashboard" },
@@ -147,10 +153,8 @@ const isMobile = ref(false);
 const isTablet = ref(false);
 const isDesktop = ref(true);
 
-
 const sidebarExpanded = ref(true); // desktop: expanded by default
 const overlayOpen = ref(false); // only meaningful on mobile
-
 
 const evaluateBreakpoint = () => {
     const w = window.innerWidth;
@@ -181,7 +185,6 @@ const evaluateBreakpoint = () => {
         overlayOpen.value = false;
     }
 };
-
 
 const toggleSidebar = () => {
     if (isMobile.value) {
@@ -220,33 +223,46 @@ onUpdated(() => window.feather?.replace());
 </script>
 
 <template>
-    <div class="layout-root" :class="{
-        /* explicit breakpoint classes */
-        'state-desktop': isDesktop,
-        'state-tablet': isTablet,
-        'state-mobile': isMobile,
+    <div
+        class="layout-root"
+        :class="{
+            /* explicit breakpoint classes */
+            'state-desktop': isDesktop,
+            'state-tablet': isTablet,
+            'state-mobile': isMobile,
 
-        /* whether sidebar is logically open:
+            /* whether sidebar is logically open:
            - on mobile -> overlayOpen (overlay visible)
            - on tablet/desktop -> sidebarExpanded (persistent expanded)
         */
-        'sidebar-open': isMobile ? overlayOpen : sidebarExpanded,
+            'sidebar-open': isMobile ? overlayOpen : sidebarExpanded,
 
-        /* collapsed mini state applies to persistent sidebar (desktop/tablet) */
-        'sidebar-collapsed': (isDesktop || isTablet) && !sidebarExpanded,
+            /* collapsed mini state applies to persistent sidebar (desktop/tablet) */
+            'sidebar-collapsed': (isDesktop || isTablet) && !sidebarExpanded,
 
-        /* keeps mobile-specific overlay behaviour */
-        'sidebar-overlay': isMobile
-    }">
+            /* keeps mobile-specific overlay behaviour */
+            'sidebar-overlay': isMobile,
+        }"
+    >
         <!-- =================== HEADER =================== -->
         <header class="header">
             <div class="header-left">
-                <a href="javascript:void(0)" class="logo">
-                    <img src="/assets/img/logo-trans.png" alt="logo" />
-                </a>
+                <img
+                    :src="businessInfo.image_url"
+                    alt="logo"
+                    width="50"
+                    height="50px"
+                    class="rounded-full border shadow"
+                />
+
+                <h5 class="fw-bold">{{ businessInfo.business_name }}</h5>
 
                 <!-- Toggle button: uses new toggleSidebar (behaviour differs by breakpoint) -->
-                <button class="icon-btn" @click="toggleSidebar" aria-label="Toggle sidebar">
+                <button
+                    class="icon-btn"
+                    @click="toggleSidebar"
+                    aria-label="Toggle sidebar"
+                >
                     <i data-feather="menu"></i>
                 </button>
             </div>
@@ -266,48 +282,82 @@ onUpdated(() => window.feather?.replace());
                     </button>
                 </li>
                 <li class="nav-item dropdown has-arrow flag-nav">
-                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="javascript:void(0);">
-                        <img src="/assets/img/flags/us1.png" alt="" height="20" />
+                    <a
+                        class="nav-link dropdown-toggle"
+                        data-bs-toggle="dropdown"
+                        href="javascript:void(0);"
+                    >
+                        <img
+                            src="/assets/img/flags/us1.png"
+                            alt=""
+                            height="20"
+                        />
                     </a>
                     <div class="dropdown-menu dropdown-menu-end">
-                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/us.png"
-                                height="16" />
-                            English</a>
-                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/fr.png"
-                                height="16" />
-                            French</a>
-                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/es.png"
-                                height="16" />
-                            Spanish</a>
-                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/de.png"
-                                height="16" />
-                            German</a>
+                        <a href="javascript:void(0);" class="dropdown-item"
+                            ><img src="/assets/img/flags/us.png" height="16" />
+                            English</a
+                        >
+                        <a href="javascript:void(0);" class="dropdown-item"
+                            ><img src="/assets/img/flags/fr.png" height="16" />
+                            French</a
+                        >
+                        <a href="javascript:void(0);" class="dropdown-item"
+                            ><img src="/assets/img/flags/es.png" height="16" />
+                            Spanish</a
+                        >
+                        <a href="javascript:void(0);" class="dropdown-item"
+                            ><img src="/assets/img/flags/de.png" height="16" />
+                            German</a
+                        >
                     </div>
                 </li>
 
                 <li class="nav-item dropdown">
-                    <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
-                        <img src="/assets/img/icons/notification-bing.svg" alt="noti" />
+                    <a
+                        href="javascript:void(0);"
+                        class="dropdown-toggle nav-link"
+                        data-bs-toggle="dropdown"
+                    >
+                        <img
+                            src="/assets/img/icons/notification-bing.svg"
+                            alt="noti"
+                        />
                         <span class="badge rounded-pill">4</span>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end notifications">
-                        <div class="topnav-dropdown-header d-flex align-items-center justify-content-between">
-                            <span class="notification-title">Notifications</span>
-                            <a href="javascript:void(0)" class="clear-noti">Clear All</a>
+                        <div
+                            class="topnav-dropdown-header d-flex align-items-center justify-content-between"
+                        >
+                            <span class="notification-title"
+                                >Notifications</span
+                            >
+                            <a href="javascript:void(0)" class="clear-noti"
+                                >Clear All</a
+                            >
                         </div>
                         <div class="noti-content p-3">
                             No new notifications.
                         </div>
                         <div class="topnav-dropdown-footer">
-                            <a href="javascript:void(0)">View all Notifications</a>
+                            <a href="javascript:void(0)"
+                                >View all Notifications</a
+                            >
                         </div>
                     </div>
                 </li>
 
                 <li class="nav-item dropdown has-arrow main-drop">
-                    <a href="javascript:void(0);" class="dropdown-toggle nav-link userset" data-bs-toggle="dropdown">
+                    <a
+                        href="javascript:void(0);"
+                        class="dropdown-toggle nav-link userset"
+                        data-bs-toggle="dropdown"
+                    >
                         <span class="user-img">
-                            <img src="/assets/img/profiles/avator1.jpg" alt="" />
+                            <img
+                                src="/assets/img/profiles/avator1.jpg"
+                                alt=""
+                            />
                             <span class="status online"></span>
                         </span>
                     </a>
@@ -315,7 +365,10 @@ onUpdated(() => window.feather?.replace());
                         <div class="profilename">
                             <div class="profileset">
                                 <span class="user-img">
-                                    <img src="/assets/img/profiles/avator1.jpg" alt="" />
+                                    <img
+                                        src="/assets/img/profiles/avator1.jpg"
+                                        alt=""
+                                    />
                                     <span class="status online"></span>
                                 </span>
                                 <div class="profilesets">
@@ -324,13 +377,23 @@ onUpdated(() => window.feather?.replace());
                                 </div>
                             </div>
                             <hr class="m-0" />
-                            <a class="dropdown-item" href="javascript:void(0)"><i class="me-2" data-feather="user"></i>
-                                My Profile</a>
-                            <a class="dropdown-item" href="javascript:void(0)"><i class="me-2"
-                                    data-feather="settings"></i> Settings</a>
+                            <a class="dropdown-item" href="javascript:void(0)"
+                                ><i class="me-2" data-feather="user"></i> My
+                                Profile</a
+                            >
+                            <a class="dropdown-item" href="javascript:void(0)"
+                                ><i class="me-2" data-feather="settings"></i>
+                                Settings</a
+                            >
                             <hr class="m-0" />
-                            <Link :href="route('logout')" method="post" as="button" class="dropdown-item text-danger">
-                            <i class="me-2" data-feather="log-out"></i> Log Out
+                            <Link
+                                :href="route('logout')"
+                                method="post"
+                                as="button"
+                                class="dropdown-item text-danger"
+                            >
+                                <i class="me-2" data-feather="log-out"></i> Log
+                                Out
                             </Link>
                         </div>
                     </div>
@@ -340,98 +403,193 @@ onUpdated(() => window.feather?.replace());
         <!-- =================== /HEADER =================== -->
 
         <!-- =================== SIDEBAR =================== -->
-       <aside class="sidebar" id="sidebar" aria-label="Primary">
-      <div class="sidebar-inner">
-        <div id="sidebar-menu" class="sidebar-menu px-2">
-          <ul class="mb-3">
-            <template v-for="block in sidebarMenus" :key="block.label || block.section">
-              <!-- Simple top item -->
-              <li v-if="!block.section" :class="{ active: isActive(block.route) }">
-                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                  <i :data-feather="block.icon" class="me-2 icons"></i>
-                  <span class="truncate-when-mini">{{ block.label }}</span>
-                </Link>
-              </li>
+        <aside class="sidebar" id="sidebar" aria-label="Primary">
+            <div class="sidebar-inner">
+                <div id="sidebar-menu" class="sidebar-menu px-2">
+                    <ul class="mb-3">
+                        <template
+                            v-for="block in sidebarMenus"
+                            :key="block.label || block.section"
+                        >
+                            <!-- Simple top item -->
+                            <li
+                                v-if="!block.section"
+                                :class="{ active: isActive(block.route) }"
+                            >
+                                <Link
+                                    :href="route(block.route)"
+                                    class="d-flex align-items-center side-link px-3 py-2"
+                                >
+                                    <i
+                                        :data-feather="block.icon"
+                                        class="me-2 icons"
+                                    ></i>
+                                    <span class="truncate-when-mini">{{
+                                        block.label
+                                    }}</span>
+                                </Link>
+                            </li>
 
-              <!-- Section -->
-              <template v-else>
-                <li class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
-                  {{ block.section }}
-                </li>
+                            <!-- Section -->
+                            <template v-else>
+                                <li
+                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini"
+                                >
+                                    {{ block.section }}
+                                </li>
 
-                <template v-for="item in block.children" :key="item.label">
-                  <!-- Dropdown group -->
-                  <li v-if="item.children && item.children.length">
-                    <button
-                      class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                      :class="{ active: openGroups.has(item.label) || isAnyChildActive(item.children) }"
-                      @click="toggleGroup(item.label)"
-                      type="button"
-                      :aria-expanded="openGroups.has(item.label) || isAnyChildActive(item.children)"
-                    >
-                      <i :data-feather="item.icon" class="me-2"></i>
-                      <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
-                      <i :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
-                    </button>
+                                <template
+                                    v-for="item in block.children"
+                                    :key="item.label"
+                                >
+                                    <!-- Dropdown group -->
+                                    <li
+                                        v-if="
+                                            item.children &&
+                                            item.children.length
+                                        "
+                                    >
+                                        <button
+                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                            :class="{
+                                                active:
+                                                    openGroups.has(
+                                                        item.label
+                                                    ) ||
+                                                    isAnyChildActive(
+                                                        item.children
+                                                    ),
+                                            }"
+                                            @click="toggleGroup(item.label)"
+                                            type="button"
+                                            :aria-expanded="
+                                                openGroups.has(item.label) ||
+                                                isAnyChildActive(item.children)
+                                            "
+                                        >
+                                            <i
+                                                :data-feather="item.icon"
+                                                class="me-2"
+                                            ></i>
+                                            <span
+                                                class="flex-grow-1 text-start truncate-when-mini"
+                                                >{{ item.label }}</span
+                                            >
+                                            <i
+                                                :data-feather="
+                                                    openGroups.has(
+                                                        item.label
+                                                    ) ||
+                                                    isAnyChildActive(
+                                                        item.children
+                                                    )
+                                                        ? 'chevron-up'
+                                                        : 'chevron-down'
+                                                "
+                                            ></i>
+                                        </button>
 
-                    <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) || isAnyChildActive(item.children)">
-                      <li v-for="child in item.children" :key="child.label" :class="{ active: isActive(child.route) }">
-                        <Link :href="route(child.route)" :method="child.method || 'get'" class="d-flex align-items-center side-link px-3 py-2">
-                          <i :data-feather="child.icon" class="me-2"></i>
-                          <span>{{ child.label }}</span>
-                        </Link>
-                      </li>
+                                        <ul
+                                            class="list-unstyled my-1"
+                                            v-show="
+                                                openGroups.has(item.label) ||
+                                                isAnyChildActive(item.children)
+                                            "
+                                        >
+                                            <li
+                                                v-for="child in item.children"
+                                                :key="child.label"
+                                                :class="{
+                                                    active: isActive(
+                                                        child.route
+                                                    ),
+                                                }"
+                                            >
+                                                <Link
+                                                    :href="route(child.route)"
+                                                    :method="
+                                                        child.method || 'get'
+                                                    "
+                                                    class="d-flex align-items-center side-link px-3 py-2"
+                                                >
+                                                    <i
+                                                        :data-feather="
+                                                            child.icon
+                                                        "
+                                                        class="me-2"
+                                                    ></i>
+                                                    <span>{{
+                                                        child.label
+                                                    }}</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+
+                                    <!-- Flat item -->
+                                    <li
+                                        v-else
+                                        :class="{
+                                            active: isActive(item.route),
+                                        }"
+                                    >
+                                        <Link
+                                            :href="route(item.route)"
+                                            :method="item.method || 'get'"
+                                            class="d-flex align-items-center side-link px-3 py-2"
+                                        >
+                                            <i
+                                                :data-feather="item.icon"
+                                                class="me-2"
+                                            ></i>
+                                            <span class="truncate-when-mini">{{
+                                                item.label
+                                            }}</span>
+                                        </Link>
+                                    </li>
+                                </template>
+                            </template>
+                        </template>
                     </ul>
-                  </li>
-
-                  <!-- Flat item -->
-                  <li v-else :class="{ active: isActive(item.route) }">
-                    <Link :href="route(item.route)" :method="item.method || 'get'" class="d-flex align-items-center side-link px-3 py-2">
-                      <i :data-feather="item.icon" class="me-2"></i>
-                      <span class="truncate-when-mini">{{ item.label }}</span>
-                    </Link>
-                  </li>
-                </template>
-              </template>
-            </template>
-          </ul>
-        </div>
-      </div>
-    </aside>
+                </div>
+            </div>
+        </aside>
 
         <!-- Mobile overlay backdrop -->
-       <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
+        <div
+            v-if="isMobile && overlayOpen"
+            class="overlay-backdrop"
+            aria-hidden="true"
+            @click="toggleSidebar"
+        ></div>
         <!-- =================== /SIDEBAR =================== -->
 
         <!-- =================== PAGE CONTENT =================== -->
         <!-- <main class="page-wrapper"> -->
-       <main class="content bg-white dark:bg-gray-900 text-black dark:text-white">
-      <slot />
-    </main>
-  </div>
+        <main
+            class="content bg-white dark:bg-gray-900 text-black dark:text-white"
+        >
+            <slot />
+        </main>
+    </div>
 </template>
 
 <style>
 /* ========= CSS VARIABLES ========= */
 :root {
-  --header-h: 64px;
-  --sidebar-w: 280px;           /* desktop full width */
-  --sidebar-w-tablet: 220px;    /* tablet full width (slightly smaller) */
-  --sidebar-w-collapsed: 72px;  /* collapsed (icons-only) width for desktop/tablet */
-  --brand: #1B2850;
-  --bg-muted: #f5f6f8;
-  --border: #eef0f3;
+    --header-h: 64px;
+    --sidebar-w: 280px; /* desktop full width */
+    --sidebar-w-tablet: 220px; /* tablet full width (slightly smaller) */
+    --sidebar-w-collapsed: 72px; /* collapsed (icons-only) width for desktop/tablet */
+    --brand: #1b2850;
+    --bg-muted: #f5f6f8;
+    --border: #eef0f3;
 }
-
 
 /* Css for dark mood */
 .dark .icons {
     color: #fff;
 }
-
-
-
-
 
 .dark input {
     background-color: #181818 !important;
@@ -532,22 +690,22 @@ html.dark .side-link {
     color: #ffffff;
 }
 
-.dark .btn-secondary{
-    background-color:  #212121 !important;
+.dark .btn-secondary {
+    background-color: #212121 !important;
 }
 
-.dark .text-muted{
+.dark .text-muted {
     color: #fff !important;
 }
-.dark .dropdown-menu{
-    background-color: #1B2431 !important;
+.dark .dropdown-menu {
+    background-color: #1b2431 !important;
     color: #fff ip !important;
 }
 
 html.dark .side-link:hover {
-   color: #fff !important;
+    color: #fff !important;
     /* your brand color */
-    background: #1B2850 !important;
+    background: #1b2850 !important;
 }
 
 html.dark .main {
@@ -557,19 +715,16 @@ html.dark .main {
 
 .dark .dash-widget {
     background-color: #181818 !important;
-    ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h5 {
     background-color: #181818 !important;
-    ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h6 {
     background-color: #181818 !important;
-    ;
     color: #ffffff;
 }
 
@@ -624,7 +779,7 @@ html.dark .main {
     display: flex;
     align-items: center;
     gap: 8px;
-    
+
     border-radius: 9999px;
     padding: 6px 10px;
     width: 100%;
@@ -641,9 +796,9 @@ html.dark .main {
     width: 100%;
     max-width: 420px;
 }
- 
+
 .dark .top-nav-search input {
-     display: flex;
+    display: flex;
     align-items: center;
     gap: 8px;
     background: white !important;
@@ -653,7 +808,6 @@ html.dark .main {
     max-width: 420px;
     color: black !important;
 }
- 
 
 .nav.user-menu {
     list-style: none;
@@ -668,7 +822,7 @@ html.dark .main {
     align-items: center;
 }
 
-.header .nav.user-menu>li {
+.header .nav.user-menu > li {
     display: flex;
     align-items: center;
 }
@@ -684,7 +838,6 @@ html.dark .main {
     /* kill anchor baseline drift */
 }
 
-
 /* Remove extra baseline gap caused by inline images */
 .header .nav.user-menu img {
     display: block;
@@ -692,7 +845,7 @@ html.dark .main {
 }
 
 /* Notification bell + badge tidy */
-.header .nav.user-menu .nav-item.dropdown>.nav-link {
+.header .nav.user-menu .nav-item.dropdown > .nav-link {
     position: relative;
 }
 
@@ -711,7 +864,6 @@ html.dark .main {
     width: 34px;
     height: 34px;
 }
-
 
 .user-img img {
     width: 100%;
@@ -738,17 +890,17 @@ html.dark .main {
 }
 
 .state-mobile .header-center {
-  display: none; /* keep header compact on small screens */
+    display: none; /* keep header compact on small screens */
 }
 .state-tablet .header-center {
-  max-width: 320px;
+    max-width: 320px;
 }
 
 /* top-nav-search smaller on small devices */
 @media (max-width: 767px) {
-  .top-nav-search {
-    max-width: 160px;
-  }
+    .top-nav-search {
+        max-width: 160px;
+    }
 }
 
 /* ========= SIDEBAR ========= */
@@ -789,7 +941,6 @@ html.dark .main {
     transition: background 0.15s ease, color 0.15s ease;
 }
 
-
 .side-link:hover {
     background: var(--brand);
     color: #fff;
@@ -801,17 +952,17 @@ html.dark .main {
 }
 
 .side-link.active,
-li.active>.side-link {
+li.active > .side-link {
     background: var(--brand);
     color: #ffffff;
     font-weight: 600;
 }
 
 .dark .side-link.active,
-li.active>.side-link {
-   color: #fff !important;
+li.active > .side-link {
+    color: #fff !important;
     /* your brand color */
-    background: #1B2850 !important;
+    background: #1b2850 !important;
     font-weight: 600;
 }
 
@@ -834,11 +985,11 @@ li.active>.side-link {
 
 .state-desktop.sidebar-collapsed .truncate-when-mini,
 .state-tablet.sidebar-collapsed .truncate-when-mini {
-  /* icons-only: hide long text but keep icons visible */
-  display: inline-block;
-  max-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
+    /* icons-only: hide long text but keep icons visible */
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 /* Hide long text when mini */
@@ -900,7 +1051,6 @@ li.active>.side-link {
     /* subtle fade effect */
 }
 
-
 .is-invalid {
     background-color: #f8d7da !important;
     border-color: #dc3545 !important;
@@ -922,21 +1072,21 @@ li.active>.side-link {
     /* muted text */
 }
 
-.sidebar .sidebar-menu>ul>li>a svg{
+.sidebar .sidebar-menu > ul > li > a svg {
     width: 24px;
 }
-.dark .icon-btn{
+.dark .icon-btn {
     color: #fff !important;
 }
 
-.dark .top-nav-search input{
+.dark .top-nav-search input {
     background-color: #181818 !important;
     color: #fff !important;
 }
-.dark .sidebar .sidebar-menu>ul>li.active a{
-     color: #fff;
+.dark .sidebar .sidebar-menu > ul > li.active a {
+    color: #fff;
     /* your brand color */
-    background: #1B2850 !important;
+    background: #1b2850 !important;
     /* light hover */
 }
 .dark .sidebar .list-unstyled li .side-link {
@@ -951,36 +1101,34 @@ li.active>.side-link {
 .sidebar .list-unstyled li .side-link:hover {
     color: #fff;
     /* your brand color */
-    background: #1B2850;
+    background: #1b2850;
     /* light hover */
 }
 
 .dark .sidebar .list-unstyled li .side-link:hover {
-   background: #1B2850 !important;
+    background: #1b2850 !important;
     /* brand background */
     color: #fff;
 }
 
-.sidebar .list-unstyled li.active>.side-link {
+.sidebar .list-unstyled li.active > .side-link {
     background: var(--brand) !important;
     /* brand background */
     color: #fff !important;
     font-weight: 500;
 }
 
-.dark .sidebar .list-unstyled li.active>.side-link {
-    background: #1B2850 !important;
+.dark .sidebar .list-unstyled li.active > .side-link {
+    background: #1b2850 !important;
     /* brand background */
     color: #fff;
     font-weight: 500;
 }
 
-.dark .btn-primary{
+.dark .btn-primary {
     background-color: #181818 !important;
     border: #181818 !important;
 }
-
-
 
 .sidebar .list-unstyled {
     border-left: 2px solid #e5e7eb;
@@ -1026,88 +1174,83 @@ li.active>.side-link {
     line-height: 0;
 }
 .state-tablet .sidebar {
-  width: var(--sidebar-w-tablet);
+    width: var(--sidebar-w-tablet);
 }
 .state-tablet .page-wrapper {
-  margin-left: var(--sidebar-w-tablet);
+    margin-left: var(--sidebar-w-tablet);
 }
 
 /* Tablet collapsed: use the same collapsed icons-only width */
 .state-tablet.sidebar-collapsed .sidebar {
-  width: var(--sidebar-w-collapsed);
+    width: var(--sidebar-w-collapsed);
 }
 .state-tablet.sidebar-collapsed .page-wrapper {
-  margin-left: var(--sidebar-w-collapsed);
+    margin-left: var(--sidebar-w-collapsed);
 }
 
 /* ========= MOBILE (OVERLAY) ========= */
 /* Mobile uses overlay approach: sidebar is off-canvas by default */
 .state-mobile .page-wrapper {
-  margin-left: 0;
+    margin-left: 0;
 }
 
 /* On mobile keep full width for the sidebar when it slides in */
 .state-mobile .sidebar {
-  width: var(--sidebar-w);
-  transform: translateX(-100%);
+    width: var(--sidebar-w);
+    transform: translateX(-100%);
 }
 
 /* When mobile overlay 'sidebar-open' class present -> slide in */
 .state-mobile.sidebar-open .sidebar {
-  transform: translateX(0);
+    transform: translateX(0);
 }
 
 /* Backdrop for mobile overlay (unchanged) */
 .overlay-backdrop {
-  position: fixed;
-  inset: var(--header-h) 0 0 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 1015;
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1015;
 }
 
 /* ========= UTIL ========= */
 .truncate-when-mini {
-  display: inline-block;
-  max-width: 100%;
+    display: inline-block;
+    max-width: 100%;
 }
 /* Scrollbars (optional) - keep as before */
 .sidebar-menu::-webkit-scrollbar {
-  width: 8px;
+    width: 8px;
 }
 .sidebar-menu::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
-  border-radius: 8px;
+    background: #e5e7eb;
+    border-radius: 8px;
 }
 
 /* Submenu indentation when collapsed still respects icons-only */
 .sidebar .list-unstyled li .side-link {
-  padding-left: 2.5rem;
-  font-size: 0.9rem;
-  color: #6c757d;
+    padding-left: 2.5rem;
+    font-size: 0.9rem;
+    color: #6c757d;
 }
 
 /* When the sidebar is collapsed, ensure nested labels are hidden */
 .state-desktop.sidebar-collapsed .sidebar .list-unstyled li .side-link span,
 .state-tablet.sidebar-collapsed .sidebar .list-unstyled li .side-link span {
-  /* hide text of nested items when in icons-only mode */
-  display: inline-block;
-  max-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
+    /* hide text of nested items when in icons-only mode */
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 @media (max-width: 767px) {
-  .logo img {
-    height: 36px;
-  }
+    .logo img {
+        height: 36px;
+    }
 }
 
-
-@media only screen 
-  and (min-device-width: 1024px) 
-  and (max-device-width: 1366px) 
-  and (orientation: portrait) {
-    
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
     /* Example: Adjust sidebar width */
     .sidebar {
         width: 200px; /* smaller than desktop */
@@ -1124,11 +1267,7 @@ li.active>.side-link {
 }
 
 /* Landscape mode */
-@media only screen 
-  and (min-device-width: 1024px) 
-  and (max-device-width: 1366px) 
-  and (orientation: landscape) {
-    
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
     .sidebar {
         width: 200px;
     }
@@ -1142,26 +1281,20 @@ li.active>.side-link {
     }
 }
 
-
-
-
-
 /* dark code for modal */
 .dark .modal-content {
- 
     color: #f9fafb !important;
     border: 1px solid #ffffff !important;
     border-radius: 1px !important  ;
 }
-  
+
 .dark .modal-body {
-    background-color: #141414 !important; 
+    background-color: #141414 !important;
     color: #f9fafb !important;
 }
 
 .dark .modal-header {
-    background-color: #141414 !important; 
+    background-color: #141414 !important;
     color: #f9fafb !important;
 }
-
 </style>

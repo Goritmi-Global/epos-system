@@ -13,6 +13,7 @@ use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use App\Helpers\UploadHelper;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -78,6 +79,12 @@ class HandleInertiaRequests extends Middleware
                 $onboarding[$key] = $row ? $row->toArray() : null;
             }
         }
+ 
+
+        // Getting Bunsiness informations
+        $businessInfo = $onboarding['business_information'];
+        $imageUrl = UploadHelper::url($businessInfo['upload_id']);
+        $businessInfo['image_url'] = $imageUrl;
 
         // Normalized formatting block for the SPA
        $fmt = [
@@ -103,6 +110,7 @@ class HandleInertiaRequests extends Middleware
 
             'stripe_public_key' => $stripe_public_key, 
             'onboarding' => $onboarding,
+            'business_info' => $businessInfo,
             // Normalized formatting data
             'formatting' => $fmt,
 
