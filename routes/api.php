@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\POS\{
     AnalyticsController,
     InventoryController,
+    KotController,
     MenuCategoryController,
     MenuController,
     OrdersController,
@@ -107,5 +108,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('inventory')->name('api.inventory.')->group(function () {
         Route::post('/import', [InventoryController::class, 'import'])->name('items.import');
+    });
+
+    // KOT Orders
+    Route::prefix('kots')->name('api.kots.')->group(function () {
+       
+        Route::get('/all-orders', [KotController::class, 'getAllKotOrders'])->name('index');
     });
 });

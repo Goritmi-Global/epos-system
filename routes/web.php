@@ -28,6 +28,7 @@ use App\Http\Controllers\POS\{
     OrdersController,
     PaymentController,
     AnalyticsController,
+    KotController,
     SettingsController,
 };
 use App\Http\Controllers\PromoController;
@@ -259,6 +260,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [SettingsController::class, 'index'])->name('index');
         Route::post('/update/{step}', [SettingsController::class, 'updateStep']);
+    });
+
+    /* -------- Settings -------- */
+    Route::prefix('kots')->name('kots.')->group(function () {
+        Route::get('/', [KotController::class, 'index'])->name('index');
     });
 });
 

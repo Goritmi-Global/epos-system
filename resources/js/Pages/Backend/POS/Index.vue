@@ -7,6 +7,7 @@ import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
 import KotModal from "./KotModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
+import PosOrdersModal from "./PosOrdersModal.vue";
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters();
 
@@ -412,11 +413,9 @@ function printReceipt(order) {
       (Cash: £${Number(order?.cash_amount ?? 0).toFixed(2)}, 
        Card: £${Number(order?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${
-            order?.card_brand ? ` (${order.card_brand}` : ""
-        }${order?.last4 ? ` •••• ${order.last4}` : ""}${
-            order?.card_brand ? ")" : ""
-        }`;
+        payLine = `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""
+            }${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""
+            }`;
     } else {
         payLine = `Payment Type: ${order?.payment_method || "Cash"}`;
     }
@@ -449,11 +448,9 @@ function printKot(order) {
       (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
        Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${
-            plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""
-        }${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${
-            plainOrder?.card_brand ? ")" : ""
-        }`;
+        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""
+            }${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""
+            }`;
     } else {
         payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
@@ -492,10 +489,9 @@ function printKot(order) {
         <div><strong>Time:</strong> ${plainOrder.order_time}</div>
         <div><strong>Customer:</strong> ${plainOrder.customer_name}</div>
         <div><strong>Order Type:</strong> ${plainOrder.order_type}</div>
-        ${
-            plainOrder.note
-                ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
-                : ""
+        ${plainOrder.note
+            ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
+            : ""
         }
       </div>
 
@@ -509,39 +505,37 @@ function printKot(order) {
         </thead>
         <tbody>
           ${(plainOrder.items || [])
-              .map((item) => {
-                  const qty = Number(item.quantity) || 0;
-                  const price = Number(item.price) || 0;
-                  const total = qty * price;
-                  return `
+            .map((item) => {
+                const qty = Number(item.quantity) || 0;
+                const price = Number(item.price) || 0;
+                const total = qty * price;
+                return `
             <tr>
               <td>${item.title || "Unknown Item"}</td>
               <td>${qty}</td>
               <td>£${total.toFixed(2)}</td>
             </tr>
           `;
-              })
-              .join("")}
+            })
+            .join("")}
         </tbody>
       </table>
 
       <div class="totals">
         <div>Subtotal: £${Number(plainOrder.sub_total).toFixed(2)}</div>
         <div><strong>Total: £${Number(plainOrder.total_amount).toFixed(
-            2
-        )}</strong></div>
+                2
+            )}</strong></div>
         <div>${payLine}</div>
-        ${
-            plainOrder.cash_received
-                ? `<div>Cash Received: £${Number(
-                      plainOrder.cash_received
-                  ).toFixed(2)}</div>`
-                : ""
+        ${plainOrder.cash_received
+            ? `<div>Cash Received: £${Number(
+                plainOrder.cash_received
+            ).toFixed(2)}</div>`
+            : ""
         }
-        ${
-            plainOrder.change
-                ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
-                : ""
+        ${plainOrder.change
+            ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
+            : ""
         }
       </div>
 
@@ -608,10 +602,10 @@ const confirmOrder = async ({
                 orderType.value === "dine_in"
                     ? "Dine In"
                     : orderType.value === "delivery"
-                    ? "Delivery"
-                    : orderType.value === "takeaway"
-                    ? "Takeaway"
-                    : "Collection",
+                        ? "Delivery"
+                        : orderType.value === "takeaway"
+                            ? "Takeaway"
+                            : "Collection",
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
             auto_print_kot: autoPrintKot,
@@ -706,9 +700,42 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
 
     toast.success(message); // optional
 };
+
+
+
+const openOrderModal = async () => {
+    ShowKotDataInModal.value = await fetchTodaysOrders();
+    showKotModal.value = true;
+};
+
+const showPosOrdersModal = ref(false);
+const posOrdersData = ref([]);
+
+
+const openPosOrdersModal = async () => {
+    try {
+        const res = await axios.get(`/api/pos/orders/today`);
+        console.log("res", res);
+        posOrdersData.value = res.data.orders;
+        showPosOrdersModal.value = true;
+    } catch (err) {
+        console.error("Failed to fetch POS orders:", err);
+        toast.error(
+            err.response?.data?.message || "Failed to fetch POS orders"
+        );
+    }
+};
+
+const handleViewOrderDetails = (order) => {
+    lastOrder.value = order;
+    showReceiptModal.value = true;
+    showPosOrdersModal.value = false;
+};
+
 </script>
 
 <template>
+
     <Head title="POS Order" />
 
     <Master>
@@ -719,17 +746,13 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                     <div class="col-lg-8">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3">
-                            <div
-                                v-for="c in menuCategories"
-                                :key="c.id"
-                                class="col-6 col-md-4 col-lg-3"
-                            >
+                            <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-3">
                                 <div class="cat-card" @click="openCategory(c)">
                                     <div class="cat-icon-wrap">
                                         <!-- use emoji/text icon OR place an <img> inside -->
                                         <span class="cat-icon">{{
                                             c.icon || "🍵"
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                     <div class="cat-name">{{ c.name }}</div>
                                     <div class="cat-pill">
@@ -738,13 +761,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                 </div>
                             </div>
 
-                            <div
-                                v-if="menuCategories.length === 0"
-                                class="col-12"
-                            >
-                                <div
-                                    class="alert alert-light border text-center rounded-4"
-                                >
+                            <div v-if="menuCategories.length === 0" class="col-12">
+                                <div class="alert alert-light border text-center rounded-4">
                                     No categories found
                                 </div>
                             </div>
@@ -752,13 +770,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
 
                         <!-- Items in selected category -->
                         <div v-else>
-                            <div
-                                class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3"
-                            >
-                                <button
-                                    class="btn btn-light rounded-pill shadow-sm px-3"
-                                    @click="backToCategories"
-                                >
+                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+                                <button class="btn btn-light rounded-pill shadow-sm px-3" @click="backToCategories">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
                                 <h5 class="fw-bold mb-0">
@@ -772,35 +785,24 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                 <!-- Search -->
                                 <div class="search-wrap ms-auto">
                                     <i class="bi bi-search"></i>
-                                    <input
-                                        v-model="searchQuery"
-                                        class="form-control search-input"
-                                        type="text"
-                                        placeholder="Search items..."
-                                    />
+                                    <input v-model="searchQuery" class="form-control search-input" type="text"
+                                        placeholder="Search items..." />
                                 </div>
                             </div>
 
-                            <div class="row g-3"> 
-                                 
-                                <div
-                                    class="col-6 col-md-4 col-xl-3 d-flex"
-                                    v-for="p in filteredProducts"
-                                    :key="p.title"
-                                >
-                                    <div class="item-card" @click="openItem(p)" :style="{ border: '2px solid ' + (p.label_color || '#1B1670') }">
+                            <div class="row g-3">
+
+                                <div class="col-6 col-md-4 col-xl-3 d-flex" v-for="p in filteredProducts"
+                                    :key="p.title">
+                                    <div class="item-card" @click="openItem(p)"
+                                        :style="{ border: '2px solid ' + (p.label_color || '#1B1670') }">
                                         <div class="item-img">
                                             <img :src="p.img" alt="" />
-                                            <span
-                                                class="item-price rounded-pill" :style="{ background: '' + (p.label_color || '#1B1670') }"
-                                                >{{
+                                            <span class="item-price rounded-pill"
+                                                :style="{ background: '' + (p.label_color || '#1B1670') }">{{
                                                     formatMoney(p.price)
-                                                }} </span
-                                            >
-                                            <span
-                                                v-if="(p.stock ?? 0) <= 0"
-                                                class="item-badge"
-                                            >
+                                                }} </span>
+                                            <span v-if="(p.stock ?? 0) <= 0" class="item-badge">
                                                 Out
                                             </span>
                                         </div>
@@ -814,13 +816,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                         </div>
                                     </div>
                                 </div>
-                                <div
-                                    v-if="filteredProducts.length === 0"
-                                    class="col-12"
-                                >
-                                    <div
-                                        class="alert alert-light border text-center rounded-4"
-                                    >
+                                <div v-if="filteredProducts.length === 0" class="col-12">
+                                    <div class="alert alert-light border text-center rounded-4">
                                         No items found
                                     </div>
                                 </div>
@@ -829,135 +826,94 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                     </div>
 
                     <!-- RIGHT: Cart -->
+
                     <div class="col-lg-4">
+                        <button class="btn btn-primary mb-2 rounded-pill" @click="openOrderModal">
+                            Today Kot Orders
+                        </button>
+                        <button class="btn btn-success mb-2 rounded-pill ms-2" @click="openPosOrdersModal">
+                            POS Orders
+                        </button>
                         <div class="cart card border-0 shadow-lg rounded-4">
+
                             <div class="cart-header">
+
                                 <div class="cart-title">Shopping Cart</div>
+
                                 <div class="order-type">
-                                    <button
-                                        v-for="(type, i) in orderTypes"
-                                        :key="i"
-                                        class="ot-pill"
-                                        :class="{ active: orderType === type }"
-                                        @click="orderType = type"
-                                    >
+                                    <button v-for="(type, i) in orderTypes" :key="i" class="ot-pill"
+                                        :class="{ active: orderType === type }" @click="orderType = type">
                                         {{ type.replace(/_/g, " ") }}
                                     </button>
+                                    <div class="d-flex justify-content-between mb-3">
+
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="cart-body">
                                 <!-- Dine-in table / customer -->
                                 <div class="mb-3">
-                                    <div
-                                        v-if="orderType === 'dine_in'"
-                                        class="row g-2"
-                                    >
+                                    <div v-if="orderType === 'dine_in'" class="row g-2">
                                         <div class="col-6">
-                                            <label class="form-label small"
-                                                >Table</label
-                                            >
-                                            <select
-                                                v-model="selectedTable"
-                                                class="form-select form-select-sm"
-                                                :class="{
-                                                    'is-invalid':
-                                                        formErrors.table_number,
-                                                }"
-                                            >
-                                                <option
-                                                    v-for="(
-                                                        table, idx
-                                                    ) in profileTables.table_details"
-                                                    :key="idx"
-                                                    :value="table"
-                                                >
+                                            <label class="form-label small">Table</label>
+                                            <select v-model="selectedTable" class="form-select form-select-sm" :class="{
+                                                'is-invalid':
+                                                    formErrors.table_number,
+                                            }">
+                                                <option v-for="(table, idx) in profileTables.table_details" :key="idx"
+                                                    :value="table">
                                                     {{ table.name }}
                                                 </option>
                                             </select>
-                                            <div
-                                                v-if="formErrors.table_number"
-                                                class="invalid-feedback d-block"
-                                            >
+                                            <div v-if="formErrors.table_number" class="invalid-feedback d-block">
                                                 {{ formErrors.table_number[0] }}
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <label class="form-label small"
-                                                >Customer</label
-                                            >
-                                            <input
-                                                v-model="customer"
-                                                class="form-control form-control-sm"
-                                                placeholder="Walk In"
-                                            />
+                                            <label class="form-label small">Customer</label>
+                                            <input v-model="customer" class="form-control form-control-sm"
+                                                placeholder="Walk In" />
                                         </div>
                                     </div>
 
                                     <div v-else>
-                                        <label class="form-label small"
-                                            >Customer</label
-                                        >
-                                        <input
-                                            v-model="customer"
-                                            class="form-control form-control-sm"
-                                            placeholder="Walk In"
-                                        />
+                                        <label class="form-label small">Customer</label>
+                                        <input v-model="customer" class="form-control form-control-sm"
+                                            placeholder="Walk In" />
                                     </div>
                                 </div>
 
                                 <!-- Line items -->
                                 <div class="cart-lines">
-                                    <div
-                                        v-if="orderItems.length === 0"
-                                        class="empty"
-                                    >
+                                    <div v-if="orderItems.length === 0" class="empty">
                                         Add items from the left
                                     </div>
 
-                                    <div
-                                        v-for="(it, i) in orderItems"
-                                        :key="it.title"
-                                        class="line"
-                                    >
+                                    <div v-for="(it, i) in orderItems" :key="it.title" class="line">
                                         <div class="line-left">
                                             <img :src="it.img" alt="" />
                                             <div class="meta">
-                                                <div
-                                                    class="name"
-                                                    :title="it.title"
-                                                >
+                                                <div class="name" :title="it.title">
                                                     {{ it.title }}
                                                 </div>
-                                                <div
-                                                    class="note"
-                                                    v-if="it.note"
-                                                >
+                                                <div class="note" v-if="it.note">
                                                     {{ it.note }}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="line-mid">
-                                            <button
-                                                class="qty-btn"
-                                                @click="decCart(i)"
-                                            >
+                                            <button class="qty-btn" @click="decCart(i)">
                                                 −
                                             </button>
                                             <div class="qty">{{ it.qty }}</div>
-                                            <button
-                                                class="qty-btn"
-                                                :class="{
-                                                    disabled:
-                                                        it.qty >=
-                                                        (it.stock ?? 0),
-                                                }"
-                                                @click="incCart(i)"
-                                                :disabled="
-                                                    it.qty >= (it.stock ?? 0)
-                                                "
-                                            >
+                                            <button class="qty-btn" :class="{
+                                                disabled:
+                                                    it.qty >=
+                                                    (it.stock ?? 0),
+                                            }" @click="incCart(i)" :disabled="it.qty >= (it.stock ?? 0)
+                                                ">
                                                 +
                                             </button>
                                         </div>
@@ -966,10 +922,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                             <div class="price">
                                                 {{ formatMoney(it.price) }}
                                             </div>
-                                            <button
-                                                class="del"
-                                                @click="removeCart(i)"
-                                            >
+                                            <button class="del" @click="removeCart(i)">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -982,10 +935,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                         <span>Sub Total</span>
                                         <b>{{ formatMoney(subTotal) }}</b>
                                     </div>
-                                    <div
-                                        class="trow"
-                                        v-if="orderType === 'delivery'"
-                                    >
+                                    <div class="trow" v-if="orderType === 'delivery'">
                                         <span>Delivery</span>
                                         <b>{{ deliveryPercent }}%</b>
                                     </div>
@@ -995,22 +945,15 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                     </div>
                                 </div>
 
-                                <textarea
-                                    v-model="note"
-                                    rows="3"
-                                    class="form-control form-control-sm rounded-3"
-                                    placeholder="Note"
-                                ></textarea>
+                                <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
+                                    placeholder="Note"></textarea>
                             </div>
 
                             <div class="cart-footer">
                                 <button class="btn-clear" @click="resetCart()">
                                     Clear
                                 </button>
-                                <button
-                                    class="btn-place"
-                                    @click="openConfirmModal"
-                                >
+                                <button class="btn-place" @click="openConfirmModal">
                                     Place Order
                                 </button>
                             </div>
@@ -1020,12 +963,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
             </div>
 
             <!-- Choose Item Modal (unchanged content/ids) -->
-            <div
-                class="modal fade"
-                id="chooseItem"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow">
                         <div class="modal-header border-0">
@@ -1034,23 +972,10 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -1058,15 +983,10 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-5">
-                                    <img
-                                        :src="
-                                            selectedItem?.image_url ||
-                                            selectedItem?.img ||
-                                            '/assets/img/product/product29.jpg'
-                                        "
-                                        class="img-fluid rounded-3 w-100"
-                                        alt=""
-                                    />
+                                    <img :src="selectedItem?.image_url ||
+                                        selectedItem?.img ||
+                                        '/assets/img/product/product29.jpg'
+                                        " class="img-fluid rounded-3 w-100" alt="" />
                                 </div>
                                 <div class="col-md-7">
                                     <div class="h4 mb-1">
@@ -1082,40 +1002,28 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                         <div class="mb-1">
                                             <strong>Nutrition:</strong>
                                         </div>
-                                        <span
-                                            v-if="
-                                                selectedItem?.nutrition
-                                                    ?.calories
-                                            "
-                                            class="chip chip-orange"
-                                        >
+                                        <span v-if="
+                                            selectedItem?.nutrition
+                                                ?.calories
+                                        " class="chip chip-orange">
                                             Cal:
                                             {{
                                                 selectedItem.nutrition.calories
                                             }}
                                         </span>
-                                        <span
-                                            v-if="
-                                                selectedItem?.nutrition?.carbs
-                                            "
-                                            class="chip chip-green"
-                                        >
+                                        <span v-if="
+                                            selectedItem?.nutrition?.carbs
+                                        " class="chip chip-green">
                                             Carbs:
                                             {{ selectedItem.nutrition.carbs }}
                                         </span>
-                                        <span
-                                            v-if="selectedItem?.nutrition?.fat"
-                                            class="chip chip-purple"
-                                        >
+                                        <span v-if="selectedItem?.nutrition?.fat" class="chip chip-purple">
                                             Fat:
                                             {{ selectedItem.nutrition.fat }}
                                         </span>
-                                        <span
-                                            v-if="
-                                                selectedItem?.nutrition?.protein
-                                            "
-                                            class="chip chip-blue"
-                                        >
+                                        <span v-if="
+                                            selectedItem?.nutrition?.protein
+                                        " class="chip chip-blue">
                                             Protein:
                                             {{ selectedItem.nutrition.protein }}
                                         </span>
@@ -1123,26 +1031,18 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                         <div class="w-100 mt-2">
                                             <strong>Allergies:</strong>
                                         </div>
-                                        <span
-                                            v-for="(
-                                                a, i
-                                            ) in selectedItem?.allergies || []"
-                                            :key="'a-' + i"
-                                            class="chip chip-red"
-                                            >{{ a.name }}</span
-                                        >
+                                        <span v-for="(
+a, i
+                                            ) in selectedItem?.allergies || []" :key="'a-' + i"
+                                            class="chip chip-red">{{ a.name }}</span>
 
                                         <div class="w-100 mt-2">
                                             <strong>Tags:</strong>
                                         </div>
-                                        <span
-                                            v-for="(
-                                                t, i
-                                            ) in selectedItem?.tags || []"
-                                            :key="'t-' + i"
-                                            class="chip chip-teal"
-                                            >{{ t.name }}</span
-                                        >
+                                        <span v-for="(
+t, i
+                                            ) in selectedItem?.tags || []" :key="'t-' + i" class="chip chip-teal">{{
+                                                t.name }}</span>
                                     </div>
 
                                     <div class="qty-group gap-1">
@@ -1152,13 +1052,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                         <div class="qty-box rounded-pill">
                                             {{ modalQty }}
                                         </div>
-                                        <button
-                                            class="qty-btn"
-                                            @click="incQty"
-                                            :disabled="
-                                                modalQty >= menuStockForSelected
-                                            "
-                                        >
+                                        <button class="qty-btn" @click="incQty" :disabled="modalQty >= menuStockForSelected
+                                            ">
                                             +
                                         </button>
                                     </div>
@@ -1167,10 +1062,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                         </div>
 
                         <div class="modal-footer border-0">
-                            <button
-                                class="btn btn-primary btn-sm py-2 rounded-pill px-4"
-                                @click="confirmAdd"
-                            >
+                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" @click="confirmAdd">
                                 Add to Cart
                             </button>
                         </div>
@@ -1178,43 +1070,22 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                 </div>
             </div>
 
-            <KotModal
-                :show="showKotModal"
-                :kot="ShowKotDataInModal"
-                @close="showKotModal = false"
-                @status-updated="handleKotStatusUpdated"
-            />
+            <KotModal :show="showKotModal" :kot="ShowKotDataInModal" @close="showKotModal = false"
+                @status-updated="handleKotStatusUpdated" />
 
             <!-- Confirm / Receipt (unchanged props) -->
-            <ConfirmOrderModal
-                :show="showConfirmModal"
-                :customer="customer"
-                :order-type="orderType"
-                :selected-table="selectedTable"
-                :order-items="orderItems"
-                :grand-total="grandTotal"
-                :money="money"
-                v-model:cashReceived="cashReceived"
-                :client_secret="client_secret"
-                :order_code="order_code"
-                :sub-total="subTotal"
-                :tax="0"
-                :service-charges="0"
-                :delivery-charges="0"
-                :note="note"
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
+                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
+                :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="0" :note="note"
                 :order-date="new Date().toISOString().split('T')[0]"
-                :order-time="new Date().toTimeString().split(' ')[0]"
-                :payment-method="paymentMethod"
-                :change="changeAmount"
-                @close="showConfirmModal = false"
-                @confirm="confirmOrder"
-            />
-            <ReceiptModal
-                :show="showReceiptModal"
-                :order="lastOrder"
-                :money="money"
-                @close="showReceiptModal = false"
-            />
+                :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
+                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
+            <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money"
+                @close="showReceiptModal = false" />
+
+            <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
+                @view-details="handleViewOrderDetails" />
         </div>
     </Master>
 </template>
@@ -1224,6 +1095,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     background-color: #181818;
     color: #fff;
 }
+
 .dark .cart-body {
     background-color: #181818;
 }
@@ -1236,19 +1108,24 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     background-color: #181818;
     color: white;
 }
+
 .dark .item-card {
     background-color: #181818 !important;
     color: white !important;
 }
+
 .dark .cart-lines {
     background-color: #181818;
 }
+
 .dark .chip-orange {
     color: #0000;
 }
+
 .dark .modal-footer {
     background-color: #181818;
 }
+
 .dark .alert {
     background-color: #181818;
 }
@@ -1300,7 +1177,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: #eee; /* light gray like the screen */
+    background: #eee;
+    /* light gray like the screen */
     display: grid;
     place-items: center;
     margin-bottom: 0.25rem;
@@ -1308,7 +1186,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
 
 /* the actual icon (emoji/text/svg) */
 .cat-icon {
-    font-size: 1.35rem; /* tweak to match your cup size */
+    font-size: 1.35rem;
+    /* tweak to match your cup size */
     line-height: 1;
 }
 
@@ -1316,7 +1195,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
 .cat-name {
     font-weight: 700;
     font-size: 1rem;
-    color: #141414; /* per your dark accent preference */
+    color: #141414;
+    /* per your dark accent preference */
 }
 
 /* little purple pill with count */
@@ -1327,7 +1207,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     padding: 0.35rem 0.6rem;
     border-radius: 999px;
     color: #fff;
-    background: #1B1670; 
+    background: #1B1670;
     box-shadow: 0 2px 6px rgba(75, 43, 183, 0.25);
 }
 
@@ -1336,10 +1216,12 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     .cat-card {
         padding: 1.25rem 0.75rem;
     }
+
     .cat-icon-wrap {
         width: 52px;
         height: 52px;
     }
+
     .cat-name {
         font-size: 0.95rem;
     }
@@ -1376,7 +1258,8 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     transition: 0.2s;
     display: flex;
     flex-direction: column;
-    border: 2px solid #1B1670; /* fallback if no inline style */
+    border: 2px solid #1B1670;
+    /* fallback if no inline style */
 }
 
 .item-card:hover {
@@ -1401,14 +1284,16 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: #1b1670; /* theme purple */
+    background: #1b1670;
+    /* theme purple */
     color: #fff;
     padding: 0.25rem 0.75rem;
     font-weight: 600;
     font-size: 0.8rem;
-    border-radius: 999px; /* pill shape */
+    border-radius: 999px;
+    /* pill shape */
     line-height: 1;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     z-index: 2;
 }
 

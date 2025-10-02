@@ -1,0 +1,546 @@
+<script setup>
+import Master from "@/Layouts/Master.vue";
+import { Head } from "@inertiajs/vue3";
+import { ref, computed, onMounted } from "vue";
+import Select from "primevue/select";
+import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
+
+const orders = ref([]);
+
+const fetchOrders = async () => {
+    try {
+        const response = await axios.get("/api/kots/all-orders");
+        
+        orders.value = (response.data.data || []).map(ko => {
+            const posOrder = ko.pos_order_type?.order;
+            const posOrderItems = posOrder?.items || [];
+            
+            return {
+                id: posOrder?.id || ko.id,
+                created_at: posOrder?.created_at || ko.created_at,
+                customer_name: posOrder?.customer_name || 'Walk In',
+                total_amount: posOrder?.total_amount || 0,
+                sub_total: posOrder?.sub_total || 0,
+                status: ko.status || 'Waiting',
+                type: {
+                    order_type: ko.pos_order_type?.order_type,
+                    table_number: ko.pos_order_type?.table_number
+                },
+                payment: posOrder?.payment,
+                items: (ko.items || []).map(kotItem => {
+                    // Find matching POS item to get price
+                    const matchingPosItem = posOrderItems.find(posItem => 
+                        posItem.title === kotItem.item_name || 
+                        posItem.product_id === kotItem.product_id
+                    );
+                    
+                    return {
+                        ...kotItem,
+                        title: kotItem.item_name,
+                        price: matchingPosItem?.price || 0,
+                        quantity: kotItem.quantity || 1,
+                        variant_name: kotItem.variant_name || '-',
+                        ingredients: kotItem.ingredients || []
+                    };
+                }),
+                orderIndex: ko.id
+            };
+        });
+        
+        console.log("Transformed orders:", orders.value);
+    } catch (error) {
+        console.error("Error fetching orders:", error);
+        orders.value = [];
+    }
+};
+
+onMounted(() => {
+    fetchOrders();
+});
+
+const q = ref("");
+const orderTypeFilter = ref("All");
+const statusFilter = ref("All");
+
+const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway", "Collection"]);
+const statusOptions = ref(["All", "Waiting", "Done", "Cancelled"]);
+
+// Flatten all items from all orders
+const allItems = computed(() => {
+    if (!orders.value || orders.value.length === 0) {
+        return [];
+    }
+
+    const flattened = orders.value.flatMap((order, orderIndex) => {
+        return order.items?.map((item, itemIndex) => ({
+            ...item,
+            status: order.status,
+            orderIndex,
+            order,
+            uniqueId: `${order.id}-${itemIndex}`
+        })) || [];
+    });
+    
+    return flattened;
+});
+
+const filtered = computed(() => {
+    const term = q.value.trim().toLowerCase();
+
+    return allItems.value
+        .filter((item) =>
+            orderTypeFilter.value === "All"
+                ? true
+                : (item.order?.type?.order_type ?? "").toLowerCase() ===
+                  orderTypeFilter.value.toLowerCase()
+        )
+        .filter((item) =>
+            statusFilter.value === "All"
+                ? true
+                : (item.status ?? "").toLowerCase() ===
+                  statusFilter.value.toLowerCase()
+        )
+        .filter((item) => {
+            if (!term) return true;
+            return [
+                String(item.order?.id),
+                item.item_name ?? "",
+                item.variant_name ?? "",
+                item.ingredients?.join(', ') ?? "",
+                item.status ?? "",
+            ]
+                .join(" ")
+                .toLowerCase()
+                .includes(term);
+        });
+});
+
+/* ===================== KPIs ===================== */
+const totalTables = computed(() => {
+    const tables = new Set(
+        orders.value
+            .map(o => o.type?.table_number)
+            .filter(t => t)
+    );
+    return tables.size;
+});
+
+const totalItems = computed(() => allItems.value.length);
+
+const pendingOrders = computed(
+    () => orders.value.filter((o) => o.status === "Waiting").length
+);
+
+const cancelledOrders = computed(
+    () => orders.value.filter((o) => o.status === "Cancelled").length
+);
+
+/* ===================== Helpers ===================== */
+function formatDate(d) {
+    const dt = new Date(d);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function timeAgo(d) {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+const getStatusBadge = (status) => {
+    switch (status) {
+        case 'Done':
+            return 'bg-success';
+        case 'Cancelled':
+            return 'bg-danger';
+        case 'Waiting':
+            return 'bg-warning text-dark';
+        default:
+            return 'bg-secondary';
+    }
+};
+
+const updateKotStatus = async (order, status) => {
+    try {
+        console.log(`Updating KOT status: Order ID ${order.id} -> ${status}`);
+        const response = await axios.put(`/api/pos/kot/${order.id}/status`, { status });
+        
+        // Update local state
+        const orderIndex = orders.value.findIndex(o => o.id === order.id);
+        if (orderIndex !== -1) {
+            orders.value[orderIndex].status = status;
+        }
+        
+        toast.success(response.data.message || 'Status updated successfully');
+    } catch (err) {
+        console.error("Failed to update status:", err);
+        toast.error(err.response?.data?.message || 'Failed to update status');
+    }
+};
+
+const printOrder = (order) => {
+    const plainOrder = JSON.parse(JSON.stringify(order));
+    
+    // Access order data directly from the order object
+    const customerName = plainOrder?.customer_name || 'Walk-in Customer';
+    const orderType = plainOrder?.type?.order_type || 'Dine In';
+    const tableNumber = plainOrder?.type?.table_number;
+    const payment = plainOrder?.payment;
+    const posOrderItems = plainOrder?.items || [];
+    
+    // Calculate totals from items
+    const subTotal = posOrderItems.reduce((sum, item) => 
+        sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0
+    );
+    const totalAmount = plainOrder?.total_amount || subTotal;
+    
+    // Format date and time
+    const createdDate = plainOrder?.created_at ? new Date(plainOrder.created_at) : new Date();
+    const orderDate = createdDate.toISOString().split('T')[0];
+    const orderTime = createdDate.toTimeString().split(' ')[0];
+    
+    const type = (payment?.payment_method || "cash").toLowerCase();
+    let payLine = "";
+    if (type === "split") {
+        payLine = `Payment Type: Split (Cash: £${Number(payment?.cash_amount ?? 0).toFixed(2)}, Card: £${Number(payment?.card_amount ?? 0).toFixed(2)})`;
+    } else if (type === "card" || type === "stripe") {
+        payLine = `Payment Type: Card${payment?.card_brand ? ` (${payment.card_brand}` : ""}${payment?.last4 ? ` •••• ${payment.last4}` : ""}${payment?.card_brand ? ")" : ""}`;
+    } else {
+        payLine = `Payment Type: ${payment?.payment_method || "Cash"}`;
+    }
+
+    const itemsWithPrices = (plainOrder.items || []).map(kotItem => {
+        const matchingPosItem = posOrderItems.find(posItem => 
+            posItem.title === kotItem.item_name || 
+            posItem.product_id === kotItem.product_id
+        );
+        return {
+            ...kotItem,
+            price: matchingPosItem?.price || 0
+        };
+    });
+
+    const html = `
+    <html>
+    <head>
+      <title>Kitchen Order Ticket</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        html, body {
+          width: 80mm;
+          margin: 0;
+          padding: 8px;
+          font-family: monospace, Arial, sans-serif;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+        .header { text-align: center; margin-bottom: 10px; }
+        .order-info { margin: 10px 0; }
+        .order-info div { margin-bottom: 3px; }
+        .payment-info { margin-top: 8px; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 4px 0; text-align: left; }
+        th { border-bottom: 1px solid #000; }
+        td:last-child, th:last-child { text-align: right; }
+        .totals { margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px; }
+        .footer { text-align: center; margin-top: 10px; font-size: 11px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>KITCHEN ORDER TICKET</h2>
+      </div>
+      
+      <div class="order-info">
+        <div>KOT ID: #${plainOrder.id}</div>
+        <div>Date: ${orderDate}</div>
+        <div>Time: ${orderTime}</div>
+        <div>Customer: ${customerName}</div>
+        <div>Order Type: ${orderType}</div>
+        ${tableNumber ? `<div>Table: ${tableNumber}</div>` : ''}
+        
+        <div class="payment-info">
+          <div>${payLine}</div>
+        </div>
+        
+        <div>Status: ${plainOrder.status}</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+         ${posOrderItems.map(item => {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.price) || 0;
+      const itemName = item.title || item.item_name || 'Unknown Item';
+      return `
+      <tr>
+        <td>${itemName}</td>
+        <td>${qty}</td>
+        <td>£${price.toFixed(2)}</td>
+      </tr>
+    `;
+    }).join('')}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div>Subtotal: £${Number(subTotal).toFixed(2)}</div>
+        <div>Total: £${Number(totalAmount).toFixed(2)}</div>
+        ${payment?.cash_received ? `<div>Cash Received: £${Number(payment.cash_received).toFixed(2)}</div>` : ''}
+        ${payment?.change ? `<div>Change: £${Number(payment.change).toFixed(2)}</div>` : ''}
+      </div>
+
+      <div class="footer">
+        Kitchen Copy - Thank you!
+      </div>
+    </body>
+    </html>
+  `;
+
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) {
+        alert("Please allow popups for this site to print KOT");
+        return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.onload = () => {
+        w.print();
+        w.close();
+    };
+};
+</script>
+
+<template>
+    <Head title="Kitchen Orders" />
+
+    <Master>
+        <div class="page-wrapper">
+            <h4 class="fw-semibold mb-3">Kitchen Order Tickets</h4>
+
+            <!-- KPI Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div class="icon-wrap mb-2">
+                                <i class="bi bi-table"></i>
+                            </div>
+                            <div class="kpi-label text-muted">Total Tables</div>
+                            <div class="kpi-value">{{ totalTables }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div class="icon-wrap mb-2">
+                                <i class="bi bi-basket"></i>
+                            </div>
+                            <div class="kpi-label text-muted">Total Items</div>
+                            <div class="kpi-value">{{ totalItems }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div class="icon-wrap mb-2">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                            <div class="kpi-label text-muted">Pending Orders</div>
+                            <div class="kpi-value">{{ pendingOrders }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div class="icon-wrap mb-2">
+                                <i class="bi bi-x-circle"></i>
+                            </div>
+                            <div class="kpi-label text-muted">Cancelled Orders</div>
+                            <div class="kpi-value">{{ cancelledOrders }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Table -->
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-body">
+                    <!-- Toolbar -->
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 fw-semibold">Kitchen Orders</h5>
+
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <!-- Search -->
+                            <div class="search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input v-model="q" type="text" class="form-control search-input"
+                                    placeholder="Search items..." />
+                            </div>
+
+                            <!-- Order Type filter -->
+                            <div style="min-width: 170px">
+                                <Select v-model="orderTypeFilter" :options="orderTypeOptions"
+                                    placeholder="Order Type" class="w-100" :appendTo="'body'" :autoZIndex="true"
+                                    :baseZIndex="2000">
+                                    <template #value="{ value, placeholder }">
+                                        <span v-if="value">{{ value }}</span>
+                                        <span v-else>{{ placeholder }}</span>
+                                    </template>
+                                </Select>
+                            </div>
+
+                            <!-- Status filter -->
+                            <div style="min-width: 160px">
+                                <Select v-model="statusFilter" :options="statusOptions" placeholder="Status"
+                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
+                                    <template #value="{ value, placeholder }">
+                                        <span v-if="value">{{ value }}</span>
+                                        <span v-else>{{ placeholder }}</span>
+                                    </template>
+                                </Select>
+                            </div>
+
+                            <!-- Download -->
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Download
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Download as PDF</a>
+                                    </li>
+                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Download as Excel</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="border-top small text-muted">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Order ID</th>
+                                    <th>Item Name</th>
+                                    <th>Order Type</th>
+                                    <th>Ingredients</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(item, index) in filtered" :key="item.uniqueId || index">
+                                    <td>{{ index + 1 }}</td>
+                                    <td>{{ item.order?.id }}</td>
+                                    <td>{{ item.item_name }}</td>
+                                    <td>{{ item.order?.type?.order_type || '-' }}</td>
+                                    <td>{{ item.ingredients?.join(', ') || '-' }}</td>
+                                    <td>
+                                        <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
+                                            style="width: 80px; display: inline-flex; justify-content: center; align-items: center; height: 25px;">
+                                            {{ item.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-center align-items-center gap-2">
+                                            <button @click="updateKotStatus(item.order, 'Waiting')" title="Waiting"
+                                                class="p-2 rounded-full text-warning hover:bg-gray-100">
+                                                <Clock class="w-5 h-5" />
+                                            </button>
+
+                                            <button @click="updateKotStatus(item.order, 'Done')" title="Done"
+                                                class="p-2 rounded-full text-success hover:bg-gray-100">
+                                                <CheckCircle class="w-5 h-5" />
+                                            </button>
+
+                                            <button @click="updateKotStatus(item.order, 'Cancelled')" title="Cancelled"
+                                                class="p-2 rounded-full text-danger hover:bg-gray-100">
+                                                <XCircle class="w-5 h-5" />
+                                            </button>
+
+                                            <button class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                @click.prevent="printOrder(item.order)" title="Print">
+                                                <Printer class="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <tr v-if="filtered.length === 0">
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        No orders found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Master>
+</template>
+
+<style scoped>
+.icon-wrap {
+    font-size: 2rem;
+    color: #4e73df;
+}
+
+.kpi-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.kpi-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.search-wrap {
+    position: relative;
+}
+
+.search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+.search-input {
+    padding-left: 2.5rem;
+    border-radius: 50px;
+    border: 1px solid #dee2e6;
+}
+
+.search-input:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+</style>
