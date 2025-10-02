@@ -33,6 +33,7 @@ const fetchMenuItems = async () => {
     try {
         const response = await axios.get("/api/pos/fetch-menu-items");
         menuItems.value = response.data;
+        console.log("Fetched menu items:", menuItems.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -53,6 +54,7 @@ const productsByCat = computed(() => {
             img: item.image_url || "/assets/img/default.png",
             stock: calculateMenuStock(item),
             price: Number(item.price),
+            label_color: item.label_color || "#1B1670",
             family: catName,
             description: item.description,
             nutrition: item.nutrition,
@@ -779,20 +781,21 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                 </div>
                             </div>
 
-                            <div class="row g-3">
+                            <div class="row g-3"> 
+                                 
                                 <div
                                     class="col-6 col-md-4 col-xl-3 d-flex"
                                     v-for="p in filteredProducts"
                                     :key="p.title"
                                 >
-                                    <div class="item-card" @click="openItem(p)">
+                                    <div class="item-card" @click="openItem(p)" :style="{ border: '2px solid ' + (p.label_color || '#1B1670') }">
                                         <div class="item-img">
                                             <img :src="p.img" alt="" />
                                             <span
-                                                class="item-price rounded-pill"
+                                                class="item-price rounded-pill" :style="{ background: '' + (p.label_color || '#1B1670') }"
                                                 >{{
                                                     formatMoney(p.price)
-                                                }}</span
+                                                }} </span
                                             >
                                             <span
                                                 v-if="(p.stock ?? 0) <= 0"
@@ -1324,7 +1327,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     padding: 0.35rem 0.6rem;
     border-radius: 999px;
     color: #fff;
-    background: #4b2bb7; /* looks like the screenshot; replace with #1C0D82 if you prefer brand */
+    background: #1B1670; 
     box-shadow: 0 2px 6px rgba(75, 43, 183, 0.25);
 }
 
@@ -1373,6 +1376,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     transition: 0.2s;
     display: flex;
     flex-direction: column;
+    border: 2px solid #1B1670; /* fallback if no inline style */
 }
 
 .item-card:hover {
@@ -1395,15 +1399,19 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
 
 .item-price {
     position: absolute;
-    left: 10px;
-    bottom: 10px;
-    background: #1b1670;
+    top: 10px;
+    right: 10px;
+    background: #1b1670; /* theme purple */
     color: #fff;
-    padding: 0.25rem 0.55rem;
-    font-weight: 700;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    padding: 0.25rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    border-radius: 999px; /* pill shape */
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 2;
 }
+
 
 .item-badge {
     position: absolute;

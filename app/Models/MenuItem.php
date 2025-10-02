@@ -15,7 +15,8 @@ class MenuItem extends Model
         'category_id',
         'description',
         'status',
-        'upload_id'
+        'upload_id',
+        'product_color'
     ];
 
     // Category
