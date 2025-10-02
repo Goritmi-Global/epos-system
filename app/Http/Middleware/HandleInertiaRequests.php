@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
 
         // Select only required columns per step
         $fields = [
-            'language_and_location' => ['country_id', 'timezone', 'language'],
+            'language_and_location' => ['country_id', 'timezone_id', 'language'],
             'business_information'  => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'upload_id'],
             'currency_and_locale'   => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
             'tax_and_vat'           => ['is_tax_registered', 'tax_type', 'tax_rate', 'tax_id', 'extra_tax_rates', 'price_includes_tax'],

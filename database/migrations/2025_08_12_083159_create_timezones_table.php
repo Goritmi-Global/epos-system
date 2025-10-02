@@ -9,12 +9,13 @@ return new class extends Migration {
     {
         Schema::create('timezones', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 64);          // e.g. "Europe/London"
-            $table->string('gmt_offset', 6);     // e.g. "+01:00"
+            $table->string('name', 64);
+            $table->string('gmt_offset', 6);
             $table->boolean('is_default')->default(false);
+            $table->string('country_id', 3)->nullable();
+            $table->foreign('country_id')->references('id')->on('countries')->onDelete('cascade');
             $table->timestamps();
         });
-
     }
 
     public function down(): void
