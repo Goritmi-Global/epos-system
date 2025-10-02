@@ -122,12 +122,13 @@ class OnboardingController extends Controller
         $data = match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone'     => 'required|string|max:100',
+                'timezone_id'  => 'required|integer|exists:timezones,id',
                 'language'     => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
                 'country_code.exists'   => 'Selected country is invalid',
-                'timezone.required'     => 'Timezone field is required',
+                'timezone_id.required'  => 'Timezone field is required',
+                'timezone_id.exists'    => 'Selected timezone is invalid',
                 'language.required'     => 'Language field is required',
             ]),
 
@@ -192,15 +193,18 @@ class OnboardingController extends Controller
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
-                'receipt_logo' => 'nullable',
-                // Same logic for receipt logo
-                'receipt_logo_file' => (!empty($tempData['upload_id']) || !empty($tempData['receipt_logo_url']))
-                    ? 'nullable'
+                'receipt_logo' => 'nullable', // Preview URL from frontend
+
+                // Check for existing upload in nested structure
+                'receipt_logo_file' => (!empty($tempData[6]['upload_id']) || !empty($tempData['receipt_logo_url']))
+                    ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',
                 'printers' => 'nullable|array',
+            ], [
+                'receipt_logo_file.required' => 'Please upload a receipt logo.',
             ]),
 
             7 => $request->validate([
@@ -265,17 +269,18 @@ class OnboardingController extends Controller
         }
 
         // Handle Step 6 receipt logo upload
-        if ($step === 6 && $request->hasFile('receipt_logo_file')) {
+        // Handle Step 6 receipt logo upload
+        if ($step === 6 && $request->hasFile('receipt_logo_file')) { // Changed from 'receipt_logo'
             try {
                 $upload = UploadHelper::store(
-                    $request->file('receipt_logo_file'),
+                    $request->file('receipt_logo_file'), // Changed from 'receipt_logo'
                     'receipt_logos',
                     'public'
                 );
 
                 $data['upload_id'] = $upload->id;
-                $data['receipt_logo_path'] = $upload->path;
-                $data['receipt_logo_url'] = $upload->url;
+                $data['receipt_logo_path'] = $upload->file_name; // Use file_name like Step 2
+                $data['receipt_logo_url'] = UploadHelper::url($upload->id, 'public');
 
                 unset($data['receipt_logo_file']);
             } catch (\Exception $e) {
@@ -283,11 +288,18 @@ class OnboardingController extends Controller
                     'error' => 'Failed to upload receipt logo. Please try again.',
                 ], 500);
             }
-        } else if ($step === 6 && !empty($tempData['receipt_logo_url'])) {
-            // Keep existing receipt logo
-            $data['upload_id'] = $tempData[6]['upload_id'] ?? null;
-            $data['receipt_logo_path'] = $tempData[6]['receipt_logo_path'] ?? null;
-            $data['receipt_logo_url'] = $tempData[6]['receipt_logo_url'] ?? null;
+        } else if ($step === 6) {
+            // Keep existing receipt logo if no new file
+            if (!empty($tempData[6]['upload_id'])) {
+                $data['upload_id'] = $tempData[6]['upload_id'];
+                $data['receipt_logo_path'] = $tempData[6]['receipt_logo_path'];
+                $data['receipt_logo_url'] = $tempData[6]['receipt_logo_url'];
+            } else if (!empty($tempData['receipt_logo_url'])) {
+                // Fallback to flat structure
+                $data['upload_id'] = $tempData['upload_id'] ?? null;
+                $data['receipt_logo_path'] = $tempData['receipt_logo_path'] ?? null;
+                $data['receipt_logo_url'] = $tempData['receipt_logo_url'];
+            }
         }
 
         // Store step data in nested format
@@ -508,7 +520,7 @@ class OnboardingController extends Controller
     private function separateDataBySteps(array $tempData): array
     {
         $stepFields = [
-            1 => ['country_id', 'timezone', 'language', 'languages_supported', 'country_code'],
+            1 => ['country_id', 'timezone_id', 'language', 'languages_supported', 'country_code'],
             2 => ['business_name', 'business_type', 'legal_name', 'phone', 'phone_local', 'email', 'address', 'website', 'upload_id', 'logo_path', 'logo_url'],
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
             4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],

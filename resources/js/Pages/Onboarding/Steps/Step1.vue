@@ -4,12 +4,14 @@ import axios from "axios"
 import Select from "primevue/select"
 import { toast } from "vue3-toastify"
 
+
 const emit = defineEmits(["save"])
 const props = defineProps({ model: Object, formErrors: Object })
 
 const selectedCountry = ref(null)
 const selectedLanguage = ref(null)
 const countries = ref([])
+const timezonesOptions = ref([])
 
 const languages = ref([
   { label: "English", value: "en", flag: "https://flagcdn.com/w20/gb.png" },
@@ -22,7 +24,7 @@ const languagesOptions = computed(() =>
 const form = reactive({
   country_code: "",
   country_name: "",
-  timezone: "",
+  timezone_id: "",
   language: "en",
   languages_supported: [],
 })
@@ -48,12 +50,35 @@ const fetchCountries = async () => {
   }
 }
 
-// Fetch timezone for selected country
+// Fetch timezone_id for selected country
+// const fetchCountryDetails = async (code) => {
+//   if (!code) return
+//   try {
+//     const { data } = await axios.get(`/api/country/${code}`)
+//     form.timezone_id = data.timezone_id
+//     emitSave()
+//   } catch (error) {
+//     console.error("fetchCountryDetails error:", error)
+//     toast.warning(error.response?.data?.message || "Failed to fetch country details")
+//   }
+// }
+
 const fetchCountryDetails = async (code) => {
   if (!code) return
   try {
     const { data } = await axios.get(`/api/country/${code}`)
-    form.timezone = data.timezone
+
+    // populate timezones dropdown
+    timezonesOptions.value = data.timezones.map(tz => ({
+      label: `${tz.gmt}`,  // show name + GMT offset
+      value: tz.id,                     // ✅ send ID to backend
+      is_default: tz.is_default
+    }))
+
+    // set selected timezone_id to default if exists
+    const defaultTz = timezonesOptions.value.find(t => t.is_default)
+    form.timezone_id = defaultTz ? defaultTz.value : ''
+
     emitSave()
   } catch (error) {
     console.error("fetchCountryDetails error:", error)
@@ -61,13 +86,15 @@ const fetchCountryDetails = async (code) => {
   }
 }
 
+
+
 // Detect user country from geo API
 const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
     form.country_code = data.country_code || ""
     form.country_name = data.country_name || ""
-    if (data.timezone) form.timezone = data.timezone
+    if (data.timezone_id) form.timezone_id = data.timezone_id
     emitSave()
   } catch (error) {
     console.error("detectCountry error:", error)
@@ -164,14 +191,26 @@ watch(selectedLanguage, (opt) => {
 
 
         <!-- Timezone -->
-        <div class="col-md-6">
+        <!-- <div class="col-md-6">
           <label class="form-label d-flex align-items-center gap-2">Time Zone</label>
           <input type="text" class="form-control" v-model="form.timezone"
             :class="{ 'is-invalid': formErrors.timezone }" />
           <small v-if="formErrors?.timezone" class="text-danger">
             {{ formErrors.timezone[0] }}
           </small>
+        </div> -->
+
+        <div class="col-md-6">
+          <label class="form-label d-flex align-items-center gap-2">Time Zone</label>
+
+          <Select v-model="form.timezone_id" :options="timezonesOptions" optionLabel="label" optionValue="value"
+            placeholder="Select a Timezone" class="w-100" :class="{ 'is-invalid': formErrors.timezone }" />
+
+          <small v-if="formErrors?.timezone" class="text-danger">
+            {{ formErrors.timezone[0] }}
+          </small>
         </div>
+
 
         <!-- Language -->
         <div class="col-md-6">
@@ -202,10 +241,10 @@ watch(selectedLanguage, (opt) => {
 </template>
 
 <style scoped>
-.dark .section{
-   background-color: #000000 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+.dark .section {
+  background-color: #000000 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 

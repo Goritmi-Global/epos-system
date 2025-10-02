@@ -48,30 +48,51 @@ watch(selectedBusinessType, (opt) => {
 
 
 /* ------------------ PHONE (flag + dial) ------------------ */
-const dialOptions = [
-    { name: "United Kingdom", iso: "GB", dial: "+44" },
-    { name: "Pakistan", iso: "PK", dial: "+92" },
-    { name: "United States", iso: "US", dial: "+1" },
-    { name: "Canada", iso: "CA", dial: "+1" },
-    { name: "United Arab Emirates", iso: "AE", dial: "+971" },
-    { name: "Saudi Arabia", iso: "SA", dial: "+966" },
-    { name: "Australia", iso: "AU", dial: "+61" },
-    { name: "India", iso: "IN", dial: "+91" },
-];
+// const dialOptions = [
+//     { name: "United Kingdom", iso: "GB", dial: "+44" },
+//     { name: "Pakistan", iso: "PK", dial: "+92" },
+//     { name: "United States", iso: "US", dial: "+1" },
+//     { name: "Canada", iso: "CA", dial: "+1" },
+//     { name: "United Arab Emirates", iso: "AE", dial: "+971" },
+//     { name: "Saudi Arabia", iso: "SA", dial: "+966" },
+//     { name: "Australia", iso: "AU", dial: "+61" },
+//     { name: "India", iso: "IN", dial: "+91" },
+// ];
 
-const selectedDial = ref(null);
 
-function syncDialFromIso(iso) {
-    if (!iso) return;
+const countriesDial = ref([])
+const selectedDial = ref(null)
 
-    const opt = dialOptions.find((o) => o.iso === iso.toUpperCase());
+const fetchCountriesDial = async () => {
+    try {
+        const { data } = await axios.get("/api/countries") // use your /api/countries endpoint
+        console.log("data", data);
+        countriesDial.value = data.map(c => ({
+            name: c.name,
+            iso: c.code,
+            dial: c.phone_code
+        }))
 
-    if (opt) {
-        selectedDial.value = opt;
-        form.phone_country = opt.iso;
-        form.phone_code = opt.dial;
+        // set default selected country/dial
+        let iso = props.model?.phone_country || props.model?.country_code || ""
+        if (iso) syncDialFromIso(iso)
+    } catch (error) {
+        console.error("fetchCountriesDial error:", error)
     }
 }
+
+
+
+function syncDialFromIso(iso) {
+    if (!iso) return
+    const opt = countriesDial.value.find(o => o.iso === iso.toUpperCase())
+    if (opt) {
+        selectedDial.value = opt
+        form.phone_country = opt.iso
+        form.phone_code = opt.dial
+    }
+}
+
 
 function buildFullPhone() {
     const code = (form.phone_code || "").trim();
@@ -79,31 +100,59 @@ function buildFullPhone() {
     form.phone = code + local;
 }
 
-onMounted(() => {
-    console.log("onMounted -> props.model:", props.model);
+// onMounted(() => {
+//     console.log("onMounted -> props.model:", props.model);
 
-    let iso = props.model?.phone_country || props.model?.country_code || "";
-    let phoneLocal = props.model?.phone_local || "";
+//     let iso = props.model?.phone_country || props.model?.country_code || "";
+//     let phoneLocal = props.model?.phone_local || "";
+
+//     // If phone_local is empty but full phone exists, extract it
+//     if (!phoneLocal && props.model?.phone) {
+//         const full = props.model.phone; // e.g. "+441234567890"
+//         const matched = dialOptions.find(opt => full.startsWith(opt.dial));
+//         if (matched) {
+//             iso = matched.iso;
+//             phoneLocal = full.slice(matched.dial.length);
+//         }
+//     }
+
+//     if (iso) syncDialFromIso(iso);
+//     form.phone_local = phoneLocal;
+//     buildFullPhone();
+
+//     // ✅ LOGO: initialize logo_url if we have upload_id or logo_path
+//     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
+//         form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`;
+//     }
+// });
+
+onMounted(async () => {
+    await fetchCountriesDial()
 
     // If phone_local is empty but full phone exists, extract it
+    let phoneLocal = props.model?.phone_local || ""
     if (!phoneLocal && props.model?.phone) {
-        const full = props.model.phone; // e.g. "+441234567890"
-        const matched = dialOptions.find(opt => full.startsWith(opt.dial));
+        const full = props.model.phone
+        const matched = countriesDial.value.find(opt => full.startsWith(opt.dial))
         if (matched) {
-            iso = matched.iso;
-            phoneLocal = full.slice(matched.dial.length);
+            syncDialFromIso(matched.iso)
+            phoneLocal = full.slice(matched.dial.length)
         }
     }
 
-    if (iso) syncDialFromIso(iso);
-    form.phone_local = phoneLocal;
-    buildFullPhone();
+    form.phone_local = phoneLocal
+    buildFullPhone()
 
+<<<<<<< HEAD
     //  LOGO: initialize logo_url if we have upload_id or logo_path
+=======
+    // Initialize logo if needed
+>>>>>>> e2dad8fcbab51dbe58ba05d6883ff3c719bfcd1a
     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
-        form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`;
+        form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`
     }
-});
+})
+
 
 watch(selectedDial, (opt) => {
     if (!opt) return;
@@ -163,7 +212,7 @@ const flagUrl = (iso, size = "24x18") =>
             <!-- Business Name -->
             <div class="col-12">
                 <label class="form-label">Business Name*</label>
-                <input  class="form-control" v-model="form.business_name" @input="emitSave"
+                <input class="form-control" v-model="form.business_name" @input="emitSave"
                     :class="{ 'is-invalid': formErrors?.business_name }" />
                 <small v-if="formErrors?.business_name" class="text-danger">
                     {{ formErrors.business_name[0] }}
@@ -173,7 +222,7 @@ const flagUrl = (iso, size = "24x18") =>
             <!-- Logo -->
             <div class="col-md-3">
                 <small class="text-muted mt-2">Upload Logo</small>
-                <div class="logo-card" >
+                <div class="logo-card">
                     <div class="logo-frame" @click="form.logo_url && openImageModal()">
                         <img v-if="form.logo_url" :src="form.logo_url" alt="Logo" />
                         <div v-else class="placeholder">
@@ -221,8 +270,9 @@ const flagUrl = (iso, size = "24x18") =>
                         <label class="form-label">Phone*</label>
                         <div class="input-group">
                             <span class="input-group-text p-0">
-                                <Select v-model="selectedDial" :options="dialOptions" optionLabel="dial" :filter="true"
+                                <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial"
                                     placeholder="Code" class="dial-select" />
+
                             </span>
                             <input class="form-control" inputmode="numeric" placeholder="Phone number"
                                 v-model="form.phone_local" :class="{ 'is-invalid': formErrors?.phone_local }" />
@@ -280,7 +330,7 @@ const flagUrl = (iso, size = "24x18") =>
     box-shadow: 0 6px 18px rgba(17, 38, 146, 0.05);
 }
 
-.dark .logo-card{
+.dark .logo-card {
     background-color: #000000;
     color: #fff !important;
 }
@@ -298,10 +348,11 @@ const flagUrl = (iso, size = "24x18") =>
     cursor: pointer;
 }
 
-.dark .logo-frame{
-     background-color: #000000;
+.dark .logo-frame {
+    background-color: #000000;
     color: #fff !important;
 }
+
 .logo-frame img {
     max-width: 100%;
     max-height: 100%;
@@ -328,14 +379,13 @@ const flagUrl = (iso, size = "24x18") =>
     border-left: 0;
 }
 
-.dark input{
+.dark input {
     background-color: #000000 !important;
     color: #ffffff;
 }
 
-.dark textarea{
+.dark textarea {
     background-color: #000000 !important;
     color: #ffffff;
 }
-
 </style>

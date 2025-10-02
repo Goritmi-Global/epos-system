@@ -12,4 +12,8 @@ class Timezone extends Model
     {
         return $this->hasMany(Country::class, 'default_timezone_id');
     }
+     public function country()
+    {
+        return $this->belongsTo(Country::class, 'country_id', 'id');
+    }
 }
