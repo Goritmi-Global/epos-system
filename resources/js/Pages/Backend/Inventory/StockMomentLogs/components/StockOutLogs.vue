@@ -574,7 +574,7 @@ onUpdated(() => window.feather?.replace());
 
 <style>
 .dark .table thead th{
-  background-color:#000000 !important; ;
+  background-color:#181818 !important; ;
   color: #ffffff;
 }
 </style>

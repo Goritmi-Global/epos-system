@@ -15,15 +15,6 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-        // Add a foreign key to countries for default timezone
-        Schema::table('countries', function (Blueprint $table) {
-            $table->unsignedBigInteger('default_timezone_id')->nullable()->after('subregion');
-
-            $table->foreign('default_timezone_id')
-                ->references('id')
-                ->on('timezones')
-                ->onDelete('set null');
-        });
     }
 
     public function down(): void

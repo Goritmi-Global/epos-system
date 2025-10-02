@@ -283,14 +283,14 @@ function changeSection(sectionId) {
 }
 
 .dark .logo-card{
-   background: #374151;
+   background: #212121;
 }
 .dark .card-header {
-   background: linear-gradient(135deg, #000000 0%, #000000 100%);
+   background: linear-gradient(135deg, #181818 0%, #181818 100%);
 }
 
 .dark .settings-wrapper{
-  background: #374151;
+  background: #212121;
     color: #fff;
 }
 
@@ -334,9 +334,9 @@ function changeSection(sectionId) {
 }
 
 .dark .settings-nav{
-  background: #000000;
+  background: #181818;
   color: #fff !important;
-  border: 1px solid #000000;
+  border: 1px solid #181818;
 }
 
 .nav-link {
@@ -422,7 +422,7 @@ function changeSection(sectionId) {
 }
 
 .dark .card-footer {
-    background: linear-gradient(180deg, #000000  0%, #000000  100%);
+    background: linear-gradient(180deg, #181818  0%, #181818  100%);
 }
 
 /* Quick Navigation */
@@ -432,6 +432,118 @@ function changeSection(sectionId) {
 
 .quick-nav .btn {
   min-width: 130px;
+}
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important; /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
 }
 
 /* Responsive */
@@ -469,5 +581,66 @@ function changeSection(sectionId) {
 
 .card {
   animation: fadeIn 0.3s ease-out;
+}
+
+
+/* 🎯 iPad Pro Portrait */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: portrait) {
+
+  .settings-wrapper {
+    padding-left: 220px; /* smaller than desktop */
+    padding-right: 15px;
+  }
+
+  .settings-header h3 {
+    font-size: 1.4rem;
+  }
+
+  .card {
+    margin-bottom: 15px; /* reduce gaps between cards */
+  }
+
+  .card-body, .card-header, .card-footer {
+    padding: 15px !important; /* reduce padding */
+  }
+
+  .quick-nav .btn {
+    padding: 6px 14px; /* smaller buttons */
+    font-size: 0.9rem;
+    min-width: 110px;
+  }
+}
+
+/* 🎯 iPad Pro Landscape */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: landscape) {
+
+  .settings-wrapper {
+    padding-left: 240px;
+    padding-right: 20px;
+  }
+
+  .settings-header h3 {
+    font-size: 1.5rem;
+  }
+
+  .card {
+    margin-bottom: 18px;
+  }
+
+  .card-body, .card-header, .card-footer {
+    padding: 18px !important;
+  }
+
+  .quick-nav .btn {
+    padding: 7px 16px;
+    font-size: 0.95rem;
+    min-width: 120px;
+  }
 }
 </style>

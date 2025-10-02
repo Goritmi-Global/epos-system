@@ -9,7 +9,7 @@ const form = reactive({
   receipt_footer: props.model?.receipt_footer ?? "",
   receipt_logo: props.model?.receipt_logo ?? null, // preview (URL or base64)
   receipt_logo_file: null, // file for backend
-  show_qr: props.model?.show_qr ?? true,
+  show_qr: props.model?.show_qr ?? 1,
   tax_breakdown: props.model?.tax_breakdown ?? true,
   kitchen_printer: props.model?.kitchen_printer ?? true,
   store_phone: props.model?.store_phone ?? "03101186261",
@@ -79,12 +79,12 @@ function onCropped({ file }) {
                 Show QR Code on Receipt
               </label>
               <div class="segmented">
-                <input class="segmented__input" type="radio" id="qr-yes" :value="true"
+                <input class="segmented__input" type="radio" id="qr-yes" :value="1"
                   :class="{ 'is-invalid': formErrors?.show_qr }" v-model="form.show_qr" />
-                <label class="segmented__btn" :class="{ 'is-active': form.show_qr === true }" for="qr-yes">YES</label>
+                <label class="segmented__btn" :class="{ 'is-active': form.show_qr === 1 }" for="qr-yes">YES</label>
 
-                <input class="segmented__input" type="radio" id="qr-no" :value="false" v-model="form.show_qr" />
-                <label class="segmented__btn" :class="{ 'is-active': form.show_qr === false }" for="qr-no">NO</label>
+                <input class="segmented__input" type="radio" id="qr-no" :value="0" v-model="form.show_qr" />
+                <label class="segmented__btn" :class="{ 'is-active': form.show_qr === 0 }" for="qr-no">NO</label>
                 <small v-if="formErrors?.show_qr" class="text-danger">
                   {{ formErrors.show_qr[0] }}
                 </small>
@@ -156,7 +156,7 @@ function onCropped({ file }) {
             <div class="d-flex justify-content-between"> <span>Total Price:</span><span>Rs 2000</span> </div>
             <div class="d-flex justify-content-between"> <span>Tax:</span><span>23%</span> </div>
           </div>
-          <div v-if="form.show_qr === 'yes'" class="d-flex justify-content-center my-2">
+          <div v-if="form.show_qr === 1" class="d-flex justify-content-center my-2">
             <div class="qr-box" aria-hidden="true"></div>
           </div>
           <hr class="my-2" />

@@ -58,7 +58,7 @@ const handleFile = async (e) => {
 <template>
   <div>
     <button
-      class="btn btn-outline-primary rounded-pill px-4"
+      class="btn btn-primary rounded-pill px-4"
       @click="triggerFile"
     >
       {{ label }}

@@ -1183,7 +1183,7 @@ const handleImport = (data) => {
     <Master>
         <div class="page-wrapper">
             <!-- Title -->
-            <h4 class="fw-semibold mb-3">Overall Inventory</h4>
+            <h4 class="mb-3">Overall Inventory</h4>
 
             <!-- KPI Cards -->
             <div class="row g-3">
@@ -1219,7 +1219,7 @@ const handleImport = (data) => {
                     <div
                         class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
                     >
-                        <h5 class="mb-0 fw-semibold">Stock</h5>
+                        <h4 class="mb-0">Stock</h4>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
@@ -1272,7 +1272,7 @@ const handleImport = (data) => {
                             <button
                                 data-bs-toggle="modal"
                                 data-bs-target="#addItemModal"
-                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                                class="d-flex align-items-center gap-1 px-4 py-2 btn-sm rounded-pill btn btn-primary text-white"
                                 @click="
                                     resetForm();
                                     formErrors = {};
@@ -1289,7 +1289,7 @@ const handleImport = (data) => {
                             <!-- Download all -->
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Download
@@ -2769,12 +2769,12 @@ const handleImport = (data) => {
 }
 
 .dark .select {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     color: #f9fafb !important;
 }
 
 .dark .card-header {
-    background-color: #000000;
+    background-color: #181818;
 }
 
 :root {
@@ -2794,7 +2794,7 @@ const handleImport = (data) => {
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #000000;
+    color: #181818;
 }
 
 /* Search pill */
@@ -2802,6 +2802,12 @@ const handleImport = (data) => {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+
+.dark .dropdown-menu{
+    background-color: #1B2431 !important;
+    color: #fff ip !important;
+}
+
 
 .search-wrap .bi-search {
     position: absolute;
@@ -2944,6 +2950,8 @@ const handleImport = (data) => {
     border: 1px solid #ccc !important;
 }
 
+
+
 /* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
@@ -3025,6 +3033,127 @@ const handleImport = (data) => {
     color: #80878e !important;
 }
 
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #000 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #000 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #000 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #000 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #000 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #000 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important; /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #000 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
+}
+
+
+.dark .logo-card {
+background-color: #000 !important;
+}
+
+.dark .logo-frame{
+    background-color: #000 !important;
+}
 /* Mobile tweaks */
 @media (max-width: 575.98px) {
     .kpi-value {
@@ -3043,4 +3172,86 @@ const handleImport = (data) => {
 .image-cropper-backdrop {
     z-index: 2000 !important;
 }
+
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: portrait) {
+
+  .page-wrapper {
+    padding: 12px !important;
+  }
+
+  .card {
+    border-radius: 16px !important;
+  }
+
+  .d-flex.align-items-center.justify-content-between {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+
+  .d-flex.gap-2.align-items-center {
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
+  }
+
+  .search-wrap {
+    width: 30% !important;
+    margin-bottom: 10px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.table th, 
+  table.table td {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+/* 🎯 iPad Pro 12.9" Landscape (1366 x 1024) */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: landscape) {
+
+  .page-wrapper {
+    padding: 16px !important;
+  }
+
+  .card-body {
+    padding: 20px !important;
+  }
+
+  .d-flex.align-items-center.justify-content-between {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .d-flex.gap-2.align-items-center {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .search-wrap {
+    min-width: 250px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+  }
+
+  table.table th, 
+  table.table td {
+    font-size: 15px;
+  }
+}
+
 </style>

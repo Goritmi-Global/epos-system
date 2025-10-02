@@ -141,33 +141,102 @@ const openActiveGroups = () => {
 /* =========================
    Sidebar state (3 modes)
    ========================= */
+const breakpoint = ref("desktop");
 const sidebarOpen = ref(true); // desktop: expanded by default
 const isMobile = ref(false);
+const isTablet = ref(false);
+const isDesktop = ref(true);
+
+
+const sidebarExpanded = ref(true); // desktop: expanded by default
+const overlayOpen = ref(false); // only meaningful on mobile
+
+
+const evaluateBreakpoint = () => {
+    const w = window.innerWidth;
+    if (w < 768) {
+        // Mobile
+        breakpoint.value = "mobile";
+        isMobile.value = true;
+        isTablet.value = false;
+        isDesktop.value = false;
+        overlayOpen.value = false; // hide overlay by default on resize
+        sidebarExpanded.value = false; // persistent state irrelevant on mobile
+    } else if (w < 992) {
+        // Tablet
+        breakpoint.value = "tablet";
+        isMobile.value = false;
+        isTablet.value = true;
+        isDesktop.value = false;
+        // Collapse the sidebar on tablet by default (icons-only).
+        sidebarExpanded.value = false;
+        overlayOpen.value = false;
+    } else {
+        // Desktop
+        breakpoint.value = "desktop";
+        isMobile.value = false;
+        isTablet.value = false;
+        isDesktop.value = true;
+        sidebarExpanded.value = true; // expanded on desktop
+        overlayOpen.value = false;
+    }
+};
+
+
+const toggleSidebar = () => {
+    if (isMobile.value) {
+        overlayOpen.value = !overlayOpen.value;
+    } else {
+        sidebarExpanded.value = !sidebarExpanded.value;
+    }
+};
 
 const evaluateMobile = () => {
     isMobile.value = window.innerWidth < 992;
 };
-const toggleSidebar = () => {
-    sidebarOpen.value = !sidebarOpen.value;
-};
 
 onMounted(() => {
-    evaluateMobile();
-    window.addEventListener("resize", evaluateMobile, { passive: true });
+    evaluateBreakpoint();
+    window.addEventListener("resize", evaluateBreakpoint, { passive: true });
+    // feather icons setup and open active groups (same as before)
     window.feather?.replace();
     openActiveGroups();
 });
-onBeforeUnmount(() => window.removeEventListener("resize", evaluateMobile));
+onBeforeUnmount(() => window.removeEventListener("resize", evaluateBreakpoint));
 onUpdated(() => window.feather?.replace());
+
+// const toggleSidebar = () => {
+//     sidebarOpen.value = !sidebarOpen.value;
+// };
+
+// onMounted(() => {
+//     evaluateMobile();
+//     window.addEventListener("resize", evaluateMobile, { passive: true });
+//     window.feather?.replace();
+//     openActiveGroups();
+// });
+// onBeforeUnmount(() => window.removeEventListener("resize", evaluateMobile));
+// onUpdated(() => window.feather?.replace());
 </script>
 
 <template>
     <div class="layout-root" :class="{
-        'state-desktop': !isMobile,
+        /* explicit breakpoint classes */
+        'state-desktop': isDesktop,
+        'state-tablet': isTablet,
         'state-mobile': isMobile,
-        'sidebar-open': sidebarOpen,
-        'sidebar-collapsed': !sidebarOpen && !isMobile, // desktop mini
-        'sidebar-overlay': isMobile, // mobile overlay behavior
+
+        /* whether sidebar is logically open:
+           - on mobile -> overlayOpen (overlay visible)
+           - on tablet/desktop -> sidebarExpanded (persistent expanded)
+        */
+        'sidebar-open': isMobile ? overlayOpen : sidebarExpanded,
+
+        /* collapsed mini state applies to persistent sidebar (desktop/tablet) */
+        'sidebar-collapsed': (isDesktop || isTablet) && !sidebarExpanded,
+
+        /* keeps mobile-specific overlay behaviour */
+        'sidebar-overlay': isMobile
     }">
         <!-- =================== HEADER =================== -->
         <header class="header">
@@ -175,11 +244,11 @@ onUpdated(() => window.feather?.replace());
                 <a href="javascript:void(0)" class="logo">
                     <img src="/assets/img/logo-trans.png" alt="logo" />
                 </a>
+
+                <!-- Toggle button: uses new toggleSidebar (behaviour differs by breakpoint) -->
                 <button class="icon-btn" @click="toggleSidebar" aria-label="Toggle sidebar">
                     <i data-feather="menu"></i>
                 </button>
-
-
             </div>
 
             <div class="header-center">
@@ -192,8 +261,8 @@ onUpdated(() => window.feather?.replace());
             <ul class="nav user-menu">
                 <li class="nav-item">
                     <button class="icon-btn" @click="toggleDark()">
-                        <Sun v-if="isDark" :size="20"  />
-                        <Moon  v-else :size="20"/>
+                        <Sun v-if="isDark" :size="20" />
+                        <Moon v-else :size="20" />
                     </button>
                 </li>
                 <li class="nav-item dropdown has-arrow flag-nav">
@@ -256,15 +325,12 @@ onUpdated(() => window.feather?.replace());
                             </div>
                             <hr class="m-0" />
                             <a class="dropdown-item" href="javascript:void(0)"><i class="me-2" data-feather="user"></i>
-                                My
-                                Profile</a>
+                                My Profile</a>
                             <a class="dropdown-item" href="javascript:void(0)"><i class="me-2"
-                                    data-feather="settings"></i>
-                                Settings</a>
+                                    data-feather="settings"></i> Settings</a>
                             <hr class="m-0" />
                             <Link :href="route('logout')" method="post" as="button" class="dropdown-item text-danger">
-                            <i class="me-2" data-feather="log-out"></i> Log
-                            Out
+                            <i class="me-2" data-feather="log-out"></i> Log Out
                             </Link>
                         </div>
                     </div>
@@ -274,138 +340,87 @@ onUpdated(() => window.feather?.replace());
         <!-- =================== /HEADER =================== -->
 
         <!-- =================== SIDEBAR =================== -->
-        <aside class="sidebar" id="sidebar" aria-label="Primary">
-            <div class="sidebar-inner">
-                <div id="sidebar-menu" class="sidebar-menu px-2">
-                    <ul class="mb-3">
-                        <template v-for="block in sidebarMenus" :key="block.label || block.section">
-                            <!-- Simple top item -->
-                            <li v-if="!block.section" :class="{ active: isActive(block.route) }">
-                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                                <i :data-feather="block.icon" class="me-2 icons"></i>
-                                <span class="truncate-when-mini">{{
-                                    block.label
-                                    }}</span>
-                                </Link>
-                            </li>
+       <aside class="sidebar" id="sidebar" aria-label="Primary">
+      <div class="sidebar-inner">
+        <div id="sidebar-menu" class="sidebar-menu px-2">
+          <ul class="mb-3">
+            <template v-for="block in sidebarMenus" :key="block.label || block.section">
+              <!-- Simple top item -->
+              <li v-if="!block.section" :class="{ active: isActive(block.route) }">
+                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
+                  <i :data-feather="block.icon" class="me-2 icons"></i>
+                  <span class="truncate-when-mini">{{ block.label }}</span>
+                </Link>
+              </li>
 
-                            <!-- Section -->
-                            <template v-else>
-                                <li
-                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
-                                    {{ block.section }}
-                                </li>
+              <!-- Section -->
+              <template v-else>
+                <li class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
+                  {{ block.section }}
+                </li>
 
-                                <template v-for="item in block.children" :key="item.label">
-                                    <!-- Dropdown group -->
-                                    <li v-if="
-                                        item.children &&
-                                        item.children.length
-                                    ">
-                                        <button class="d-flex align-items-center  side-link px-3 py-2 w-100 border-0"
-                                            :class="{
-                                                active:
-                                                    openGroups.has(
-                                                        item.label
-                                                    ) ||
-                                                    isAnyChildActive(
-                                                        item.children
-                                                    ),
-                                            }" @click="toggleGroup(item.label)" type="button" :aria-expanded="openGroups.has(item.label) ||
-                                                isAnyChildActive(item.children)
-                                                ">
-                                            <i :data-feather="item.icon" class="me-2"></i>
-                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                            }}</span>
-                                            <i :data-feather="openGroups.has(
-                                                item.label
-                                            ) ||
-                                                isAnyChildActive(
-                                                    item.children
-                                                )
-                                                ? 'chevron-up'
-                                                : 'chevron-down'
-                                                "></i>
-                                        </button>
-
-                                        <!-- class="list-unstyled ms-4 my-1" -->
-                                        <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) ||
-                                            isAnyChildActive(item.children)
-                                            ">
-                                            <li v-for="child in item.children" :key="child.label" :class="{
-                                                active: isActive(
-                                                    child.route
-                                                ),
-                                            }">
-                                                <Link :href="route(child.route)" :method="child.method || 'get'
-                                                    " class="d-flex align-items-center side-link px-3 py-2">
-                                                <i :data-feather="child.icon
-                                                    " class="me-2"></i>
-                                                <span>{{
-                                                    child.label
-                                                    }}</span>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </li>
-
-                                    <!-- Flat item -->
-                                    <li v-else :class="{
-                                        active: isActive(item.route),
-                                    }">
-                                        <Link :href="route(item.route)" :method="item.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2">
-                                        <i :data-feather="item.icon" class="me-2"></i>
-                                        <span class="truncate-when-mini">{{
-                                            item.label
-                                            }}</span>
-                                        </Link>
-                                    </li>
-                                </template>
-                            </template>
-                        </template>
-                    </ul>
-                </div>
-
-                <!-- Optional sidebar footer -->
-                <!-- <div class="p-3 border-top small truncate-when-mini">
-                    <div
-                        class="d-flex align-items-center justify-content-between mb-2"
+                <template v-for="item in block.children" :key="item.label">
+                  <!-- Dropdown group -->
+                  <li v-if="item.children && item.children.length">
+                    <button
+                      class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                      :class="{ active: openGroups.has(item.label) || isAnyChildActive(item.children) }"
+                      @click="toggleGroup(item.label)"
+                      type="button"
+                      :aria-expanded="openGroups.has(item.label) || isAnyChildActive(item.children)"
                     >
-                        <span>Dark Mode</span>
-                        <input type="checkbox" class="form-check-input" />
-                    </div>
-                    <button class="btn btn-danger w-100 mb-2 rounded-pill">
-                        System Restore
+                      <i :data-feather="item.icon" class="me-2"></i>
+                      <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
+                      <i :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                     </button>
-                    <button class="btn btn-primary w-100 rounded-pill">
-                        Upgrade to Premium
-                    </button>
-                </div> -->
-            </div>
-        </aside>
+
+                    <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) || isAnyChildActive(item.children)">
+                      <li v-for="child in item.children" :key="child.label" :class="{ active: isActive(child.route) }">
+                        <Link :href="route(child.route)" :method="child.method || 'get'" class="d-flex align-items-center side-link px-3 py-2">
+                          <i :data-feather="child.icon" class="me-2"></i>
+                          <span>{{ child.label }}</span>
+                        </Link>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <!-- Flat item -->
+                  <li v-else :class="{ active: isActive(item.route) }">
+                    <Link :href="route(item.route)" :method="item.method || 'get'" class="d-flex align-items-center side-link px-3 py-2">
+                      <i :data-feather="item.icon" class="me-2"></i>
+                      <span class="truncate-when-mini">{{ item.label }}</span>
+                    </Link>
+                  </li>
+                </template>
+              </template>
+            </template>
+          </ul>
+        </div>
+      </div>
+    </aside>
 
         <!-- Mobile overlay backdrop -->
-        <div v-if="isMobile && sidebarOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
+       <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
         <!-- =================== /SIDEBAR =================== -->
 
         <!-- =================== PAGE CONTENT =================== -->
         <!-- <main class="page-wrapper"> -->
-        <main class="content bg-white dark:bg-gray-900 text-black dark:text-white">
-            <slot />
-        </main>
-    </div>
+       <main class="content bg-white dark:bg-gray-900 text-black dark:text-white">
+      <slot />
+    </main>
+  </div>
 </template>
 
 <style>
 /* ========= CSS VARIABLES ========= */
 :root {
-    --header-h: 64px;
-    --sidebar-w: 280px;
-    --sidebar-w-collapsed: 0px;
-    --brand: #1B2850;
-    --bg-muted: #f5f6f8;
-    --border: #eef0f3;
+  --header-h: 64px;
+  --sidebar-w: 280px;           /* desktop full width */
+  --sidebar-w-tablet: 220px;    /* tablet full width (slightly smaller) */
+  --sidebar-w-collapsed: 72px;  /* collapsed (icons-only) width for desktop/tablet */
+  --brand: #1B2850;
+  --bg-muted: #f5f6f8;
+  --border: #eef0f3;
 }
 
 
@@ -419,19 +434,19 @@ onUpdated(() => window.feather?.replace());
 
 
 .dark input {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark textarea {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .select {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
@@ -444,68 +459,72 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
 }
 
-.dark h6{
-      color: #fff !important;
-}
-
-.dark span{
-     color: #fff !important;
-}
-.dark button {
-    color: #f9fafb !important;
-}
-.dark a{
+.dark h6 {
     color: #fff !important;
 }
+
+.dark span {
+    color: #fff !important;
+}
+
+.dark button {
+    background-color: #181818 !important;
+    color: #f9fafb !important;
+}
+
+.dark a {
+    color: #fff !important;
+}
+
 .dark .card {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #ffffff !important;
     /* gray-50 */
 }
 
 .dark .table {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-900 */
     color: #f9fafb !important;
 }
 
 .dark .table thead {
-    background-color: #000000;
+    background-color: #181818;
     color: #f9fafb;
 }
 
 .dark .table thead th {
-    background-color: #000000;
+    background-color: #181818;
     color: #f9fafb;
 }
 
 .dark .table tbody td {
-    background-color: #000000;
+    background-color: #181818;
     color: #f9fafb;
 }
 
 html.dark {
     --brand: #ffffff;
-    --bg-muted: #1f2937;
-    --border: #374151;
-    background: #000000;
+    --bg-muted: #212121;
+    --border: #212121;
+    background: #181818;
     color: #f9fafb;
 }
 
 html.dark .page-wrapper {
-    background: #1f2937;
-    border-bottom-color: #374151;
+    background: #212121;
+    border-bottom-color: #212121;
 }
 
 html.dark .header {
-    background: #000000;
+    background: #181818;
     border-bottom-color: #ffffff;
 }
 
 html.dark .sidebar {
-    background: #000000;
-    /* border-right-color: #374151; */
+    background: #181818;
+    /* border-right-color: #212121; */
     color: white;
 }
 
@@ -513,30 +532,43 @@ html.dark .side-link {
     color: #ffffff;
 }
 
+.dark .btn-secondary{
+    background-color:  #212121 !important;
+}
+
+.dark .text-muted{
+    color: #fff !important;
+}
+.dark .dropdown-menu{
+    background-color: #1B2431 !important;
+    color: #fff ip !important;
+}
+
 html.dark .side-link:hover {
-    background: #ffffff;
-    color: #000000 !important;
+   color: #fff !important;
+    /* your brand color */
+    background: #1B2850 !important;
 }
 
 html.dark .main {
-    background: #374151;
+    background: #212121;
     color: #fff;
 }
 
 .dark .dash-widget {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h5 {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h6 {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     ;
     color: #ffffff;
 }
@@ -680,6 +712,7 @@ html.dark .main {
     height: 34px;
 }
 
+
 .user-img img {
     width: 100%;
     height: 100%;
@@ -702,6 +735,20 @@ html.dark .main {
     background: var(--brand);
     color: #fff;
     font-size: 12px;
+}
+
+.state-mobile .header-center {
+  display: none; /* keep header compact on small screens */
+}
+.state-tablet .header-center {
+  max-width: 320px;
+}
+
+/* top-nav-search smaller on small devices */
+@media (max-width: 767px) {
+  .top-nav-search {
+    max-width: 160px;
+  }
 }
 
 /* ========= SIDEBAR ========= */
@@ -749,21 +796,22 @@ html.dark .main {
 }
 
 .dark .side-link:hover {
-    background: #000000;
+    background: #181818;
     color: #fff;
 }
 
 .side-link.active,
 li.active>.side-link {
     background: var(--brand);
-    color: #eef2ff;
+    color: #ffffff;
     font-weight: 600;
 }
 
 .dark .side-link.active,
 li.active>.side-link {
-    background: #ffffff !important;
-    color: #000000 !important;
+   color: #fff !important;
+    /* your brand color */
+    background: #1B2850 !important;
     font-weight: 600;
 }
 
@@ -782,6 +830,15 @@ li.active>.side-link {
 
 .state-desktop.sidebar-collapsed .page-wrapper {
     margin-left: var(--sidebar-w-collapsed);
+}
+
+.state-desktop.sidebar-collapsed .truncate-when-mini,
+.state-tablet.sidebar-collapsed .truncate-when-mini {
+  /* icons-only: hide long text but keep icons visible */
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 /* Hide long text when mini */
@@ -861,10 +918,17 @@ li.active>.side-link {
     /* indent compared to parent */
     font-size: 0.9rem;
     /* slightly smaller */
-    color: #6c757d;
+    color: #520808;
     /* muted text */
 }
 
+
+.dark .sidebar .sidebar-menu>ul>li.active a{
+     color: #fff;
+    /* your brand color */
+    background: #1B2850 !important;
+    /* light hover */
+}
 .dark .sidebar .list-unstyled li .side-link {
     padding-left: 2.5rem;
     /* indent compared to parent */
@@ -882,9 +946,9 @@ li.active>.side-link {
 }
 
 .dark .sidebar .list-unstyled li .side-link:hover {
-    color: #000000 !important;
-    background: #ffffff !important;
-    /* light hover */
+   background: #1B2850 !important;
+    /* brand background */
+    color: #fff;
 }
 
 .sidebar .list-unstyled li.active>.side-link {
@@ -895,10 +959,15 @@ li.active>.side-link {
 }
 
 .dark .sidebar .list-unstyled li.active>.side-link {
-    background: #000000;
+    background: #1B2850 !important;
     /* brand background */
     color: #fff;
     font-weight: 500;
+}
+
+.dark .btn-primary{
+    background-color: #181818 !important;
+    border: #181818 !important;
 }
 
 
@@ -946,6 +1015,126 @@ li.active>.side-link {
     font-size: 28px;
     line-height: 0;
 }
+.state-tablet .sidebar {
+  width: var(--sidebar-w-tablet);
+}
+.state-tablet .page-wrapper {
+  margin-left: var(--sidebar-w-tablet);
+}
+
+/* Tablet collapsed: use the same collapsed icons-only width */
+.state-tablet.sidebar-collapsed .sidebar {
+  width: var(--sidebar-w-collapsed);
+}
+.state-tablet.sidebar-collapsed .page-wrapper {
+  margin-left: var(--sidebar-w-collapsed);
+}
+
+/* ========= MOBILE (OVERLAY) ========= */
+/* Mobile uses overlay approach: sidebar is off-canvas by default */
+.state-mobile .page-wrapper {
+  margin-left: 0;
+}
+
+/* On mobile keep full width for the sidebar when it slides in */
+.state-mobile .sidebar {
+  width: var(--sidebar-w);
+  transform: translateX(-100%);
+}
+
+/* When mobile overlay 'sidebar-open' class present -> slide in */
+.state-mobile.sidebar-open .sidebar {
+  transform: translateX(0);
+}
+
+/* Backdrop for mobile overlay (unchanged) */
+.overlay-backdrop {
+  position: fixed;
+  inset: var(--header-h) 0 0 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1015;
+}
+
+/* ========= UTIL ========= */
+.truncate-when-mini {
+  display: inline-block;
+  max-width: 100%;
+}
+/* Scrollbars (optional) - keep as before */
+.sidebar-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-menu::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 8px;
+}
+
+/* Submenu indentation when collapsed still respects icons-only */
+.sidebar .list-unstyled li .side-link {
+  padding-left: 2.5rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+/* When the sidebar is collapsed, ensure nested labels are hidden */
+.state-desktop.sidebar-collapsed .sidebar .list-unstyled li .side-link span,
+.state-tablet.sidebar-collapsed .sidebar .list-unstyled li .side-link span {
+  /* hide text of nested items when in icons-only mode */
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .logo img {
+    height: 36px;
+  }
+}
+
+
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: portrait) {
+    
+    /* Example: Adjust sidebar width */
+    .sidebar {
+        width: 200px; /* smaller than desktop */
+    }
+
+    .page-wrapper {
+        margin-left: 190px; /* align content */
+    }
+
+    /* Adjust header for tablet */
+    .header {
+        padding: 0 12px;
+    }
+}
+
+/* Landscape mode */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1366px) 
+  and (orientation: landscape) {
+    
+    .sidebar {
+        width: 200px;
+    }
+
+    .page-wrapper {
+        margin-left: 200px;
+    }
+
+    .header {
+        padding: 0 10px;
+    }
+}
+
+
+
+
 
 /* dark code for modal */
 .dark .modal-content {
@@ -964,5 +1153,5 @@ li.active>.side-link {
     background-color: #141414 !important; 
     color: #f9fafb !important;
 }
- 
+
 </style>

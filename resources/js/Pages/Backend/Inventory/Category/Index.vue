@@ -825,7 +825,7 @@ const handleImport = (data) => {
 <template>
     <Master>
         <div class="page-wrapper">
-            <h4 class="fw-semibold mb-3">Inventory Categories</h4>
+            <h4 class="mb-3">Inventory Categories</h4>
 
             <!-- KPI -->
             <div class="row g-3">
@@ -868,7 +868,7 @@ const handleImport = (data) => {
                     <div
                         class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
                     >
-                        <h5 class="mb-0 fw-semibold">Categories</h5>
+                        <h4 class="mb-0">Categories</h4>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
@@ -891,7 +891,7 @@ const handleImport = (data) => {
                                         resetModal();
                                     }
                                 "
-                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                                class="d-flex align-items-center gap-1 px-4 py-2 btn-sm rounded-pill btn btn-primary text-white"
                             >
                                 <Plus class="w-4 h-4" /> Add Category
                             </button>
@@ -901,7 +901,7 @@ const handleImport = (data) => {
                             />
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary rounded-pill btn-sm px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Download
@@ -1791,6 +1791,119 @@ const handleImport = (data) => {
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
+}
+
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #000 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #000 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #000 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #000 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #000 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #000 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important; /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #000 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
 }
 
 /* Mobile */
