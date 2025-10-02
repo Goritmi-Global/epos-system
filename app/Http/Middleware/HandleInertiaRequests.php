@@ -67,24 +67,24 @@ class HandleInertiaRequests extends Middleware
             'optional_features'     => ProfileStep9::class,
         ];
 
-        // Build onboarding payload (only when logged in)
-        $onboarding = [];
+        //  initialize
+        $onboarding   = [];
+        $businessInfo = null;
+    
         if ($user) {
             foreach ($models as $key => $modelClass) {
                 $cols = $fields[$key] ?? ['id'];
-                $row  = $modelClass::where('user_id', $user->id)
-                    ->select($cols)
-                    ->first();
-
+                $row  = $modelClass::where('user_id', $user->id)->select($cols)->first();
                 $onboarding[$key] = $row ? $row->toArray() : null;
             }
-        }
- 
 
-        // Getting Bunsiness informations
-        $businessInfo = $onboarding['business_information'];
-        $imageUrl = UploadHelper::url($businessInfo['upload_id']);
-        $businessInfo['image_url'] = $imageUrl;
+            // Safely build business info with image_url
+            $info     = $onboarding['business_information'] ?? null;
+            $uploadId = data_get($info, 'upload_id');
+            $imageUrl = $uploadId ? UploadHelper::url((int)$uploadId) : null;
+
+            $businessInfo = $info ? array_merge($info, ['image_url' => $imageUrl]) : null;
+        }
 
         // Normalized formatting block for the SPA
        $fmt = [

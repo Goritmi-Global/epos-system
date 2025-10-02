@@ -348,54 +348,15 @@ onUpdated(() => window.feather?.replace());
                 </li>
 
                 <li class="nav-item dropdown has-arrow main-drop">
-                    <a
-                        href="javascript:void(0);"
-                        class="dropdown-toggle nav-link userset"
-                        data-bs-toggle="dropdown"
-                    >
-                        <span class="user-img">
-                            <img
-                                src="/assets/img/profiles/avator1.jpg"
-                                alt=""
-                            />
-                            <span class="status online"></span>
-                        </span>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-end menu-drop-user">
-                        <div class="profilename">
-                            <div class="profileset">
-                                <span class="user-img">
-                                    <img
-                                        src="/assets/img/profiles/avator1.jpg"
-                                        alt=""
-                                    />
-                                    <span class="status online"></span>
-                                </span>
-                                <div class="profilesets">
-                                    <h6>{{ logedIUser.name }}</h6>
-                                    <h5>Admin</h5>
-                                </div>
-                            </div>
-                            <hr class="m-0" />
-                            <a class="dropdown-item" href="javascript:void(0)"
-                                ><i class="me-2" data-feather="user"></i> My
-                                Profile</a
-                            >
-                            <a class="dropdown-item" href="javascript:void(0)"
-                                ><i class="me-2" data-feather="settings"></i>
-                                Settings</a
-                            >
-                            <hr class="m-0" />
-                            <Link
-                                :href="route('logout')"
-                                method="post"
-                                as="button"
-                                class="dropdown-item text-danger"
-                            >
-                                <i class="me-2" data-feather="log-out"></i> Log
-                                Out
-                            </Link>
-                        </div>
+                    <span class="user-img">
+                        <i class="bi bi-person-circle"></i>
+                    </span>
+                    <div class="ms-2 d-none d-sm-block">
+                        <b class="fw-bold text-black">{{ logedIUser.name }}</b>
+                        <br />
+                        <small style="color: #1b2850 !important"
+                            >Super Admin</small
+                        >
                     </div>
                 </li>
             </ul>
@@ -858,19 +819,19 @@ html.dark .main {
 }
 
 /* Profile avatar + online dot alignment */
-.user-img {
+/* .user-img {
     position: relative;
     display: inline-block;
     width: 34px;
     height: 34px;
-}
+} */
 
-.user-img img {
+/* .user-img img {
     width: 100%;
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-}
+} */
 
 .status.online {
     position: absolute;
@@ -1296,5 +1257,9 @@ li.active > .side-link {
 .dark .modal-header {
     background-color: #141414 !important;
     color: #f9fafb !important;
+}
+
+.header .user-img {
+    font-size: 35px;
 }
 </style>
