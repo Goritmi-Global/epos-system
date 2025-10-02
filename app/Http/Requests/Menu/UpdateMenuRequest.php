@@ -26,6 +26,7 @@ class UpdateMenuRequest extends FormRequest
             'category_id'   => ['required', 'numeric', 'exists:menu_categories,id'],
             'subcategory_id' => ['nullable', 'numeric', 'exists:menu_categories,id'],
             'description'   => ['nullable', 'string'],
+            'label_color'   => ['required', 'string'],
             'price'         => ['required', 'numeric', 'gt:0'],
 
             // nutrition

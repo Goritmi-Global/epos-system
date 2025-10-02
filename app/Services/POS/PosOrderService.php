@@ -21,7 +21,7 @@ class PosOrderService
     public function __construct(private StockEntryService $stockEntryService) {}
 
     public function list(array $filters = [])
-    { 
+    {
         return PosOrder::query()
             ->when($filters['status'] ?? null, fn($q, $v) => $q->where('status', $v))
             ->orderByDesc('id')
@@ -229,7 +229,8 @@ class PosOrderService
             return [
                 'id'    => $cat->id,
                 'name'  => $cat->name,
-                'icon'  => $cat->icon, 
+                'icon'  => $cat->icon,
+                'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
                 'menu_items_count' => $cat->menu_items_count,
                 'children' => $cat->children,
             ];
