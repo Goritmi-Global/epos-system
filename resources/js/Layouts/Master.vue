@@ -220,6 +220,19 @@ onUpdated(() => window.feather?.replace());
 // });
 // onBeforeUnmount(() => window.removeEventListener("resize", evaluateMobile));
 // onUpdated(() => window.feather?.replace());
+
+// Modal form state
+const profileForm = ref({
+    username: logedIUser.name ?? "",
+    password: "",
+    pin: "",
+    role: "Super Admin",
+});
+
+const updateProfile = () => {
+    // wire to your endpoint later
+    // e.g. router.post('/profile/update', profileForm.value)
+};
 </script>
 
 <template>
@@ -354,7 +367,11 @@ onUpdated(() => window.feather?.replace());
                     </div>
                 </li>
 
-                <li class="nav-item dropdown has-arrow main-drop">
+                <li
+                    class="nav-item dropdown has-arrow main-drop cursor-pointer"
+                    data-bs-toggle="modal"
+                    data-bs-target="#userProfileModal"
+                >
                     <span class="user-img">
                         <i class="bi bi-person-circle"></i>
                     </span>
@@ -539,6 +556,75 @@ onUpdated(() => window.feather?.replace());
         >
             <slot />
         </main>
+    </div>
+
+    <!-- user data update modal -->
+    <div
+        class="modal fade"
+        id="userProfileModal"
+        tabindex="-1"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content bg-dark text-white rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">User Profile</h5>
+                    <button
+                        type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                    ></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">UserName</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                v-model="profileForm.username"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password</label>
+                            <input
+                                type="password"
+                                class="form-control"
+                                v-model="profileForm.password"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Pin</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                v-model="profileForm.pin"
+                            />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                v-model="profileForm.role"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button
+                        type="button"
+                        class="btn btn-primary w-100 rounded-pill py-2 fw-semibold"
+                        @click="updateProfile"
+                    >
+                        Update
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
