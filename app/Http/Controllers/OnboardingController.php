@@ -184,11 +184,13 @@ class OnboardingController extends Controller
                 'order_types' => 'required|array|min:1',
                 'table_management_enabled' => 'required|boolean',
                 'online_ordering' => 'required|boolean',
-                'tables' => 'required_if:table_management_enabled,1|integer|min:1',
-                'table_details' => 'required_if:table_management_enabled,1|array|min:1',
-                'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
-                'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
+
+                'tables' => 'exclude_unless:table_management_enabled,1|integer|min:1',
+                'table_details' => 'exclude_unless:table_management_enabled,1|array|min:1',
+                'table_details.*.name' => 'exclude_unless:table_management_enabled,1|string|max:255',
+                'table_details.*.chairs' => 'exclude_unless:table_management_enabled,1|integer|min:1',
             ]),
+
 
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
@@ -353,7 +355,7 @@ class OnboardingController extends Controller
 
         // Save Step 2 (logo already uploaded in saveStep)
         if (!empty($stepData[2])) {
-           
+
             // Just save the upload_id that was stored
             ProfileStep2::updateOrCreate(['user_id' => $user->id], $stepData[2]);
         }
