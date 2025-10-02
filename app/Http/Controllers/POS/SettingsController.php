@@ -89,8 +89,9 @@ class SettingsController extends Controller
 
 
         $request->replace($payload);
-        // Use the same validation rules from OnboardingController
-        $data = $this->validateStep($request, $step);
+        $existingStepData = $this->getExistingStepData($user->id, $step);
+
+        $data = $this->validateStep($request, $step, $existingStepData);
         // dd($data);
 
         //  Step 2
@@ -245,19 +246,35 @@ class SettingsController extends Controller
     }
 
     /**
+     * Get existing step data for validation context
+     */
+    private function getExistingStepData(int $userId, int $step): array
+    {
+        $modelClass = "App\\Models\\ProfileStep{$step}";
+
+        if (class_exists($modelClass)) {
+            $stepData = $modelClass::where('user_id', $userId)->first();
+            return $stepData ? $stepData->toArray() : [];
+        }
+
+        return [];
+    }
+
+    /**
      * Validate step data (reuse validation from onboarding)
      */
-    private function validateStep(Request $request, int $step): array
+    private function validateStep(Request $request, int $step, array $existingData = []): array
     {
         return match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone_id'     => 'required|string|max:100',
+                'timezone_id'  => 'required|integer|exists:timezones,id', // FIXED: Changed from string to integer with exists check
                 'language'     => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
                 'country_code.exists'   => 'Selected country is invalid',
-                'timezone_id.required'     => 'Timezone field is required',
+                'timezone_id.required'  => 'Timezone field is required',
+                'timezone_id.exists'    => 'Selected timezone is invalid', // FIXED: Added error message
                 'language.required'     => 'Language field is required',
             ]),
 
@@ -272,9 +289,9 @@ class SettingsController extends Controller
                     'address'       => 'required|string|max:500',
                     'website'       => 'required|max:190',
                     'logo'          => 'nullable',
-                    // Check if logo was already uploaded
-                    'logo_file'     => (!empty($tempData['upload_id']) || !empty($tempData['logo_url']))
-                        ? 'nullable'
+                    // FIXED: Check existing data properly
+                    'logo_file'     => (!empty($existingData['upload_id']) || !empty($existingData['logo_url']))
+                        ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                         : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 ],
                 [
@@ -303,8 +320,8 @@ class SettingsController extends Controller
                 'tax_rate.required_if'        => 'The Tax Rate field is required when Tax Registered is checked Yes.',
                 'tax_rate.min'                => 'The Tax Rate cannot be less than 0%.',
                 'tax_rate.max'                => 'The Tax Rate cannot exceed 100%.',
-                'extra_tax_rates.min'                => 'The Extra Tax Rate cannot be less than 0%.',
-                'extra_tax_rates.max'                => 'The Extra Tax Rate cannot exceed 100%.',
+                'extra_tax_rates.min'         => 'The Extra Tax Rate cannot be less than 0%.',
+                'extra_tax_rates.max'         => 'The Extra Tax Rate cannot exceed 100%.',
                 'tax_id.required_if'          => 'The Tax ID field is required when Tax Registered is checked Yes.',
                 'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
             ]),
@@ -331,14 +348,16 @@ class SettingsController extends Controller
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
                 'receipt_logo' => 'nullable',
-                // Same logic for receipt logo
-                'receipt_logo_file' => (!empty($tempData['upload_id']) || !empty($tempData['receipt_logo_url']))
-                    ? 'nullable'
+                // FIXED: Check existing data properly
+                'receipt_logo_file' => (!empty($existingData['upload_id']) || !empty($existingData['receipt_logo_url']))
+                    ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',
                 'printers' => 'nullable|array',
+            ], [
+                'receipt_logo_file.required' => 'Please upload a receipt logo.',
             ]),
 
             7 => $request->validate([
@@ -365,6 +384,7 @@ class SettingsController extends Controller
                 'feat_multilocation' => 'required|in:yes,no',
                 'feat_theme' => 'required|in:yes,no',
             ]),
+
             default => []
         };
     }
