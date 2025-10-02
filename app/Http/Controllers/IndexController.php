@@ -14,8 +14,13 @@ class IndexController extends Controller
     public function countries()
     {
         return Country::orderBy('name')
-            ->get(['iso2 as code', 'name']);
+            ->get([
+                'iso2 as code',
+                'name',
+                'phone_code'
+            ]);
     }
+
 
     public function countries_pluck()
     {
@@ -27,26 +32,34 @@ class IndexController extends Controller
             ])
             ->values();
     }
-    
+
     public function countryDetails(Request $request, $country_code)
     {
         $country = Country::where('iso2', strtoupper($country_code))
-            ->with('defaultTimezone')
+            ->with(['timezones' => function ($q) {
+                $q->orderByDesc('is_default');
+            }])
             ->first();
+
 
         if (!$country) {
             return response()->json(['message' => 'Country not found'], 404);
         }
 
-        $tz = $country->defaultTimezone;
-        $dt = new \DateTime('now', new \DateTimeZone($tz->name));
-        $formattedTimezone = "GMT (UTC{$dt->format('P')})";
+        $timezones = $country->timezones->map(function ($tz) {
+            $dt = new \DateTime('now', new \DateTimeZone($tz->name));
+            return [
+                'id'        => $tz->id,
+                'name'      => $tz->name,
+                'gmt'       => 'GMT (UTC' . $dt->format('P') . ')',
+                'is_default' => $tz->is_default,
+            ];
+        });
 
         return response()->json([
-            'country_name'  => $country->name,
-            'country_code'  => $country->iso2,
-            'timezone'      => $formattedTimezone,
-            'timezone_name' => $tz->name,
+            'country_name' => $country->name,
+            'country_code' => $country->iso2,
+            'timezones'    => $timezones,
         ]);
     }
 }

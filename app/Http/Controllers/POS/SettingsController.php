@@ -252,12 +252,12 @@ class SettingsController extends Controller
         return match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone'     => 'required|string|max:100',
+                'timezone_id'     => 'required|string|max:100',
                 'language'     => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
                 'country_code.exists'   => 'Selected country is invalid',
-                'timezone.required'     => 'Timezone field is required',
+                'timezone_id.required'     => 'Timezone field is required',
                 'language.required'     => 'Language field is required',
             ]),
 
@@ -406,7 +406,7 @@ class SettingsController extends Controller
             'address',
             'website',
             'currency',
-            'timezone',
+            'timezone_id',
             'language',
         ];
 

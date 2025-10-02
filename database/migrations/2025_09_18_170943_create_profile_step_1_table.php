@@ -12,10 +12,11 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
 
             // Add country_id foreign key
-            $table->string('country_id', 3)->nullable(); 
+            $table->string('country_id', 3)->nullable();
             $table->foreign('country_id')->references('id')->on('countries');
 
-            $table->string('timezone')->nullable();
+            $table->unsignedBigInteger('timezone_id')->nullable();
+            $table->foreign('timezone_id')->references('id')->on('timezones')->nullOnDelete();
             $table->string('language')->nullable();
 
             $table->unique('user_id');

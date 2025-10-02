@@ -24,12 +24,6 @@ return new class extends Migration
             $table->string('region', 8)->nullable();
             $table->string('subregion', 25)->nullable();
 
-            // FK for default timezone
-            $table->foreignId('default_timezone_id')
-                  ->nullable()
-                  ->constrained('timezones') // shorthand for foreign key
-                  ->nullOnDelete();          // same as ON DELETE SET NULL
-
             $table->index('iso2');
             $table->index('iso3');
             $table->index('name');
