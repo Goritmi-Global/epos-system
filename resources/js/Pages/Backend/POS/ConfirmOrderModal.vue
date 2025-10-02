@@ -2,6 +2,9 @@
 import { computed, ref } from "vue";
 import StripePayment from "./StripePayment.vue";
 import SplitPayment from "./SplitPayment.vue";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 const props = defineProps({
     show: Boolean,
     customer: String,
@@ -198,14 +201,14 @@ item, index
                                                             </td>
                                                             <td class="text-end">
                                                                 {{
-                                                                    money(
+                                                                    formatMoney(
                                                                         item.price
                                                                     )
                                                                 }}
                                                             </td>
                                                             <td class="text-end fw-bold">
                                                                 {{
-                                                                    money(
+                                                                    formatMoney(
                                                                         (Number(
                                                                             item.price
                                                                         ) ||
@@ -226,7 +229,7 @@ item, index
                                                             </td>
                                                             <td class="text-end text-success">
                                                                 {{
-                                                                    money(
+                                                                    formatMoney(
                                                                         grandTotal
                                                                     )
                                                                 }}
@@ -287,7 +290,7 @@ item, index
                                                         ? 'text-danger fw-bold'
                                                         : 'text-success fw-bold'
                                                     ">
-                                                    {{ money(changeAmount) }}
+                                                    {{ formatMoney(changeAmount) }}
                                                 </span>
                                             </div>
                                             <!-- Auto Print KOT CheckBox -->
@@ -301,11 +304,11 @@ item, index
 
 
                                             <div class="d-flex gap-2 mt-3">
-                                                <button class="btn btn-outline-secondary rounded-pill px-3 py-2"
+                                                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2"
                                                     @click="$emit('close')">
                                                     Cancel
                                                 </button>
-                                                <button class="btn brand-btn rounded-pill px-3 py-2"
+                                                <button class="btn brand-btn rounded-pill btn-sm px-3 py-2"
                                                     @click="handleConfirm">
                                                     <i class="bi bi-check2-circle me-1"></i>
                                                     Confirm & Place
@@ -337,7 +340,7 @@ item, index
                                                         ? 'text-danger fw-bold'
                                                         : 'text-success fw-bold'
                                                     ">
-                                                    {{ money(changeAmount) }}
+                                                    {{ formatMoney(changeAmount) }}
                                                 </span>
                                             </div>
                                         </div>

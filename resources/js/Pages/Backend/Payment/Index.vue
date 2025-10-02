@@ -3,7 +3,9 @@ import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted, onUpdated } from "vue";
 import Select from "primevue/select";
+import { useFormatters } from '@/composables/useFormatters'
 
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 const orders = ref([]); // rename from payment -> orders for clarity
 
 const fetchOrdersWithPayment = async () => {
@@ -154,7 +156,7 @@ onUpdated(() => window.feather?.replace());
                             </div>
                             <div class="kpi-label text-muted">Total Amount</div>
                             <div class="kpi-value">
-                                {{ money(totalAmount, "GBP") }}
+                                {{ formatMoney(totalAmount, "GBP") }}
                             </div>
                         </div>
                     </div>
@@ -251,8 +253,8 @@ onUpdated(() => window.feather?.replace());
                                 <tr v-for="(p, idx) in filtered" :key="p.id">
                                     <td>{{ idx + 1 }}</td>
                                     <td>{{ p.orderId }}</td>
-                                    <td>{{ money(p.amount, "GBP") }}</td>
-                                    <td>{{ formatDateTime(p.paidAt) }}</td>
+                                    <td>{{ formatMoney(p.amount, "GBP") }}</td>
+                                    <td>{{ dateFmt(p.paidAt) }}</td>
                                     <td class="text-capitalize">
                                         {{ p.type }}
                                     </td>

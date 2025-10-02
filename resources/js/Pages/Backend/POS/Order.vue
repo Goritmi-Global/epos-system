@@ -4,6 +4,9 @@ import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
 import { Pencil, Eye } from "lucide-vue-next";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 const orders = ref([]);
 
@@ -502,7 +505,7 @@ function printReceipt(order) {
                                         {{ o.type?.table_number ?? "-" }}
                                     </td>
                                     <td>{{ o.type?.order_type ?? "-" }}</td>
-                                    <td>{{ formatDate(o.created_at) }}</td>
+                                    <td>{{ dateFmt(o.created_at) }}</td>
                                     <td>{{ timeAgo(o.created_at) }}</td>
                                     <td>{{ o.customer_name ?? "-" }}</td>
                                     <td>
@@ -514,7 +517,7 @@ function printReceipt(order) {
                                         </span>
                                     </td>
 
-                                    <td>{{ money(o.total_amount) }}</td>
+                                    <td>{{ formatMoney(o.total_amount) }}</td>
                                     <!-- <td class="text-center">
                                             <span
                                                 class="badge rounded-pill fw-semibold px-5 py-2 text-capitalize paid-text"
@@ -861,7 +864,7 @@ function printReceipt(order) {
                                                 >Date:</span
                                             >
                                             {{
-                                                formatDate(
+                                                dateFmt(
                                                     selectedOrder?.created_at
                                                 )
                                             }}
@@ -917,7 +920,7 @@ function printReceipt(order) {
                                                 <td>{{ item.title }}</td>
                                                 <td>{{ item.quantity }}</td>
                                                 <td class="fw-semibold">
-                                                    {{ money(item.price) }}
+                                                    {{ formatMoney(item.price) }}
                                                 </td>
                                             </tr>
                                             <tr

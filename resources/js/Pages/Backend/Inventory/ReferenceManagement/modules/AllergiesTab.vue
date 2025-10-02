@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
+import ConfirmModal from "@/Components/ConfirmModal.vue";
 
 const commonExistingAllergiesList = ref([
     { label: "Crustaceans", value: "Crustaceans" },
@@ -567,9 +568,9 @@ const handleImport = (data) => {
                     <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
-                            Download all
+                            Download
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
@@ -702,15 +703,17 @@ const handleImport = (data) => {
                             }}</span>
                     </div>
 
-                    <button class="btn btn-primary rounded-pill w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
+                   <div class="col-md-2">
+                     <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
                         <template v-if="isSubmitting">
                             <span class="spinner-border spinner-border-sm me-2"></span>
                             Saving...
                         </template>
                         <template v-else>
-                            {{ isEditing ? "Save Changes" : "Add Allergy(s)" }}
+                            {{ isEditing ? "Save" : "Save" }}
                         </template>
                     </button>
+                   </div>
 
 
                 </div>
