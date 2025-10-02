@@ -72,6 +72,7 @@ class MenuController extends Controller
                     'name' => $item->name,
                     'price' => $item->price,
                     'description' => $item->description,
+                    'label_color' => $item->label_color,
                     'status' => $item->status,
                     'category' => $item->category,
                     'ingredients' => $item->ingredients,

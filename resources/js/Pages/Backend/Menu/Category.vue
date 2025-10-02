@@ -163,7 +163,7 @@ const resetModal = () => {
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
 const catFormErrors = ref({});
-const categoryColor = ref("#1b1670");
+ 
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 
@@ -203,7 +203,7 @@ const submitCategory = async () => {
                 icon: manualIcon.value.value,
                 active: manualActive.value,
                 parent_id: selectedParentId.value || null,
-                color: categoryColor.value,
+               
             };
 
             //  Handle subcategories only if it's a MAIN CATEGORY
@@ -294,7 +294,7 @@ const submitCategory = async () => {
                     icon: manualIcon.value.value,
                     active: manualActive.value,
                     parent_id: null,
-                    color: categoryColor.value,
+                  
                 }));
             }
 
@@ -381,7 +381,7 @@ const editRow = (row) => {
     }
 
     manualActive.value = row.active;
-    categoryColor.value = row.box_bg_color;
+ 
 
     // Handle subcategories
     if (row.subcategories && row.subcategories.length > 0) {
@@ -1152,16 +1152,7 @@ const handleImport = (data) => {
                                         </small>
                                     </div>
 
-                                    <!-- Category Color -->
-                                    <div class="col-12 mt-3">
-                                        <label class="form-label">Category Box Background Color</label>
-                                        <input type="color" v-model="categoryColor"
-                                            class="form-control form-control-color"
-                                            :class="{ 'is-invalid': catFormErrors?.color }" title="Choose a color" />
-                                        <small v-if="catFormErrors?.color" class="text-danger">
-                                            {{ catFormErrors.color[0] }}
-                                        </small>
-                                    </div>
+                                    
 
 
 
