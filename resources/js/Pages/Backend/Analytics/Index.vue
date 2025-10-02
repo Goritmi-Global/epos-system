@@ -4,6 +4,9 @@ import { Head } from "@inertiajs/vue3";
 import { ref, computed, watch, onMounted, onUpdated } from "vue";
 import Select from "primevue/select";
 import axios from "axios";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Filters (simple values to match your screenshot) ---------------- */
 const range = ref("last30"); // today | last7 | last30 | thisMonth | all
@@ -239,7 +242,7 @@ onUpdated(() => window.feather?.replace());
                             </div>
                             <div class="kpi-label">Revenue</div>
                             <div class="kpi-value">
-                                {{ money(revenue) }}
+                                {{ formatMoney(revenue) }}
                             </div>
                         </div>
                     </div>
@@ -268,7 +271,7 @@ onUpdated(() => window.feather?.replace());
                                 </div>
                             </div>
                             <div class="kpi-label">Avg. Order Value</div>
-                            <div class="kpi-value">{{ money(aov) }}</div>
+                            <div class="kpi-value">{{ formatMoney(aov) }}</div>
                         </div>
                     </div>
                 </div>
@@ -462,7 +465,7 @@ onUpdated(() => window.feather?.replace());
                                         {{ r.name }}
                                     </td>
                                     <td>{{ r.qty }}</td>
-                                    <td>{{ money(r.revenue) }}</td>
+                                    <td>{{ formatMoney(r.revenue) }}</td>
                                 </tr>
                                 <tr
                                     v-if="

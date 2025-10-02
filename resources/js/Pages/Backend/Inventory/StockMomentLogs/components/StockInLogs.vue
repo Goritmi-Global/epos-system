@@ -4,6 +4,11 @@ import { toast } from "vue3-toastify";
 import axios from "axios";
 import { Pencil, Eye } from "lucide-vue-next";
 
+
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
+
 const props = defineProps({
     logs: { type: Array, default: () => [] },
     q: { type: String, default: "" },
@@ -231,10 +236,10 @@ onUpdated(() => window.feather?.replace());
                                 {{ row.itemName }}
                             </td>
                             <td>{{ row.quantity }}</td>
-                            <td>{{ money(row.unitPrice) }}</td>
-                            <td>{{ money(row.totalPrice) }}</td>
+                            <td>{{ formatMoney(row.unitPrice) }}</td>
+                            <td>{{ formatMoney(row.totalPrice) }}</td>
                             <td>{{ row.category?.name || row.category }}</td>
-                            <td>{{ fmtDateTime(row.dateTime) }}</td>
+                            <td>{{ dateFmt(row.dateTime) }}</td>
                             <td>
                                 <template v-if="row.expiryDate">
                                     <span :class="[
@@ -253,7 +258,7 @@ onUpdated(() => window.feather?.replace());
                                                     ) + ' day(s) left'
                                                 : ''
                                             ">
-                                        {{ fmtDate(row.expiryDate) }}
+                                        {{ dateFmt(row.expiryDate) }}
                                     </span>
                                     <small class="text-muted ms-2">
                                         {{
@@ -380,7 +385,7 @@ onUpdated(() => window.feather?.replace());
                                                     <small class="text-muted d-block">Unit Price</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
-                                                            money(
+                                                            formatMoney(
                                                                 selectedLog.unitPrice ??
                                                                 0
                                                             )
@@ -393,7 +398,7 @@ onUpdated(() => window.feather?.replace());
                                                     <small class="text-muted d-block">Total Price</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
-                                                            money(
+                                                            formatMoney(
                                                                 selectedLog.totalPrice ??
                                                                 0
                                                             )
@@ -408,7 +413,7 @@ onUpdated(() => window.feather?.replace());
                                                     <div class="fs-6 fw-semibold">
                                                         {{
                                                             selectedLog.expiryDate
-                                                                ? fmtDate(
+                                                                ? dateFmt(
                                                                     selectedLog.expiryDate
                                                                 )
                                                                 : "—"
@@ -421,7 +426,7 @@ onUpdated(() => window.feather?.replace());
                                                     <small class="text-muted d-block">Date</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
-                                                            fmtDateTime(
+                                                            dateFmt(
                                                                 selectedLog.dateTime
                                                             )
                                                         }}
@@ -480,18 +485,18 @@ onUpdated(() => window.feather?.replace());
                                 <label class="form-label">Value</label>
                                 <input type="number" readonly class="form-control" v-model="editForm.totalPrice" />
                             </div>
-                            <VueDatePicker v-model="expiryDateModel" :enableTimePicker="false"
+                            <VueDatePicker v-model="expiryDateModel" :format="dateFmt" :enableTimePicker="false"
                                 placeholder="Select date" />
 
 
                             <div class="mt-4">
-                                <button class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
+                                <button class="btn btn-primary rounded-pill btn-sm px-4 d-inline-flex align-items-center gap-2"
                                     :disabled="isUpdating" :aria-busy="isUpdating ? 'true' : 'false'"
                                     @click="updateLog">
                                     <span v-if="isUpdating" class="spinner-border spinner-border-sm" role="status"
                                         aria-hidden="true"></span>
                                     <span>{{
-                                        isUpdating ? "Updating…" : "Update"
+                                        isUpdating ? "Saving…" : "Save"
                                         }}</span>
                                 </button>
                             </div>

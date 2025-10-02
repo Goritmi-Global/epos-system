@@ -8,6 +8,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
+import ConfirmModal from "@/Components/ConfirmModal.vue";
 
 
 const suppliers = ref([]);
@@ -504,7 +505,7 @@ const handleImport = (data) => {
                     <ImportFile label="Import" @on-import="handleImport" />
                     <!-- Download all -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
                             Download
                         </button>
@@ -594,8 +595,8 @@ const handleImport = (data) => {
                     <h5 class="modal-title fw-semibold">
                         {{
                             processStatus === "Add"
-                                ? "Edit Supplier"
-                                : "Add Supplier"
+                                ? "Add Supplier"
+                                : "Edit Supplier"
                         }}
                     </h5>
                     <button
@@ -660,16 +661,18 @@ const handleImport = (data) => {
                             </small>
                         </div>
 
-                        <button v-if="processStatus === 'Edit'" class="btn btn-primary rounded-pill w-100 mt-4"
+                      <div class="col-md-2">
+                          <button v-if="processStatus === 'Edit'" class="btn btn-primary btn-sm py-2 rounded-pill w-100 mt-4"
                             :disabled="loading" @click="updateSupplier()">
                             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                            Update Supplier
+                            Update
                         </button>
-                        <button v-else class="btn btn-primary rounded-pill w-100 mt-4" :disabled="loading"
+                        <button v-else class="btn btn-primary rounded-pill btn-sm py-2 w-100 mt-4" :disabled="loading"
                             @click="submit()">
-                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                            Add Supplier
+                            <span v-if="loading" class="spinner-border btn-sm spinner-border-sm me-2"></span>
+                            Save
                         </button>
+                      </div>
                     </div>
                 </div>
             </div>

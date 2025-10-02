@@ -7,6 +7,9 @@ import axios from "axios";
 import Select from "primevue/select";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 // import ConfirmModal from "@/Components/ConfirmModal.vue";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Data ---------------- */
 const promos = ref([]);
@@ -283,11 +286,11 @@ onUpdated(() => window.feather?.replace());
                                                 {{ row.type === "flat" ? "Flat" : "Percent" }}
                                             </span>
                                         </td>
-                                        <td>{{ formatDate(row.start_date) }}</td>
-                                        <td>{{ formatDate(row.end_date) }}</td>
-                                        <td>{{ money(row.min_purchase) }}</td>
+                                        <td>{{ dateFmt(row.start_date) }}</td>
+                                        <td>{{ dateFmt(row.end_date) }}</td>
+                                        <td>{{ formatMoney(row.min_purchase) }}</td>
                                         <td>
-                                            {{ row.max_discount ? money(row.max_discount) : "N/A" }}
+                                            {{ row.max_discount ? formatMoney(row.max_discount) : "N/A" }}
                                         </td>
                                         <td class="text-center">
                                             <span :class="row.status === 'active'
@@ -393,7 +396,7 @@ onUpdated(() => window.feather?.replace());
                                     <div class="col-md-6">
                                         <label class="form-label">Start Date</label>
 
-                                        <VueDatePicker v-model="promoForm.start_date" :enableTimePicker="false"
+                                        <VueDatePicker v-model="promoForm.start_date" :format="dateFmt" :enableTimePicker="false"
                                             placeholder="Select Start date" :class="{
                                                 'is-invalid': promoFormErrors.start_date,
                                             }" />
@@ -405,7 +408,7 @@ onUpdated(() => window.feather?.replace());
                                     <!-- End Date -->
                                     <div class="col-md-6">
                                         <label class="form-label">End Date</label>
-                                        <VueDatePicker v-model="promoForm.end_date" :enableTimePicker="false"
+                                        <VueDatePicker v-model="promoForm.end_date" :format="dateFmt" :enableTimePicker="false"
                                             placeholder="Select End date" :class="{
                                                 'is-invalid': promoFormErrors.end_date,
                                             }" />

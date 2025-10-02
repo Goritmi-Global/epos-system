@@ -3,6 +3,9 @@ import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated } from "vue";
 import MultiSelect from "primevue/multiselect";
 import Select from "primevue/select";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 import {
     Shapes,
@@ -880,7 +883,7 @@ const handleImport = (data) => {
                                 </button>
                                 <ImportFile label="Import" @on-import="handleImport" />
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
+                                    <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                         data-bs-toggle="dropdown">
                                         Download
                                     </button>
@@ -963,7 +966,7 @@ const handleImport = (data) => {
                                                 }}</span>
                                             </div>
                                         </td>
-                                        <td>{{ money(row.total_value) }}</td>
+                                        <td>{{ formatMoney(row.total_value) }}</td>
                                         <td>{{ row.total_items }}</td>
                                         <td>{{ row.out_of_stock }}</td>
                                         <td>{{ row.low_stock }}</td>
@@ -1245,18 +1248,18 @@ const handleImport = (data) => {
                                 <hr class="my-4" />
 
                                 <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
+                                    <button class="btn btn-primary rounded-pill btn-sm py-2 px-4" :disabled="submitting"
                                         @click="submitCategory()">
                                         <template v-if="submitting">
                                             <span class="spinner-border spinner-border-sm me-2"></span>
-                                            {{ editingCategory ? "Updating Category..." : "Saving Category..." }}
+                                            {{ editingCategory ? "Saving..." : "Saving..." }}
                                         </template>
                                         <template v-else>
-                                            {{ editingCategory ? "Update Category" : "Add Category(ies)" }}
+                                            {{ editingCategory ? "Save" : "Save" }}
                                         </template>
                                     </button>
 
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                    <button class="btn btn-secondary btn-sm py-2 rounded-pill px-4 ms-2" data-bs-dismiss="modal"
                                         @click="resetModal">
                                         Cancel
                                     </button>

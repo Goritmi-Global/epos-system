@@ -2,7 +2,9 @@
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import { ref, computed } from "vue";
+import { useFormatters } from '@/composables/useFormatters'
 
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 const props = defineProps({
     suppliers: {
         type: Array,
@@ -309,7 +311,7 @@ const formatDate = (date) => {
                                             </div>
                                             <div class="col-4">
                                                 <label class="small text-muted">Expiry Date</label>
-                                                <VueDatePicker v-model="it.expiry" :enableTimePicker="false"
+                                                <VueDatePicker v-model="it.expiry" :format="dateFmt" :enableTimePicker="false"
                                                     placeholder="Select date"
                                                     :class="{
                                                         'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date
@@ -342,9 +344,9 @@ const formatDate = (date) => {
                                                 <th>Name</th>
 
                                                 <th>Quantity</th>
-                                                <th>unit price</th>
-                                                <th>expiry</th>
-                                                <th>cost</th>
+                                                <th>Unit Price</th>
+                                                <th>Expiry</th>
+                                                <th>Cost</th>
                                                 <th class="text-end">Action</th>
                                             </tr>
                                         </thead>
@@ -356,13 +358,13 @@ const formatDate = (date) => {
 
                                                 <td>{{ r.qty }}</td>
                                                 <td>
-                                                    {{ money(r.unitPrice) }}
+                                                    {{ formatMoney(r.unitPrice) }}
                                                 </td>
                                                 <td>
-                                                    {{ formatDate(r.expiry) || "—" }}
+                                                    {{ dateFmt(r.expiry) || "—" }}
                                                 </td>
                                                 <td>
-                                                    {{ money(r.cost) }}
+                                                    {{ formatMoney(r.cost) }}
                                                 </td>
                                                 <td class="text-end">
                                                     <button @click="
@@ -387,7 +389,7 @@ const formatDate = (date) => {
                                     </table>
                                 </div>
                                 <div class="text-end p-3 fw-semibold">
-                                    Total Bill: {{ money(p_total) }}
+                                    Total Bill: {{ formatMoney(p_total) }}
                                 </div>
                             </div>
 

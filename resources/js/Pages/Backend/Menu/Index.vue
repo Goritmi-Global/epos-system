@@ -7,6 +7,9 @@ import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 import {
     Package,
     XCircle,
@@ -1173,7 +1176,7 @@ const handleImport = (data) => {
                             <!-- Filter By -->
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary rounded-pill btn-sm py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Filter By
@@ -1251,7 +1254,7 @@ const handleImport = (data) => {
                             <!-- Download all -->
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Download
@@ -1337,7 +1340,7 @@ const handleImport = (data) => {
 
                                     <!-- Price -->
                                     <td>
-                                        {{ money(item.price || 0, "GBP") }}
+                                        {{ formatMoney(item.price || 0, "GBP") }}
                                     </td>
 
                                     <!-- Status -->
@@ -1804,7 +1807,7 @@ const handleImport = (data) => {
                                             <div
                                                 class="p-3 fw-semibold text-end"
                                             >
-                                                Total Cost: {{ money(i_total) }}
+                                                Total Cost: {{ formatMoney(i_total) }}
                                             </div>
                                         </div>
                                     </div>
@@ -1813,7 +1816,7 @@ const handleImport = (data) => {
 
                             <div class="mt-4">
                                 <button
-                                    class="btn btn-primary rounded-pill px-5 py-2"
+                                    class="btn btn-primary rounded-pill btn-sm px-5 py-2"
                                     :disabled="submitting"
                                     @click="
                                         form.id ? submitEdit() : submitProduct()
@@ -1825,21 +1828,21 @@ const handleImport = (data) => {
                                         ></span>
                                         {{
                                             form.id
-                                                ? "Updating Product..."
-                                                : "Adding Product..."
+                                                ? "Saving..."
+                                                : "saving..."
                                         }}
                                     </template>
                                     <template v-else>
                                         {{
                                             form.id
-                                                ? "Update Product"
-                                                : "Add Product"
+                                                ? "Save"
+                                                : "Save"
                                         }}
                                     </template>
                                 </button>
 
                                 <button
-                                    class="btn btn-secondary rounded-pill px-4 ms-2"
+                                    class="btn btn-secondary btn-sm rounded-pill py-2 px-4 ms-2"
                                     data-bs-dismiss="modal"
                                     @click="resetForm"
                                 >
@@ -1969,7 +1972,7 @@ const handleImport = (data) => {
                                                 </div>
 
                                                 <button
-                                                    class="btn btn-primary px-4 rounded-pill"
+                                                    class="btn btn-primary btn-sm py-2 px-4 rounded-pill"
                                                     @click="addIngredient(it)"
                                                 >
                                                     {{
@@ -2114,13 +2117,13 @@ const handleImport = (data) => {
                                             </table>
                                         </div>
                                         <div class="p-3 fw-semibold text-end">
-                                            Total Cost: {{ money(i_total) }}
+                                            Total Cost: {{ formatMoney(i_total) }}
                                         </div>
                                     </div>
 
                                     <div class="mt-3 text-center">
                                         <button
-                                            class="btn btn-primary px-5 rounded-pill"
+                                            class="btn btn-primary btn-sm py-2 px-5 rounded-pill"
                                             @click="saveIngredients"
                                         >
                                             Done

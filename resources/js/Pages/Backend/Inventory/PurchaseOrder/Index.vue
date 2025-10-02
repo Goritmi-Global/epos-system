@@ -11,6 +11,10 @@ import PurchaseComponent from "./PurchaseComponent.vue";
 import OrderComponent from "./OrderComponent.vue";
 import axios from "axios";
 import { Eye, Plus, Trash2 } from "lucide-vue-next";
+import { useDateFormat } from "@vueuse/core";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
@@ -381,7 +385,7 @@ onUpdated(() => window.feather?.replace?.());
                             </div>
 
                             <button
-                                class="btn btn-primary rounded-pill px-4"
+                                class="btn btn-primary btn-sm py-2 rounded-pill px-4"
                                 data-bs-toggle="modal"
                                 data-bs-target="#addPurchaseModal"
                             >
@@ -395,7 +399,7 @@ onUpdated(() => window.feather?.replace?.());
                             />
 
                             <button
-                                class="btn btn-primary rounded-pill px-4"
+                                class="btn btn-primary btn-sm py-2 rounded-pill px-4"
                                 data-bs-toggle="modal"
                                 data-bs-target="#addOrderModal"
                             >
@@ -408,7 +412,7 @@ onUpdated(() => window.feather?.replace?.());
                             />
                             <div class="dropdown">
                                 <button
-                                    class="btn btn-outline-secondary btn-sm rounded-pill px-4 dropdown-toggle"
+                                    class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown"
                                 >
                                     Download
@@ -490,13 +494,13 @@ onUpdated(() => window.feather?.replace?.());
 
                                         <td class="text-nowrap">
                                             {{
-                                                fmtDateTime(
+                                                dateFmt(
                                                     row.purchasedAt
                                                 ).split(",")[0]
                                             }},
                                             <div class="small text-muted">
                                                 {{
-                                                    fmtDateTime(row.purchasedAt)
+                                                    dateFmt(row.purchasedAt)
                                                         .split(",")[1]
                                                         ?.trim()
                                                 }}
@@ -519,7 +523,7 @@ onUpdated(() => window.feather?.replace?.());
                                             </span>
                                         </td>
 
-                                        <td>{{ money(row.total) }}</td>
+                                        <td>{{ formatMoney(row.total) }}</td>
 
                                         <td class="text-end">
                                             <button
@@ -640,7 +644,7 @@ onUpdated(() => window.feather?.replace?.());
                                     >
                                     <div class="fw-semibold">
                                         {{
-                                            fmtDateTime(
+                                            dateFmt(
                                                 selectedOrder.purchase_date
                                             ).split(",")[0]
                                         }}
@@ -666,7 +670,7 @@ onUpdated(() => window.feather?.replace?.());
                                         >Total Amount</small
                                     >
                                     <div class="fw-semibold">
-                                        {{ money(selectedOrder.total_amount) }}
+                                        {{ formatMoney(selectedOrder.total_amount) }}
                                     </div>
                                 </div>
                             </div>
@@ -689,7 +693,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <th>Qty</th>
                                             <th>Unit Price</th>
                                             <th>Subtotal</th>
-                                            <th>Expiry</th>
+                                            <!-- <th>Expiry</th> -->
                                             <th v-if="isEditing">Action</th>
                                         </tr>
                                     </thead>
@@ -736,7 +740,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <!-- Unit Price -->
                                             <td>
                                                 <span v-if="!isEditing">{{
-                                                    money(item.unit_price)
+                                                    formatMoney(item.unit_price)
                                                 }}</span>
                                                 <input
                                                     v-else
@@ -754,7 +758,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <!-- Subtotal -->
                                             <td>
                                                 <span v-if="!isEditing">{{
-                                                    money(item.sub_total)
+                                                    formatMoney(item.sub_total)
                                                 }}</span>
                                                 <input
                                                     v-else
@@ -765,7 +769,7 @@ onUpdated(() => window.feather?.replace?.());
                                             </td>
 
                                             <!-- Expiry -->
-                                            <td>
+                                            <!-- <td>
                                                 <span v-if="!isEditing">{{
                                                     item.expiry || "—"
                                                 }}</span>
@@ -795,7 +799,7 @@ onUpdated(() => window.feather?.replace?.());
                                                         ][0]
                                                     }}
                                                 </small>
-                                            </td>
+                                            </td> -->
                                             <br />
 
                                             <!-- Action (only in edit mode) -->
@@ -843,7 +847,7 @@ onUpdated(() => window.feather?.replace?.());
                                             </td>
                                             <td class="fw-bold">
                                                 {{
-                                                    money(
+                                                    formatMoney(
                                                         (isEditing
                                                             ? editItems
                                                             : selectedOrder.items
