@@ -48,16 +48,7 @@ watch(selectedBusinessType, (opt) => {
 
 
 /* ------------------ PHONE (flag + dial) ------------------ */
-// const dialOptions = [
-//     { name: "United Kingdom", iso: "GB", dial: "+44" },
-//     { name: "Pakistan", iso: "PK", dial: "+92" },
-//     { name: "United States", iso: "US", dial: "+1" },
-//     { name: "Canada", iso: "CA", dial: "+1" },
-//     { name: "United Arab Emirates", iso: "AE", dial: "+971" },
-//     { name: "Saudi Arabia", iso: "SA", dial: "+966" },
-//     { name: "Australia", iso: "AU", dial: "+61" },
-//     { name: "India", iso: "IN", dial: "+91" },
-// ];
+
 
 
 const countriesDial = ref([])
@@ -100,33 +91,9 @@ function buildFullPhone() {
     form.phone = code + local;
 }
 
-// onMounted(() => {
-//     console.log("onMounted -> props.model:", props.model);
-
-//     let iso = props.model?.phone_country || props.model?.country_code || "";
-//     let phoneLocal = props.model?.phone_local || "";
-
-//     // If phone_local is empty but full phone exists, extract it
-//     if (!phoneLocal && props.model?.phone) {
-//         const full = props.model.phone; // e.g. "+441234567890"
-//         const matched = dialOptions.find(opt => full.startsWith(opt.dial));
-//         if (matched) {
-//             iso = matched.iso;
-//             phoneLocal = full.slice(matched.dial.length);
-//         }
-//     }
-
-//     if (iso) syncDialFromIso(iso);
-//     form.phone_local = phoneLocal;
-//     buildFullPhone();
-
-//     // ✅ LOGO: initialize logo_url if we have upload_id or logo_path
-//     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
-//         form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`;
-//     }
-// });
 
 onMounted(async () => {
+    console.log('Props.model', props.model);
     await fetchCountriesDial()
 
     // If phone_local is empty but full phone exists, extract it

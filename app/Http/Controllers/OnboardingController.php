@@ -180,16 +180,23 @@ class OnboardingController extends Controller
                 'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
             ]),
 
-            5 => $request->validate([
-                'order_types' => 'required|array|min:1',
-                'table_management_enabled' => 'required|boolean',
-                'online_ordering' => 'required|boolean',
+            5 => $request->validate(
+                [
+                    'order_types' => 'required|array|min:1',
+                    'table_management_enabled' => 'required|boolean',
+                    'online_ordering' => 'required|boolean',
 
-                'tables' => 'exclude_unless:table_management_enabled,1|integer|min:1',
-                'table_details' => 'exclude_unless:table_management_enabled,1|array|min:1',
-                'table_details.*.name' => 'exclude_unless:table_management_enabled,1|string|max:255',
-                'table_details.*.chairs' => 'exclude_unless:table_management_enabled,1|integer|min:1',
-            ]),
+                    'tables' => 'exclude_unless:table_management_enabled,1|integer|min:1',
+                    'table_details' => 'exclude_unless:table_management_enabled,1|array|min:1',
+                    'table_details.*.name' => 'exclude_unless:table_management_enabled,1|string|max:255',
+                    'table_details.*.chairs' => 'exclude_unless:table_management_enabled,1|integer|min:1',
+                ],
+                [
+                    'table_details.*.name.*' => 'Please Enter Tables Details. Click on Enter Names.',
+                    'table_details.*.chairs.*' => 'Please Enter Tables Details. Click on Enter Names.',
+                    'table_details.*.required' => 'Please Enter Tables Details. Click on Enter Names.',
+                ]
+            ),
 
 
             6 => $request->validate([

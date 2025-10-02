@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, toRaw, watch, ref } from "vue"
+import { reactive, toRaw, watch, ref, computed } from "vue"
 
 const props = defineProps({ model: Object, formErrors: Object })
 const emit = defineEmits(["save"])
@@ -135,6 +135,11 @@ const types = [
   { key: 'delivery', label: 'Delivery', variant: 'success' },
   { key: 'collection', label: 'Collection', variant: 'warning' }
 ]
+
+const hasTableDetailsError = computed(() => {
+  if (!props.formErrors) return false
+  return Object.keys(props.formErrors).some(key => key.startsWith("table_details."))
+})
 </script>
 
 <template>
@@ -200,9 +205,14 @@ const types = [
           class="btn btn-primary btn-sm rounded-pill px-4 py-2" style="white-space: nowrap;">
           <i class="fa fa-plus me-1"></i> Enter Names
         </button>
-
+        <br />
 
       </div>
+      <div v-if="hasTableDetailsError" class="mt-2">
+          <small class="text-danger d-block">
+            Please Enter Tables Details. Click on Enter Names.
+          </small>
+        </div>
       <!-- <small v-if="formErrors?.number_of_tables" class="text-danger">
           {{ formErrors.number_of_tables[0] }}
         </small> -->
