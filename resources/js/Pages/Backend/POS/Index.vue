@@ -822,10 +822,14 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                         </div>
 
                                         <div class="item-body">
-                                            <div class="item-title">
+                                            <div class="item-title":style="{
+                                            color:  (p.label_color || '#1B1670'),
+                                        }">
                                                 {{ p.title }}
                                             </div>
-                                            <div class="item-sub">
+                                            <div class="item-sub" :style="{
+                                            color:  (p.label_color || '#1B1670'),
+                                        }">
                                                 {{ p.family }}
                                             </div>
                                         </div>
