@@ -36,6 +36,15 @@ const props = defineProps({
     },
 });
 
+ 
+const labelColors = [
+    { name: "Meat", value: "#E74C3C" },
+    { name: "Vegetables", value: "#27AE60" },
+    { name: "Seafood", value: "#2980B9" },
+    { name: "Drinks", value: "#8E44AD" },
+    { name: "Staples", value: "#E67E22" },
+]
+
 const inventoryItems = ref([]);
 const showStatusModal = ref(false);
 const statusTargetItem = ref(null);
@@ -359,6 +368,7 @@ function resetErrors() {
 const form = ref({
     name: "",
     category_id: null,
+    label_color: null,
     subcategory: "",
     unit: [],
     price: "",
@@ -401,6 +411,10 @@ const submitProduct = async () => {
     if (form.value.category_id) {
         formData.append("category_id", form.value.category_id);
     }
+
+    if (form.value.label_color) {
+        formData.append("label_color", form.value.label_color);
+    }
     if (form.value.subcategory_id) {
         formData.append("subcategory_id", form.value.subcategory_id);
     }
@@ -434,7 +448,7 @@ const submitProduct = async () => {
 
     try {
         if (form.value.id) {
-            console.log("Updating menu item with ID:", formData);
+    
             await axios.post(`/menu/${form.value.id}?_method=PUT`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
@@ -540,6 +554,7 @@ const editItem = (item) => {
         price: itemData.price,
         category_id: itemData.category?.id || null,
         description: itemData.description,
+        label_color: itemData.label_color,
         ingredients: itemData.ingredients || [],
         allergies: itemData.allergies?.map((a) => a.id) || [],
         tags: itemData.tags?.map((t) => t.id) || [],
@@ -622,6 +637,7 @@ const submitEdit = async () => {
             formData.append("category_id", form.value.category_id);
         }
         formData.append("description", form.value.description || "");
+        formData.append("label_color", form.value.label_color || "");
 
         // Nutrition data
         formData.append("nutrition[calories]", totalNutrition.calories);
@@ -723,6 +739,7 @@ function resetForm() {
         supplier: "Noor",
         sku: "",
         description: "",
+        label_color: "",
         nutrition: { calories: "", fat: "", protein: "", carbs: "" },
         allergies: [],
         tags: [],
@@ -1506,6 +1523,35 @@ const handleImport = (data) => {
                                 </div>
 
                                 <div class="col-md-6">
+                                    <label class="form-label d-block"
+                                        > Label Color </label
+                                    >
+                                     
+
+                                   <Select
+    v-model="form.label_color"
+    :options="labelColors"
+    optionLabel="name"
+    optionValue="value"
+    placeholder="Select Label Color"
+    class="w-100"
+    appendTo="self"
+    :autoZIndex="true"
+    :baseZIndex="2000"
+    :class="{ 'is-invalid': formErrors.label_color }"
+/>
+
+
+                                    <br />
+                                    <small
+                                        v-if="formErrors.label_color"
+                                        class="text-danger"
+                                    >
+                                        {{ formErrors.label_color[0] }}
+                                    </small>
+                                </div>
+
+                                <div class="col-md-6">
                                     <label class="form-label">Category</label>
                                     <Select
                                         v-model="form.category_id"
@@ -1532,7 +1578,7 @@ const handleImport = (data) => {
                                         {{ formErrors.category_id[0] }}
                                     </small>
                                 </div>
-
+ 
                                 <!-- Subcategory -->
                                 <div
                                     class="col-md-6"

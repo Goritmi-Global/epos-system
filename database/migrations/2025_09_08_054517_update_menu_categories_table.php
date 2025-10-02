@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('menu_categories', function (Blueprint $table) {
-            $table->string('name')->after('id');
-            $table->string('box_bg_color', 20)->default('#1b1670')->after('name');
+            $table->string('name')->after('id'); 
             $table->string('icon', 10)->default('🧰')->after('name');
             $table->boolean('active')->default(true)->after('icon');
             $table->unsignedBigInteger('parent_id')->nullable()->after('active');

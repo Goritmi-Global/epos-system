@@ -65,8 +65,7 @@ class MenuCategoryService
                         'name'      => $cat['name'],
                         'icon'      => $cat['icon'] ?? '🧰',
                         'active'    => $cat['active'] ?? true,
-                        'parent_id' => $cat['parent_id'] ?? null,
-                        'box_bg_color' => $cat['color'] ,
+                        'parent_id' => $cat['parent_id'] ?? null, 
                         
                     ]);
                     // dd($cat['color']);
@@ -108,8 +107,7 @@ class MenuCategoryService
     private function createSingleCategory(array $categoryData): MenuCategory
     {
         $category = MenuCategory::create([
-            'name' => $categoryData['name'],
-            'box_bg_color' => $categoryData['box_bg_color'],
+            'name' => $categoryData['name'], 
             'icon' => $categoryData['icon'] ?? '🧰',
             'active' => $categoryData['active'] ?? true,
             'parent_id' => $categoryData['parent_id'],
@@ -191,8 +189,7 @@ class MenuCategoryService
 
             //  UPDATE THE MAIN CATEGORY FIRST
             $category->update([
-                'name' => $data['name'] ?? $category->name,
-                'box_bg_color' => $data['color'] ?? $category->box_bg_color,
+                'name' => $data['name'] ?? $category->name, 
                 'icon' => $data['icon'] ?? $category->icon,
                 'active' => $data['active'] ?? $category->active,
                 'parent_id' => $data['parent_id'] ?? $category->parent_id,
