@@ -63,7 +63,7 @@ class StoreMenuCategoryRequest extends FormRequest
             $isSubCategory = $this->input('isSubCategory');
             $categories = $this->input('categories', []);
             
-            // ✅ CHECK FOR DUPLICATES WITHIN THE REQUEST
+            //  CHECK FOR DUPLICATES WITHIN THE REQUEST
             $categoryNames = [];
             
             foreach ($categories as $index => $category) {
@@ -75,7 +75,7 @@ class StoreMenuCategoryRequest extends FormRequest
                     continue;
                 }
                 
-                // ✅ CHECK FOR DUPLICATES IN THE CURRENT REQUEST
+                //  CHECK FOR DUPLICATES IN THE CURRENT REQUEST
                 $duplicateKey = $parentId . '|' . strtolower($categoryName);
                 if (in_array($duplicateKey, $categoryNames)) {
                     $validator->errors()->add(
@@ -86,7 +86,7 @@ class StoreMenuCategoryRequest extends FormRequest
                 }
                 $categoryNames[] = $duplicateKey;
                 
-                // ✅ CHECK FOR DUPLICATES IN DATABASE
+                //  CHECK FOR DUPLICATES IN DATABASE
                 $existingCategory = \App\Models\MenuCategory::where('name', $categoryName)
                     ->where('parent_id', $parentId)
                     ->first();
@@ -103,7 +103,7 @@ class StoreMenuCategoryRequest extends FormRequest
                 }
                 
                 if ($isSubCategory) {
-                    // ✅ CREATING SUBCATEGORY - parent_id MUST exist
+                    //  CREATING SUBCATEGORY - parent_id MUST exist
                     if (!$parentId) {
                         $validator->errors()->add(
                             "categories.{$index}.parent_id", 
@@ -124,7 +124,7 @@ class StoreMenuCategoryRequest extends FormRequest
                         );
                     }
                 } else {
-                    // ✅ CREATING PARENT CATEGORY - parent_id MUST be null
+                    //  CREATING PARENT CATEGORY - parent_id MUST be null
                     if ($parentId !== null) {
                         $validator->errors()->add(
                             "categories.{$index}.parent_id", 

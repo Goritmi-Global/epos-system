@@ -341,7 +341,7 @@ class OnboardingController extends Controller
 
         // Save Step 2 (logo already uploaded in saveStep)
         if (!empty($stepData[2])) {
-            // ✅ No need to upload again - already done in saveStep()
+           
             // Just save the upload_id that was stored
             ProfileStep2::updateOrCreate(['user_id' => $user->id], $stepData[2]);
         }

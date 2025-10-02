@@ -75,7 +75,7 @@ class UpdateMenuCategoryRequest extends FormRequest
             }
 
 
-            // ✅ CHECK SUBCATEGORIES FOR DUPLICATES
+            //  CHECK SUBCATEGORIES FOR DUPLICATES
             if (!empty($subcategories)) {
                 $subcategoryNames = [];
 
@@ -116,7 +116,7 @@ class UpdateMenuCategoryRequest extends FormRequest
                 }
             }
 
-            // ✅ VALIDATE PARENT CATEGORY LOGIC
+            //  VALIDATE PARENT CATEGORY LOGIC
             if ($parentId) {
                 // Ensure parent is a top-level category
                 $parentExists = \App\Models\InventoryCategory::where('id', $parentId)

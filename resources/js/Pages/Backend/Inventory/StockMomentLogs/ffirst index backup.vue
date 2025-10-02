@@ -373,7 +373,7 @@ const downloadExcel = (data) => {
         // Save the file
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ✅", {
+        toast.success("Excel file downloaded successfully ", {
             autoClose: 2500,
         });
     } catch (error) {

@@ -55,7 +55,7 @@ class UpdateCategoryRequest extends FormRequest
             $parentId = $this->input('parent_id');
             $subcategories = $this->input('subcategories', []);
 
-            // ✅ CHECK MAIN CATEGORY NAME FOR DUPLICATES
+            //  CHECK MAIN CATEGORY NAME FOR DUPLICATES
             if (!empty($categoryName)) {
                 $duplicateCategory = \App\Models\InventoryCategory::where('name', $categoryName)
                     ->where('parent_id', $parentId)
@@ -71,7 +71,7 @@ class UpdateCategoryRequest extends FormRequest
                 }
             }
 
-            // ✅ CHECK SUBCATEGORIES FOR DUPLICATES
+            //  CHECK SUBCATEGORIES FOR DUPLICATES
             if (!empty($subcategories)) {
                 $subcategoryNames = [];
                 
@@ -112,7 +112,7 @@ class UpdateCategoryRequest extends FormRequest
                 }
             }
 
-            // ✅ VALIDATE PARENT CATEGORY LOGIC
+            //  VALIDATE PARENT CATEGORY LOGIC
             if ($parentId) {
                 // Ensure parent is a top-level category
                 $parentExists = \App\Models\InventoryCategory::where('id', $parentId)

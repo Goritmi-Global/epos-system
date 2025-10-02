@@ -45,7 +45,7 @@ class Country extends Model
         return $this->hasMany(City::class, 'country_code', 'iso2');
     }
 
-    // ✅ Correct one (default timezone)
+    //  Correct one (default timezone)
     public function defaultTimezone()
     {
         return $this->belongsTo(Timezone::class, 'default_timezone_id');

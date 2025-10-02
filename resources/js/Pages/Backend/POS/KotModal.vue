@@ -110,7 +110,7 @@ import { toast } from 'vue3-toastify';
 import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
 
 
-// ✅ Props
+//  Props
 const props = defineProps({
     show: Boolean,
     kot: Array

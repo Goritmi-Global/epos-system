@@ -81,7 +81,7 @@ class HandleInertiaRequests extends Middleware
 
         // Normalized formatting block for the SPA
        $fmt = [
-            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), // ✅ real locale
+            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), //  real locale
             'dateFormat'       => data_get($onboarding, 'currency_and_locale.date_format', 'yyyy-MM-dd'),
             'timeFormat'       => data_get($onboarding, 'currency_and_locale.time_format', 'HH:mm'),
             'currency'         => strtoupper(data_get($onboarding, 'currency_and_locale.currency', 'PKR')),

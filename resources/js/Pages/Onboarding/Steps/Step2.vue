@@ -99,7 +99,7 @@ onMounted(() => {
     form.phone_local = phoneLocal;
     buildFullPhone();
 
-    // ✅ LOGO: initialize logo_url if we have upload_id or logo_path
+    //  LOGO: initialize logo_url if we have upload_id or logo_path
     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
         form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`;
     }
