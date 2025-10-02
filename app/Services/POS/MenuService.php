@@ -38,6 +38,7 @@ class MenuService
             'category_id'   => $data['category_id'],
             'subcategory_id' => $data['subcategory_id'] ?? null,
             'description'   => $data['description'] ?? null,
+            'label_color'   => $data['label_color'] ?? null,
             'upload_id'      => $data['upload_id'] ?? null,
         ]);
 
@@ -90,6 +91,7 @@ class MenuService
             'price'       => $data['price'],
             'category_id' => $data['category_id'],
             'description' => $data['description'] ?? null,
+            'label_color' => $data['label_color'] ?? null,
             'upload_id'   => $data['upload_id'] ?? $menu->upload_id,
         ]);
 
