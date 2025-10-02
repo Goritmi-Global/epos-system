@@ -781,29 +781,46 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                 </div>
                             </div>
 
-                            <div class="row g-3"> 
-                                 
+                            <div class="row g-3">
                                 <div
                                     class="col-6 col-md-4 col-xl-3 d-flex"
                                     v-for="p in filteredProducts"
                                     :key="p.title"
                                 >
-                                    <div class="item-card" @click="openItem(p)" :style="{ border: '2px solid ' + (p.label_color || '#1B1670') }">
+                                    <div
+                                        class="item-card"
+                                        :class="{
+                                            'out-of-stock': (p.stock ?? 0) <= 0,
+                                        }"
+                                        :style="{
+                                            border:
+                                                '2px solid ' +
+                                                (p.label_color || '#1B1670'),
+                                        }"
+                                        @click="
+                                            (p.stock ?? 0) > 0 && openItem(p)
+                                        "
+                                    >
                                         <div class="item-img">
                                             <img :src="p.img" alt="" />
                                             <span
-                                                class="item-price rounded-pill" :style="{ background: '' + (p.label_color || '#1B1670') }"
-                                                >{{
-                                                    formatMoney(p.price)
-                                                }} </span
+                                                class="item-price rounded-pill"
+                                                :style="{
+                                                    background:
+                                                        p.label_color ||
+                                                        '#1B1670',
+                                                }"
                                             >
+                                                {{ formatMoney(p.price) }}
+                                            </span>
+
                                             <span
                                                 v-if="(p.stock ?? 0) <= 0"
                                                 class="item-badge"
+                                                >OUT OF STOCK</span
                                             >
-                                                Out
-                                            </span>
                                         </div>
+
                                         <div class="item-body">
                                             <div class="item-title">
                                                 {{ p.title }}
@@ -812,6 +829,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
                                                 {{ p.family }}
                                             </div>
                                         </div>
+                                        
                                     </div>
                                 </div>
                                 <div
@@ -1327,7 +1345,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     padding: 0.35rem 0.6rem;
     border-radius: 999px;
     color: #fff;
-    background: #1B1670; 
+    background: #1b1670;
     box-shadow: 0 2px 6px rgba(75, 43, 183, 0.25);
 }
 
@@ -1376,7 +1394,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     transition: 0.2s;
     display: flex;
     flex-direction: column;
-    border: 2px solid #1B1670; /* fallback if no inline style */
+    border: 2px solid #1b1670; /* fallback if no inline style */
 }
 
 .item-card:hover {
@@ -1397,6 +1415,31 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     display: block;
 }
 
+/* out-of-stock look */
+.item-card.out-of-stock {
+    cursor: not-allowed;
+    opacity: 0.9;
+    position: relative;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+/* overlay background */
+.item-card.out-of-stock::after {
+    content: "";
+    position: absolute;
+    inset: 0; /* cover whole card */
+    background: rgba(90, 85, 85, 0.192); /* semi-transparent dark overlay */
+    border-radius: 16px; /* match card radius */
+    z-index: 2; /* sit above content */
+}
+
+/* make text & badge still visible above overlay */
+/* .item-card.out-of-stock .item-body,
+.item-card.out-of-stock .item-badge {
+    position: relative;
+    z-index: 3;
+} */
+
 .item-price {
     position: absolute;
     top: 10px;
@@ -1408,14 +1451,13 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
     font-size: 0.8rem;
     border-radius: 999px; /* pill shape */
     line-height: 1;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     z-index: 2;
 }
 
-
 .item-badge {
     position: absolute;
-    right: 10px;
+    left: 10px;
     top: 10px;
     background: #ffeded;
     color: #c0392b;
