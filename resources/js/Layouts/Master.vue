@@ -268,13 +268,20 @@ onUpdated(() => window.feather?.replace());
             </div>
 
             <div class="header-center">
-                <div class="top-nav-search">
-                    <!-- <i class="fa fa-search me-2"></i> -->
+                <!-- <div class="top-nav-search">
+                    < 
                     <input type="text" placeholder="Search Here ..." />
-                </div>
+                </div> -->
             </div>
 
             <ul class="nav user-menu">
+                <a
+                    class="btn btn-primary rounded-pill px-4 fw-semibold me-3"
+                    href="/pos/order"
+                >
+                    Quick Order
+                </a>
+
                 <li class="nav-item">
                     <button class="icon-btn" @click="toggleDark()">
                         <Sun v-if="isDark" :size="20" />
