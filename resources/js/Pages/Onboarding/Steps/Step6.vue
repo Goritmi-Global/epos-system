@@ -12,7 +12,7 @@ const form = reactive({
   show_qr: props.model?.show_qr ?? 1,
   tax_breakdown: props.model?.tax_breakdown ?? true,
   kitchen_printer: props.model?.kitchen_printer ?? true,
-  store_phone: props.model?.store_phone ?? "03101186261",
+  store_phone: props.model?.phone ?? "",
   store_name: props.model?.receipt_header ?? "Enter store name",
 });
 
@@ -130,8 +130,11 @@ function onCropped({ file }) {
       <div class="col-lg-5">
         <div class="receipt-card">
           <div class="text-center">
-              <!-- <div class="text-center small"> {{ form.receipt_header }} </div> -->
-            <div v-if="form.receipt_logo" class="mb-2"> <img :src="form.receipt_logo" alt class="logo-preview" /> </div>
+            <!-- <div class="text-center small"> {{ form.receipt_header }} </div> -->
+            <div v-if="form.receipt_logo" class="mb-2 logo-container">
+              <img :src="form.receipt_logo" alt class="logo-preview" />
+            </div>
+
             <h6 class="mb-1">{{ form.receipt_header }}</h6>
             <div class="text-muted small"> {{ new Date().toLocaleString() }} </div>
             <div class="text-center my-2">
@@ -172,10 +175,11 @@ function onCropped({ file }) {
   --brand: #1c0d82;
 }
 
-.dark .logo-frame{
-     background-color: #000000;
-    color: #fff !important;
+.dark .logo-frame {
+  background-color: #000000;
+  color: #fff !important;
 }
+
 /* -------- Match Step 5 segmented style -------- */
 .segmented {
   display: inline-flex;
@@ -265,14 +269,14 @@ function onCropped({ file }) {
   box-shadow: 0 6px 20px rgba(17, 38, 146, 0.06);
 }
 
-.dark .receipt-card{
- background-color: #000000 !important;
-    color: #ffffff !important;
+.dark .receipt-card {
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
 
-.dark input{
-   background-color: #000000 !important;
-    color: #ffffff !important;
+.dark input {
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
 
 .badge-pill {
@@ -333,4 +337,14 @@ function onCropped({ file }) {
   min-width: 130px;
   border: 0;
 }
+
+.logo-container {
+  text-align: center;
+}
+
+.logo-preview {
+  max-width: 120px; /* optional: keeps it small */
+  display: inline-block;
+}
+
 </style>

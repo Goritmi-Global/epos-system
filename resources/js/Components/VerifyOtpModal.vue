@@ -76,9 +76,9 @@ const verifyOtp = async () => {
             otp: otp.value,
         });
 
-        toast.success("✅ Account Verified successfully!");
+        toast.success("Account Verified successfully!");
 
-        // ✅ Close modal and redirect after 2 seconds
+        //  Close modal and redirect after 2 seconds
         setTimeout(() => {
             emits("closed"); // close the modal
             window.location.href = route("dashboard"); // redirect

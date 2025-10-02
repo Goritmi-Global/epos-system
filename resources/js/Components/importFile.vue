@@ -43,7 +43,7 @@ const handleFile = async (e) => {
       // Emit data back to parent
       emit("on-import", jsonData);
 
-      // ✅ Reset input so selecting the same file again works
+      //  Reset input so selecting the same file again works
       fileInput.value.value = "";
     };
 

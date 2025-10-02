@@ -93,8 +93,8 @@ class SettingsController extends Controller
         $data = $this->validateStep($request, $step);
         // dd($data);
 
-        // ✅ Step 2
-        // ✅ Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
+        //  Step 2
+        // Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
         if ($step === 2 && $request->hasFile('logo_file')) {
             try {
                 $existingStep = \App\Models\ProfileStep2::where('user_id', $user->id)->first();
@@ -157,7 +157,7 @@ class SettingsController extends Controller
         }
 
 
-        // ✅ Step 6
+        //  Step 6
         if ($step === 6 && $request->hasFile('receipt_logo_file')) {
             try {
                 $existingStep = \App\Models\ProfileStep6::where('user_id', $user->id)->first();
@@ -172,7 +172,7 @@ class SettingsController extends Controller
                 $data['upload_id'] = $upload->id;
 
                 if ($oldUploadId) {
-                    UploadHelper::delete($oldUploadId); // ✅ FIXED
+                    UploadHelper::delete($oldUploadId); //  FIXED
                 }
 
                 unset($data['receipt_logo_file']);
@@ -252,12 +252,12 @@ class SettingsController extends Controller
         return match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone'     => 'required|string|max:100',
+                'timezone_id'     => 'required|string|max:100',
                 'language'     => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
                 'country_code.exists'   => 'Selected country is invalid',
-                'timezone.required'     => 'Timezone field is required',
+                'timezone_id.required'     => 'Timezone field is required',
                 'language.required'     => 'Language field is required',
             ]),
 
@@ -406,7 +406,7 @@ class SettingsController extends Controller
             'address',
             'website',
             'currency',
-            'timezone',
+            'timezone_id',
             'language',
         ];
 
@@ -435,7 +435,7 @@ class SettingsController extends Controller
                 $stepData = $modelClass::where('user_id', $userId)->first();
                 $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
 
-                // ✅ Step 1: map country info
+                //  Step 1: map country info
                 if ($i === 1 && !empty($data['step1']['country_id'])) {
                     $country = \App\Models\Country::where('id', $data['step1']['country_id'])->first();
                     if ($country) {
@@ -458,7 +458,7 @@ class SettingsController extends Controller
                 }
 
 
-                // ✅ Special handling for step 8 (business hours)
+                //  Special handling for step 8 (business hours)
                 if ($i === 8 && $stepData) {
                     $businessHours = BusinessHour::where('user_id', $userId)->get();
 
@@ -485,7 +485,7 @@ class SettingsController extends Controller
                     $data['step9']['feat_theme'] = !empty($data['step9']['theme_preference']) ? 'yes' : 'no';
                 }
 
-                // ✅ Step 2: Logo using UploadHelper
+                //  Step 2: Logo using UploadHelper
                 if ($i === 2 && $stepData) {
                     $uploadId = $stepData->upload_id ?? null;
                     $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');

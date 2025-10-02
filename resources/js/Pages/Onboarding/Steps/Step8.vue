@@ -96,7 +96,7 @@ const timeItems = computed(() => {
       </div>
     </div>
 
-    <!-- ✅ Attendance Policy Error -->
+    <!--  Attendance Policy Error -->
     <small v-if="props.formErrors?.attendance_policy" class="text-danger d-block mb-3">
       {{ props.formErrors.attendance_policy[0] }}
     </small>

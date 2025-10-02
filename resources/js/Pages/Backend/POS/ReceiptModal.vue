@@ -36,7 +36,7 @@ const props = defineProps({
   show: Boolean,
   order: Object,
   money: Function,
-  restaurant: Object   // ✅ add restaurant info as prop
+  restaurant: Object   //  add restaurant info as prop
 });
 
 const printReceipt = () => {

@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
 
         // Select only required columns per step
         $fields = [
-            'language_and_location' => ['country_id', 'timezone', 'language'],
+            'language_and_location' => ['country_id', 'timezone_id', 'language'],
             'business_information'  => ['business_name', 'business_type', 'legal_name', 'phone', 'email', 'address', 'website', 'upload_id'],
             'currency_and_locale'   => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
             'tax_and_vat'           => ['is_tax_registered', 'tax_type', 'tax_rate', 'tax_id', 'extra_tax_rates', 'price_includes_tax'],
@@ -81,7 +81,7 @@ class HandleInertiaRequests extends Middleware
 
         // Normalized formatting block for the SPA
        $fmt = [
-            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), // ✅ real locale
+            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), //  real locale
             'dateFormat'       => data_get($onboarding, 'currency_and_locale.date_format', 'yyyy-MM-dd'),
             'timeFormat'       => data_get($onboarding, 'currency_and_locale.time_format', 'HH:mm'),
             'currency'         => strtoupper(data_get($onboarding, 'currency_and_locale.currency', 'PKR')),

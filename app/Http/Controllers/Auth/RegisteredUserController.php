@@ -82,7 +82,7 @@ class RegisteredUserController extends Controller
         $user->email_verified_at = now();
         $user->verifying_otp = null;
         $user->save();
-        // ✅ Automatically log the user in
+        // Automatically log the user in
         Auth::login($user);
 
         return response()->json(['message' => 'Verified successfully']);

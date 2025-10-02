@@ -16,12 +16,11 @@ class VerifyAccountController extends Controller
         if ($user->email_verified_at) {
             abort(404); // or: return abort(404, 'Already verified');
         }
-
-        // ✅ Mark as verified
+ 
         $user->email_verified_at = now();
         $user->save();
 
-        return redirect()->route('login')->with('message', '✅ Your account has been verified. You can now log in.');
+        return redirect()->route('login')->with('message', 'Your account has been verified. You can now log in.');
     }
 
 }

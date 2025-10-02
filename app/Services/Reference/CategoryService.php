@@ -186,7 +186,7 @@ class CategoryService
                 }
             }
 
-            // ✅ UPDATE THE MAIN CATEGORY FIRST
+            //  UPDATE THE MAIN CATEGORY FIRST
             $category->update([
                 'name' => $data['name'] ?? $category->name,
                 'icon' => $data['icon'] ?? $category->icon,
@@ -194,7 +194,7 @@ class CategoryService
                 'parent_id' => $data['parent_id'] ?? $category->parent_id,
             ]);
 
-            // ✅ THEN HANDLE SUBCATEGORIES IF PROVIDED
+            //  THEN HANDLE SUBCATEGORIES IF PROVIDED
             if (isset($data['subcategories']) && is_array($data['subcategories'])) {
                 // Get current subcategories
                 $currentSubcategoryIds = $category->subcategories()->pluck('id')->toArray();
@@ -224,7 +224,7 @@ class CategoryService
                     }
                 }
 
-                // ✅ DELETE subcategories that were removed from the list
+                //  DELETE subcategories that were removed from the list
                 $subcategoriesToDelete = array_diff($currentSubcategoryIds, $updatedSubcategoryIds);
                 if (!empty($subcategoriesToDelete)) {
                     InventoryCategory::whereIn('id', $subcategoriesToDelete)

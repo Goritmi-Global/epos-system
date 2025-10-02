@@ -1,21 +1,27 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\POS\AnalyticsController;
-use App\Http\Controllers\GeoController;
-use App\Http\Controllers\IndexController;
-use App\Http\Controllers\POS\InventoryController;
-use App\Http\Controllers\POS\MenuCategoryController;
-use App\Http\Controllers\POS\MenuController;
-use App\Http\Controllers\POS\OrdersController;
-use App\Http\Controllers\POS\PosOrderController;
-use App\Http\Controllers\POS\PurchaseOrderController;
-use App\Http\Controllers\PromoController;
-use App\Http\Controllers\Reference\AllergyController;
-use App\Http\Controllers\Reference\CategoryController;
-use App\Http\Controllers\Reference\SupplierController;
-use App\Http\Controllers\Reference\TagController;
-use App\Http\Controllers\Reference\UnitController;
+use App\Http\Controllers\POS\{
+    AnalyticsController,
+    InventoryController,
+    MenuCategoryController,
+    MenuController,
+    OrdersController,
+    PosOrderController,
+    PurchaseOrderController
+};
+use App\Http\Controllers\Reference\{
+    AllergyController,
+    CategoryController,
+    SupplierController,
+    TagController,
+    UnitController
+};
+use App\Http\Controllers\{
+    GeoController,
+    IndexController,
+    PromoController
+};
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);

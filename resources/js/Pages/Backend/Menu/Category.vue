@@ -206,7 +206,7 @@ const submitCategory = async () => {
                 color: categoryColor.value,
             };
 
-            // ✅ Handle subcategories only if it's a MAIN CATEGORY
+            //  Handle subcategories only if it's a MAIN CATEGORY
             if (!updatePayload.parent_id) {
                 if (manualSubcategoriesInput.value) {
                     updatePayload.subcategories = manualSubcategoriesInput.value

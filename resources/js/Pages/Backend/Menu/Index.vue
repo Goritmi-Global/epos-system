@@ -237,7 +237,7 @@ onMounted(() => {
 const q = ref("");
 const sortBy = ref("");
 
-// ✅ Use menuItems here
+//  Use menuItems here
 const filteredItems = computed(() => {
     const term = q.value.trim().toLowerCase();
     if (!term) return menuItems.value;
@@ -737,7 +737,7 @@ function resetForm() {
     formErrors.value = {};
     isEditMode.value = null;
 
-    // ✅ reset ingredients + totals
+    //  reset ingredients + totals
     i_cart.value = [];
     i_total.value = 0;
     i_totalNutrition.value = {
@@ -794,7 +794,7 @@ const downloadCSV = (data) => {
 
         // Build CSV rows
         const rows = data.map((s) => {
-            // ✅ Format Nutrition (only calories, protein, fat, carbs)
+            //  Format Nutrition (only calories, protein, fat, carbs)
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
@@ -810,18 +810,18 @@ const downloadCSV = (data) => {
                 nutritionStr = s.nutrition;
             }
 
-            // ✅ Handle Category (object or string)
+            //  Handle Category (object or string)
             const category =
                 typeof s.category === "object"
                     ? s.category?.name || ""
                     : s.category || "";
 
-            // ✅ Handle Allergies (array of objects or strings)
+            //  Handle Allergies (array of objects or strings)
             const allergies = Array.isArray(s.allergies)
                 ? s.allergies.map((a) => a.name || a).join(", ")
                 : s.allergies || "";
 
-            // ✅ Handle Tags (array of objects or strings)
+            //  Handle Tags (array of objects or strings)
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
                 : s.tags || "";
@@ -902,7 +902,7 @@ const downloadPDF = (data) => {
             }
             if (Array.isArray(nutri)) return nutri.join(", ");
             if (typeof nutri === "object") {
-                // ✅ Only keep required fields
+                //  Only keep required fields
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
                 return wantedKeys
                     .map((key) =>
@@ -993,7 +993,7 @@ const downloadExcel = (data) => {
 
         // Prepare worksheet data
         const worksheetData = data.map((s) => {
-            // ✅ Format Nutrition (only calories, protein, fat, carbs)
+            //  Format Nutrition (only calories, protein, fat, carbs)
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
@@ -1009,18 +1009,18 @@ const downloadExcel = (data) => {
                 nutritionStr = s.nutrition;
             }
 
-            // ✅ Handle Category (object or string)
+            //  Handle Category (object or string)
             const category =
                 typeof s.category === "object"
                     ? s.category?.name || ""
                     : s.category || "";
 
-            // ✅ Handle Allergies (array of objects or strings)
+            //  Handle Allergies (array of objects or strings)
             const allergies = Array.isArray(s.allergies)
                 ? s.allergies.map((a) => a.name || a).join(", ")
                 : s.allergies || "";
 
-            // ✅ Handle Tags (array of objects or strings)
+            //  Handle Tags (array of objects or strings)
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
                 : s.tags || "";
