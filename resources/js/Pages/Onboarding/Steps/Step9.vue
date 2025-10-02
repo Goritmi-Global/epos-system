@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, toRaw, watch } from "vue"
+import { onMounted, reactive, toRaw, watch } from "vue"
 
 const props = defineProps({ model: Object })
 const emit  = defineEmits(["save"])
@@ -12,9 +12,28 @@ const form = reactive({
 })
 
 // Watch for changes and log them
-watch(() => form, (newVal) => {
-  console.log("Step 9 Form Updated:", toRaw(newVal));
-}, { deep: true });
+// watch(() => form, (newVal) => {
+//   console.log("Step 9 Form Updated:", toRaw(newVal));
+// }, { deep: true });
+
+
+// Add this after your props definition
+onMounted(() => {
+  console.log("Step 9 - Props received:", props.model);
+  console.log("Step 9 - Form initialized:", toRaw(form));
+})
+watch(
+  () => form,
+  (newVal) => {
+    const rawForm = toRaw(form);
+    console.log("Step 9 Form Updated (watch):", rawForm);
+
+    // Emit save immediately, even if user hasn't changed anything
+    emit("save", { step: 9, data: rawForm });
+  },
+  { deep: true, immediate: true } // <-- add immediate: true
+);
+
 
 function emitSave() {
   const rawForm = toRaw(form);

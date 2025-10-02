@@ -23,9 +23,17 @@ return new class extends Migration {
             $table->string('region', 8)->nullable();
             $table->string('subregion', 25)->nullable();
 
+            // ✅ Add default timezone reference
+            $table->unsignedBigInteger('default_timezone_id')->nullable();
+
             $table->index('iso2');
             $table->index('iso3');
             $table->index('name');
+
+            $table->foreign('default_timezone_id')
+                ->references('id')
+                ->on('timezones')
+                ->onDelete('set null');
         });
     }
 

@@ -29,6 +29,7 @@ class SettingsController extends Controller
 
         // Load all step data
         $profileData = $this->loadAllStepData($user->id);
+        // dd($profileData);
 
         return Inertia::render('Backend/Settings/Index', [
             'profile' => $profile,
@@ -91,6 +92,7 @@ class SettingsController extends Controller
         // Use the same validation rules from OnboardingController
         $data = $this->validateStep($request, $step);
         // dd($data);
+
         // ✅ Step 2
         // ✅ Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
         if ($step === 2 && $request->hasFile('logo_file')) {
@@ -114,6 +116,44 @@ class SettingsController extends Controller
             } catch (\Exception $e) {
                 return response()->json(['error' => 'Failed to upload logo'], 500);
             }
+        }
+
+        // Step 5
+        if ($step === 5) {
+            // Get existing ProfileStep5 to find profile_table_id
+            $existingStep5 = \App\Models\ProfileStep5::where('user_id', $user->id)->first();
+            $profileTableId = $existingStep5->profile_table_id ?? null;
+
+            // Update or create ProfileTable if table details exist
+            if (!empty($data['table_details'])) {
+                $tableCount = $data['tables'] ?? count($data['table_details']);
+
+                if ($profileTableId) {
+                    // Update existing ProfileTable
+                    $profileTable = \App\Models\ProfileTable::find($profileTableId);
+                    if ($profileTable) {
+                        $profileTable->update([
+                            'number_of_tables' => $tableCount,
+                            'table_details' => $data['table_details'],
+                        ]);
+                    }
+                } else {
+                    // Create new ProfileTable
+                    $profileTable = \App\Models\ProfileTable::create([
+                        'number_of_tables' => $tableCount,
+                        'table_details' => $data['table_details'],
+                    ]);
+                    $profileTableId = $profileTable->id;
+                }
+            }
+
+            // Update data to save to ProfileStep5
+            $data = [
+                'order_types' => $data['order_types'] ?? [],
+                'table_management_enabled' => $data['table_management_enabled'] ?? false,
+                'online_ordering_enabled' => $data['online_ordering'] ?? false,
+                'profile_table_id' => $profileTableId,
+            ];
         }
 
 
@@ -179,6 +219,16 @@ class SettingsController extends Controller
             );
         }
 
+        if ($step === 9) {
+            // Map form fields to database columns
+            $data = [
+                'enable_loyalty_system' => $data['feat_loyalty'] === 'yes',
+                'enable_inventory_tracking' => $data['feat_inventory'] === 'yes',
+                'enable_cloud_backup' => $data['feat_backup'] === 'yes',
+                'enable_multi_location' => $data['feat_multilocation'] === 'yes',
+                'theme_preference' => $data['feat_theme'] === 'yes' ? 'default_theme' : null,
+            ];
+        }
 
 
         // Update the appropriate step model
@@ -201,30 +251,38 @@ class SettingsController extends Controller
     {
         return match ($step) {
             1 => $request->validate([
-                'country_name' => 'required',
-                'timezone' => 'required|string|max:100',
-                'language' => 'required|string|max:10',
-                'languages_supported' => 'nullable|array',
-                'languages_supported.*' => 'string|max:10',
+                'country_code' => 'required|string|exists:countries,iso2',
+                'timezone'     => 'required|string|max:100',
+                'language'     => 'required|string|max:10',
+            ], [
+                'country_code.required' => 'Country field is required',
+                'country_code.exists'   => 'Selected country is invalid',
+                'timezone.required'     => 'Timezone field is required',
+                'language.required'     => 'Language field is required',
             ]),
+
             2 => $request->validate(
                 [
                     'business_name' => 'required|string|max:190',
-                    'legal_name' => 'required|string|max:190',
+                    'legal_name'    => 'required|string|max:190',
                     'business_type' => 'required',
-                    'phone' => 'required|string|max:60',
-                    'phone_local' => 'required|string|max:60',
-                    'email' => 'required|email|max:190',
-                    'address' => 'required|string|max:500',
-                    'website' => 'required|max:190',
-                    'logo' => 'nullable',
-                    'logo_file' => 'nullable',
-                    'upload_id' => 'required|integer',
+                    'phone'         => 'required|string|max:60',
+                    'phone_local'   => 'required|string|max:60',
+                    'email'         => 'required|email|max:190',
+                    'address'       => 'required|string|max:500',
+                    'website'       => 'required|max:190',
+                    'logo'          => 'nullable',
+                    // Check if logo was already uploaded
+                    'logo_file'     => (!empty($tempData['upload_id']) || !empty($tempData['logo_url']))
+                        ? 'nullable'
+                        : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 ],
                 [
                     'phone_local.required' => 'The phone field is required.',
+                    'logo_file.required' => 'Please upload a business logo.',
                 ]
             ),
+
             3 => $request->validate([
                 'currency' => 'required|string|max:8',
                 'currency_symbol_position' => 'required|in:before,after',
@@ -232,14 +290,25 @@ class SettingsController extends Controller
                 'date_format' => 'required|string|max:20',
                 'time_format' => 'required|in:12-hour,24-hour',
             ]),
+
             4 => $request->validate([
-                'tax_registered' => 'required|boolean',
-                'tax_type' => 'required_if:tax_registered,1|string|max:50',
-                'tax_rate' => 'required_if:tax_registered,1|numeric|min:0|max:100',
-                'tax_id' => 'required_if:tax_registered,1',
-                'extra_tax_rates' => 'required_if:tax_registered,1',
+                'tax_registered'    => 'required|boolean',
+                'tax_type'          => 'required_if:tax_registered,1|max:50',
+                'tax_rate'          => 'required_if:tax_registered,1|numeric|min:0|max:100',
+                'tax_id'            => 'required_if:tax_registered,1',
+                'extra_tax_rates'   => 'required_if:tax_registered,1|numeric|min:0|max:100',
                 'price_includes_tax' => 'required|boolean',
+            ], [
+                'tax_type.required_if'        => 'The Tax Type field is required when Tax Registered is checked Yes.',
+                'tax_rate.required_if'        => 'The Tax Rate field is required when Tax Registered is checked Yes.',
+                'tax_rate.min'                => 'The Tax Rate cannot be less than 0%.',
+                'tax_rate.max'                => 'The Tax Rate cannot exceed 100%.',
+                'extra_tax_rates.min'                => 'The Extra Tax Rate cannot be less than 0%.',
+                'extra_tax_rates.max'                => 'The Extra Tax Rate cannot exceed 100%.',
+                'tax_id.required_if'          => 'The Tax ID field is required when Tax Registered is checked Yes.',
+                'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
             ]),
+
             5 => $request->validate([
                 'order_types' => 'required|array|min:1',
                 'table_management_enabled' => 'required|boolean',
@@ -249,20 +318,26 @@ class SettingsController extends Controller
                 'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
                 'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
             ]),
+
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
-                'receipt_logo' => 'required',
-                'receipt_logo_file' => 'nullable',
+                'receipt_logo' => 'nullable',
+                // Same logic for receipt logo
+                'receipt_logo_file' => (!empty($tempData['upload_id']) || !empty($tempData['receipt_logo_url']))
+                    ? 'nullable'
+                    : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
                 'kitchen_printer_enabled' => 'required|boolean',
                 'printers' => 'nullable|array',
             ]),
+
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
             ]),
+
             8 => $request->validate([
                 'auto_disable' => 'required|in:yes,no',
                 'hours' => 'required|array|size:7',
@@ -274,6 +349,7 @@ class SettingsController extends Controller
                 'hours.*.breaks.*.start' => 'required_with:hours.*.breaks|date_format:H:i',
                 'hours.*.breaks.*.end' => 'required_with:hours.*.breaks|date_format:H:i|after:hours.*.breaks.*.start',
             ]),
+
             9 => $request->validate([
                 'feat_loyalty' => 'required|in:yes,no',
                 'feat_inventory' => 'required|in:yes,no',
@@ -359,6 +435,29 @@ class SettingsController extends Controller
                 $stepData = $modelClass::where('user_id', $userId)->first();
                 $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
 
+                // ✅ Step 1: map country info
+                if ($i === 1 && !empty($data['step1']['country_id'])) {
+                    $country = \App\Models\Country::where('id', $data['step1']['country_id'])->first();
+                    if ($country) {
+                        $data['step1']['country_code'] = $country->iso2;
+                        $data['step1']['country_name'] = $country->name;
+                    }
+                }
+
+                if ($i === 5 && $stepData) {
+                    $data['step5'] = $stepData->toArray();
+
+                    // Fetch profile_table linked to this step
+                    if (!empty($stepData->profile_table_id)) {
+                        $profileTable = \App\Models\ProfileTable::find($stepData->profile_table_id);
+                        if ($profileTable) {
+                            $data['step5']['tables'] = $profileTable->number_of_tables;
+                            $data['step5']['table_details'] = $profileTable->table_details ?? [];
+                        }
+                    }
+                }
+
+
                 // ✅ Special handling for step 8 (business hours)
                 if ($i === 8 && $stepData) {
                     $businessHours = BusinessHour::where('user_id', $userId)->get();
@@ -375,6 +474,15 @@ class SettingsController extends Controller
                             ] : [],
                         ];
                     })->toArray();
+                }
+
+                if ($i === 9 && !empty($data['step9'])) {
+                    // Map database columns back to form fields
+                    $data['step9']['feat_loyalty'] = ($data['step9']['enable_loyalty_system'] ?? false) ? 'yes' : 'no';
+                    $data['step9']['feat_inventory'] = ($data['step9']['enable_inventory_tracking'] ?? false) ? 'yes' : 'no';
+                    $data['step9']['feat_backup'] = ($data['step9']['enable_cloud_backup'] ?? false) ? 'yes' : 'no';
+                    $data['step9']['feat_multilocation'] = ($data['step9']['enable_multi_location'] ?? false) ? 'yes' : 'no';
+                    $data['step9']['feat_theme'] = !empty($data['step9']['theme_preference']) ? 'yes' : 'no';
                 }
 
                 // ✅ Step 2: Logo using UploadHelper

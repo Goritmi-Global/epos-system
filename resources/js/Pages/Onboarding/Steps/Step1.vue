@@ -1,15 +1,16 @@
 <script setup>
-import { reactive, ref, onMounted, watch, computed } from "vue"
+import { reactive, ref, onMounted, watch, computed, nextTick } from "vue"
 import axios from "axios"
 import Select from "primevue/select"
 import { toast } from "vue3-toastify"
 
 const emit = defineEmits(["save"])
+const props = defineProps({ model: Object, formErrors: Object })
 
 const selectedCountry = ref(null)
 const selectedLanguage = ref(null)
 const countries = ref([])
-const props = defineProps({ formErrors: Object });
+
 const languages = ref([
   { label: "English", value: "en", flag: "https://flagcdn.com/w20/gb.png" },
 ])
@@ -30,13 +31,10 @@ const flagUrl = (code, size = "24x18") =>
   `https://flagcdn.com/${size}/${String(code || "").toLowerCase()}.png`
 
 const emitSave = () => {
-  try {
-    emit("save", { step: 1, data: { ...form } })
-  } catch (e) {
-    console.error("Step1 emitSave error:", e)
-  }
+  emit("save", { step: 1, data: { ...form } })
 }
 
+// Fetch countries
 const fetchCountries = async () => {
   try {
     const { data } = await axios.get("/api/countries")
@@ -50,6 +48,7 @@ const fetchCountries = async () => {
   }
 }
 
+// Fetch timezone for selected country
 const fetchCountryDetails = async (code) => {
   if (!code) return
   try {
@@ -62,6 +61,7 @@ const fetchCountryDetails = async (code) => {
   }
 }
 
+// Detect user country from geo API
 const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
@@ -75,69 +75,55 @@ const detectCountry = async () => {
   }
 }
 
+// Sync selected country with profile/model
 const syncSelectedCountry = () => {
-  try {
-    selectedCountry.value =
-      countries.value.find(o => o.code === form.country_code) || null
-  } catch (e) { console.error("syncSelectedCountry error:", e) }
-}
-const syncSelectedLanguage = () => {
-  try {
-    selectedLanguage.value =
-      languagesOptions.value.find(o => o.code === form.language) ||
-      languagesOptions.value[0] || null
-  } catch (e) { console.error("syncSelectedLanguage error:", e) }
-}
+  if (!countries.value.length) return
+  const code = props.model?.country_code || form.country_code
+  selectedCountry.value =
+    countries.value.find(c => String(c.code).toUpperCase() === String(code).toUpperCase()) || null
 
-onMounted(async () => {
-  try {
-    await fetchCountries()
-    await detectCountry()
-    syncSelectedCountry()
-    syncSelectedLanguage()
-    if (form.country_code) await fetchCountryDetails(form.country_code)
-  } catch (e) {
-    console.error("Step1 onMounted error:", e)
+  if (selectedCountry.value) {
+    form.country_code = selectedCountry.value.code
+    form.country_name = selectedCountry.value.name
   }
+}
+
+// Sync selected language with profile/model
+const syncSelectedLanguage = () => {
+  const code = props.model?.language || form.language
+  selectedLanguage.value =
+    languagesOptions.value.find(l => l.code === code) || languagesOptions.value[0]
+}
+
+// Initialize on mount
+onMounted(async () => {
+  await fetchCountries()
+  // await detectCountry()
+  syncSelectedCountry()
+  syncSelectedLanguage()
 })
 
-watch(
-  [countries, () => form.country_code],
-  () => {
-    console.log("WATCH TRIGGERED")
-    console.log("form.country_code:", form.country_code)
-    console.log("countries.value:", countries.value)
-    if (!form.country_code || !countries.value.length) return
-    selectedCountry.value =
-      countries.value.find(
-        c => String(c.code).toUpperCase() === String(form.country_code).toUpperCase()
-      ) || null
-    console.log("selectedCountry synced:", selectedCountry.value)
-  },
-  { immediate: true }
-)
+// Watch for changes in countries or profile to resync selected country
+watch([countries, () => props.model?.country_code], () => {
+  syncSelectedCountry()
+})
 
-
+// Watch selected country changes
 watch(selectedCountry, (opt) => {
-  try {
-    if (!opt) return
-    form.country_code = opt.code
-    form.country_name = opt.name
-    fetchCountryDetails(opt.code)
-    emitSave()
-  } catch (e) { console.error("selectedCountry watch error:", e) }
-}) 
-
-watch(selectedLanguage, (opt) => {
-  try {
-    if (!opt) return
-    form.language = opt.code
-    emitSave()
-  } catch (e) { console.error("selectedLanguage watch error:", e) }
+  if (!opt || !opt.code) return
+  form.country_code = opt.code
+  form.country_name = opt.name
+  fetchCountryDetails(opt.code)
+  emitSave()
 })
 
+// Watch selected language changes
+watch(selectedLanguage, (opt) => {
+  if (!opt) return
+  form.language = opt.code
+  emitSave()
+})
 </script>
-
 
 <template>
   <div>
@@ -147,20 +133,11 @@ watch(selectedLanguage, (opt) => {
       <div class="row g-3">
         <!-- Country -->
         <div class="col-12">
-          <label class="form-label d-flex align-items-center gap-2">
-           
-            Country
-          </label>
+          <label class="form-label d-flex align-items-center gap-2">Country</label>
 
-          <Select
-            v-model="selectedCountry"
-            :options="countries"
-            optionLabel="name"
-            :filter="true"
-            placeholder="Select a Country"
-            class="w-100"
-            :class="{'is-invalid': formErrors.country_name}"
-          >
+          <Select v-model="selectedCountry" :options="countries" optionLabel="name" :filter="true"
+            placeholder="Select a Country" class="w-100"
+            :class="{ 'is-invalid': formErrors.country_name || formErrors.country_code }">
             <!-- Selected -->
             <template #value="{ value, placeholder }">
               <div v-if="value" class="d-flex align-items-center gap-2">
@@ -178,40 +155,29 @@ watch(selectedLanguage, (opt) => {
               </div>
             </template>
           </Select>
-            <small v-if="formErrors?.country_name" class="text-danger">
-                    {{ formErrors.country_name[0] }}
-                </small>
+
+          <!-- Validation Error -->
+          <small v-if="formErrors?.country_name || formErrors?.country_code" class="text-danger">
+            {{ formErrors.country_name?.[0] || formErrors.country_code?.[0] }}
+          </small>
         </div>
+
 
         <!-- Timezone -->
         <div class="col-md-6">
-          <label class="form-label d-flex align-items-center gap-2">
-            
-            Time Zone
-          </label>
-          <input type="text" class="form-control" v-model="form.timezone" :class="{'is-invalid': formErrors.timezone}"  />
+          <label class="form-label d-flex align-items-center gap-2">Time Zone</label>
+          <input type="text" class="form-control" v-model="form.timezone"
+            :class="{ 'is-invalid': formErrors.timezone }" />
           <small v-if="formErrors?.timezone" class="text-danger">
-                    {{ formErrors.timezone[0] }}
-                </small>
+            {{ formErrors.timezone[0] }}
+          </small>
         </div>
 
         <!-- Language -->
         <div class="col-md-6">
-          <label class="form-label d-flex align-items-center gap-2">
-             
-            Language
-          </label>
-
-          <Select
-            v-model="selectedLanguage"
-            :options="languagesOptions"
-            optionLabel="name"
-            :filter="false"
-            placeholder="Select a Language"
-            class="w-100"
-            :class="{'is-invalid': formErrors.language}"
-          >
-            <!-- Selected -->
+          <label class="form-label d-flex align-items-center gap-2">Language</label>
+          <Select v-model="selectedLanguage" :options="languagesOptions" optionLabel="name" :filter="false"
+            placeholder="Select a Language" class="w-100" :class="{ 'is-invalid': formErrors.language }">
             <template #value="{ value, placeholder }">
               <div v-if="value" class="d-flex align-items-center gap-2">
                 <img :alt="value.name" :src="value.flag" width="18" height="14" style="object-fit:cover" />
@@ -219,8 +185,6 @@ watch(selectedLanguage, (opt) => {
               </div>
               <span v-else>{{ placeholder }}</span>
             </template>
-
-            <!-- Options -->
             <template #option="{ option }">
               <div class="d-flex align-items-center gap-2">
                 <img :alt="option.name" :src="option.flag" width="18" height="14" style="object-fit:cover" />
@@ -229,8 +193,8 @@ watch(selectedLanguage, (opt) => {
             </template>
           </Select>
           <small v-if="formErrors?.language" class="text-danger">
-                    {{ formErrors.language[0] }}
-                </small>
+            {{ formErrors.language[0] }}
+          </small>
         </div>
       </div>
     </div>
@@ -245,20 +209,27 @@ watch(selectedLanguage, (opt) => {
 }
 
 
-:root { --brand:#1C0D82; }
+:root {
+  --brand: #1C0D82;
+}
 
 /* Section wrapper to match other steps */
-.section{
-  border:1px solid #edf0f6;
-  border-radius:12px;
-  background:#fff;
-  box-shadow:0 6px 18px rgba(17,38,146,.06);
+.section {
+  border: 1px solid #edf0f6;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(17, 38, 146, .06);
 }
 
 /* Label icon chip (same style you’ve used elsewhere) */
-.fi{
-  display:inline-flex; align-items:center; justify-content:center;
-  width:32px; height:32px; border-radius:8px;
-  background:rgba(28,13,130,.08); color:var(--brand);
+.fi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(28, 13, 130, .08);
+  color: var(--brand);
 }
 </style>
