@@ -506,14 +506,14 @@ onUpdated(() => window.feather?.replace());
 
 html.dark {
     --brand: #ffffff;
-    --bg-muted: #1f2937;
+    --bg-muted: #212121;
     --border: #212121;
     background: #181818;
     color: #f9fafb;
 }
 
 html.dark .page-wrapper {
-    background: #1f2937;
+    background: #212121;
     border-bottom-color: #212121;
 }
 
@@ -524,7 +524,7 @@ html.dark .header {
 
 html.dark .sidebar {
     background: #181818;
-    /* border-right-color: #374151; */
+    /* border-right-color: #212121; */
     color: white;
 }
 

@@ -2769,12 +2769,12 @@ const handleImport = (data) => {
 }
 
 .dark .select {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     color: #f9fafb !important;
 }
 
 .dark .card-header {
-    background-color: #000000;
+    background-color: #181818;
 }
 
 :root {
@@ -2794,7 +2794,7 @@ const handleImport = (data) => {
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #000000;
+    color: #181818;
 }
 
 /* Search pill */

@@ -1319,22 +1319,22 @@ const handleImport = (data) => {
     color: white;
 }
 .dark .card {
-  background-color: #000000!important; /* gray-800 */
+  background-color: #181818!important; /* gray-800 */
   color: #ffffff !important;           /* gray-50 */
 }
 
 .dark .table {
-  background-color: #000000 !important; /* gray-900 */
+  background-color: #181818 !important; /* gray-900 */
   color: #f9fafb !important;
 }
 
 .dark .table thead{
-    background-color: #000000 !important; /* gray-900 */
+    background-color: #181818 !important; /* gray-900 */
   color: #f9fafb !important;
 }
 
 .dark .table thead th{
-    background-color: #000000 !important; /* gray-900 */
+    background-color: #181818 !important; /* gray-900 */
   color: #f9fafb !important;
 } 
 
@@ -1350,7 +1350,7 @@ const handleImport = (data) => {
 .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #000000;
+    color: #181818;
 }
 
 /* Search pill */

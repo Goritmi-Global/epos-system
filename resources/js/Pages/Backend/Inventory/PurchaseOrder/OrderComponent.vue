@@ -497,17 +497,17 @@ const formatDate = (date) => {
 </template>
 <style scoped>
 .dark .modal-body{
-    background-color: #000000 !important; /* gray-800 */
+    background-color: #181818 !important; /* gray-800 */
   color: #f9fafb !important;  
 }
 
 .dark .modal-header{
-      background-color: #000000 !important; /* gray-800 */
+      background-color: #181818 !important; /* gray-800 */
   color: #f9fafb !important;  
 }
 
 .dark .table {
-  background-color: #000000 !important; /* gray-900 */
+  background-color: #181818 !important; /* gray-900 */
   color: #f9fafb !important;
 }
 
@@ -516,30 +516,30 @@ const formatDate = (date) => {
     border: #181818 !important;
 }
 .dark .table thead{
-    background-color:  #000000;
+    background-color:  #181818;
     color: #f9fafb;
 }
 .dark .table thead th{
-    background-color:  #000000;
+    background-color:  #181818;
     color: #f9fafb;
 }
 
 .dark .table tbody td{
-    background-color:  #000000;
+    background-color:  #181818;
     color: #f9fafb;
 }
 .dark .cart{
-     background-color:  #000000;
+     background-color:  #181818;
     color: #f9fafb;
 }
 
 .dark .card-body{
-      background-color:  #000000;
+      background-color:  #181818;
     color: #f9fafb;
 }
 
 .dark input{
-      background-color:  #000000;
+      background-color:  #181818;
     color: #f9fafb;
 }
 

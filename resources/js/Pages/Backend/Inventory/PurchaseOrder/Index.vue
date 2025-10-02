@@ -908,7 +908,7 @@ onUpdated(() => window.feather?.replace?.());
 
 <style scoped>
 .dark .modal-footer {
-    background-color: #000000 !important; /* gray-800 */
+    background-color: #181818 !important; /* gray-800 */
     color: #f9fafb !important;
 }
 
