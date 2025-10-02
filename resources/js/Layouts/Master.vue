@@ -8,15 +8,18 @@ import {
     onUpdated,
 } from "vue";
 import { Link } from "@inertiajs/vue3";
-import { useDark, useToggle } from "@vueuse/core";
+import { useDark, useToggle, } from "@vueuse/core";
 import { Moon, Sun } from "lucide-vue-next";
 import { usePage } from "@inertiajs/vue3";
+import { toast } from "vue3-toastify";
 /* =========================
    Sidebar structure (array)
    ========================= */
 const page = usePage();
 
+const formErrors = ref({});
 const logedIUser = computed(() => page.props.current_user ?? {});
+
 const businessInfo = computed(() => page.props.business_info ?? {});
 
 const isDark = useDark({
@@ -223,59 +226,67 @@ onUpdated(() => window.feather?.replace());
 
 // Modal form state
 const profileForm = ref({
-    username: logedIUser.name ?? "",
+    username: logedIUser.value.name ?? "",
     password: "",
-    pin: "",
+    pin: logedIUser.value.pin ?? "",
     role: "Super Admin",
 });
 
-const updateProfile = () => {
-    // wire to your endpoint later
-    // e.g. router.post('/profile/update', profileForm.value)
+const updateProfile = async () => {
+    try {
+        const response = await axios.post("/api/profile/update", profileForm.value);
+
+        if (response.data.success) {
+
+            toast.success("Profile updated successfully");
+            const modal = bootstrap.Modal.getInstance(
+                document.getElementById("userProfileModal")
+            );
+            modal.hide();
+        } else {
+            alert("Something went wrong!");
+        }
+    } catch (error) {
+         if (error?.response?.status === 422 && error.response.data?.errors) {
+            formErrors.value = error.response.data.errors;
+
+            toast.error("Please fill in all required fields correctly.");
+        }
+        toast.error("Failed to update profile ❌");
+    }
 };
+
 </script>
 
 <template>
-    <div
-        class="layout-root"
-        :class="{
-            /* explicit breakpoint classes */
-            'state-desktop': isDesktop,
-            'state-tablet': isTablet,
-            'state-mobile': isMobile,
+    <div class="layout-root" :class="{
+        /* explicit breakpoint classes */
+        'state-desktop': isDesktop,
+        'state-tablet': isTablet,
+        'state-mobile': isMobile,
 
-            /* whether sidebar is logically open:
-           - on mobile -> overlayOpen (overlay visible)
-           - on tablet/desktop -> sidebarExpanded (persistent expanded)
-        */
-            'sidebar-open': isMobile ? overlayOpen : sidebarExpanded,
+        /* whether sidebar is logically open:
+       - on mobile -> overlayOpen (overlay visible)
+       - on tablet/desktop -> sidebarExpanded (persistent expanded)
+    */
+        'sidebar-open': isMobile ? overlayOpen : sidebarExpanded,
 
-            /* collapsed mini state applies to persistent sidebar (desktop/tablet) */
-            'sidebar-collapsed': (isDesktop || isTablet) && !sidebarExpanded,
+        /* collapsed mini state applies to persistent sidebar (desktop/tablet) */
+        'sidebar-collapsed': (isDesktop || isTablet) && !sidebarExpanded,
 
-            /* keeps mobile-specific overlay behaviour */
-            'sidebar-overlay': isMobile,
-        }"
-    >
+        /* keeps mobile-specific overlay behaviour */
+        'sidebar-overlay': isMobile,
+    }">
         <!-- =================== HEADER =================== -->
         <header class="header">
             <div class="header-left">
-                <img
-                    :src="businessInfo.image_url"
-                    alt="logo"
-                    width="50"
-                    height="50px"
-                    class="rounded-full border shadow"
-                />
+                <img :src="businessInfo.image_url" alt="logo" width="50" height="50px"
+                    class="rounded-full border shadow" />
 
                 <h5 class="fw-bold">{{ businessInfo.business_name }}</h5>
 
                 <!-- Toggle button: uses new toggleSidebar (behaviour differs by breakpoint) -->
-                <button
-                    class="icon-btn"
-                    @click="toggleSidebar"
-                    aria-label="Toggle sidebar"
-                >
+                <button class="icon-btn" @click="toggleSidebar" aria-label="Toggle sidebar">
                     <i data-feather="menu"></i>
                 </button>
             </div>
@@ -288,10 +299,7 @@ const updateProfile = () => {
             </div>
 
             <ul class="nav user-menu">
-                <a
-                    class="btn btn-primary rounded-pill px-4 fw-semibold me-3"
-                    href="/pos/order"
-                >
+                <a class="btn btn-primary rounded-pill px-4 fw-semibold me-3" href="/pos/order">
                     Quick Order
                 </a>
 
@@ -302,86 +310,55 @@ const updateProfile = () => {
                     </button>
                 </li>
                 <li class="nav-item dropdown has-arrow flag-nav">
-                    <a
-                        class="nav-link dropdown-toggle"
-                        data-bs-toggle="dropdown"
-                        href="javascript:void(0);"
-                    >
-                        <img
-                            src="/assets/img/flags/us1.png"
-                            alt=""
-                            height="20"
-                        />
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="javascript:void(0);">
+                        <img src="/assets/img/flags/us1.png" alt="" height="20" />
                     </a>
                     <div class="dropdown-menu dropdown-menu-end">
-                        <a href="javascript:void(0);" class="dropdown-item"
-                            ><img src="/assets/img/flags/us.png" height="16" />
-                            English</a
-                        >
-                        <a href="javascript:void(0);" class="dropdown-item"
-                            ><img src="/assets/img/flags/fr.png" height="16" />
-                            French</a
-                        >
-                        <a href="javascript:void(0);" class="dropdown-item"
-                            ><img src="/assets/img/flags/es.png" height="16" />
-                            Spanish</a
-                        >
-                        <a href="javascript:void(0);" class="dropdown-item"
-                            ><img src="/assets/img/flags/de.png" height="16" />
-                            German</a
-                        >
+                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/us.png"
+                                height="16" />
+                            English</a>
+                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/fr.png"
+                                height="16" />
+                            French</a>
+                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/es.png"
+                                height="16" />
+                            Spanish</a>
+                        <a href="javascript:void(0);" class="dropdown-item"><img src="/assets/img/flags/de.png"
+                                height="16" />
+                            German</a>
                     </div>
                 </li>
 
                 <li class="nav-item dropdown">
-                    <a
-                        href="javascript:void(0);"
-                        class="dropdown-toggle nav-link"
-                        data-bs-toggle="dropdown"
-                    >
-                        <img
-                            src="/assets/img/icons/notification-bing.svg"
-                            alt="noti"
-                        />
+                    <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
+                        <img src="/assets/img/icons/notification-bing.svg" alt="noti" />
                         <span class="badge rounded-pill">4</span>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end notifications">
-                        <div
-                            class="topnav-dropdown-header d-flex align-items-center justify-content-between"
-                        >
-                            <span class="notification-title"
-                                >Notifications</span
-                            >
-                            <a href="javascript:void(0)" class="clear-noti"
-                                >Clear All</a
-                            >
+                        <div class="topnav-dropdown-header d-flex align-items-center justify-content-between">
+                            <span class="notification-title">Notifications</span>
+                            <a href="javascript:void(0)" class="clear-noti">Clear All</a>
                         </div>
                         <div class="noti-content p-3">
                             No new notifications.
                         </div>
                         <div class="topnav-dropdown-footer">
-                            <a href="javascript:void(0)"
-                                >View all Notifications</a
-                            >
+                            <a href="javascript:void(0)">View all Notifications</a>
                         </div>
                     </div>
                 </li>
 
-                <li
-                    class="nav-item dropdown has-arrow main-drop cursor-pointer"
-                    data-bs-toggle="modal"
-                    data-bs-target="#userProfileModal"
-                >
+                <li class="nav-item dropdown has-arrow main-drop cursor-pointer" data-bs-toggle="modal"
+                    data-bs-target="#userProfileModal">
                     <span class="user-img">
                         <i class="bi bi-person-circle"></i>
                     </span>
                     <div class="ms-2 d-none d-sm-block">
                         <b class="fw-bold text-black">{{ logedIUser.name }}</b>
                         <br />
-                        <small style="color: #1b2850 !important"
-                            >Super Admin</small
-                        >
+                        <small class="super-admin text-black">Super Admin</small>
                     </div>
+
                 </li>
             </ul>
         </header>
@@ -392,50 +369,31 @@ const updateProfile = () => {
             <div class="sidebar-inner">
                 <div id="sidebar-menu" class="sidebar-menu px-2">
                     <ul class="mb-3">
-                        <template
-                            v-for="block in sidebarMenus"
-                            :key="block.label || block.section"
-                        >
+                        <template v-for="block in sidebarMenus" :key="block.label || block.section">
                             <!-- Simple top item -->
-                            <li
-                                v-if="!block.section"
-                                :class="{ active: isActive(block.route) }"
-                            >
-                                <Link
-                                    :href="route(block.route)"
-                                    class="d-flex align-items-center side-link px-3 py-2"
-                                >
-                                    <i
-                                        :data-feather="block.icon"
-                                        class="me-2 icons"
-                                    ></i>
-                                    <span class="truncate-when-mini">{{
-                                        block.label
-                                    }}</span>
+                            <li v-if="!block.section" :class="{ active: isActive(block.route) }">
+                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
+                                <i :data-feather="block.icon" class="me-2 icons"></i>
+                                <span class="truncate-when-mini">{{
+                                    block.label
+                                }}</span>
                                 </Link>
                             </li>
 
                             <!-- Section -->
                             <template v-else>
                                 <li
-                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini"
-                                >
+                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
                                     {{ block.section }}
                                 </li>
 
-                                <template
-                                    v-for="item in block.children"
-                                    :key="item.label"
-                                >
+                                <template v-for="item in block.children" :key="item.label">
                                     <!-- Dropdown group -->
-                                    <li
-                                        v-if="
-                                            item.children &&
-                                            item.children.length
-                                        "
-                                    >
-                                        <button
-                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                    <li v-if="
+                                        item.children &&
+                                        item.children.length
+                                    ">
+                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
                                             :class="{
                                                 active:
                                                     openGroups.has(
@@ -444,92 +402,53 @@ const updateProfile = () => {
                                                     isAnyChildActive(
                                                         item.children
                                                     ),
-                                            }"
-                                            @click="toggleGroup(item.label)"
-                                            type="button"
-                                            :aria-expanded="
-                                                openGroups.has(item.label) ||
+                                            }" @click="toggleGroup(item.label)" type="button" :aria-expanded="openGroups.has(item.label) ||
                                                 isAnyChildActive(item.children)
-                                            "
-                                        >
-                                            <i
-                                                :data-feather="item.icon"
-                                                class="me-2"
-                                            ></i>
-                                            <span
-                                                class="flex-grow-1 text-start truncate-when-mini"
-                                                >{{ item.label }}</span
-                                            >
-                                            <i
-                                                :data-feather="
-                                                    openGroups.has(
-                                                        item.label
-                                                    ) ||
+                                                ">
+                                            <i :data-feather="item.icon" class="me-2"></i>
+                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
+                                                }}</span>
+                                            <i :data-feather="openGroups.has(
+                                                item.label
+                                            ) ||
                                                     isAnyChildActive(
                                                         item.children
                                                     )
-                                                        ? 'chevron-up'
-                                                        : 'chevron-down'
-                                                "
-                                            ></i>
+                                                    ? 'chevron-up'
+                                                    : 'chevron-down'
+                                                "></i>
                                         </button>
 
-                                        <ul
-                                            class="list-unstyled my-1"
-                                            v-show="
-                                                openGroups.has(item.label) ||
-                                                isAnyChildActive(item.children)
-                                            "
-                                        >
-                                            <li
-                                                v-for="child in item.children"
-                                                :key="child.label"
-                                                :class="{
-                                                    active: isActive(
-                                                        child.route
-                                                    ),
-                                                }"
-                                            >
-                                                <Link
-                                                    :href="route(child.route)"
-                                                    :method="
-                                                        child.method || 'get'
-                                                    "
-                                                    class="d-flex align-items-center side-link px-3 py-2"
-                                                >
-                                                    <i
-                                                        :data-feather="
-                                                            child.icon
-                                                        "
-                                                        class="me-2"
-                                                    ></i>
-                                                    <span>{{
-                                                        child.label
-                                                    }}</span>
+                                        <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) ||
+                                            isAnyChildActive(item.children)
+                                            ">
+                                            <li v-for="child in item.children" :key="child.label" :class="{
+                                                active: isActive(
+                                                    child.route
+                                                ),
+                                            }">
+                                                <Link :href="route(child.route)" :method="child.method || 'get'
+                                                    " class="d-flex align-items-center side-link px-3 py-2">
+                                                <i :data-feather="child.icon
+                                                    " class="me-2"></i>
+                                                <span>{{
+                                                    child.label
+                                                }}</span>
                                                 </Link>
                                             </li>
                                         </ul>
                                     </li>
 
                                     <!-- Flat item -->
-                                    <li
-                                        v-else
-                                        :class="{
-                                            active: isActive(item.route),
-                                        }"
-                                    >
-                                        <Link
-                                            :href="route(item.route)"
-                                            :method="item.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2"
-                                        >
-                                            <i
-                                                :data-feather="item.icon"
-                                                class="me-2"
-                                            ></i>
-                                            <span class="truncate-when-mini">{{
-                                                item.label
-                                            }}</span>
+                                    <li v-else :class="{
+                                        active: isActive(item.route),
+                                    }">
+                                        <Link :href="route(item.route)" :method="item.method || 'get'"
+                                            class="d-flex align-items-center side-link px-3 py-2">
+                                        <i :data-feather="item.icon" class="me-2"></i>
+                                        <span class="truncate-when-mini">{{
+                                            item.label
+                                        }}</span>
                                         </Link>
                                     </li>
                                 </template>
@@ -541,85 +460,79 @@ const updateProfile = () => {
         </aside>
 
         <!-- Mobile overlay backdrop -->
-        <div
-            v-if="isMobile && overlayOpen"
-            class="overlay-backdrop"
-            aria-hidden="true"
-            @click="toggleSidebar"
-        ></div>
+        <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
         <!-- =================== /SIDEBAR =================== -->
 
         <!-- =================== PAGE CONTENT =================== -->
         <!-- <main class="page-wrapper"> -->
-        <main
-            class="content bg-white dark:bg-gray-900 text-black dark:text-white"
-        >
+        <main class="content bg-white dark:bg-gray-900 text-black dark:text-white">
             <slot />
         </main>
     </div>
 
     <!-- user data update modal -->
-    <div
-        class="modal fade"
-        id="userProfileModal"
-        tabindex="-1"
-        aria-hidden="true"
-    >
+    <div class="modal fade" id="userProfileModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content bg-dark text-white rounded-4">
+            <div class="modal-content text-black rounded-4">
                 <div class="modal-header border-0">
                     <h5 class="modal-title fw-bold">User Profile</h5>
                     <button
-                        type="button"
-                        class="btn-close btn-close-white"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                    ></button>
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
                 <div class="modal-body">
                     <div class="row g-3">
+                        <!-- Username -->
                         <div class="col-md-6">
                             <label class="form-label">UserName</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                v-model="profileForm.username"
-                            />
+                            <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.username }"
+                                v-model="profileForm.username" />
+                            <div v-if="formErrors.username" class="invalid-feedback">
+                                {{ formErrors.username[0] }}
+                            </div>
                         </div>
+
+                        <!-- Password -->
                         <div class="col-md-6">
                             <label class="form-label">Password</label>
-                            <input
-                                type="password"
-                                class="form-control"
-                                v-model="profileForm.password"
-                            />
+                            <input type="password" class="form-control" :class="{ 'is-invalid': formErrors.password }"
+                                v-model="profileForm.password" />
+                            <div v-if="formErrors.password" class="invalid-feedback">
+                                {{ formErrors.password[0] }}
+                            </div>
                         </div>
+
+                        <!-- Pin -->
                         <div class="col-md-6">
                             <label class="form-label">Pin</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                v-model="profileForm.pin"
-                            />
+                            <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.pin }"
+                                v-model="profileForm.pin" />
+                            <div v-if="formErrors.pin" class="invalid-feedback">
+                                {{ formErrors.pin[0] }}
+                            </div>
                         </div>
+
+                        <!-- Role -->
                         <div class="col-md-6">
                             <label class="form-label">Role</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                v-model="profileForm.role"
-                            />
+                            <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.role }"
+                                v-model="profileForm.role" />
+                            <div v-if="formErrors.role" class="invalid-feedback">
+                                {{ formErrors.role[0] }}
+                            </div>
                         </div>
                     </div>
                 </div>
 
+
                 <div class="modal-footer border-0">
-                    <button
-                        type="button"
-                        class="btn btn-primary w-100 rounded-pill py-2 fw-semibold"
-                        @click="updateProfile"
-                    >
+                    <button type="button" class="btn btn-primary w-30 rounded-pill" @click="updateProfile">
                         Update
                     </button>
                 </div>
@@ -632,9 +545,12 @@ const updateProfile = () => {
 /* ========= CSS VARIABLES ========= */
 :root {
     --header-h: 64px;
-    --sidebar-w: 280px; /* desktop full width */
-    --sidebar-w-tablet: 220px; /* tablet full width (slightly smaller) */
-    --sidebar-w-collapsed: 72px; /* collapsed (icons-only) width for desktop/tablet */
+    --sidebar-w: 280px;
+    /* desktop full width */
+    --sidebar-w-tablet: 220px;
+    /* tablet full width (slightly smaller) */
+    --sidebar-w-collapsed: 72px;
+    /* collapsed (icons-only) width for desktop/tablet */
     --brand: #1b2850;
     --bg-muted: #f5f6f8;
     --border: #eef0f3;
@@ -684,9 +600,15 @@ const updateProfile = () => {
     color: #f9fafb !important;
 } */
 
+
 .dark a {
     color: #fff !important;
 }
+
+.dark .text-black {
+    color: #fff !important;
+}
+
 
 .dark .card {
     background-color: #181818 !important;
@@ -744,6 +666,10 @@ html.dark .side-link {
     color: #ffffff;
 }
 
+.dark .modal-footer {
+    background-color: #181818 !important;
+}
+
 .dark .btn-secondary {
     background-color: #212121 !important;
 }
@@ -751,6 +677,7 @@ html.dark .side-link {
 .dark .text-muted {
     color: #fff !important;
 }
+
 .dark .dropdown-menu {
     background-color: #1b2431 !important;
     color: #fff ip !important;
@@ -876,7 +803,7 @@ html.dark .main {
     align-items: center;
 }
 
-.header .nav.user-menu > li {
+.header .nav.user-menu>li {
     display: flex;
     align-items: center;
 }
@@ -899,7 +826,7 @@ html.dark .main {
 }
 
 /* Notification bell + badge tidy */
-.header .nav.user-menu .nav-item.dropdown > .nav-link {
+.header .nav.user-menu .nav-item.dropdown>.nav-link {
     position: relative;
 }
 
@@ -944,8 +871,10 @@ html.dark .main {
 }
 
 .state-mobile .header-center {
-    display: none; /* keep header compact on small screens */
+    display: none;
+    /* keep header compact on small screens */
 }
+
 .state-tablet .header-center {
     max-width: 320px;
 }
@@ -1006,14 +935,14 @@ html.dark .main {
 }
 
 .side-link.active,
-li.active > .side-link {
+li.active>.side-link {
     background: var(--brand);
     color: #ffffff;
     font-weight: 600;
 }
 
 .dark .side-link.active,
-li.active > .side-link {
+li.active>.side-link {
     color: #fff !important;
     /* your brand color */
     background: #1b2850 !important;
@@ -1126,9 +1055,10 @@ li.active > .side-link {
     /* muted text */
 }
 
-.sidebar .sidebar-menu > ul > li > a svg {
+.sidebar .sidebar-menu>ul>li>a svg {
     width: 24px;
 }
+
 .dark .icon-btn {
     color: #fff !important;
 }
@@ -1137,12 +1067,14 @@ li.active > .side-link {
     background-color: #181818 !important;
     color: #fff !important;
 }
-.dark .sidebar .sidebar-menu > ul > li.active a {
+
+.dark .sidebar .sidebar-menu>ul>li.active a {
     color: #fff;
     /* your brand color */
     background: #1b2850 !important;
     /* light hover */
 }
+
 .dark .sidebar .list-unstyled li .side-link {
     padding-left: 2.5rem;
     /* indent compared to parent */
@@ -1165,24 +1097,20 @@ li.active > .side-link {
     color: #fff;
 }
 
-.sidebar .list-unstyled li.active > .side-link {
+.sidebar .list-unstyled li.active>.side-link {
     background: var(--brand) !important;
     /* brand background */
     color: #fff !important;
     font-weight: 500;
 }
 
-.dark .sidebar .list-unstyled li.active > .side-link {
+.dark .sidebar .list-unstyled li.active>.side-link {
     background: #1b2850 !important;
     /* brand background */
     color: #fff;
     font-weight: 500;
 }
 
-.dark .btn-primary {
-    background-color: #181818 !important;
-    border: #181818 !important;
-}
 
 .sidebar .list-unstyled {
     border-left: 2px solid #e5e7eb;
@@ -1227,9 +1155,11 @@ li.active > .side-link {
     font-size: 28px;
     line-height: 0;
 }
+
 .state-tablet .sidebar {
     width: var(--sidebar-w-tablet);
 }
+
 .state-tablet .page-wrapper {
     margin-left: var(--sidebar-w-tablet);
 }
@@ -1238,6 +1168,7 @@ li.active > .side-link {
 .state-tablet.sidebar-collapsed .sidebar {
     width: var(--sidebar-w-collapsed);
 }
+
 .state-tablet.sidebar-collapsed .page-wrapper {
     margin-left: var(--sidebar-w-collapsed);
 }
@@ -1272,10 +1203,12 @@ li.active > .side-link {
     display: inline-block;
     max-width: 100%;
 }
+
 /* Scrollbars (optional) - keep as before */
 .sidebar-menu::-webkit-scrollbar {
     width: 8px;
 }
+
 .sidebar-menu::-webkit-scrollbar-thumb {
     background: #e5e7eb;
     border-radius: 8px;
@@ -1305,13 +1238,16 @@ li.active > .side-link {
 }
 
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
+
     /* Example: Adjust sidebar width */
     .sidebar {
-        width: 200px; /* smaller than desktop */
+        width: 200px;
+        /* smaller than desktop */
     }
 
     .page-wrapper {
-        margin-left: 190px; /* align content */
+        margin-left: 190px;
+        /* align content */
     }
 
     /* Adjust header for tablet */
@@ -1339,7 +1275,7 @@ li.active > .side-link {
 .dark .modal-content {
     color: #f9fafb !important;
     border: 1px solid #ffffff !important;
-    border-radius: 1px !important  ;
+    border-radius: 1px !important;
 }
 
 .dark .modal-body {

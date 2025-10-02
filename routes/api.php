@@ -20,6 +20,7 @@ use App\Http\Controllers\Reference\{
 use App\Http\Controllers\{
     GeoController,
     IndexController,
+    ProfileController,
     PromoController
 };
 
@@ -108,4 +109,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('inventory')->name('api.inventory.')->group(function () {
         Route::post('/import', [InventoryController::class, 'import'])->name('items.import');
     });
+
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile']);
+
 });

@@ -311,6 +311,10 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
 </template>
 
 <style scoped>
+
+.daek .bg-white {
+    background-color: #181818 !important;
+}
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.2s ease;

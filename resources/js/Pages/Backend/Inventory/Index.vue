@@ -3154,11 +3154,11 @@ const handleImport = (data) => {
 
 
 .dark .logo-card {
-background-color: #000 !important;
+background-color: #181818 !important;
 }
 
 .dark .logo-frame{
-    background-color: #000 !important;
+    background-color: #181818 !important;
 }
 /* Mobile tweaks */
 @media (max-width: 575.98px) {
