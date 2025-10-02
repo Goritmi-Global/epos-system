@@ -36,6 +36,8 @@ const resetTableDetails = () => {
 };
 
 
+
+
 // function emitSave() { emit("save", { step: 5, data: toRaw(form) }) }
 
 // function emitSave() {
@@ -86,6 +88,11 @@ watch(
       payload.data.tables = form.tables;
       payload.data.table_details = form.table_details;
     }
+    if (!(form.order_types.includes("dine_in") && form.table_management_enabled === 1)) {
+      delete payload.data.tables;
+      delete payload.data.table_details;
+    }
+
 
     emit("save", payload);
   },
@@ -181,19 +188,20 @@ const types = [
       </small>
     </div>
 
-    <div v-if="form.table_management_enabled === 1 && form.order_types.includes('dine_in')" class="mb-3" style="max-width:420px">
+    <div v-if="form.table_management_enabled === 1 && form.order_types.includes('dine_in')" class="mb-3"
+      style="max-width:420px">
       <label class="form-label">Number of Tables</label>
 
       <div v-if="form.order_types.includes('dine_in')" class="d-flex align-items-center gap-2">
         <input type="number" min="1" class="form-control" :class="{ 'is-invalid': formErrors?.tables }"
           v-model.number="form.tables" @input="emitSave" />
-      
+
         <button data-bs-toggle="modal" data-bs-target="#modalTableDetails"
           class="btn btn-primary btn-sm rounded-pill px-4 py-2" style="white-space: nowrap;">
           <i class="fa fa-plus me-1"></i> Enter Names
         </button>
-        
-        
+
+
       </div>
       <!-- <small v-if="formErrors?.number_of_tables" class="text-danger">
           {{ formErrors.number_of_tables[0] }}
@@ -342,10 +350,10 @@ const types = [
   font-size: 0.85rem;
 }
 
-.dark .check-tile{
-      --accent: #1c0d82;
-     background-color: #000000 !important;
-    color: #ffffff !important;
+.dark .check-tile {
+  --accent: #1c0d82;
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
 
 .check-tile:hover {
@@ -400,7 +408,7 @@ const types = [
   color: #2b2f3b;
 }
 
-.dark .check-tile__text{
+.dark .check-tile__text {
   color: #fff !important;
 }
 
@@ -408,7 +416,8 @@ const types = [
 .check-tile--default {
   --accent: #1c0d82;
 }
-.dark .check-tile--default{
+
+.dark .check-tile--default {
   color: #fff !important;
 }
 
