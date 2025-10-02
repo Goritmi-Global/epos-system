@@ -4,11 +4,12 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('countries', function (Blueprint $table) {
-            $table->string('id', 3)->primary();                 // varchar(3)
+            $table->string('id', 3)->primary();
             $table->string('name', 36)->nullable();
             $table->string('iso3', 4)->nullable();
             $table->string('iso2', 4)->nullable();
@@ -23,17 +24,15 @@ return new class extends Migration {
             $table->string('region', 8)->nullable();
             $table->string('subregion', 25)->nullable();
 
-            // ✅ Add default timezone reference
-            $table->unsignedBigInteger('default_timezone_id')->nullable();
+            // FK for default timezone
+            $table->foreignId('default_timezone_id')
+                  ->nullable()
+                  ->constrained('timezones') // shorthand for foreign key
+                  ->nullOnDelete();          // same as ON DELETE SET NULL
 
             $table->index('iso2');
             $table->index('iso3');
             $table->index('name');
-
-            $table->foreign('default_timezone_id')
-                ->references('id')
-                ->on('timezones')
-                ->onDelete('set null');
         });
     }
 
