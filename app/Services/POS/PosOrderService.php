@@ -229,8 +229,7 @@ class PosOrderService
             return [
                 'id'    => $cat->id,
                 'name'  => $cat->name,
-                'icon'  => $cat->icon,
-                'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
+                'icon'  => $cat->icon, 
                 'menu_items_count' => $cat->menu_items_count,
                 'children' => $cat->children,
             ];

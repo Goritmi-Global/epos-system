@@ -12,8 +12,7 @@ class MenuCategory extends Model
     protected $table = 'menu_categories';
 
     protected $fillable = [
-        'name',
-        'box_bg_color',
+        'name', 
         'icon',
         'active',
         'parent_id',
