@@ -238,7 +238,7 @@ const flagUrl = (iso, size = "24x18") =>
 
                             </span>
                             <input class="form-control" inputmode="numeric" placeholder="Phone number"
-                                v-model="form.phone_local" :class="{ 'is-invalid': formErrors?.phone_local }" />
+                                v-model.number="form.phone_local" :class="{ 'is-invalid': formErrors?.phone_local }" />
                         </div>
                         <small v-if="formErrors?.phone_local" class="text-danger">
                             {{ formErrors.phone_local[0] }}
