@@ -29,3 +29,4 @@ class TimezonesTableSeeder extends Seeder
         }
     }
 }
+`
