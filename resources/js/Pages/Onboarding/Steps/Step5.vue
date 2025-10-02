@@ -35,30 +35,6 @@ const resetTableDetails = () => {
   }));
 };
 
-
-
-
-// function emitSave() { emit("save", { step: 5, data: toRaw(form) }) }
-
-// function emitSave() {
-//   const payload = {
-//     step: 5,
-//     data: {
-//       order_types: form.order_types,
-//       table_management_enabled: form.table_management_enabled,
-//       online_ordering: form.online_ordering,
-//     }
-//   };
-
-//   // Only include tables & table_details if dine_in is selected
-//   if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
-//     payload.data.tables = form.tables;
-//     payload.data.table_details = form.table_details;
-//   }
-
-//   emit("save", payload);
-// }
-
 // Watch for number of tables and initialize table_details
 watch(
   () => form.tables,
@@ -106,21 +82,23 @@ watch(
       step: 5,
       data: {
         order_types: form.order_types,
-        table_management_enabled: form.table_management_enabled,
         online_ordering: form.online_ordering,
-      }
-    };
-
-    // Only include tables & table_details if dine_in is selected
-    if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
-      payload.data.tables = form.tables;
-      payload.data.table_details = form.table_details;
+      },
     }
 
-    emit("save", payload);
+    if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
+      payload.data.table_management_enabled = 1
+      payload.data.tables = form.tables
+      payload.data.table_details = form.table_details
+    } else {
+      payload.data.table_management_enabled = 0
+    }
+
+    emit("save", payload)
   },
   { deep: true, immediate: true }
-);
+)
+
 
 
 function toggle(type) {
@@ -128,6 +106,18 @@ function toggle(type) {
   i === -1 ? form.order_types.push(type) : form.order_types.splice(i, 1)
   emitSave()
 }
+watch(
+  () => form.order_types,
+  (orderTypes) => {
+    if (!orderTypes.includes("dine_in")) {
+      form.table_management_enabled = 0
+      form.tables = 0
+      form.table_details = []
+    }
+  },
+  { deep: true }
+)
+
 
 const types = [
   { key: 'dine_in', label: 'Dine-in', variant: 'default' },
