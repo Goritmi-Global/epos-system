@@ -206,8 +206,8 @@ watch(selectedLanguage, (opt) => {
           <Select v-model="form.timezone_id" :options="timezonesOptions" optionLabel="label" optionValue="value"
             placeholder="Select a Timezone" class="w-100" :class="{ 'is-invalid': formErrors.timezone }" />
 
-          <small v-if="formErrors?.timezone" class="text-danger">
-            {{ formErrors.timezone[0] }}
+          <small v-if="formErrors?.timezone_id" class="text-danger">
+            {{ formErrors.timezone_id[0] }}
           </small>
         </div>
 

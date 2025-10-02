@@ -345,6 +345,7 @@ function onCropped({ file }) {
 .logo-preview {
   max-width: 120px; /* optional: keeps it small */
   display: inline-block;
+  border-radius: 0.5rem;
 }
 
 </style>

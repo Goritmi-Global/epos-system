@@ -309,15 +309,23 @@ class SettingsController extends Controller
                 'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
             ]),
 
-            5 => $request->validate([
-                'order_types' => 'required|array|min:1',
-                'table_management_enabled' => 'required|boolean',
-                'online_ordering' => 'required|boolean',
-                'tables' => 'required_if:table_management_enabled,1|integer|min:1',
-                'table_details' => 'required_if:table_management_enabled,1|array|min:1',
-                'table_details.*.name' => 'required_if:table_management_enabled,1|string|max:255',
-                'table_details.*.chairs' => 'required_if:table_management_enabled,1|integer|min:1',
-            ]),
+            5 => $request->validate(
+                [
+                    'order_types' => 'required|array|min:1',
+                    'table_management_enabled' => 'required|boolean',
+                    'online_ordering' => 'required|boolean',
+
+                    'tables' => 'exclude_unless:table_management_enabled,1|integer|min:1',
+                    'table_details' => 'exclude_unless:table_management_enabled,1|array|min:1',
+                    'table_details.*.name' => 'exclude_unless:table_management_enabled,1|string|max:255',
+                    'table_details.*.chairs' => 'exclude_unless:table_management_enabled,1|integer|min:1',
+                ],
+                [
+                    'table_details.*.name.*' => 'Please Enter Tables Details. Click on Enter Names.',
+                    'table_details.*.chairs.*' => 'Please Enter Tables Details. Click on Enter Names.',
+                    'table_details.*.required' => 'Please Enter Tables Details. Click on Enter Names.',
+                ]
+            ),
 
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
@@ -443,6 +451,38 @@ class SettingsController extends Controller
                         $data['step1']['country_name'] = $country->name;
                     }
                 }
+
+                if ($i === 2 && $stepData) {
+                    $data['step2'] = $stepData->toArray();
+
+                    // Extract phone breakdown from full phone number
+                    if (!empty($data['step2']['phone'])) {
+                        $fullPhone = $data['step2']['phone'];
+
+                        // Get all countries and sort by phone_code length (longest first)
+                        $countries = \App\Models\Country::whereNotNull('phone_code')
+                            ->where('phone_code', '!=', '')
+                            ->get()
+                            ->sortByDesc(function ($c) {
+                                return strlen($c->phone_code);
+                            });
+
+                        // Find matching country
+                        foreach ($countries as $country) {
+                            if (str_starts_with($fullPhone, $country->phone_code)) {
+                                $data['step2']['phone_country'] = $country->iso2;
+                                $data['step2']['phone_code'] = $country->phone_code;
+                                $data['step2']['phone_local'] = substr($fullPhone, strlen($country->phone_code));
+                                break;
+                            }
+                        }
+                    }
+
+                    // Load logo
+                    $uploadId = $stepData->upload_id ?? null;
+                    $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
+                }
+
 
                 if ($i === 5 && $stepData) {
                     $data['step5'] = $stepData->toArray();
