@@ -82,6 +82,7 @@ const sidebarMenus = ref([
             },
             { label: "Sale", icon: "shopping-bag", route: "pos.order" },
             { label: "Orders", icon: "list", route: "orders.index" },
+            { label: "KOT", icon: "list", route: "kots.index" },
             { label: "Payment", icon: "credit-card", route: "payment.index" },
             {
                 label: "Analytics",

@@ -94,6 +94,22 @@ class SettingsController extends Controller
         $data = $this->validateStep($request, $step, $existingStepData);
         // dd($data);
 
+        if ($step === 1) {
+            // Find the country by its code
+            $country = \App\Models\Country::where('iso2', $data['country_code'] ?? null)->first();
+
+            // Update or create ProfileStep1 with country_id
+            $profileStep1 = \App\Models\ProfileStep1::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'country_id' => $country->id ?? null,
+                    'timezone_id' => $data['timezone_id'] ?? null,
+                    'language' => $data['language'] ?? 'en',
+                ]
+            );
+        }
+
+
         //  Step 2
         // Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
         if ($step === 2 && $request->hasFile('logo_file')) {
