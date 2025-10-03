@@ -41,7 +41,11 @@ use App\Http\Controllers\Reference\{
     AllergyController,
     UnitController
 };
-use App\Http\Controllers\Auth\{PermissionController,RoleController};
+use App\Http\Controllers\Auth\{
+    PermissionController,
+    RoleControllerm,
+    UserRoleController
+};
 
 /* =========================================================
 |  Public / Guest
@@ -285,6 +289,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // If you don't already have a "list all permissions" route, expose one:
     Route::get('/permissions-list', [RoleController::class, 'allPermissions'])->name('permissions.list');
     
+
+    Route::prefix('user-roles')->group(function () {
+        Route::get('/users', [UserRoleController::class, 'users']);           // list users + their roles
+        Route::get('/roles', [UserRoleController::class, 'roles']);           // list roles
+        Route::post('/assign/{user}', [UserRoleController::class, 'assign']); // sync roles for a user
+    })->name('user-roles.');
+
 
 });
 
