@@ -20,14 +20,15 @@ class PurchaseOrderController extends Controller
     }
 
     public function index(Request $request)
-    { 
+    {
         $orders = $this->service->list($request->only(['q', 'status']));
         // Instead of JSON response, use Inertia:
         return Inertia::render('Backend/Inventory/PurchaseOrder/Index', [
             'orders' => $orders
         ]);
     }
-    public function fetchOrders(Request $request){
+    public function fetchOrders(Request $request)
+    {
         $orders = $this->service->list($request->only(['q', 'status']));
         return response()->json(['message' => 'Purchase order fetched successfully', 'data' => $orders], 201);
     }
@@ -39,12 +40,16 @@ class PurchaseOrderController extends Controller
     }
 
     public function show(PurchaseOrder $purchaseOrder)
-{
-    return response()->json($purchaseOrder->load([
-        'supplier',
-        'items.product' // Load product details for each item
-    ]));
-}
+    {
+        return response()->json(
+            $purchaseOrder->load([
+                'supplier',
+                'items.product',
+                'items.stockEntry' 
+            ])
+        );
+    }
+
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder)
     {

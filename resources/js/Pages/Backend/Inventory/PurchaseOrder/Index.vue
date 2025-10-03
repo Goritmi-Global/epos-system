@@ -13,6 +13,7 @@ import axios from "axios";
 import { Eye, Plus, Trash2 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
 import { useFormatters } from '@/composables/useFormatters'
+import BulkOrderComponent from "./BulkOrderComponent.vue";
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -239,11 +240,14 @@ const resetModal = () => {
     formError.value = {};
 };
 const updating = ref(false);
+const isLoading = ref(false);
+
 
 async function openModal(order) {
     try {
         const res = await axios.get(`/purchase-orders/${order.id}`);
         selectedOrder.value = res.data;
+        console.log("selectedOrder.value", selectedOrder.value);
 
         if (order.status === "pending") {
             isEditing.value = true;
@@ -339,24 +343,15 @@ onUpdated(() => window.feather?.replace?.());
         <div class="page-wrapper">
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body p-4">
-                    <div
-                        class="d-flex align-items-center justify-content-between mb-3"
-                    >
+                    <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
                             <div class="position-relative">
-                                <button
-                                    class="btn btn-link p-0 ms-2"
-                                    @click="showHelp = !showHelp"
-                                    title="Help"
-                                >
+                                <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
                                     <i class="bi bi-question-circle fs-5"></i>
                                 </button>
-                                <div
-                                    v-if="showHelp"
-                                    class="help-popover shadow rounded-4 p-3"
-                                >
+                                <div v-if="showHelp" class="help-popover shadow rounded-4 p-3">
                                     <p class="mb-2">
                                         This screen allows you to view, manage,
                                         and update all purchase orders.
@@ -376,73 +371,49 @@ onUpdated(() => window.feather?.replace?.());
                         <div class="d-flex gap-2 align-items-center">
                             <div class="search-wrap me-1">
                                 <i class="bi bi-search"></i>
-                                <input
-                                    v-model="p_search"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search"
-                                />
+                                <input v-model="p_search" type="text" class="form-control search-input"
+                                    placeholder="Search" />
                             </div>
 
-                            <button
-                                class="btn btn-primary btn-sm py-2 rounded-pill px-4"
-                                data-bs-toggle="modal"
-                                data-bs-target="#addPurchaseModal"
-                            >
+                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
+                                data-bs-target="#bulkOrderModal">
+                                Bulk Orders
+                            </button>
+
+                            <BulkOrderComponent :suppliers="supplierOptions" :items="p_filteredInv"
+                                @refresh-data="fetchPurchaseOrders" />
+
+
+                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
+                                data-bs-target="#addPurchaseModal">
                                 Purchase
                             </button>
-                            <PurchaseComponent
-                                :suppliers="supplierOptions"
-                                :items="p_filteredInv"
-                                @refresh-data="fetchPurchaseOrders"
-                                @update:search="p_search = $event"
-                            />
+                            <PurchaseComponent :suppliers="supplierOptions" :items="p_filteredInv"
+                                @refresh-data="fetchPurchaseOrders" @update:search="p_search = $event" />
 
-                            <button
-                                class="btn btn-primary btn-sm py-2 rounded-pill px-4"
-                                data-bs-toggle="modal"
-                                data-bs-target="#addOrderModal"
-                            >
+                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
+                                data-bs-target="#addOrderModal">
                                 Order
                             </button>
-                            <OrderComponent
-                                :suppliers="supplierOptions"
-                                :items="p_filteredInv"
-                                @refresh-data="fetchPurchaseOrders"
-                            />
+                            <OrderComponent :suppliers="supplierOptions" :items="p_filteredInv"
+                                @refresh-data="fetchPurchaseOrders" />
                             <div class="dropdown">
-                                <button
-                                    class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown"
-                                >
+                                <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
                                     Download
                                 </button>
-                                <ul
-                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                >
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('pdf')"
-                                            >Download as PDF</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Download as PDF</a>
                                     </li>
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('excel')"
-                                            >Download as Excel</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Download as Excel</a>
                                     </li>
 
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('csv')"
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
                                             Download as CSV
                                         </a>
                                     </li>
@@ -467,25 +438,18 @@ onUpdated(() => window.feather?.replace?.());
 
                             <tbody>
                                 <tr v-if="loading">
-                                    <td
-                                        colspan="6"
-                                        class="text-center text-muted py-4"
-                                    >
+                                    <td colspan="6" class="text-center text-muted py-4">
                                         Loading…
                                     </td>
                                 </tr>
 
-                                <template
-                                    v-else
-                                    v-for="(row, i) in filteredOrders"
-                                    :key="row.id"
-                                >
+                                <template v-else v-for="(row, i) in filteredOrders" :key="row.id">
                                     <tr>
                                         <!-- S.# across pages -->
                                         <td>
                                             {{
                                                 (meta.current_page - 1) *
-                                                    meta.per_page +
+                                                meta.per_page +
                                                 (i + 1)
                                             }}
                                         </td>
@@ -508,17 +472,15 @@ onUpdated(() => window.feather?.replace?.());
                                         </td>
 
                                         <td class="text-start">
-                                            <span
-                                                :class="[
-                                                    'badge rounded-pill',
-                                                    row.status === 'pending'
-                                                        ? 'bg-warning text-dark'
-                                                        : row.status ===
-                                                          'completed'
+                                            <span :class="[
+                                                'badge rounded-pill',
+                                                row.status === 'pending'
+                                                    ? 'bg-warning text-dark'
+                                                    : row.status ===
+                                                        'completed'
                                                         ? 'bg-success'
                                                         : 'bg-secondary',
-                                                ]"
-                                            >
+                                            ]">
                                                 {{ row.status }}
                                             </span>
                                         </td>
@@ -528,28 +490,18 @@ onUpdated(() => window.feather?.replace?.());
                                         <td class="text-end">
                                             <button
                                                 class="p-2 rounded-pill text-gray-600 hover:bg-gray-100 btn btn-light btn-sm"
-                                            >
-                                                <Eye
-                                                    class="w-4 h-4"
-                                                    @click="openModal(row)"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#viewItemModal"
-                                                    title="View Item"
-                                                />
+                                                @click="openModal(row)" title="View Item">
+                                                <Eye class="w-4 h-4" />
                                             </button>
                                         </td>
+
                                     </tr>
                                 </template>
 
-                                <tr
-                                    v-if="
-                                        !loading && filteredOrders?.length === 0
-                                    "
-                                >
-                                    <td
-                                        colspan="6"
-                                        class="text-center text-muted py-4"
-                                    >
+                                <tr v-if="
+                                    !loading && filteredOrders?.length === 0
+                                ">
+                                    <td colspan="6" class="text-center text-muted py-4">
                                         No purchase orders found.
                                     </td>
                                 </tr>
@@ -558,36 +510,21 @@ onUpdated(() => window.feather?.replace?.());
                     </div>
 
                     <!-- your GLOBAL Paginator component -->
-                    <Paginator
-                        class="mt-2"
-                        :meta="meta"
-                        :links="links"
-                        :disabled="loading"
-                        :show-sizes="true"
-                        :sizes="[10, 20, 30, 50, 100]"
-                        @go="onGo"
-                        @size="onSize"
-                    />
+                    <Paginator class="mt-2" :meta="meta" :links="links" :disabled="loading" :show-sizes="true"
+                        :sizes="[10, 20, 30, 50, 100]" @go="onGo" @size="onSize" />
                 </div>
             </div>
 
             <!-- ====================View Modal either Purchase or Order ==================== -->
             <!-- Unified Order Modal -->
             <!-- Order / Purchase Details Modal -->
-            <div
-                class="modal fade"
-                id="orderDetailsModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-xl modal-dialog-centered">
                     <div class="modal-content rounded-4 shadow-lg border-0">
                         <!-- Header -->
                         <div class="modal-header align-items-center">
                             <div class="d-flex align-items-center gap-2">
-                                <span
-                                    class="badge bg-success rounded-circle p-2"
-                                >
+                                <span class="badge bg-success rounded-circle p-2">
                                     <i class="bi bi-basket"></i>
                                 </span>
                                 <div class="d-flex flex-column">
@@ -606,42 +543,23 @@ onUpdated(() => window.feather?.replace?.());
                                     </small>
                                 </div>
                             </div>
-                            <button
-                                @click="resetModal"
+                            <button @click="resetModal"
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
                         <!-- Body -->
-                        <div
-                            class="modal-body p-4 bg-light"
-                            v-if="selectedOrder"
-                        >
+                        <div class="modal-body p-4 bg-light" v-if="selectedOrder">
                             <!-- Summary -->
                             <h6 class="fw-semibold mb-3">Order Summary</h6>
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <small class="text-muted d-block"
-                                        >Purchase Date</small
-                                    >
+                                    <small class="text-muted d-block">Purchase Date</small>
                                     <div class="fw-semibold">
                                         {{
                                             dateFmt(
@@ -651,24 +569,16 @@ onUpdated(() => window.feather?.replace?.());
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <small class="text-muted d-block"
-                                        >Status</small
-                                    >
-                                    <span
-                                        class="badge rounded-pill"
-                                        :class="
-                                            selectedOrder.status === 'completed'
-                                                ? 'bg-success'
-                                                : 'bg-warning'
-                                        "
-                                    >
+                                    <small class="text-muted d-block">Status</small>
+                                    <span class="badge rounded-pill" :class="selectedOrder.status === 'completed'
+                                        ? 'bg-success'
+                                        : 'bg-warning'
+                                        ">
                                         {{ selectedOrder.status }}
                                     </span>
                                 </div>
                                 <div class="col-md-6">
-                                    <small class="text-muted d-block"
-                                        >Total Amount</small
-                                    >
+                                    <small class="text-muted d-block">Total Amount</small>
                                     <div class="fw-semibold">
                                         {{ formatMoney(selectedOrder.total_amount) }}
                                     </div>
@@ -684,26 +594,21 @@ onUpdated(() => window.feather?.replace?.());
                                 }}
                             </h6>
                             <div class="table-responsive">
-                                <table
-                                    class="table table-bordered align-middle"
-                                >
+                                <table class="table table-bordered align-middle">
                                     <thead class="table-light">
                                         <tr>
                                             <th>Product</th>
                                             <th>Qty</th>
                                             <th>Unit Price</th>
                                             <th>Subtotal</th>
-                                            <!-- <th>Expiry</th> -->
+                                            <th>Expiry</th>
                                             <th v-if="isEditing">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr
-                                            v-for="(item, index) in isEditing
-                                                ? editItems
-                                                : selectedOrder.items"
-                                            :key="item.id || index"
-                                        >
+                                        <tr v-for="(item, index) in isEditing
+                                            ? editItems
+                                            : selectedOrder.items" :key="item.id || index">
                                             <!-- Product -->
                                             <td>
                                                 <span v-if="!isEditing">{{
@@ -711,12 +616,7 @@ onUpdated(() => window.feather?.replace?.());
                                                     item.name ||
                                                     "Unknown Product"
                                                 }}</span>
-                                                <input
-                                                    v-else
-                                                    v-model="item.name"
-                                                    class="form-control"
-                                                    readonly
-                                                />
+                                                <input v-else v-model="item.name" class="form-control" readonly />
                                             </td>
 
                                             <!-- Quantity -->
@@ -724,17 +624,10 @@ onUpdated(() => window.feather?.replace?.());
                                                 <span v-if="!isEditing">{{
                                                     item.quantity
                                                 }}</span>
-                                                <input
-                                                    v-else
-                                                    v-model.number="
-                                                        item.quantity
-                                                    "
-                                                    type="number"
-                                                    class="form-control"
-                                                    @input="
+                                                <input v-else v-model.number="item.quantity
+                                                    " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
-                                                    "
-                                                />
+                                                        " />
                                             </td>
 
                                             <!-- Unit Price -->
@@ -742,17 +635,10 @@ onUpdated(() => window.feather?.replace?.());
                                                 <span v-if="!isEditing">{{
                                                     formatMoney(item.unit_price)
                                                 }}</span>
-                                                <input
-                                                    v-else
-                                                    v-model.number="
-                                                        item.unit_price
-                                                    "
-                                                    type="number"
-                                                    class="form-control"
-                                                    @input="
+                                                <input v-else v-model.number="item.unit_price
+                                                    " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
-                                                    "
-                                                />
+                                                        " />
                                             </td>
 
                                             <!-- Subtotal -->
@@ -760,46 +646,32 @@ onUpdated(() => window.feather?.replace?.());
                                                 <span v-if="!isEditing">{{
                                                     formatMoney(item.sub_total)
                                                 }}</span>
-                                                <input
-                                                    v-else
-                                                    v-model="item.sub_total"
-                                                    class="form-control"
-                                                    readonly
-                                                />
+                                                <input v-else v-model="item.sub_total" class="form-control" readonly />
                                             </td>
 
                                             <!-- Expiry -->
-                                            <!-- <td>
-                                                <span v-if="!isEditing">{{
-                                                    item.expiry || "—"
-                                                }}</span>
-                                                <input
-                                                    v-else
-                                                    v-model="item.expiry"
-                                                    type="date"
-                                                    :class="{
-                                                        'is-invalid':
-                                                            formError[
-                                                                `items.${index}.expiry`
-                                                            ],
-                                                    }"
-                                                    class="form-control"
-                                                />
-                                                <small
-                                                    v-if="
+
+                                            <td>
+                                                <span v-if="!isEditing">{{ dateFmt(item.stock_entry.expiry_date)
+                                                    }}</span>
+                                                <input v-else v-model="item.expiry" type="date" :class="{
+                                                    'is-invalid':
                                                         formError[
-                                                            `items.${index}.expiry`
-                                                        ]
-                                                    "
-                                                    class="text-danger"
-                                                >
+                                                        `items.${index}.expiry`
+                                                        ],
+                                                }" class="form-control" />
+                                                <small v-if="
+                                                    formError[
+                                                    `items.${index}.expiry`
+                                                    ]
+                                                " class="text-danger">
                                                     {{
                                                         formError[
-                                                            `items.${index}.expiry`
+                                                        `items.${index}.expiry`
                                                         ][0]
                                                     }}
                                                 </small>
-                                            </td> -->
+                                            </td>
                                             <br />
 
                                             <!-- Action (only in edit mode) -->
@@ -811,38 +683,26 @@ onUpdated(() => window.feather?.replace?.());
                                                             index,
                                                             1
                                                         )
-                                                    "
-                                                    title="Delete"
-                                                >
-                                                    <Trash2
-                                                        class="w-4 h-4 text-red-500"
-                                                    />
+                                                        " title="Delete">
+                                                    <Trash2 class="w-4 h-4 text-red-500" />
                                                 </button>
                                             </td>
                                         </tr>
 
-                                        <tr
-                                            v-if="
-                                                (isEditing
-                                                    ? editItems.length
-                                                    : selectedOrder.items
-                                                          .length) === 0
-                                            "
-                                        >
-                                            <td
-                                                :colspan="isEditing ? 6 : 5"
-                                                class="text-center text-muted py-3"
-                                            >
+                                        <tr v-if="
+                                            (isEditing
+                                                ? editItems.length
+                                                : selectedOrder.items
+                                                    .length) === 0
+                                        ">
+                                            <td :colspan="isEditing ? 6 : 5" class="text-center text-muted py-3">
                                                 No items found
                                             </td>
                                         </tr>
                                     </tbody>
                                     <tfoot class="footer">
                                         <tr>
-                                            <td
-                                                colspan="3"
-                                                class="text-end fw-bold"
-                                            >
+                                            <td colspan="3" class="text-end fw-bold">
                                                 Total:
                                             </td>
                                             <td class="fw-bold">
@@ -856,7 +716,7 @@ onUpdated(() => window.feather?.replace?.());
                                                                 sum +
                                                                 parseFloat(
                                                                     i.sub_total ||
-                                                                        0
+                                                                    0
                                                                 ),
                                                             0
                                                         )
@@ -879,27 +739,16 @@ onUpdated(() => window.feather?.replace?.());
 
                         <!-- Footer (only for edit mode) -->
                         <div class="modal-footer" v-if="isEditing">
-                            <button
-                                type="button"
-                                class="btn btn-primary rounded-pill px-4 py-2"
-                                @click="updateOrder"
-                                :disabled="updating || editItems.length === 0"
-                            >
+                            <button type="button" class="btn btn-primary rounded-pill px-4 py-2" @click="updateOrder"
+                                :disabled="updating || editItems.length === 0">
                                 <span v-if="updating">
-                                    <span
-                                        class="spinner-border spinner-border-sm me-2"
-                                    ></span>
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
                                     Updating...
                                 </span>
-                                <span v-else
-                                    >Complete Order & Update Stock</span
-                                >
+                                <span v-else>Complete Order & Update Stock</span>
                             </button>
-                            <button
-                                type="button"
-                                class="btn btn-secondary rounded-pill px-4 py-2"
-                                data-bs-dismiss="modal"
-                            >
+                            <button type="button" class="btn btn-secondary rounded-pill px-4 py-2"
+                                data-bs-dismiss="modal">
                                 Cancel
                             </button>
                         </div>
@@ -912,7 +761,8 @@ onUpdated(() => window.feather?.replace?.());
 
 <style scoped>
 .dark .modal-footer {
-    background-color: #181818 !important; /* gray-800 */
+    background-color: #181818 !important;
+    /* gray-800 */
     color: #f9fafb !important;
 }
 
@@ -1014,94 +864,89 @@ onUpdated(() => window.feather?.replace?.());
 }
 
 /* 🎯 iPad Pro 12.9" Portrait (1024 x 1366) */
-@media only screen 
-  and (min-device-width: 1024px) 
-  and (max-device-width: 1366px) 
-  and (orientation: portrait) {
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
 
-  .page-wrapper {
-    padding: 12px !important;
-  }
+    .page-wrapper {
+        padding: 12px !important;
+    }
 
-  .card {
-    border-radius: 16px !important;
-  }
+    .card {
+        border-radius: 16px !important;
+    }
 
-  .d-flex.align-items-center.justify-content-between {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 10px;
-  }
+    .d-flex.align-items-center.justify-content-between {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 10px;
+    }
 
-  .d-flex.gap-2.align-items-center {
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: flex-start;
-  }
+    .d-flex.gap-2.align-items-center {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-start;
+    }
 
-  .search-wrap {
-    width: 30% !important;
-    margin-bottom: 10px;
-  }
+    .search-wrap {
+        width: 30% !important;
+        margin-bottom: 10px;
+    }
 
-.dark .btn-primary{
-    background-color: #181818 !important;
-    border: #181818 !important;
-}
-  .table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+    .dark .btn-primary {
+        background-color: #181818 !important;
+        border: #181818 !important;
+    }
 
-  table.table th, 
-  table.table td {
-    font-size: 14px;
-    white-space: nowrap;
-  }
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table.table th,
+    table.table td {
+        font-size: 14px;
+        white-space: nowrap;
+    }
 }
 
 /* 🎯 iPad Pro 12.9" Landscape (1366 x 1024) */
-@media only screen 
-  and (min-device-width: 1024px) 
-  and (max-device-width: 1366px) 
-  and (orientation: landscape) {
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
 
-  .page-wrapper {
-    padding: 16px !important;
-  }
+    .page-wrapper {
+        padding: 16px !important;
+    }
 
-  .card-body {
-    padding: 20px !important;
-  }
+    .card-body {
+        padding: 20px !important;
+    }
 
-  .d-flex.align-items-center.justify-content-between {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 15px;
-  }
+    .d-flex.align-items-center.justify-content-between {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
 
-  .d-flex.gap-2.align-items-center {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
+    .d-flex.gap-2.align-items-center {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
 
-  .search-wrap {
-    min-width: 250px;
-  }
+    .search-wrap {
+        min-width: 250px;
+    }
 
-  .table-responsive {
-    overflow-x: auto;
-  }
+    .table-responsive {
+        overflow-x: auto;
+    }
 
-  table.table th, 
-  table.table td {
-    font-size: 15px;
-  }
+    table.table th,
+    table.table td {
+        font-size: 15px;
+    }
 }
 
 
- /* Dark mode Multi Select  */
- /* ======================== Dark Mode MultiSelect ============================= */
+/* Dark mode Multi Select  */
+/* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #000 !important;
     color: #fff !important;
@@ -1176,7 +1021,8 @@ onUpdated(() => window.feather?.replace?.());
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -1212,6 +1058,4 @@ onUpdated(() => window.feather?.replace?.());
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
-
-
 </style>
