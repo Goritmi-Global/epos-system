@@ -41,6 +41,7 @@ use App\Http\Controllers\Reference\{
     AllergyController,
     UnitController
 };
+use App\Http\Controllers\Auth\PermissionController;
 
 /* =========================================================
 |  Public / Guest
@@ -266,6 +267,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('kots')->name('kots.')->group(function () {
         Route::get('/', [KotController::class, 'index'])->name('index');
     });
+
+
+    Route::prefix('permissions')->name('permissions.')->group(function () {
+        Route::get('/', [PermissionController::class, 'index'])->name('permissions.index');
+        Route::post('/', [PermissionController::class, 'store'])->name('permissions.store');
+        Route::put('/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
+    });
+
 });
 
 /* ---------- Public settings/locations page (if intended public) ---------- */

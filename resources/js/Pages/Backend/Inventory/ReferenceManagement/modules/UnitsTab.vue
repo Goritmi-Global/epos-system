@@ -460,7 +460,7 @@ onMounted(async () => {
     window.feather?.replace();
 });
 
-// 🟢 Watch customUnit input
+//   Watch customUnit input
 watch(customUnit, (newVal) => {
     if (newVal && formErrors.value.customUnit) {
         // Clear only this field’s error
@@ -468,7 +468,7 @@ watch(customUnit, (newVal) => {
     }
 });
 
-// 🟢 Watch commonUnits multi-select
+//  Watch commonUnits multi-select
 watch(commonUnits, (newVal) => {
     if (newVal.length > 0 && formErrors.value.units) {
         // Clear only units error
