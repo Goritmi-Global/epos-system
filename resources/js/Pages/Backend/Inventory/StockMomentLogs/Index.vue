@@ -386,6 +386,10 @@ const downloadExcel = (data) => {
 .tab-link.active {
     color: #181818; /* darker text when active */
 }
+
+.dark .tab-link.active{
+    color: #fff !important;
+}
 .tab-link.active::after {
     content: "";
     display: block;

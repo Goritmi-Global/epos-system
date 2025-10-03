@@ -9,5 +9,25 @@ class Unit extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = [
+        'name',
+        'base_unit_id',
+        'conversion_factor',
+    ];
+
+    protected $casts = [
+        'conversion_factor' => 'float',
+    ];
+
+
+    public function baseUnit()
+    {
+        return $this->belongsTo(Unit::class, 'base_unit_id');
+    }
+
+
+    public function derivedUnits()
+    {
+        return $this->hasMany(Unit::class, 'base_unit_id');
+    }
 }
