@@ -49,6 +49,8 @@ class InventoryService
                     'unit_id'       => $item->unit_id,
                     'unit_name'     => $item->unit?->name,
 
+                     'stock'         => $item->stock,
+
                     // Pivots
                     'allergies'     => $item->allergies->pluck('name')->values(),
                     'allergy_ids'   => $item->allergies->pluck('id')->values(),

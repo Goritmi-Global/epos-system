@@ -63,6 +63,7 @@ const fetchInventory = async () => {
 
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
+import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 
 // filter inventory for ingredients
 const i_filteredInv = computed(() => {
@@ -2455,7 +2456,7 @@ const handleImport = (data) => {
 
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
-    background-color: #000 !important;
+    background-color: #181818 !important;
     color: #fff !important;
 }
 
@@ -2464,19 +2465,19 @@ const handleImport = (data) => {
 }
 
 :global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #000 !important;
+    background: #181818 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
 }
 
@@ -2490,27 +2491,27 @@ const handleImport = (data) => {
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #000 !important;
+    background: #181818 !important;
     border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
 
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
-    background: #000 !important;
+    background: #181818 !important;
 }
 
 /* Selected chip inside the multiselect */
@@ -2533,14 +2534,14 @@ const handleImport = (data) => {
 
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
-    background-color: #000 !important;
+    background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
 /* Options container */
 :global(.dark .p-select-list-container) {
-    background-color: #000 !important;
+    background-color: #181818 !important;
     color: #fff !important;
 }
 
@@ -2567,11 +2568,11 @@ const handleImport = (data) => {
 
 
 .dark .logo-card {
-background-color: #000 !important;
+background-color: #181818 !important;
 }
 
 .dark .logo-frame{
-    background-color: #000 !important;
+    background-color: #181818 !important;
 }
 
 .dark .fw-semibold{

@@ -4,25 +4,21 @@ namespace App\Http\Requests\Reference;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreUnitRequest extends FormRequest
+class UpdateUnitRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize()
     {
-        return true;
+        return true; // tweak this if you have permission logic
     }
 
-    public function rules(): array
+    public function rules()
     {
+        $unitId = $this->route('unit') ? $this->route('unit')->id : null;
+
         return [
-            'units'        => 'required|array',
-            'units.*.name' => 'required|string|max:100|unique:units,name',
-            'units.*.description' => 'nullable|string',
-        ];
-    }
-    public function messages(): array
-    {
-        return [
-            'units.*.name.unique' => 'The ":input" is allergy already exists.',
+            'name' => 'required|string|max:100|unique:units,name,'.$unitId,
+            'base_unit_id' => 'nullable|exists:units,id',
+            'conversion_factor' => 'nullable|numeric|min:0',
         ];
     }
 }

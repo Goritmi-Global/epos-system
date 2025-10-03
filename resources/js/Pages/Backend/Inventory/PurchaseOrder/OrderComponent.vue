@@ -24,6 +24,7 @@ const p_submitting = ref(false);
 const formErrors = ref({});
   const p_search = ref("");
 const o_submitting = ref(false);
+const derivedUnitsCache = ref({});
 
 const filteredItems = computed(() => {
   const term = o_search.value.trim().toLowerCase();
@@ -44,6 +45,16 @@ const filteredItems = computed(() => {
 const p_cart = ref([]);
 const resteErrors = () => {
     formErrors.value = {};
+      filteredItems.value.forEach(item => {
+        item.selectedDerivedUnitInfo = null;
+        item.selected_derived_unit_id = null;
+    });
+
+    // also clear cart if you need
+    p_cart.value.forEach(item => {
+        item.selectedDerivedUnitInfo = null;
+        item.selected_derived_unit_id = null;
+    });
 };
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
@@ -59,6 +70,58 @@ const setItemError = (item, field, message) => {
     if (!formErrors.value[item.id]) formErrors.value[item.id] = {};
     formErrors.value[item.id][field] = [message];
 };
+
+
+// function for fetcing the derived units
+async function loadDerivedUnits(item) {
+    try {
+        // try typical key names used in many codebases; adapt if your item uses different key
+        const baseUnitId = item.unit_id ?? item.unitId ?? null;
+
+        if (!baseUnitId) {
+            // fallback: no base id available => set empty array
+            item.derived_units = [];
+            return;
+        }
+
+        // return cached if present
+        if (derivedUnitsCache.value[baseUnitId]) {
+            item.derived_units = derivedUnitsCache.value[baseUnitId];
+            return;
+        }
+
+        // request units (request big per_page so we can filter on client; adjust per_page if needed)
+        const res = await axios.get("/units", { params: { per_page: 200 } });
+        const list = res.data?.data ?? res.data ?? [];
+
+        // filter derived units where base_unit_id matches this item's base unit id
+        const derived = list.filter(
+            (u) => u.base_unit_id !== null && Number(u.base_unit_id) === Number(baseUnitId)
+        );
+
+        // cache + attach to item for use in template
+        derivedUnitsCache.value[baseUnitId] = derived;
+        item.derived_units = derived;
+    } catch (err) {
+        console.error("loadDerivedUnits error:", err);
+        item.derived_units = [];
+    }
+}
+
+
+// handle unit change (base or derived)
+function onUnitChange(it) {
+    if (!it.selected_derived_unit_id) {
+        it.selectedDerivedUnitInfo = null // reset if base unit selected
+    } else {
+        it.selectedDerivedUnitInfo = it.derived_units.find(
+            du => du.id === it.selected_derived_unit_id
+        )
+    }
+}
+
+
+
 
 // clear either a specific field error for an item, or all errors for that item
 const clearItemErrors = (item, field = null) => {
@@ -76,14 +139,37 @@ const clearItemErrors = (item, field = null) => {
     }
 };
 
-function addOrderItem(item) {
+async function addOrderItem(item) {
     clearItemErrors(item);
-    console.log(item);
-    const qty = Number(item.qty || 0);
+      const inputQty = Number(item.qty || 0);
+
+    // ensure qty entered
+    if (!inputQty || inputQty <= 0) {
+        setItemError(item, "qty", "Enter a valid quantity.");
+        toast.error("Enter a valid quantity.");
+        return;
+    }
+
+    // determine final qty (in base units)
+    let qty = inputQty; // will become quantity in base unit if conversion applies
+    let selectedDerived = null;
+
+    if (item.selected_derived_unit_id) {
+        // make sure derived units are loaded
+        await loadDerivedUnits(item);
+        selectedDerived = (item.derived_units || []).find(
+            (u) => Number(u.id) === Number(item.selected_derived_unit_id)
+        );
+
+        if (selectedDerived && selectedDerived.conversion_factor) {
+            // convert from selected derived unit to base unit
+            qty = Number(inputQty) * Number(selectedDerived.conversion_factor);
+        }
+    }
+
+    // unit price & expiry as before
     const price =
-        item.unitPrice !== "" && item.unitPrice != null
-            ? Number(item.unitPrice)
-            : Number(item.defaultPrice || 0);
+        item.unitPrice !== "" ? Number(item.unitPrice) : Number(item.defaultPrice || 0);
     const expiry = item.expiry || null;
 
     if (!qty || qty <= 0) {
@@ -108,13 +194,19 @@ function addOrderItem(item) {
         found.cost = round2(found.qty * found.unitPrice);
     } else {
         o_cart.value.push({
-            id: item.id,
+             id: item.id,
             name: item.name,
             category: item.category,
+            // qty is now in base units (after conversion)
             qty,
             unitPrice: price,
             expiry,
             cost: round2(qty * price),
+
+            // helpful metadata:
+            derived_unit_id: selectedDerived ? selectedDerived.id : null,
+            derived_unit_name: selectedDerived ? selectedDerived.name : null,
+            base_unit_name: item.unit_name || null, // so you know which base unit qty is in
         });
     }
 
@@ -122,7 +214,7 @@ function addOrderItem(item) {
     item.qty = null;
     item.unitPrice = null;
     item.expiry = null;
-
+ item.selected_derived_unit_id = null;
     clearItemErrors(item);
 }
 
@@ -205,7 +297,7 @@ const formatDate = (date) => {
                         data-bs-dismiss="modal"
                         aria-label="Close"
                         title="Close"
-                        @click="resetErrors"
+                        @click="resteErrors"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -295,7 +387,7 @@ const formatDate = (date) => {
                                                 {{ it.category.name }}
                                             </div>
                                             <div class="text-muted small">
-                                                Unit: {{ it.unit }}
+                                                Unit: {{ it.unit_name }}
                                             </div>
                                             <div class="text-muted small">
                                                 Stock:
@@ -309,9 +401,24 @@ const formatDate = (date) => {
                                             Add
                                         </button>
                                     </div>
-
+     <!-- ⚡ badge for derived unit -->
+                                        <div v-if="it.selectedDerivedUnitInfo" class="col-12 mt-3">
+                                            <span style="
+                                                    display: inline-block;
+                                                    background-color: #e6f7f1;   /* light green background */
+                                                    color: #155724;              /* dark green text */
+                                                    padding: 4px 18px;
+                                                    border-radius: 20px;
+                                                    font-size: 0.9rem;
+                                                    font-weight: 500;
+                                                    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                                                    ">
+                                                1 {{ it.selectedDerivedUnitInfo.name }} =
+                                                {{ it.selectedDerivedUnitInfo.conversion_factor }} {{ it.unit_name }}
+                                            </span>
+                                        </div>
                                     <div class="row g-2 mt-3">
-                                        <div class="col-4">
+                                        <div class="col-3">
                                             <label class="small text-muted"
                                                 >Quantity</label
                                             >
@@ -336,7 +443,29 @@ const formatDate = (date) => {
                                                 {{ formErrors[it.id].qty[0] }}
                                             </small>
                                         </div>
-                                        <div class="col-4">
+
+                                           <div class="col-3">
+                                                <label class="small text-muted">Unit</label>
+                                                <select class="form-select" v-model="it.selected_derived_unit_id"
+                                                    @change="onUnitChange(it)" @focus="loadDerivedUnits(it)">
+                                                    <!-- Base unit -->
+                                                    <option :value="null">Base ({{ it.unit_name }})</option>
+
+                                                    <!-- Derived units -->
+                                                    <option v-for="du in it.derived_units || []" :key="du.id"
+                                                        :value="du.id">
+                                                        {{ du.name }}
+                                                    </option>
+                                                </select>
+
+                                                <!-- error -->
+                                                <small v-if="formErrors[it.id] && formErrors[it.id].derived_unit"
+                                                    class="text-danger">
+                                                    {{ formErrors[it.id].derived_unit[0] }}
+                                                </small>
+                                            </div>
+
+                                        <div class="col-3">
                                             <label class="small text-muted"
                                                 >Unit Price</label
                                             >

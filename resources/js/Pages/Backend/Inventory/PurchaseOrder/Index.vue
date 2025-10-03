@@ -65,6 +65,8 @@ const p_filteredInv = computed(() => {
             .includes(t)
     );
 });
+
+console.log("p_filteredInv", p_filteredInv);
 const filteredOrders = computed(() => {
     const term = p_search.value.trim().toLowerCase();
     if (!term) return orderData.value;

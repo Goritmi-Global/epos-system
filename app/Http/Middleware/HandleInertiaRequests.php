@@ -106,6 +106,7 @@ class HandleInertiaRequests extends Middleware
                 'id'    => $user->id,
                 'name'  => $user->name,
                 'email' => $user->email,
+                'pin' => $user->pin,
             ] : null,
 
             'stripe_public_key' => $stripe_public_key, 

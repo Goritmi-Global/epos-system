@@ -8,7 +8,6 @@ import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
-// import ImportFile from "@/Components/ImportFile.vue";
 
 const options = ref([
     // Weight Units
@@ -39,21 +38,33 @@ const options = ref([
 ]);
 
 const commonUnits = ref([]); // array of values
-const filterText = ref(""); // Fixed: Added missing filterText ref
+const filterText = ref("");
 
 const isEditing = ref(false);
 const editingRow = ref(null);
 const customUnit = ref("");
+const unitType = ref('base'); // 'base' or 'derived'
+const selectedBaseUnit = ref(null); // selected base unit
+const conversionFactor = ref(null); // multiplier value
 
 const q = ref("");
+
+// Computed property for base units (units without a base_unit_id)
+const baseUnits = computed(() => {
+    return units.value.filter(u => !u.base_unit_id);
+});
+
 
 const resetForm = () => {
     customUnit.value = "";
     commonUnits.value = [];
     formErrors.value = {};
+    unitType.value = 'base';
+    selectedBaseUnit.value = null;
+    conversionFactor.value = null;
 };
 
-// Fixed: Create filtered computed property that works with units array
+// Filtered computed property that works with units array
 const filteredUnits = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
     return searchTerm
@@ -64,6 +75,10 @@ const filteredUnits = computed(() => {
 });
 
 const selectAll = () => (commonUnits.value = options.value.map((o) => o.value));
+
+const onFilter = (event) => {
+    filterText.value = event.value;
+};
 
 const addCustom = () => {
     const name = (filterText.value || "").trim();
@@ -92,13 +107,17 @@ const availableOptions = computed(() => {
             )
     );
 });
+
 const openEdit = (row) => {
     isEditing.value = true;
     editingRow.value = row;
     customUnit.value = row.name;
-};
 
-// const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
+    // Set unit type based on whether it has a base unit
+    unitType.value = row.base_unit_id ? 'derived' : 'base';
+    selectedBaseUnit.value = row.base_unit_id;
+    conversionFactor.value = row.conversion_factor;
+};
 
 const deleteUnit = async (row) => {
     try {
@@ -109,124 +128,202 @@ const deleteUnit = async (row) => {
         toast.error("Delete failed");
     }
 };
+
 const isSubmitting = ref(false);
 const onSubmit = async () => {
     if (isSubmitting.value) return;
-
 
     if (isEditing.value) {
         if (!customUnit.value.trim()) {
             toast.error("Please fill out the field can't save an empty field.");
             formErrors.value = {
-                customUnit: [
-                    "Please fill out the field can't save an empty field",
-                ],
+                name: ["Please fill out the field can't save an empty field"],
             };
             return;
         }
+
+        // Validation for derived units in edit mode
+        if (unitType.value === 'derived') {
+            if (!selectedBaseUnit.value) {
+                toast.error("Please select a base unit");
+                formErrors.value = { base_unit_id: ["Base unit is required for derived units"] };
+                return;
+            }
+            if (!conversionFactor.value || conversionFactor.value <= 0) {
+                toast.error("Please enter a valid conversion factor");
+                formErrors.value = { conversion_factor: ["Conversion factor must be greater than 0"] };
+                return;
+            }
+        }
+
         try {
             isSubmitting.value = true;
-            const { data } = await axios.put(`/units/${editingRow.value.id}`, {
+            const payload = {
                 name: customUnit.value.trim(),
-            });
+                base_unit_id: unitType.value === 'derived' ? selectedBaseUnit.value : null,
+                conversion_factor: unitType.value === 'derived' ? conversionFactor.value : null,
+            };
+            const { data } = await axios.put(`/units/${editingRow.value.id}`, payload);
 
             const idx = units.value.findIndex(
                 (t) => t.id === editingRow.value.id
             );
             if (idx !== -1) units.value[idx] = data;
 
-            toast.success("Unit updated Successfully");
+            toast.success("Unit updated successfully");
             await fetchUnits();
-            // Hide the modal after successful update
             resetForm();
             closeModal("modalUnitForm");
         } catch (e) {
             if (e.response?.data?.errors) {
-                // Reset errors object
                 formErrors.value = {};
-                // Loop through backend errors
                 Object.entries(e.response.data.errors).forEach(
                     ([field, msgs]) => {
-                        // Show toast(s)
                         msgs.forEach((m) => toast.error(m));
-
-                        // Attach to formErrors so it shows below inputs
-                        formErrors.value = { customUnit: msgs };
+                        // Map backend field names to frontend field names
+                        const fieldName = field.includes('.') ? 'name' : field;
+                        formErrors.value[fieldName] = msgs;
                     }
                 );
             } else {
                 toast.error("Update failed");
             }
-        }
-        finally {
-            isSubmitting.value = false; //  always re-enable
+        } finally {
+            isSubmitting.value = false;
         }
     } else {
-        if (commonUnits.value.length === 0) {
-            formErrors.value = { units: ["Please select at least one Unit"] };
-            toast.error("Please select at least one Unit", {
-                autoClose: 3000,
-            });
-            return;
-        }
-        // create
-        const newUnits = commonUnits.value
-            .filter((v) => !units.value.some((t) => t.name === v))
-            .map((v) => ({ name: v }));
+        // CREATE MODE
 
-        // Filter new units and detect duplicates
-        const existingUnits = commonUnits.value.filter((v) =>
-            units.value.some((t) => t.name === v)
-        );
-
-        if (newUnits.length === 0) {
-            // Show which units already exist
-            const msg = `Unit${existingUnits.length > 1 ? "s" : ""
-                } already exist: ${existingUnits.join(", ")}`;
-
-            toast.error(msg);
-            formErrors.value = { units: [msg] };
-
-            // closeModal("modalUnitForm");
-            return;
-        }
-
-        try {
-            isSubmitting.value = true;
-            const response = await axios.post("/units", { units: newUnits });
-
-            // If backend returns array directly
-            const createdUnits = response.data?.units ?? response.data;
-
-            if (Array.isArray(createdUnits) && createdUnits.length) {
-                units.value = [...units.value, ...createdUnits];
+        // For derived units, we need a single unit name
+        if (unitType.value === 'derived') {
+            if (!customUnit.value.trim()) {
+                toast.error("Please enter a unit name for derived unit");
+                formErrors.value = { name: ["Unit name is required"] };
+                return;
             }
 
-            toast.success("Unit added successfully");
+            // Check if unit name already exists
+            const nameExists = units.value.some(
+                u => u.name.toLowerCase() === customUnit.value.trim().toLowerCase()
+            );
 
-            resetForm();
-            closeModal("modalUnitForm");
-
-            // Hide the modal after successful creation
-
-            await fetchUnits();
-        } catch (e) {
-            // Only show create failed if there is a real error
-            if (e.response?.data?.errors) {
-                Object.values(e.response.data.errors).forEach((msgs) =>
-                    msgs.forEach((m) => toast.error(m))
-                );
-            } else {
-                console.error(e); // log actual error for debugging
-                toast.error("Create failed");
+            if (nameExists) {
+                toast.error(`Unit "${customUnit.value.trim()}" already exists. Please use a different name or edit the existing unit.`);
+                formErrors.value = { name: [`Unit "${customUnit.value.trim()}" already exists`] };
+                return;
             }
-        }
-        finally {
-            isSubmitting.value = false; // always re-enable
+
+            if (!selectedBaseUnit.value) {
+                toast.error("Please select a base unit");
+                formErrors.value = { base_unit_id: ["Base unit is required"] };
+                return;
+            }
+
+            if (!conversionFactor.value || conversionFactor.value <= 0) {
+                toast.error("Please enter a valid conversion factor");
+                formErrors.value = { conversion_factor: ["Conversion factor must be greater than 0"] };
+                return;
+            }
+
+            const newUnit = {
+                name: customUnit.value.trim(),
+                base_unit_id: selectedBaseUnit.value,
+                conversion_factor: conversionFactor.value,
+            };
+
+            try {
+                isSubmitting.value = true;
+                const response = await axios.post("/units", { units: [newUnit] });
+                const createdUnits = response.data?.units ?? response.data;
+
+                if (Array.isArray(createdUnits) && createdUnits.length) {
+                    units.value = [...units.value, ...createdUnits];
+                }
+
+                toast.success("Derived unit added successfully");
+                resetForm();
+                closeModal("modalUnitForm");
+                await fetchUnits();
+            } catch (e) {
+                if (e.response?.data?.errors) {
+                    formErrors.value = {};
+                    Object.entries(e.response.data.errors).forEach(
+                        ([field, msgs]) => {
+                            msgs.forEach((m) => toast.error(m));
+                            // Map backend field names like "units.0.name" to "name"
+                            const fieldName = field.includes('.name') ? 'name' :
+                                field.includes('.base_unit_id') ? 'base_unit_id' :
+                                    field.includes('.conversion_factor') ? 'conversion_factor' : field;
+                            formErrors.value[fieldName] = msgs;
+                        }
+                    );
+                } else {
+                    console.error(e);
+                    toast.error("Create failed");
+                }
+            } finally {
+                isSubmitting.value = false;
+            }
+        } else {
+            // BASE UNITS - multiple selection
+            if (commonUnits.value.length === 0) {
+                formErrors.value = { units: ["Please select at least one Unit"] };
+                toast.error("Please select at least one Unit", {
+                    autoClose: 3000,
+                });
+                return;
+            }
+
+            const newUnits = commonUnits.value
+                .filter((v) => !units.value.some((t) => t.name === v))
+                .map((v) => ({
+                    name: v,
+                    base_unit_id: null,
+                    conversion_factor: null,
+                }));
+
+            const existingUnits = commonUnits.value.filter((v) =>
+                units.value.some((t) => t.name === v)
+            );
+
+            if (newUnits.length === 0) {
+                const msg = `Unit${existingUnits.length > 1 ? "s" : ""
+                    } already exist: ${existingUnits.join(", ")}`;
+
+                toast.error(msg);
+                formErrors.value = { units: [msg] };
+                return;
+            }
+
+            try {
+                isSubmitting.value = true;
+                const response = await axios.post("/units", { units: newUnits });
+
+                const createdUnits = response.data?.units ?? response.data;
+
+                if (Array.isArray(createdUnits) && createdUnits.length) {
+                    units.value = [...units.value, ...createdUnits];
+                }
+
+                toast.success("Unit(s) added successfully");
+                resetForm();
+                closeModal("modalUnitForm");
+                await fetchUnits();
+            } catch (e) {
+                if (e.response?.data?.errors) {
+                    Object.values(e.response.data.errors).forEach((msgs) =>
+                        msgs.forEach((m) => toast.error(m))
+                    );
+                } else {
+                    console.error(e);
+                    toast.error("Create failed");
+                }
+            } finally {
+                isSubmitting.value = false;
+            }
         }
     }
 };
-
 // Function to properly hide modal and clean up backdrop
 const closeModal = (id) => {
     const el = document.getElementById(id);
@@ -253,7 +350,6 @@ const fetchUnits = async () => {
 
         units.value = data?.data ?? data?.units?.data ?? data ?? [];
 
-        // wait for DOM update before replacing icons
         await nextTick();
         window.feather?.replace();
     } catch (err) {
@@ -269,8 +365,7 @@ const onDownload = (type) => {
         return;
     }
 
-    // Use filtered data if there's a search query, otherwise use all suppliers
-    const dataToExport = q.value.trim() ? filtered.value : units.value;
+    const dataToExport = q.value.trim() ? filteredUnits.value : units.value;
 
     if (dataToExport.length === 0) {
         toast.error("No Units found to download");
@@ -295,27 +390,22 @@ const onDownload = (type) => {
 
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = ["name"];
 
-        // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
         ]);
 
-        // Combine into CSV string
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
 
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
 
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -386,7 +476,6 @@ const downloadPDF = (data) => {
             },
         });
 
-        // 💾 Save file
         const fileName = `Units_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
@@ -401,35 +490,29 @@ const downloadPDF = (data) => {
 
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // Prepare worksheet data
         const worksheetData = data.map((unit) => ({
             Name: unit.name || "",
         }));
 
-        // Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // Set column widths
         const colWidths = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
-            { wch: 10 }, // ID
+            { wch: 20 },
+            { wch: 25 },
+            { wch: 15 },
+            { wch: 30 },
+            { wch: 25 },
+            { wch: 10 },
         ];
         worksheet["!cols"] = colWidths;
 
-        // Add worksheet to workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
 
-        // Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -438,10 +521,8 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
         const fileName = `Units_${new Date().toISOString().split("T")[0]}.xlsx`;
 
-        // Save the file
         XLSX.writeFile(workbook, fileName);
 
         toast.success("Excel file downloaded successfully", {
@@ -460,25 +541,22 @@ onMounted(async () => {
     window.feather?.replace();
 });
 
-// 🟢 Watch customUnit input
 watch(customUnit, (newVal) => {
     if (newVal && formErrors.value.customUnit) {
-        // Clear only this field’s error
         delete formErrors.value.customUnit;
     }
 });
 
-// 🟢 Watch commonUnits multi-select
+//  Watch commonUnits multi-select
 watch(commonUnits, (newVal) => {
     if (newVal.length > 0 && formErrors.value.units) {
-        // Clear only units error
         delete formErrors.value.units;
     }
 });
+
 const handleImport = (data) => {
     console.log("Imported Data:", data);
 
-    //  Stop if file is empty (only headers or nothing)
     if (!data || data.length <= 1) {
         toast.error("The file is empty", {
             autoClose: 3000,
@@ -511,8 +589,6 @@ const handleImport = (data) => {
             }
         });
 };
-
-
 </script>
 
 <template>
@@ -536,7 +612,6 @@ const handleImport = (data) => {
                         <Plus class="w-4 h-4" /> Add Unit
                     </button>
                     <ImportFile label="Import" @on-import="handleImport" />
-                    <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
@@ -551,7 +626,6 @@ const handleImport = (data) => {
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
                                     as Excel</a>
                             </li>
-
                             <li>
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
                                     Download as CSV
@@ -572,7 +646,6 @@ const handleImport = (data) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Fixed: Use filteredUnits instead of units for proper filtering -->
                         <tr v-for="(r, i) in filteredUnits" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
@@ -599,7 +672,6 @@ const handleImport = (data) => {
                             </td>
                         </tr>
 
-                        <!-- Fixed: Check filteredUnits length instead of units -->
                         <tr v-if="filteredUnits.length === 0">
                             <td colspan="3" class="text-center text-muted py-4">
                                 {{
@@ -620,10 +692,7 @@ const handleImport = (data) => {
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
-                    <h5 class="modal-title">
-                        {{ isEditing ? "Edit Unit" : "Add Unit(s)" }}
-                    </h5>
-
+                    <h5 class="modal-title">{{ isEditing ? "Edit Unit" : "Add Unit(s)" }}</h5>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                         data-bs-dismiss="modal" aria-label="Close" title="Close">
@@ -632,35 +701,42 @@ const handleImport = (data) => {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
+
                 </div>
+
                 <div class="modal-body">
-                    <div v-if="isEditing">
-                        <label class="form-label">Unit Name</label>
-                        <input v-model="customUnit" class="form-control" placeholder="e.g., Vegan"
-                            :class="{ 'is-invalid': formErrors.customUnit }" />
-                        <span class="text-danger" v-if="formErrors.customUnit">{{
-                            formErrors.customUnit[0]
-                        }}</span>
+                    <!-- Radio toggle for Base / Derived -->
+                    <div class="mb-3 d-flex gap-3 align-items-center">
+                        <label class="form-check-label">
+                            <input type="radio" class="form-check-input me-2" value="base" v-model="unitType" /> Base
+                            Unit
+                        </label>
+
+                        <label class="form-check-label">
+                            <input type="radio" class="form-check-input me-2" value="derived" v-model="unitType" />
+                            Derived Unit
+                        </label>
                     </div>
-                    <div v-else>
+
+                    <!-- If adding multiple base units -->
+                    <div v-if="!isEditing && unitType === 'base'">
+                        <label class="form-label">Choose or Add Units</label>
                         <MultiSelect v-model="commonUnits" :options="availableOptions" optionLabel="label"
                             optionValue="value" :multiple="true" showClear :filter="true" display="chip"
-                            placeholder="Choose common  units or add new one" class="w-100" appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')" :invalid="formErrors.units?.length">
+                            placeholder="Choose common units or add new one" class="w-100" appendTo="self"
+                            @filter="onFilter" :invalid="formErrors.units?.length">
                             <template #header>
-                                <div class="w-100 d-flex  header justify-content-end">
+                                <div class="w-100 d-flex justify-content-end">
                                     <button type="button" class="btn btn-sm btn-link text-primary"
                                         @click.stop="selectAll">
                                         Select All
                                     </button>
                                 </div>
                             </template>
-
                             <template #footer>
                                 <div v-if="filterText?.trim()"
                                     class="p-2 border-top d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">Not found in the list? Add it as a
-                                        custom unit</small>
+                                    <small class="text-muted">Not found in the list? Add it as a custom unit</small>
                                     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
                                         @click="addCustom">
                                         Add "{{ filterText.trim() }}"
@@ -668,24 +744,64 @@ const handleImport = (data) => {
                                 </div>
                             </template>
                         </MultiSelect>
-                        <span class="text-danger" v-if="formErrors.units">{{
-                            formErrors.units[0]
-                        }}</span>
+
+                        <div class="text-danger mt-1" v-if="formErrors.units">{{ formErrors.units[0] }}</div>
                     </div>
 
-                    <div class="col-md-2">
-                        <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
-                        <template v-if="isSubmitting">
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            Saving...
-                        </template>
-                        <template v-else>
-                            {{ isEditing ? "Save" : "Save" }}
-                        </template>
-                    </button>
+                    <!-- If adding or editing single unit (either base single or derived single) -->
+                    <div v-else>
+                        <label class="form-label">Unit Name</label>
+                        <input v-model="customUnit" class="form-control" placeholder="e.g., Millilitre (ml)"
+                            :class="{ 'is-invalid': formErrors.name }" />
+                        <small class="text-muted d-block mt-1">
+                            <span v-if="unitType === 'derived'">
+                                ⚠️ Enter a NEW unit name (e.g., "ml" if base is "L"). Don't use existing unit names.
+                            </span>
+                        </small>
+                        <div class="text-danger" v-if="formErrors.name">{{ formErrors.name[0] }}</div>
+
+                        <!-- Derived-specific fields -->
+                        <div v-if="unitType === 'derived'" class="mt-3">
+                            <div class="alert alert-info">
+                                <strong>Example:</strong> If you want to create "Millilitre (ml)" from "Litre (L)":<br>
+                                • Select "Litre (L)" as base unit<br>
+                                • Enter conversion: 0.001 (because 1 ml = 0.001 L)
+                            </div>
+
+                            <label class="form-label">Base Unit</label>
+
+                            <div v-if="baseUnits.length === 0" class="alert alert-warning">
+                                No base units available. Please create base units first before creating derived units.
+                            </div>
+
+                            <select v-else v-model="selectedBaseUnit" class="form-select"
+                                :class="{ 'is-invalid': formErrors.base_unit_id }">
+                                <option :value="null" disabled>Select base unit</option>
+                                <option v-for="u in baseUnits" :key="u.id" :value="u.id">{{ u.name }}</option>
+                            </select>
+                            <div class="text-danger" v-if="formErrors.base_unit_id">{{ formErrors.base_unit_id[0] }}
+                            </div>
+
+                            <label class="form-label mt-3">Conversion Factor</label>
+                            <input type="number" step="any" v-model.number="conversionFactor" class="form-control"
+                                placeholder="e.g., 0.001" :class="{ 'is-invalid': formErrors.conversion_factor }" />
+                            <small class="text-muted d-block mt-1">How many base units = 1 of this unit (e.g., 1 ml =
+                                0.001 L)</small>
+                            <div class="text-danger" v-if="formErrors.conversion_factor">{{
+                                formErrors.conversion_factor[0] }}</div>
+                        </div>
                     </div>
-
-
+                    <div class="col-md-12 mt-4">
+                        <button class="btn btn-primary rounded-pill py-2 btn-sm px-4" :disabled="isSubmitting"
+                            @click="onSubmit">
+                            <template v-if="isSubmitting">
+                                <span class="spinner-border spinner-border-sm me-2"></span>Saving...
+                            </template>
+                            <template v-else>
+                                {{ isEditing ? "Save" : "Save" }}
+                            </template>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -911,7 +1027,8 @@ const handleImport = (data) => {
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -948,8 +1065,7 @@ const handleImport = (data) => {
     color: #aaa !important;
 }
 
-.dark .header{
+.dark .header {
     background-color: #000;
 }
-
 </style>

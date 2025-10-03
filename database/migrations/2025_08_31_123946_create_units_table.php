@@ -14,7 +14,18 @@ return new class extends Migration
         Schema::create('units', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
+
+            // New fields for conversion functionality
+            $table->unsignedBigInteger('base_unit_id')->nullable(); // If null → Base unit
+            $table->decimal('conversion_factor', 15, 4)->default(1); // default 1 for base unit
+
             $table->timestamps();
+
+            // Optional FK so that if a base unit is deleted, derived units are also removed
+            $table->foreign('base_unit_id')
+                  ->references('id')
+                  ->on('units')
+                  ->onDelete('cascade');
         });
     }
 
@@ -22,5 +33,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('units');
     }
-
 };

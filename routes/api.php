@@ -21,8 +21,11 @@ use App\Http\Controllers\Reference\{
 use App\Http\Controllers\{
     GeoController,
     IndexController,
+    ProfileController,
     PromoController
 };
+use App\Http\Controllers\Auth\PermissionController;
+
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
@@ -115,4 +118,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
        
         Route::get('/all-orders', [KotController::class, 'getAllKotOrders'])->name('index');
     });
+
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile']);
+
 });
