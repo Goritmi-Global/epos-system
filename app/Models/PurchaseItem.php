@@ -15,11 +15,19 @@ class PurchaseItem extends Model
         'sub_total',
     ];
 
-    public function purchase() {
+    public function purchase()
+    {
         return $this->belongsTo(PurchaseOrder::class);
     }
 
-    public function product() {
+    public function product()
+    {
         return $this->belongsTo(InventoryItem::class, 'product_id');
+    }
+    public function stockEntry()
+    {
+        return $this->hasOne(StockEntry::class, 'product_id', 'product_id')
+            ->where('stock_type', 'stockin')
+            ->select(['id', 'product_id', 'expiry_date']);
     }
 }
