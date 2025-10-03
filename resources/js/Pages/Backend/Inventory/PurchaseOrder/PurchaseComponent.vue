@@ -19,27 +19,28 @@ const emit = defineEmits(["refresh-data"]);
 
 const p_cart = ref([]);
 const p_search = ref("");
+const derivedUnitsCache = ref({});
 const o_submitting = ref(false);
 const p_total = computed(() =>
     round2(p_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
 );
+console.log(props.items);
 const filteredItems = computed(() => {
-  const term = p_search.value.trim().toLowerCase();
-  if (!term) return props.items;
+    const term = p_search.value.trim().toLowerCase();
+    if (!term) return props.items;
 
-  return props.items.filter((i) =>
-    [
-      i.name,
-      i.category?.name ?? "",
-      i.unit_name ?? "",
-      String(i.stock ?? "")
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(term)
-  );
+    return props.items.filter((i) =>
+        [
+            i.name,
+            i.category?.name ?? "",
+            i.unit_name ?? "",
+            String(i.stock ?? "")
+        ]
+            .join(" ")
+            .toLowerCase()
+            .includes(term)
+    );
 });
-
 // set error for an item
 const setItemError = (item, field, message) => {
     if (!formErrors.value[item.id]) formErrors.value[item.id] = {};
@@ -62,13 +63,88 @@ const clearItemErrors = (item, field = null) => {
     }
 };
 
-function addPurchaseItem(item) {
+// function for fetcing the derived units
+async function loadDerivedUnits(item) {
+    try {
+        // try typical key names used in many codebases; adapt if your item uses different key
+        const baseUnitId = item.unit_id ?? item.unitId ?? null;
+
+        if (!baseUnitId) {
+            // fallback: no base id available => set empty array
+            item.derived_units = [];
+            return;
+        }
+
+        // return cached if present
+        if (derivedUnitsCache.value[baseUnitId]) {
+            item.derived_units = derivedUnitsCache.value[baseUnitId];
+            return;
+        }
+
+        // request units (request big per_page so we can filter on client; adjust per_page if needed)
+        const res = await axios.get("/units", { params: { per_page: 200 } });
+        const list = res.data?.data ?? res.data ?? [];
+
+        // filter derived units where base_unit_id matches this item's base unit id
+        const derived = list.filter(
+            (u) => u.base_unit_id !== null && Number(u.base_unit_id) === Number(baseUnitId)
+        );
+
+        // cache + attach to item for use in template
+        derivedUnitsCache.value[baseUnitId] = derived;
+        item.derived_units = derived;
+    } catch (err) {
+        console.error("loadDerivedUnits error:", err);
+        item.derived_units = [];
+    }
+}
+
+
+
+
+// handle unit change (base or derived)
+function onUnitChange(it) {
+    if (!it.selected_derived_unit_id) {
+        it.selectedDerivedUnitInfo = null // reset if base unit selected
+    } else {
+        it.selectedDerivedUnitInfo = it.derived_units.find(
+            du => du.id === it.selected_derived_unit_id
+        )
+    }
+}
+
+
+async function addPurchaseItem(item) {
     clearItemErrors(item);
-    const qty = Number(item.qty || 0);
+    const inputQty = Number(item.qty || 0);
+
+    // ensure qty entered
+    if (!inputQty || inputQty <= 0) {
+        setItemError(item, "qty", "Enter a valid quantity.");
+        toast.error("Enter a valid quantity.");
+        return;
+    }
+
+    // determine final qty (in base units)
+    let qty = inputQty; // will become quantity in base unit if conversion applies
+    let selectedDerived = null;
+
+    if (item.selected_derived_unit_id) {
+        // make sure derived units are loaded
+        await loadDerivedUnits(item);
+        selectedDerived = (item.derived_units || []).find(
+            (u) => Number(u.id) === Number(item.selected_derived_unit_id)
+        );
+
+        if (selectedDerived && selectedDerived.conversion_factor) {
+            // convert from selected derived unit to base unit
+            qty = Number(inputQty) * Number(selectedDerived.conversion_factor);
+        }
+    }
+
+    // unit price & expiry as before
     const price =
-        item.unitPrice !== ""
-            ? Number(item.unitPrice)
-            : Number(item.defaultPrice || 0);
+        item.unitPrice !== "" ? Number(item.unitPrice) : Number(item.defaultPrice || 0);
     const expiry = item.expiry || null;
 
     if (!qty || qty <= 0) {
@@ -101,10 +177,16 @@ function addPurchaseItem(item) {
             id: item.id,
             name: item.name,
             category: item.category,
+            // qty is now in base units (after conversion)
             qty,
             unitPrice: price,
             expiry,
             cost: round2(qty * price),
+
+            // helpful metadata:
+            derived_unit_id: selectedDerived ? selectedDerived.id : null,
+            derived_unit_name: selectedDerived ? selectedDerived.name : null,
+            base_unit_name: item.unit_name || null, // so you know which base unit qty is in
         });
     }
 
@@ -112,9 +194,11 @@ function addPurchaseItem(item) {
     item.qty = null;
     item.unitPrice = null;
     item.expiry = null;
-
+    item.selected_derived_unit_id = null;
     clearItemErrors(item);
 }
+
+
 
 function delPurchaseRow(idx) {
     p_cart.value.splice(idx, 1);
@@ -125,6 +209,17 @@ const formErrors = ref({});
 
 const resteErrors = () => {
     formErrors.value = {};
+    // reset derived unit info for all items
+    filteredItems.value.forEach(item => {
+        item.selectedDerivedUnitInfo = null;
+        item.selected_derived_unit_id = null;
+    });
+
+    // also clear cart if you need
+    p_cart.value.forEach(item => {
+        item.selectedDerivedUnitInfo = null;
+        item.selected_derived_unit_id = null;
+    });
 };
 
 async function quickPurchaseSubmit() {
@@ -186,12 +281,12 @@ const p_supplier = ref(null);
 
 // Date formate
 const formatDate = (date) => {
-  if (!date) return "—";
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${month}/${day}/${year}`;
+    if (!date) return "—";
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${month}/${day}/${year}`;
 };
 
 
@@ -239,7 +334,8 @@ const formatDate = (date) => {
 
                             <!-- Scrollable container -->
                             <div class="purchase-scroll">
-                                <div v-for="it in filteredItems" :key="it.id" class="card shadow-sm border-0 rounded-4 mb-3">
+                                <div v-for="it in filteredItems" :key="it.id"
+                                    class="card shadow-sm border-0 rounded-4 mb-3">
                                     <div class="card-body">
                                         <div class="d-flex align-items-start gap-3">
                                             <img :src="it.image_url" alt="" style="
@@ -261,7 +357,7 @@ const formatDate = (date) => {
                                                     {{ it.unit_name }}
                                                 </div>
                                                 <div class="text-muted small">
-                                                    Stock: 12
+                                                    Stock: {{ it.stock }}
                                                 </div>
                                             </div>
                                             <button class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
@@ -269,9 +365,25 @@ const formatDate = (date) => {
                                                 Add
                                             </button>
                                         </div>
+                                        <!-- ⚡ badge for derived unit -->
+                                        <div v-if="it.selectedDerivedUnitInfo" class="col-12 mt-3">
+                                            <span class="badge" style="
+                                                    display: inline-block;
+                                                    background-color: #e6f7f1;   /* light green background */
+                                                    color: #155724;              /* dark green text */
+                                                    padding: 4px 18px;
+                                                    border-radius: 20px;
+                                                    font-size: 0.9rem;
+                                                    font-weight: 500;
+                                                    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                                                    ">
+                                                1 {{ it.selectedDerivedUnitInfo.name }} =
+                                                {{ it.selectedDerivedUnitInfo.conversion_factor }} {{ it.unit_name }}
+                                            </span>
+                                        </div>
 
                                         <div class="row g-2 mt-3">
-                                            <div class="col-4">
+                                            <div class="col-3">
                                                 <label class="small text-muted">Quantity</label>
                                                 <input v-model.number="it.qty" type="number" min="0"
                                                     class="form-control" :class="{
@@ -289,7 +401,32 @@ const formatDate = (date) => {
                                                     }}
                                                 </small>
                                             </div>
-                                            <div class="col-4">
+
+                                            <div class="col-3">
+                                                <label class="small text-muted">Unit</label>
+                                                <select class="form-select" v-model="it.selected_derived_unit_id"
+                                                    @change="onUnitChange(it)" @focus="loadDerivedUnits(it)">
+                                                    <!-- Base unit -->
+                                                    <option :value="null">Base ({{ it.unit_name }})</option>
+
+                                                    <!-- Derived units -->
+                                                    <option v-for="du in it.derived_units || []" :key="du.id"
+                                                        :value="du.id">
+                                                        {{ du.name }}
+                                                    </option>
+                                                </select>
+
+                                                <!-- error -->
+                                                <small v-if="formErrors[it.id] && formErrors[it.id].derived_unit"
+                                                    class="text-danger">
+                                                    {{ formErrors[it.id].derived_unit[0] }}
+                                                </small>
+                                            </div>
+
+
+
+
+                                            <div class="col-3">
                                                 <label class="small text-muted">Unit Price</label>
                                                 <input v-model.number="it.unitPrice
                                                     " type="number" min="0" class="form-control" :class="{
@@ -309,11 +446,10 @@ const formatDate = (date) => {
                                                     }}
                                                 </small>
                                             </div>
-                                            <div class="col-4">
+                                            <div class="col-3">
                                                 <label class="small text-muted">Expiry Date</label>
-                                                <VueDatePicker v-model="it.expiry" :format="dateFmt" :enableTimePicker="false"
-                                                    placeholder="Select date"
-                                                    :class="{
+                                                <VueDatePicker v-model="it.expiry" :format="dateFmt"
+                                                    :enableTimePicker="false" placeholder="Select date" :class="{
                                                         'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date
                                                     }" />
 
@@ -410,51 +546,65 @@ const formatDate = (date) => {
 </template>
 
 <style scoped>
-
-.dark .modal-body{
-    background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
+.dark .modal-body {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
-.dark .modal-header{
-      background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
+.dark .modal-header {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark .table {
-  background-color: #181818 !important; /* gray-900 */
-  color: #f9fafb !important;
+    background-color: #181818 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
 }
 
-.dark .btn-primary{
+.dark .badge{
+    background-color: green !important;
+    color: #fff !important;
+}
+
+.dark .form-select{
+    background-color: #181818 !important;
+    color: #fff  !important;
+}
+.dark .btn-primary {
     background-color: #181818 !important;
     border: #181818 !important;
 }
-.dark .table thead{
-    background-color:  #181818;
-    color: #f9fafb;
-}
-.dark .table thead th{
-    background-color:  #181818;
+
+.dark .table thead {
+    background-color: #181818;
     color: #f9fafb;
 }
 
-.dark .table tbody td{
-    background-color:  #181818;
-    color: #f9fafb;
-}
-.dark .cart{
-     background-color:  #181818;
+.dark .table thead th {
+    background-color: #181818;
     color: #f9fafb;
 }
 
-.dark .card-body{
-      background-color:  #181818;
+.dark .table tbody td {
+    background-color: #181818;
     color: #f9fafb;
 }
 
-.dark input{
-      background-color:  #181818;
+.dark .cart {
+    background-color: #181818;
+    color: #f9fafb;
+}
+
+.dark .card-body {
+    background-color: #181818;
+    color: #f9fafb;
+}
+
+.dark input {
+    background-color: #181818;
     color: #f9fafb;
 }
 
