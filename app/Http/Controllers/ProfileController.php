@@ -60,4 +60,26 @@ class ProfileController extends Controller
 
         return Redirect::to('/');
     }
+
+    public function updateProfile(Request $request)
+    {
+        $user = auth()->user(); // or find by ID if you're passing ID in request
+
+        $validated = $request->validate([
+            'username' => 'required|string|max:255',
+            'password' => 'required|string|min:6',
+            'pin' => 'required|string|max:10',
+            'role' => 'required|string',
+        ]);
+
+        $user->name = $validated['username'];
+        if (! empty($validated['password'])) {
+            $user->password = bcrypt($validated['password']);
+        }
+        $user->pin = $validated['pin'] ?? $user->pin;
+        $user->role = $validated['role'];
+        $user->save();
+
+        return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
+    }
 }
