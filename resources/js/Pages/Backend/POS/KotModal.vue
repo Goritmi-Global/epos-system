@@ -1,36 +1,51 @@
 <template>
-    <div v-if="show" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+    <div class="modal fade" id="kotModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content rounded-4 border-0">
 
                 <!-- Header -->
-                <div class="modal-header d-flex align-items-center text-black">
+                <div class="modal-header position-relative text-black d-flex align-items-center">
+                    <!-- Left: Title + KOT count -->
                     <h5 class="modal-title mb-0 d-flex align-items-center">
                         Kitchen Order Ticket
                         <span class="badge bg-primary rounded-pill ms-2 px-2 py-1">{{ kotCount }}</span>
                     </h5>
 
-                    <!-- Search input wrapper -->
-                    <div class="ms-auto position-relative">
+                    <!-- Centered Search input -->
+                    <div class="position-absolute start-50 translate-middle-x" style="width: 250px;">
                         <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3"></i>
                         <input v-model="searchQuery" type="text" class="form-control rounded-pill ps-5"
-                            placeholder="Search items..." style="width: 250px; height: 38px;" />
+                            placeholder="Search items..." style="width: 100%; height: 38px;" />
                     </div>
 
-                    <!-- Close button -->
-                    <button type="button"
-                        class="btn btn-light ms-3 d-flex align-items-center justify-content-center rounded-circle p-1"
-                        @click="$emit('close')" title="Close" style="width: 36px; height: 36px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-danger" fill="none"
+                    <!-- Right: Close button -->
+                    <button class="ms-auto p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal" aria-label="Close" title="Close" @click="$emit('close')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
-
                 <!-- Body -->
-                <div class="modal-body" v-if="kot && kot.length">
-                    <div class="table-responsive">
+                <div class="modal-body">
+                    <!-- Loader -->
+                    <div v-if="loading" class="d-flex flex-column justify-content-center align-items-center"
+                        style="height: 200px;">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="mt-3 fw-bold">Loading today KOT orders...</div>
+                    </div>
+
+                    <!-- No orders found -->
+                    <div v-else-if="!kot || kot.length === 0"
+                        class="d-flex flex-column justify-content-center align-items-center" style="height: 200px;">
+                        <div class="fw-bold text-secondary">No orders found for today</div>
+                    </div>
+
+                    <!-- Orders table -->
+                    <div v-else class="table-responsive">
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
@@ -56,42 +71,32 @@
                                             {{ item.status }}
                                         </span>
                                     </td>
-
-
-
                                     <td>
                                         <div class="d-flex justify-content-center align-items-center gap-2">
-                                            <!-- Waiting -->
                                             <button @click="updateKotStatus(item.order, 'Waiting')" title="Waiting"
                                                 class="p-2 rounded-full text-warning hover:bg-gray-100">
                                                 <Clock class="w-5 h-5" />
                                             </button>
-
-                                            <!-- Done -->
                                             <button @click="updateKotStatus(item.order, 'Done')" title="Done"
                                                 class="p-2 rounded-full text-success hover:bg-gray-100">
                                                 <CheckCircle class="w-5 h-5" />
                                             </button>
-
-                                            <!-- Cancelled -->
                                             <button @click="updateKotStatus(item.order, 'Cancelled')" title="Cancelled"
                                                 class="p-2 rounded-full text-danger hover:bg-gray-100">
                                                 <XCircle class="w-5 h-5" />
                                             </button>
-
-                                            <!-- Print -->
                                             <button class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
                                                 @click.prevent="printOrder(item.order)" title="Print">
                                                 <Printer class="w-5 h-5" />
                                             </button>
                                         </div>
                                     </td>
-
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
 
                 <!-- Footer -->
                 <div class="modal-footer">
@@ -104,7 +109,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onMounted  } from 'vue';
 import axios from 'axios';
 import { toast } from 'vue3-toastify';
 import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
@@ -113,7 +118,8 @@ import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
 //  Props
 const props = defineProps({
     show: Boolean,
-    kot: Array
+    kot: Array,
+    loading: Boolean
 });
 
 const kotCount = computed(() => props.kot?.length || 0);
@@ -123,13 +129,13 @@ const emit = defineEmits(['close', 'status-updated']);
 // Flatten all items into one array
 // In your KOT modal component
 const allItems = computed(() => {
-    
+
     if (!props.kot || props.kot.length === 0) {
         return [];
     }
 
     const flattened = props.kot.flatMap((order, orderIndex) => {
-        
+
         return order.items?.map((item, itemIndex) => ({
             ...item,
             status: order.status,
@@ -138,7 +144,7 @@ const allItems = computed(() => {
             uniqueId: `${order.id}-${itemIndex}`
         })) || [];
     });
-    
+
     return flattened;
 });
 
@@ -183,25 +189,47 @@ const getStatusBadge = (status) => {
     }
 };
 
+let modalInstance = null;
+
+onMounted(() => {
+  const el = document.getElementById("kotModal");
+  modalInstance = new bootstrap.Modal(el, {
+    backdrop: "static",
+    keyboard: false
+  });
+});
+
+watch(
+  () => props.show,
+  (newVal) => {
+    if (!modalInstance) return;
+    if (newVal) {
+      modalInstance.show();
+    } else {
+      modalInstance.hide();
+    }
+  }
+);
+
 
 // Print function for individual orders
 const printOrder = (order) => {
     console.log(order);
     // Convert reactive object to plain object
     const plainOrder = JSON.parse(JSON.stringify(order));
-    
+
     // Get data from related models
     const posOrder = plainOrder?.pos_order_type?.order;
     const posOrderType = plainOrder?.pos_order_type;
     const payment = posOrder?.payment;
     const posOrderItems = posOrder?.items || [];
-    
+
     const customerName = posOrder?.customer_name || 'Walk-in Customer';
     const orderType = posOrderType?.order_type || 'Dine In';
     const tableNumber = posOrderType?.table_number;
     const subTotal = posOrder?.sub_total || 0;
     const totalAmount = posOrder?.total_amount || 0;
-    
+
     // Payment method from payment table
     const type = (payment?.payment_method || "cash").toLowerCase();
     let payLine = "";
@@ -219,8 +247,8 @@ const printOrder = (order) => {
 
     // Match KOT items with POS items to get prices
     const itemsWithPrices = (plainOrder.items || []).map(kotItem => {
-        const matchingPosItem = posOrderItems.find(posItem => 
-            posItem.title === kotItem.item_name || 
+        const matchingPosItem = posOrderItems.find(posItem =>
+            posItem.title === kotItem.item_name ||
             posItem.product_id === kotItem.product_id
         );
         return {
@@ -286,10 +314,10 @@ const printOrder = (order) => {
         </thead>
         <tbody>
          ${itemsWithPrices.map(item => {
-      const qty = Number(item.quantity) || 1;
-      const price = Number(item.price) || 0;
-      // Show price per item, not total
-      return `
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.price) || 0;
+        // Show price per item, not total
+        return `
       <tr>
         <td>${item.item_name || 'Unknown Item'}</td>
         <td>${qty}</td>

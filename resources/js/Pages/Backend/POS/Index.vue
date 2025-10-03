@@ -8,6 +8,7 @@ import ReceiptModal from "./ReceiptModal.vue";
 import KotModal from "./KotModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import PosOrdersModal from "./PosOrdersModal.vue";
+import { Package, ShoppingCart } from "lucide-vue-next";
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters();
 
@@ -560,22 +561,6 @@ function printKot(order) {
     };
 }
 
-const showKotModal = ref(false);
-const kotData = ref(null);
-const ShowKotDataInModal = ref(null);
-
-const fetchTodaysOrders = async () => {
-    try {
-        const res = await axios.get(`/api/pos/orders/today`);
-        return res.data.orders;
-    } catch (err) {
-        console.error("Failed to fetch today's orders:", err);
-        toast.error(
-            err.response?.data?.message || "Failed to fetch today's orders"
-        );
-        return [];
-    }
-};
 
 /* ----------------------------
    Confirm Order
@@ -633,7 +618,7 @@ const confirmOrder = async ({
 
         // Open KOT modal after confirmation
         if (autoPrintKot) {
-            ShowKotDataInModal.value = await fetchTodaysOrders(); // kotData not needed
+            kotData.value = await fetchTodaysOrders(); // kotData not needed
             printKot(JSON.parse(JSON.stringify(lastOrder.value))); // still prints last order
             showKotModal.value = true;
         }
@@ -694,7 +679,7 @@ watch(
 const handleKotStatusUpdated = ({ id, status, message }) => {
     console.log("KOT updated:", id, status, message);
 
-    ShowKotDataInModal.value = ShowKotDataInModal.value.map((kot) =>
+    kotData.value = kotData.value.map((kot) =>
         kot.id === id ? { ...kot, status } : kot
     );
 
@@ -702,29 +687,54 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
 };
 
 
+const showKotModal = ref(false);
+const kotData = ref([]);
+const kotLoading = ref(false);
 
 const openOrderModal = async () => {
-    ShowKotDataInModal.value = await fetchTodaysOrders();
-    showKotModal.value = true;
+    showKotModal.value = true;   // show modal immediately
+    kotData.value = [];           // clear old data
+    kotLoading.value = true;      // start loading
+
+    try {
+        const res = await axios.get(`/api/pos/orders/today`);
+        kotData.value = res.data.orders;
+    } catch (err) {
+        console.error("Failed to fetch today's orders:", err);
+        toast.error(
+            err.response?.data?.message || "Failed to fetch today's orders"
+        );
+        kotData.value = [];
+    } finally {
+        kotLoading.value = false;  // stop loading
+    }
 };
+
 
 const showPosOrdersModal = ref(false);
 const posOrdersData = ref([]);
 
 
+const loading = ref(false);
+
 const openPosOrdersModal = async () => {
+    showPosOrdersModal.value = true;
+    posOrdersData.value = [];
+    loading.value = true;
+
     try {
         const res = await axios.get(`/api/pos/orders/today`);
-        console.log("res", res);
         posOrdersData.value = res.data.orders;
-        showPosOrdersModal.value = true;
     } catch (err) {
         console.error("Failed to fetch POS orders:", err);
         toast.error(
             err.response?.data?.message || "Failed to fetch POS orders"
         );
+    } finally {
+        loading.value = false;
     }
 };
+
 
 const handleViewOrderDetails = (order) => {
     lastOrder.value = order;
@@ -752,7 +762,7 @@ const handleViewOrderDetails = (order) => {
                                         <!-- use emoji/text icon OR place an <img> inside -->
                                         <span class="cat-icon">{{
                                             c.icon || "🍵"
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                     <div class="cat-name">{{ c.name }}</div>
                                     <div class="cat-pill">
@@ -791,58 +801,43 @@ const handleViewOrderDetails = (order) => {
                             </div>
 
                             <div class="row g-3">
-                                <div
-                                    class="col-6 col-md-4 col-xl-3 d-flex"
-                                    v-for="p in filteredProducts"
-                                    :key="p.title"
-                                >
-                                    <div
-                                        class="item-card"
-                                        :class="{
-                                            'out-of-stock': (p.stock ?? 0) <= 0,
-                                        }"
-                                        :style="{
-                                            border:
-                                                '2px solid ' +
-                                                (p.label_color || '#1B1670'),
-                                        }"
-                                        @click="
-                                            (p.stock ?? 0) > 0 && openItem(p)
-                                        "
-                                    >
+                                <div class="col-6 col-md-4 col-xl-3 d-flex" v-for="p in filteredProducts"
+                                    :key="p.title">
+                                    <div class="item-card" :class="{
+                                        'out-of-stock': (p.stock ?? 0) <= 0,
+                                    }" :style="{
+                                        border:
+                                            '2px solid ' +
+                                            (p.label_color || '#1B1670'),
+                                    }" @click="
+                                        (p.stock ?? 0) > 0 && openItem(p)
+                                        ">
                                         <div class="item-img">
                                             <img :src="p.img" alt="" />
-                                            <span
-                                                class="item-price rounded-pill"
-                                                :style="{
-                                                    background:
-                                                        p.label_color ||
-                                                        '#1B1670',
-                                                }"
-                                            >
+                                            <span class="item-price rounded-pill" :style="{
+                                                background:
+                                                    p.label_color ||
+                                                    '#1B1670',
+                                            }">
                                                 {{ formatMoney(p.price) }}
                                             </span>
 
-                                            <span
-                                                v-if="(p.stock ?? 0) <= 0"
-                                                class="item-badge"
-                                                >OUT OF STOCK</span
-                                            >
+                                            <span v-if="(p.stock ?? 0) <= 0" class="item-badge">OUT OF STOCK</span>
                                         </div>
 
                                         <div class="item-body">
-                                            <div class="item-title":style="{
-                                            color:  (p.label_color || '#1B1670'),
-                                        }">
+                                            <div class="item-title" :style="{
+                                                color: (p.label_color || '#1B1670'),
+                                            }">
                                                 {{ p.title }}
                                             </div>
                                             <div class="item-sub" :style="{
-                                            color:  (p.label_color || '#1B1670'),
-                                        }">
+                                                color: (p.label_color || '#1B1670'),
+                                            }">
                                                 {{ p.family }}
                                             </div>
                                         </div>
-                                        
+
                                     </div>
                                 </div>
                                 <div v-if="filteredProducts.length === 0" class="col-12">
@@ -857,12 +852,22 @@ const handleViewOrderDetails = (order) => {
                     <!-- RIGHT: Cart -->
 
                     <div class="col-lg-4">
-                        <button class="btn btn-primary mb-2 rounded-pill" @click="openOrderModal">
-                            Today Kot Orders
-                        </button>
-                        <button class="btn btn-success mb-2 rounded-pill ms-2" @click="openPosOrdersModal">
-                            POS Orders
-                        </button>
+                        <div class="col-lg-4 d-flex align-items-center gap-2 mb-2">
+                            <!-- KOT Orders button -->
+                            <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
+                                @click="openOrderModal">
+                                <Package class="lucide-icon" width="16" height="16" />
+                                KOT
+                            </button>
+
+                            <!-- POS Orders button -->
+                            <button class="btn btn-success rounded-pill d-flex align-items-center gap-2 px-3"
+                                @click="openPosOrdersModal">
+                                <ShoppingCart class="lucide-icon" width="16" height="16" />
+                                Orders
+                            </button>
+                        </div>
+
                         <div class="cart card border-0 shadow-lg rounded-4">
 
                             <div class="cart-header">
@@ -1099,8 +1104,9 @@ t, i
                 </div>
             </div>
 
-            <KotModal :show="showKotModal" :kot="ShowKotDataInModal" @close="showKotModal = false"
+            <KotModal :show="showKotModal" :kot="kotData" :loading="kotLoading" @close="showKotModal = false"
                 @status-updated="handleKotStatusUpdated" />
+
 
             <!-- Confirm / Receipt (unchanged props) -->
             <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
@@ -1114,7 +1120,7 @@ t, i
                 @close="showReceiptModal = false" />
 
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
-                @view-details="handleViewOrderDetails" />
+                @view-details="handleViewOrderDetails" :loading="loading" />
         </div>
     </Master>
 </template>
@@ -1287,7 +1293,8 @@ t, i
     transition: 0.2s;
     display: flex;
     flex-direction: column;
-    border: 2px solid #1b1670; /* fallback if no inline style */
+    border: 2px solid #1b1670;
+    /* fallback if no inline style */
 }
 
 .item-card:hover {
@@ -1320,10 +1327,14 @@ t, i
 .item-card.out-of-stock::after {
     content: "";
     position: absolute;
-    inset: 0; /* cover whole card */
-    background: rgba(90, 85, 85, 0.192); /* semi-transparent dark overlay */
-    border-radius: 16px; /* match card radius */
-    z-index: 2; /* sit above content */
+    inset: 0;
+    /* cover whole card */
+    background: rgba(90, 85, 85, 0.192);
+    /* semi-transparent dark overlay */
+    border-radius: 16px;
+    /* match card radius */
+    z-index: 2;
+    /* sit above content */
 }
 
 /* make text & badge still visible above overlay */
