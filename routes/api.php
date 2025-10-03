@@ -24,6 +24,8 @@ use App\Http\Controllers\{
     ProfileController,
     PromoController
 };
+use App\Http\Controllers\Auth\PermissionController;
+
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
