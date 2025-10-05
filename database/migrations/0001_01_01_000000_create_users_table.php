@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('pin')->unique();
             $table->string('verifying_otp', 6)->nullable();
+            $table->string('status')->default('Active')->after('email_verified_at');
             $table->rememberToken();
             $table->timestamps();
         });

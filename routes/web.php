@@ -43,8 +43,8 @@ use App\Http\Controllers\Reference\{
 };
 use App\Http\Controllers\Auth\{
     PermissionController,
-    RoleControllerm,
-    UserRoleController
+    RoleController,
+    UsersController
 };
 
 /* =========================================================
@@ -290,11 +290,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/permissions-list', [RoleController::class, 'allPermissions'])->name('permissions.list');
     
 
-    Route::prefix('user-roles')->group(function () {
-        Route::get('/users', [UserRoleController::class, 'users']);           // list users + their roles
-        Route::get('/roles', [UserRoleController::class, 'roles']);           // list roles
-        Route::post('/assign/{user}', [UserRoleController::class, 'assign']); // sync roles for a user
-    })->name('user-roles.');
+    Route::prefix('users')->group(function () {
+        Route::get('/',        [UsersController::class, 'index']);       // list users (+roles)
+        Route::post('/',       [UsersController::class, 'store']);       // create + assign role
+        Route::put('/{user}',  [UsersController::class, 'update']);      // update + sync role
+        Route::delete('/{user}',[UsersController::class, 'destroy']);    // delete (with protections)
+    });
 
 
 });
