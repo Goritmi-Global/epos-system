@@ -71,16 +71,23 @@ class UnitsService
     /**
      * Update an existing unit
      */
-    public function update(Unit $unit, array $data): Unit
-    {
-        $unit->name = $data['name'] ?? $unit->name;
-        // if base_unit_id exists in payload, allow it (nullable)
-        $unit->base_unit_id = $data['base_unit_id'] ?? null;
-        $unit->conversion_factor = $data['conversion_factor'] ?? 1;
-        $unit->save();
+   public function update(Unit $unit, array $data): Unit
+{
+    $unit->name = $data['name'] ?? $unit->name;
 
-        return $unit;
+    if (array_key_exists('base_unit_id', $data)) {
+        $unit->base_unit_id = $data['base_unit_id'] ?: null;
     }
+
+    if (array_key_exists('conversion_factor', $data)) {
+        $unit->conversion_factor = $data['conversion_factor'] ?: 1;
+    }
+
+    $unit->save();
+
+    return $unit;
+}
+
 
     /**
      * Delete a unit

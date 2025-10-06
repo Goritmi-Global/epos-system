@@ -133,7 +133,7 @@ const icons = {
 
 .dark .feat-text{ color:#fff; font-weight:500; }
 .dark .feat-row{
-  background-color: #000000 !important;
+  background-color: #121212 !important;
     color: #ffffff !important;
 }
 /* Icon chip */
@@ -156,6 +156,15 @@ const icons = {
   border:1px solid #e3e8f2;
   box-shadow:0 2px 6px rgba(25,28,90,.05);
   overflow:hidden;
+}
+
+.dark .segmented{
+  background-color: #121212 !important;
+  color: #fff !important;
+}
+
+.dark .segmented__btn{
+  color: #fff !important;
 }
 .segmented__input{ position:absolute; opacity:0; pointer-events:none; }
 .segmented__btn{

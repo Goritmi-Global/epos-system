@@ -113,6 +113,15 @@ watch(form, emitSave, { deep: true, immediate: true })
   transition: all .15s ease;
 }
 
+.dark .segmented{
+  background-color: #121212 !important;
+  color: #fff !important;
+}
+
+.dark .segmented__btn{
+  color: #fff !important;
+}
+
 .segmented__btn:hover {
   background: rgba(28, 13, 130, .08);
 }
@@ -126,4 +135,44 @@ watch(form, emitSave, { deep: true, immediate: true })
 .segmented__btn:active {
   transform: translateY(1px);
 }
+
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #181818 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
 </style>

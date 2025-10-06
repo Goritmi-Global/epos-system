@@ -296,11 +296,30 @@ const hasTableDetailsError = computed(() => {
   box-shadow: 0 2px 6px rgba(25, 28, 90, .05);
   overflow: hidden;
 }
-
+.dark .segmented{
+  background-color: #181818 !important;
+  color: #fff !important;
+}
 .segmented__input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+.dark .modal-content{
+  background-color: #181818 !important;
+  color: #fff !important;
+}
+
+.dark .modal-body{
+  background-color: #121212 !important;
+  color: #fff !important;
+
+}
+
+.dark .bg-light{
+  background-color: #121212 !important;
+  color: #fff !important;
 }
 
 .segmented__btn {
@@ -311,6 +330,14 @@ const hasTableDetailsError = computed(() => {
   cursor: pointer;
   transition: all .15s ease;
   user-select: none;
+}
+.dark .segmented__btn{
+  color: #fff !important;
+}
+
+.dark .form-control{
+  background-color: #121212 !important;
+  color: #fff !important;
 }
 
 .segmented__btn:hover {
@@ -352,7 +379,7 @@ const hasTableDetailsError = computed(() => {
 
 .dark .check-tile {
   --accent: #1c0d82;
-  background-color: #000000 !important;
+  background-color: #181818 !important;
   color: #ffffff !important;
 }
 
@@ -433,4 +460,44 @@ const hasTableDetailsError = computed(() => {
 .check-tile--warning {
   --accent: #1c0d82;
 }
+
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #181818 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
 </style>
