@@ -541,20 +541,12 @@ onMounted(async () => {
     window.feather?.replace();
 });
 
-<<<<<<< HEAD
-//   Watch customUnit input
-=======
->>>>>>> 14311a6b3687163177386cc35b654939db081ad5
 watch(customUnit, (newVal) => {
     if (newVal && formErrors.value.customUnit) {
         delete formErrors.value.customUnit;
     }
 });
 
-<<<<<<< HEAD
-//  Watch commonUnits multi-select
-=======
->>>>>>> 14311a6b3687163177386cc35b654939db081ad5
 watch(commonUnits, (newVal) => {
     if (newVal.length > 0 && formErrors.value.units) {
         delete formErrors.value.units;
