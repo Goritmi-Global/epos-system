@@ -185,12 +185,6 @@ async function addOrderItem(item) {
         return;
     }
 
-    if (!expiry) {
-        setItemError(item, "expiry_date", "Enter an expiry date.");
-        toast.error("Enter an expiry date.");
-        return;
-    }
-
     // MERGE: same product + same unitPrice + same expiry
     const found = o_cart.value.find(
         (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
@@ -501,33 +495,7 @@ const formatDate = (date) => {
                                                 }}
                                             </small>
                                         </div>
-                                        <div class="col-3">
-                                            <label class="small text-muted"
-                                                >Expiry Date</label
-                                            >
-                                            
-                                            <VueDatePicker 
-                                                v-model="it.expiry"
-                                                :format="dateFmt"
-                                                :enableTimePicker="false"
-                                                placeholder="Select date"
-                                                :class="{
-                                                    'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date,
-                                                }" />
-                                            <small
-                                                v-if="
-                                                    formErrors[it.id] &&
-                                                    formErrors[it.id]
-                                                        .expiry_date
-                                                "
-                                                class="text-danger"
-                                            >
-                                                {{
-                                                    formErrors[it.id]
-                                                        .expiry_date[0]
-                                                }}
-                                            </small>
-                                        </div>
+                                        
                                     </div>
                                 </div>
                             </div>
@@ -544,7 +512,6 @@ const formatDate = (date) => {
 
                                                 <th>Quantity</th>
                                                 <th>unit price</th>
-                                                <th>expiry</th>
                                                 <th>cost</th>
                                                 <th class="text-end">Action</th>
                                             </tr>
@@ -561,9 +528,6 @@ const formatDate = (date) => {
                                                 <td>{{ r.qty }}</td>
                                                 <td>
                                                     {{ r.unitPrice }}
-                                                </td>
-                                                <td>
-                                                    {{ dateFmt(r.expiry) || "—" }}
                                                 </td>
                                                 <td>
                                                     {{ r.cost }}

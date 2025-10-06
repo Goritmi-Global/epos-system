@@ -618,7 +618,7 @@ const confirmOrder = async ({
 
         // Open KOT modal after confirmation
         if (autoPrintKot) {
-            kotData.value = await fetchTodaysOrders(); // kotData not needed
+            kotData.value = await openPosOrdersModal(); // kotData not needed
             printKot(JSON.parse(JSON.stringify(lastOrder.value))); // still prints last order
             showKotModal.value = true;
         }
