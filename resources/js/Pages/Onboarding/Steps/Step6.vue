@@ -176,7 +176,7 @@ function onCropped({ file }) {
 }
 
 .dark .logo-frame {
-  background-color: #000000;
+  background-color: #121212;
   color: #fff !important;
 }
 
@@ -188,6 +188,11 @@ function onCropped({ file }) {
   border: 1px solid #e3e8f2;
   box-shadow: 0 2px 6px rgba(25, 28, 90, 0.05);
   overflow: hidden;
+}
+
+.dark .segmented{
+  background-color: #121212 !important;
+  color: #fff !important;
 }
 
 .segmented__input {
@@ -206,6 +211,9 @@ function onCropped({ file }) {
   transition: all 0.15s ease;
 }
 
+.dark .segmented__btn{
+  color: #fff !important;
+}
 .segmented__btn:hover {
   background: rgba(28, 13, 130, 0.08);
 }
@@ -270,12 +278,12 @@ function onCropped({ file }) {
 }
 
 .dark .receipt-card {
-  background-color: #000000 !important;
+  background-color: #121212 !important;
   color: #ffffff !important;
 }
 
 .dark input {
-  background-color: #000000 !important;
+  background-color: #121212 !important;
   color: #ffffff !important;
 }
 
@@ -346,6 +354,49 @@ function onCropped({ file }) {
   max-width: 120px; /* optional: keeps it small */
   display: inline-block;
   border-radius: 0.5rem;
+}
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #181818 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+.dark .form-control{
+  background-color: #121212 !important;
+  color:  #fff !important;
 }
 
 </style>

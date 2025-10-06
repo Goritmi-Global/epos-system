@@ -223,13 +223,13 @@ async function goNext(stepData) {
         <div class="progress flex-grow-1" style="height: 6px">
           <div class="progress-bar progress-bar-striped" role="progressbar" :style="{ width: progressPercent + '%' }">
           </div>
-
         </div>
         <small class="fw-semibold">{{ current }}/{{ steps.length }}</small>
-        <button class="btn btn-sm btn-outline-secondary rounded-circle" @click="toggleDark()">
+           <button style="border-radius: 50%; " class="btn btn-sm btn-outline-secondary py-2" @click="toggleDark()">
           <Moon v-if="isDark" :size="20" />
           <Sun v-else :size="20" />
         </button>
+
       </div>
     </div>
 
@@ -286,7 +286,7 @@ async function goNext(stepData) {
 }
 
 .dark .steps-nav{
-   background-color: #000000 !important;
+   background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
@@ -296,39 +296,39 @@ async function goNext(stepData) {
 }
 
 .dark .onboarding-wrapper{
-   background-color: #000000 !important;
+   background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 /* style for daek mode  */
 .dark .modal-body {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .modal-header {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 
 .dark input {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark textarea {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .select {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #f9fafb !important;
 }
@@ -346,54 +346,54 @@ async function goNext(stepData) {
 }
 
 .dark .card {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-800 */
     color: #ffffff !important;
     /* gray-50 */
 }
 
 .dark .table {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     /* gray-900 */
     color: #f9fafb !important;
 }
 
 .dark .table thead {
-    background-color: #000000;
+    background-color: #181818;
     color: #f9fafb;
 }
 
 .dark .table thead th {
-    background-color: #000000;
+    background-color: #181818;
     color: #f9fafb;
 }
 
 .dark .table tbody td {
-    background-color: #000000;
+    background-color: #181818;
     color: #f9fafb;
 }
 
 html.dark {
     --brand: #ffffff;
-    --bg-muted: #1f2937;
-    --border: #374151;
-    background: #000000;
+    --bg-muted: #212121;
+    --border: #212121;
+    background: #181818;
     color: #f9fafb;
 }
 
 html.dark .page-wrapper {
-  background: #1f2937;
-  border-bottom-color: #374151;
+  background: #212121;
+  border-bottom-color: #212121;
 }
 
 html.dark .header {
-  background: #1f2937;
-  border-bottom-color: #374151;
+  background: #212121;
+  border-bottom-color: #212121;
 }
 
 html.dark .sidebar {
-  background: #1f2937;
-  /* border-right-color: #374151; */
+  background: #212121;
+  /* border-right-color: #212121; */
   color: white;
 }
 
@@ -402,29 +402,29 @@ html.dark .side-link {
 }
 
 html.dark .side-link:hover {
-  background: #374151;
+  background: #212121;
   color: #fff;
 }
 
 html.dark .main {
-  background: #374151;
+  background: #212121;
   color: #fff;
 }
 
 .dark .dash-widget {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h5 {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     ;
     color: #ffffff;
 }
 
 .dark .dash-widgetcontent h6 {
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     ;
     color: #ffffff;
 }
@@ -521,7 +521,7 @@ html.dark .main {
 .dark .wizard-footer{
  
    flex: 0 0 auto;
-  background:  #000000;
+  background:  #181818;
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
 
@@ -530,7 +530,7 @@ html.dark .main {
 
 
 .dark .btn {
-  background-color: #000000;
+  background-color: #181818;
 }
 
 /* Stack on small screens */

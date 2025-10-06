@@ -204,6 +204,15 @@ const timeItems = computed(() => {
   transform: translateY(1px);
 }
 
+.dark .segmented{
+  background-color: #121212 !important;
+  color: #fff !important;
+}
+
+.dark .segmented__btn{
+  color: #fff !important;
+}
+
 /* Row visuals */
 .day-row {
   padding: 10px 12px;
@@ -214,7 +223,7 @@ const timeItems = computed(() => {
 }
 
 .dark .day-row{
- background-color: #000000 !important;
+ background-color: #121212 !important;
     color: #ffffff !important;
 }
 </style>

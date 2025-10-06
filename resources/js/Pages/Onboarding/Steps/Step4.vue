@@ -138,12 +138,12 @@ const taxTypeOptions = ref([
 
 <style scoped>
 .dark input{
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     color: #ffffff;
 }
 
 .dark textarea{
-    background-color: #000000 !important;
+    background-color: #181818 !important;
     color: #ffffff;
 }
 .segmented {
@@ -153,6 +153,11 @@ const taxTypeOptions = ref([
   border: 1px solid #e3e8f2;
   box-shadow: 0 4px 10px rgba(25, 28, 90, 0.05);
   overflow: hidden;
+}
+
+.dark .segmented{
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 .segmented__input {
@@ -171,6 +176,10 @@ const taxTypeOptions = ref([
   user-select: none;
 }
 
+.dark .segmented__btn{
+  color: #fff !important;
+}
+
 .segmented__btn:hover {
   background: rgba(28, 13, 130, 0.08);
 }
@@ -184,4 +193,170 @@ const taxTypeOptions = ref([
 .segmented__btn:active {
   transform: translateY(1px);
 }
+
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+.dark input {
+    background-color: #181818 !important;
+    color: #ffffff;
+}
+.dark .p-select{
+  background-color: #121212 !important;
+  color: #fff !important;
+}
+
+.dark .p-select-label{
+  color: #fff !important;
+}
+
+.dark textarea {
+    background-color: #181818 !important;
+    color: #ffffff;
+}
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #181818 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important; /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
+}
+
 </style>
