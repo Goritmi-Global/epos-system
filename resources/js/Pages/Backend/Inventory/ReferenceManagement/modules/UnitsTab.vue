@@ -160,8 +160,12 @@ const onSubmit = async () => {
             isSubmitting.value = true;
             const payload = {
                 name: customUnit.value.trim(),
-                base_unit_id: unitType.value === 'derived' ? selectedBaseUnit.value : null,
-                conversion_factor: unitType.value === 'derived' ? conversionFactor.value : null,
+                base_unit_id: unitType.value === 'derived'
+                    ? Number(selectedBaseUnit.value)
+                    : null,
+                conversion_factor: unitType.value === 'derived'
+                    ? Number(conversionFactor.value)
+                    : null,
             };
             const { data } = await axios.put(`/units/${editingRow.value.id}`, payload);
 

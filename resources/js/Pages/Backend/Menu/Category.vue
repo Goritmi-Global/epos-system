@@ -163,7 +163,7 @@ const resetModal = () => {
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
 const catFormErrors = ref({});
- 
+
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 
@@ -203,7 +203,7 @@ const submitCategory = async () => {
                 icon: manualIcon.value.value,
                 active: manualActive.value,
                 parent_id: selectedParentId.value || null,
-               
+
             };
 
             //  Handle subcategories only if it's a MAIN CATEGORY
@@ -294,14 +294,14 @@ const submitCategory = async () => {
                     icon: manualIcon.value.value,
                     active: manualActive.value,
                     parent_id: null,
-                  
+
                 }));
             }
 
             const createPayload = {
                 isSubCategory: isSub.value,
                 categories: categoriesPayload,
-                
+
             };
 
             console.log("Creating categories with payload:", createPayload);
@@ -361,7 +361,7 @@ const manualSubcategoriesInput = ref("");
 
 // Also update your editRow function to better handle subcategory IDs
 const editRow = (row) => {
-    
+
     resetErrors();
     editingCategory.value = row;
     isSub.value = !!row.parent_id;
@@ -381,7 +381,7 @@ const editRow = (row) => {
     }
 
     manualActive.value = row.active;
- 
+
 
     // Handle subcategories
     if (row.subcategories && row.subcategories.length > 0) {
@@ -829,251 +829,250 @@ const handleImport = (data) => {
 <template>
     <Master>
         <div class="page-wrapper">
-           
-                <h4 class="mb-3">Categories</h4>
 
-                <!-- KPI -->
-                <div class="row g-3">
-                    <div v-for="c in CategoriesDetails" :key="c.label" class="col">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body d-flex align-items-center justify-content-between">
-                                <!-- Text -->
-                                <div>
-                                    <div class="fw-bold fs-4">
-                                        {{ c.value }}
-                                    </div>
-                                    <div class="text-muted fs-6">
-                                        {{ c.label }}
-                                    </div>
+            <h4 class="mb-3">Categories</h4>
+
+            <!-- KPI -->
+            <div class="row g-3">
+                <div v-for="c in CategoriesDetails" :key="c.label" class="col">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <!-- Text -->
+                            <div>
+                                <div class="fw-bold fs-4">
+                                    {{ c.value }}
                                 </div>
-                                <!-- Icon -->
-                                <div :class="[
-                                    'p-3 rounded-3 d-flex align-items-center justify-content-center',
-                                    c.iconBg,
-                                ]">
-                                    <component :is="c.icon" :class="c.iconColor" size="28" />
+                                <div class="text-muted fs-6">
+                                    {{ c.label }}
                                 </div>
+                            </div>
+                            <!-- Icon -->
+                            <div :class="[
+                                'p-3 rounded-3 d-flex align-items-center justify-content-center',
+                                c.iconBg,
+                            ]">
+                                <component :is="c.icon" :class="c.iconColor" size="28" />
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Table card -->
-                <div class="card border-0 shadow-lg rounded-4 mt-0">
-                    <div class="card-body">
-                        <!-- Toolbar -->
-                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                            <h4 class="mb-0">Categories</h4>
+            <!-- Table card -->
+            <div class="card border-0 shadow-lg rounded-4 mt-0">
+                <div class="card-body">
+                    <!-- Toolbar -->
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">Categories</h4>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                <div class="search-wrap">
-                                    <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search" />
-                                </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div class="search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input v-model="q" type="text" class="form-control search-input" placeholder="Search" />
+                            </div>
 
-                                <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
-                                    resetErrors;
-                                editingCategory = null;
-                                resetSubCategoryFields();
-                                resetFields();
-                                "
-                                    class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
-                                    <Plus class="w-4 h-4" /> Add Category
+                            <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
+                                resetErrors;
+                            editingCategory = null;
+                            resetSubCategoryFields();
+                            resetFields();
+                            "
+                                class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
+                                <Plus class="w-4 h-4" /> Add Category
+                            </button>
+                            <ImportFile label="Import" @on-import="handleImport" />
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Download
                                 </button>
-                                <ImportFile label="Import" @on-import="handleImport" />
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
-                                        data-bs-toggle="dropdown">
-                                        Download
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('pdf')">Download as PDF</a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('excel')">Download as Excel</a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item py-2" href="javascript:;"
-                                                @click="onDownload('csv')">
-                                                Download as CSV
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Download as PDF</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Download as Excel</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Download as CSV
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Table -->
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="border-top small text-muted">
-                                    <tr>
-                                        <th>S.#</th>
-                                        <th>Category</th>
-                                        <th>Sub Category</th>
-                                        <th>Icon</th>
-                                        <th>Total value</th>
-                                        <th>Total Item</th>
-                                        <th>Out of Stock</th>
-                                        <th>Low Stock</th>
-                                        <th>In Stock</th>
-                                        <th>Status</th>
-                                        <th class="text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(row, i) in filtered" :key="row.id">
-                                        <td>{{ i + 1 }}</td>
-                                        <td class="fw-semibold">
-                                            {{ row.name }}
-                                        </td>
-                                        <td class="text-truncate" style="max-width: 260px">
-                                            <div v-if="
-                                                row.subcategories &&
-                                                row.subcategories.length
-                                            ">
-                                                <div v-for="sub in row.subcategories" :key="sub.id"
-                                                    class="d-flex justify-content-between align-items-center"
-                                                    style="gap: 5px">
-                                                    <span>{{ sub.name }}</span>
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="border-top small text-muted">
+                                <tr>
+                                    <th>S.#</th>
+                                    <th>Category</th>
+                                    <th>Sub Category</th>
+                                    <th>Icon</th>
+                                    <th>Total value</th>
+                                    <th>Total Item</th>
+                                    <th>Out of Stock</th>
+                                    <th>Low Stock</th>
+                                    <th>In Stock</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(row, i) in filtered" :key="row.id">
+                                    <td>{{ i + 1 }}</td>
+                                    <td class="fw-semibold">
+                                        {{ row.name }}
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 260px">
+                                        <div v-if="
+                                            row.subcategories &&
+                                            row.subcategories.length
+                                        ">
+                                            <div v-for="sub in row.subcategories" :key="sub.id"
+                                                class="d-flex justify-content-between align-items-center"
+                                                style="gap: 5px">
+                                                <span>{{ sub.name }}</span>
 
-                                                    <button data-bs-toggle="modal" @click="
-                                                        () => {
-                                                            editSubCategory(
-                                                                row,
-                                                                sub
-                                                            );
-
-                                                        }
-                                                    " title="Edit"
-                                                        class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                        <Pencil class="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <span v-else>–</span>
-                                        </td>
-
-                                        <td>
-                                            <div
-                                                class="rounded d-inline-flex align-items-center justify-content-center img-chip">
-                                                <span class="fs-5">{{
-                                                    row.icon || "📦"
-                                                }}</span>
-                                            </div>
-                                        </td>
-                                        <td>{{ formatMoney(row.total_value) }}</td>
-                                        <td>{{ row.total_items }}</td>
-                                        <td>{{ row.out_of_stock }}</td>
-                                        <td>{{ row.low_stock }}</td>
-                                        <td>{{ row.in_stock }}</td>
-                                        <td>
-                                            {{
-                                                row.active
-                                                    ? "Active"
-                                                    : "Inactive"
-                                            }}
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="d-inline-flex align-items-center gap-3">
-                                                <button data-bs-toggle="modal" data-bs-target="#modalUnitForm" @click="
+                                                <button data-bs-toggle="modal" @click="
                                                     () => {
-                                                        editRow(row);
+                                                        editSubCategory(
+                                                            row,
+                                                            sub
+                                                        );
+
                                                     }
                                                 " title="Edit"
                                                     class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                     <Pencil class="w-4 h-4" />
                                                 </button>
-
-                                                <ConfirmModal :title="'Confirm Delete'"
-                                                    :message="`Are you sure you want to delete ${row.name}?`"
-                                                    :showDeleteButton="true" @confirm="
-                                                        () => {
-                                                            deleteCategory(row);
-                                                        }
-                                                    " @cancel="() => { }" />
                                             </div>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                        <span v-else>–</span>
+                                    </td>
 
-                                    <tr v-if="filtered.length === 0">
-                                        <td colspan="10" class="text-center text-muted py-4">
-                                            No categories found.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                                    <td>
+                                        <div
+                                            class="rounded d-inline-flex align-items-center justify-content-center img-chip">
+                                            <span class="fs-5">{{
+                                                row.icon || "📦"
+                                            }}</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ formatMoney(row.total_value) }}</td>
+                                    <td>{{ row.total_items }}</td>
+                                    <td>{{ row.out_of_stock }}</td>
+                                    <td>{{ row.low_stock }}</td>
+                                    <td>{{ row.in_stock }}</td>
+                                    <td>
+                                        <span :class="[
+                                            'badge',
+                                            row.active ? 'bg-success rounded-pill' : 'bg-danger rounded-pill'
+                                        ]">
+                                            {{ row.active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-3">
+                                            <button data-bs-toggle="modal" data-bs-target="#modalUnitForm" @click="
+                                                () => {
+                                                    editRow(row);
+                                                }
+                                            " title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                <Pencil class="w-4 h-4" />
+                                            </button>
+
+                                            <ConfirmModal :title="'Confirm Delete'"
+                                                :message="`Are you sure you want to delete ${row.name}?`"
+                                                :showDeleteButton="true" @confirm="
+                                                    () => {
+                                                        deleteCategory(row);
+                                                    }
+                                                " @cancel="() => { }" />
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <tr v-if="filtered.length === 0">
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        No categories found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
 
-                <!-- ================== Add Category Modal ================== -->
-                <div class="modal fade" id="addCatModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">
-                                    {{ editingCategory ? "Edit Menu Category" : "Add Menu Category" }}
-                                </h5>
-                                <button
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetModal">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
+            <!-- ================== Add Category Modal ================== -->
+            <div class="modal fade" id="addCatModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-semibold">
+                                {{ editingCategory ? "Edit Menu Category" : "Add Menu Category" }}
+                            </h5>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetModal">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
 
-                            <div class="modal-body">
-                                <!-- Row 1 -->
-                                <div class="row g-3">
-                                    <!-- Show "Is this a subcategory?" only when creating -->
-                                    <template v-if="!editingCategory">
-                                        <div class="col-lg-12">
-                                            <label class="form-label d-block mb-2">Is this a subcategory?</label>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio" :checked="isSub"
-                                                        @click="resetErrors()" @change="
-                                                            isSub = true;
-                                                        selectedParentId =
-                                                            null;
-                                                        " name="isSub" />
-                                                    <label class="form-check-label">Yes</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio" :checked="!isSub"
-                                                        @click="resetErrors()" @change="
-                                                            isSub = false;
-                                                        selectedParentId =
-                                                            null;
-                                                        " name="isSub" />
-                                                    <label class="form-check-label">No</label>
-                                                </div>
+                        <div class="modal-body">
+                            <!-- Row 1 -->
+                            <div class="row g-3">
+                                <!-- Show "Is this a subcategory?" only when creating -->
+                                <template v-if="!editingCategory">
+                                    <div class="col-lg-12">
+                                        <label class="form-label d-block mb-2">Is this a subcategory?</label>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" :checked="isSub"
+                                                    @click="resetErrors()" @change="
+                                                        isSub = true;
+                                                    selectedParentId =
+                                                        null;
+                                                    " name="isSub" />
+                                                <label class="form-check-label">Yes</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" :checked="!isSub"
+                                                    @click="resetErrors()" @change="
+                                                        isSub = false;
+                                                    selectedParentId =
+                                                        null;
+                                                    " name="isSub" />
+                                                <label class="form-check-label">No</label>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
+                                    <!-- Parent Category Dropdown - Only show when subcategory is Yes -->
 
-                                        <div class="col-lg-12" v-if="isSub">
-                                            <label class="form-label">Category</label>
-                                            <Select v-model="selectedParentId" :options="parentCategories"
-                                                optionLabel="name" optionValue="id" placeholder="Select Category"
-                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                                :class="{
-                                                    'is-invalid':
-                                                        catFormErrors?.parent_id,
-                                                }" />
-                                            <small v-if="catFormErrors?.parent_id" class="text-danger">
-                                                {{ catFormErrors.parent_id[0] }}
-                                            </small>
-                                        </div>
-                                        <!-- <div class="col-lg-6" v-if="isSub">
+                                    <div class="col-lg-12" v-if="isSub">
+                                        <label class="form-label">Category</label>
+                                        <Select v-model="selectedParentId" :options="parentCategories"
+                                            optionLabel="name" optionValue="id" placeholder="Select Category"
+                                            class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
+                                                'is-invalid':
+                                                    catFormErrors?.parent_id,
+                                            }" />
+                                        <small v-if="catFormErrors?.parent_id" class="text-danger">
+                                            {{ catFormErrors.parent_id[0] }}
+                                        </small>
+                                    </div>
+                                    <!-- <div class="col-lg-6" v-if="isSub">
                                             <label class="form-label d-block mb-2">Select Parent Category</label>
                                             <select v-model="selectedParentId" class="form-select"
                                                 :class="{ 'is-invalid': catFormErrors?.parent_id }" required>
@@ -1085,252 +1084,254 @@ const handleImport = (data) => {
                                                 </option>
                                             </select>
                                         </div> -->
-                                        <!-- <small v-if="catFormErrors?.parent_id" class="text-danger text-right">
+                                    <!-- <small v-if="catFormErrors?.parent_id" class="text-danger text-right">
                                             {{ catFormErrors.parent_id[0] }}
                                         </small> -->
-                                    </template>
+                                </template>
 
-                                    <!-- Manual Icon (always show) -->
-                                    <div class="col-lg-12">
-                                        <label class="form-label d-block mb-2">Manual Icon</label>
-                                        <div class="dropdown w-100">
-                                            <button
-                                                class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
-                                                data-bs-toggle="dropdown">
-                                                <span>
+                                <!-- Manual Icon (always show) -->
+                                <div class="col-lg-12">
+                                    <label class="form-label d-block mb-2">Manual Icon</label>
+                                    <div class="dropdown w-100">
+                                        <button
+                                            class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
+                                            data-bs-toggle="dropdown">
+                                            <span>
+                                                <span class="me-2">{{
+                                                    manualIcon.value
+                                                }}</span>
+                                                {{ manualIcon.label }}
+                                            </span>
+                                            <i class="bi bi-caret-down-fill"></i>
+                                        </button>
+                                        <ul class="dropdown-menu w-100 shadow rounded-3">
+                                            <li v-for="opt in iconOptions" :key="opt.label">
+                                                <a class="dropdown-item" href="javascript:void(0)" @click="
+                                                    manualIcon = opt
+                                                    ">
                                                     <span class="me-2">{{
-                                                        manualIcon.value
+                                                        opt.value
                                                     }}</span>
-                                                    {{ manualIcon.label }}
-                                                </span>
-                                                <i class="bi bi-caret-down-fill"></i>
-                                            </button>
-                                            <ul class="dropdown-menu w-100 shadow rounded-3">
-                                                <li v-for="opt in iconOptions" :key="opt.label">
-                                                    <a class="dropdown-item" href="javascript:void(0)" @click="
-                                                        manualIcon = opt
-                                                        ">
-                                                        <span class="me-2">{{
-                                                            opt.value
-                                                        }}</span>
-                                                        {{ opt.label }}
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
+                                                    {{ opt.label }}
+                                                </a>
+                                            </li>
+                                        </ul>
                                     </div>
+                                </div>
 
-                                    <!-- Category Name -->
-                                    <div class="col-12" v-if="!isSub || editingCategory">
-                                        <label class="form-label">Category Name</label>
+                                <!-- Category Name -->
+                                <div class="col-12" v-if="!isSub || editingCategory">
+                                    <label class="form-label">Category Name</label>
 
-                                        <!-- Single input when editing -->
-                                        <input v-if="editingCategory" type="text" v-model="manualCategories[0].label"
-                                            class="form-control" :class="{
-                                                'is-invalid':
-                                                    catFormErrors.name,
-                                            }" placeholder="Enter category name" />
+                                    <!-- Single input when editing -->
+                                    <input v-if="editingCategory" type="text" v-model="manualCategories[0].label"
+                                        class="form-control" :class="{
+                                            'is-invalid':
+                                                catFormErrors.name,
+                                        }" placeholder="Enter category name" />
 
-                                        <!-- MultiSelect when creating -->
-                                        <MultiSelect v-else v-model="manualCategories" :options="commonChips"
-                                            optionLabel="label" optionValue="value" :filter="true" display="chip"
-                                            :class="{
-                                                'is-invalid':
-                                                    catFormErrors.name,
-                                            }" placeholder="Select or add categories..." class="w-100" appendTo="self"
-                                            @keydown.enter.prevent="
-                                                addCustomCategory
-                                            " @blur="addCustomCategory" @filter="
+                                    <!-- MultiSelect when creating -->
+                                    <MultiSelect v-else v-model="manualCategories" :options="commonChips"
+                                        optionLabel="label" optionValue="value" :filter="true" display="chip" :class="{
+                                            'is-invalid':
+                                                catFormErrors.name,
+                                        }" placeholder="Select or add categories..." class="w-100" appendTo="self"
+                                        @keydown.enter.prevent="
+                                            addCustomCategory
+                                        " @blur="addCustomCategory" @filter="
                                                 (e) => (filterText = e.value)
                                             ">
-                                            <template #option="{ option }">
-                                                {{ option.label }}
-                                            </template>
-                                        </MultiSelect>
-                                        <small v-if="catFormErrors.name" class="text-danger">
-                                            {{ catFormErrors.name[0] }}
-                                        </small>
-                                    </div>
-
-                                    
+                                        <template #option="{ option }">
+                                            {{ option.label }}
+                                        </template>
+                                    </MultiSelect>
+                                    <small v-if="catFormErrors.name" class="text-danger">
+                                        {{ catFormErrors.name[0] }}
+                                    </small>
+                                </div>
 
 
 
-                                    <!-- Subcategory Section -->
-                                    <div class="col-12" v-if="isSub && !editingCategory">
-                                        <label class="form-label">Subcategory Name(s)</label>
 
-                                        <!-- CREATE: MultiSelect -->
-                                        <MultiSelect v-model="manualSubcategories" :options="options"
-                                            optionLabel="label" optionValue="value" :filter="true" display="chip"
-                                            :class="{
-                                                'is-invalid':
-                                                    catFormErrors?.subcategories ||
-                                                    catFormErrors?.name,
-                                            }" placeholder="Select or add subcategories..." class="w-100"
-                                            appendTo="self" @filter="
-                                                (e) =>
-                                                (currentFilterValue =
-                                                    e.value || '')
-                                            " @keydown.enter.prevent="
+
+                                <!-- Subcategory Section -->
+                                <div class="col-12" v-if="isSub && !editingCategory">
+                                    <label class="form-label">Subcategory Name(s)</label>
+
+                                    <!-- CREATE: MultiSelect -->
+                                    <MultiSelect v-model="manualSubcategories" :options="options" optionLabel="label"
+                                        optionValue="value" :filter="true" display="chip" :class="{
+                                            'is-invalid':
+                                                catFormErrors?.subcategories ||
+                                                catFormErrors?.name,
+                                        }" placeholder="Select or add subcategories..." class="w-100"
+                                        appendTo="self" @filter="
+                                            (e) =>
+                                            (currentFilterValue =
+                                                e.value || '')
+                                        " @keydown.enter.prevent="
                                                 addCustomSubcategory
                                             " @blur="addCustomSubcategory">
-                                            <template #option="{ option }">
-                                                <div>{{ option.label }}</div>
-                                            </template>
-                                            <template #footer>
-                                                <div class="p-3 d-flex justify-content-between">
-                                                    <Button label="Add Custom" severity="secondary" variant="text"
-                                                        size="small" icon="pi pi-plus" @click="
-                                                            addCustomSubcategory
-                                                        " :disabled="!currentFilterValue.trim()
+                                        <template #option="{ option }">
+                                            <div>{{ option.label }}</div>
+                                        </template>
+                                        <template #footer>
+                                            <div class="p-3 d-flex justify-content-between">
+                                                <Button label="Add Custom" severity="secondary" variant="text"
+                                                    size="small" icon="pi pi-plus" @click="
+                                                        addCustomSubcategory
+                                                    " :disabled="!currentFilterValue.trim()
                                                             " />
-                                                    <div class="d-flex gap-2">
-                                                        <Button label="Select All" severity="secondary" variant="text"
-                                                            size="small" icon="pi pi-check" @click="
-                                                                selectAllSubcategories
-                                                            " />
-                                                        <Button label="Clear All" severity="danger" variant="text"
-                                                            size="small" icon="pi pi-times" @click="
-                                                                removeAllSubcategories
-                                                            " />
-                                                    </div>
+                                                <div class="d-flex gap-2">
+                                                    <Button label="Select All" severity="secondary" variant="text"
+                                                        size="small" icon="pi pi-check" @click="
+                                                            selectAllSubcategories
+                                                        " />
+                                                    <Button label="Clear All" severity="danger" variant="text"
+                                                        size="small" icon="pi pi-times" @click="
+                                                            removeAllSubcategories
+                                                        " />
                                                 </div>
-                                            </template>
-                                        </MultiSelect>
-                                        <!-- Errors -->
-                                        <div v-if="catFormErrors?.subcategories" class="text-danger">
-                                            {{ catFormErrors.subcategories[0] }}
-                                        </div>
-                                        <div v-if="catFormErrors?.name" class="text-danger">
-                                            {{ catFormErrors.name[0] }}
-                                        </div>
-                                    </div>
-
-                                    <!-- EDIT MODE: Show parent category only -->
-                                    <div class="col-12" v-if="editingCategory && parentCategory">
-                                        <label class="form-label">Parent Category</label>
-                                        <input type="text" class="form-control" :value="parentCategory.label"
-                                            disabled />
-                                    </div>
-
-                                    <!-- Active toggle -->
-                                    <div class="col-12">
-                                        <label class="form-label d-block mb-2">Active</label>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="manualActive"
-                                                    @change="
-                                                        manualActive = true
-                                                        " name="active" />
-                                                <label class="form-check-label">Yes</label>
                                             </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" :checked="!manualActive"
-                                                    @change="
-                                                        manualActive = false
-                                                        " name="active" />
-                                                <label class="form-check-label">No</label>
-                                            </div>
-                                        </div>
+                                        </template>
+                                    </MultiSelect>
+                                    <!-- Errors -->
+                                    <div v-if="catFormErrors?.subcategories" class="text-danger">
+                                        {{ catFormErrors.subcategories[0] }}
+                                    </div>
+                                    <div v-if="catFormErrors?.name" class="text-danger">
+                                        {{ catFormErrors.name[0] }}
                                     </div>
                                 </div>
 
-                                <hr class="my-4" />
+                                <!-- EDIT MODE: Show parent category only -->
+                                <div class="col-12" v-if="editingCategory && parentCategory">
+                                    <label class="form-label">Parent Category</label>
+                                    <input type="text" class="form-control" :value="parentCategory.label" disabled />
+                                </div>
 
-                                <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill btn-sm py-2 px-4" :disabled="submitting"
-                                        @click="submitCategory()">
-                                        <template v-if="submitting">
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                            {{ editingCategory ? "Saving..." : "Saving..." }}
-                                        </template>
-                                        <template v-else>
-                                            {{ editingCategory ? "Save" : "Save" }}
-                                        </template>
-                                    </button>
-
-                                    <button class="btn btn-secondary btn-sm py-2 rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetModal">
-                                        Cancel
-                                    </button>
+                                <!-- Active toggle -->
+                                <div class="col-12">
+                                    <label class="form-label d-block mb-2">Active</label>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" :checked="manualActive"
+                                                @change="
+                                                    manualActive = true
+                                                    " name="active" />
+                                            <label class="form-check-label">Yes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" :checked="!manualActive"
+                                                @change="
+                                                    manualActive = false
+                                                    " name="active" />
+                                            <label class="form-check-label">No</label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /modal -->
 
-                <!-- Edit Subcategory Modal -->
-                <div class="modal fade" id="editSubCatModal" tabindex="-1" aria-labelledby="editSubCatModalLabel"
-                    aria-hidden="true">
-                    <div class="modal-dialog modal-md modal-dialog-centered">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editSubCatModalLabel">
-                                    Edit Subcategory
-                                </h5>
-                                <button
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetErrors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                            <hr class="my-4" />
+
+                            <div class="mt-4">
+                                <button class="btn btn-primary rounded-pill btn-sm py-2 px-4" :disabled="submitting"
+                                    @click="submitCategory()">
+                                    <template v-if="submitting">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        {{ editingCategory ? "Saving..." : "Saving..." }}
+                                    </template>
+                                    <template v-else>
+                                        {{ editingCategory ? "Save" : "Save" }}
+                                    </template>
                                 </button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label for="subCategoryName" class="form-label">Subcategory Name</label>
-                                    <input type="text" class="form-control" id="subCategoryName"
-                                        v-model="editingSubCategory.name" :disabled="submittingSub" :class="{
-                                            'is-invalid': subCatErrors,
-                                        }" />
-                                    <small class="text-danger">{{
-                                        subCatErrors
-                                    }}</small>
-                                </div>
-                                <button type="button" class="btn btn-primary rounded-pill px-4"
-                                    @click="submitSubCategory" :disabled="submittingSub">
-                                    {{
-                                        submittingSub
-                                            ? "Saving..."
-                                            : "Save"
-                                    }}
+
+                                <button class="btn btn-secondary btn-sm py-2 rounded-pill px-4 ms-2"
+                                    data-bs-dismiss="modal" @click="resetModal">
+                                    Cancel
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            
+            </div>
+            <!-- /modal -->
+
+            <!-- Edit Subcategory Modal -->
+            <div class="modal fade" id="editSubCatModal" tabindex="-1" aria-labelledby="editSubCatModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-md modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editSubCatModalLabel">
+                                Edit Subcategory
+                            </h5>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetErrors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="subCategoryName" class="form-label">Subcategory Name</label>
+                                <input type="text" class="form-control" id="subCategoryName"
+                                    v-model="editingSubCategory.name" :disabled="submittingSub" :class="{
+                                        'is-invalid': subCatErrors,
+                                    }" />
+                                <small class="text-danger">{{
+                                    subCatErrors
+                                }}</small>
+                            </div>
+                            <button type="button" class="btn btn-primary rounded-pill px-4" @click="submitSubCategory"
+                                :disabled="submittingSub">
+                                {{
+                                    submittingSub
+                                        ? "Saving..."
+                                        : "Save"
+                                }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </Master>
 </template>
 
 <style scoped>
-
-.dark h4{
+.dark h4 {
     color: white;
 }
+
 .dark .card {
-  background-color: #181818!important; /* gray-800 */
-  color: #ffffff !important;           /* gray-50 */
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #ffffff !important;
+    /* gray-50 */
 }
 
 .dark .table {
-  background-color: #181818 !important; /* gray-900 */
-  color: #f9fafb !important;
+    background-color: #181818 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
 }
 
-.dark .table thead{
-    background-color: #181818 !important; /* gray-900 */
-  color: #f9fafb !important;
+.dark .table thead {
+    background-color: #181818 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
 }
 
-.dark .table thead th{
-    background-color: #181818 !important; /* gray-900 */
-  color: #f9fafb !important;
-} 
+.dark .table thead th {
+    background-color: #181818 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
+}
 
 :root {
     --brand: #1c0d82;
@@ -1611,7 +1612,8 @@ const handleImport = (data) => {
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -1660,8 +1662,7 @@ const handleImport = (data) => {
     }
 }
 
-.dark .logo-frame{
+.dark .logo-frame {
     background-color: #181818;
 }
-
 </style>

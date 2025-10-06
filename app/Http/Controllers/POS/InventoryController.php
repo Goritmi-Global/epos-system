@@ -31,7 +31,10 @@ class InventoryController extends Controller
             // all as arrays of {id, name}
             'allergies' => Allergy::select('id', 'name')->orderBy('name')->get(),
             'tags' => Tag::select('id', 'name')->orderBy('name')->get(),
-            'units' => Unit::select('id', 'name')->orderBy('name')->get(),
+            'units' => Unit::select('id', 'name')
+            ->whereNull('base_unit_id')
+            ->orderBy('name')
+            ->get(),
             'suppliers' => Supplier::select('id', 'name')->orderBy('name')->get(),
 
             // if you have parent/child categories, keep parent_id; otherwise just id/name
