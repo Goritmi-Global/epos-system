@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount } from "vue";
 import axios from "axios";
-import { toast } from "vue3-toastify";  
+import { toast } from "vue3-toastify";
 
 const show = ref(false);
 const editingId = ref(null);
 const permissions = ref([]);
 const form = ref({ name: "", description: "" });
-const formErrors = ref({});  
+const formErrors = ref({});
 const saving = ref(false);
 
 // Search
@@ -85,7 +85,7 @@ async function save() {
 }
 
 // Lifecycle
-onMounted(() => { 
+onMounted(() => {
     fetchAllPermissions();
     window.addEventListener("keydown", handleKeydown);
 });
@@ -97,33 +97,21 @@ onBeforeUnmount(() => {
 <template>
     <div class="card shadow-sm border-0 rounded-4">
         <!-- Header -->
-        <div
-            class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center"
-        >
+        <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">List of Permissions</h5>
-                <small class="text-muted"
-                    >These are all the permissions that this system uses.</small
-                >
+                <small class="text-muted">These are all the permissions that this system uses.</small>
             </div>
 
             <div class="d-flex align-items-center gap-2">
                 <!-- Search -->
                 <div class="input-group">
-                    <input
-                        v-model.trim="searchTerm"
-                        type="text"
-                        class="form-control rounded-pill shadow-sm"
-                        placeholder="Search permissions…"
-                        style="width: 360px"
-                    />
+                    <input v-model.trim="searchTerm" type="text" class="form-control rounded-pill shadow-sm"
+                        placeholder="Search permissions…" style="width: 360px" />
                 </div>
 
                 <!-- Add -->
-                <button
-                    class="btn btn-primary btn-sm rounded-pill w-100"
-                    @click="openCreate"
-                >
+                <button class="btn btn-primary btn-sm rounded-pill w-100" @click="openCreate">
                     <i class="bi bi-plus-lg me-1"></i> Add Permission
                 </button>
             </div>
@@ -144,14 +132,11 @@ onBeforeUnmount(() => {
                         <td>
                             <span class="badge bg-light text-dark">{{
                                 p.name
-                            }}</span>
+                                }}</span>
                         </td>
                         <td>{{ p.description }}</td>
                         <td>
-                            <button
-                                class="btn btn-sm btn-outline-primary rounded-pill"
-                                @click="openEdit(p)"
-                            >
+                            <button class="btn btn-sm btn-outline-primary rounded-pill" @click="openEdit(p)">
                                 Edit
                             </button>
                         </td>
@@ -183,30 +168,28 @@ onBeforeUnmount(() => {
                             editingId ? "Edit Permission" : "Create Permission"
                         }}
                     </h6>
+
+
                     <button
-                        type="button"
-                        class="btn-close"
-                        @click="show = false"
-                    ></button>
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        @click="show = false" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+
                 </div>
 
                 <div class="modal-body">
                     <!-- Name -->
                     <div class="mb-2">
                         <label class="form-label">Name</label>
-                        <input
-                            v-model="form.name"
-                            class="form-control"
-                            placeholder="inventory.view"
-                            :class="{
-                                'is-invalid': formErrors.name,
-                                'bg-danger bg-opacity-10': formErrors.name,
-                            }"
-                        />
-                        <div
-                            v-if="formErrors.name"
-                            class="invalid-feedback d-block"
-                        >
+                        <input v-model="form.name" class="form-control" placeholder="inventory.view" :class="{
+                            'is-invalid': formErrors.name,
+                            'bg-danger bg-opacity-10': formErrors.name,
+                        }" />
+                        <div v-if="formErrors.name" class="invalid-feedback d-block">
                             {{ formErrors.name[0] }}
                         </div>
                     </div>
@@ -214,43 +197,26 @@ onBeforeUnmount(() => {
                     <!-- Description -->
                     <div class="mb-2">
                         <label class="form-label">Description</label>
-                        <input
-                            v-model="form.description"
-                            class="form-control"
-                            placeholder="Inventory"
-                            :class="{
-                                'is-invalid': formErrors.description,
-                                'bg-danger bg-opacity-10':
-                                    formErrors.description,
-                            }"
-                        />
-                        <div
-                            v-if="formErrors.description"
-                            class="invalid-feedback d-block"
-                        >
+                        <input v-model="form.description" class="form-control" placeholder="Inventory" :class="{
+                            'is-invalid': formErrors.description,
+                            'bg-danger bg-opacity-10':
+                                formErrors.description,
+                        }" />
+                        <div v-if="formErrors.description" class="invalid-feedback d-block">
                             {{ formErrors.description[0] }}
                         </div>
                     </div>
                 </div>
 
                 <div class="modal-footer">
-                    <button
-                        class="btn btn-light rounded-pill"
-                        @click="show = false"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        class="btn btn-primary rounded-pill"
-                        :disabled="saving"
-                        @click="save"
-                    >
-                        <span
-                            v-if="saving"
-                            class="spinner-border spinner-border-sm me-1"
-                        ></span>
+                     <button class="btn btn-primary rounded-pill" :disabled="saving" @click="save">
+                        <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
                         Save
                     </button>
+                    <button class="btn btn-secondary rounded-pill" @click="show = false">
+                        Cancel
+                    </button>
+                   
                 </div>
             </div>
         </div>

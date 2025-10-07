@@ -665,11 +665,11 @@ const handleImport = (data) => {
                           <button v-if="processStatus === 'Edit'" class="btn btn-primary btn-sm py-2 rounded-pill w-100 mt-4"
                             :disabled="loading" @click="updateSupplier()">
                             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                            Update
+                            Save
                         </button>
                         <button v-else class="btn btn-primary rounded-pill btn-sm py-2 w-100 mt-4" :disabled="loading"
                             @click="submit()">
-                            <span v-if="loading" class="spinner-border btn-sm spinner-border-sm me-2"></span>
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                             Save
                         </button>
                       </div>
