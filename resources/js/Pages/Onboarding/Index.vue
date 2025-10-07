@@ -391,6 +391,7 @@ html.dark .header {
   border-bottom-color: #212121;
 }
 
+
 html.dark .sidebar {
   background: #212121;
   /* border-right-color: #212121; */

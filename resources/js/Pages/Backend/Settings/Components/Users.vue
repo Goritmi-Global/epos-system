@@ -1,12 +1,12 @@
 <script setup>
-import { ref, onMounted,computed } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
-import Select from "primevue/select";  
- 
+import Select from "primevue/select";
 
-const rows = ref([]);   
-const roles = ref([]);  
+
+const rows = ref([]);
+const roles = ref([]);
 
 const loading = ref(false);
 
@@ -92,7 +92,7 @@ async function fetchAll() {
     loading.value = false;
   }
 }
- 
+
 
 const roleOptions = computed(() =>
   (roles.value || []).map(r => ({ label: r.name, value: r.id }))
@@ -164,14 +164,14 @@ onMounted(fetchAll);
             <tr v-for="u in rows" :key="u.id">
               <td class="d-flex align-items-center gap-2">
                 <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
-                     style="width:32px;height:32px;background:#1C0D82;color:#fff;">
+                  style="width:32px;height:32px;background:#1C0D82;color:#fff;">
                   {{ (u.name || 'U').charAt(0).toUpperCase() }}
                 </div>
                 <div class="fw-semibold">{{ u.name }}</div>
               </td>
               <td>{{ u.role || '—' }}</td>
               <td>
-                <span :class="['badge', (u.status==='Active' ? 'bg-success' : 'bg-secondary')]">
+                <span :class="['badge', (u.status === 'Active' ? 'bg-success' : 'bg-secondary')]">
                   {{ u.status }}
                 </span>
               </td>
@@ -180,12 +180,8 @@ onMounted(fetchAll);
                   <button class="btn btn-sm btn-outline-primary rounded-pill" @click="openEdit(u)" title="Edit">
                     <i class="bi bi-pencil"></i>
                   </button>
-                  <button
-                    class="btn btn-sm btn-outline-danger rounded-pill"
-                    :disabled="!canDelete(u)"
-                    title="Delete"
-                    @click="remove(u)"
-                  >
+                  <button class="btn btn-sm btn-outline-danger rounded-pill" :disabled="!canDelete(u)" title="Delete"
+                    @click="remove(u)">
                     <i class="bi bi-trash"></i>
                   </button>
                 </div>
@@ -209,22 +205,27 @@ onMounted(fetchAll);
       <div class="modal-content rounded-4">
         <div class="modal-header">
           <h6 class="modal-title">{{ editingId ? 'Edit User' : 'Add New User' }}</h6>
-          <button type="button" class="btn-close" @click="show=false"></button>
+
+          <button class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+            @click="show = false" data-bs-dismiss="modal" aria-label="Close" title="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">User Name</label>
-              <input v-model="form.name" class="form-control"
-                     :class="{'is-invalid': formErrors.name}"/>
+              <input v-model="form.name" class="form-control" :class="{ 'is-invalid': formErrors.name }" />
               <div v-if="formErrors.name" class="invalid-feedback d-block">{{ formErrors.name[0] }}</div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label">Email</label>
-              <input v-model="form.email" type="email" class="form-control"
-                     :class="{'is-invalid': formErrors.email}"/>
+              <input v-model="form.email" type="email" class="form-control" :class="{ 'is-invalid': formErrors.email }" />
               <div v-if="formErrors.email" class="invalid-feedback d-block">{{ formErrors.email[0] }}</div>
             </div>
 
@@ -232,19 +233,10 @@ onMounted(fetchAll);
             <div class="col-md-6">
               <label class="form-label">Password</label>
               <div class="position-relative">
-                <input
-                  :type="showPassword ? 'text' : 'password'"
-                  v-model="form.password"
-                  class="form-control pe-5"
-                  :class="{ 'is-invalid': formErrors.password }"
-                  placeholder="Enter password"
-                />
-                <button
-                  type="button"
-                  class="btn btn-link p-0 position-absolute top-50 end-0 translate-middle-y me-3"
-                  @click="showPassword = !showPassword"
-                  :aria-label="showPassword ? 'Hide password' : 'Show password'"
-                >
+                <input :type="showPassword ? 'text' : 'password'" v-model="form.password" class="form-control pe-5"
+                  :class="{ 'is-invalid': formErrors.password }" placeholder="Enter password" />
+                <button type="button" class="btn btn-link p-0 position-absolute top-50 end-0 translate-middle-y me-3"
+                  @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'">
                   <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                 </button>
               </div>
@@ -257,18 +249,11 @@ onMounted(fetchAll);
             <div class="col-md-6">
               <label class="form-label">Confirm Password</label>
               <div class="position-relative">
-                <input
-                  :type="showPasswordConfirm ? 'text' : 'password'"
-                  v-model="form.password_confirmation"
-                  class="form-control pe-5"
-                  placeholder="Confirm password"
-                />
-                <button
-                  type="button"
-                  class="btn btn-link p-0 position-absolute top-50 end-0 translate-middle-y me-3"
+                <input :type="showPasswordConfirm ? 'text' : 'password'" v-model="form.password_confirmation"
+                  class="form-control pe-5" placeholder="Confirm password" />
+                <button type="button" class="btn btn-link p-0 position-absolute top-50 end-0 translate-middle-y me-3"
                   @click="showPasswordConfirm = !showPasswordConfirm"
-                  :aria-label="showPasswordConfirm ? 'Hide password' : 'Show password'"
-                >
+                  :aria-label="showPasswordConfirm ? 'Hide password' : 'Show password'">
                   <i :class="showPasswordConfirm ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                 </button>
               </div>
@@ -278,25 +263,13 @@ onMounted(fetchAll);
             <div class="col-md-6">
               <label class="form-label">Pin</label>
               <div class="position-relative">
-                <input
-                  :type="showPin ? 'text' : 'password'"
-                  v-model="form.pin"
-                  maxlength="4"
-                  inputmode="numeric"
-                  pattern="[0-9]*"
-                  class="form-control pe-5 text-center"
-                  style="letter-spacing:.5rem;font-variant-numeric:tabular-nums;"
-                  placeholder="••••"
-                  :class="{ 'is-invalid': formErrors.pin }"
-                  @paste.prevent
-                />
-                <button
-                  type="button"
-                  class="btn btn-link p-0 position-absolute top-50 end-0 translate-middle-y me-3"
-                  @click="showPin = !showPin"
-                  :aria-label="showPin ? 'Hide PIN' : 'Show PIN'"
-                  title="Toggle PIN visibility"
-                >
+                <input :type="showPin ? 'text' : 'password'" v-model="form.pin" maxlength="4" inputmode="numeric"
+                  pattern="[0-9]*" class="form-control pe-5 text-center"
+                  style="letter-spacing:.5rem;font-variant-numeric:tabular-nums;" placeholder="••••"
+                  :class="{ 'is-invalid': formErrors.pin }" @paste.prevent />
+                <button type="button" class="btn btn-link p-0 position-absolute top-50 end-0 translate-middle-y me-3"
+                  @click="showPin = !showPin" :aria-label="showPin ? 'Hide PIN' : 'Show PIN'"
+                  title="Toggle PIN visibility">
                   <i :class="showPin ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                 </button>
               </div>
@@ -307,22 +280,13 @@ onMounted(fetchAll);
             <div class="col-md-6">
               <label class="form-label">Select Role</label>
 
-              <Select
-  v-model="form.role_id"
-  :options="userRoles"
-  optionLabel="name"
-  optionValue="value"
-  placeholder="Select Role"
-  class="w-100"
-  appendTo="self"
-  :autoZIndex="true"
-  :baseZIndex="2000"
-  :class="{ 'is-invalid': formErrors.role_id }"
-/>
+              <Select v-model="form.role_id" :options="userRoles" optionLabel="name" optionValue="value"
+                placeholder="Select Role" class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                :class="{ 'is-invalid': formErrors.role_id }" />
 
 
 
- 
+
 
               <div v-if="formErrors.role_id" class="invalid-feedback d-block">
                 {{ formErrors.role_id[0] }}
@@ -332,27 +296,18 @@ onMounted(fetchAll);
             <!-- Status -->
             <div class="col-md-6">
               <label class="form-label">Select Status</label>
-              <Select
-  v-model="form.status"
-  :options="statusOptions"
-  optionLabel="name"
-  optionValue="value"
-  placeholder="Status"
-  class="w-100"
-  appendTo="self"
-  :autoZIndex="true"
-  :baseZIndex="2000"
-  :class="{ 'is-invalid': formErrors.status }"
-/>
+              <Select v-model="form.status" :options="statusOptions" optionLabel="name" optionValue="value"
+                placeholder="Status" class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                :class="{ 'is-invalid': formErrors.status }" />
 
-              
+
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-light rounded-pill" @click="show=false">Cancel</button>
           <button class="btn btn-primary rounded-pill" @click="save">Save</button>
+          <button class="btn btn-light rounded-pill" @click="show = false">Cancel</button>
         </div>
       </div>
     </div>
@@ -360,5 +315,9 @@ onMounted(fetchAll);
 </template>
 
 <style scoped>
-.modal, .modal .modal-dialog, .modal .modal-content { transition: none !important; }
+.modal,
+.modal .modal-dialog,
+.modal .modal-content {
+  transition: none !important;
+}
 </style>

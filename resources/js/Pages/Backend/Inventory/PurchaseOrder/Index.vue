@@ -946,7 +946,7 @@ onUpdated(() => window.feather?.replace?.());
 /* Dark mode Multi Select  */
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
-    background-color: #212121 !important;
+    background-color: #181818 !important;
     color: #fff !important;
 }
 
@@ -962,7 +962,7 @@ onUpdated(() => window.feather?.replace?.());
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #212121 !important;
+    background: #181818 !important;
 }
 
 /* Each option */

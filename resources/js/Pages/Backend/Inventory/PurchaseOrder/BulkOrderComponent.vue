@@ -144,7 +144,27 @@ async function bulkSubmit() {
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h5 class="modal-title fw-semibold">Bulk Orders</h5>
-                    <button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                 </div>
 
                 <div class="modal-body">
@@ -215,7 +235,7 @@ async function bulkSubmit() {
 
                 <div class="modal-footer">
                     <button class="btn btn-primary rounded-pill px-4 py-2" :disabled="b_submitting" @click="bulkSubmit">
-                        <span v-if="!b_submitting">Save Bulk Order</span>
+                        <span v-if="!b_submitting">Save</span>
                         <span v-else>Saving...</span>
                     </button>
                 </div>

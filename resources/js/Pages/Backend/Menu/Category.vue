@@ -1567,7 +1567,7 @@ const handleImport = (data) => {
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
-    background: #222 !important;
+    background: #181818 !important;
     color: #fff !important;
 }
 

@@ -729,7 +729,7 @@ const handleImport = (data) => {
                             placeholder="Choose common units or add new one" class="w-100" appendTo="self"
                             @filter="onFilter" :invalid="formErrors.units?.length">
                             <template #header>
-                                <div class="w-100 d-flex justify-content-end">
+                                <div class="w-100 header d-flex justify-content-end">
                                     <button type="button" class="btn btn-sm btn-link text-primary"
                                         @click.stop="selectAll">
                                         Select All
@@ -740,7 +740,7 @@ const handleImport = (data) => {
                                 <div v-if="filterText?.trim()"
                                     class="p-2 border-top d-flex justify-content-between align-items-center">
                                     <small class="text-muted">Not found in the list? Add it as a custom unit</small>
-                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
+                                    <button type="button" class="btn btn-sm btn-primary rounded-pill"
                                         @click="addCustom">
                                         Add "{{ filterText.trim() }}"
                                     </button>
@@ -854,6 +854,40 @@ const handleImport = (data) => {
 .table-container {
     overflow: visible !important;
 }
+.dark .alert-info{
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #fff !important;
+}
+.dark .form-select{
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+.dark .header{
+    background-color: #121212;
+}
+
+.dark .p-inputtext{
+    background-color: #121212 !important;
+    color: #fff !important;
+}
+.dark .border-top{
+    background-color: #121212 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+.dark .form-select:focus{
+    background-color: #212121 !important;
+}
 
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
@@ -957,7 +991,7 @@ const handleImport = (data) => {
 /* ==================== Dark Mode Deep classes ================================== */
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
-    background-color: #000 !important;
+    background-color: #212121 !important;
     color: #fff !important;
 }
 
@@ -973,7 +1007,7 @@ const handleImport = (data) => {
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #000 !important;
+    background: #181818 !important;
 }
 
 /* Each option */

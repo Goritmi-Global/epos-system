@@ -573,10 +573,10 @@ const formatDate = (date) => {
     background-color: #181818 !important;
     color: #fff  !important;
 }
-.dark .btn-primary {
+/* .dark .btn-primary {
     background-color: #181818 !important;
     border: #181818 !important;
-}
+} */
 
 .dark .table thead {
     background-color: #181818;

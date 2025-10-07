@@ -140,7 +140,8 @@ const clearItemErrors = (item, field = null) => {
 };
 
 async function addOrderItem(item) {
-   clearItemErrors(item);
+    clearItemErrors(item);
+    
     const inputQty = Number(item.qty || 0);
 
     // ensure qty entered
@@ -192,22 +193,16 @@ async function addOrderItem(item) {
         return;
     }
 
-    if (!expiry) {
-        setItemError(item, "expiry_date", "Enter an expiry date.");
-        toast.error("Enter an expiry date.");
-        return;
-    }
-
     // MERGE: same product + same baseUnitPrice + same expiry
-    const found = p_cart.value.find(
+    const found = o_cart.value.find(
         (r) => r.id === item.id && r.unitPrice === baseUnitPrice && r.expiry === expiry
     );
-    
+
     if (found) {
         found.qty = round2(found.qty + qty);
         found.cost = round2(found.qty * found.unitPrice);
     } else {
-        p_cart.value.push({
+        o_cart.value.push({
             id: item.id,
             name: item.name,
             category: item.category,
@@ -229,7 +224,7 @@ async function addOrderItem(item) {
         });
     }
 
-    // reset only that item's fields
+    // reset only this item's fields
     item.qty = null;
     item.unitPrice = null;
     item.expiry = null;
@@ -627,10 +622,10 @@ const formatDate = (date) => {
   color: #f9fafb !important;
 }
 
-.dark .btn-primary{
+/* .dark .btn-primary{
     background-color: #181818 !important;
     border: #181818 !important;
-}
+} */
 .dark .table thead{
     background-color:  #181818;
     color: #f9fafb;
@@ -653,7 +648,10 @@ const formatDate = (date) => {
       background-color:  #181818;
     color: #f9fafb;
 }
-
+.dark .form-select{
+    background-color: #181818 !important;
+    color: #fff  !important;
+}
 .dark input{
       background-color:  #181818;
     color: #f9fafb;
