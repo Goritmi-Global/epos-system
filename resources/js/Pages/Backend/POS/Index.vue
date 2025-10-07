@@ -179,24 +179,63 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
     }
 };
 
+// const incCart = async (i) => {
+//     const it = orderItems.value[i];
+//     if (!it) return;
+//     if ((it.stock ?? 0) <= 0) {
+//         toast.error("Item out of stock.");
+//         return;
+//     }
+//     if (it.qty >= (it.stock ?? 0)) {
+//         toast.error("Not enough stock to add more of this item.");
+//         return;
+//     }
+//     try {
+//         // await updateStock(it, 1, "stockout");
+//         it.qty++;
+//     } catch (err) {
+//         toast.error("Failed to add item. Please try again.");
+//     }
+// };
+
 const incCart = async (i) => {
     const it = orderItems.value[i];
     if (!it) return;
-    if ((it.stock ?? 0) <= 0) {
-        toast.error("Item out of stock.");
-        return;
+
+    // Build stock map
+    const ingredientStock = {};
+    for (const item of orderItems.value) {
+        if (!item.ingredients?.length) continue;
+        for (const ing of item.ingredients) {
+            const id = ing.inventory_item_id;
+            if (!ingredientStock[id]) ingredientStock[id] = parseFloat(ing.inventory_stock);
+            ingredientStock[id] -= parseFloat(ing.quantity) * item.qty;
+        }
     }
-    if (it.qty >= (it.stock ?? 0)) {
-        toast.error("Not enough stock to add more of this item.");
-        return;
+
+    // Check ingredient stock
+    if (it.ingredients?.length) {
+        for (const ing of it.ingredients) {
+            const id = ing.inventory_item_id;
+            const available = ingredientStock[id] ?? parseFloat(ing.inventory_stock);
+            const required = parseFloat(ing.quantity) * (it.qty + 1);
+
+            if (available < required) {
+                it.outOfStock = true; // 🚩 mark visually
+                toast.error(
+                    `Not enough stock for "${it.title}".`
+                );
+                return;
+            }
+        }
     }
-    try {
-        // await updateStock(it, 1, "stockout");
-        it.qty++;
-    } catch (err) {
-        toast.error("Failed to add item. Please try again.");
-    }
+
+    // If stock is okay
+    it.outOfStock = false;
+    it.qty++;
 };
+
+
 
 const decCart = async (i) => {
     const it = orderItems.value[i];
@@ -245,50 +284,98 @@ const menuStockForSelected = computed(() =>
     calculateMenuStock(selectedItem.value)
 );
 
+// const confirmAdd = async () => {
+//     if (!selectedItem.value) return;
+//     try {
+//         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
+//         console.log(selectedItem.value.ingredients);
+
+//         //  2) Stockout each ingredient
+//         // if (
+//         //     selectedItem.value.ingredients &&
+//         //     selectedItem.value.ingredients.length
+//         // ) {
+//         //     for (const ingredient of selectedItem.value.ingredients) {
+//         //         const requiredQty = ingredient.pivot?.qty
+//         //             ? ingredient.pivot.qty * modalQty.value
+//         //             : modalQty.value;
+
+//         //         //Payload matching your request rules
+//         //         await axios.post("/stock_entries", {
+//         //             product_id: ingredient.inventory_item_id,
+//         //             name: ingredient.product_name,
+//         //             category_id: ingredient.category_id,
+//         //             supplier_id: ingredient.supplier_id,
+//         //             available_quantity: ingredient.inventory_stock,
+//         //             quantity: ingredient.quantity * modalQty.value,
+//         //             price: null,
+//         //             value: 0,
+//         //             operation_type: "pos_stockout",
+//         //             stock_type: "stockout",
+//         //             expiry_date: null,
+//         //             description: null,
+//         //             purchase_date: null,
+//         //             user_id: ingredient.user_id,
+//         //         });
+//         //     }
+//         // }
+
+//         //  3) Close modal
+//         if (chooseItemModal) chooseItemModal.hide();
+//     } catch (err) {
+//         alert(
+//             "Stockout failed: " + (err.response?.data?.message || err.message)
+//         );
+//     }
+// };
+
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
+
+    const ingredientStock = {}; // Track remaining stock per ingredient
+
+    // 1️⃣ Initialize stock from current cart
+    for (const item of orderItems.value) {
+        if (!item.ingredients?.length) continue;
+        for (const ing of item.ingredients) {
+            const ingredientId = ing.inventory_item_id;
+            if (!ingredientStock[ingredientId]) {
+                ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
+            }
+            ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
+        }
+    }
+
+    // 2️⃣ Check stock for selected item against remaining stock
+    if (selectedItem.value.ingredients?.length) {
+        for (const ing of selectedItem.value.ingredients) {
+            const ingredientId = ing.inventory_item_id;
+            const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
+            const requiredQty = parseFloat(ing.quantity) * modalQty.value;
+
+            if (availableStock < requiredQty) {
+                toast.error(
+                    `Not enough stock for "${selectedItem.value.title}".`
+                );
+                return; // Stop adding to cart
+            }
+        }
+    }
+
     try {
+        // 3️⃣ If enough stock, add to cart
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
-        console.log(selectedItem.value.ingredients);
 
-        //  2) Stockout each ingredient
-        // if (
-        //     selectedItem.value.ingredients &&
-        //     selectedItem.value.ingredients.length
-        // ) {
-        //     for (const ingredient of selectedItem.value.ingredients) {
-        //         const requiredQty = ingredient.pivot?.qty
-        //             ? ingredient.pivot.qty * modalQty.value
-        //             : modalQty.value;
-
-        //         //Payload matching your request rules
-        //         await axios.post("/stock_entries", {
-        //             product_id: ingredient.inventory_item_id,
-        //             name: ingredient.product_name,
-        //             category_id: ingredient.category_id,
-        //             supplier_id: ingredient.supplier_id,
-        //             available_quantity: ingredient.inventory_stock,
-        //             quantity: ingredient.quantity * modalQty.value,
-        //             price: null,
-        //             value: 0,
-        //             operation_type: "pos_stockout",
-        //             stock_type: "stockout",
-        //             expiry_date: null,
-        //             description: null,
-        //             purchase_date: null,
-        //             user_id: ingredient.user_id,
-        //         });
-        //     }
-        // }
-
-        //  3) Close modal
+        // 4️⃣ Close modal
         if (chooseItemModal) chooseItemModal.hide();
     } catch (err) {
         alert(
-            "Stockout failed: " + (err.response?.data?.message || err.message)
+            "Failed to add item: " + (err.response?.data?.message || err.message)
         );
     }
 };
+
+
 /* ----------------------------
    Update Stock
 -----------------------------*/
@@ -330,25 +417,62 @@ const updateStock = async (item, qty, type = "stockout") => {
     }
 };
 
+// const incQty = async () => {
+//     if (modalQty.value < menuStockForSelected.value) {
+//         modalQty.value++;
+//         // Add .value here
+//         // try {
+//         //     await updateStock(selectedItem.value, 1, "stockout");
+//         //     modalQty.value++; // Only increment after successful stock update
+//         //     console.log(
+//         //         "Stock updated successfully, new modalQty:",
+//         //         modalQty.value
+//         //     );
+//         // } catch (error) {
+//         //     console.error("Failed to update stock:", error);
+//         //     // Don't increment modalQty if stock update failed
+//         // }
+//     } else {
+//         console.log("Cannot increment: reached maximum stock limit");
+//     }
+// };
+
 const incQty = async () => {
-    if (modalQty.value < menuStockForSelected.value) {
-        modalQty.value++;
-        // Add .value here
-        // try {
-        //     await updateStock(selectedItem.value, 1, "stockout");
-        //     modalQty.value++; // Only increment after successful stock update
-        //     console.log(
-        //         "Stock updated successfully, new modalQty:",
-        //         modalQty.value
-        //     );
-        // } catch (error) {
-        //     console.error("Failed to update stock:", error);
-        //     // Don't increment modalQty if stock update failed
-        // }
-    } else {
-        console.log("Cannot increment: reached maximum stock limit");
+    if (!selectedItem.value || !selectedItem.value.ingredients?.length) return;
+
+    // 1️⃣ Calculate remaining stock for all ingredients
+    const ingredientStock = {};
+
+    // Include items already in the cart
+    for (const item of orderItems.value) {
+        if (!item.ingredients?.length) continue;
+        for (const ing of item.ingredients) {
+            const ingredientId = ing.inventory_item_id;
+            if (!ingredientStock[ingredientId]) {
+                ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
+            }
+            ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
+        }
     }
+
+    // 2️⃣ Check if increasing qty will exceed available stock
+    for (const ing of selectedItem.value.ingredients) {
+        const ingredientId = ing.inventory_item_id;
+        const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
+        const requiredQty = parseFloat(ing.quantity) * (modalQty.value + 1); // next quantity
+
+        if (availableStock < requiredQty) {
+            toast.error(
+                `Not enough stock for "${selectedItem.value.title}".`
+            );
+            return; // prevent increasing qty
+        }
+    }
+
+    // 3️⃣ If stock is enough, increment quantity
+    modalQty.value++;
 };
+
 const decQty = async () => {
     if (modalQty.value > 1) {
         modalQty.value--;
@@ -388,6 +512,51 @@ const showReceiptModal = ref(false);
 const lastOrder = ref(null);
 const showConfirmModal = ref(false);
 const cashReceived = ref(0);
+
+/* ------------------------------------
+   Helper Function to calculate Stock
+---------------------------------------*/
+const hasEnoughStockForOrder = () => {
+    const ingredientStock = {}; // tracks remaining stock for each ingredient
+
+    // Go through items in the same order as they are in the cart (first added = first served)
+    for (const item of orderItems.value) {
+        if (!item.ingredients || item.ingredients.length === 0) continue;
+
+        for (const ing of item.ingredients) {
+            const ingredientId = ing.inventory_item_id;
+            const availableStock = parseFloat(ing.inventory_stock);
+            const requiredQty = parseFloat(ing.quantity) * item.qty;
+
+            // Initialize available stock for this ingredient (if not already)
+            if (!ingredientStock[ingredientId]) {
+                ingredientStock[ingredientId] = {
+                    name: ing.product_name,
+                    remaining: availableStock,
+                };
+            }
+
+            // Deduct required quantity from remaining stock
+            if (ingredientStock[ingredientId].remaining >= requiredQty) {
+                ingredientStock[ingredientId].remaining -= requiredQty;
+            } else {
+                // Not enough stock → toast and stop checking further
+                toast.error(
+                    `Not enough stock for "${item.title}". Please remove it from the cart to proceed.`
+                );
+                return false;
+            }
+        }
+    }
+
+    // All items successfully allocated
+    return true;
+};
+
+
+
+
+
 const openConfirmModal = () => {
     if (orderItems.value.length === 0) {
         toast.error("Please add at least one item to the cart.");
@@ -400,9 +569,18 @@ const openConfirmModal = () => {
         toast.error("Please select a table number for Dine In orders.");
         return;
     }
+    if (!hasEnoughStockForOrder()) {
+        // Stop the process if not enough stock
+        return;
+    }
+
     cashReceived.value = grandTotal.value;
     showConfirmModal.value = true;
 };
+
+
+
+
 /* ----------------------------
    Print Receipt 
 -----------------------------*/
@@ -942,14 +1120,15 @@ const handleViewOrderDetails = (order) => {
                                                 −
                                             </button>
                                             <div class="qty">{{ it.qty }}</div>
-                                            <button class="qty-btn" :class="{
-                                                disabled:
-                                                    it.qty >=
-                                                    (it.stock ?? 0),
-                                            }" @click="incCart(i)" :disabled="it.qty >= (it.stock ?? 0)
-                                                ">
+                                            <button class="qty-btn" :class="[
+                                                (it.outOfStock || it.qty >= (it.stock ?? 0))
+                                                    ? 'bg-secondary text-white cursor-not-allowed opacity-70'
+                                                    : ''
+                                            ]" @click="incCart(i)" :disabled="it.outOfStock || it.qty >= (it.stock ?? 0)">
                                                 +
                                             </button>
+
+
                                         </div>
 
                                         <div class="line-right">

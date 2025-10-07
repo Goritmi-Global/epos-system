@@ -32,10 +32,9 @@
           </div>
 
           <!-- Orders Grid -->
-          <!-- Orders Grid -->
           <div v-else class="row g-3">
             <div class="col-md-6 col-lg-4" v-for="order in orders" :key="order.id">
-              <div class="card shadow-sm h-100 border-0 rounded-3">
+              <div class="card shadow-sm h-100 border rounded-3" style="border-color: #e5e7eb;">
                 <div class="card-body">
 
                   <!-- Order Header -->
@@ -100,11 +99,12 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="d-flex gap-2">
+                  <div class="d-flex justify-content-center">
                     <button class="btn btn-sm btn-outline-primary" @click="printOrder(order)">
                       <Printer class="w-5 h-5" />
                     </button>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -201,19 +201,19 @@ function printOrder(order) {
         </thead>
         <tbody>
           ${(plainOrder.pos_order_type?.order?.items || [])
-            .map((item) => {
-              const qty = Number(item.quantity) || 0;
-              const price = Number(item.price) || 0;
-              const total = qty * price;
-              return `
+      .map((item) => {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const total = qty * price;
+        return `
                 <tr>
                   <td>${item.title || "Unknown Item"}</td>
                   <td>${qty}</td>
                   <td>£${total.toFixed(2)}</td>
                 </tr>
               `;
-            })
-            .join("")}
+      })
+      .join("")}
         </tbody>
       </table>
 

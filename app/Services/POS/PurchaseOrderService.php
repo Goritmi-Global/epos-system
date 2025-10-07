@@ -51,6 +51,7 @@ class PurchaseOrderService
                     'quantity'    => $item['quantity'] ?? $item['qty'],
                     'unit_price'  => $item['unit_price'],
                     'sub_total'   => $sub_total,
+                    'expiry_date' => $item['expiry'] ?? null,
                 ]);
 
                 // For initial orders, no stock entry is created if status is pending

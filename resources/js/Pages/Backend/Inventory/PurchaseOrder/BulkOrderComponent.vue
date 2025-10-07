@@ -66,46 +66,63 @@ async function bulkSubmit() {
     }
 
     const today = new Date().toISOString().split("T")[0];
+    const validItems = [];
 
     bulkItems.value.forEach((it, idx) => {
+        const hasAnyValue = it.qty || it.unitPrice || it.expiry;
         const errors = {};
 
-        if (!it.qty || it.qty <= 0) {
-            errors.qty = "Quantity is required";
-        }
-        if (!it.unitPrice || it.unitPrice <= 0) {
-            errors.unitPrice = "Unit Price is required";
-        }
-        if (!it.expiry) {
-            errors.expiry = "Expiry date is required";
-        } else if (new Date(it.expiry) < new Date(today)) {
-            errors.expiry = "Expiry must be today or later";
-        }
+        // Only validate if the row has data
+        if (hasAnyValue) {
+            if (!it.qty || it.qty <= 0) {
+                errors.qty = "Quantity is required";
+            }
+            if (!it.unitPrice || it.unitPrice <= 0) {
+                errors.unitPrice = "Unit Price is required";
+            }
+            if (!it.expiry) {
+                errors.expiry = "Expiry date is required";
+            } else if (new Date(it.expiry) < new Date(today)) {
+                errors.expiry = "Expiry must be today or later";
+            }
 
-        if (Object.keys(errors).length > 0) {
-            formErrors.value[idx] = errors;
+            if (Object.keys(errors).length > 0) {
+                formErrors.value[idx] = errors;
+            } else {
+                // ✅ Only push if fully valid
+                validItems.push({
+                    product_id: it.id,
+                    quantity: it.qty,
+                    unit_price: it.unitPrice,
+                    expiry: it.expiry,
+                });
+            }
         }
     });
 
-    // stop if any errors exist
+    if (!b_supplier.value) {
+        toast.error("Please select a supplier");
+        return;
+    }
+
+    // If no valid items to submit
+    if (validItems.length === 0) {
+        toast.error("No valid items to submit");
+        return;
+    }
+
+    // Stop if there are any row-level errors
     if (Object.keys(formErrors.value).length > 0) {
         toast.error("Please fix the highlighted errors");
         return;
     }
 
-    // ✅ if no errors, build payload
     const payload = {
         supplier_id: b_supplier.value,
         purchase_date: today,
         status: "completed",
-        items: bulkItems.value.map((it) => ({
-            product_id: it.id,
-            quantity: it.qty,
-            unit_price: it.unitPrice,
-            expiry: it.expiry,
-        })),
+        items: validItems,
     };
-
 
     b_submitting.value = true;
     try {
@@ -113,7 +130,7 @@ async function bulkSubmit() {
         toast.success("Bulk order created successfully!");
         emit("refresh-data");
 
-        // reset form
+        // Reset form
         b_supplier.value = null;
         bulkItems.value.forEach((it) => {
             it.qty = 0;
@@ -122,7 +139,7 @@ async function bulkSubmit() {
             it.subtotal = 0;
         });
 
-        // close modal
+        // Close modal
         const m = bootstrap.Modal.getInstance(
             document.getElementById("bulkOrderModal")
         );
@@ -134,6 +151,7 @@ async function bulkSubmit() {
         b_submitting.value = false;
     }
 }
+
 
 
 </script>

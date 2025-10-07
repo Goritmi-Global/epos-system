@@ -485,7 +485,8 @@ onUpdated(() => window.feather?.replace());
                                 <label class="form-label">Value</label>
                                 <input type="number" readonly class="form-control" v-model="editForm.totalPrice" />
                             </div>
-                            <VueDatePicker v-model="expiryDateModel" :format="dateFmt" :enableTimePicker="false"
+                            <label>Expiry Date</label>
+                            <VueDatePicker v-model="expiryDateModel" :format="dateFmt" :enableTimePicker="false" :min-date="new Date()"
                                 placeholder="Select date" />
 
 
