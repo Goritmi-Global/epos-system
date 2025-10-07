@@ -37,7 +37,7 @@
 Hello {{ $user->name }},  
 Please confirm your email to activate your account.
 
-<!-- Confirm Button with Custom Color -->
+<!-- Confirm Button -->
 @component('mail::button', ['url' => route('verify.account', ['id' => $user->id]), 'color' => 'primary'])
 <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
 <tr>
@@ -50,14 +50,17 @@ Please confirm your email to activate your account.
 </table>
 @endcomponent
 
+{{-- Only show OTP if available --}}
+@if(!empty($otp))
 Or, you can simply copy and paste this code into the app:
 
 <!-- OTP Display -->
 <div class="otp-box">
     {{ implode(' ', str_split($otp)) }}
 </div>
+@endif
 
-If you didn’t request this, you can safely ignore this email.
+If you didn't request this, you can safely ignore this email.
 
 Thanks,  
 **EPOS-10X Global**
