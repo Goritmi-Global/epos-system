@@ -248,14 +248,55 @@ const updateProfile = async () => {
             alert("Something went wrong!");
         }
     } catch (error) {
-         if (error?.response?.status === 422 && error.response.data?.errors) {
+        if (error?.response?.status === 422 && error.response.data?.errors) {
             formErrors.value = error.response.data.errors;
 
             toast.error("Please fill in all required fields correctly.");
         }
-       
+
     }
 };
+
+// ------------------ Notifications --------------------------
+
+const notifications = ref([]);
+const unreadCount = ref(0);
+
+const fetchNotifications = async () => {
+    const response = await axios.get("/api/notifications");
+    notifications.value = response.data;
+    console.log("notifications.value", notifications.value);
+    unreadCount.value = notifications.value.filter(n => !n.is_read).length;
+};
+
+
+// Mark single notification as read
+const markAsRead = async (id) => {
+    try {
+        await axios.post(`/api/notifications/mark-as-read/${id}`)
+        const notif = notifications.value.find(n => n.id === id)
+        if (notif && !notif.is_read) {
+            notif.is_read = true
+            unreadCount.value--
+        }
+    } catch (error) {
+        console.error('Error marking as read:', error)
+    }
+}
+
+// Mark all as read
+const markAllAsRead = async () => {
+    try {
+        await axios.post('/api/notifications/mark-all-as-read')
+        notifications.value.forEach(n => n.is_read = true)
+        unreadCount.value = 0
+    } catch (error) {
+        console.error('Error marking all as read:', error)
+    }
+}
+
+
+onMounted(fetchNotifications);
 
 </script>
 
@@ -330,7 +371,7 @@ const updateProfile = async () => {
                     </div>
                 </li>
 
-                <li class="nav-item dropdown">
+                <!-- <li class="nav-item dropdown">
                     <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
                         <img src="/assets/img/icons/notification-bing.svg" alt="noti" />
                         <span class="badge rounded-pill">4</span>
@@ -347,7 +388,90 @@ const updateProfile = async () => {
                             <a href="javascript:void(0)">View all Notifications</a>
                         </div>
                     </div>
+                </li> -->
+
+                <li class="nav-item dropdown">
+                    <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
+                        <img src="/assets/img/icons/notification-bing.svg" alt="noti" />
+                        <span class="badge rounded-pill bg-danger" v-if="unreadCount > 0">{{ unreadCount }}</span>
+                    </a>
+
+                    <div class="dropdown-menu dropdown-menu-end notifications shadow-lg">
+                        <!-- Header -->
+                        <div
+                            class="topnav-dropdown-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                            <span class="notification-title fw-bold">Notifications</span>
+
+                            <!-- Mark all as read -->
+                            <a href="javascript:void(0)" class="text-primary fw-semibold" style="font-size: 0.9rem;"
+                                @click.stop="markAllAsRead">
+                                Mark all as read
+                                <span v-if="unreadCount > 0" class="text-primary">({{ unreadCount }})</span>
+                            </a>
+
+                            <!-- <a href="javascript:void(0)" class="small text-danger"
+                                    @click="notifications = []; unreadCount = 0">
+                                    Clear All
+                                </a> -->
+                        </div>
+
+                        <!-- Notification List -->
+                        <div class="noti-content max-h-[350px] overflow-y-auto">
+                            <template v-if="notifications.length">
+                                <div v-for="n in notifications" :key="n.id"
+                                    class="d-flex align-items-start justify-content-between p-3 border-bottom cursor-pointer transition-all rounded"
+                                    :class="n.is_read ? 'bg-gray-50' : 'bg-white shadow-sm'" @click.stop="markAsRead(n.id)">
+                                    <!-- Left content -->
+                                    <div class="flex-grow-1 me-2">
+                                        <div class="fw-semibold text-sm text-gray-800">{{ n.message }}</div>
+
+                                        <!-- Tailwind-style Status badge -->
+                                        <span
+                                            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1"
+                                            :class="{
+                                                'text-red-700 bg-red-100': n.status?.toLowerCase() === 'out_of_stock',
+                                                'text-yellow-700 bg-yellow-100': n.status?.toLowerCase() === 'low_stock',
+                                                'text-orange-700 bg-orange-200': n.status?.toLowerCase() === 'expired',
+                                                'text-blue-700 bg-blue-100': n.status?.toLowerCase() === 'near_expiry'
+                                            }">
+                                            {{ n.status.replace(/_/g, ' ').toUpperCase() }}
+                                        </span>
+
+
+
+                                        <!-- Date -->
+                                        <small class="text-muted mt-1 d-block" style="font-size: 0.7rem;">
+                                            {{ new Date(n.created_at).toLocaleString('en-US', {
+                                                dateStyle: 'medium',
+                                                timeStyle: 'short'
+                                            }) }}
+                                        </small>
+                                    </div>
+
+                                    <!-- Right side NEW badge -->
+                                    <div v-if="!n.is_read" class="align-self-start">
+                                        <span
+                                            class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full new-badge bg-green-100 text-green-600">
+                                            NEW
+                                        </span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div v-else class="p-3 text-center text-muted small">No notifications</div>
+                        </div>
+
+                        <!-- Footer (optional) -->
+                        <!-- <div class="topnav-dropdown-footer text-center pb-2 fw-bold border-top">
+                            <a href="javascript:void(0)">View all Notifications</a>
+                        </div> -->
+                    </div>
                 </li>
+
+
+
+
+
 
                 <li class="nav-item dropdown has-arrow main-drop cursor-pointer" data-bs-toggle="modal"
                     data-bs-target="#userProfileModal">
@@ -377,7 +501,7 @@ const updateProfile = async () => {
                                 <i :data-feather="block.icon" class="me-2 icons"></i>
                                 <span class="truncate-when-mini">{{
                                     block.label
-                                }}</span>
+                                    }}</span>
                                 </Link>
                             </li>
 
@@ -408,15 +532,15 @@ const updateProfile = async () => {
                                                 ">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
+                                            }}</span>
                                             <i :data-feather="openGroups.has(
                                                 item.label
                                             ) ||
-                                                    isAnyChildActive(
-                                                        item.children
-                                                    )
-                                                    ? 'chevron-up'
-                                                    : 'chevron-down'
+                                                isAnyChildActive(
+                                                    item.children
+                                                )
+                                                ? 'chevron-up'
+                                                : 'chevron-down'
                                                 "></i>
                                         </button>
 
@@ -434,7 +558,7 @@ const updateProfile = async () => {
                                                     " class="me-2"></i>
                                                 <span>{{
                                                     child.label
-                                                }}</span>
+                                                    }}</span>
                                                 </Link>
                                             </li>
                                         </ul>
@@ -449,7 +573,7 @@ const updateProfile = async () => {
                                         <i :data-feather="item.icon" class="me-2"></i>
                                         <span class="truncate-when-mini">{{
                                             item.label
-                                        }}</span>
+                                            }}</span>
                                         </Link>
                                     </li>
                                 </template>
@@ -1291,5 +1415,11 @@ li.active>.side-link {
 
 .header .user-img {
     font-size: 35px;
+}
+
+
+.new-badge {
+    background: #1C0D92 !important;
+    color: white !important;
 }
 </style>
