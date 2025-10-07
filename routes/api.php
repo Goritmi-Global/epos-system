@@ -25,7 +25,7 @@ use App\Http\Controllers\{
     PromoController
 };
 use App\Http\Controllers\Auth\PermissionController;
-
+use App\Http\Controllers\Notifications\NotificationController;
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
@@ -58,7 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/import', [SupplierController::class, 'import'])->name('suppliers.import');
         Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck'); // special
     });
-    
+
     // Orders 
     Route::prefix('orders')->name('api.orders.')->group(function () {
         Route::get('/all', [OrdersController::class, 'fetchAllOrders'])->name('fetchAll');
@@ -81,11 +81,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Menu Categories
     Route::prefix('menu-categories')->name('api.menu-categories.')->group(function () {
-        Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');      
-        Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');  
-        Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle'); 
-        Route::post('/import', [MenuCategoryController::class, 'import'])->name('import'); 
-
+        Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
+        Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
+        Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
+        Route::post('/import', [MenuCategoryController::class, 'import'])->name('import');
     });
 
     // Categories
@@ -115,10 +114,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // KOT Orders
     Route::prefix('kots')->name('api.kots.')->group(function () {
-       
         Route::get('/all-orders', [KotController::class, 'getAllKotOrders'])->name('index');
     });
 
-    Route::post('/profile/update', [ProfileController::class, 'updateProfile']);
+    // Notifications
+    Route::prefix('notifications')->name('api.notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::post('/mark-as-read/{id}', [NotificationController::class, 'markRead']);
+        Route::post('/mark-all-as-read', [NotificationController::class, 'markAllAsRead']);
+    });
 
+
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile']);
 });

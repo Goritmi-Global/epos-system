@@ -41,7 +41,11 @@ use App\Http\Controllers\Reference\{
     AllergyController,
     UnitController
 };
-use App\Http\Controllers\Auth\PermissionController;
+use App\Http\Controllers\Auth\{
+    PermissionController,
+    RoleController,
+    UsersController
+};
 
 /* =========================================================
 |  Public / Guest
@@ -274,6 +278,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [PermissionController::class, 'store'])->name('permissions.store');
         Route::put('/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
     });
+    // Roles
+    Route::prefix('roles')->name('roles.')->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->name('index');
+        Route::get('/{role}', [RoleController::class, 'show'])->name('roles.show');
+        Route::post('/', [RoleController::class, 'store'])->name('roles.store');
+        Route::put('/{role}', [RoleController::class, 'update'])->name('roles.update');    
+    });
+
+    // If you don't already have a "list all permissions" route, expose one:
+    Route::get('/permissions-list', [RoleController::class, 'allPermissions'])->name('permissions.list');
+    
+
+    Route::prefix('users')->group(function () {
+        Route::get('/',        [UsersController::class, 'index']);       // list users (+roles)
+        Route::post('/',       [UsersController::class, 'store']);       // create + assign role
+        Route::put('/{user}',  [UsersController::class, 'update']);      // update + sync role
+        Route::delete('/{user}',[UsersController::class, 'destroy']);    // delete (with protections)
+    });
+
 
 });
 
