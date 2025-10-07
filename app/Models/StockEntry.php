@@ -4,18 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Carbon\Carbon;
+use App\Models\Notification;
 
 class StockEntry extends Model
 {
     use HasFactory;
 
-    // Table name (optional if it matches the plural of model)
     protected $table = 'stock_entries';
 
-    // Mass assignable attributes
     protected $fillable = [
         'category_id',
-        'supplier_id', // product id store as an inventory item id 
+        'supplier_id',
         'product_id',
         'user_id',
         'quantity',
@@ -36,7 +36,7 @@ class StockEntry extends Model
         'purchase_date' => 'date',
     ];
 
-    // Relationships
+    // ----------------- Relationships ----------------- //
     public function category()
     {
         return $this->belongsTo(InventoryCategory::class);
@@ -57,7 +57,17 @@ class StockEntry extends Model
         return $this->belongsTo(User::class);
     }
 
-     // --- Scopes (handy for queries/aggregates) ---
+    public function allocationsUsedFromMe()
+    {
+        return $this->hasMany(StockOutAllocation::class, 'stock_in_entry_id');
+    }
+
+    public function allocationsForThisOut()
+    {
+        return $this->hasMany(StockOutAllocation::class, 'stock_out_entry_id');
+    }
+
+    // ----------------- Scopes ----------------- //
     public function scopeForItem($q, int $itemId)
     {
         return $q->where('product_id', $itemId);
@@ -73,14 +83,72 @@ class StockEntry extends Model
         return $q->where('stock_type', 'stockout');
     }
 
-    // app/Models/StockEntry.php
-    public function allocationsUsedFromMe()   // for a stock-in batch: who consumed me?
+    // ----------------- Boot Method ----------------- //
+    protected static function boot()
     {
-        return $this->hasMany(StockOutAllocation::class, 'stock_in_entry_id');
-    }
-    public function allocationsForThisOut()   // for a stock-out entry: which IN batches did I eat?
-    {
-        return $this->hasMany(StockOutAllocation::class, 'stock_out_entry_id');
+        parent::boot();
+
+        static::created(function ($entry) {
+            // Trigger notifications for any stock change (in or out)
+            $entry->checkStockStatus();
+        });
     }
 
+    // ----------------- Stock Checking Logic ----------------- //
+    public function checkStockStatus()
+    {
+        $product = $this->product;
+
+        if (!$product) {
+            return;
+        }
+
+        // Calculate current total available quantity
+        $totalStock = self::where('product_id', $product->id)
+            ->where('stock_type', 'stockin')
+            ->sum('quantity')
+            - self::where('product_id', $product->id)
+            ->where('stock_type', 'stockout')
+            ->sum('quantity');
+
+        // Use product’s minAlert value as threshold
+        $lowStockThreshold = $product->minAlert ?? 0;
+
+        // Expiry logic
+        $expiryDate = $this->expiry_date ? Carbon::parse($this->expiry_date) : null;
+        $now = Carbon::now();
+
+        // ---- Conditions ---- //
+        if ($totalStock <= 0) {
+            $this->createNotification('out_of_stock', "{$product->name} is out of stock.");
+        } elseif ($totalStock <= $lowStockThreshold) {
+            $this->createNotification('low_stock', "{$product->name} stock is low ({$totalStock} left).");
+        }
+
+        if ($expiryDate) {
+            if ($expiryDate->isPast()) {
+                $this->createNotification('expired', "{$product->name} has expired.");
+            } elseif ($expiryDate->diffInDays($now) <= 7) {
+                $this->createNotification('near_expiry', "{$product->name} is near expiry ({$expiryDate->format('Y-m-d')}).");
+            }
+        }
+    }
+
+    private function createNotification(string $status, string $message)
+    {
+        // Prevent duplicate notifications for same product + status
+        $exists = Notification::where('product_id', $this->product_id)
+            ->where('status', $status)
+            ->where('is_read', false)
+            ->exists();
+
+        if (!$exists) {
+            Notification::create([
+                'product_id' => $this->product_id,
+                'message' => $message,
+                'status' => $status,
+                'is_read' => false,
+            ]);
+        }
+    }
 }
