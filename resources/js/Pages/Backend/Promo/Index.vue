@@ -215,269 +215,272 @@ onUpdated(() => window.feather?.replace());
 <template>
     <Master>
         <div class="page-wrapper">
-             
-                <h4 class="fw-semibold mb-3">Promo Management</h4>
 
-                <!-- KPI Cards -->
-                <div class="row g-3 mb-4">
-                    <div v-for="stat in promoStats" :key="stat.label" class="col-md-6 col-xl-3">
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body d-flex align-items-center">
-                                <div :class="[stat.iconBg, stat.iconColor]"
-                                    class="rounded-circle p-3 d-flex align-items-center justify-content-center me-3"
-                                    style="width: 56px; height: 56px">
-                                    <component :is="stat.icon" class="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 class="mb-0 fw-bold">{{ stat.value }}</h3>
-                                    <p class="text-muted mb-0 small">{{ stat.label }}</p>
-                                </div>
+            <h4 class="fw-semibold mb-3">Promo Management</h4>
+
+            <!-- KPI Cards -->
+            <div class="row g-3 mb-4">
+                <div v-for="stat in promoStats" :key="stat.label" class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center">
+                            <div :class="[stat.iconBg, stat.iconColor]"
+                                class="rounded-circle p-3 d-flex align-items-center justify-content-center me-3"
+                                style="width: 56px; height: 56px">
+                                <component :is="stat.icon" class="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ stat.value }}</h3>
+                                <p class="text-muted mb-0 small">{{ stat.label }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Table card -->
-                <div class="card border-0 shadow-lg rounded-4 mt-0">
-                    <div class="card-body">
-                        <!-- Toolbar -->
-                        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0 fw-semibold">Promos</h5>
+            <!-- Table card -->
+            <div class="card border-0 shadow-lg rounded-4 mt-0">
+                <div class="card-body">
+                    <!-- Toolbar -->
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 fw-semibold">Promos</h5>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                <div class="search-wrap">
-                                    <i class="bi bi-search"></i>
-                                    <input v-model="q" type="text" class="form-control search-input"
-                                        placeholder="Search promos" />
-                                </div>
-
-                                <button data-bs-toggle="modal" data-bs-target="#promoModal" @click="resetModal"
-                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
-                                    <Plus class="w-4 h-4" /> Add Promo
-                                </button>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div class="search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input v-model="q" type="text" class="form-control search-input"
+                                    placeholder="Search promos" />
                             </div>
+
+                            <button data-bs-toggle="modal" data-bs-target="#promoModal" @click="resetModal"
+                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
+                                <Plus class="w-4 h-4" /> Add Promo
+                            </button>
                         </div>
+                    </div>
 
-                        <!-- Table -->
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead class="border-top small text-muted">
-                                    <tr>
-                                        <th>S.#</th>
-                                        <th>Name</th>
-                                        <th>Type</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Min Purchase</th>
-                                        <th>Max Discount</th>
-                                        <th class="text-center">Status</th>
-                                        <th class="text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(row, i) in filtered" :key="row.id">
-                                        <td>{{ i + 1 }}</td>
-                                        <td class="fw-semibold">{{ row.name }}</td>
-                                        <td>
-                                            <span :class="row.type === 'flat'
-                                                ? 'badge bg-primary px-4 py-2 rounded-pill'
-                                                : 'badge bg-warning px-4 py-2 rounded-pill'
-                                                ">
-                                                {{ row.type === "flat" ? "Flat" : "Percent" }}
-                                            </span>
-                                        </td>
-                                        <td>{{ dateFmt(row.start_date) }}</td>
-                                        <td>{{ dateFmt(row.end_date) }}</td>
-                                        <td>{{ formatMoney(row.min_purchase) }}</td>
-                                        <td>
-                                            {{ row.max_discount ? formatMoney(row.max_discount) : "N/A" }}
-                                        </td>
-                                        <td class="text-center">
-                                            <span :class="row.status === 'active'
-                                                ? 'badge bg-success px-4 py-2 rounded-pill'
-                                                : 'badge bg-danger px-4 py-2 rounded-pill'
-                                                ">
-                                                {{ row.status === "active" ? "Active" : "Inactive" }}
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="d-inline-flex align-items-center gap-3">
-                                                <button @click="editRow(row)" title="Edit"
-                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                    <Pencil class="w-4 h-4" />
-                                                </button>
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="border-top small text-muted">
+                                <tr>
+                                    <th>S.#</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Min Purchase</th>
+                                    <th>Max Discount</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(row, i) in filtered" :key="row.id">
+                                    <td>{{ i + 1 }}</td>
+                                    <td class="fw-semibold">{{ row.name }}</td>
+                                    <td>
+                                        <span :class="row.type === 'flat'
+                                            ? 'badge bg-primary px-4 py-2 rounded-pill'
+                                            : 'badge bg-warning px-4 py-2 rounded-pill'
+                                            ">
+                                            {{ row.type === "flat" ? "Flat" : "Percent" }}
+                                        </span>
+                                    </td>
+                                    <td>{{ dateFmt(row.start_date) }}</td>
+                                    <td>{{ dateFmt(row.end_date) }}</td>
+                                    <td>{{ formatMoney(row.min_purchase) }}</td>
+                                    <td>
+                                        {{ row.max_discount ? formatMoney(row.max_discount) : "N/A" }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span :class="row.status === 'active'
+                                            ? 'badge bg-success px-4 py-2 rounded-pill'
+                                            : 'badge bg-danger px-4 py-2 rounded-pill'
+                                            ">
+                                            {{ row.status === "active" ? "Active" : "Inactive" }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-3">
+                                            <button @click="editRow(row)" title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                <Pencil class="w-4 h-4" />
+                                            </button>
 
-                                                <ConfirmModal :title="'Confirm Status Change'"
-                                                    :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
-                                                    :showDeleteButton="true" confirmText="Yes, Change"
-                                                    cancelText="Cancel" @confirm="toggleStatus(row)">
+                                            <ConfirmModal :title="'Confirm Status Change'"
+                                                :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
+                                                :showStatusButton="true" confirmText="Yes, Change" cancelText="Cancel"
+                                                :status="row.status" @confirm="toggleStatus(row)">
+                                                <template #trigger>
+                                                    <!-- Toggle Switch -->
                                                     <button
-                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'"
-                                                        class="p-2 rounded-full hover:bg-gray-100 flex items-center justify-center">
-                                                        <CheckCircle v-if="row.status === 'active'"
-                                                            class="w-6 h-6 text-green-600" />
-                                                        <XCircle v-else class="w-6 h-6 text-red-600" />
+                                                        class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
+                                                        :class="row.status === 'active' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500'"
+                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'">
+                                                        <!-- Circle -->
+                                                        <span
+                                                            class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
+                                                            :class="row.status === 'active' ? 'translate-x-4' : 'translate-x-0'"></span>
                                                     </button>
-                                                </ConfirmModal>
+                                                </template>
+                                            </ConfirmModal>
+                                        </div>
+                                    </td>
+                                </tr>
 
-
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    <tr v-if="filtered.length === 0">
-                                        <td colspan="9" class="text-center text-muted py-4">
-                                            No promos found.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                                <tr v-if="filtered.length === 0">
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        No promos found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
 
-                <!-- ================== Add/Edit Promo Modal ================== -->
-                <div class="modal fade" id="promoModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div class="modal-content rounded-4">
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-semibold">
-                                    {{ editingPromo ? "Edit Promo" : "Add New Promo" }}
-                                </h5>
-                                <button
-                                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                    @click="resetModal" data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+            <!-- ================== Add/Edit Promo Modal ================== -->
+            <div class="modal fade" id="promoModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-semibold">
+                                {{ editingPromo ? "Edit Promo" : "Add New Promo" }}
+                            </h5>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                @click="resetModal" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+
+
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <!-- Name -->
+                                <div class="col-12">
+                                    <label class="form-label">Promo Name</label>
+                                    <input v-model="promoForm.name" type="text" class="form-control" :class="{
+                                        'is-invalid': promoFormErrors.name,
+                                    }" placeholder="Enter promo name" />
+                                    <small v-if="promoFormErrors.name" class="text-danger">
+                                        {{ promoFormErrors.name[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Type -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Discount Type</label>
+                                    <Select v-model="promoForm.type" :options="discountOptions" optionLabel="label"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000" optionValue="value"
+                                        class="form-select" :class="{ 'is-invalid': promoFormErrors.type }" />
+                                    <small v-if="promoFormErrors.type" class="text-danger">
+                                        {{ promoFormErrors.type[0] }}
+                                    </small>
+                                </div>
+
+
+                                <!-- Status -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Status</label>
+                                    <Select v-model="promoForm.status" :options="statusOptions" optionLabel="label"
+                                        optionValue="value" class="form-select" appendTo="self" :autoZIndex="true"
+                                        :baseZIndex="2000" :class="{ 'is-invalid': promoFormErrors.status }">
+                                    </Select>
+                                    <small v-if="promoFormErrors.status" class="text-danger">
+                                        {{ promoFormErrors.status[0] }}
+                                    </small>
+                                </div>
+                                <!-- Start Date -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Start Date</label>
+
+                                    <VueDatePicker v-model="promoForm.start_date" :format="dateFmt"
+                                        :enableTimePicker="false" placeholder="Select Start date" :class="{
+                                            'is-invalid': promoFormErrors.start_date,
+                                        }" />
+                                    <small v-if="promoFormErrors.start_date" class="text-danger">
+                                        {{ promoFormErrors.start_date[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- End Date -->
+                                <div class="col-md-6">
+                                    <label class="form-label">End Date</label>
+                                    <VueDatePicker v-model="promoForm.end_date" :format="dateFmt"
+                                        :enableTimePicker="false" placeholder="Select End date" :class="{
+                                            'is-invalid': promoFormErrors.end_date,
+                                        }" />
+                                    <small v-if="promoFormErrors.end_date" class="text-danger">
+                                        {{ promoFormErrors.end_date[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Min Purchase -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Minimum Purchase Amount</label>
+                                    <input v-model="promoForm.min_purchase" type="number" step="0.01"
+                                        class="form-control" :class="{
+                                            'is-invalid': promoFormErrors.min_purchase,
+                                        }" placeholder="0.00" />
+                                    <small v-if="promoFormErrors.min_purchase" class="text-danger">
+                                        {{ promoFormErrors.min_purchase[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Max Discount -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Maximum Discount (Optional)</label>
+                                    <input v-model="promoForm.max_discount" type="number" step="0.01"
+                                        class="form-control" :class="{
+                                            'is-invalid': promoFormErrors.max_discount,
+                                        }" placeholder="0.00" />
+                                    <small v-if="promoFormErrors.max_discount" class="text-danger">
+                                        {{ promoFormErrors.max_discount[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="col-12">
+                                    <label class="form-label">Description (Optional)</label>
+                                    <textarea v-model="promoForm.description" class="form-control" rows="3" :class="{
+                                        'is-invalid': promoFormErrors.description,
+                                    }" placeholder="Enter promo description"></textarea>
+                                    <small v-if="promoFormErrors.description" class="text-danger">
+                                        {{ promoFormErrors.description[0] }}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <hr class="my-4" />
+
+                            <div class="mt-4">
+                                <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
+                                    @click="submitPromo()">
+                                    <template v-if="submitting">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        Saving...
+                                    </template>
+                                    <template v-else>
+                                        {{ editingPromo ? "Save" : "Save" }}
+                                    </template>
                                 </button>
 
-
-                            </div>
-
-                            <div class="modal-body">
-                                <div class="row g-3">
-                                    <!-- Name -->
-                                    <div class="col-12">
-                                        <label class="form-label">Promo Name</label>
-                                        <input v-model="promoForm.name" type="text" class="form-control" :class="{
-                                            'is-invalid': promoFormErrors.name,
-                                        }" placeholder="Enter promo name" />
-                                        <small v-if="promoFormErrors.name" class="text-danger">
-                                            {{ promoFormErrors.name[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Type -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">Discount Type</label>
-                                        <Select v-model="promoForm.type" :options="discountOptions" optionLabel="label"
-                                            appendTo="self" :autoZIndex="true" :baseZIndex="2000" optionValue="value"
-                                            class="form-select" :class="{ 'is-invalid': promoFormErrors.type }" />
-                                        <small v-if="promoFormErrors.type" class="text-danger">
-                                            {{ promoFormErrors.type[0] }}
-                                        </small>
-                                    </div>
-
-
-                                    <!-- Status -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">Status</label>
-                                        <Select v-model="promoForm.status" :options="statusOptions" optionLabel="label"
-                                            optionValue="value" class="form-select" appendTo="self" :autoZIndex="true"
-                                            :baseZIndex="2000" :class="{ 'is-invalid': promoFormErrors.status }">
-                                        </Select>
-                                        <small v-if="promoFormErrors.status" class="text-danger">
-                                            {{ promoFormErrors.status[0] }}
-                                        </small>
-                                    </div>
-                                    <!-- Start Date -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">Start Date</label>
-
-                                        <VueDatePicker v-model="promoForm.start_date" :format="dateFmt" :enableTimePicker="false"
-                                            placeholder="Select Start date" :class="{
-                                                'is-invalid': promoFormErrors.start_date,
-                                            }" />
-                                        <small v-if="promoFormErrors.start_date" class="text-danger">
-                                            {{ promoFormErrors.start_date[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- End Date -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">End Date</label>
-                                        <VueDatePicker v-model="promoForm.end_date" :format="dateFmt" :enableTimePicker="false"
-                                            placeholder="Select End date" :class="{
-                                                'is-invalid': promoFormErrors.end_date,
-                                            }" />
-                                        <small v-if="promoFormErrors.end_date" class="text-danger">
-                                            {{ promoFormErrors.end_date[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Min Purchase -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">Minimum Purchase Amount</label>
-                                        <input v-model="promoForm.min_purchase" type="number" step="0.01"
-                                            class="form-control" :class="{
-                                                'is-invalid': promoFormErrors.min_purchase,
-                                            }" placeholder="0.00" />
-                                        <small v-if="promoFormErrors.min_purchase" class="text-danger">
-                                            {{ promoFormErrors.min_purchase[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Max Discount -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">Maximum Discount (Optional)</label>
-                                        <input v-model="promoForm.max_discount" type="number" step="0.01"
-                                            class="form-control" :class="{
-                                                'is-invalid': promoFormErrors.max_discount,
-                                            }" placeholder="0.00" />
-                                        <small v-if="promoFormErrors.max_discount" class="text-danger">
-                                            {{ promoFormErrors.max_discount[0] }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Description -->
-                                    <div class="col-12">
-                                        <label class="form-label">Description (Optional)</label>
-                                        <textarea v-model="promoForm.description" class="form-control" rows="3" :class="{
-                                            'is-invalid': promoFormErrors.description,
-                                        }" placeholder="Enter promo description"></textarea>
-                                        <small v-if="promoFormErrors.description" class="text-danger">
-                                            {{ promoFormErrors.description[0] }}
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <hr class="my-4" />
-
-                                <div class="mt-4">
-                                    <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
-                                        @click="submitPromo()">
-                                        <template v-if="submitting">
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                            Saving...
-                                        </template>
-                                        <template v-else>
-                                            {{ editingPromo ? "Update" : "Save" }}
-                                        </template>
-                                    </button>
-
-                                    <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
-                                        @click="resetModal">
-                                        Cancel
-                                    </button>
-                                </div>
+                                <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                    @click="resetModal">
+                                    Cancel
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- /modal -->
-            
+            </div>
+            <!-- /modal -->
+
         </div>
     </Master>
 </template>
@@ -506,6 +509,19 @@ onUpdated(() => window.feather?.replace());
     background: #f8f9fa;
 }
 
+
+.dark .p-select{
+    background-color: #121212 !important;
+    color: #fff !important;
+}
+
+.dark .p-select-label{
+    color: #fff !important;
+}
+.dark .p-select-list{
+    background-color: #121212 !important;
+    color: #fff !important;
+}
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
@@ -643,5 +659,115 @@ onUpdated(() => window.feather?.replace());
 
 :deep(.p-placeholder) {
     color: #80878e !important;
+}
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important; /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
 }
 </style>

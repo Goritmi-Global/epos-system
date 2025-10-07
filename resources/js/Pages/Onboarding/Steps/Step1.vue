@@ -422,6 +422,10 @@ watch(selectedLanguage, (opt) => {
   color: #fff !important;
 }
 
+.dark .p-select-header{
+  background-color: #121212 !important;
+}
+
 .dark .section {
   background-color: #181818 !important;
 }
@@ -518,7 +522,11 @@ watch(selectedLanguage, (opt) => {
 
 /* Each option */
 :global(.dark .p-select-option) {
-    background-color: transparent !important;
+    background-color: #121212 !important;
+    color: #fff !important;
+}
+:global(.dark .p-inputtext) {
+    background-color: #121212 !important;
     color: #fff !important;
 }
 
@@ -530,6 +538,12 @@ watch(selectedLanguage, (opt) => {
 }
 
 :global(.dark .p-select-label) {
+
+    color: #fff !important;
+}
+
+:global(.dark .p-select-header) {
+  background-color: #121212 !important;
     color: #fff !important;
 }
 

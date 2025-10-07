@@ -2954,8 +2954,12 @@ const handleImport = (data) => {
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
+    color: #fff !important;
 }
 
+.dark svg{
+    color: #fff !important;
+}
 
 
 /* Search filter input */
@@ -3042,7 +3046,7 @@ const handleImport = (data) => {
 
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
-    background-color: #000 !important;
+    background-color: #181818 !important;
     color: #fff !important;
 }
 
@@ -3058,60 +3062,76 @@ const handleImport = (data) => {
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #000 !important;
+    background: #181818 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
 }
 
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
-    background: #222 !important;
+    background: #181818 !important;
     color: #fff !important;
 }
 
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #000 !important;
+    background: #181818 !important;
     border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #000 !important;
+    background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
 
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
-    background: #000 !important;
+    background: #181818 !important;
 }
 
 /* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
-    background: #111 !important;
+    background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
 
+.dark .p-inputtext{
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+.dark .p-checkbox-icon{
+    color: #fff !important;
+}
+.dark .p-checkbox-input{
+    color: #fff !important;
+}
+
+.dark .p-component{
+    color: #fff !important;
+}
+
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
-    color: #ccc !important;
+    color: #fff !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {

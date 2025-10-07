@@ -510,7 +510,9 @@ function changeSection(sectionId) {
 .quick-nav .btn {
     min-width: 130px;
 }
-
+.dark .p-select-header{
+    background-color: #121212 !important;
+}
 /* ===== PrimeVue dark overrides ===== */
 :global(.dark .p-multiselect-header),
 :global(.dark .p-multiselect-label),

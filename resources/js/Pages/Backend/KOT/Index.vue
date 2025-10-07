@@ -510,6 +510,10 @@ const printOrder = (order) => {
     color: #4e73df;
 }
 
+.dark .icon-wrap{
+    color: #fff !important;
+}
+
 .kpi-label {
     font-size: 0.875rem;
     margin-bottom: 0.25rem;
@@ -519,6 +523,9 @@ const printOrder = (order) => {
     font-size: 1.75rem;
     font-weight: 600;
     color: #2c3e50;
+}
+.dark .kpi-value{
+    color: #fff !important;
 }
 
 .search-wrap {

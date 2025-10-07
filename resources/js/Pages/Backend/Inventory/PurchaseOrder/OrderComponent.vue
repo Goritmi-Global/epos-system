@@ -142,7 +142,7 @@ const clearItemErrors = (item, field = null) => {
 async function addOrderItem(item) {
     clearItemErrors(item);
     
-      const inputQty = Number(item.qty || 0);
+    const inputQty = Number(item.qty || 0);
 
     // ensure qty entered
     if (!inputQty || inputQty <= 0) {
@@ -154,6 +154,7 @@ async function addOrderItem(item) {
     // determine final qty (in base units)
     let qty = inputQty; // will become quantity in base unit if conversion applies
     let selectedDerived = null;
+    let conversionFactor = 1; // default to 1 for base unit
 
     if (item.selected_derived_unit_id) {
         // make sure derived units are loaded
@@ -163,31 +164,38 @@ async function addOrderItem(item) {
         );
 
         if (selectedDerived && selectedDerived.conversion_factor) {
+            conversionFactor = Number(selectedDerived.conversion_factor);
             // convert from selected derived unit to base unit
-            qty = Number(inputQty) * Number(selectedDerived.conversion_factor);
+            qty = Number(inputQty) * conversionFactor;
         }
     }
 
-    // unit price & expiry as before
-    const price =
-        item.unitPrice !== "" ? Number(item.unitPrice) : Number(item.defaultPrice || 0);
+    // Get the entered price
+    const enteredPrice = item.unitPrice !== "" ? Number(item.unitPrice) : Number(item.defaultPrice || 0);
+    
+    // Convert price to base unit price if derived unit is selected
+    const baseUnitPrice = selectedDerived 
+        ? round2(enteredPrice / conversionFactor) 
+        : enteredPrice;
+
     const expiry = item.expiry || null;
 
+    // Validations
     if (!qty || qty <= 0) {
         setItemError(item, "qty", "Enter a valid quantity.");
         toast.error("Enter a valid quantity.");
         return;
     }
 
-    if (!price || price <= 0) {
+    if (!enteredPrice || enteredPrice <= 0) {
         setItemError(item, "unit_price", "Enter a valid unit price.");
         toast.error("Enter a valid unit price.");
         return;
     }
 
-    // MERGE: same product + same unitPrice + same expiry
+    // MERGE: same product + same baseUnitPrice + same expiry
     const found = o_cart.value.find(
-        (r) => r.id === item.id && r.unitPrice === price && r.expiry === expiry
+        (r) => r.id === item.id && r.unitPrice === baseUnitPrice && r.expiry === expiry
     );
 
     if (found) {
@@ -195,19 +203,24 @@ async function addOrderItem(item) {
         found.cost = round2(found.qty * found.unitPrice);
     } else {
         o_cart.value.push({
-             id: item.id,
+            id: item.id,
             name: item.name,
             category: item.category,
-            // qty is now in base units (after conversion)
+            // qty is in base units (after conversion)
             qty,
-            unitPrice: price,
+            // unitPrice is ALWAYS in base unit price
+            unitPrice: baseUnitPrice,
             expiry,
-            cost: round2(qty * price),
+            cost: round2(qty * baseUnitPrice),
 
             // helpful metadata:
             derived_unit_id: selectedDerived ? selectedDerived.id : null,
             derived_unit_name: selectedDerived ? selectedDerived.name : null,
-            base_unit_name: item.unit_name || null, // so you know which base unit qty is in
+            base_unit_name: item.unit_name || null,
+            
+            // Store the entered price for reference
+            entered_price: enteredPrice,
+            entered_unit: selectedDerived ? selectedDerived.name : item.unit_name,
         });
     }
 
@@ -215,7 +228,7 @@ async function addOrderItem(item) {
     item.qty = null;
     item.unitPrice = null;
     item.expiry = null;
- item.selected_derived_unit_id = null;
+    item.selected_derived_unit_id = null;
     clearItemErrors(item);
 }
 
@@ -609,10 +622,10 @@ const formatDate = (date) => {
   color: #f9fafb !important;
 }
 
-.dark .btn-primary{
+/* .dark .btn-primary{
     background-color: #181818 !important;
     border: #181818 !important;
-}
+} */
 .dark .table thead{
     background-color:  #181818;
     color: #f9fafb;
@@ -635,7 +648,10 @@ const formatDate = (date) => {
       background-color:  #181818;
     color: #f9fafb;
 }
-
+.dark .form-select{
+    background-color: #181818 !important;
+    color: #fff  !important;
+}
 .dark input{
       background-color:  #181818;
     color: #f9fafb;

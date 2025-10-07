@@ -795,9 +795,13 @@ html.dark .side-link {
     background-color: #181818 !important;
 }
 
-.dark .btn-secondary {
-    background-color: #212121 !important;
+.dark .p-select-header{
+    background-color: #121212 !important;
 }
+
+/* .dark .btn-secondary {
+    background-color: #212121 !important;
+} */
 
 .dark .text-muted {
     color: #fff !important;
@@ -926,6 +930,10 @@ html.dark .main {
 .header .nav.user-menu {
     height: var(--header-h);
     align-items: center;
+}
+
+.dark .p-checkbox-checked .p-checkbox-icon{
+    color: #fff !important;
 }
 
 .header .nav.user-menu>li {

@@ -232,6 +232,9 @@ function onCropped({ file }) {
 .logo-card {
   text-align: center;
 }
+.dark .logo-card{
+  background-color: #121212 !important;
+}
 
 .logo-box {
   width: 140px;
