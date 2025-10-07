@@ -13,6 +13,11 @@ class PurchaseItem extends Model
         'quantity',
         'unit_price',
         'sub_total',
+        'expiry_date'
+    ];
+
+    protected $casts = [
+        'expiry_date' => 'date', // Add this
     ];
 
     public function purchase()

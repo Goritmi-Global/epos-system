@@ -78,6 +78,12 @@ class StockEntryService
             // Optional: capture weighted cost on the OUT row; remove if you want 0.
             $stockOut->update(['value' => $totalCost]);
 
+            $inventoryItem = InventoryItem::find($productId);
+            $inventoryItem->refresh(); // ensures latest relations & computed attributes
+
+            // Optionally, attach updated stock to the returned object
+            $stockOut->updated_stock = $inventoryItem->stock;
+
             return $stockOut;
         });
     }
@@ -127,23 +133,55 @@ class StockEntryService
             ->where('stock_type', 'stockin')
             ->sum(\DB::raw('quantity * price'));
 
-        // total stock-out value
         $totalOutValue = StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockout')
-            ->sum(\DB::raw('quantity * price'));
+            ->sum('value');
 
-        // net stock value
         $stockValue = $totalInValue - $totalOutValue;
 
         $inventory = InventoryItem::find($product);
         $minAlert = $inventory?->minAlert ?? 0;
 
+        // 🧠 Fetch the earliest expiry date (first batch to expire)
+        $earliestStockIn = StockEntry::where('product_id', $product)
+            ->where('stock_type', 'stockin')
+            ->whereNotNull('expiry_date')
+            ->orderBy('expiry_date', 'asc')
+            ->first();
+
+        $expiryDate = $earliestStockIn?->expiry_date;
+        $status = null; // ✅ initialize
+
+        // Check for expired and near-expiry batches
+        $hasExpired = StockEntry::where('product_id', $product)
+            ->where('stock_type', 'stockin')
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<', now())
+            ->exists();
+
+        $nearExpiry = StockEntry::where('product_id', $product)
+            ->where('stock_type', 'stockin')
+            ->whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [now(), now()->addDays(15)])
+            ->exists();
+
+        if ($hasExpired) {
+            $status = 'expired';
+        } elseif ($nearExpiry) {
+            $status = 'near_expiry';
+        }
+
         return response()->json([
-            'available' => $available,
-            'stockValue' => $stockValue,
-            'minAlert' => $minAlert,
+            'available'   => $available,
+            'stockValue'  => $stockValue,
+            'minAlert'    => $minAlert,
+            'expiry_date' => $expiryDate,
+            'status'      => $status,
         ]);
     }
+
+
+
 
     // Get stock logs
     public function getStockLogs(): array
@@ -189,7 +227,7 @@ class StockEntryService
         $entry = StockEntry::findOrFail($id);
         return $entry->delete();
     }
-    
+
     // Stock Out Allocations 
     public function getAllocations(int $id)
     {

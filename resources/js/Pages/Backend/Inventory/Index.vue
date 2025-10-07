@@ -74,6 +74,8 @@ const fetchInventories = async () => {
                     availableStock: stockData.available || 0,
                     stockValue: stockData.stockValue || 0,
                     minAlert: stockData.minAlert || 0,
+                    expiry_date: stockData.expiry_date || null,
+                    status: stockData.status || null,
                 };
             })
         );
@@ -163,6 +165,7 @@ const filteredItems = computed(() => {
     // Stock status filter
     if (filters.value.stockStatus) {
         filtered = filtered.filter((item) => {
+            console.log("item item", item);
             const stock = item.availableStock || 0;
             const minAlert = item.minAlert || 5;
 
@@ -174,11 +177,11 @@ const filteredItems = computed(() => {
                 case "out_of_stock":
                     return stock <= 0;
                 case "expired":
-                    // You'll need to implement expired logic based on your stock entries
-                    return false; // placeholder
-                case "near_expire":
-                    // You'll need to implement near expire logic based on your stock entries
-                    return false; // placeholder
+                    return item.status === "expired"; // ✅ fixed
+
+                case "near_expiry":
+                    return item.status === "near_expiry";
+
                 default:
                     return true;
             }
@@ -239,7 +242,7 @@ const filterOptions = computed(() => ({
         { value: "low_stock", label: "Low Stock" },
         { value: "out_of_stock", label: "Out of Stock" },
         { value: "expired", label: "Expired" },
-        { value: "near_expire", label: "Near Expiry" },
+        { value: "near_expiry", label: "Near Expiry" },
     ],
 }));
 
@@ -833,10 +836,9 @@ const downloadCSV = (data) => {
                 `"${s.nutrition.protein}"`,
                 `"${s.nutrition.fat}"`,
                 `"${s.nutrition.carbs}"`,
-                `"${
-                    Array.isArray(s.allergies)
-                        ? s.allergies.join(", ")
-                        : s.allergies || ""
+                `"${Array.isArray(s.allergies)
+                    ? s.allergies.join(", ")
+                    : s.allergies || ""
                 }"`,
                 `"${Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || ""}"`,
             ];
@@ -962,9 +964,8 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `Inventory_items_${
-            new Date().toISOString().split("T")[0]
-        }.pdf`;
+        const fileName = `Inventory_items_${new Date().toISOString().split("T")[0]
+            }.pdf`;
         doc.save(fileName);
         toast.success("PDF downloaded successfully ", { autoClose: 2500 });
     } catch (error) {
@@ -1032,9 +1033,8 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        const fileName = `inventory_items_${
-            new Date().toISOString().split("T")[0]
-        }.xlsx`;
+        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]
+            }.xlsx`;
         XLSX.writeFile(workbook, fileName);
         toast.success("Excel file downloaded successfully ", {
             autoClose: 2500,
@@ -1095,15 +1095,15 @@ function stockStatusLabel(s) {
     return s === "expired"
         ? "Expired"
         : s === "near"
-        ? "Near Expire"
-        : "Active";
+            ? "Near Expire"
+            : "Active";
 }
 function stockStatusClass(s) {
     return s === "expired"
         ? "bg-danger"
         : s === "near"
-        ? "bg-warning"
-        : "bg-success";
+            ? "bg-warning"
+            : "bg-success";
 }
 function fmtDate(d) {
     return d ? new Date(d).toLocaleDateString() : "—";
@@ -1194,9 +1194,7 @@ const handleImport = (data) => {
             <div class="row g-3">
                 <div v-for="c in kpis" :key="c.label" class="col">
                     <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div
-                            class="card-body d-flex align-items-center justify-content-between"
-                        >
+                        <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <div class="fw-bold fs-4">
                                     {{ c.value }}
@@ -1206,11 +1204,7 @@ const handleImport = (data) => {
                                 </div>
                             </div>
                             <div :class="['icon-chip', c.iconBg]">
-                                <component
-                                    :is="c.icon"
-                                    :class="c.iconColor"
-                                    size="26"
-                                />
+                                <component :is="c.icon" :class="c.iconColor" size="26" />
                             </div>
                         </div>
                     </div>
@@ -1221,52 +1215,30 @@ const handleImport = (data) => {
             <div class="card border-0 shadow-lg rounded-4 mt-3">
                 <div class="card-body">
                     <!-- Toolbar -->
-                    <div
-                        class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-                    >
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                         <h4 class="mb-0">Stock</h4>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input
-                                    v-model="q"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search"
-                                />
+                                <input v-model="q" type="text" class="form-control search-input" placeholder="Search" />
                             </div>
 
                             <!-- Filter By -->
                             <!-- Replace your existing filter dropdown with this: -->
 
-                            <FilterModal
-                                v-model="filters"
-                                title="Inventory Items"
-                                modal-id="inventoryFilterModal"
-                                modal-size="modal-lg"
-                                :categories="filterOptions.categories"
-                                :suppliers="filterOptions.suppliers"
-                                :sort-options="filterOptions.sortOptions"
-                                :stock-status-options="
-                                    filterOptions.stockStatusOptions
-                                "
-                                :show-price-range="true"
-                                :show-date-range="false"
-                                @apply="handleFilterApply"
-                                @clear="handleFilterClear"
-                            >
+                            <FilterModal v-model="filters" title="Inventory Items" modal-id="inventoryFilterModal"
+                                modal-size="modal-lg" :categories="filterOptions.categories"
+                                :suppliers="filterOptions.suppliers" :sort-options="filterOptions.sortOptions"
+                                :stock-status-options="filterOptions.stockStatusOptions
+                                    " :show-price-range="true" :show-date-range="false" @apply="handleFilterApply"
+                                @clear="handleFilterClear">
                                 <!-- Custom filters slot (optional) -->
                                 <template #customFilters="{ filters }">
                                     <!-- Add any custom filter controls here if needed -->
                                     <div class="col-12">
-                                        <label
-                                            class="form-label fw-semibold text-dark"
-                                        >
-                                            <i
-                                                class="fas fa-star me-2 text-muted"
-                                            ></i
-                                            >Custom Filter
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-star me-2 text-muted"></i>Custom Filter
                                         </label>
                                         <!-- Your custom filter controls -->
                                     </div>
@@ -1274,57 +1246,35 @@ const handleImport = (data) => {
                             </FilterModal>
 
                             <!-- Add Item -->
-                            <button
-                                data-bs-toggle="modal"
-                                data-bs-target="#addItemModal"
+                            <button data-bs-toggle="modal" data-bs-target="#addItemModal"
                                 class="d-flex align-items-center gap-1 px-4 py-2 btn-sm rounded-pill btn btn-primary text-white"
                                 @click="
                                     resetForm();
-                                    formErrors = {};
-                                    processStatus = 'Create';
-                                "
-                            >
+                                formErrors = {};
+                                processStatus = 'Create';
+                                ">
                                 <Plus class="w-4 h-4" /> Add Item
                             </button>
-                            <ImportFile
-                                label="Import"
-                                @on-import="handleImport"
-                            />
+                            <ImportFile label="Import" @on-import="handleImport" />
 
                             <!-- Download all -->
                             <div class="dropdown">
-                                <button
-                                    class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown"
-                                >
+                                <button class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
                                     Download
                                 </button>
-                                <ul
-                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                >
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('pdf')"
-                                            >Download as PDF</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Download as PDF</a>
                                     </li>
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('excel')"
-                                            >Download as Excel</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Download as Excel</a>
                                     </li>
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('csv')"
-                                            >Download as CSV</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('csv')">Download as CSV</a>
                                     </li>
                                 </ul>
                             </div>
@@ -1353,34 +1303,21 @@ const handleImport = (data) => {
                             <tbody v-if="loading">
                                 <tr>
                                     <td colspan="10" class="text-center py-5">
-                                        <div
-                                            class="spinner-border"
-                                            role="status"
-                                            aria-label="Loading"
-                                        ></div>
+                                        <div class="spinner-border" role="status" aria-label="Loading"></div>
                                     </td>
                                 </tr>
                             </tbody>
 
                             <!-- Your existing rows -->
                             <tbody v-else>
-                                <tr
-                                    v-for="(item, idx) in sortedItems"
-                                    :key="item.id"
-                                >
+                                <tr v-for="(item, idx) in sortedItems" :key="item.id">
                                     <td>{{ idx + 1 }}</td>
                                     <td class="fw-semibold">
                                         {{ item.name }}
                                     </td>
                                     <td>
-                                        <ImageZoomModal
-                                            v-if="item.image_url"
-                                            :file="item.image_url"
-                                            :alt="item.name"
-                                            :width="50"
-                                            :height="50"
-                                            :custom_class="'cursor-pointer'"
-                                        />
+                                        <ImageZoomModal v-if="item.image_url" :file="item.image_url" :alt="item.name"
+                                            :width="50" :height="50" :custom_class="'cursor-pointer'" />
                                         <!-- <img
                                                 :src="item.image_url"
                                                 alt=""
@@ -1393,10 +1330,7 @@ const handleImport = (data) => {
                                             /> -->
                                     </td>
 
-                                    <td
-                                        class="text-truncate"
-                                        style="max-width: 260px"
-                                    >
+                                    <td class="text-truncate" style="max-width: 260px">
                                         {{ item.category?.name }}
                                     </td>
                                     <td>{{ item.unit_name }}</td>
@@ -1411,72 +1345,43 @@ const handleImport = (data) => {
                                         {{ formatMoney(item.stockValue || 0) }}
                                     </td>
                                     <td class="text-center">
-                                        <span
-                                            v-if="item.availableStock === 0"
+                                        <span v-if="item.availableStock === 0"
                                             class="badge bg-red-600 rounded-pill d-inline-block text-center"
-                                            style="min-width: 100px"
-                                            >Out of stock</span
-                                        >
-                                        <span
-                                            v-else-if="
-                                                item.availableStock <=
-                                                item.minAlert
-                                            "
-                                            class="badge bg-warning rounded-pill d-inline-block text-center"
-                                            style="min-width: 100px"
-                                            >Low-stock</span
-                                        >
-                                        <span
-                                            v-else
-                                            class="badge bg-success rounded-pill d-inline-block text-center"
-                                            style="min-width: 100px"
-                                            >In-stock</span
-                                        >
+                                            style="min-width: 100px">Out of
+                                            stock</span>
+                                        <span v-else-if="
+                                            item.availableStock <=
+                                            item.minAlert
+                                        " class="badge bg-warning rounded-pill d-inline-block text-center"
+                                            style="min-width: 100px">Low-stock</span>
+                                        <span v-else class="badge bg-success rounded-pill d-inline-block text-center"
+                                            style="min-width: 100px">In-stock</span>
                                     </td>
                                     <td class="text-center">
-                                        <div
-                                            class="d-inline-flex align-items-center gap-3"
-                                        >
-                                            <button
-                                                @click="openStockModal(item)"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#stockInModal"
-                                                title="Stock In"
-                                                class="p-2 rounded-full text-green-600 hover:bg-green-100"
-                                            >
+                                        <div class="d-inline-flex align-items-center gap-3">
+                                            <button @click="openStockModal(item)" data-bs-toggle="modal"
+                                                data-bs-target="#stockInModal" title="Stock In"
+                                                class="p-2 rounded-full text-green-600 hover:bg-green-100">
                                                 <Download class="w-4 h-4" />
                                             </button>
-                                            <button
-                                                @click="openStockOutModal(item)"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#stockOutModal"
-                                                title="Stock Out"
-                                                class="p-2 rounded-full text-red-600 hover:bg-red-100"
-                                            >
+                                            <button @click="openStockOutModal(item)" data-bs-toggle="modal"
+                                                data-bs-target="#stockOutModal" title="Stock Out"
+                                                class="p-2 rounded-full text-red-600 hover:bg-red-100">
                                                 <Upload class="w-4 h-4" />
                                             </button>
-                                            <button
-                                                @click="ViewItem(item)"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#viewItemModal"
-                                                title="View Item"
-                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
-                                            >
+                                            <button @click="ViewItem(item)" data-bs-toggle="modal"
+                                                data-bs-target="#viewItemModal" title="View Item"
+                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100">
                                                 <Eye class="w-4 h-4" />
                                             </button>
-                                            <button
-                                                @click="
-                                                    () => {
-                                                        editItem(item);
-                                                        formErrors = {};
-                                                        processStatus = 'Edit';
-                                                    }
-                                                "
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#addItemModal"
-                                                title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                            >
+                                            <button @click="
+                                                () => {
+                                                    editItem(item);
+                                                    formErrors = {};
+                                                    processStatus = 'Edit';
+                                                }
+                                            " data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Pencil class="w-4 h-4" />
                                             </button>
                                         </div>
@@ -1484,10 +1389,7 @@ const handleImport = (data) => {
                                 </tr>
 
                                 <tr v-if="sortedItems.length === 0">
-                                    <td
-                                        colspan="10"
-                                        class="text-center text-muted py-4"
-                                    >
+                                    <td colspan="10" class="text-center text-muted py-4">
                                         No items found.
                                     </td>
                                 </tr>
@@ -1498,16 +1400,8 @@ const handleImport = (data) => {
             </div>
 
             <!-- ===================== Add / Edit Product Modal ===================== -->
-            <div
-                class="modal fade"
-                id="addItemModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
-                <div
-                    class="modal-dialog modal-lg modal-dialog-centered"
-                    role="document"
-                >
+            <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content rounded-4">
                         <div class="modal-header">
                             <h5 class="modal-title fw-semibold">
@@ -1519,23 +1413,10 @@ const handleImport = (data) => {
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -1544,194 +1425,91 @@ const handleImport = (data) => {
                             <!-- top row -->
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >Product Name</label
-                                    >
-                                    <input
-                                        v-model="form.name"
-                                        type="text"
-                                        class="form-control"
-                                        :class="{
-                                            'is-invalid': formErrors.name,
-                                        }"
-                                        placeholder="e.g., Chicken Breast"
-                                    />
-                                    <small
-                                        v-if="formErrors.name"
-                                        class="text-danger"
-                                        >{{ formErrors.name[0] }}</small
-                                    >
+                                    <label class="form-label">Product Name</label>
+                                    <input v-model="form.name" type="text" class="form-control" :class="{
+                                        'is-invalid': formErrors.name,
+                                    }" placeholder="e.g., Chicken Breast" />
+                                    <small v-if="formErrors.name" class="text-danger">{{ formErrors.name[0] }}</small>
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label">Category</label>
-                                    <Select
-                                        v-model="form.category_id"
-                                        :options="parentCategories"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="Select Category"
-                                        class="w-100 select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        @update:modelValue="
+                                    <Select v-model="form.category_id" :options="parentCategories" optionLabel="name"
+                                        optionValue="id" placeholder="Select Category" class="w-100 select"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000" @update:modelValue="
                                             form.subcategory_id = null
-                                        "
-                                        :class="{
-                                            'is-invalid':
-                                                formErrors.category_id,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.category_id"
-                                        class="text-danger"
-                                    >
+                                            " :class="{
+                                                'is-invalid':
+                                                    formErrors.category_id,
+                                            }" />
+                                    <small v-if="formErrors.category_id" class="text-danger">
                                         {{ formErrors.category_id[0] }}
                                     </small>
                                 </div>
 
                                 <!-- Subcategory (only if selected category has children) -->
-                                <div
-                                    class="col-md-6"
-                                    v-if="subcatOptions.length"
-                                >
-                                    <label class="form-label"
-                                        >Subcategory</label
-                                    >
-                                    <Select
-                                        v-model="form.subcategory_id"
-                                        :options="subcatOptions"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="Select Subcategory"
-                                        class="w-100 select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        :class="{
+                                <div class="col-md-6" v-if="subcatOptions.length">
+                                    <label class="form-label">Subcategory</label>
+                                    <Select v-model="form.subcategory_id" :options="subcatOptions" optionLabel="name"
+                                        optionValue="id" placeholder="Select Subcategory" class="w-100 select"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
                                             'is-invalid':
                                                 formErrors.subcategory_id,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.subcategory_id"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.subcategory_id" class="text-danger">
                                         {{ formErrors.subcategory_id[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label d-block"
-                                        >Minimum Stock Alert Level</label
-                                    >
-                                    <input
-                                        v-model="form.minAlert"
-                                        type="number"
-                                        min="0"
-                                        class="form-control"
-                                        :class="{
-                                            'is-invalid': formErrors.minAlert,
-                                        }"
-                                        placeholder="e.g., 5"
-                                    />
-                                    <small
-                                        v-if="formErrors.minAlert"
-                                        class="text-danger"
-                                        >{{ formErrors.minAlert[0] }}</small
-                                    >
+                                    <label class="form-label d-block">Minimum Stock Alert Level</label>
+                                    <input v-model="form.minAlert" type="number" min="0" class="form-control" :class="{
+                                        'is-invalid': formErrors.minAlert,
+                                    }" placeholder="e.g., 5" />
+                                    <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label">Unit Type</label>
-                                    <Select
-                                        v-model="form.unit_id"
-                                        :options="props.units"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="Select Unit"
-                                        class="w-100 select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        :class="{
+                                    <Select v-model="form.unit_id" :options="props.units" optionLabel="name"
+                                        optionValue="id" placeholder="Select Unit" class="w-100 select" appendTo="self"
+                                        :autoZIndex="true" :baseZIndex="2000" :class="{
                                             'is-invalid': formErrors.unit_id,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.unit_id"
-                                        class="text-danger"
-                                        >{{ formErrors.unit_id[0] }}</small
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >Preferred Supplier</label
-                                    >
-                                    <Select
-                                        v-model="form.supplier_id"
-                                        :options="props.suppliers"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="Select Supplier"
-                                        class="w-100 select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        :class="{
+                                    <label class="form-label">Preferred Supplier</label>
+                                    <Select v-model="form.supplier_id" :options="props.suppliers" optionLabel="name"
+                                        optionValue="id" placeholder="Select Supplier" class="w-100 select"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
                                             'is-invalid':
                                                 formErrors.supplier_id,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.supplier_id"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.supplier_id" class="text-danger">
                                         {{ formErrors.supplier_id[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >SKU (Optional)</label
-                                    >
-                                    <input
-                                        v-model="form.sku"
-                                        type="text"
-                                        class="form-control"
-                                        :class="{
-                                            'is-invalid': formErrors.sku,
-                                        }"
-                                        placeholder="Stock Keeping Unit"
-                                    />
-                                    <small
-                                        v-if="formErrors.sku"
-                                        class="text-danger"
-                                        >{{ formErrors.sku[0] }}</small
-                                    >
+                                    <label class="form-label">SKU (Optional)</label>
+                                    <input v-model="form.sku" type="text" class="form-control" :class="{
+                                        'is-invalid': formErrors.sku,
+                                    }" placeholder="Stock Keeping Unit" />
+                                    <small v-if="formErrors.sku" class="text-danger">{{ formErrors.sku[0] }}</small>
                                 </div>
 
                                 <div class="col-12">
-                                    <label class="form-label"
-                                        >Description</label
-                                    >
-                                    <textarea
-                                        v-model="form.description"
-                                        rows="4"
-                                        class="form-control"
-                                        :class="{
-                                            'is-invalid':
-                                                formErrors.description,
-                                        }"
-                                        placeholder="Notes about this product"
-                                    ></textarea>
-                                    <small
-                                        v-if="formErrors.description"
-                                        class="text-danger"
-                                        >{{ formErrors.description[0] }}</small
-                                    >
+                                    <label class="form-label">Description</label>
+                                    <textarea v-model="form.description" rows="4" class="form-control" :class="{
+                                        'is-invalid':
+                                            formErrors.description,
+                                    }" placeholder="Notes about this product"></textarea>
+                                    <small v-if="formErrors.description" class="text-danger">{{
+                                        formErrors.description[0] }}</small>
                                 </div>
                             </div>
 
@@ -1744,22 +1522,14 @@ const handleImport = (data) => {
                             <div class="row g-3">
                                 <div class="col-md-3">
                                     <label class="form-label">Calories</label>
-                                    <input
-                                        v-model="form.nutrition.calories"
-                                        type="number"
-                                        min="0"
-                                        class="form-control"
+                                    <input v-model="form.nutrition.calories" type="number" min="0" class="form-control"
                                         :class="{
                                             'is-invalid':
                                                 formErrors[
-                                                    'nutrition.calories'
+                                                'nutrition.calories'
                                                 ],
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors['nutrition.calories']"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors['nutrition.calories']" class="text-danger">
                                         {{
                                             formErrors["nutrition.calories"][0]
                                         }}
@@ -1767,60 +1537,34 @@ const handleImport = (data) => {
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Fat (g)</label>
-                                    <input
-                                        v-model="form.nutrition.fat"
-                                        type="number"
-                                        min="0"
-                                        class="form-control"
+                                    <input v-model="form.nutrition.fat" type="number" min="0" class="form-control"
                                         :class="{
                                             'is-invalid':
                                                 formErrors['nutrition.fat'],
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors['nutrition.fat']"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors['nutrition.fat']" class="text-danger">
                                         {{ formErrors["nutrition.fat"][0] }}
                                     </small>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label"
-                                        >Protein (g)</label
-                                    >
-                                    <input
-                                        v-model="form.nutrition.protein"
-                                        type="number"
-                                        min="0"
-                                        class="form-control"
+                                    <label class="form-label">Protein (g)</label>
+                                    <input v-model="form.nutrition.protein" type="number" min="0" class="form-control"
                                         :class="{
                                             'is-invalid':
                                                 formErrors['nutrition.protein'],
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors['nutrition.protein']"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors['nutrition.protein']" class="text-danger">
                                         {{ formErrors["nutrition.protein"][0] }}
                                     </small>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Carbs (g)</label>
-                                    <input
-                                        v-model="form.nutrition.carbs"
-                                        type="number"
-                                        min="0"
-                                        class="form-control"
+                                    <input v-model="form.nutrition.carbs" type="number" min="0" class="form-control"
                                         :class="{
                                             'is-invalid':
                                                 formErrors['nutrition.carbs'],
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors['nutrition.carbs']"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors['nutrition.carbs']" class="text-danger">
                                         {{ formErrors["nutrition.carbs"][0] }}
                                     </small>
                                 </div>
@@ -1829,110 +1573,58 @@ const handleImport = (data) => {
                             <div class="row g-4 mt-1">
                                 <!-- Allergies -->
                                 <div class="col-md-6">
-                                    <label class="form-label d-block"
-                                        >Allergies</label
-                                    >
-                                    <MultiSelect
-                                        v-model="form.allergies"
-                                        :options="props.allergies"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        filter
-                                        placeholder="Select Allergies"
-                                        class="w-full md:w-80 select"
-                                        appendTo="self"
-                                        display="chip"
-                                        :class="{
+                                    <label class="form-label d-block">Allergies</label>
+                                    <MultiSelect v-model="form.allergies" :options="props.allergies" optionLabel="name"
+                                        optionValue="id" filter placeholder="Select Allergies"
+                                        class="w-full md:w-80 select" appendTo="self" display="chip" :class="{
                                             'is-invalid': formErrors.allergies,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.allergies"
-                                        class="text-danger"
-                                        >{{ formErrors.allergies[0] }}</small
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
+                                        }}</small>
                                 </div>
 
                                 <!-- Tags -->
                                 <div class="col-md-6">
-                                    <label class="form-label d-block"
-                                        >Tags (Halal, Haram, etc.)</label
-                                    >
-                                    <MultiSelect
-                                        v-model="form.tags"
-                                        :options="props.tags"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        filter
-                                        placeholder="Select Tags"
-                                        class="w-full md:w-80 select"
-                                        appendTo="self"
-                                        display="chip"
-                                        :class="{
+                                    <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                    <MultiSelect v-model="form.tags" :options="props.tags" optionLabel="name"
+                                        optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80 select"
+                                        appendTo="self" display="chip" :class="{
                                             'is-invalid': formErrors.tags,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.tags"
-                                        class="text-danger"
-                                        >{{ formErrors.tags[0] }}</small
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.tags" class="text-danger">{{ formErrors.tags[0] }}</small>
                                 </div>
                             </div>
 
                             <!-- Image -->
                             <div class="col-md-4">
-                                <div
-                                    class="logo-card"
-                                    :class="{
-                                        'is-invalid': formErrors.image,
-                                    }"
-                                >
-                                    <div
-                                        class="logo-frame"
-                                        @click="
-                                            form.imageUrl && openImageModal()
-                                        "
-                                    >
-                                        <img
-                                            v-if="form.imageUrl"
-                                            :src="form.imageUrl"
-                                            alt="Image"
-                                        />
+                                <div class="logo-card" :class="{
+                                    'is-invalid': formErrors.image,
+                                }">
+                                    <div class="logo-frame" @click="
+                                        form.imageUrl && openImageModal()
+                                        ">
+                                        <img v-if="form.imageUrl" :src="form.imageUrl" alt="Image" />
                                         <div v-else class="placeholder">
                                             <i class="bi bi-image"></i>
                                         </div>
                                     </div>
 
-                                    <small class="text-muted mt-2 d-block"
-                                        >Upload Image</small
-                                    >
+                                    <small class="text-muted mt-2 d-block">Upload Image</small>
 
                                     <!-- Your cropper modal (kept as-is) -->
-                                    <ImageCropperModal
-                                        :show="showCropper"
-                                        @close="showCropper = false"
-                                        @cropped="onCropped"
-                                    />
+                                    <ImageCropperModal :show="showCropper" @close="showCropper = false"
+                                        @cropped="onCropped" />
                                 </div>
-                                <small
-                                    v-if="formErrors.image"
-                                    class="text-danger"
-                                >
+                                <small v-if="formErrors.image" class="text-danger">
                                     {{ formErrors.image[0] }}
                                 </small>
                             </div>
 
                             <div class="mt-4">
-                                <button
-                                    class="btn btn-primary btn-sm rounded-pill px-5 py-2"
-                                    :disabled="submitting"
-                                    @click="submitProduct"
-                                >
+                                <button class="btn btn-primary btn-sm rounded-pill px-5 py-2" :disabled="submitting"
+                                    @click="submitProduct">
                                     <template v-if="submitting">
-                                        <span
-                                            class="spinner-border spinner-border-sm me-2"
-                                        ></span>
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
                                         {{
                                             processStatus === "Edit"
                                                 ? "Saving..."
@@ -1948,11 +1640,8 @@ const handleImport = (data) => {
                                     </template>
                                 </button>
 
-                                <button
-                                    class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    data-bs-dismiss="modal"
-                                    @click="resetForm"
-                                >
+                                <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                    @click="resetForm">
                                     Cancel
                                 </button>
                             </div>
@@ -1963,16 +1652,9 @@ const handleImport = (data) => {
             <!-- /modal -->
 
             <!-- View modal -->
-            <div
-                class="modal fade"
-                id="viewItemModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="viewItemModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div
-                        class="modal-content border-0 shadow-lg rounded-4 overflow-hidden"
-                    >
+                    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <div class="modal-header bg-light">
                             <div class="d-flex align-items-center gap-2">
                                 <i class="bi bi-box-seam text-primary fs-4"></i>
@@ -1980,32 +1662,15 @@ const handleImport = (data) => {
                                     <h5 class="modal-title fw-semibold mb-0">
                                         View Inventory Item
                                     </h5>
-                                    <small
-                                        class="text-muted"
-                                        v-if="viewItemRef?.sku"
-                                        >SKU: {{ viewItemRef.sku }}</small
-                                    >
+                                    <small class="text-muted" v-if="viewItemRef?.sku">SKU: {{ viewItemRef.sku }}</small>
                                 </div>
                             </div>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -2014,9 +1679,7 @@ const handleImport = (data) => {
                             <div v-if="viewItemRef" class="row g-4">
                                 <!-- Left: Details -->
                                 <div class="col-12 col-md-7">
-                                    <div
-                                        class="card border-0 shadow-sm rounded-4"
-                                    >
+                                    <div class="card border-0 shadow-sm rounded-4">
                                         <div class="card-body">
                                             <h5 class="fw-semibold mb-3">
                                                 {{ viewItemRef.name }}
@@ -2097,53 +1760,34 @@ const handleImport = (data) => {
                                             <h6 class="fw-semibold">
                                                 Nutrition (per 100g)
                                             </h6>
-                                            <div
-                                                class="d-flex flex-wrap gap-2 mt-2"
-                                            >
-                                                <span
-                                                    class="badge rounded-pill bg-primary text-white"
-                                                    >Calories:
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                <span class="badge rounded-pill bg-primary text-white">Calories:
                                                     {{
                                                         viewItemRef.nutrition
                                                             ?.calories ?? "—"
-                                                    }}</span
-                                                >
-                                                <span
-                                                    class="badge rounded-pill bg-success text-white"
-                                                    >Protein:
+                                                    }}</span>
+                                                <span class="badge rounded-pill bg-success text-white">Protein:
                                                     {{
                                                         viewItemRef.nutrition
                                                             ?.protein ?? "—"
-                                                    }}</span
-                                                >
-                                                <span
-                                                    class="badge rounded-pill bg-warning text-white"
-                                                    >Fat:
+                                                    }}</span>
+                                                <span class="badge rounded-pill bg-warning text-white">Fat:
                                                     {{
                                                         viewItemRef.nutrition
                                                             ?.fat ?? "—"
-                                                    }}</span
-                                                >
-                                                <span
-                                                    class="badge rounded-pill bg-secondary text-white"
-                                                    >Carbs:
+                                                    }}</span>
+                                                <span class="badge rounded-pill bg-secondary text-white">Carbs:
                                                     {{
                                                         viewItemRef.nutrition
                                                             ?.carbs ?? "—"
-                                                    }}</span
-                                                >
+                                                    }}</span>
                                             </div>
 
                                             <hr />
                                             <h6 class="fw-semibold">Tags</h6>
-                                            <div
-                                                class="d-flex flex-wrap gap-2 mt-2"
-                                            >
-                                                <span
-                                                    v-for="tag in viewItemRef.tags"
-                                                    :key="tag"
-                                                    class="badge rounded-pill bg-info text-white"
-                                                >
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                <span v-for="tag in viewItemRef.tags" :key="tag"
+                                                    class="badge rounded-pill bg-info text-white">
                                                     {{ tag }}
                                                 </span>
                                             </div>
@@ -2152,14 +1796,9 @@ const handleImport = (data) => {
                                             <h6 class="fw-semibold">
                                                 Allergies
                                             </h6>
-                                            <div
-                                                class="d-flex flex-wrap gap-2 mt-2"
-                                            >
-                                                <span
-                                                    v-for="allergy in viewItemRef.allergies"
-                                                    :key="allergy"
-                                                    class="badge rounded-pill bg-danger text-white"
-                                                >
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                <span v-for="allergy in viewItemRef.allergies" :key="allergy"
+                                                    class="badge rounded-pill bg-danger text-white">
                                                     {{ allergy }}
                                                 </span>
                                             </div>
@@ -2169,48 +1808,27 @@ const handleImport = (data) => {
 
                                 <!-- Right: Image + Meta -->
                                 <div class="col-12 col-md-5">
-                                    <div
-                                        class="card border-0 shadow-sm rounded-4 h-100"
-                                    >
+                                    <div class="card border-0 shadow-sm rounded-4 h-100">
                                         <div
-                                            class="card-body d-flex flex-column align-items-center justify-content-center"
-                                        >
-                                            <div
-                                                v-if="viewItemRef.image_url"
-                                                class="w-100"
-                                            >
-                                                <img
-                                                    :src="viewItemRef.image_url"
-                                                    alt="Item Image"
-                                                    class="w-100 rounded-3"
-                                                    style="object-fit: cover"
-                                                />
+                                            class="card-body d-flex flex-column align-items-center justify-content-center">
+                                            <div v-if="viewItemRef.image_url" class="w-100">
+                                                <img :src="viewItemRef.image_url" alt="Item Image"
+                                                    class="w-100 rounded-3" style="object-fit: cover" />
                                             </div>
                                         </div>
 
-                                        <div
-                                            class="card-footer bg-transparent small d-flex justify-content-between"
-                                        >
-                                            <span class="text-muted"
-                                                >Stocked In</span
-                                            >
-                                            <span
-                                                class="badge bg-gray-500 rounded-pill text-white p-2"
-                                                >{{
-                                                    totals.notExpiredQty
-                                                }}</span
-                                            >
+                                        <div class="card-footer bg-transparent small d-flex justify-content-between">
+                                            <span class="text-muted">Stocked In</span>
+                                            <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
+                                                totals.notExpiredQty
+                                            }}</span>
                                         </div>
 
-                                        <div
-                                            class="card-footer bg-transparent small d-flex justify-content-between"
-                                        >
-                                            <span class="text-muted"
-                                                >Updated On</span
-                                            >
+                                        <div class="card-footer bg-transparent small d-flex justify-content-between">
+                                            <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
-                                               dateFmt( viewItemRef.updated_at)
-                                            }}</span>
+                                                dateFmt(viewItemRef.updated_at)
+                                                }}</span>
                                         </div>
 
                                         <!-- <div
@@ -2255,25 +1873,17 @@ const handleImport = (data) => {
                                                 >
                                             </div> -->
 
-                                        <div
-                                            class="card-footer bg-transparent small d-flex justify-content-between"
-                                        >
-                                            <span class="text-muted"
-                                                >Added By</span
-                                            >
+                                        <div class="card-footer bg-transparent small d-flex justify-content-between">
+                                            <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div
-                                class="card border-0 shadow-lg rounded-4 overflow-hidden"
-                            >
-                                <div
-                                    class="card-header bg-white d-flex justify-content-between align-items-center"
-                                >
+                            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0">Stock Details</h5>
                                 </div>
 
@@ -2295,12 +1905,9 @@ const handleImport = (data) => {
                                         </thead>
 
                                         <tbody>
-                                            <tr
-                                                v-for="(
-                                                    row, i
-                                                ) in stockedInItems"
-                                                :key="row.id"
-                                            >
+                                            <tr v-for="(
+row, i
+                                                ) in stockedInItems" :key="row.id">
                                                 <td class="fw-semibold">
                                                     {{ i + 1 }}
                                                 </td>
@@ -2327,15 +1934,12 @@ const handleImport = (data) => {
                                                     }}
                                                 </td>
                                                 <td class="text-center">
-                                                    <span
-                                                        style="min-width: 100px"
-                                                        :class="[
-                                                            'badge rounded-pill d-inline-block text-center',
-                                                            stockStatusClass(
-                                                                row.status
-                                                            ),
-                                                        ]"
-                                                    >
+                                                    <span style="min-width: 100px" :class="[
+                                                        'badge rounded-pill d-inline-block text-center',
+                                                        stockStatusClass(
+                                                            row.status
+                                                        ),
+                                                    ]">
                                                         {{
                                                             stockStatusLabel(
                                                                 row.status
@@ -2346,10 +1950,7 @@ const handleImport = (data) => {
                                             </tr>
 
                                             <tr v-if="!stockedInItems.length">
-                                                <td
-                                                    colspan="9"
-                                                    class="text-center text-muted py-4"
-                                                >
+                                                <td colspan="9" class="text-center text-muted py-4">
                                                     No items found.
                                                 </td>
                                             </tr>
@@ -2384,12 +1985,7 @@ const handleImport = (data) => {
             </div>
 
             <!-- Stockin Modal -->
-            <div
-                class="modal fade"
-                id="stockInModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4">
                         <div class="modal-header">
@@ -2398,47 +1994,22 @@ const handleImport = (data) => {
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                                @click="resetErrors"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetErrors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >Product Name</label
-                                    >
-                                    <input
-                                        type="text"
-                                        v-model="stockForm.name"
-                                        class="form-control"
-                                        :class="{
-                                            'is-invalid': formErrors.name,
-                                        }"
-                                        readonly
-                                    />
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" v-model="stockForm.name" class="form-control" :class="{
+                                        'is-invalid': formErrors.name,
+                                    }" readonly />
 
-                                    <small
-                                        v-if="formErrors.name"
-                                        class="text-danger"
-                                    >
+                                    <small v-if="formErrors.name" class="text-danger">
                                         {{ formErrors.name[0] }}
                                     </small>
                                 </div>
@@ -2449,12 +2020,7 @@ const handleImport = (data) => {
 
                                     <!-- Display Category Name -->
                                     <!-- Show category name -->
-                                    <input
-                                        type="text"
-                                        :value="stockInItemCategory"
-                                        class="form-control"
-                                        readonly
-                                    />
+                                    <input type="text" :value="stockInItemCategory" class="form-control" readonly />
 
                                     <!-- <Select
                                             v-model="stockForm.category_id"
@@ -2467,141 +2033,80 @@ const handleImport = (data) => {
                                             :class="{ 'is-invalid': formErrors.category_id }"
                                         /> -->
 
-                                    <small
-                                        v-if="formErrors.category_id"
-                                        class="text-danger"
-                                    >
+                                    <small v-if="formErrors.category_id" class="text-danger">
                                         {{ formErrors.category_id[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label">Supplier</label>
-                                    <Select
-                                        v-model="stockForm.supplier_id"
-                                        :options="props.suppliers"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="Select Supplier"
-                                        class="w-100"
-                                        appendTo="self"
-                                        :class="{
+                                    <Select v-model="stockForm.supplier_id" :options="props.suppliers"
+                                        optionLabel="name" optionValue="id" placeholder="Select Supplier" class="w-100"
+                                        appendTo="self" :class="{
                                             'is-invalid':
                                                 formErrors.supplier_id,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.supplier_id"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.supplier_id" class="text-danger">
                                         {{ formErrors.supplier_id[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >Available Quantity</label
-                                    >
-                                    <input
-                                        type="number"
-                                        v-model="stockForm.available_quantity"
-                                        class="form-control"
-                                        readonly
-                                    />
+                                    <label class="form-label">Available Quantity</label>
+                                    <input type="number" v-model="stockForm.available_quantity" class="form-control"
+                                        readonly />
                                 </div>
 
                                 <div class="col-md-4">
                                     <label class="form-label">Quantity</label>
-                                    <input
-                                        type="number"
-                                        v-model="stockForm.quantity"
-                                        class="form-control"
-                                        min="0"
-                                        @input="calculateValue()"
-                                        :class="{
+                                    <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
+                                        @input="calculateValue()" :class="{
                                             'is-invalid': formErrors.quantity,
-                                        }"
-                                    />
+                                        }" />
 
-                                    <small
-                                        v-if="formErrors.quantity"
-                                        class="text-danger"
-                                    >
+                                    <small v-if="formErrors.quantity" class="text-danger">
                                         {{ formErrors.quantity[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-4">
                                     <label class="form-label">Price</label>
-                                    <input
-                                        type="number"
-                                        v-model="stockForm.price"
-                                        class="form-control"
-                                        min="0"
-                                        @input="calculateValue()"
-                                        :class="{
+                                    <input type="number" v-model="stockForm.price" class="form-control" min="0"
+                                        @input="calculateValue()" :class="{
                                             'is-invalid': formErrors.price,
-                                        }"
-                                    />
-                                    <small
-                                        v-if="formErrors.price"
-                                        class="text-danger"
-                                    >
+                                        }" />
+                                    <small v-if="formErrors.price" class="text-danger">
                                         {{ formErrors.price[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-4">
                                     <label class="form-label">Value</label>
-                                    <input
-                                        type="text"
-                                        v-model="stockForm.value"
-                                        class="form-control"
-                                        readonly
-                                    />
+                                    <input type="text" v-model="stockForm.value" class="form-control" readonly />
                                 </div>
 
                                 <div class="col-md-12">
-                                    <label class="form-label"
-                                        >Expiry Date</label
-                                    >
+                                    <label class="form-label">Expiry Date</label>
 
-                                    <VueDatePicker
-                                        v-model="stockForm.expiry_date"
-                                        :format="dateFmt"
-                                        :class="{
-                                            'is-invalid':
-                                                formErrors.expiry_date,
-                                        }"
-                                        :enableTimePicker="false"
-                                        placeholder="Select date"
-                                    />
-                                    <small
-                                        v-if="formErrors.expiry_date"
-                                        class="text-danger"
-                                    >
+                                    <VueDatePicker v-model="stockForm.expiry_date" :format="dateFmt" :class="{
+                                        'is-invalid':
+                                            formErrors.expiry_date,
+                                    }" :enableTimePicker="false" placeholder="Select date" />
+                                    <small v-if="formErrors.expiry_date" class="text-danger">
                                         {{ formErrors.expiry_date[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-12">
-                                    <label class="form-label"
-                                        >Notes / Reason</label
-                                    >
-                                    <textarea
-                                        v-model="stockForm.description"
-                                        rows="3"
-                                        class="form-control"
-                                    ></textarea>
+                                    <label class="form-label">Notes / Reason</label>
+                                    <textarea v-model="stockForm.description" rows="3" class="form-control"></textarea>
                                 </div>
                             </div>
 
                             <div class="mt-4">
                                 <button
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                                    :disabled="submittingStock"
-                                    @click="submitStockIn"
-                                >
+                                    :disabled="submittingStock" @click="submitStockIn">
                                     Stock In
                                 </button>
                             </div>
@@ -2611,12 +2116,7 @@ const handleImport = (data) => {
             </div>
 
             <!-- Stockout Modal -->
-            <div
-                class="modal fade"
-                id="stockOutModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="stockOutModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4">
                         <div class="modal-header">
@@ -2625,89 +2125,45 @@ const handleImport = (data) => {
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                                @click="resetErrors"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetErrors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >Product Name</label
-                                    >
-                                    <input
-                                        type="text"
-                                        v-model="stockForm.name"
-                                        class="form-control"
-                                        readonly
-                                    />
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" v-model="stockForm.name" class="form-control" readonly />
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label">Category</label>
                                     <!-- {{ stockForm }} -->
 
-                                    <input
-                                        type="text"
-                                        :value="stockOutItemCategory"
-                                        class="form-control"
-                                        readonly
-                                    />
+                                    <input type="text" :value="stockOutItemCategory" class="form-control" readonly />
 
-                                    <small
-                                        v-if="formErrors.category_id"
-                                        class="text-danger"
-                                    >
+                                    <small v-if="formErrors.category_id" class="text-danger">
                                         {{ formErrors.category_id[0] }}
                                     </small>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label"
-                                        >Available Quantity</label
-                                    >
-                                    <input
-                                        type="number"
-                                        v-model="stockForm.available_quantity"
-                                        class="form-control"
-                                        readonly
-                                    />
+                                    <label class="form-label">Available Quantity</label>
+                                    <input type="number" v-model="stockForm.available_quantity" class="form-control"
+                                        readonly />
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label">Quantity</label>
-                                    <input
-                                        type="number"
-                                        v-model="stockForm.quantity"
-                                        class="form-control"
-                                        min="0"
-                                        @input="calculateValue()"
-                                        :class="{
+                                    <input type="number" v-model="stockForm.quantity" class="form-control" min="0"
+                                        @input="calculateValue()" :class="{
                                             'is-invalid': formErrors.quantity,
-                                        }"
-                                    />
+                                        }" />
 
-                                    <small
-                                        v-if="formErrors.quantity"
-                                        class="text-danger"
-                                    >
+                                    <small v-if="formErrors.quantity" class="text-danger">
                                         {{ formErrors.quantity[0] }}
                                     </small>
                                 </div>
@@ -2738,23 +2194,15 @@ const handleImport = (data) => {
                                     </div> -->
 
                                 <div class="col-md-12">
-                                    <label class="form-label"
-                                        >Notes / Reason</label
-                                    >
-                                    <textarea
-                                        v-model="stockForm.description"
-                                        rows="3"
-                                        class="form-control"
-                                    ></textarea>
+                                    <label class="form-label">Notes / Reason</label>
+                                    <textarea v-model="stockForm.description" rows="3" class="form-control"></textarea>
                                 </div>
                             </div>
 
                             <div class="mt-4 text-end">
                                 <button
                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-danger text-white"
-                                    :disabled="submittingStock"
-                                    @click="submitStockOut"
-                                >
+                                    :disabled="submittingStock" @click="submitStockOut">
                                     Stock Out
                                 </button>
                             </div>
@@ -2809,7 +2257,7 @@ const handleImport = (data) => {
     width: clamp(220px, 28vw, 360px);
 }
 
-.dark .dropdown-menu{
+.dark .dropdown-menu {
     background-color: #1B2431 !important;
     color: #fff ip !important;
 }
@@ -3135,7 +2583,8 @@ const handleImport = (data) => {
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -3174,12 +2623,13 @@ const handleImport = (data) => {
 
 
 .dark .logo-card {
-background-color: #181818 !important;
-}
-
-.dark .logo-frame{
     background-color: #181818 !important;
 }
+
+.dark .logo-frame {
+    background-color: #181818 !important;
+}
+
 /* Mobile tweaks */
 @media (max-width: 575.98px) {
     .kpi-value {
@@ -3199,85 +2649,78 @@ background-color: #181818 !important;
     z-index: 2000 !important;
 }
 
-@media only screen 
-  and (min-device-width: 1024px) 
-  and (max-device-width: 1366px) 
-  and (orientation: portrait) {
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
 
-  .page-wrapper {
-    padding: 12px !important;
-  }
+    .page-wrapper {
+        padding: 12px !important;
+    }
 
-  .card {
-    border-radius: 16px !important;
-  }
+    .card {
+        border-radius: 16px !important;
+    }
 
-  .d-flex.align-items-center.justify-content-between {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 10px;
-  }
+    .d-flex.align-items-center.justify-content-between {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 10px;
+    }
 
-  .d-flex.gap-2.align-items-center {
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: flex-start;
-  }
+    .d-flex.gap-2.align-items-center {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-start;
+    }
 
-  .search-wrap {
-    width: 30% !important;
-    margin-bottom: 10px;
-  }
+    .search-wrap {
+        width: 30% !important;
+        margin-bottom: 10px;
+    }
 
-  .table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
 
-  table.table th, 
-  table.table td {
-    font-size: 14px;
-    white-space: nowrap;
-  }
+    table.table th,
+    table.table td {
+        font-size: 14px;
+        white-space: nowrap;
+    }
 }
 
 /* 🎯 iPad Pro 12.9" Landscape (1366 x 1024) */
-@media only screen 
-  and (min-device-width: 1024px) 
-  and (max-device-width: 1366px) 
-  and (orientation: landscape) {
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
 
-  .page-wrapper {
-    padding: 16px !important;
-  }
+    .page-wrapper {
+        padding: 16px !important;
+    }
 
-  .card-body {
-    padding: 20px !important;
-  }
+    .card-body {
+        padding: 20px !important;
+    }
 
-  .d-flex.align-items-center.justify-content-between {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 15px;
-  }
+    .d-flex.align-items-center.justify-content-between {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
 
-  .d-flex.gap-2.align-items-center {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
+    .d-flex.gap-2.align-items-center {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
 
-  .search-wrap {
-    min-width: 250px;
-  }
+    .search-wrap {
+        min-width: 250px;
+    }
 
-  .table-responsive {
-    overflow-x: auto;
-  }
+    .table-responsive {
+        overflow-x: auto;
+    }
 
-  table.table th, 
-  table.table td {
-    font-size: 15px;
-  }
+    table.table th,
+    table.table td {
+        font-size: 15px;
+    }
 }
-
 </style>

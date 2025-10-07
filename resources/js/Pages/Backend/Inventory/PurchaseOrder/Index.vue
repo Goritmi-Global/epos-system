@@ -617,7 +617,7 @@ onUpdated(() => window.feather?.replace?.());
                                                     item.product?.name ||
                                                     item.name ||
                                                     "Unknown Product"
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model="item.name" class="form-control" readonly />
                                             </td>
 
@@ -625,7 +625,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     item.quantity
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model.number="item.quantity
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -636,7 +636,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatMoney(item.unit_price)
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model.number="item.unit_price
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -647,15 +647,16 @@ onUpdated(() => window.feather?.replace?.());
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatMoney(item.sub_total)
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model="item.sub_total" class="form-control" readonly />
                                             </td>
 
                                             <!-- Expiry -->
 
                                             <td>
-                                                <span v-if="!isEditing">{{ dateFmt(item.stock_entry.expiry_date)
-                                                    }}</span>
+                                                <span v-if="!isEditing">
+                                                    {{ dateFmt(item.expiry_date) }}
+                                                </span>
                                                 <input v-else v-model="item.expiry" type="date" :class="{
                                                     'is-invalid':
                                                         formError[

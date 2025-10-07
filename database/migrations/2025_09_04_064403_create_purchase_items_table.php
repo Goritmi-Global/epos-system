@@ -27,6 +27,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->decimal('unit_price', 12, 2);
             $table->decimal('sub_total', 12, 2);
+            $table->date('expiry_date')->nullable();
             $table->timestamps();
         });
     }
