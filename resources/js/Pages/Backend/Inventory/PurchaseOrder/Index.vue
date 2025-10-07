@@ -893,10 +893,6 @@ onUpdated(() => window.feather?.replace?.());
         margin-bottom: 10px;
     }
 
-    .dark .btn-primary {
-        background-color: #181818 !important;
-        border: #181818 !important;
-    }
 
     .table-responsive {
         overflow-x: auto;
@@ -950,7 +946,7 @@ onUpdated(() => window.feather?.replace?.());
 /* Dark mode Multi Select  */
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
-    background-color: #000 !important;
+    background-color: #212121 !important;
     color: #fff !important;
 }
 
@@ -959,19 +955,19 @@ onUpdated(() => window.feather?.replace?.());
 }
 
 :global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #000 !important;
+    background: #212121 !important;
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #000 !important;
+    background: #212121 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #000 !important;
+    background: #212121 !important;
     color: #fff !important;
 }
 
@@ -985,27 +981,27 @@ onUpdated(() => window.feather?.replace?.());
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #000 !important;
+    background: #212121 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #000 !important;
+    background: #212121 !important;
     border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #000 !important;
+    background: #212121 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
 
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
-    background: #000 !important;
+    background: #212121 !important;
 }
 
 /* Selected chip inside the multiselect */
@@ -1029,14 +1025,14 @@ onUpdated(() => window.feather?.replace?.());
 
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
-    background-color: #000 !important;
+    background-color: #212121 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
 /* Options container */
 :global(.dark .p-select-list-container) {
-    background-color: #000 !important;
+    background-color: #212121 !important;
     color: #fff !important;
 }
 

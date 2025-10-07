@@ -17,7 +17,7 @@ class  UpdatePromoRequests extends FormRequest
             'name' => 'required|string|max:255',
             'type' => 'required|in:flat,percent',
             'status' => 'required|in:active,inactive',
-            'start_date' => 'required|date|after_or_equal:today',
+            'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
             'min_purchase' => 'required|numeric|min:0',
             'max_discount' => 'nullable|numeric|min:0',
