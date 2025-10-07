@@ -141,6 +141,7 @@ const clearItemErrors = (item, field = null) => {
 
 async function addOrderItem(item) {
     clearItemErrors(item);
+    
       const inputQty = Number(item.qty || 0);
 
     // ensure qty entered

@@ -135,7 +135,7 @@ class OnboardingController extends Controller
             2 => $request->validate(
                 [
                     'business_name' => 'required|string|max:190',
-                    'legal_name'    => 'required|string|max:190',
+                    // 'legal_name'    => 'required|string|max:190',
                     'business_type' => 'required',
                     'phone'         => 'required|string|max:60',
                     'phone_local'   => 'required|string|max:60',

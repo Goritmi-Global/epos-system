@@ -30,6 +30,7 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
+        session()->flash('show_inventory_popup', true);
 
         $request->session()->regenerate();
 
