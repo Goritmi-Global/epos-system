@@ -164,23 +164,10 @@ async function bulkSubmit() {
                     <h5 class="modal-title fw-semibold">Bulk Orders</h5>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -230,7 +217,11 @@ async function bulkSubmit() {
                                         </small>
                                     </td>
                                     <td>
-                                        <input type="date" v-model="it.expiry" class="form-control" />
+                                        <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
+                                            :enableTimePicker="false" :teleport="true" placeholder="Select date" :class="{
+                                                'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date
+                                            }" />
+
                                         <small v-if="formErrors[idx]?.expiry" class="text-danger">
                                             {{ formErrors[idx].expiry }}
                                         </small>

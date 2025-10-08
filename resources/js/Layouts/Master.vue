@@ -419,15 +419,15 @@ onMounted(fetchNotifications);
                         <div class="noti-content max-h-[350px] overflow-y-auto">
                             <template v-if="notifications.length">
                                 <div v-for="n in notifications" :key="n.id"
-                                    class="d-flex align-items-start justify-content-between p-3 border-bottom cursor-pointer transition-all rounded"
-                                    :class="n.is_read ? 'bg-gray-50' : 'bg-white shadow-sm'" @click.stop="markAsRead(n.id)">
+                                    class="d-flex align-items-start justify-content-between p-3 border-bottom  cursor-pointer transition-all"
+                                    :class="n.is_read ? 'bg-gray-50 m-2 mb-2' : 'bg-white shadow-sm m-2'" @click.stop="markAsRead(n.id)">
                                     <!-- Left content -->
                                     <div class="flex-grow-1 me-2">
                                         <div class="fw-semibold text-sm text-gray-800">{{ n.message }}</div>
 
                                         <!-- Tailwind-style Status badge -->
                                         <span
-                                            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1"
+                                            class="inline-flex notifi-span items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1"
                                             :class="{
                                                 'text-red-700 bg-red-100': n.status?.toLowerCase() === 'out_of_stock',
                                                 'text-yellow-700 bg-yellow-100': n.status?.toLowerCase() === 'low_stock',
@@ -684,6 +684,39 @@ onMounted(fetchNotifications);
 /* Css for dark mood */
 .dark .icons {
     color: #fff;
+}
+
+.dark .bg-yellow-100{
+   background-color: #FEF9C3;
+}
+
+.dark .notifi-span{
+    color: #A16207;
+}
+.dark .notifications .noti-content{
+    background: #212121 !important;
+}
+
+.dark .bg-white{
+    background-color: #181818 !important;
+    border-bottom: #181818 !important;
+    color: #fff !important;
+}
+
+.dark .bg-gray-50{
+    background-color: #181818 !important;
+    border-bottom: #181818 !important;
+}
+.dark .text-gray-800{
+    color: #fff !important;
+}
+
+.dark .text-orange-700{
+    color: rgb(194 65 12)
+}
+
+.dark .bg-orange-200{
+    background-color: orange;
 }
 
 .dark input {
