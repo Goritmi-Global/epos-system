@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, onBeforeUnmount } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
+import { Pencil, Plus } from "lucide-vue-next";
 
 const show = ref(false);
 const editingId = ref(null);
@@ -130,14 +131,14 @@ onBeforeUnmount(() => {
                 <tbody>
                     <tr v-for="p in filteredPermissions" :key="p.id">
                         <td>
-                            <span class="badge bg-light text-dark">{{
+                            <span class="badge bg-light py-2 text-dark">{{
                                 p.name
                                 }}</span>
                         </td>
                         <td>{{ p.description }}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary rounded-pill" @click="openEdit(p)">
-                                Edit
+                            <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="openEdit(p)">
+                               <Pencil class="w-4 h-4" />
                             </button>
                         </td>
                     </tr>
@@ -222,3 +223,9 @@ onBeforeUnmount(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.dark .bg-light{
+    background-color: #212121 !important;
+}
+</style>
