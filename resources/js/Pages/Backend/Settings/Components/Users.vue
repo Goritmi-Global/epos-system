@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
+import { Pencil, Plus } from "lucide-vue-next";
 
 
 const rows = ref([]);
@@ -80,7 +81,7 @@ async function fetchAll() {
       name: role.name,
       value: role.id, // 👈 better: use ID as value
     }));
-    
+
     // console.log("Label Colors:", labelColors);
   } catch (e) {
     console.error(e);
@@ -159,26 +160,29 @@ onMounted(fetchAll);
           </thead>
           <tbody>
             <tr v-for="u in rows" :key="u.id">
-              <td class="d-flex align-items-center gap-2">
-                <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
-                  style="width:32px;height:32px;background:#1C0D82;color:#fff;">
-                  {{ (u.name || 'U').charAt(0).toUpperCase() }}
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;background:#1C0D82;color:#fff;">
+                    {{ (u.name || 'U').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="fw-semibold">{{ u.name }}</div>
                 </div>
-                <div class="fw-semibold">{{ u.name }}</div>
               </td>
               <td>{{ u.role || '—' }}</td>
               <td>
-                <span :class="['badge', (u.status === 'Active' ? 'bg-success' : 'bg-secondary')]">
+                <span :class="['badge rounded-pill py-1 px-2', (u.status === 'Active' ? 'bg-success' : 'bg-secondary')]">
                   {{ u.status }}
                 </span>
               </td>
               <td>
                 <div class="d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-primary rounded-pill" @click="openEdit(u)" title="Edit">
-                    <i class="bi bi-pencil"></i>
+                  <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="openEdit(u)" title="Edit">
+                    <Pencil class="w-4 h-4" />
                   </button>
-                  <button class="btn btn-sm btn-outline-danger rounded-pill" :disabled="!canDelete(u)" title="Delete"
-                    @click="remove(u)">
+                  <button
+                    class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
+                    :disabled="!canDelete(u)" title="Delete" @click="remove(u)">
                     <i class="bi bi-trash"></i>
                   </button>
                 </div>
@@ -222,7 +226,8 @@ onMounted(fetchAll);
 
             <div class="col-md-6">
               <label class="form-label">Email</label>
-              <input v-model="form.email" type="email" class="form-control" :class="{ 'is-invalid': formErrors.email }" />
+              <input v-model="form.email" type="email" class="form-control"
+                :class="{ 'is-invalid': formErrors.email }" />
               <div v-if="formErrors.email" class="invalid-feedback d-block">{{ formErrors.email[0] }}</div>
             </div>
 
@@ -304,7 +309,7 @@ onMounted(fetchAll);
 
         <div class="modal-footer">
           <button class="btn btn-primary rounded-pill" @click="save">Save</button>
-          <button class="btn btn-light rounded-pill" @click="show = false">Cancel</button>
+          <button class="btn btn-secondary rounded-pill" @click="show = false">Cancel</button>
         </div>
       </div>
     </div>

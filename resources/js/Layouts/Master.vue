@@ -693,6 +693,11 @@ onMounted(fetchNotifications);
 .dark .notifi-span{
     color: #A16207;
 }
+
+.dark .user-menu.nav>li>a.dropdown-toggle.nav-link.show{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
 .dark .notifications .noti-content{
     background: #212121 !important;
 }
