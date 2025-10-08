@@ -139,6 +139,8 @@ watch(
     }
 );
 
+
+
 /* ------------------ LOGO (crop / zoom modal hooks) ------------------ */
 const showCropper = ref(false);
 const showImageModal = ref(false);
@@ -205,17 +207,16 @@ const flagUrl = (iso, size = "24x18") =>
             <div class="col-md-8">
                 <!-- Business Type -->
                 <label class="form-label">Business Type*</label>
-                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true" :pt="{
-            listContainer: { class: 'bg-white text-black' },
-            option: { class: 'text-black hover:bg-gray-100' },
-            header: { class: 'bg-white text-black'},
-           IconField: {class: 'bg-white'},
-           InputText: {class: 'bg-white'},
-           pcFilter: {class: 'bg-white'},
-           pcFilterContainer: {class: 'bg-white'}
-          }"
-                    placeholder="Select business type" class="w-100"
-                    :class="{ 'is-invalid': formErrors?.business_type }">
+                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true"
+                    :pt="{
+                        listContainer: { class: 'bg-white text-black' },
+                        option: { class: 'text-black hover:bg-gray-100' },
+                        header: { class: 'bg-white text-black' },
+                        IconField: { class: 'bg-white' },
+                        InputText: { class: 'bg-white' },
+                        pcFilter: { class: 'bg-white' },
+                        pcFilterContainer: { class: 'bg-white' }
+                    }" placeholder="Select business type" class="w-100" :class="{ 'is-invalid': formErrors?.business_type }">
                     <template #value="{ value, placeholder }">
                         <span v-if="value">{{ value.name }}</span>
                         <span v-else>{{ placeholder }}</span>
@@ -242,11 +243,11 @@ const flagUrl = (iso, size = "24x18") =>
                         <label class="form-label">Phone*</label>
                         <div class="input-group">
                             <span class="input-group-text p-0">
-                                <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial"  :pt="{
-            listContainer: { class: 'bg-white text-black' },
-            option: { class: 'text-black hover:bg-gray-100' },
-            header: { class: 'bg-white text-black'}}"
-                                    placeholder="Code" class="dial-select" />
+                                <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial" :pt="{
+                                    listContainer: { class: 'bg-white text-black' },
+                                    option: { class: 'text-black hover:bg-gray-100' },
+                                    header: { class: 'bg-white text-black' }
+                                }" placeholder="Code" class="dial-select" />
 
                             </span>
                             <input class="form-control" inputmode="numeric" placeholder="Phone number"
@@ -297,7 +298,7 @@ const flagUrl = (iso, size = "24x18") =>
     box-shadow: 0 6px 18px rgba(17, 38, 146, 0.05);
 }
 
-.p-inputtext{
+.p-inputtext {
     background: white;
 }
 
@@ -394,9 +395,9 @@ const flagUrl = (iso, size = "24x18") =>
     color: #181818 !important;
 }
 
-.dark .steps-nav{
-  background-color: #c53939 !important;
-  color: #fff !important;
+.dark .steps-nav {
+    background-color: #c53939 !important;
+    color: #fff !important;
 }
 
 /* Hover/selected option */
@@ -505,12 +506,12 @@ const flagUrl = (iso, size = "24x18") =>
 /* ======================== Dark Mode MultiSelect ============================= */
 
 .dark .bg-white {
-  background-color: #000000 !important;
-  color: #fff !important;
+    background-color: #000000 !important;
+    color: #fff !important;
 }
 
 .dark .section {
-  background-color: #181818 !important;
+    background-color: #181818 !important;
 }
 
 :global(.dark .p-multiselect-header) {
@@ -587,7 +588,8 @@ const flagUrl = (iso, size = "24x18") =>
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -626,11 +628,10 @@ const flagUrl = (iso, size = "24x18") =>
 
 
 .dark .logo-card {
-background-color: #181818 !important;
-}
-
-.dark .logo-frame{
     background-color: #181818 !important;
 }
 
+.dark .logo-frame {
+    background-color: #181818 !important;
+}
 </style>
