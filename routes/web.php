@@ -66,7 +66,7 @@ Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name
 |========================================================= */
 
 // Main dashboard
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified'])->middleware('permissions')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     /* -------- Profile -------- */

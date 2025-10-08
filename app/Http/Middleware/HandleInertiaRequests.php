@@ -52,9 +52,9 @@ class HandleInertiaRequests extends Middleware
             'receipt_and_printers'  => ['receipt_header', 'receipt_footer', 'upload_id', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
             'payment_methods'       => ['cash_enabled', 'card_enabled'],
             'business_hours'        => ['disable_order_after_hours_id', 'business_hours_id'],
-            'optional_features'     => ['enable_loyalty_system','enable_inventory_tracking','enable_cloud_backup','enable_multi_location','theme_preference'],
+            'optional_features'     => ['enable_loyalty_system', 'enable_inventory_tracking', 'enable_cloud_backup', 'enable_multi_location', 'theme_preference'],
         ];
- 
+
         $models = [
             'language_and_location' => ProfileStep1::class,
             'business_information'  => ProfileStep2::class,
@@ -70,7 +70,7 @@ class HandleInertiaRequests extends Middleware
         //  initialize
         $onboarding   = [];
         $businessInfo = null;
-    
+
         if ($user) {
             foreach ($models as $key => $modelClass) {
                 $cols = $fields[$key] ?? ['id'];
@@ -87,7 +87,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         // Normalized formatting block for the SPA
-       $fmt = [
+        $fmt = [
             'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), //  real locale
             'dateFormat'       => data_get($onboarding, 'currency_and_locale.date_format', 'yyyy-MM-dd'),
             'timeFormat'       => data_get($onboarding, 'currency_and_locale.time_format', 'HH:mm'),
@@ -107,19 +107,39 @@ class HandleInertiaRequests extends Middleware
                 'name'  => $user->name,
                 'email' => $user->email,
                 'pin' => $user->pin,
+                'roles'       => $this->getUserRoles(),
+                'permissions' => $this->getUserPermissions(),
             ] : null,
 
-            'stripe_public_key' => $stripe_public_key, 
+            'stripe_public_key' => $stripe_public_key,
             'onboarding' => $onboarding,
             'business_info' => $businessInfo,
             // Normalized formatting data
             'formatting' => $fmt,
 
             'flash' => [
-                'success'       => fn () => $request->session()->get('success'),
-                'error'         => fn () => $request->session()->get('error'),
-                'print_payload' => fn () => $request->session()->get('print_payload'),
+                'success'       => fn() => $request->session()->get('success'),
+                'error'         => fn() => $request->session()->get('error'),
+                'print_payload' => fn() => $request->session()->get('print_payload'),
             ],
         ];
+    }
+
+
+    protected function getUserPermissions()
+    {
+        if (auth()->check()) {
+            return auth()->user()->getAllPermissions()->pluck('name')->toArray();
+        }
+        return [];
+    }
+
+
+    protected function getUserRoles()
+    {
+        if (auth()->check()) {
+            return auth()->user()->getRoleNames()->toArray();
+        }
+        return [];
     }
 }
