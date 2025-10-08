@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
+import { Pencil, Plus } from "lucide-vue-next";
 
 const show = ref(false);
 const editingId = ref(null);
@@ -139,10 +140,10 @@ onMounted(async () => {
                     </small>
                 </div>
                 <button
-                    class="btn btn-sm btn-outline-primary rounded-pill"
+                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
                     @click="openEdit(r)"
                 >
-                    Edit
+                     <Pencil class="w-4 h-4" />
                 </button>
             </li>
             <li
@@ -163,10 +164,27 @@ onMounted(async () => {
                         {{ editingId ? "Edit Role" : "Create Role" }}
                     </h6>
                     <button
-                        type="button"
-                        class="btn-close"
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                         @click="show = false"
-                    ></button>
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                 </div>
 
                 <div class="modal-body">
@@ -237,13 +255,7 @@ onMounted(async () => {
                 </div>
 
                 <div class="modal-footer">
-                    <button
-                        class="btn btn-light rounded-pill"
-                        @click="show = false"
-                    >
-                        Cancel
-                    </button>
-                    <button
+                      <button
                         class="btn btn-primary rounded-pill"
                         :disabled="saving"
                         @click="save"
@@ -254,11 +266,26 @@ onMounted(async () => {
                         ></span>
                         Save
                     </button>
+                    <button
+                        class="btn btn-secondary rounded-pill"
+                        @click="show = false"
+                    >
+                        Cancel
+                    </button>
+                  
                 </div>
             </div>
         </div>
     </div>
 </template>
 <style scoped>
-
+.dark .list-group-item{
+    background: #181818 !important;
+    color: #fff !important;
+}
+.dark input {
+    background-color: #181818 !important;
+    color: #f9fafb !important;
+    border: 1px solid #fff;
+}
 </style>
