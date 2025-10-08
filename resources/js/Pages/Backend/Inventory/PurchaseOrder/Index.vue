@@ -657,23 +657,15 @@ onUpdated(() => window.feather?.replace?.());
                                                 <span v-if="!isEditing">
                                                     {{ dateFmt(item.expiry_date) }}
                                                 </span>
-                                                <input v-else v-model="item.expiry" type="date" :class="{
-                                                    'is-invalid':
-                                                        formError[
-                                                        `items.${index}.expiry`
-                                                        ],
-                                                }" class="form-control" />
-                                                <small v-if="
-                                                    formError[
-                                                    `items.${index}.expiry`
-                                                    ]
-                                                " class="text-danger">
-                                                    {{
-                                                        formError[
-                                                        `items.${index}.expiry`
-                                                        ][0]
-                                                    }}
+                                                <VueDatePicker v-else v-model="item.expiry" :enableTimePicker="false"
+                                                    :min-date="new Date()" :teleport="true" :format="'yyyy-MM-dd'"
+                                                    placeholder="Select expiry date" 
+                                                    :class="{ 'is-invalid': formError[`items.${index}.expiry`] }" />
+
+                                                <small v-if="formError[`items.${index}.expiry`]" class="text-danger">
+                                                    {{ formError[`items.${index}.expiry`][0] }}
                                                 </small>
+
                                             </td>
                                             <br />
 

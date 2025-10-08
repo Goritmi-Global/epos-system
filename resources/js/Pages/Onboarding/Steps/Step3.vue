@@ -52,7 +52,7 @@ const numberFormats = [
     "١٬٠٠٠",    // Arabic-Indic
     "１０００",  // Full-width Japanese
 ];
- 
+
 
 watch(
     () => props.model,
@@ -89,14 +89,18 @@ watch(form, emitSave, { deep: true, immediate: true });
             <!-- Currency -->
             <div class="col-md-6">
                 <label class="form-label">Select Currency*</label>
-                <Select
-                    v-model="form.currency"
-                    :options="currencies"
-                    placeholder="Select currency"
-                    class="w-100"
-                    :class="{ 'is-invalid': formErrors?.currency }"
-                    @change="emitSave"
-                />
+                <Select v-model="form.currency" :options="currencies" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }" placeholder="Select currency" class="w-100" :class="{ 'is-invalid': formErrors?.currency }"
+                    @change="emitSave" />
                 <small v-if="formErrors?.currency" class="text-danger">
                     {{ formErrors.currency[0] }}
                 </small>
@@ -105,22 +109,20 @@ watch(form, emitSave, { deep: true, immediate: true });
             <!-- Symbol Position -->
             <div class="col-md-6">
                 <label class="form-label">Symbol Position*</label>
-                <Select
-                    v-model="form.currency_symbol_position"
-                    :options="symbolPositions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Choose position"
-                    class="w-100"
-                    :class="{
-                        'is-invalid': formErrors?.currency_symbol_position,
-                    }"
-                    @change="emitSave"
-                />
-                <small
-                    v-if="formErrors?.currency_symbol_position"
-                    class="text-danger"
-                >
+                <Select v-model="form.currency_symbol_position" :options="symbolPositions" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }" optionLabel="label" optionValue="value" placeholder="Choose position" class="w-100" :class="{
+            'is-invalid': formErrors?.currency_symbol_position,
+        }" @change="emitSave" />
+                <small v-if="formErrors?.currency_symbol_position" class="text-danger">
                     {{ formErrors.currency_symbol_position[0] }}
                 </small>
             </div>
@@ -128,14 +130,18 @@ watch(form, emitSave, { deep: true, immediate: true });
             <!-- Date Format -->
             <div class="col-md-6">
                 <label class="form-label">Date Format*</label>
-                <Select
-                    v-model="form.date_format"
-                    :options="dateFormats"
-                    placeholder="Select format"
-                    class="w-100"
-                    :class="{ 'is-invalid': formErrors?.date_format }"
-                    @change="emitSave"
-                />
+                <Select v-model="form.date_format" :options="dateFormats":pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }" placeholder="Select format" class="w-100" :class="{ 'is-invalid': formErrors?.date_format }"
+                    @change="emitSave" />
                 <small v-if="formErrors?.date_format" class="text-danger">
                     {{ formErrors.date_format[0] }}
                 </small>
@@ -144,14 +150,18 @@ watch(form, emitSave, { deep: true, immediate: true });
             <!-- Number Format -->
             <div class="col-md-6">
                 <label class="form-label">Number Format*</label>
-                <Select
-                    v-model="form.number_format"
-                    :options="numberFormats"
-                    placeholder="Select format"
-                    class="w-100"
-                    :class="{ 'is-invalid': formErrors?.number_format }"
-                    @change="emitSave"
-                />
+                <Select v-model="form.number_format" :options="numberFormats" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }" placeholder="Select format" class="w-100" :class="{ 'is-invalid': formErrors?.number_format }"
+                    @change="emitSave" />
                 <small v-if="formErrors?.number_format" class="text-danger">
                     {{ formErrors.number_format[0] }}
                 </small>
@@ -160,16 +170,18 @@ watch(form, emitSave, { deep: true, immediate: true });
             <!-- Time Format -->
             <div class="col-md-6">
                 <label class="form-label">Time Format*</label>
-                <Select
-                    v-model="form.time_format"
-                    :options="timeFormats"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select format"
-                    class="w-100"
-                    :class="{ 'is-invalid': formErrors?.time_format }"
-                    @change="emitSave"
-                />
+                <Select v-model="form.time_format" :options="timeFormats" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }" optionLabel="label" optionValue="value" placeholder="Select format" class="w-100"
+                    :class="{ 'is-invalid': formErrors?.time_format }" @change="emitSave" />
 
                 <small v-if="formErrors?.time_format" class="text-danger">
                     {{ formErrors.time_format[0] }}
@@ -214,9 +226,9 @@ watch(form, emitSave, { deep: true, immediate: true });
     color: #181818 !important;
 }
 
-.dark .steps-nav{
-  background-color: #c53939 !important;
-  color: #fff !important;
+.dark .steps-nav {
+    background-color: #c53939 !important;
+    color: #fff !important;
 }
 
 /* Hover/selected option */
@@ -317,5 +329,4 @@ watch(form, emitSave, { deep: true, immediate: true });
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
 </style>

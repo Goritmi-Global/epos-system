@@ -81,7 +81,17 @@ const taxTypeOptions = ref([
     <div v-if="form.tax_registered === 1" class="row g-3">
       <div class="col-md-6">
         <label class="form-label">Tax Type</label>
-        <Select v-model="form.tax_type" :options="taxTypeOptions" optionLabel="name" optionValue="code"
+        <Select v-model="form.tax_type" :options="taxTypeOptions" optionLabel="name" optionValue="code" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }"
           placeholder="Select Tax Type" class="w-100" :class="{ 'is-invalid': formErrors?.tax_type }" />
 
         <small v-if="formErrors?.tax_type" class="text-danger">

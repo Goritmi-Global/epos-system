@@ -108,13 +108,33 @@ const timeItems = computed(() => {
 
         <!-- Start -->
         <div class="col-md-3">
-          <Select class="w-100" v-model="d.start" :options="timeItems" optionLabel="label" optionValue="value"
+          <Select class="w-100" v-model="d.start" :options="timeItems" optionLabel="label" optionValue="value" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }"
             :disabled="!d.open" @change="emitSave" placeholder="Start" />
         </div>
 
         <!-- End -->
         <div class="col-md-3">
-          <Select class="w-100" v-model="d.end" :options="timeItems" optionLabel="label" optionValue="value"
+          <Select class="w-100" v-model="d.end" :options="timeItems" optionLabel="label" optionValue="value" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }"
             :disabled="!d.open" @change="emitSave" placeholder="End" />
         </div>
 
@@ -144,9 +164,29 @@ const timeItems = computed(() => {
           <div class="d-flex align-items-center gap-2">
             <small class="text-muted">Break</small>
 
-            <Select class="w-auto" v-model="b.start" :options="timeItems" optionLabel="label" optionValue="value"
+            <Select class="w-auto" v-model="b.start" :options="timeItems" optionLabel="label" optionValue="value" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }"
               :disabled="!d.open" @change="emitSave" />
-            <Select class="w-auto" v-model="b.end" :options="timeItems" optionLabel="label" optionValue="value"
+            <Select class="w-auto" v-model="b.end" :options="timeItems" optionLabel="label" optionValue="value" :pt="{
+                    root: { class: 'bg-white text-black' },
+                    label: { class: 'text-black' },
+                    listContainer: { class: 'bg-white text-black' },
+                    option: { class: 'text-black hover:bg-gray-100' },
+                    header: { class: 'bg-white text-black' },
+                    IconField: { class: 'bg-white' },
+                    InputText: { class: 'bg-white' },
+                    pcFilter: { class: 'bg-white' },
+                    pcFilterContainer: { class: 'bg-white' }
+                }"
               :disabled="!d.open" @change="emitSave" />
 
             <button class="btn btn-outline-danger btn-sm rounded-pill ms-auto" @click="removeBreak(d, bi)">

@@ -205,7 +205,15 @@ const flagUrl = (iso, size = "24x18") =>
             <div class="col-md-8">
                 <!-- Business Type -->
                 <label class="form-label">Business Type*</label>
-                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true"
+                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true" :pt="{
+            listContainer: { class: 'bg-white text-black' },
+            option: { class: 'text-black hover:bg-gray-100' },
+            header: { class: 'bg-white text-black'},
+           IconField: {class: 'bg-white'},
+           InputText: {class: 'bg-white'},
+           pcFilter: {class: 'bg-white'},
+           pcFilterContainer: {class: 'bg-white'}
+          }"
                     placeholder="Select business type" class="w-100"
                     :class="{ 'is-invalid': formErrors?.business_type }">
                     <template #value="{ value, placeholder }">
@@ -234,7 +242,10 @@ const flagUrl = (iso, size = "24x18") =>
                         <label class="form-label">Phone*</label>
                         <div class="input-group">
                             <span class="input-group-text p-0">
-                                <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial"
+                                <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial"  :pt="{
+            listContainer: { class: 'bg-white text-black' },
+            option: { class: 'text-black hover:bg-gray-100' },
+            header: { class: 'bg-white text-black'}}"
                                     placeholder="Code" class="dial-select" />
 
                             </span>
@@ -284,6 +295,10 @@ const flagUrl = (iso, size = "24x18") =>
     justify-content: flex-start;
     min-height: 220px;
     box-shadow: 0 6px 18px rgba(17, 38, 146, 0.05);
+}
+
+.p-inputtext{
+    background: white;
 }
 
 .dark .logo-card {

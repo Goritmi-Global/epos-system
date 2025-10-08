@@ -162,8 +162,19 @@ watch(selectedLanguage, (opt) => {
         <div class="col-12">
           <label class="form-label d-flex align-items-center gap-2">Country</label>
 
-          <Select v-model="selectedCountry" :options="countries" optionLabel="name" :filter="true"
-            placeholder="Select a Country" class="w-100"
+
+          
+          <Select v-model="selectedCountry" :options="countries" optionLabel="name" :filter="true" 
+:pt="{
+    root: { class: 'bg-white' },
+    listContainer: { class: 'bg-white text-black' },
+    option: { class: 'text-black hover:bg-gray-100' },
+    header: { class: 'bg-white text-black' },
+    pcFilterContainer: { class: 'bg-white p-2 border-b border-gray-200' },
+    pcFilter: { class: '!bg-white w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-300 !text-black' },
+    pcFilterIconContainer: { class: 'text-gray-500' }
+  }" 
+          placeholder="Select a Country" class="w-100 bg-white"
             :class="{ 'is-invalid': formErrors.country_name || formErrors.country_code }">
             <!-- Selected -->
             <template #value="{ value, placeholder }">
@@ -203,7 +214,10 @@ watch(selectedLanguage, (opt) => {
         <div class="col-md-6">
           <label class="form-label d-flex align-items-center gap-2">Time Zone</label>
 
-          <Select v-model="form.timezone_id" :options="timezonesOptions" optionLabel="label" optionValue="value"
+          <Select v-model="form.timezone_id" :options="timezonesOptions" optionLabel="label" optionValue="value" :pt="{
+            listContainer: { class: 'bg-white text-black' },
+            option: { class: 'text-black hover:bg-gray-100' }
+          }"
             placeholder="Select a Timezone" class="w-100" :class="{ 'is-invalid': formErrors.timezone }" />
 
           <small v-if="formErrors?.timezone_id" class="text-danger">
@@ -215,7 +229,12 @@ watch(selectedLanguage, (opt) => {
         <!-- Language -->
         <div class="col-md-6">
           <label class="form-label d-flex align-items-center gap-2">Language</label>
-          <Select v-model="selectedLanguage" :options="languagesOptions" optionLabel="name" :filter="false"
+          <Select v-model="selectedLanguage" :options="languagesOptions" optionLabel="name" :filter="false" :pt="{
+            listContainer: { class: 'bg-white text-black' },
+            option: { class: 'text-black hover:bg-gray-100' },
+            header: { class: 'bg-white text-black'},
+             
+          }"
             placeholder="Select a Language" class="w-100" :class="{ 'is-invalid': formErrors.language }">
             <template #value="{ value, placeholder }">
               <div v-if="value" class="d-flex align-items-center gap-2">
@@ -241,15 +260,21 @@ watch(selectedLanguage, (opt) => {
 </template>
 
 <style scoped>
+
+
+
+
+:root {
+  --brand: #1C0D82;
+}
+
 .dark .section {
   background-color: #000000 !important;
   /* gray-800 */
   color: #f9fafb !important;
 }
-
-
-:root {
-  --brand: #1C0D82;
+.p-iconfield .p-inputtext:not(:last-child){
+  background-color: white;
 }
 
 /* Section wrapper to match other steps */
@@ -276,99 +301,99 @@ watch(selectedLanguage, (opt) => {
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
+  z-index: 2000 !important;
 }
 
 /* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
-    background-color: white !important;
-    color: black !important;
+  background-color: white !important;
+  color: black !important;
 }
 
 :deep(.p-multiselect-label) {
-    color: #181818 !important;
+  color: #181818 !important;
 }
 
 :deep(.p-select .p-component .p-inputwrapper) {
-    background: #fff !important;
-    color: #181818 !important;
-    border-bottom: 1px solid #ddd;
+  background: #fff !important;
+  color: #181818 !important;
+  border-bottom: 1px solid #ddd;
 }
 
 /* Options list container */
 :deep(.p-multiselect-list) {
-    background: #fff !important;
+  background: #fff !important;
 }
 
 /* Each option */
 :deep(.p-multiselect-option) {
-    background: #fff !important;
-    color: #181818 !important;
+  background: #fff !important;
+  color: #181818 !important;
 }
 
-.dark .steps-nav{
+.dark .steps-nav {
   background-color: #c53939 !important;
   color: #fff !important;
 }
 
 /* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
-    background: #f0f0f0 !important;
-    color: #181818 !important;
+  background: #f0f0f0 !important;
+  color: #181818 !important;
 }
 
 :deep(.p-multiselect),
 :deep(.p-multiselect-panel),
 :deep(.p-multiselect-token) {
-    background: #fff !important;
-    color: #181818 !important;
-    border-color: #a4a7aa;
+  background: #fff !important;
+  color: #181818 !important;
+  border-color: #a4a7aa;
 }
 
 /* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
-    background: #fff !important;
-    border: 1px solid #ccc !important;
+  background: #fff !important;
+  border: 1px solid #ccc !important;
 }
 
 
 
 /* Search filter input */
 :deep(.p-multiselect-filter) {
-    background: #fff !important;
-    color: #181818 !important;
-    border: 1px solid #ccc !important;
+  background: #fff !important;
+  color: #181818 !important;
+  border: 1px solid #ccc !important;
 }
 
 /* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
-    background: #fff !important;
+  background: #fff !important;
 }
 
 /* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
-    background: #e9ecef !important;
-    color: #181818 !important;
-    border-radius: 12px !important;
-    border: 1px solid #ccc !important;
-    padding: 0.25rem 0.5rem !important;
+  background: #e9ecef !important;
+  color: #181818 !important;
+  border-radius: 12px !important;
+  border: 1px solid #ccc !important;
+  padding: 0.25rem 0.5rem !important;
 }
 
 /* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
-    color: #555 !important;
+  color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #dc3545 !important;
-    /* red on hover */
+  color: #dc3545 !important;
+  /* red on hover */
 }
 
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
+  z-index: 2000 !important;
 }
 
 /* ====================================================== */
@@ -376,44 +401,46 @@ watch(selectedLanguage, (opt) => {
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
-    background-color: white !important;
-    color: black !important;
-    border-color: #9b9c9c;
+  background-color: white !important;
+  color: black !important;
+  border-color: #9b9c9c;
 }
 
 /* Options container */
-:deep(.p-select-list-container) {
-    background-color: white !important;
-    color: black !important;
-}
 
-/* Each option */
+
+
+
 :deep(.p-select-option) {
-    background-color: transparent !important;
-    /* instead of 'none' */
-    color: black !important;
+  background-color: #fff !;
+  /* instead of 'none' */
+  color: black !important;
 }
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 :deep(.p-select-label) {
-    color: #181818 !important;
+  color: #181818 !important;
 }
 
 :deep(.p-placeholder) {
-    color: #80878e !important;
+  color: #80878e !important;
 }
 
+:deep(.p-component) {
+  background-color: white !important;
+
+}
 
 /* ======================== Dark Mode MultiSelect ============================= */
 
@@ -422,7 +449,7 @@ watch(selectedLanguage, (opt) => {
   color: #fff !important;
 }
 
-.dark .p-select-header{
+.dark .p-select-header {
   background-color: #121212 !important;
 }
 
@@ -431,133 +458,140 @@ watch(selectedLanguage, (opt) => {
 }
 
 :global(.dark .p-multiselect-header) {
-    background-color: #181818 !important;
-    color: #fff !important;
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect-label) {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #181818 !important;
-    color: #fff !important;
-    border-bottom: 1px solid #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #555 !important;
 }
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #181818 !important;
+  background: #181818 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #181818 !important;
-    color: #fff !important;
+  background: #181818 !important;
+  color: #fff !important;
 }
 
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
-    background: #222 !important;
-    color: #fff !important;
+  background: #222 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #181818 !important;
-    color: #fff !important;
-    border-color: #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border-color: #555 !important;
 }
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #181818 !important;
-    border: 1px solid #555 !important;
+  background: #181818 !important;
+  border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #181818 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border: 1px solid #555 !important;
 }
 
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
-    background: #181818 !important;
+  background: #181818 !important;
 }
 
 /* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
-    background: #111 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    border-radius: 12px !important;
-    padding: 0.25rem 0.5rem !important;
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid #555 !important;
+  border-radius: 12px !important;
+  padding: 0.25rem 0.5rem !important;
 }
 
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
-    color: #ccc !important;
+  color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+  color: #f87171 !important;
+  /* lighter red */
 }
 
+
+:deep(.p-inputtext){
+  background: white !important;
+}
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
-    background-color: #181818 !important;
-    color: #fff !important;
-    border-color: #555 !important;
+  background-color: #181818 !important;
+  color: #fff !important;
+  border-color: #555 !important;
 }
 
 /* Options container */
 :global(.dark .p-select-list-container) {
-    background-color: #181818 !important;
-    color: #fff !important;
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 /* Each option */
 :global(.dark .p-select-option) {
-    background-color: #121212 !important;
-    color: #fff !important;
+  background-color: #121212 !important;
+  color: #fff !important;
 }
+
 :global(.dark .p-inputtext) {
-    background-color: #121212 !important;
-    color: #fff !important;
+  background-color: #121212 !important;
+  color: #fff !important;
 }
 
 /* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
-    background-color: #222 !important;
-    color: #fff !important;
+  background-color: #222 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select-label) {
 
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select-header) {
   background-color: #121212 !important;
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-placeholder) {
-    color: #aaa !important;
+  color: #aaa !important;
 }
 
 
 .dark .logo-card {
-background-color: #181818 !important;
+  background-color: #181818 !important;
 }
 
-.dark .logo-frame{
-    background-color: #181818 !important;
+.dark .logo-frame {
+  background-color: #181818 !important;
 }
+
 
 </style>

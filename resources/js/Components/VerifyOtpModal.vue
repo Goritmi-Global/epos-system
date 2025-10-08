@@ -35,11 +35,11 @@
                     }}</span>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @click="$emit('closed')">
+                    <button class="btn btn-secondary rounded-pill py-2" @click="$emit('closed')">
                         Cancel
                     </button>
                     <button
-                        class="btn btn-primary"
+                        class="btn btn-primary rounded-pill py-2"
                         @click="verifyOtp"
                         :disabled="loading"
                     >

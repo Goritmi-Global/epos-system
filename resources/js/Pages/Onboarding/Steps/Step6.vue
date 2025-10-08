@@ -1,4 +1,5 @@
 <script setup>
+import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { reactive, ref, toRaw, watch } from "vue";
 
 const props = defineProps({ model: Object, formErrors: Object });
@@ -55,8 +56,10 @@ function onCropped({ file }) {
                   <i class="bi bi-image"></i>
                 </div>
               </div>
-
-              <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
+              
+    <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
+           
+          
             </div>
             <small v-if="formErrors?.receipt_logo_file" class="text-danger">
               {{ formErrors.receipt_logo_file[0] }}

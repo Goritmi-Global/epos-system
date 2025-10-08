@@ -448,7 +448,7 @@ const formatDate = (date) => {
                                             </div>
                                             <div class="col-3">
                                                 <label class="small text-muted">Expiry Date</label>
-                                                <VueDatePicker v-model="it.expiry" :format="dateFmt"
+                                                <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
                                                     :enableTimePicker="false" placeholder="Select date" :class="{
                                                         'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date
                                                     }" />
