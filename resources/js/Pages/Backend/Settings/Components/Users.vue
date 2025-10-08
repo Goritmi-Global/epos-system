@@ -80,10 +80,7 @@ async function fetchAll() {
       name: role.name,
       value: role.id, // 👈 better: use ID as value
     }));
-
-
-
-
+    
     // console.log("Label Colors:", labelColors);
   } catch (e) {
     console.error(e);
