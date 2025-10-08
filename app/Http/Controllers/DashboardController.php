@@ -22,21 +22,24 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+        $role = $user->getRoleNames()->first();
 
         // ✅ Step check for onboarding
-        $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
-            && ProfileStep2::where('user_id', $user->id)->exists()
-            && ProfileStep3::where('user_id', $user->id)->exists()
-            && ProfileStep4::where('user_id', $user->id)->exists()
-            && ProfileStep5::where('user_id', $user->id)->exists()
-            && ProfileStep6::where('user_id', $user->id)->exists()
-            && ProfileStep7::where('user_id', $user->id)->exists()
-            && ProfileStep8::where('user_id', $user->id)->exists()
-            && ProfileStep9::where('user_id', $user->id)->exists();
+        if ($role === 'Super Admin') {
+            $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+                && ProfileStep2::where('user_id', $user->id)->exists()
+                && ProfileStep3::where('user_id', $user->id)->exists()
+                && ProfileStep4::where('user_id', $user->id)->exists()
+                && ProfileStep5::where('user_id', $user->id)->exists()
+                && ProfileStep6::where('user_id', $user->id)->exists()
+                && ProfileStep7::where('user_id', $user->id)->exists()
+                && ProfileStep8::where('user_id', $user->id)->exists()
+                && ProfileStep9::where('user_id', $user->id)->exists();
 
-        if (! $stepsCompleted && $request->routeIs('dashboard')) {
-            session()->forget('url.intended');
-            return redirect()->route('onboarding.index');
+            if (! $stepsCompleted && $request->routeIs('dashboard')) {
+                session()->forget('url.intended');
+                return redirect()->route('onboarding.index');
+            }
         }
 
         // ✅ Inventory alert calculations with item details
@@ -91,7 +94,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Backend/Dashboard/Index', [
             'inventoryAlerts' => $inventoryAlerts,
-            'showPopup' => session('show_inventory_popup', false), 
+            'showPopup' => session('show_inventory_popup', false),
         ]);
     }
 }
