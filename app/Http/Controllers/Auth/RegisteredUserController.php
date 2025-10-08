@@ -3,24 +3,16 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\VerifyAccountMail;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Mail\VerifyAccountMail;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\ValidationException;
-
- 
- 
- 
-    
-
 
 class RegisteredUserController extends Controller
 {
@@ -37,16 +29,16 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request) 
-    { 
-   
+    public function store(Request $request)
+    {
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'pin' => 'required|digits:4|unique:users,pin',
         ]);
- 
+
         $rawPassword = $request->password;
         $rawPin = $request->pin;
         $otp = rand(100000, 999999);
@@ -57,9 +49,20 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($rawPassword),
             'pin' => Hash::make($rawPin),
             'verifying_otp' => $otp,
-        ]); 
+        ]);
+
+        // ✅ Ensure Super Admin role exists before assigning
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Super Admin', 'guard_name' => 'web']
+        );
+
+        // ✅ Assign role to new user
+        $user->assignRole($role);
+
+        // ✅ (Optional) give all permissions to Super Admin automatically
+        $role->syncPermissions(\Spatie\Permission\Models\Permission::all());
         // Send a custom verification email (Laravel Recommended via Mailable)
-        Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin,$otp));
+        Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin, $otp));
         throw ValidationException::withMessages([
             'unverified' => 'Account not verified. A new OTP has been sent to your email.',
             'email_address' => $user->email,
@@ -70,12 +73,12 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'otp' => 'required|digits:6'
+            'otp' => 'required|digits:6',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || $user->verifying_otp !== $request->otp) {
+        if (! $user || $user->verifying_otp !== $request->otp) {
             return response()->json(['message' => 'Invalid OTP'], 422);
         }
 
@@ -87,6 +90,4 @@ class RegisteredUserController extends Controller
 
         return response()->json(['message' => 'Verified successfully']);
     }
-
-
 }
