@@ -1,61 +1,51 @@
 <?php
 
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-
-/* ---------- Auth scaffolding ---------- */
+use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
-
+/* ---------- Auth scaffolding ---------- */
+use App\Http\Controllers\Auth\RoleController;
 /* ---------- General ---------- */
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\VerifyAccountController;
+use App\Http\Controllers\Auth\UsersController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\OnboardingController;
-use App\Http\Controllers\GeoController; // (not used below, but kept for later)
 use App\Http\Controllers\IndexController;
-
+use App\Http\Controllers\OnboardingController;
+// (not used below, but kept for later)
+use App\Http\Controllers\POS\AnalyticsController;
 /* ---------- POS & Inventory ---------- */
-use App\Http\Controllers\POS\{
-    InventoryController,
-    InventoryCategoryController,
-    StockLogController,
-    PurchaseOrderController,
-    StockEntryController,
-    MenuController,
-    MenuCategoryController,
-    PosOrderController,
-    OrdersController,
-    PaymentController,
-    AnalyticsController,
-    KotController,
-    SettingsController,
-};
+use App\Http\Controllers\POS\InventoryCategoryController;
+use App\Http\Controllers\POS\InventoryController;
+use App\Http\Controllers\POS\KotController;
+use App\Http\Controllers\POS\MenuCategoryController;
+use App\Http\Controllers\POS\MenuController;
+use App\Http\Controllers\POS\OrdersController;
+use App\Http\Controllers\POS\PaymentController;
+use App\Http\Controllers\POS\PosOrderController;
+use App\Http\Controllers\POS\PurchaseOrderController;
+use App\Http\Controllers\POS\SettingsController;
+use App\Http\Controllers\POS\StockEntryController;
+use App\Http\Controllers\POS\StockLogController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromoController;
 /* ---------- References ---------- */
-use App\Http\Controllers\Reference\{
-    ReferenceManagementController,
-    SupplierController,
-    CategoryController,
-    TagController,
-    AllergyController,
-    UnitController
-};
-use App\Http\Controllers\Auth\{
-    PermissionController,
-    RoleController,
-    UsersController
-};
+use App\Http\Controllers\Reference\AllergyController;
+use App\Http\Controllers\Reference\CategoryController;
+use App\Http\Controllers\Reference\ReferenceManagementController;
+use App\Http\Controllers\Reference\SupplierController;
+use App\Http\Controllers\Reference\TagController;
+use App\Http\Controllers\Reference\UnitController;
+use App\Http\Controllers\VerifyAccountController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /* =========================================================
 |  Public / Guest
 |========================================================= */
 
 // health/test helper
-Route::get('/test-helper', fn() => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
 
 // root -> login screen (Inertia)
-Route::get('/', fn() => Inertia::render('Auth/Login'));
+Route::get('/', fn () => Inertia::render('Auth/Login'));
 
 // email verification links & OTP verify
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
@@ -155,10 +145,8 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/', [SupplierController::class, 'store'])->name('store');
         Route::post('/update', [SupplierController::class, 'update'])->name('update');
         Route::delete('/{supplier}', [SupplierController::class, 'destroy'])->name('destroy');
-        
 
     });
-    
 
     /* -------- Tags -------- */
     Route::prefix('tags')->name('tags.')->group(function () {
@@ -167,7 +155,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::put('/{tag}', [TagController::class, 'update'])->name('update');
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
     });
-    
 
     /* -------- Categories -------- */
     Route::prefix('categories')->name('categories.')->group(function () {
@@ -207,7 +194,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
     });
 
-
     /* -------- Menu Categories -------- */
     Route::prefix('menu-categories')->name('menu-categories.')->group(function () {
         Route::get('/', [MenuCategoryController::class, 'index'])->name('index');
@@ -218,8 +204,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::delete('/{id}', [MenuCategoryController::class, 'destroy'])->name('destroy');
         Route::put('/subcategories/{id}', [MenuCategoryController::class, 'updateSubcategory'])->name('updateSubcategory');
     });
-
-
 
     /* -------- POS Live Screen -------- */
     Route::prefix('pos')->name('pos.')->group(function () {
@@ -233,7 +217,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
 
     Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])
         ->name('stripe.pi.create');
-
 
     /* -------- Orders -------- */
     Route::prefix('orders')->name('orders.')->group(function () {
@@ -258,7 +241,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/{id}', [PromoController::class, 'update'])->name('update');
         Route::get('/{id}', [PromoController::class, 'show'])->name('show');
         // Route::delete('/{id}', [PromoController::class, 'destroy'])->name('destroy');
-        
+
     });
 
     /* -------- Settings -------- */
@@ -272,31 +255,28 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::get('/', [KotController::class, 'index'])->name('index');
     });
 
-
     Route::prefix('permissions')->name('permissions.')->group(function () {
-        Route::get('/', [PermissionController::class, 'index'])->name('permissions.index');
-        Route::post('/', [PermissionController::class, 'store'])->name('permissions.store');
-        Route::put('/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
+        Route::get('/', [PermissionController::class, 'index'])->name('index');
+        Route::post('/', [PermissionController::class, 'store'])->name('store');
+        Route::put('/{permission}', [PermissionController::class, 'update'])->name('update');
     });
     // Roles
     Route::prefix('roles')->name('roles.')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->name('index');
-        Route::get('/{role}', [RoleController::class, 'show'])->name('roles.show');
-        Route::post('/', [RoleController::class, 'store'])->name('roles.store');
-        Route::put('/{role}', [RoleController::class, 'update'])->name('roles.update');    
+        Route::get('/{role}', [RoleController::class, 'show'])->name('show');
+        Route::post('/', [RoleController::class, 'store'])->name('store');
+        Route::put('/{role}', [RoleController::class, 'update'])->name('update');
     });
 
     // If you don't already have a "list all permissions" route, expose one:
     Route::get('/permissions-list', [RoleController::class, 'allPermissions'])->name('permissions.list');
-    
 
     Route::prefix('users')->group(function () {
-        Route::get('/',        [UsersController::class, 'index']);       // list users (+roles)
-        Route::post('/',       [UsersController::class, 'store']);       // create + assign role
-        Route::put('/{user}',  [UsersController::class, 'update']);      // update + sync role
-        Route::delete('/{user}',[UsersController::class, 'destroy']);    // delete (with protections)
+        Route::get('/', [UsersController::class, 'index'])->name('index');
+        Route::post('/', [UsersController::class, 'store'])->name('store');
+        Route::put('/{user}', [UsersController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UsersController::class, 'destroy'])->name('destroy');
     });
-
 
 });
 
@@ -304,4 +284,4 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
 Route::get('/settings/locations', [IndexController::class, 'index'])->name('locations.index');
 
 /* ---------- Breeze/Jetstream auth routes ---------- */
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
