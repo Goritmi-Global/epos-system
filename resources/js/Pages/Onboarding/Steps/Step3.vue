@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, toRaw, watch } from "vue";
+import { reactive, toRaw, watch, onMounted } from "vue";
 import Select from "primevue/select";
 
 const STEP_NUMBER = 3;
@@ -14,7 +14,66 @@ const form = reactive({
     time_format: props.model?.time_format ?? "12-hour",
 });
 
-const currencies = ["PKR", "GBP", "USD", "EUR", "AED", "SAR"];
+// 🌍 Country to Currency Mapping
+const countryCurrencyMap = {
+    'US': 'USD',
+    'GB': 'GBP',
+    'PK': 'PKR',
+    'IN': 'INR',
+    'AE': 'AED',
+    'SA': 'SAR',
+    'EU': 'EUR',
+    'DE': 'EUR',
+    'FR': 'EUR',
+    'IT': 'EUR',
+    'ES': 'EUR',
+    'CN': 'CNY',
+    'JP': 'JPY',
+    'AU': 'AUD',
+    'CA': 'CAD',
+    'CH': 'CHF',
+    'SE': 'SEK',
+    'NO': 'NOK',
+    'DK': 'DKK',
+    'SG': 'SGD',
+    'MY': 'MYR',
+    'TH': 'THB',
+    'ID': 'IDR',
+    'PH': 'PHP',
+    'VN': 'VND',
+    'BD': 'BDT',
+    'LK': 'LKR',
+    'NP': 'NPR',
+    'AF': 'AFN',
+    'TR': 'TRY',
+    'EG': 'EGP',
+    'ZA': 'ZAR',
+    'NG': 'NGN',
+    'KE': 'KES',
+    'BR': 'BRL',
+    'MX': 'MXN',
+    'AR': 'ARS',
+    'CL': 'CLP',
+    'NZ': 'NZD',
+    'KR': 'KRW',
+    'HK': 'HKD',
+    'TW': 'TWD',
+    'RU': 'RUB',
+    'PL': 'PLN',
+    'CZ': 'CZK',
+    'HU': 'HUF',
+    'RO': 'RON',
+    'IL': 'ILS',
+    'QA': 'QAR',
+    'KW': 'KWD',
+    'BH': 'BHD',
+    'OM': 'OMR',
+    'JO': 'JOD',
+    'LB': 'LBP',
+};
+
+const currencies = ["PKR", "GBP", "USD", "EUR", "AED", "SAR", "INR", "CNY", "JPY", "AUD", "CAD", "CHF"];
+
 // 💰 Money Symbol Positions
 const symbolPositions = [
     { label: "Before Amount (Rs 1000)", value: "before" },
@@ -53,14 +112,51 @@ const numberFormats = [
     "１０００",  // Full-width Japanese
 ];
 
+// 🎯 Auto-detect currency from country
+const detectCurrencyFromCountry = () => {
+    const countryCode = props.model?.country_code;
+    console.log("💱 [CURRENCY] Detecting for country:", countryCode);
+    
+    if (!countryCode) return;
+    
+    const detectedCurrency = countryCurrencyMap[countryCode.toUpperCase()];
+    
+    if (detectedCurrency) {
+        console.log("💱 [CURRENCY] Detected currency:", detectedCurrency);
+        // Only auto-set if user hasn't manually changed it yet
+        if (!props.model?.currency || props.model?.currency === 'PKR') {
+            form.currency = detectedCurrency;
+            console.log("✅ [CURRENCY] Auto-set to:", detectedCurrency);
+        } else {
+            console.log("ℹ️ [CURRENCY] User already has currency set:", props.model.currency);
+        }
+    } else {
+        console.log("⚠️ [CURRENCY] No mapping found for:", countryCode);
+    }
+};
+
+onMounted(() => {
+    console.log("🚀 [STEP 3] Mounted with model:", props.model);
+    detectCurrencyFromCountry();
+});
+
+// Watch for country changes from Step 1
+watch(() => props.model?.country_code, (newCountry, oldCountry) => {
+    console.log("👀 [CURRENCY] Country changed:", oldCountry, "→", newCountry);
+    if (newCountry && newCountry !== oldCountry) {
+        detectCurrencyFromCountry();
+    }
+});
 
 watch(
     () => props.model,
     (newModel) => {
         if (newModel) {
-            form.currency = newModel.currency ?? "PKR";
-            form.currency_symbol_position =
-                newModel.currency_symbol_position ?? "after";
+            // Don't override currency if already detected
+            if (!form.currency || form.currency === 'PKR') {
+                form.currency = newModel.currency ?? "PKR";
+            }
+            form.currency_symbol_position = newModel.currency_symbol_position ?? "after";
             form.date_format = newModel.date_format ?? "dd/MM/yyyy";
             form.number_format = newModel.number_format ?? "1,000";
             form.time_format = newModel.time_format ?? "12-hour";
@@ -251,8 +347,6 @@ watch(form, emitSave, { deep: true, immediate: true });
     border: 1px solid #ccc !important;
 }
 
-
-
 /* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
@@ -281,7 +375,6 @@ watch(form, emitSave, { deep: true, immediate: true });
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
 
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
@@ -306,7 +399,6 @@ watch(form, emitSave, { deep: true, immediate: true });
 /* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
 
