@@ -110,46 +110,30 @@ onMounted(async () => {
 
 <template>
     <div class="card shadow-sm border-0 rounded-4">
-        <div
-            class="card-header d-flex justify-content-between align-items-center"
-        >
+        <div class="card-header d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">List of Roles</h5>
-                <small class="text-muted"
-                    >These are all the roles that this system uses.</small
-                >
+                <small class="text-muted">These are all the roles that this system uses.</small>
             </div>
-            <button
-                class="btn btn-primary btn-sm rounded-pill"
-                @click="openCreate"
-            >
+            <button class="btn btn-primary btn-sm rounded-pill" @click="openCreate">
                 <i class="bi bi-plus-lg me-1"></i>Add Role
             </button>
         </div>
 
         <ul class="list-group list-group-flush">
-            <li
-                v-for="r in roles"
-                :key="r.id"
-                class="list-group-item d-flex justify-content-between align-items-center"
-            >
+            <li v-for="r in roles" :key="r.id"
+                class="list-group-item d-flex justify-content-between align-items-center">
                 <div class="d-flex flex-column">
                     <div class="fw-semibold">{{ r.name }}</div>
                     <small class="text-muted">
                         {{ r.permissions?.length || 0 }} permission(s)
                     </small>
                 </div>
-                <button
-                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                    @click="openEdit(r)"
-                >
-                     <Pencil class="w-4 h-4" />
+                <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="openEdit(r)">
+                    <Pencil class="w-4 h-4" />
                 </button>
             </li>
-            <li
-                v-if="roles.length === 0"
-                class="list-group-item text-center text-muted"
-            >
+            <li v-if="roles.length === 0" class="list-group-item text-center text-muted">
                 No roles
             </li>
         </ul>
@@ -165,24 +149,10 @@ onMounted(async () => {
                     </h6>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        @click="show = false"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        @click="show = false" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -191,63 +161,37 @@ onMounted(async () => {
                     <!-- Role Name -->
                     <div class="mb-3">
                         <label class="form-label">Role Name</label>
-                        <input
-                            v-model="form.name"
-                            class="form-control"
-                            placeholder="Admin"
-                            :class="{
-                                'is-invalid': formErrors.name,
-                                'bg-danger bg-opacity-10': formErrors.name,
-                            }"
-                        />
-                        <div
-                            v-if="formErrors.name"
-                            class="invalid-feedback d-block"
-                        >
+                        <input v-model="form.name" class="form-control" placeholder="Admin" :class="{
+                            'is-invalid': formErrors.name,
+                            'bg-danger bg-opacity-10': formErrors.name,
+                        }" />
+                        <div v-if="formErrors.name" class="invalid-feedback d-block">
                             {{ formErrors.name[0] }}
                         </div>
                     </div>
 
                     <!-- Permissions -->
 
-                    <div
-                        class="mb-2 d-flex justify-content-between align-items-center"
-                    >
+                    <div class="mb-2 d-flex justify-content-between align-items-center">
                         <label class="form-label mb-0">Permissions</label>
                         <div class="input-group" style="max-width: 260px">
-                            <input
-                                v-model.trim="permSearch"
-                                type="text"
-                                class="form-control rounded-pill shadow-sm"
-                                placeholder="Search permissions…"
-                            />
+                            <input v-model.trim="permSearch" type="text" class="form-control rounded-pill shadow-sm"
+                                placeholder="Search permissions…" />
                         </div>
                     </div>
 
                     <!-- single-column: permission label on the left, checkbox on the right -->
-                    <div
-                        class="list-group list-group-flush border rounded"
-                        :class="{ 'border-danger': formErrors.permissions }"
-                        style="max-height: 300px; overflow: auto"
-                    >
-                        <label
-                            v-for="perm in filteredPermissions"
-                            :key="perm.id"
-                            class="list-group-item d-flex justify-content-between align-items-center py-2"
-                            :for="'perm-' + perm.id"
-                        >
-                            <div class="me-3">
-                                <span class="fw-semibold">{{ perm.name }}</span>
+                    <div class="row">
+                        <div v-for="(permission, index) in filteredPermissions" :key="index"
+                            class="col-md-3 col-sm-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" :id="'perm-' + index"
+                                    v-model="selectedPermissions" :value="permission" />
+                                <label class="form-check-label" :for="'perm-' + index">
+                                    {{ permission.name }}
+                                </label>
                             </div>
-
-                            <input
-                                class="form-check-input ms-2"
-                                type="checkbox"
-                                :id="'perm-' + perm.id"
-                                :value="perm.id"
-                                v-model="selectedPermissions"
-                            />
-                        </label>
+                        </div>
                     </div>
                     <small v-if="formErrors.permissions" class="text-danger">
                         {{ formErrors.permissions[0] }}
@@ -255,34 +199,25 @@ onMounted(async () => {
                 </div>
 
                 <div class="modal-footer">
-                      <button
-                        class="btn btn-primary rounded-pill"
-                        :disabled="saving"
-                        @click="save"
-                    >
-                        <span
-                            v-if="saving"
-                            class="spinner-border spinner-border-sm me-1"
-                        ></span>
+                    <button class="btn btn-primary rounded-pill" :disabled="saving" @click="save">
+                        <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
                         Save
                     </button>
-                    <button
-                        class="btn btn-secondary rounded-pill"
-                        @click="show = false"
-                    >
+                    <button class="btn btn-secondary rounded-pill" @click="show = false">
                         Cancel
                     </button>
-                  
+
                 </div>
             </div>
         </div>
     </div>
 </template>
 <style scoped>
-.dark .list-group-item{
+.dark .list-group-item {
     background: #181818 !important;
     color: #fff !important;
 }
+
 .dark input {
     background-color: #181818 !important;
     color: #f9fafb !important;

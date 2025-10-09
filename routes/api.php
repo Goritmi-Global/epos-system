@@ -50,12 +50,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Tags
     Route::prefix('tags')->name('api.tags.')->group(function () {
-        Route::post('/import', [TagController::class, 'import'])->name('tags.import');
+        Route::post('/import', [TagController::class, 'import'])->name('import');
     });
 
     // Supplier
     Route::prefix('suppliers')->name('api.suppliers.')->group(function () {
-        Route::post('/import', [SupplierController::class, 'import'])->name('suppliers.import');
+        Route::post('/import', [SupplierController::class, 'import'])->name('import');
         Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck'); // special
     });
 
@@ -76,7 +76,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu.items');
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('profile.tables');
         Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders'])->name('orders.today');
-        Route::put('/kot/{kot}/status', [PosOrderController::class, 'updateKotStatus']);
+        Route::put('/kot/{kot}/status', [PosOrderController::class, 'updateKotStatus'])->name('kot.status');
     });
 
     // Menu Categories
@@ -100,7 +100,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Menu Items
     Route::prefix('menu')->name('api.menu.')->group(function () {
         Route::get('/items', [MenuController::class, 'apiIndex'])->name('items');
-        Route::post('/menu_items/import', [MenuController::class, 'import'])->name('menu_items.import');
+        Route::post('/menu_items/import', [MenuController::class, 'import'])->name('items.import');
     });
 
     // PURCHASE ORDER
@@ -120,10 +120,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Notifications
     Route::prefix('notifications')->name('api.notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
-        Route::post('/mark-as-read/{id}', [NotificationController::class, 'markRead']);
-        Route::post('/mark-all-as-read', [NotificationController::class, 'markAllAsRead']);
+        Route::post('/mark-as-read/{id}', [NotificationController::class, 'markRead'])->name('markRead');
+        Route::post('/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('markAllRead');
     });
 
 
-    Route::post('/profile/update', [ProfileController::class, 'updateProfile']);
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
 });
