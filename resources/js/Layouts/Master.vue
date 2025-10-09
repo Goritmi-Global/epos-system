@@ -687,7 +687,12 @@ onMounted(fetchNotifications);
 }
 
 .dark .bg-yellow-100{
-   background-color: #FEF9C3;
+   background-color: #79733b;
+   color: #fff !important;
+}
+
+.dark .bg-blue-100{
+    background-color: rgb(71 140 231) !important;
 }
 
 .dark .notifi-span{
