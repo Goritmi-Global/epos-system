@@ -1,7 +1,8 @@
 <script setup>
-import { reactive, ref, toRaw, watch, onMounted } from "vue";
+import { reactive, ref, toRaw, watch, onMounted, computed } from "vue";
 import Select from "primevue/select";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
+import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 
 const props = defineProps({ model: Object, formErrors: Object });
 
@@ -16,96 +17,200 @@ const form = reactive({
     website: props.model?.website ?? "",
     legal_name: props.model?.legal_name ?? "",
     // phone pieces
-    phone_country: props.model?.phone_country ?? "", // ISO "GB"
-    phone_code: props.model?.phone_code ?? "", // "+44"
-    phone_local: props.model?.phone_local ?? "", // "1234567890"
-    phone: props.model?.phone ?? "", // "+441234567890"
+    phone_country: props.model?.phone_country ?? "",
+    phone_code: props.model?.phone_code ?? "",
+    phone_local: props.model?.phone_local ?? "",
+    phone: props.model?.phone ?? "",
     // logo
     logo: props.model?.logo ?? null,
     logo_url: props.model?.logo_url ?? null,
     logo_file: null,
 });
 
-console.log("props.model?.logo", props.model?.logo);
-console.log("props.logo_file", form.logo_file);
+// Phone validation state
+const phoneError = ref('')
+const isPhoneValid = ref(false)
 
+// Validate phone number
+const validatePhone = () => {
+    phoneError.value = ''
+    isPhoneValid.value = false
 
+    // Convert to string to handle both string and number inputs
+    const phoneLocal = String(form.phone_local || '').trim()
+    const fullPhone = form.phone_code + phoneLocal
+    
+    if (!phoneLocal) {
+        phoneError.value = 'Phone number is required'
+        return false
+    }
+
+    try {
+        // Validate with country context
+        const isValid = isValidPhoneNumber(fullPhone, form.phone_country)
+        
+        if (!isValid) {
+            phoneError.value = `Invalid phone number for ${form.phone_country}`
+            return false
+        }
+
+        // Optional: Parse to get more details
+        const phoneNumber = parsePhoneNumber(fullPhone, form.phone_country)
+        console.log('📱 Phone details:', {
+            country: phoneNumber.country,
+            nationalNumber: phoneNumber.nationalNumber,
+            isValid: phoneNumber.isValid(),
+            type: phoneNumber.getType() // 'MOBILE', 'FIXED_LINE', etc.
+        })
+
+        isPhoneValid.value = true
+        return true
+    } catch (error) {
+        console.error('Phone validation error:', error)
+        phoneError.value = 'Invalid phone number format'
+        return false
+    }
+}
 
 /* ------------------ BUSINESS TYPE ------------------ */
-const businessTypeOptions = [
+const businessTypeOptions = ref([
     { name: "Cafe", code: "cafe" },
     { name: "Restaurant", code: "restaurant" },
     { name: "Bakery", code: "bakery" },
     { name: "Takeaway", code: "takeaway" },
     { name: "Food Truck", code: "food_truck" },
-];
-const selectedBusinessType = ref(
-    businessTypeOptions.find((o) => o.name === form.business_type) || null
-);
+]);
+
+// Initialize selected business type with support for custom types
+const initializeBusinessType = () => {
+    const savedType = props.model?.business_type;
+    
+    if (!savedType) {
+        selectedBusinessType.value = null;
+        return;
+    }
+
+    // Check if the saved type exists in options
+    let found = businessTypeOptions.value.find((o) => o.name === savedType);
+    
+    // If not found, it means it was a custom type - add it back
+    if (!found) {
+        const customOption = {
+            name: savedType,
+            code: savedType.toLowerCase().replace(/\s+/g, '_'),
+            custom: true
+        };
+        businessTypeOptions.value.push(customOption);
+        found = customOption;
+    }
+    
+    selectedBusinessType.value = found;
+};
+
+const selectedBusinessType = ref(null);
+
+const businessTypeFilterValue = ref('');
+
+// Check if the filter text matches any existing option
+const isNewBusinessType = computed(() => {
+    if (!businessTypeFilterValue.value || businessTypeFilterValue.value.trim() === '') return false;
+    const searchTerm = businessTypeFilterValue.value.toLowerCase().trim();
+    return !businessTypeOptions.value.some(opt => 
+        opt.name.toLowerCase() === searchTerm
+    );
+});
+
+// Add custom business type
+const addCustomBusinessType = () => {
+    const customName = businessTypeFilterValue.value.trim();
+    if (!customName) return;
+
+    const newOption = {
+        name: customName,
+        code: customName.toLowerCase().replace(/\s+/g, '_'),
+        custom: true // Flag to identify custom entries
+    };
+
+    businessTypeOptions.value.push(newOption);
+    selectedBusinessType.value = newOption;
+    businessTypeFilterValue.value = '';
+    
+};
+
 watch(selectedBusinessType, (opt) => {
     form.business_type = opt?.name || "";
     emitSave();
 });
 
-
 /* ------------------ PHONE (flag + dial) ------------------ */
-
-
-
 const countriesDial = ref([])
 const selectedDial = ref(null)
 
 const fetchCountriesDial = async () => {
     try {
-        const { data } = await axios.get("/api/countries") // use your /api/countries endpoint
-        console.log("data", data);
+        console.log("🟡 [FETCH] Fetching countries dial...");
+        const { data } = await axios.get("/api/countries")
         countriesDial.value = data.map(c => ({
             name: c.name,
             iso: c.code,
             dial: c.phone_code
         }))
-
-        // set default selected country/dial
-        let iso = props.model?.phone_country || props.model?.country_code || ""
-        if (iso) syncDialFromIso(iso)
     } catch (error) {
-        console.error("fetchCountriesDial error:", error)
+        console.error("❌ [FETCH] fetchCountriesDial error:", error)
     }
 }
-
-
 
 function syncDialFromIso(iso) {
-    if (!iso) return
+    if (!iso) {
+        return;
+    }
     const opt = countriesDial.value.find(o => o.iso === iso.toUpperCase())
     if (opt) {
-        selectedDial.value = opt
-        form.phone_country = opt.iso
-        form.phone_code = opt.dial
+        selectedDial.value = opt;
+        form.phone_country = opt.iso;
+        form.phone_code = opt.dial;
     }
 }
-
 
 function buildFullPhone() {
     const code = (form.phone_code || "").trim();
-    const local = (form.phone_local || "").replace(/\D+/g, "");
+    // Convert to string first, then remove non-digits
+    const local = String(form.phone_local || "").replace(/\D+/g, "");
     form.phone = code + local;
 }
 
-
 onMounted(async () => {
-    console.log('Props.model', props.model);
+    
+    // Initialize business type first
+    initializeBusinessType();
+    
     await fetchCountriesDial()
+    initializePhoneData()
+})
+
+// Separate function to initialize/reset phone data
+function initializePhoneData() {
+    
+    // ✅ Always prioritize country_code from Step 1
+    // This ensures when user changes country in Step 1, we get the new value
+    const countryCode = props.model?.country_code || props.model?.phone_country;
+    
+    if (countryCode) {
+        syncDialFromIso(countryCode)
+    }
 
     // If phone_local is empty but full phone exists, extract it
-    let phoneLocal = props.model?.phone_local || ""
+    let phoneLocal = props.model?.phone_local || "";
+    
     if (!phoneLocal && props.model?.phone) {
         const full = props.model.phone
-        const matched = countriesDial.value.find(opt => full.startsWith(opt.dial))
-        if (matched) {
-            syncDialFromIso(matched.iso)
+        const matched = countriesDial.value.find(opt => full.startsWith(opt.dial));
+        
+        // ✅ CRITICAL FIX: Only extract if the phone matches the current country
+        // This prevents old phone data from overwriting the new country selection
+        if (matched && matched.iso === countryCode) {
             phoneLocal = full.slice(matched.dial.length)
-        }
+        } 
     }
 
     form.phone_local = phoneLocal
@@ -115,10 +220,9 @@ onMounted(async () => {
     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
         form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`
     }
-})
+}
 
-
-watch(selectedDial, (opt) => {
+watch(selectedDial, (opt, oldOpt) => {
     if (!opt) return;
     form.phone_country = opt.iso;
     form.phone_code = opt.dial;
@@ -126,20 +230,18 @@ watch(selectedDial, (opt) => {
     emitSave();
 });
 
-watch(() => form.phone_local, (val) => {
+watch(() => form.phone_local, (val, oldVal) => {
     buildFullPhone();
+    validatePhone(); // Validate on input
     emitSave();
 });
 
-watch(
-    () => form.phone_local,
-    () => {
-        buildFullPhone();
-        emitSave();
+// Also validate when country changes
+watch(() => form.phone_country, () => {
+    if (form.phone_local) {
+        validatePhone();
     }
-);
-
-
+});
 
 /* ------------------ LOGO (crop / zoom modal hooks) ------------------ */
 const showCropper = ref(false);
@@ -157,9 +259,6 @@ function onCropped({ file }) {
     form.logo_url = URL.createObjectURL(file);
     emitSave();
 }
-
-
-
 
 function emitSave() {
     emit("save", { step: 2, data: toRaw(form) });
@@ -207,7 +306,12 @@ const flagUrl = (iso, size = "24x18") =>
             <div class="col-md-8">
                 <!-- Business Type -->
                 <label class="form-label">Business Type*</label>
-                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true"
+                <Select 
+                    v-model="selectedBusinessType" 
+                    :options="businessTypeOptions" 
+                    optionLabel="name" 
+                    :filter="true"
+                    @filter="(e) => businessTypeFilterValue = e.value"
                     :pt="{
                         listContainer: { class: 'bg-white text-black' },
                         option: { class: 'text-black hover:bg-gray-100' },
@@ -216,13 +320,34 @@ const flagUrl = (iso, size = "24x18") =>
                         InputText: { class: 'bg-white' },
                         pcFilter: { class: 'bg-white' },
                         pcFilterContainer: { class: 'bg-white' }
-                    }" placeholder="Select business type" class="w-100" :class="{ 'is-invalid': formErrors?.business_type }">
+                    }" 
+                    placeholder="Select or type business type" 
+                    class="w-100" 
+                    :class="{ 'is-invalid': formErrors?.business_type }">
+                    
                     <template #value="{ value, placeholder }">
                         <span v-if="value">{{ value.name }}</span>
                         <span v-else>{{ placeholder }}</span>
                     </template>
+                    
                     <template #option="{ option }">
-                        <span>{{ option.name }}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span>{{ option.name }}</span>
+                            <span v-if="option.custom" class="badge bg-primary text-white" style="font-size: 10px;">Custom</span>
+                        </div>
+                    </template>
+
+                    <!-- Footer with "Add Custom" button -->
+                    <template #footer>
+                        <div v-if="isNewBusinessType" class="p-2 border-top">
+                            <button 
+                                type="button"
+                                class="btn btn-sm btn-primary w-100"
+                                @click="addCustomBusinessType">
+                                <i class="bi bi-plus-circle me-1"></i>
+                                Add "{{ businessTypeFilterValue }}"
+                            </button>
+                        </div>
                     </template>
                 </Select>
                 <small v-if="formErrors?.business_type" class="text-danger">
@@ -251,10 +376,22 @@ const flagUrl = (iso, size = "24x18") =>
 
                             </span>
                             <input class="form-control" inputmode="numeric" placeholder="Phone number"
-                                v-model.number="form.phone_local" :class="{ 'is-invalid': formErrors?.phone_local }" />
+                                v-model="form.phone_local" 
+                                @blur="validatePhone"
+                                :class="{ 
+                                    'is-invalid': formErrors?.phone_local || phoneError,
+                                    'is-valid': isPhoneValid && form.phone_local 
+                                }" />
                         </div>
-                        <small v-if="formErrors?.phone_local" class="text-danger">
+                        <!-- Show validation error -->
+                        <small v-if="phoneError" class="text-danger d-block mt-1">
+                            {{ phoneError }}
+                        </small>
+                        <small v-else-if="formErrors?.phone_local" class="text-danger d-block mt-1">
                             {{ formErrors.phone_local[0] }}
+                        </small>
+                        <small v-else-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
+                            ✓ Valid phone number
                         </small>
                     </div>
 
@@ -279,9 +416,6 @@ const flagUrl = (iso, size = "24x18") =>
             </div>
         </div>
     </div>
-
-
-    <!-- Modals -->
 </template>
 
 <style scoped>
@@ -300,6 +434,19 @@ const flagUrl = (iso, size = "24x18") =>
 
 .p-inputtext {
     background: white;
+    color: #000000 !important;
+}
+:global(.p-inputtext){
+    color: #000 !important;
+}
+.btn-custom{
+    background-color: #1C0D82 !important;
+    color: #fff !important;
+    padding: 8px 0px !important;
+}
+.custom-btn-border{
+    border-top: 1px solid #555;
+    background-color: #181818 !important;
 }
 
 .dark .logo-card {
