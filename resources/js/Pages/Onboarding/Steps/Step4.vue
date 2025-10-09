@@ -11,10 +11,10 @@ const form = reactive({
   tax_rate: props.model.tax_rate ?? 0,
   price_includes_tax: props.model.price_includes_tax ? 1 : 0,
   tax_id: props.model.tax_id ?? null,
-  extra_tax_rates: props.model.extra_tax_rates ?? "", 
+  extra_tax_rates: props.model.extra_tax_rates ?? "",
 });
 
-console.log("props.model.tax_registered",props.model.tax_registered);
+console.log("props.model.tax_registered", props.model.tax_registered);
 console.log("tax_registered", form.tax_registered);
 watch(form, () => {
   const payload = {
@@ -27,7 +27,7 @@ watch(form, () => {
 
   if (Number(form.tax_registered) === 1) {
     payload.data.tax_type = form.tax_type;
-    payload.data.tax_rate = Number(form.tax_rate);
+    payload.data.tax_rate = form.tax_rate;
     payload.data.tax_id = form.tax_id;
     payload.data.extra_tax_rates = form.extra_tax_rates || "";
   } else {
@@ -82,17 +82,16 @@ const taxTypeOptions = ref([
       <div class="col-md-6">
         <label class="form-label">Tax Type</label>
         <Select v-model="form.tax_type" :options="taxTypeOptions" optionLabel="name" optionValue="code" :pt="{
-                    root: { class: 'bg-white text-black' },
-                    label: { class: 'text-black' },
-                    listContainer: { class: 'bg-white text-black' },
-                    option: { class: 'text-black hover:bg-gray-100' },
-                    header: { class: 'bg-white text-black' },
-                    IconField: { class: 'bg-white' },
-                    InputText: { class: 'bg-white' },
-                    pcFilter: { class: 'bg-white' },
-                    pcFilterContainer: { class: 'bg-white' }
-                }"
-          placeholder="Select Tax Type" class="w-100" :class="{ 'is-invalid': formErrors?.tax_type }" />
+          root: { class: 'bg-white text-black' },
+          label: { class: 'text-black' },
+          listContainer: { class: 'bg-white text-black' },
+          option: { class: 'text-black hover:bg-gray-100' },
+          header: { class: 'bg-white text-black' },
+          IconField: { class: 'bg-white' },
+          InputText: { class: 'bg-white' },
+          pcFilter: { class: 'bg-white' },
+          pcFilterContainer: { class: 'bg-white' }
+        }" placeholder="Select Tax Type" class="w-100" :class="{ 'is-invalid': formErrors?.tax_type }" />
 
         <small v-if="formErrors?.tax_type" class="text-danger">
           {{ formErrors.tax_type[0] }}
@@ -110,13 +109,13 @@ const taxTypeOptions = ref([
 
       <div class="col-md-3">
         <label class="form-label">Tax ID</label>
-        <input  :class="{ 'is-invalid': formErrors?.tax_id }" class="form-control" v-model="form.tax_id" />
-         <small v-if="formErrors?.tax_id" class="text-danger">
+        <input :class="{ 'is-invalid': formErrors?.tax_id }" class="form-control" v-model="form.tax_id" />
+        <small v-if="formErrors?.tax_id" class="text-danger">
           {{ formErrors.tax_id[0] }}
         </small>
       </div>
 
-       
+
     </div>
 
     <!-- Extra Tax Rates -->
@@ -138,8 +137,7 @@ const taxTypeOptions = ref([
           :class="{ 'is-active': form.price_includes_tax === 1 }">YES</label>
 
         <input type="radio" id="price-no" :value="0" v-model="form.price_includes_tax" class="segmented__input" />
-        <label for="price-no" class="segmented__btn"
-          :class="{ 'is-active': form.price_includes_tax === 0 }">NO</label>
+        <label for="price-no" class="segmented__btn" :class="{ 'is-active': form.price_includes_tax === 0 }">NO</label>
       </div>
     </div>
   </div>
@@ -147,15 +145,16 @@ const taxTypeOptions = ref([
 </template>
 
 <style scoped>
-.dark input{
-    background-color: #181818 !important;
-    color: #ffffff;
+.dark input {
+  background-color: #181818 !important;
+  color: #ffffff;
 }
 
-.dark textarea{
-    background-color: #181818 !important;
-    color: #ffffff;
+.dark textarea {
+  background-color: #181818 !important;
+  color: #ffffff;
 }
+
 .segmented {
   display: inline-flex;
   border-radius: 999px;
@@ -165,7 +164,7 @@ const taxTypeOptions = ref([
   overflow: hidden;
 }
 
-.dark .segmented{
+.dark .segmented {
   background-color: #181818 !important;
   color: #fff !important;
 }
@@ -186,7 +185,7 @@ const taxTypeOptions = ref([
   user-select: none;
 }
 
-.dark .segmented__btn{
+.dark .segmented__btn {
   color: #fff !important;
 }
 
@@ -205,168 +204,172 @@ const taxTypeOptions = ref([
 }
 
 :deep(.p-select) {
-    background-color: white !important;
-    color: black !important;
-    border-color: #9b9c9c;
+  background-color: white !important;
+  color: black !important;
+  border-color: #9b9c9c;
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-    background-color: white !important;
-    color: black !important;
+  background-color: white !important;
+  color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-    background-color: transparent !important;
-    /* instead of 'none' */
-    color: black !important;
+  background-color: transparent !important;
+  /* instead of 'none' */
+  color: black !important;
 }
+
 .dark input {
-    background-color: #181818 !important;
-    color: #ffffff;
+  background-color: #181818 !important;
+  color: #ffffff;
 }
-.dark .p-select{
+
+.dark .p-select {
   background-color: #121212 !important;
   color: #fff !important;
 }
 
-.dark .p-select-label{
+.dark .p-select-label {
   color: #fff !important;
 }
 
 .dark textarea {
-    background-color: #181818 !important;
-    color: #ffffff;
+  background-color: #181818 !important;
+  color: #ffffff;
 }
+
 /* Hovered option */
 :deep(.p-select-option:hover) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 :deep(.p-select-label) {
-    color: #181818 !important;
+  color: #181818 !important;
 }
 
 :deep(.p-placeholder) {
-    color: #80878e !important;
+  color: #80878e !important;
 }
+
 :global(.dark .p-multiselect-header) {
-    background-color: #181818 !important;
-    color: #fff !important;
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect-label) {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #181818 !important;
-    color: #fff !important;
-    border-bottom: 1px solid #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #555 !important;
 }
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #181818 !important;
+  background: #181818 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #181818 !important;
-    color: #fff !important;
+  background: #181818 !important;
+  color: #fff !important;
 }
 
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
-    background: #222 !important;
-    color: #fff !important;
+  background: #222 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #181818 !important;
-    color: #fff !important;
-    border-color: #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border-color: #555 !important;
 }
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #181818 !important;
-    border: 1px solid #555 !important;
+  background: #181818 !important;
+  border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #181818 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border: 1px solid #555 !important;
 }
 
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
-    background: #181818 !important;
+  background: #181818 !important;
 }
 
 /* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
-    background: #111 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    border-radius: 12px !important;
-    padding: 0.25rem 0.5rem !important;
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid #555 !important;
+  border-radius: 12px !important;
+  padding: 0.25rem 0.5rem !important;
 }
 
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
-    color: #ccc !important;
+  color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+  color: #f87171 !important;
+  /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
-    background-color: #181818 !important;
-    color: #fff !important;
-    border-color: #555 !important;
+  background-color: #181818 !important;
+  color: #fff !important;
+  border-color: #555 !important;
 }
 
 /* Options container */
 :global(.dark .p-select-list-container) {
-    background-color: #181818 !important;
-    color: #fff !important;
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 /* Each option */
 :global(.dark .p-select-option) {
-    background-color: transparent !important;
-    color: #fff !important;
+  background-color: transparent !important;
+  color: #fff !important;
 }
 
 /* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
-    background-color: #222 !important;
-    color: #fff !important;
+  background-color: #222 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select-label) {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-placeholder) {
-    color: #aaa !important;
+  color: #aaa !important;
 }
-
 </style>

@@ -272,13 +272,16 @@ watch(selectedLanguage, (opt) => {
 }
 :global(.dark .p-select-option:not(.p-select-option-selected):not(.p-disabled).p-focus) {
   background: #212121 !important;
-  color: #000 !important;
+  color: #fff !important;
 }
 :global(.p-select-dropdown){
   background: white !important;
 }
 :global(.dark .p-select-dropdown){
   background: #212121 !important;
+}
+:global(.dark .p-select){
+  background-color: #212121 !important;
 }
 
 .p-select-option:hover,
@@ -466,7 +469,7 @@ watch(selectedLanguage, (opt) => {
 /* ======================== Dark Mode MultiSelect ============================= */
 
 .dark .bg-white {
-  background-color: #000000 !important;
+  /* background-color: #000000 !important; */
   color: #fff !important;
 }
 
