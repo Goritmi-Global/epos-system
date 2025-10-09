@@ -87,7 +87,6 @@ class OnboardingController extends Controller
             'online_ordering' => 'online_ordering_enabled',
             'show_qr' => 'show_qr_on_receipt',
             'tax_breakdown' => 'tax_breakdown_on_receipt',
-            'kitchen_printer' => 'kitchen_printer_enabled',
             'receipt_logo_file' => 'receipt_logo_path',
             'order_types' => 'order_types',
         ];
@@ -105,7 +104,6 @@ class OnboardingController extends Controller
             'online_ordering_enabled',
             'show_qr_on_receipt',
             'tax_breakdown_on_receipt',
-            'kitchen_printer_enabled',
             'price_includes_tax',
         ];
 
@@ -210,8 +208,10 @@ class OnboardingController extends Controller
                     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
                 'tax_breakdown_on_receipt' => 'required|boolean',
-                'kitchen_printer_enabled' => 'required|boolean',
                 'printers' => 'nullable|array',
+                'customer_printer' => 'nullable|string|max:255',
+                'kot_printer' => 'nullable|string|max:255',
+
             ], [
                 'receipt_logo_file.required' => 'Please upload a receipt logo.',
             ]),
@@ -486,7 +486,6 @@ class OnboardingController extends Controller
             'receipt_logo_path' => 'receipt_logo_path',
             'show_qr_on_receipt' => 'show_qr_on_receipt',
             'tax_breakdown_on_receipt' => 'tax_breakdown_on_receipt',
-            'kitchen_printer_enabled' => 'kitchen_printer_enabled',
             'business_hours' => 'business_hours',
             'auto_disable_after_hours' => 'auto_disable_after_hours',
         ];
@@ -534,7 +533,7 @@ class OnboardingController extends Controller
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
             4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
             5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'profile_table_id'],
-            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'upload_id', 'receipt_logo_url', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
+            6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'upload_id', 'receipt_logo_url', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'customer_printer', 'kot_printer', 'printers'],
             7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
             8 => ['auto_disable', 'hours'],
             9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
