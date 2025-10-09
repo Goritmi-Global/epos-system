@@ -163,18 +163,16 @@ watch(selectedLanguage, (opt) => {
           <label class="form-label d-flex align-items-center gap-2">Country</label>
 
 
-          
-          <Select v-model="selectedCountry" :options="countries" optionLabel="name" :filter="true" 
-:pt="{
-    root: { class: 'bg-white' },
-    listContainer: { class: 'bg-white text-black' },
-    option: { class: 'text-black hover:bg-gray-100' },
-    header: { class: 'bg-white text-black' },
-    pcFilterContainer: { class: 'bg-white p-2 border-b border-gray-200' },
-    pcFilter: { class: '!bg-white w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-300 !text-black' },
-    pcFilterIconContainer: { class: 'text-gray-500' }
-  }" 
-          placeholder="Select a Country" class="w-100 bg-white"
+
+          <Select v-model="selectedCountry" :options="countries" optionLabel="name" :filter="true" :pt="{
+            root: { class: 'bg-white' },
+            listContainer: { class: 'bg-white text-black' },
+            option: { class: 'text-black' },
+            header: { class: 'bg-white text-black' },
+            pcFilterContainer: { class: 'bg-white p-2 border-b border-gray-200' },
+            pcFilter: { class: '!bg-white w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-300 !text-black' },
+            pcFilterIconContainer: { class: 'text-gray-500' },
+          }" placeholder="Select a Country" class="w-100 bg-white"
             :class="{ 'is-invalid': formErrors.country_name || formErrors.country_code }">
             <!-- Selected -->
             <template #value="{ value, placeholder }">
@@ -217,8 +215,7 @@ watch(selectedLanguage, (opt) => {
           <Select v-model="form.timezone_id" :options="timezonesOptions" optionLabel="label" optionValue="value" :pt="{
             listContainer: { class: 'bg-white text-black' },
             option: { class: 'text-black hover:bg-gray-100' }
-          }"
-            placeholder="Select a Timezone" class="w-100" :class="{ 'is-invalid': formErrors.timezone }" />
+          }" placeholder="Select a Timezone" class="w-100" :class="{ 'is-invalid': formErrors.timezone }" />
 
           <small v-if="formErrors?.timezone_id" class="text-danger">
             {{ formErrors.timezone_id[0] }}
@@ -232,10 +229,9 @@ watch(selectedLanguage, (opt) => {
           <Select v-model="selectedLanguage" :options="languagesOptions" optionLabel="name" :filter="false" :pt="{
             listContainer: { class: 'bg-white text-black' },
             option: { class: 'text-black hover:bg-gray-100' },
-            header: { class: 'bg-white text-black'},
-             
-          }"
-            placeholder="Select a Language" class="w-100" :class="{ 'is-invalid': formErrors.language }">
+            header: { class: 'bg-white text-black' },
+
+          }" placeholder="Select a Language" class="w-100" :class="{ 'is-invalid': formErrors.language }">
             <template #value="{ value, placeholder }">
               <div v-if="value" class="d-flex align-items-center gap-2">
                 <img :alt="value.name" :src="value.flag" width="18" height="14" style="object-fit:cover" />
@@ -260,12 +256,36 @@ watch(selectedLanguage, (opt) => {
 </template>
 
 <style scoped>
-
-
-
-
 :root {
   --brand: #1C0D82;
+}
+:global(.p-select-filter) {
+  background-color: white !important;
+}
+:global(.p-select-option:hover){
+  background: #fff !important;
+}
+
+:global(.p-select-option:not(.p-select-option-selected):not(.p-disabled).p-focus) {
+  background: #f5f5f5 !important;
+  color: #000 !important;
+}
+:global(.dark .p-select-option:not(.p-select-option-selected):not(.p-disabled).p-focus) {
+  background: #212121 !important;
+  color: #000 !important;
+}
+:global(.p-select-dropdown){
+  background: white !important;
+}
+:global(.dark .p-select-dropdown){
+  background: #212121 !important;
+}
+
+.p-select-option:hover,
+.p-select-option.p-highlight,
+.p-select-option.p-focus {
+  background-color: transparent !important; /* no background */
+  color: inherit !important; /* keep text color same */
 }
 
 .dark .section {
@@ -273,7 +293,8 @@ watch(selectedLanguage, (opt) => {
   /* gray-800 */
   color: #f9fafb !important;
 }
-.p-iconfield .p-inputtext:not(:last-child){
+
+.p-iconfield .p-inputtext:not(:last-child) {
   background-color: white;
 }
 
@@ -536,9 +557,10 @@ watch(selectedLanguage, (opt) => {
 }
 
 
-:deep(.p-inputtext){
+:deep(.p-inputtext) {
   background: white !important;
 }
+
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
   background-color: #181818 !important;
@@ -592,6 +614,4 @@ watch(selectedLanguage, (opt) => {
 .dark .logo-frame {
   background-color: #181818 !important;
 }
-
-
 </style>
