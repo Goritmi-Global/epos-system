@@ -108,23 +108,23 @@ const hasAnyAlerts = computed(() => {
 // Check for active reminder on mount
 onMounted(() => {
   checkReminder()
-  
+
   if (showModal.value) {
     showModal.value = true
   }
-  
+
   // Check reminder every minute
   setInterval(checkReminder, 60000)
 })
 
 const checkReminder = () => {
   const reminderData = localStorage.getItem('inventory_reminder')
-  
+
   if (reminderData) {
     const { datetime, dismissed } = JSON.parse(reminderData)
     const reminderDateTime = new Date(datetime)
     const now = new Date()
-    
+
     // Show modal if reminder time has passed and not dismissed
     if (now >= reminderDateTime && !dismissed) {
       showModal.value = true
@@ -145,17 +145,17 @@ const goToInventory = () => {
 
 const openReminderPicker = () => {
   showReminderPicker.value = true
-  
+
   // Set default to 1 hour from now
   const now = new Date()
   now.setHours(now.getHours() + 1)
-  
+
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   const hours = String(now.getHours()).padStart(2, '0')
   const minutes = String(now.getMinutes()).padStart(2, '0')
-  
+
   reminderDate.value = `${year}-${month}-${day}`
   reminderTime.value = `${hours}:${minutes}`
 }
@@ -165,22 +165,22 @@ const setReminder = () => {
     alert('Please select both date and time')
     return
   }
-  
+
   const datetime = new Date(`${reminderDate.value}T${reminderTime.value}`)
   const now = new Date()
-  
+
   if (datetime <= now) {
     alert('Please select a future date and time')
     return
   }
-  
+
   // Save reminder to localStorage
   localStorage.setItem('inventory_reminder', JSON.stringify({
     datetime: datetime.toISOString(),
     dismissed: false,
     alerts: inventoryDetails.value
   }))
-  
+
   alert(`Reminder set for ${datetime.toLocaleString()}`)
   showModal.value = false
   showReminderPicker.value = false
@@ -188,13 +188,13 @@ const setReminder = () => {
 
 const dismissReminder = () => {
   const reminderData = localStorage.getItem('inventory_reminder')
-  
+
   if (reminderData) {
     const data = JSON.parse(reminderData)
     data.dismissed = true
     localStorage.setItem('inventory_reminder', JSON.stringify(data))
   }
-  
+
   showModal.value = false
   showReminderPicker.value = false
 }
@@ -457,185 +457,237 @@ const dismissReminder = () => {
       </div>
     </div>
 
-    <div v-if="showModal" 
-         class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-        
+    <div v-if="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+
+        <button @click="dismissReminder"
+          class="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+          aria-label="Close" title="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         <!-- Header -->
-        <div class="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <span class="text-3xl">📦</span>
-                Inventory Alerts
-              </h2>
-              <p class="text-sm text-gray-600 mt-1">
-                Review and take action on items that need attention
-              </p>
-            </div>
-            <button @click="dismissReminder"
-                    class="text-gray-500 hover:text-gray-700 transition-colors text-xl font-bold">
-              ✕
-            </button>
+        <div class="px-6 py-4 border-b border-gray-100 text-center">
+          <h2 class="text-xl font-semibold text-gray-800 flex justify-center items-center gap-2">
+            <i class="bi bi-box-seam text-2xl text-indigo-600"></i>
+            Inventory Stock alert!
+          </h2>
+          <p class="text-sm mt-1 text-gray-600">
+            Stock issues require attention
+          </p>
+        </div>
+
+        <!-- Summary Tabs -->
+        <div class="flex justify-center gap-3 py-4 border-b border-gray-100">
+          <div
+            class="flex items-center gap-1 bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm px-3 py-1 rounded-full font-medium">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span class="low-stock">Low Stock</span>
+            <span class="count-low-stock">({{ inventoryDetails?.lowStock || 0 }})</span>
+          </div>
+          <div
+            class="flex items-center gap-1 bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-1 rounded-full font-medium">
+            <i class="bi bi-exclamation-octagon"></i>
+            <span class="expire">Expired</span>
+            <span class="count-expired">({{ inventoryDetails?.expired || 0 }})</span>
+          </div>
+          <div
+            class="flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm px-3 py-1 rounded-full font-medium">
+            <i class="bi bi-clock-history"></i>
+            <span class="near-expire">Near Expiry</span>
+            <span class="near-expire-count">({{ inventoryDetails?.nearExpiry || 0 }})</span>
           </div>
         </div>
 
-        <!-- Body -->
-        <div class="flex-1 overflow-y-auto px-8 py-5 space-y-6">
-          
-          <!-- Reminder Picker (shown when user clicks remind me) -->
-          <div v-if="showReminderPicker" class="bg-green-50 border-2 border-green-300 rounded-xl p-5 mb-4">
-            <h3 class="text-lg font-bold text-green-800 mb-3 flex items-center gap-2">
-              ⏰ Set Reminder
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input 
-                  type="date" 
-                  v-model="reminderDate"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
+        <!-- Alerts List -->
+        <div class="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+
+          <!-- Expired Products -->
+          <div v-if="inventoryDetails?.expired > 0" class="border rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+
+            <!-- Header: Icon + Title + Badge (in one row) -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-start gap-3">
+                <!-- Icon -->
+                <div class=" text-red-600 p-2 rounded-lg">
+                  <i class="bi bi-exclamation-octagon text-xl"></i>
+                </div>
+
+                <!-- Title + Item count -->
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-gray-800">Expired Products</h4>
+                    <span class="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">URGENT</span>
+                  </div>
+                  <p class="text-sm text-gray-500 mt-0.5">
+                    {{ inventoryDetails.expired }} items
+                  </p>
+                </div>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <input 
-                  type="time" 
-                  v-model="reminderTime"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-              </div>
+              <!-- Total count on right side -->
+              <span class="text-gray-500 font-medi">{{ inventoryDetails.expired }}</span>
             </div>
-            <div class="flex gap-2">
-              <button @click="setReminder"
-                      class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-                Save Reminder
-              </button>
-              <button @click="showReminderPicker = false"
-                      class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
-                Cancel
-              </button>
-            </div>
+            <!-- Item list -->
+            <ul class="text-sm space-y-1 mt-2 pl-2">
+              <li v-for="(item, index) in inventoryDetails.expiredItems" :key="`exp-${index}`"
+                class="flex items-center gap-2 text-gray-700">
+                <span class="text-red-500 text-xs">•</span> {{ item }}
+              </li>
+            </ul>
           </div>
 
-          <!-- Summary Cards -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
-            <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center hover:shadow-sm transition">
-              <div class="text-4xl font-extrabold text-red-700">{{ inventoryDetails?.outOfStock || 0 }}</div>
-              <div class="text-sm text-red-600 font-semibold mt-1 uppercase tracking-wide">Out of Stock</div>
+
+          <!-- Low Stock -->
+          <div v-if="inventoryDetails?.lowStock > 0" class="border rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+
+            <!-- Header: Icon + Title + Count -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-start gap-3">
+                <!-- Icon -->
+                <div class="text-yellow-600 p-2 rounded-lg">
+                  <i class="bi bi-exclamation-triangle text-xl"></i>
+                </div>
+
+                <!-- Title + Item count -->
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-gray-800">Low Stock Items</h4>
+                  </div>
+                  <p class="text-sm text-gray-500 mt-0.5">
+                    {{ inventoryDetails.lowStock }} items
+                  </p>
+                </div>
+              </div>
+
+              <!-- Total count on right side -->
+              <span class="text-gray-500 font-medium">{{ inventoryDetails.lowStock }}</span>
             </div>
 
-            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center hover:shadow-sm transition">
-              <div class="text-4xl font-extrabold text-yellow-700">{{ inventoryDetails?.lowStock || 0 }}</div>
-              <div class="text-sm text-yellow-600 font-semibold mt-1 uppercase tracking-wide">Low Stock</div>
-            </div>
-
-            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center hover:shadow-sm transition">
-              <div class="text-4xl font-extrabold text-gray-700">{{ inventoryDetails?.expired || 0 }}</div>
-              <div class="text-sm text-gray-600 font-semibold mt-1 uppercase tracking-wide">Expired</div>
-            </div>
-
-            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center hover:shadow-sm transition">
-              <div class="text-4xl font-extrabold text-blue-700">{{ inventoryDetails?.nearExpiry || 0 }}</div>
-              <div class="text-sm text-blue-600 font-semibold mt-1 uppercase tracking-wide">Expiring Soon</div>
-            </div>
+            <!-- Item list -->
+            <ul class="text-sm space-y-1 mt-2 pl-2">
+              <li v-for="(item, index) in inventoryDetails.lowStockItems" :key="`low-${index}`"
+                class="flex items-center gap-2 text-gray-700">
+                <span class="text-yellow-500 text-xs">•</span> {{ item }}
+              </li>
+            </ul>
           </div>
 
-          <!-- Alerts List -->
-          <div v-if="hasAnyAlerts" class="space-y-6">
-            
-            <!-- Out of Stock -->
-            <div v-if="inventoryDetails?.outOfStock > 0">
-              <div class="flex items-center justify-between mb-2 bg-red-100 px-4 py-2 rounded-lg">
-                <h3 class="font-bold text-red-700 flex items-center gap-2">🚨 Out of Stock Items</h3>
-                <span class="bg-red-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-                  {{ inventoryDetails.outOfStock }}
-                </span>
+          <!-- Near Expiry -->
+          <div v-if="inventoryDetails?.nearExpiry > 0" class="border rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+
+            <!-- Header: Icon + Title + Count -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-start gap-3">
+                <!-- Icon -->
+                <div class="text-amber-600 p-2 rounded-lg">
+                  <i class="bi bi-clock-history text-xl"></i>
+                </div>
+
+                <!-- Title + Item count -->
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-gray-800">Near Expiry Products</h4>
+                  </div>
+                  <p class="text-sm text-gray-500 mt-0.5">
+                    {{ inventoryDetails.nearExpiry }} items
+                  </p>
+                </div>
               </div>
-              <ul class="space-y-1">
-                <li v-for="(item, index) in inventoryDetails.outOfStockItems" :key="`out-${index}`"
-                    class="bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-2 rounded-r-md text-sm hover:bg-red-100 transition-colors">
-                  {{ item }}
-                </li>
-              </ul>
+
+              <!-- Total count on right side -->
+              <span class="text-gray-500 font-medium">{{ inventoryDetails.nearExpiry }}</span>
             </div>
 
-            <!-- Low Stock -->
-            <div v-if="inventoryDetails?.lowStock > 0">
-              <div class="flex items-center justify-between mb-2 bg-yellow-100 px-4 py-2 rounded-lg">
-                <h3 class="font-bold text-yellow-700 flex items-center gap-2">⚠️ Low Stock Items</h3>
-                <span class="bg-yellow-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-                  {{ inventoryDetails.lowStock }}
-                </span>
-              </div>
-              <ul class="space-y-1">
-                <li v-for="(item, index) in inventoryDetails.lowStockItems" :key="`low-${index}`"
-                    class="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 px-4 py-2 rounded-r-md text-sm hover:bg-yellow-100 transition-colors">
-                  {{ item }}
-                </li>
-              </ul>
-            </div>
-
-            <!-- Expired -->
-            <div v-if="inventoryDetails?.expired > 0">
-              <div class="flex items-center justify-between mb-2 bg-gray-100 px-4 py-2 rounded-lg">
-                <h3 class="font-bold text-gray-700 flex items-center gap-2">❌ Expired Products</h3>
-                <span class="bg-gray-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-                  {{ inventoryDetails.expired }}
-                </span>
-              </div>
-              <ul class="space-y-1">
-                <li v-for="(item, index) in inventoryDetails.expiredItems" :key="`exp-${index}`"
-                    class="bg-gray-50 border-l-4 border-gray-400 text-gray-700 px-4 py-2 rounded-r-md text-sm hover:bg-gray-100 transition-colors">
-                  {{ item }}
-                </li>
-              </ul>
-            </div>
-
-            <!-- Near Expiry -->
-            <div v-if="inventoryDetails?.nearExpiry > 0">
-              <div class="flex items-center justify-between mb-2 bg-blue-100 px-4 py-2 rounded-lg">
-                <h3 class="font-bold text-blue-700 flex items-center gap-2">⏳ Expiring Soon</h3>
-                <span class="bg-blue-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-                  {{ inventoryDetails.nearExpiry }}
-                </span>
-              </div>
-              <ul class="space-y-1">
-                <li v-for="(item, index) in inventoryDetails.nearExpiryItems" :key="`near-${index}`"
-                    class="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-2 rounded-r-md text-sm hover:bg-blue-100 transition-colors">
-                  {{ item }}
-                </li>
-              </ul>
-            </div>
+            <!-- Item list -->
+            <ul class="text-sm space-y-1 mt-2 pl-2">
+              <li v-for="(item, index) in inventoryDetails.nearExpiryItems" :key="`near-${index}`"
+                class="flex items-center gap-2 text-gray-700">
+                <span class="text-amber-500 text-xs">•</span> {{ item }}
+              </li>
+            </ul>
           </div>
+
 
           <!-- No Alerts -->
-          <div v-else class="text-center py-10">
-            <div class="text-6xl mb-4">✅</div>
-            <h3 class="text-lg font-semibold text-gray-700 mb-1">All Clear!</h3>
-            <p class="text-gray-500">Your inventory is healthy and up-to-date.</p>
+          <div v-if="!hasAnyAlerts" class="text-center py-6">
+            <div class="text-4xl mb-2">✅</div>
+            <p class="font-medium">All Clear!</p>
+            <p class="text-sm text-gray-500">Your inventory is healthy and up-to-date.</p>
           </div>
         </div>
 
         <!-- Footer -->
-        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-          <button @click="dismissReminder"
-                  class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium">
-            Dismiss
-          </button>
+        <div class="flex justify-between border-t border-gray-100 bg-gray-50 px-6 py-3">
           <button @click="openReminderPicker"
-                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2">
-            <span>⏰</span> Remind Me Later
+            class="btn btn-primary text-white px-4 py-1 rounded-pill hover:bg-indigo-800 transition">
+            Remind Me
           </button>
           <button @click="goToInventory"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2">
-            <span>📋</span> Manage Inventory
+            class="btn btn-primary text-white py-1 px-4 rounded-pill hover:bg-blue-800 transition">
+            Manage Inventory
+          </button>
+          <button @click="dismissReminder"
+            class="btn btn-secondary py-1 px-4 rounded-pill hover:bg-gray-300 transition">
+            Dismiss
           </button>
         </div>
-
       </div>
     </div>
 
 
+
+
   </Master>
 </template>
+
+
+<style scoped>
+.dark .text-gray-700 {
+  color: #fff !important;
+}
+
+.dark .text-gray-500 {
+  color: #fff !important;
+}
+
+.dark .border-yellow-200 {
+  background-color: #f5ed95 !important;
+  color: #181818 !important
+}
+
+.dark .low-stock {
+  color: #181818 !important
+}
+
+.dark .count-low-stock {
+  color: #181818 !important;
+}
+
+.dark .bg-red-50 {
+  background-color: #fdd8d8;
+}
+
+.dark .count-expired {
+  color: #181818 !important;
+}
+
+.dark .expire {
+  color: #181818 !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: #f3e8bb !important;
+  color: #181818 !important;
+}
+
+.dark .near-expire-count {
+  color: #181818 !important;
+}
+
+.dark .near-expire {
+  color: #181818 !important;
+}
+</style>
