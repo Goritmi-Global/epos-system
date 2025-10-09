@@ -4,6 +4,7 @@ import { Head } from "@inertiajs/vue3";
 import VueApexCharts from "vue3-apexcharts";
 import { onMounted, ref } from "vue";
 import { useFormatters } from '@/composables/useFormatters'
+import { toast } from "vue3-toastify";
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters();
 
@@ -25,7 +26,7 @@ const chartOptions = {
     stacked: true,
     toolbar: { show: false },
   },
-  colors: ["#65FA9E", "#EA5455"], // green, red
+  colors: ["#65FA9E", "#EA5455"],
   plotOptions: {
     bar: {
       horizontal: false,
@@ -43,7 +44,7 @@ const chartOptions = {
       fontSize: "12px",
       colors: ["#333"],
     },
-    formatter: (val) => Math.abs(val), // Hide minus sign
+    formatter: (val) => Math.abs(val),
   },
   xaxis: {
     categories: [
@@ -78,19 +79,19 @@ const chartOptions = {
     strokeDashArray: 4,
   },
 };
-const totalPurchaseDueMinor = 123123123.33      // 307,144.00
-const totalSalesDueMinor = 438500        // 4,385.00
-const totalSaleAmountMinor = 38565650      // 385,656.50
-const anotherSaleMinor = 40000         // 400.00
+
+const totalPurchaseDueMinor = 123123123.33
+const totalSalesDueMinor = 438500
+const totalSaleAmountMinor = 38565650
+const anotherSaleMinor = 40000
 
 const customersCount = 1.400
 const suppliersCount = 1030
 const purchaseInvCnt = 1020
 const salesInvCnt = 1435
+
 import { usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
-
-// 🌟 Access backend props through Inertia
 const page = usePage()
 const inventoryDetails = computed(() => page.props.inventoryAlerts)
 const showModal = ref(page.props.showPopup)
@@ -105,7 +106,6 @@ const hasAnyAlerts = computed(() => {
     (inventoryDetails.value?.nearExpiry > 0)
 })
 
-// Check for active reminder on mount
 onMounted(() => {
   checkReminder()
 
@@ -113,7 +113,6 @@ onMounted(() => {
     showModal.value = true
   }
 
-  // Check reminder every minute
   setInterval(checkReminder, 60000)
 })
 
@@ -125,7 +124,6 @@ const checkReminder = () => {
     const reminderDateTime = new Date(datetime)
     const now = new Date()
 
-    // Show modal if reminder time has passed and not dismissed
     if (now >= reminderDateTime && !dismissed) {
       showModal.value = true
     }
@@ -138,7 +136,6 @@ const closeModal = () => {
 }
 
 const goToInventory = () => {
-  // Clear reminder when user takes action
   localStorage.removeItem('inventory_reminder')
   window.location.href = '/inventory'
 }
@@ -146,7 +143,6 @@ const goToInventory = () => {
 const openReminderPicker = () => {
   showReminderPicker.value = true
 
-  // Set default to 1 hour from now
   const now = new Date()
   now.setHours(now.getHours() + 1)
 
@@ -161,29 +157,55 @@ const openReminderPicker = () => {
 }
 
 const setReminder = () => {
+  console.log('setReminder called')
+  console.log('Date:', reminderDate.value)
+  console.log('Time:', reminderTime.value)
+
   if (!reminderDate.value || !reminderTime.value) {
     alert('Please select both date and time')
     return
   }
 
-  const datetime = new Date(`${reminderDate.value}T${reminderTime.value}`)
-  const now = new Date()
+  try {
+    // Create datetime string in ISO format
+    const datetimeString = `${reminderDate.value}T${reminderTime.value}:00`
+    console.log('DateTime string:', datetimeString)
 
-  if (datetime <= now) {
-    alert('Please select a future date and time')
-    return
+    const datetime = new Date(datetimeString)
+    const now = new Date()
+
+    console.log('Selected datetime:', datetime)
+    console.log('Current datetime:', now)
+    console.log('Is valid date:', !isNaN(datetime.getTime()))
+
+    // Check if date is valid
+    if (isNaN(datetime.getTime())) {
+      alert('Invalid date or time selected. Please try again.')
+      return
+    }
+
+    if (datetime <= now) {
+      alert('Please select a future date and time')
+      return
+    }
+
+    const reminderData = {
+      datetime: datetime.toISOString(),
+      dismissed: false,
+      alerts: inventoryDetails.value
+    }
+
+    console.log('Saving reminder data:', reminderData)
+    localStorage.setItem('inventory_reminder', JSON.stringify(reminderData))
+    console.log('Reminder saved successfully')
+
+    toast.success(`Reminder set for ${datetime.toLocaleString()}`)
+    showModal.value = false
+    showReminderPicker.value = false
+  } catch (error) {
+    console.error('Error saving reminder:', error)
+    alert('Failed to save reminder. Please try again.')
   }
-
-  // Save reminder to localStorage
-  localStorage.setItem('inventory_reminder', JSON.stringify({
-    datetime: datetime.toISOString(),
-    dismissed: false,
-    alerts: inventoryDetails.value
-  }))
-
-  alert(`Reminder set for ${datetime.toLocaleString()}`)
-  showModal.value = false
-  showReminderPicker.value = false
 }
 
 const dismissReminder = () => {
@@ -199,6 +221,7 @@ const dismissReminder = () => {
   showReminderPicker.value = false
 }
 </script>
+
 <template>
 
   <Head title="Dashboard" />
@@ -206,7 +229,7 @@ const dismissReminder = () => {
   <Master>
     <div class="page-wrapper">
       <div class="row">
-        <!-- Total Purchase Due -->
+        <!-- Dashboard cards (keeping your existing structure) -->
         <div class="col-lg-3 col-sm-6 col-12">
           <div class="dash-widget">
             <div class="dash-widgetimg">
@@ -219,7 +242,6 @@ const dismissReminder = () => {
           </div>
         </div>
 
-        <!-- Total Sales Due -->
         <div class="col-lg-3 col-sm-6 col-12">
           <div class="dash-widget dash1">
             <div class="dash-widgetimg">
@@ -232,7 +254,6 @@ const dismissReminder = () => {
           </div>
         </div>
 
-        <!-- Total Sale Amount -->
         <div class="col-lg-3 col-sm-6 col-12">
           <div class="dash-widget dash2">
             <div class="dash-widgetimg">
@@ -245,7 +266,6 @@ const dismissReminder = () => {
           </div>
         </div>
 
-        <!-- Another Amount (rename to what it actually is) -->
         <div class="col-lg-3 col-sm-6 col-12">
           <div class="dash-widget dash3">
             <div class="dash-widgetimg">
@@ -258,7 +278,6 @@ const dismissReminder = () => {
           </div>
         </div>
 
-        <!-- Counts -->
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count">
             <div class="dash-counts">
@@ -300,7 +319,7 @@ const dismissReminder = () => {
         </div>
       </div>
 
-      <!-- Charts + Recently Added Products -->
+      <!-- Charts section (keeping existing) -->
       <div class="row">
         <div class="col-lg-7 col-sm-12 col-12 d-flex">
           <div class="card flex-fill">
@@ -370,10 +389,10 @@ const dismissReminder = () => {
                 </table>
               </div>
             </div>
-
           </div>
         </div>
       </div>
+
       <div class="card mb-0">
         <div class="card-body">
           <h4 class="card-title">Expired Products</h4>
@@ -392,9 +411,7 @@ const dismissReminder = () => {
               <tbody>
                 <tr>
                   <td>1</td>
-                  <td>
-                    <a href="javascript:void(0);">IT0001</a>
-                  </td>
+                  <td><a href="javascript:void(0);">IT0001</a></td>
                   <td class="productimgname">
                     <a class="product-img" href="productlist.html">
                       <img src="assets/img/product/product2.jpg" alt="product" />
@@ -405,51 +422,6 @@ const dismissReminder = () => {
                   <td>Fruits</td>
                   <td>{{ dateFmt('03-12-2022') }}</td>
                 </tr>
-                <tr>
-                  <td>2</td>
-                  <td>
-                    <a href="javascript:void(0);">IT0002</a>
-                  </td>
-                  <td class="productimgname">
-                    <a class="product-img" href="productlist.html">
-                      <img src="assets/img/product/product3.jpg" alt="product" />
-                    </a>
-                    <a href="productlist.html">Pineapple</a>
-                  </td>
-                  <td>N/D</td>
-                  <td>Fruits</td>
-                  <td>25-11-2022</td>
-                </tr>
-                <tr>
-                  <td>3</td>
-                  <td>
-                    <a href="javascript:void(0);">IT0003</a>
-                  </td>
-                  <td class="productimgname">
-                    <a class="product-img" href="productlist.html">
-                      <img src="assets/img/product/product4.jpg" alt="product" />
-                    </a>
-                    <a href="productlist.html">Stawberry</a>
-                  </td>
-                  <td>N/D</td>
-                  <td>Fruits</td>
-                  <td>19-11-2022</td>
-                </tr>
-                <tr>
-                  <td>4</td>
-                  <td>
-                    <a href="javascript:void(0);">IT0004</a>
-                  </td>
-                  <td class="productimgname">
-                    <a class="product-img" href="productlist.html">
-                      <img src="assets/img/product/product5.jpg" alt="product" />
-                    </a>
-                    <a href="productlist.html">Avocat</a>
-                  </td>
-                  <td>N/D</td>
-                  <td>Fruits</td>
-                  <td>20-11-2022</td>
-                </tr>
               </tbody>
             </table>
           </div>
@@ -457,6 +429,7 @@ const dismissReminder = () => {
       </div>
     </div>
 
+    <!-- Inventory Alert Modal -->
     <div v-if="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
 
@@ -480,8 +453,40 @@ const dismissReminder = () => {
           </p>
         </div>
 
+        <!-- Reminder Picker (shown when user clicks remind me) -->
+        <div v-if="showReminderPicker" class="bg-gray-100 border-2 border-green-300 rounded-xl p-5 m-4">
+          <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <i class="bi bi-alarm-fill" style="color: #1C0D82 !important;"></i>
+            Set Reminder
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <VueDatePicker v-model="reminderDate" :format="dateFmt" :min-date="new Date()" teleport="body"
+                :enableTimePicker="false" placeholder="Select date" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+              <input type="time" v-model="reminderTime"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button @click="setReminder"
+              class="btn btn-primary px-4 py-1  text-white rounded-pill hover:bg-green-700 font-medium">
+              Save
+            </button>
+            <button @click="showReminderPicker = false"
+              class="btn btn-secondary px-4 py-1  text-gray-700 rounded-pill hover:bg-gray-300 font-medium">
+              Cancel
+            </button>
+          </div>
+        </div>
+
         <!-- Summary Tabs -->
-        <div class="flex justify-center gap-3 py-4 border-b border-gray-100">
+        <div v-if="!showReminderPicker" class="flex justify-center gap-3 py-4 border-b border-gray-100">
           <div
             class="flex items-center gap-1 bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm px-3 py-1 rounded-full font-medium">
             <i class="bi bi-exclamation-triangle"></i>
@@ -503,20 +508,15 @@ const dismissReminder = () => {
         </div>
 
         <!-- Alerts List -->
-        <div class="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+        <div v-if="!showReminderPicker" class="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
 
           <!-- Expired Products -->
           <div v-if="inventoryDetails?.expired > 0" class="border rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-
-            <!-- Header: Icon + Title + Badge (in one row) -->
             <div class="flex items-center justify-between">
               <div class="flex items-start gap-3">
-                <!-- Icon -->
-                <div class=" text-red-600 p-2 rounded-lg">
+                <div class="text-red-600 p-2 rounded-lg">
                   <i class="bi bi-exclamation-octagon text-xl"></i>
                 </div>
-
-                <!-- Title + Item count -->
                 <div>
                   <div class="flex items-center gap-2">
                     <h4 class="text-gray-800">Expired Products</h4>
@@ -527,10 +527,8 @@ const dismissReminder = () => {
                   </p>
                 </div>
               </div>
-              <!-- Total count on right side -->
-              <span class="text-gray-500 font-medi">{{ inventoryDetails.expired }}</span>
+              <span class="text-gray-500 font-medium">{{ inventoryDetails.expired }}</span>
             </div>
-            <!-- Item list -->
             <ul class="text-sm space-y-1 mt-2 pl-2">
               <li v-for="(item, index) in inventoryDetails.expiredItems" :key="`exp-${index}`"
                 class="flex items-center gap-2 text-gray-700">
@@ -539,19 +537,13 @@ const dismissReminder = () => {
             </ul>
           </div>
 
-
           <!-- Low Stock -->
           <div v-if="inventoryDetails?.lowStock > 0" class="border rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-
-            <!-- Header: Icon + Title + Count -->
             <div class="flex items-center justify-between">
               <div class="flex items-start gap-3">
-                <!-- Icon -->
                 <div class="text-yellow-600 p-2 rounded-lg">
                   <i class="bi bi-exclamation-triangle text-xl"></i>
                 </div>
-
-                <!-- Title + Item count -->
                 <div>
                   <div class="flex items-center gap-2">
                     <h4 class="text-gray-800">Low Stock Items</h4>
@@ -561,12 +553,8 @@ const dismissReminder = () => {
                   </p>
                 </div>
               </div>
-
-              <!-- Total count on right side -->
               <span class="text-gray-500 font-medium">{{ inventoryDetails.lowStock }}</span>
             </div>
-
-            <!-- Item list -->
             <ul class="text-sm space-y-1 mt-2 pl-2">
               <li v-for="(item, index) in inventoryDetails.lowStockItems" :key="`low-${index}`"
                 class="flex items-center gap-2 text-gray-700">
@@ -577,16 +565,11 @@ const dismissReminder = () => {
 
           <!-- Near Expiry -->
           <div v-if="inventoryDetails?.nearExpiry > 0" class="border rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-
-            <!-- Header: Icon + Title + Count -->
             <div class="flex items-center justify-between">
               <div class="flex items-start gap-3">
-                <!-- Icon -->
                 <div class="text-amber-600 p-2 rounded-lg">
                   <i class="bi bi-clock-history text-xl"></i>
                 </div>
-
-                <!-- Title + Item count -->
                 <div>
                   <div class="flex items-center gap-2">
                     <h4 class="text-gray-800">Near Expiry Products</h4>
@@ -596,12 +579,8 @@ const dismissReminder = () => {
                   </p>
                 </div>
               </div>
-
-              <!-- Total count on right side -->
               <span class="text-gray-500 font-medium">{{ inventoryDetails.nearExpiry }}</span>
             </div>
-
-            <!-- Item list -->
             <ul class="text-sm space-y-1 mt-2 pl-2">
               <li v-for="(item, index) in inventoryDetails.nearExpiryItems" :key="`near-${index}`"
                 class="flex items-center gap-2 text-gray-700">
@@ -610,17 +589,19 @@ const dismissReminder = () => {
             </ul>
           </div>
 
-
           <!-- No Alerts -->
           <div v-if="!hasAnyAlerts" class="text-center py-6">
-            <div class="text-4xl mb-2">✅</div>
-            <p class="font-medium">All Clear!</p>
+            <div class="flex justify-center mb-2">
+              <i class="bi bi-check-circle-fill text-green-600 text-5xl  p-3 rounded-full"></i>
+            </div>
+            <p class="font-medium text-gray-800">All Clear!</p>
             <p class="text-sm text-gray-500">Your inventory is healthy and up-to-date.</p>
           </div>
+
         </div>
 
         <!-- Footer -->
-        <div class="flex justify-between border-t border-gray-100 bg-gray-50 px-6 py-3">
+        <div v-if="!showReminderPicker" class="flex justify-between border-t border-gray-100 bg-gray-50 px-6 py-3">
           <button @click="openReminderPicker"
             class="btn btn-primary text-white px-4 py-1 rounded-pill hover:bg-indigo-800 transition">
             Remind Me
@@ -637,15 +618,24 @@ const dismissReminder = () => {
       </div>
     </div>
 
-
-
-
   </Master>
 </template>
 
-
 <style scoped>
 .dark .text-gray-700 {
+  color: #fff !important;
+}
+
+.dark .bi-alarm-fill {
+  color: #fff !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #181818 !important;
+  border: 1px solid #fff !important;
+}
+
+.dark .text-gray-600 {
   color: #fff !important;
 }
 
