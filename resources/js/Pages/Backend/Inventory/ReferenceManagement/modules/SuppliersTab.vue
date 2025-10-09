@@ -9,6 +9,8 @@ import * as XLSX from "xlsx";
 import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
+import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
+
 
 
 const suppliers = ref([]);
@@ -267,15 +269,51 @@ const form = ref({
 });
 
 const phoneError = ref("");
+const isPhoneValid = ref(false);
 
-const checkPhone = ({ valid, number, country }) => {
-    if (!valid) {
-        phoneError.value =
-            "Invalid number for " + (country?.name || "selected country");
-    } else {
-        phoneError.value = ""; // clear error if valid
+
+// const checkPhone = ({ valid, number, country }) => {
+//     if (!valid) {
+//         phoneError.value =
+//             "Invalid number for " + (country?.name || "selected country");
+//     } else {
+//         phoneError.value = ""; // clear error if valid
+//     }
+// };
+
+const checkPhone = ({ number, country }) => {
+    phoneError.value = "";
+    isPhoneValid.value = false;
+
+    try {
+        if (!number) {
+            phoneError.value = "Phone number is required";
+            return;
+        }
+
+        const isValid = isValidPhoneNumber(number, country?.iso2 || "PK");
+
+        if (!isValid) {
+            phoneError.value = `Invalid phone number for ${country?.name || "selected country"}`;
+            return;
+        }
+
+        const parsed = parsePhoneNumber(number, country?.iso2 || "PK");
+        console.log("📞 Parsed Phone:", {
+            formatted: parsed.formatInternational(),
+            national: parsed.nationalNumber,
+            country: parsed.country,
+            type: parsed.getType(),
+        });
+
+        isPhoneValid.value = true;
+    } catch (err) {
+        console.error("Phone validation error:", err);
+        phoneError.value = "Invalid phone number format";
     }
 };
+
+
 const loading = ref(false);
 const formErrors = ref({});
 
@@ -299,7 +337,7 @@ const resetForm = () => {
         preferred_items: "",
     };
     formErrors.value = {};
-    selectedSupplier.value = null; 
+    selectedSupplier.value = null;
 };
 
 const submit = () => {
@@ -490,16 +528,17 @@ const handleImport = (data) => {
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input"  placeholder="Search" />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" />
                     </div>
 
                     <button data-bs-toggle="modal" data-bs-target="#modalAddSupplier" @click="
                         () => {
                             resetForm();
                             formErrors = {};
-                             processStatus = 'Add';
+                            processStatus = 'Add';
                         }
-                    " class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn-sm btn btn-primary text-white">
+                    "
+                        class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn-sm btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
                     <ImportFile label="Import" @on-import="handleImport" />
@@ -634,14 +673,23 @@ const handleImport = (data) => {
                         <!-- Phone (vue-tel-input) -->
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
+
                             <vue-tel-input v-model="form.phone" default-country="PK" mode="international" class="phone"
                                 @validate="checkPhone" :auto-format="true" :enable-formatting="true"
-                                :input-options="{ showDialCode: true }" :class="{ 'is-invalid': formErrors.contact }" />
+                                :input-options="{ showDialCode: true }" :class="{
+                                    'is-invalid': formErrors.contact || phoneError,
+                                    'is-valid': isPhoneValid && form.phone
+                                }" />
+
+                            <!-- Show validation messages -->
                             <small v-if="formErrors.contact" class="text-danger">
                                 {{ formErrors.contact[0] }}
                             </small>
                             <small v-else-if="phoneError" class="text-danger">
                                 {{ phoneError }}
+                            </small>
+                            <small v-else-if="isPhoneValid && form.phone" class="text-success">
+                                ✓ Valid phone number
                             </small>
                         </div>
 
@@ -661,18 +709,19 @@ const handleImport = (data) => {
                             </small>
                         </div>
 
-                      <div class="col-md-2">
-                          <button v-if="processStatus === 'Edit'" class="btn btn-primary btn-sm py-2 rounded-pill w-100 mt-4"
-                            :disabled="loading" @click="updateSupplier()">
-                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                            Save
-                        </button>
-                        <button v-else class="btn btn-primary rounded-pill btn-sm py-2 w-100 mt-4" :disabled="loading"
-                            @click="submit()">
-                            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                            Save
-                        </button>
-                      </div>
+                        <div class="col-md-2">
+                            <button v-if="processStatus === 'Edit'"
+                                class="btn btn-primary btn-sm py-2 rounded-pill w-100 mt-4" :disabled="loading"
+                                @click="updateSupplier()">
+                                <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                                Save
+                            </button>
+                            <button v-else class="btn btn-primary rounded-pill btn-sm py-2 w-100 mt-4"
+                                :disabled="loading" @click="submit()">
+                                <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -727,7 +776,7 @@ const handleImport = (data) => {
 
 
 @media (min-width: 768px) and (max-width: 992px) {
-  .search-wrap {
+    .search-wrap {
         width: 22% !important;
         margin-bottom: 0;
         min-width: 150px;
@@ -740,7 +789,7 @@ const handleImport = (data) => {
         padding: 8px 12px !important;
     }
 
- 
+
     .d-flex.flex-wrap.gap-2.align-items-center {
         flex-direction: row !important;
         align-items: center !important;
@@ -756,7 +805,7 @@ const handleImport = (data) => {
         font-size: 14px !important;
         padding: 8px 14px !important;
     }
-    
+
 
     .dropdown,
     .dropdown-toggle {
@@ -789,6 +838,7 @@ const handleImport = (data) => {
 
 
 @media (min-width: 450px) and (max-width: 767px) {
+
     /* Make search bar smaller to fit everything */
     .search-wrap {
         width: 18% !important;
@@ -821,7 +871,7 @@ const handleImport = (data) => {
         font-size: 13px !important;
         padding: 7px 12px !important;
     }
-    
+
     /* Reduce dropdown size */
     .dropdown,
     .dropdown-toggle {
@@ -851,7 +901,7 @@ const handleImport = (data) => {
 
 
 @media (max-width: 449px) {
-   
+
     .search-wrap {
         width: 100% !important;
         margin-bottom: 10px;
@@ -863,7 +913,7 @@ const handleImport = (data) => {
         gap: 10px;
     }
 
-    .btn, 
+    .btn,
     .dropdown {
         width: 100% !important;
     }
@@ -884,6 +934,7 @@ const handleImport = (data) => {
         word-break: break-word;
     }
 }
+
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
