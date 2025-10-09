@@ -490,7 +490,7 @@ const handleImport = (data) => {
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" />
+                        <input v-model="q" class="form-control search-input"  placeholder="Search" />
                     </div>
 
                     <button data-bs-toggle="modal" data-bs-target="#modalAddSupplier" @click="
