@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
 import { Pencil, Plus } from "lucide-vue-next";
@@ -11,6 +11,7 @@ const roles = ref([]);
 const allPermissions = ref([]);
 const form = ref({ name: "" });
 const selectedPermissions = ref([]);
+const selectAll = ref(false);
 const formErrors = ref({});
 const saving = ref(false);
 
@@ -106,6 +107,22 @@ onMounted(async () => {
     initAxios();
     await Promise.all([fetchAllRoles(), loadAllPermissions()]);
 });
+function toggleSelectAll() {
+    if (selectAll.value) {
+        selectedPermissions.value = [...filteredPermissions.value]; // Store full objects
+    } else {
+        selectedPermissions.value = [];
+    }
+}
+
+watch(selectedPermissions, (newVal) => {
+    const visibleIds = filteredPermissions.value.map((p) => p.name);
+    const selectedIds = newVal.map((p) => p.name);
+    selectAll.value =
+        selectedIds.length === visibleIds.length &&
+        visibleIds.every((id) => selectedIds.includes(id));
+});
+
 </script>
 
 <template>
@@ -141,7 +158,7 @@ onMounted(async () => {
 
     <!-- Modal -->
     <div v-if="show" class="modal show d-block fade">
-        <div class="modal-dialog modal-dialog-end modal-lg">
+        <div class="modal-dialog modal-dialog-end modal-xl">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
                     <h6 class="modal-title">
@@ -179,6 +196,15 @@ onMounted(async () => {
                                 placeholder="Search permissions…" />
                         </div>
                     </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="select-all" v-model="selectAll"
+                            @change="toggleSelectAll" />
+                        <label class="form-check-label fw-bold" for="select-all">
+                            Select All Permissions
+                        </label>
+                    </div>
+
 
                     <!-- single-column: permission label on the left, checkbox on the right -->
                     <div class="row">
