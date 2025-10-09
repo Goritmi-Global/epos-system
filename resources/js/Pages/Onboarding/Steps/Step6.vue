@@ -1,6 +1,7 @@
 <script setup>
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
-import { reactive, ref, toRaw, watch } from "vue";
+import { onMounted, reactive, ref, toRaw, watch } from "vue";
+import Select from 'primevue/select';
 
 const props = defineProps({ model: Object, formErrors: Object });
 const emit = defineEmits(["save"]);
@@ -12,9 +13,10 @@ const form = reactive({
   receipt_logo_file: null, // file for backend
   show_qr: props.model?.show_qr ?? 1,
   tax_breakdown: props.model?.tax_breakdown ?? true,
-  kitchen_printer: props.model?.kitchen_printer ?? true,
   store_phone: props.model?.phone ?? "",
   store_name: props.model?.receipt_header ?? "Enter store name",
+  customer_printer: props.model?.customer_printer ?? "",
+  kot_printer: props.model?.kot_printer ?? "",
 });
 
 watch(form, () => emit("save", { step: 6, data: toRaw(form) }), { deep: true });
@@ -26,6 +28,38 @@ function onCropped({ file }) {
   form.receipt_logo_file = file;
   form.receipt_logo = URL.createObjectURL(file);
 }
+
+
+// Get All Connected Printers
+const printers = ref([]);
+const loadingPrinters = ref(false);
+
+const fetchPrinters = async () => {
+  loadingPrinters.value = true;
+  try {
+    const res = await axios.get("/api/printers");
+    console.log("Printers:", res.data.data);
+
+    // ✅ Only show connected printers (status OK)
+    printers.value = res.data.data
+      .filter(p => p.is_connected === true || p.status === "OK")
+      .map(p => ({
+        label: `${p.name}`,
+        value: p.name,
+        driver: p.driver,
+        port: p.port,
+      }));
+  } catch (err) {
+    console.error("Failed to fetch printers:", err);
+  } finally {
+    loadingPrinters.value = false;
+  }
+};
+
+// 🔹 Fetch once on mount
+onMounted(fetchPrinters);
+
+
 </script>
 
 <template>
@@ -56,10 +90,10 @@ function onCropped({ file }) {
                   <i class="bi bi-image"></i>
                 </div>
               </div>
-              
-    <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
-           
-          
+
+              <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
+
+
             </div>
             <small v-if="formErrors?.receipt_logo_file" class="text-danger">
               {{ formErrors.receipt_logo_file[0] }}
@@ -108,19 +142,49 @@ function onCropped({ file }) {
               </div>
             </div>
 
-            <!-- Kitchen Printer -->
+            
             <div class="mt-3">
-              <label class="form-label d-block mb-2">Add Kitchen Printer</label>
-              <div class="segmented">
-                <input class="segmented__input" type="radio" id="kp-yes" :value="true" v-model="form.kitchen_printer" />
-                <label class="segmented__btn" :class="{ 'is-active': form.kitchen_printer === true }"
-                  for="kp-yes">YES</label>
+              <!-- Header with refresh button -->
+              <div class="d-flex align-items-center justify-content-end mb-1">
+                <button type="button"
+                  class="btn btn-sm btn-outline-primary custom-refresh-btn d-flex align-items-center rounded-pill"
+                  @click="fetchPrinters" :disabled="loadingPrinters">
+                  <i class="pi pi-refresh me-1 px-1" :class="{ 'pi-spin': loadingPrinters }"></i>
+                  {{ loadingPrinters ? "Refreshing..." : "Refresh Printers" }}
+                </button>
+              </div>
 
-                <input class="segmented__input" type="radio" id="kp-no" :value="false" v-model="form.kitchen_printer" />
-                <label class="segmented__btn" :class="{ 'is-active': form.kitchen_printer === false }"
-                  for="kp-no">NO</label>
+              <!-- Show loading message -->
+              <div v-if="loadingPrinters" class="text-center py-3">
+                <div class="fw-semibold text-secondary mb-2">
+                  Scanning for printers, please wait...
+                </div>
+                <div class="spinner-border" role="status" style="color: #1c0d82; width: 2rem; height: 2rem;">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+
+              <!-- If no printers detected -->
+              <div v-else-if="printers.length === 0" class="alert alert-warning py-2 px-3 rounded-3 mt-3">
+                <i class="pi pi-exclamation-triangle me-2"></i>
+                No printers detected. Please connect a printer and click "Refresh Printers".
+              </div>
+
+              <!-- If printers are available -->
+              <div v-else>
+                <!-- POS Printer -->
+                <label class="form-label d-block mb-2">Customer Printer</label>
+                <Select v-model="form.customer_printer" :options="printers" optionLabel="label" optionValue="value"
+                  placeholder="Select POS Printer" :loading="loadingPrinters" class="w-100" />
+
+                <!-- KOT Printer -->
+                <label class="form-label d-block mt-3 mb-2">KOT Printer</label>
+                <Select v-model="form.kot_printer" :options="printers" optionLabel="label" optionValue="value"
+                  placeholder="Select KOT Printer" :loading="loadingPrinters" class="w-100" />
               </div>
             </div>
+
+
 
             <!-- Printers error -->
             <small v-if="formErrors?.printers" class="text-danger">
@@ -129,6 +193,7 @@ function onCropped({ file }) {
           </div>
         </div>
       </div>
+
 
       <div class="col-lg-5">
         <div class="receipt-card">
@@ -178,6 +243,12 @@ function onCropped({ file }) {
   --brand: #1c0d82;
 }
 
+.custom-refresh-btn {
+  background: #1c0d82;
+  color: #fff;
+  padding: 6px 10px;
+}
+
 .dark .logo-frame {
   background-color: #121212;
   color: #fff !important;
@@ -193,7 +264,7 @@ function onCropped({ file }) {
   overflow: hidden;
 }
 
-.dark .segmented{
+.dark .segmented {
   background-color: #121212 !important;
   color: #fff !important;
 }
@@ -214,9 +285,10 @@ function onCropped({ file }) {
   transition: all 0.15s ease;
 }
 
-.dark .segmented__btn{
+.dark .segmented__btn {
   color: #fff !important;
 }
+
 .segmented__btn:hover {
   background: rgba(28, 13, 130, 0.08);
 }
@@ -235,7 +307,8 @@ function onCropped({ file }) {
 .logo-card {
   text-align: center;
 }
-.dark .logo-card{
+
+.dark .logo-card {
   background-color: #121212 !important;
 }
 
@@ -357,52 +430,53 @@ function onCropped({ file }) {
 }
 
 .logo-preview {
-  max-width: 120px; /* optional: keeps it small */
+  max-width: 120px;
+  /* optional: keeps it small */
   display: inline-block;
   border-radius: 0.5rem;
 }
+
 :deep(.p-select) {
-    background-color: white !important;
-    color: black !important;
-    border-color: #9b9c9c;
+  background-color: white !important;
+  color: black !important;
+  border-color: #9b9c9c;
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-    background-color: white !important;
-    color: black !important;
+  background-color: white !important;
+  color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-    background-color: transparent !important;
-    /* instead of 'none' */
-    color: black !important;
+  background-color: transparent !important;
+  /* instead of 'none' */
+  color: black !important;
 }
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 :deep(.p-select-label) {
-    color: #181818 !important;
+  color: #181818 !important;
 }
 
 :deep(.p-placeholder) {
-    color: #80878e !important;
+  color: #80878e !important;
 }
 
-.dark .form-control{
+.dark .form-control {
   background-color: #121212 !important;
-  color:  #fff !important;
+  color: #fff !important;
 }
-
 </style>

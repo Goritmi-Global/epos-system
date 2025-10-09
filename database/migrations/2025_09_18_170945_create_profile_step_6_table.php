@@ -15,11 +15,11 @@ return new class extends Migration {
             $table->foreignId('upload_id')->nullable()->constrained('uploads')->nullOnDelete();
             $table->boolean('show_qr_on_receipt')->default(false);
             $table->boolean('tax_breakdown_on_receipt')->default(false);
-            $table->boolean('kitchen_printer_enabled')->default(false);
+            $table->string('customer_printer')->nullable();
+            $table->string('kot_printer')->nullable();
             $table->json('printers')->nullable();
             $table->unique('user_id');
             $table->timestamps();
-           
         });
     }
 

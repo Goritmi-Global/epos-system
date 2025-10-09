@@ -59,7 +59,6 @@ class SettingsController extends Controller
             'online_ordering' => 'online_ordering_enabled',
             'show_qr' => 'show_qr_on_receipt',
             'tax_breakdown' => 'tax_breakdown_on_receipt',
-            'kitchen_printer' => 'kitchen_printer_enabled',
             'receipt_logo_file' => 'receipt_logo_path',
             'order_types' => 'order_types',
         ];
@@ -77,7 +76,6 @@ class SettingsController extends Controller
             'online_ordering_enabled',
             'show_qr_on_receipt',
             'tax_breakdown_on_receipt',
-            'kitchen_printer_enabled',
             'price_includes_tax',
         ];
         foreach ($boolKeys as $k) {
@@ -369,8 +367,9 @@ class SettingsController extends Controller
                     ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
+                'customer_printer' => 'nullable|string|max:255',
+                'kot_printer' => 'nullable|string|max:255',
                 'tax_breakdown_on_receipt' => 'required|boolean',
-                'kitchen_printer_enabled' => 'required|boolean',
                 'printers' => 'nullable|array',
             ], [
                 'receipt_logo_file.required' => 'Please upload a receipt logo.',

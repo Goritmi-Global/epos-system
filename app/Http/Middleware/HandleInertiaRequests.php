@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
             'currency_and_locale'   => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
             'tax_and_vat'           => ['is_tax_registered', 'tax_type', 'tax_rate', 'tax_id', 'extra_tax_rates', 'price_includes_tax'],
             'service_options'       => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'profile_table_id'],
-            'receipt_and_printers'  => ['receipt_header', 'receipt_footer', 'upload_id', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'kitchen_printer_enabled', 'printers'],
+            'receipt_and_printers'  => ['receipt_header', 'receipt_footer', 'upload_id', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'customer_printer', 'kot_printer', 'printers'],
             'payment_methods'       => ['cash_enabled', 'card_enabled'],
             'business_hours'        => ['disable_order_after_hours_id', 'business_hours_id'],
             'optional_features'     => ['enable_loyalty_system', 'enable_inventory_tracking', 'enable_cloud_backup', 'enable_multi_location', 'theme_preference'],

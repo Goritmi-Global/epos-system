@@ -66,7 +66,7 @@ function removeBreak(d, idx) {
 }
 
 /* Build 30-minute time options: [{label:'09:00', value:'09:00'}, ...] */
-const timeItems = computed(() => {
+/*const timeItems = computed(() => {
   const items = []
   for (let i = 0; i < 48; i++) {
     const h = String(Math.floor(i / 2)).padStart(2, "0")
@@ -75,7 +75,30 @@ const timeItems = computed(() => {
     items.push({ label: t, value: t })
   }
   return items
+})*/
+
+const timeItems = computed(() => {
+  const items = []
+  const is12Hour = props.model?.time_format === "12-hour"
+
+  for (let i = 0; i < 48; i++) {
+    const hour24 = Math.floor(i / 2)
+    const minute = i % 2 ? "30" : "00"
+
+    let label = `${String(hour24).padStart(2, "0")}:${minute}`
+
+    if (is12Hour) {
+      let period = hour24 >= 12 ? "PM" : "AM"
+      let hour12 = hour24 % 12 || 12
+      label = `${hour12}:${minute} ${period}`
+    }
+
+    items.push({ label, value: `${String(hour24).padStart(2, "0")}:${minute}` })
+  }
+
+  return items
 })
+
 
 </script>
 <template>

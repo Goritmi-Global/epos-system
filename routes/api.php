@@ -26,6 +26,7 @@ use App\Http\Controllers\{
 };
 use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Notifications\NotificationController;
+use App\Http\Controllers\Printer\PrinterController;
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
@@ -124,6 +125,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('markAllRead');
     });
 
-
+    // Get Printers
+    Route::get('/printers', [PrinterController::class, 'index']);
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
 });
