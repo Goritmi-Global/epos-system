@@ -5,7 +5,7 @@ import MultiSelect from "primevue/multiselect";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 import {
     Shapes,
@@ -964,7 +964,7 @@ const handleImport = (data) => {
                                             }}</span>
                                         </div>
                                     </td>
-                                    <td>{{ formatMoney(row.total_value) }}</td>
+                                    <td>{{ formatCurrencySymbol(row.total_value) }}</td>
                                     <td>{{ row.total_items }}</td>
                                     <td>{{ row.out_of_stock }}</td>
                                     <td>{{ row.low_stock }}</td>

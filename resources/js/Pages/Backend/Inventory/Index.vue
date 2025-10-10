@@ -1342,7 +1342,7 @@ const handleImport = (data) => {
                                         }}
                                     </td>
                                     <td>
-                                        {{ formatMoney(item.stockValue || 0) }}
+                                        {{ item.stockValue || 0 }}
                                     </td>
                                     <td class="text-center">
                                         <span v-if="item.availableStock === 0"
@@ -1371,7 +1371,7 @@ const handleImport = (data) => {
                                             </button>
                                             <button @click="ViewItem(item)" data-bs-toggle="modal"
                                                 data-bs-target="#viewItemModal" title="View Item"
-                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100">
+                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
                                                 <Eye class="w-4 h-4" />
                                             </button>
                                             <button @click="
@@ -1513,7 +1513,7 @@ const handleImport = (data) => {
                                 </div>
                             </div>
 
-                            <hr class="my-4" />
+                            <!-- <hr class="my-4" /> -->
 
                             <!-- Nutrition -->
                             <h6 class="mb-3">
@@ -1693,7 +1693,7 @@ const handleImport = (data) => {
                                                     <div class="text-muted">
                                                         Category
                                                     </div>
-                                                    <div class="fw-semibold">
+                                                    <div class="fw-semibold text-muted">
                                                         {{
                                                             viewItemRef.category_name ||
                                                             "—"
@@ -1717,7 +1717,7 @@ const handleImport = (data) => {
                                                     <div class="text-muted">
                                                         Unit
                                                     </div>
-                                                    <div class="fw-semibold">
+                                                    <div class="fw-semibold text-muted">
                                                         {{
                                                             viewItemRef.unit_name
                                                         }}
@@ -1727,7 +1727,7 @@ const handleImport = (data) => {
                                                     <div class="text-muted">
                                                         Min Alert
                                                     </div>
-                                                    <div class="fw-semibold">
+                                                    <div class="fw-semibold text-muted">
                                                         {{
                                                             viewItemRef.minAlert
                                                         }}
@@ -1737,7 +1737,7 @@ const handleImport = (data) => {
                                                     <div class="text-muted">
                                                         Supplier
                                                     </div>
-                                                    <div class="fw-semibold">
+                                                    <div class="fw-semibold text-muted">
                                                         {{
                                                             viewItemRef.supplier_name
                                                         }}
@@ -1747,7 +1747,7 @@ const handleImport = (data) => {
                                                     <div class="text-muted">
                                                         Description
                                                     </div>
-                                                    <div class="fw-semibold">
+                                                    <div class="fw-semibold text-muted">
                                                         {{
                                                             viewItemRef.description ||
                                                             "—"
@@ -1913,10 +1913,10 @@ row, i
                                                 </td>
                                                 <td>{{ row.quantity }}</td>
                                                 <td>
-                                                    {{ formatMoney(row.price) }}
+                                                    {{ row.price }}
                                                 </td>
                                                 <td class="fw-semibold">
-                                                    {{ formatMoney(row.value) }}
+                                                    {{ row.value }}
                                                 </td>
                                                 <td class="text-muted">
                                                     {{ row.description || "—" }}
@@ -1965,12 +1965,12 @@ row, i
                                                 </th>
                                                 <th>
                                                     {{
-                                                        formatMoney(totals.totalPrice)
+                                                        totals.totalPrice
                                                     }}
                                                 </th>
-                                                <th class="fw-semibold">
+                                                <th class="fw-semibold text-muted">
                                                     {{
-                                                        formatMoney(totals.totalValue)
+                                                        totals.totalValue
                                                     }}
                                                 </th>
                                                 <th colspan="4"></th>
@@ -2333,6 +2333,10 @@ row, i
     font-size: 0.8rem;
     margin-bottom: 0.25rem;
     font-weight: 500;
+}
+
+.dark .text-muted{
+    color: #fff !important;
 }
 
 .fw-semibold {

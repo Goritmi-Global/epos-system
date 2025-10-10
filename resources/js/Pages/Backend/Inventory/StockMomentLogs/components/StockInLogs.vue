@@ -7,7 +7,7 @@ import { Pencil, Eye } from "lucide-vue-next";
 
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps({
     logs: { type: Array, default: () => [] },
@@ -236,8 +236,8 @@ onUpdated(() => window.feather?.replace());
                                 {{ row.itemName }}
                             </td>
                             <td>{{ row.quantity }}</td>
-                            <td>{{ formatMoney(row.unitPrice) }}</td>
-                            <td>{{ formatMoney(row.totalPrice) }}</td>
+                            <td>{{ formatCurrencySymbol(row.unitPrice) }}</td>
+                            <td>{{ formatCurrencySymbol(row.totalPrice) }}</td>
                             <td>{{ row.category?.name || row.category }}</td>
                             <td>{{ dateFmt(row.dateTime) }}</td>
                             <td>
@@ -385,7 +385,7 @@ onUpdated(() => window.feather?.replace());
                                                     <small class="text-muted d-block">Unit Price</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
-                                                            formatMoney(
+                                                            formatCurrencySymbol(
                                                                 selectedLog.unitPrice ??
                                                                 0
                                                             )
@@ -398,7 +398,7 @@ onUpdated(() => window.feather?.replace());
                                                     <small class="text-muted d-block">Total Price</small>
                                                     <div class="fs-6 fw-semibold">
                                                         {{
-                                                            formatMoney(
+                                                            formatCurrencySymbol(
                                                                 selectedLog.totalPrice ??
                                                                 0
                                                             )

@@ -9,7 +9,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
     Package,
     XCircle,
@@ -1358,7 +1358,7 @@ const handleImport = (data) => {
 
                                     <!-- Price -->
                                     <td>
-                                        {{ formatMoney(item.price || 0, "GBP") }}
+                                        {{ formatCurrencySymbol(item.price || 0, "GBP") }}
                                     </td>
 
                                     <!-- Status -->
@@ -1634,7 +1634,7 @@ const handleImport = (data) => {
                                 </div>
                             </div>
 
-                            <hr class="my-4" />
+                            <!-- <hr class="my-4" /> -->
 
                             <div class="row g-4 mt-1">
                                 <!-- Allergies -->
@@ -1854,7 +1854,7 @@ const handleImport = (data) => {
                                             <div
                                                 class="p-3 fw-semibold text-end"
                                             >
-                                                Total Cost: {{ formatMoney(i_total) }}
+                                                Total Cost: {{ formatCurrencySymbol(i_total) }}
                                             </div>
                                         </div>
                                     </div>
@@ -2164,7 +2164,7 @@ const handleImport = (data) => {
                                             </table>
                                         </div>
                                         <div class="p-3 fw-semibold text-end">
-                                            Total Cost: {{ formatMoney(i_total) }}
+                                            Total Cost: {{ formatCurrencySymbol(i_total) }}
                                         </div>
                                     </div>
 

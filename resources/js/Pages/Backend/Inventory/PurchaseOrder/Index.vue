@@ -15,7 +15,7 @@ import { useDateFormat } from "@vueuse/core";
 import { useFormatters } from '@/composables/useFormatters'
 import BulkOrderComponent from "./BulkOrderComponent.vue";
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* =============== Helpers =============== */
 const money = (n, currency = "GBP") =>
@@ -487,7 +487,7 @@ onUpdated(() => window.feather?.replace?.());
                                             </span>
                                         </td>
 
-                                        <td>{{ formatMoney(row.total) }}</td>
+                                        <td>{{ formatCurrencySymbol(row.total) }}</td>
 
                                         <td class="text-end">
                                             <button
@@ -582,7 +582,7 @@ onUpdated(() => window.feather?.replace?.());
                                 <div class="col-md-6">
                                     <small class="text-muted d-block">Total Amount</small>
                                     <div class="fw-semibold">
-                                        {{ formatMoney(selectedOrder.total_amount) }}
+                                        {{ formatCurrencySymbol(selectedOrder.total_amount) }}
                                     </div>
                                 </div>
                             </div>
@@ -635,7 +635,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <!-- Unit Price -->
                                             <td>
                                                 <span v-if="!isEditing">{{
-                                                    formatMoney(item.unit_price)
+                                                    formatCurrencySymbol(item.unit_price)
                                                     }}</span>
                                                 <input v-else v-model.number="item.unit_price
                                                     " type="number" class="form-control" @input="
@@ -646,7 +646,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <!-- Subtotal -->
                                             <td>
                                                 <span v-if="!isEditing">{{
-                                                    formatMoney(item.sub_total)
+                                                    formatCurrencySymbol(item.sub_total)
                                                     }}</span>
                                                 <input v-else v-model="item.sub_total" class="form-control" readonly />
                                             </td>
@@ -702,7 +702,7 @@ onUpdated(() => window.feather?.replace?.());
                                             </td>
                                             <td class="fw-bold">
                                                 {{
-                                                    formatMoney(
+                                                    formatCurrencySymbol(
                                                         (isEditing
                                                             ? editItems
                                                             : selectedOrder.items

@@ -5,7 +5,7 @@ import { ref, computed, onMounted, onUpdated } from "vue";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const orders = ref([]); // rename from payment -> orders for clarity
 
 const fetchOrdersWithPayment = async () => {
@@ -154,7 +154,7 @@ onUpdated(() => window.feather?.replace());
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h3 class="mb-0 fw-bold">{{ formatMoney(totalAmount, 'GBP') }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(totalAmount, 'GBP') }}</h3>
                                 <p class="text-muted mb-0 small">Total Amount</p>
                             </div>
                             <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
@@ -229,7 +229,7 @@ onUpdated(() => window.feather?.replace());
                                 <tr v-for="(p, idx) in filtered" :key="p.id">
                                     <td>{{ idx + 1 }}</td>
                                     <td>{{ p.orderId }}</td>
-                                    <td>{{ formatMoney(p.amount, "GBP") }}</td>
+                                    <td>{{ formatCurrencySymbol(p.amount, "GBP") }}</td>
                                     <td>{{ dateFmt(p.paidAt) }}</td>
                                     <td class="text-capitalize">
                                         {{ p.type }}
