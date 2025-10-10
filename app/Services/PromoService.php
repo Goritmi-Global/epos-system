@@ -44,6 +44,7 @@ class PromoService
         return Promo::create([
             'name' => $data['name'],
             'type' => $data['type'],
+            'discount' => $data['discount'],
             'status' => $data['status'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
@@ -63,6 +64,7 @@ class PromoService
         $promo->update([
             'name' => $data['name'],
             'type' => $data['type'],
+            'discount' => $data['discount'],
             'status' => $data['status'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],

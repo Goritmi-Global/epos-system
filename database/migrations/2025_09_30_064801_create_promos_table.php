@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->enum('type', ['flat', 'percent'])->default('percent');
+            $table->decimal('discount', 10, 2);
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->date('start_date');
             $table->date('end_date');
