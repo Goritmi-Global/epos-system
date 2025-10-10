@@ -1742,7 +1742,7 @@ const handleImport = (data) => {
 
                                 <div class="mt-4 col-sm-6 col-md-8">
                                     <button
-                                        class="btn btn-outline-primary rounded-pill px-4"
+                                        class="btn btn-primary rounded-pill px-4"
                                         :class="{
                                             'is-invalid':
                                                 formErrors.ingredients,

@@ -14,6 +14,7 @@ import { usePage } from "@inertiajs/vue3";
 const pageProps = usePage();
 
 const onboarding = computed(() => pageProps.props.onboarding.language_and_location.country_id ?? "PK");
+console.log("🌍 Onboarding Country:", onboarding.value);
 
 const suppliers = ref([]);
 const page = ref(1);
@@ -294,15 +295,17 @@ const isPhoneValid = ref(false);
 // };
 
 const checkPhone = ({ number, country }) => {
+    // Don't validate until user starts typing something
+    if (!number || number.trim() === "") {
+        phoneError.value = "";
+        isPhoneValid.value = false;
+        return;
+    }
+
     phoneError.value = "";
     isPhoneValid.value = false;
 
     try {
-        if (!number) {
-            phoneError.value = "Phone number is required";
-            return;
-        }
-
         const isValid = isValidPhoneNumber(number, country?.iso2 || "PK");
 
         if (!isValid) {
@@ -311,6 +314,7 @@ const checkPhone = ({ number, country }) => {
         }
 
         const parsed = parsePhoneNumber(number, country?.iso2 || "PK");
+
         console.log("📞 Parsed Phone:", {
             formatted: parsed.formatInternational(),
             national: parsed.nationalNumber,
@@ -540,7 +544,7 @@ const handleImport = (data) => {
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" autocomplete="off" name="search_suppliers" />
                     </div>
 
                     <button data-bs-toggle="modal" data-bs-target="#modalAddSupplier" @click="
@@ -686,12 +690,27 @@ const handleImport = (data) => {
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
 
-                            <vue-tel-input v-model="form.phone" :default-country="onboarding" mode="international" class="phone"
-                                @validate="checkPhone" :auto-format="true" :enable-formatting="true"
-                                :input-options="{ showDialCode: true }" :class="{
-                                    'is-invalid': formErrors.contact || phoneError,
-                                    'is-valid': isPhoneValid && form.phone
-                                }" />
+<vue-tel-input 
+    v-model="form.phone" 
+    :default-country="onboarding" 
+    :key="onboarding"
+    mode="national"
+    class="phone" 
+    @validate="checkPhone" 
+    :auto-format="false" 
+    :enable-formatting="false"
+    :disabled-fetching-country="true" 
+    :dropdown-options="{
+        showFlags: false,
+        showDialCodeInSelection: true,
+        disabled: true
+    }" 
+    :input-options="{ showDialCode: false }" 
+    :class="{
+        'is-invalid': formErrors.contact || phoneError,
+        'is-valid': isPhoneValid && form.phone
+    }" 
+/>
 
                             <!-- Show validation messages -->
                             <small v-if="formErrors.contact" class="text-danger">
@@ -742,6 +761,7 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
+
 :root {
     --brand: #1c0d82;
 }
@@ -952,5 +972,25 @@ const handleImport = (data) => {
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
+}
+
+/* Hide dropdown arrow and increase country code font size */
+:deep(.vue-tel-input .vti__dropdown) {
+    pointer-events: none;
+}
+
+:deep(.vue-tel-input .vti__dropdown-arrow) {
+    display: none !important;
+}
+
+:deep(.vue-tel-input .vti__selection) {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    padding-right: 8px !important;
+}
+
+:deep(.vue-tel-input .vti__dropdown:hover) {
+    background-color: transparent !important;
+    cursor: default !important;
 }
 </style>
