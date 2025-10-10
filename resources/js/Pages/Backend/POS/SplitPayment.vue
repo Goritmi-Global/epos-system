@@ -4,7 +4,7 @@ import { ref, computed, watch } from "vue";
 import StripePayment from "./StripePayment.vue";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps({
   order_code: String,
@@ -138,7 +138,7 @@ function confirmSplit() {
           />
         </div>
         <div class="small text-muted mt-1">
-          {{ money ? formatMoney(cash || 0) : (cash || 0) }}
+          {{ money ? formatCurrencySymbol(cash || 0) : (cash || 0) }}
         </div>
       </div>
 
@@ -157,7 +157,7 @@ function confirmSplit() {
           />
         </div>
         <div class="small text-muted mt-1">
-          {{ money ? formatMoney(card || 0) : (card || 0) }}
+          {{ money ? formatCurrencySymbol(card || 0) : (card || 0) }}
         </div>
       </div>
     </div>
@@ -166,7 +166,7 @@ function confirmSplit() {
     <div class="d-flex justify-content-between align-items-center mt-3">
       <div class="fw-semibold">
         Total:
-        <span class="text-success">{{ money ? formatMoney(total) : total }}</span>
+        <span class="text-success">{{ money ? formatCurrencySymbol(total) : total }}</span>
       </div>
       <div
         class="small"
@@ -175,7 +175,7 @@ function confirmSplit() {
         Cash + Card =
         {{
           money
-            ? formatMoney((cash || 0) + (card || 0))
+            ? formatCurrencySymbol((cash || 0) + (card || 0))
             : (Number(cash || 0) + Number(card || 0))
         }}
       </div>

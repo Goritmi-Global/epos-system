@@ -4,7 +4,7 @@ import StripePayment from "./StripePayment.vue";
 import SplitPayment from "./SplitPayment.vue";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const props = defineProps({
     show: Boolean,
     customer: String,
@@ -201,14 +201,14 @@ item, index
                                                             </td>
                                                             <td class="text-end">
                                                                 {{
-                                                                    formatMoney(
+                                                                    formatCurrencySymbol(
                                                                         item.price
                                                                     )
                                                                 }}
                                                             </td>
                                                             <td class="text-end fw-bold">
                                                                 {{
-                                                                    formatMoney(
+                                                                    formatCurrencySymbol(
                                                                         (Number(
                                                                             item.price
                                                                         ) ||
@@ -229,7 +229,7 @@ item, index
                                                             </td>
                                                             <td class="text-end text-success">
                                                                 {{
-                                                                    formatMoney(
+                                                                    formatCurrencySymbol(
                                                                         grandTotal
                                                                     )
                                                                 }}
@@ -290,7 +290,7 @@ item, index
                                                         ? 'text-danger fw-bold'
                                                         : 'text-success fw-bold'
                                                     ">
-                                                    {{ formatMoney(changeAmount) }}
+                                                    {{ formatCurrencySymbol(changeAmount) }}
                                                 </span>
                                             </div>
                                             <!-- Auto Print KOT CheckBox -->
@@ -340,7 +340,7 @@ item, index
                                                         ? 'text-danger fw-bold'
                                                         : 'text-success fw-bold'
                                                     ">
-                                                    {{ formatMoney(changeAmount) }}
+                                                    {{ formatCurrencySymbol(changeAmount) }}
                                                 </span>
                                             </div>
                                         </div>

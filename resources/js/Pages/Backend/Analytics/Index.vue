@@ -197,7 +197,7 @@ onUpdated(() => window.feather?.replace());
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h4 class="mb-0 fw-bold">{{ formatMoney(revenue) }}</h4>
+                                <h4 class="mb-0 fw-bold">{{ revenue }}</h4>
                                 <p class="text-muted mb-0 small">Revenue</p>
                             </div>
                             <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
@@ -229,7 +229,7 @@ onUpdated(() => window.feather?.replace());
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h4 class="mb-0 fw-bold">{{ formatMoney(aov) }}</h4>
+                                <h4 class="mb-0 fw-bold">{{ aov }}</h4>
                                 <p class="text-muted mb-0 small">Avg. Order Value</p>
                             </div>
                             <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
@@ -376,7 +376,7 @@ onUpdated(() => window.feather?.replace());
                                         {{ r.name }}
                                     </td>
                                     <td>{{ r.qty }}</td>
-                                    <td>{{ formatMoney(r.revenue) }}</td>
+                                    <td>{{ r.revenue }}</td>
                                 </tr>
                                 <tr v-if="
                                     !loading &&

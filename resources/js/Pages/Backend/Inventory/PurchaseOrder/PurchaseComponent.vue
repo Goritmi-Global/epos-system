@@ -4,7 +4,7 @@ import Select from "primevue/select";
 import { ref, computed } from "vue";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const props = defineProps({
     suppliers: {
         type: Array,
@@ -494,13 +494,13 @@ const formatDate = (date) => {
 
                                                 <td>{{ r.qty }}</td>
                                                 <td>
-                                                    {{ formatMoney(r.unitPrice) }}
+                                                    {{ formatCurrencySymbol(r.unitPrice) }}
                                                 </td>
                                                 <td>
                                                     {{ dateFmt(r.expiry) || "—" }}
                                                 </td>
                                                 <td>
-                                                    {{ formatMoney(r.cost) }}
+                                                    {{ formatCurrencySymbol(r.cost) }}
                                                 </td>
                                                 <td class="text-end">
                                                     <button @click="
@@ -525,7 +525,7 @@ const formatDate = (date) => {
                                     </table>
                                 </div>
                                 <div class="text-end p-3 fw-semibold">
-                                    Total Bill: {{ formatMoney(p_total) }}
+                                    Total Bill: {{ formatCurrencySymbol(p_total) }}
                                 </div>
                             </div>
 

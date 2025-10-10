@@ -419,6 +419,24 @@ export function useFormatters() {
         }
     };
 
+    const formatCurrencySymbol = (amount: number | string) => {
+    const num = String(amount); // Keep the number as-is, no formatting
+
+    switch (currencyPos.value) {
+        case "after":
+            return `${num} ${currencyStr.value}`.trim();
+        case "iso-before":
+            return `${currencyISO.value} ${num}`.trim();
+        case "iso-after":
+            return `${num} ${currencyISO.value}`.trim();
+        case "name":
+            return `${num} ${currencyName.value}`.trim();
+        case "before":
+        default:
+            return `${currencyStr.value} ${num}`.trim();
+    }
+};
+
     // NUMBER: preserve original decimals; decimal symbol/grouping based on numberPattern
     const formatNumber = (n: number) =>
         formatWithPattern(n ?? 0, numberPattern.value, {
@@ -452,5 +470,5 @@ export function useFormatters() {
     const currency = computed(() => currencyStr.value);
     const timezone = computed(() => tz.value);
 
-    return { formatMoney, formatNumber, dateFmt, locale, currency, timezone };
+    return { formatMoney, formatNumber, dateFmt, formatCurrencySymbol, locale, currency, timezone };
 }

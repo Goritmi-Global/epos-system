@@ -12,7 +12,7 @@ import PosOrdersModal from "./PosOrdersModal.vue";
 import { Package, ShoppingCart } from "lucide-vue-next";
 
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters();
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
 const props = defineProps(["client_secret", "order_code"]);
 
@@ -1022,7 +1022,7 @@ const handleViewOrderDetails = (order) => {
                                                     p.label_color ||
                                                     '#1B1670',
                                             }">
-                                                {{ formatMoney(p.price) }}
+                                                {{ formatCurrencySymbol(p.price) }}
                                             </span>
 
                                             <span v-if="(p.stock ?? 0) <= 0" class="item-badge">OUT OF STOCK</span>
@@ -1163,7 +1163,7 @@ const handleViewOrderDetails = (order) => {
 
                                         <div class="line-right">
                                             <div class="price">
-                                                {{ formatMoney(it.price) }}
+                                                {{ formatCurrencySymbol(it.price) }}
                                             </div>
                                             <button class="del" @click="removeCart(i)">
                                                 <i class="bi bi-trash"></i>
@@ -1176,7 +1176,7 @@ const handleViewOrderDetails = (order) => {
                                 <div class="totals">
                                     <div class="trow">
                                         <span>Sub Total</span>
-                                        <b>{{ formatMoney(subTotal) }}</b>
+                                        <b>{{ formatCurrencySymbol(subTotal) }}</b>
                                     </div>
                                     <div class="trow" v-if="orderType === 'delivery'">
                                         <span>Delivery</span>
@@ -1184,7 +1184,7 @@ const handleViewOrderDetails = (order) => {
                                     </div>
                                     <div class="trow total">
                                         <span>Total</span>
-                                        <b>{{ formatMoney(grandTotal) }}</b>
+                                        <b>{{ formatCurrencySymbol(grandTotal) }}</b>
                                     </div>
                                 </div>
 
@@ -1234,7 +1234,7 @@ const handleViewOrderDetails = (order) => {
                                 <div class="col-md-7">
                                     <div class="h4 mb-1">
                                         {{
-                                            formatMoney(
+                                            formatCurrencySymbol(
                                                 selectedItem?.price || 0
                                             )
                                         }}

@@ -7,7 +7,7 @@ import Select from "primevue/select";
 import { Pencil, Eye } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 const orders = ref([]);
 
@@ -478,7 +478,7 @@ function printReceipt(order) {
                                         </span>
                                     </td>
 
-                                    <td>{{ formatMoney(o.total_amount) }}</td>
+                                    <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
                                     <!-- <td class="text-center">
                                             <span
                                                 class="badge rounded-pill fw-semibold px-5 py-2 text-capitalize paid-text"
@@ -778,7 +778,7 @@ item, idx
                                                 <td>{{ item.title }}</td>
                                                 <td>{{ item.quantity }}</td>
                                                 <td class="fw-semibold">
-                                                    {{ formatMoney(item.price) }}
+                                                    {{ formatCurrencySymbol(item.price) }}
                                                 </td>
                                             </tr>
                                             <tr v-if="

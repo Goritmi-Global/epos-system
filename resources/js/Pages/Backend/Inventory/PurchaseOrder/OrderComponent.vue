@@ -4,7 +4,7 @@ import Select from "primevue/select";
 import { ref, computed } from "vue";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps({
     suppliers: {
@@ -581,7 +581,7 @@ const formatDate = (date) => {
                                     </table>
                                 </div>
                                 <div class="text-end p-3 fw-semibold">
-                                    Total Bill: {{ formatMoney(o_total) }}
+                                    Total Bill: {{ formatCurrencySymbol(o_total) }}
                                 </div>
                             </div>
 

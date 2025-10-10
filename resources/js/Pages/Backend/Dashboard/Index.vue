@@ -6,7 +6,7 @@ import { onMounted, ref } from "vue";
 import { useFormatters } from '@/composables/useFormatters'
 import { toast } from "vue3-toastify";
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters();
+const { formatMoney, formatCurrencySymbol,  formatNumber, dateFmt } = useFormatters();
 
 const series = [
   {
@@ -236,7 +236,7 @@ const dismissReminder = () => {
               <span><img src="assets/img/icons/dash1.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatMoney(totalPurchaseDueMinor) }}</h5>
+              <h5>{{ formatCurrencySymbol(totalPurchaseDueMinor) }}</h5>
               <h6>Total Purchase Due</h6>
             </div>
           </div>
@@ -248,7 +248,7 @@ const dismissReminder = () => {
               <span><img src="assets/img/icons/dash2.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatMoney(totalSalesDueMinor) }}</h5>
+              <h5>{{ formatCurrencySymbol(totalSalesDueMinor) }}</h5>
               <h6>Total Sales Due</h6>
             </div>
           </div>
@@ -260,7 +260,7 @@ const dismissReminder = () => {
               <span><img src="assets/img/icons/dash3.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatMoney(totalSaleAmountMinor) }}</h5>
+              <h5>{{ formatCurrencySymbol(totalSaleAmountMinor) }}</h5>
               <h6>Total Sale Amount</h6>
             </div>
           </div>
@@ -272,7 +272,7 @@ const dismissReminder = () => {
               <span><img src="assets/img/icons/dash4.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatMoney(anotherSaleMinor) }}</h5>
+              <h5>{{ formatCurrencySymbol(anotherSaleMinor) }}</h5>
               <h6>Total Sale Amount</h6>
             </div>
           </div>
@@ -383,7 +383,7 @@ const dismissReminder = () => {
                         </a>
                         <a href="productlist.html">{{ p.name }}</a>
                       </td>
-                      <td>{{ formatMoney(p.priceMinor) }}</td>
+                      <td>{{ formatCurrencySymbol(p.priceMinor) }}</td>
                     </tr>
                   </tbody>
                 </table>
