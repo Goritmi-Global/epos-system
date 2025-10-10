@@ -5,10 +5,12 @@ import { ref, computed, onMounted, watch } from "vue";
 import { toast } from "vue3-toastify";
 import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
+import PromoModal from "./PromoModal.vue";
 import KotModal from "./KotModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import PosOrdersModal from "./PosOrdersModal.vue";
 import { Package, ShoppingCart } from "lucide-vue-next";
+
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters();
 
@@ -913,6 +915,29 @@ const openPosOrdersModal = async () => {
     }
 };
 
+const showPromoModal = ref(false);
+const promosData = ref([]);
+
+const openPromoModal = async () => {
+    try {
+        // Show the modal immediately (optional)
+        showPromoModal.value = true;
+
+        // Fetch promos from API
+        const response = await axios.get('/api/promos/all'); // adjust URL if needed
+        console.log('Fetched promos:', response.data);
+        if (response.data.success) {
+            // Assuming your API returns { success: true, data: [...] }
+            promosData.value = response.data.data;
+        } else {
+            console.error('Failed to fetch promos', response.data);
+            promosData.value = [];
+        }
+    } catch (error) {
+        console.error('Error fetching promos', error);
+        promosData.value = [];
+    }
+};
 
 const handleViewOrderDetails = (order) => {
     lastOrder.value = order;
@@ -940,7 +965,7 @@ const handleViewOrderDetails = (order) => {
                                         <!-- use emoji/text icon OR place an <img> inside -->
                                         <span class="cat-icon">{{
                                             c.icon || "🍵"
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                     <div class="cat-name">{{ c.name }}</div>
                                     <div class="cat-pill">
@@ -959,7 +984,7 @@ const handleViewOrderDetails = (order) => {
                         <!-- Items in selected category -->
                         <div v-else>
                             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
-                                <button class="btn btn-light rounded-pill shadow-sm px-3" @click="backToCategories">
+                                <button class="btn btn-primary rounded-pill shadow-sm px-3" @click="backToCategories">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
                                 <h5 class="fw-bold mb-0">
@@ -1044,6 +1069,10 @@ const handleViewOrderDetails = (order) => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             </button>
+                            <!-- <button class="btn btn-warning rounded-pill" @click="openPromoModal">
+                                Promos
+                            </button> -->
+
                         </div>
 
                         <div class="cart card border-0 shadow-lg rounded-4">
@@ -1124,7 +1153,8 @@ const handleViewOrderDetails = (order) => {
                                                 (it.outOfStock || it.qty >= (it.stock ?? 0))
                                                     ? 'bg-secondary text-white cursor-not-allowed opacity-70'
                                                     : ''
-                                            ]" @click="incCart(i)" :disabled="it.outOfStock || it.qty >= (it.stock ?? 0)">
+                                            ]" @click="incCart(i)"
+                                                :disabled="it.outOfStock || it.qty >= (it.stock ?? 0)">
                                                 +
                                             </button>
 
@@ -1244,17 +1274,14 @@ const handleViewOrderDetails = (order) => {
                                         <div class="w-100 mt-2">
                                             <strong>Allergies:</strong>
                                         </div>
-                                        <span v-for="(
-a, i
-                                            ) in selectedItem?.allergies || []" :key="'a-' + i"
+                                        <span v-for="(a, i) in selectedItem?.allergies || []" :key="'a-' + i"
                                             class="chip chip-red">{{ a.name }}</span>
 
                                         <div class="w-100 mt-2">
                                             <strong>Tags:</strong>
                                         </div>
-                                        <span v-for="(
-t, i
-                                            ) in selectedItem?.tags || []" :key="'t-' + i" class="chip chip-teal">{{
+                                        <span v-for="(t, i) in selectedItem?.tags || []" :key="'t-' + i"
+                                            class="chip chip-teal">{{
                                                 t.name }}</span>
                                     </div>
 
@@ -1300,6 +1327,10 @@ t, i
 
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />
+
+            <PromoModal :show="showPromoModal" :promos="promosData" @close="showPromoModal = false" />
+
+
         </div>
     </Master>
 </template>

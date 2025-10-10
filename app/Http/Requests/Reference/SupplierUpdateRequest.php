@@ -16,7 +16,7 @@ class SupplierUpdateRequest extends FormRequest
             'id'              => ['required','integer','exists:suppliers,id'],
             'name'            => ['required','string','max:100'],
             'email'           => ['required','email','max:100', Rule::unique('suppliers','email')->ignore($id)],
-            'contact'         => ['nullable','string','max:100'],
+            'contact'         => ['required','numeric','max:20', Rule::unique('suppliers','contact')->ignore($id)],
             'address'         => ['required','string'],
             'preferred_items' => ['nullable','string'],
         ];

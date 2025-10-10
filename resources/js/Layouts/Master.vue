@@ -230,7 +230,7 @@ onUpdated(() => window.feather?.replace());
 const profileForm = ref({
     username: logedIUser.value.name ?? "",
     password: "",
-    pin: logedIUser.value.pin ?? "",
+    pin: "",
     role: "Super Admin",
 });
 
@@ -692,6 +692,20 @@ onMounted(fetchNotifications);
    color: #fff !important;
 }
 
+
+.dark .cat-card{
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+.dark .cat-name{
+    color: #fff !important;
+}
+
+.dark .cat-icon-wrap{
+    background: #212121 !important;
+    color: #fff !important;
+}
 .dark .bg-blue-100{
     background-color: rgb(71 140 231) !important;
 }
@@ -1474,4 +1488,5 @@ li.active>.side-link {
     background: #1C0D92 !important;
     color: white !important;
 }
+
 </style>
