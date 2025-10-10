@@ -9,7 +9,7 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 // import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Data ---------------- */
 const promos = ref([]);
@@ -93,7 +93,6 @@ const promoForm = ref({
     min_purchase: 0,
     max_discount: null,
     description: "",
-    discount: "",
 });
 
 
@@ -108,7 +107,6 @@ const resetModal = () => {
         min_purchase: 0,
         max_discount: null,
         description: "",
-        discount: "",
     };
     editingPromo.value = null;
     promoFormErrors.value = {};
@@ -165,7 +163,6 @@ const editRow = (row) => {
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
-        discount: row.discount || "",
     };
 
     const modalEl = document.getElementById("promoModal");
@@ -291,9 +288,9 @@ onUpdated(() => window.feather?.replace());
                                     </td>
                                     <td>{{ dateFmt(row.start_date) }}</td>
                                     <td>{{ dateFmt(row.end_date) }}</td>
-                                    <td>{{ formatMoney(row.min_purchase) }}</td>
+                                    <td>{{ formatCurrencySymbol(row.min_purchase) }}</td>
                                     <td>
-                                        {{ row.max_discount ? formatMoney(row.max_discount) : "N/A" }}
+                                        {{ row.max_discount ? formatCurrencySymbol(row.max_discount) : "N/A" }}
                                     </td>
                                     <td class="text-center">
                                         <span :class="row.status === 'active'
@@ -383,16 +380,6 @@ onUpdated(() => window.feather?.replace());
                                         class="form-select" :class="{ 'is-invalid': promoFormErrors.type }" />
                                     <small v-if="promoFormErrors.type" class="text-danger">
                                         {{ promoFormErrors.type[0] }}
-                                    </small>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label">Amount/Discount (%)</label>
-                                    <input v-model="promoForm.discount" type="text" class="form-control" :class="{
-                                        'is-invalid': promoFormErrors.discount,
-                                    }" placeholder="Enter promo discount" />
-                                    <small v-if="promoFormErrors.discount" class="text-danger">
-                                        {{ promoFormErrors.discount[0] }}
                                     </small>
                                 </div>
 

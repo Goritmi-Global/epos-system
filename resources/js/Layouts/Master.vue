@@ -352,7 +352,7 @@ onMounted(fetchNotifications);
                         <Moon v-else :size="20" />
                     </button>
                 </li>
-                <li class="nav-item dropdown has-arrow flag-nav">
+                <!-- <li class="nav-item dropdown has-arrow flag-nav">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="javascript:void(0);">
                         <img src="/assets/img/flags/us1.png" alt="" height="20" />
                     </a>
@@ -370,7 +370,7 @@ onMounted(fetchNotifications);
                                 height="16" />
                             German</a>
                     </div>
-                </li>
+                </li> -->
 
                 <!-- <li class="nav-item dropdown">
                     <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">

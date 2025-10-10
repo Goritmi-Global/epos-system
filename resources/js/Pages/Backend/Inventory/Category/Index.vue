@@ -17,7 +17,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Demo data (swap with API later) ---------------- */
 const manualCategories = ref([]);
@@ -960,7 +960,7 @@ const handleImport = (data) => {
                                                 }}</span>
                                         </div>
                                     </td>
-                                    <td>{{ formatMoney(row.total_value) }}</td>
+                                    <td>{{ formatCurrencySymbol(row.total_value) }}</td>
                                     <td>{{ row.total_items }}</td>
                                     <td>{{ row.out_of_stock }}</td>
                                     <td>{{ row.low_stock }}</td>

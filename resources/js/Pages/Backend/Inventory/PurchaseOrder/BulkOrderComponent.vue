@@ -2,6 +2,9 @@
 import { ref, computed, watch, toRaw } from "vue";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 const props = defineProps({
     suppliers: {
@@ -202,10 +205,11 @@ async function bulkSubmit() {
                             <tbody>
 
                                 <tr v-for="(it, idx) in bulkItems" :key="it.id">
+                           
                                     <td>{{ it.name }}</td>
                                     <td>{{ it.category?.name || "-" }}</td>
-                                    <td>{{ it.name }}</td>
-                                    <td>{{ it.category?.name || "-" }}</td>
+                                    <td>{{ it.unit_name }}</td>
+                                   
                                     <td>
                                         <input type="number" min="0" v-model.number="it.qty" class="form-control"
                                             @input="updateSubtotal(it)" />
@@ -230,7 +234,7 @@ async function bulkSubmit() {
                                             {{ formErrors[idx].expiry }}
                                         </small>
                                     </td>
-                                    <td>{{ it.subtotal.toFixed(2) }}</td>
+                                    <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-danger" @click="delRow(idx)">
                                             Clear

@@ -544,7 +544,8 @@ const handleImport = (data) => {
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" autocomplete="off" name="search_suppliers" />
+                        <input v-model="q" class="form-control search-input" placeholder="Search" autocomplete="off"
+                            name="search_suppliers" />
                     </div>
 
                     <button data-bs-toggle="modal" data-bs-target="#modalAddSupplier" @click="
@@ -690,27 +691,16 @@ const handleImport = (data) => {
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
 
-<vue-tel-input 
-    v-model="form.phone" 
-    :default-country="onboarding" 
-    :key="onboarding"
-    mode="national"
-    class="phone" 
-    @validate="checkPhone" 
-    :auto-format="false" 
-    :enable-formatting="false"
-    :disabled-fetching-country="true" 
-    :dropdown-options="{
-        showFlags: false,
-        showDialCodeInSelection: true,
-        disabled: true
-    }" 
-    :input-options="{ showDialCode: false }" 
-    :class="{
+                            <vue-tel-input v-model="form.phone" :default-country="onboarding" :key="onboarding"
+                                mode="national" class="phone" @validate="checkPhone" :auto-format="false"
+                                :enable-formatting="false" :disabled-fetching-country="true" :dropdown-options="{
+                                    showFlags: false,
+                                    showDialCodeInSelection: true,
+                                    disabled: true
+                                }" :input-options="{ showDialCode: false }" :class="{
         'is-invalid': formErrors.contact || phoneError,
         'is-valid': isPhoneValid && form.phone
-    }" 
-/>
+    }" />
 
                             <!-- Show validation messages -->
                             <small v-if="formErrors.contact" class="text-danger">
@@ -761,7 +751,6 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
-
 :root {
     --brand: #1c0d82;
 }
@@ -828,6 +817,9 @@ const handleImport = (data) => {
         gap: 8px !important;
         flex-wrap: nowrap !important;
         margin-bottom: 15px;
+    }
+    .dark .disabled{
+        background-color: #181818 !important;
     }
 
     .btn {

@@ -5,7 +5,7 @@ import axios from "axios";
 import { Pencil, Eye } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatNumber,formatCurrencySymbol, dateFmt } = useFormatters()
 
 const props = defineProps({
     logs: { type: Array, default: () => [] },
@@ -436,7 +436,7 @@ onUpdated(() => window.feather?.replace());
                                                         </td>
                                                         <td>
                                                             {{
-                                                                formatMoney(
+                                                                formatCurrencySymbol(
                                                                     a.unit_price ??
                                                                         0
                                                                 )

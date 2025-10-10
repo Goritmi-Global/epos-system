@@ -72,7 +72,9 @@ const countryCurrencyMap = {
     'LB': 'LBP',
 };
 
-const currencies = ["PKR", "GBP", "USD", "EUR", "AED", "SAR", "INR", "CNY", "JPY", "AUD", "CAD", "CHF"];
+// const currencies = ["PKR", "GBP", "USD", "EUR", "AED", "SAR", "INR", "CNY", "JPY", "AUD", "CAD", "CHF"];
+const currencies = ["₨", "£", "$", "€", "د.إ", "﷼", "₹", "¥", "¥", "A$", "C$", "Fr"];
+
 
 // 💰 Money Symbol Positions
 const symbolPositions = [
