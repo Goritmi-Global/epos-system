@@ -40,25 +40,60 @@ const fetchSuppliers = () => {
 };
 
 const q = ref("");
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+
+onMounted(async () => {
+    q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
+
+    await fetchSuppliers();
+});
+
+const handleFocus = (e) => {
+    // Clear on focus
+    e.target.value = '';
+    q.value = '';
+};
 
 
 const filtered = computed(() => {
-    // Normalize query: remove all non-digit characters for phone search
     const query = q.value.trim().toLowerCase();
-    const queryDigits = q.value.replace(/\D/g, ""); // digits only
-
     if (!query) return suppliers.value;
 
+    // Extract only digits from the query for phone/contact comparison
+    const queryDigits = query.replace(/\D/g, "");
+
     return suppliers.value.filter((s) => {
-        // Normalize phone/contact
+        // Text fields (name, email, address, etc.)
+        const textMatch = [s.name, s.email, s.address, s.preferred_items].some((v) =>
+            (v || "").toLowerCase().includes(query)
+        );
+
+        // Numeric match for phone/contact
         const phoneDigits = (s.phone || "").replace(/\D/g, "");
         const contactDigits = (s.contact || "").replace(/\D/g, "");
+        const numberMatch =
+            (queryDigits && (phoneDigits.includes(queryDigits) || contactDigits.includes(queryDigits)));
 
-        return [s.name, s.email, s.address, s.preferred_items].some((v) =>
-            (v || "").toLowerCase().includes(query)
-        ) || phoneDigits.includes(queryDigits) || contactDigits.includes(queryDigits);
+        return textMatch || numberMatch;
     });
 });
+
 
 
 const onDownload = (type) => {
@@ -397,10 +432,7 @@ const submit = () => {
         });
 };
 
-// Run on page load
-onMounted(async () => {
-    await fetchSuppliers();
-});
+
 
 // code for other functionalities
 // helpers (you already have closeModal)
@@ -479,7 +511,7 @@ const deleteSupplier = (id) => {
         .delete(`/suppliers/${id}`)
         .then(() => {
             suppliers.value = suppliers.value.filter((s) => s.id !== id);
-            toast.success("Supplier deleted .");
+            toast.success("Supplier deleted successfully.");
         })
         .catch((err) => {
             toast.error("Delete failed. Please try again.", {
@@ -544,7 +576,16 @@ const handleImport = (data) => {
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-                        <input v-model="q" class="form-control search-input" placeholder="Search" autocomplete="off" name="search_suppliers" />
+
+                        <!-- Hidden decoy input to catch autofill -->
+                        <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
                     </div>
 
                     <button data-bs-toggle="modal" data-bs-target="#modalAddSupplier" @click="
@@ -598,8 +639,31 @@ const handleImport = (data) => {
                             <th class="text-center">Action</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        <tr v-for="(s, i) in filtered" :key="s.id">
+                        <!-- ⏳ Loading -->
+                        <tr v-if="loading">
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <div class="d-flex justify-content-center align-items-center gap-2">
+                                    <div class="spinner-border" role="status"
+                                        style="width: 1.5rem; height: 1.5rem; border-color: #1c0d82; border-right-color: transparent;">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span>Fetching suppliers...</span>
+                                </div>
+                            </td>
+                        </tr>
+
+
+                        <!-- ❌ No suppliers -->
+                        <tr v-else-if="filtered.length === 0">
+                            <td colspan="7" class="text-center text-muted py-4">
+                                No suppliers found.
+                            </td>
+                        </tr>
+
+                        <!-- ✅ Supplier rows -->
+                        <tr v-else v-for="(s, i) in filtered" :key="s.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ s.name }}</td>
                             <td>{{ s.contact }}</td>
@@ -623,22 +687,14 @@ const handleImport = (data) => {
 
                                     <ConfirmModal :title="'Confirm Delete'"
                                         :message="`Are you sure you want to delete ${s.name}?`" :showDeleteButton="true"
-                                        @confirm="
-                                            () => {
-                                                deleteSupplier(s.id);
-                                            }
-                                        " @cancel="() => { }" />
+                                        @confirm="() => deleteSupplier(s.id)" @cancel="() => { }" />
                                 </div>
-                            </td>
-                        </tr>
-                        <tr v-if="filtered.length === 0">
-                            <td colspan="7" class="text-center text-muted py-4">
-                                No suppliers found.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+
         </div>
     </div>
 
@@ -690,27 +746,17 @@ const handleImport = (data) => {
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
 
-<vue-tel-input 
-    v-model="form.phone" 
-    :default-country="onboarding" 
-    :key="onboarding"
-    mode="national"
-    class="phone" 
-    @validate="checkPhone" 
-    :auto-format="false" 
-    :enable-formatting="false"
-    :disabled-fetching-country="true" 
-    :dropdown-options="{
-        showFlags: false,
-        showDialCodeInSelection: true,
-        disabled: true
-    }" 
-    :input-options="{ showDialCode: false }" 
-    :class="{
-        'is-invalid': formErrors.contact || phoneError,
-        'is-valid': isPhoneValid && form.phone
-    }" 
-/>
+                            <vue-tel-input v-model="form.phone" :default-country="onboarding" :key="onboarding"
+                                mode="international" class="phone" @validate="checkPhone" :auto-format="true"
+                                :enable-formatting="true" :disabled-fetching-country="true" :dropdown-options="{
+                                    showFlags: false,
+                                    showDialCodeInSelection: true,
+                                    disabled: true
+                                }" :input-options="{ showDialCode: true }" :class="{
+                                    'is-invalid': formErrors.contact || phoneError,
+                                    'is-valid': isPhoneValid && form.phone
+                                }" />
+
 
                             <!-- Show validation messages -->
                             <small v-if="formErrors.contact" class="text-danger">
@@ -761,7 +807,6 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
-
 :root {
     --brand: #1c0d82;
 }
@@ -775,6 +820,12 @@ const handleImport = (data) => {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+
+.form-control[readonly] {
+    background-color: #fff !important;
+    opacity: 1 !important;
+}
+
 
 .search-wrap .bi-search {
     position: absolute;
