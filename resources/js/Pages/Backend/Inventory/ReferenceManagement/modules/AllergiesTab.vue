@@ -54,9 +54,8 @@ const filteredAllergys = computed(() => {
 });
 
 const selectAll = () =>
-(commonAllergies.value = commonExistingAllergiesList.value.map(
-    (o) => o.value
-));
+  (commonAllergies.value = availableOptions.value.map((o) => o.value));
+
 
 const addCustom = () => {
     const name = (filterText.value || "").trim();

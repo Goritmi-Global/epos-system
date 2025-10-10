@@ -74,7 +74,8 @@ const filteredUnits = computed(() => {
         : units.value;
 });
 
-const selectAll = () => (commonUnits.value = options.value.map((o) => o.value));
+const selectAll = () => (commonUnits.value = availableOptions.value.map(o => o.value));
+
 
 const onFilter = (event) => {
     filterText.value = event.value;
