@@ -908,6 +908,10 @@ html.dark .main {
     gap: 10px;
 }
 
+.dark .help-popover{
+    background-color: #212121 !important;
+}
+
 .icon-btn {
     border: 0;
     background: transparent;

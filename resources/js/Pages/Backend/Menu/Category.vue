@@ -834,7 +834,7 @@ const handleImport = (data) => {
 
             <!-- KPI -->
             <div class="row g-3">
-                <div v-for="c in CategoriesDetails" :key="c.label" class="col">
+                <div v-for="c in CategoriesDetails" :key="c.label" class="col-md-6 col-xl-4">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <!-- Text -->
