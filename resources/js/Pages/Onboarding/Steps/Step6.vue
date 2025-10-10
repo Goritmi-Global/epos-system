@@ -3,7 +3,7 @@ import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { onMounted, reactive, ref, toRaw, watch } from "vue";
 import Select from 'primevue/select';
 
-const props = defineProps({ model: Object, formErrors: Object });
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } });
 const emit = defineEmits(["save"]);
 
 const form = reactive({
@@ -64,7 +64,7 @@ onMounted(fetchPrinters);
 
 <template>
   <div>
-    <h5 class="fw-bold mb-3">Step 6 of 9 - Receipt & Printer Setup</h5>
+    <h5 class="fw-bold mb-3" v-if="props.isOnboarding">Step 6 of 9 - Receipt & Printer Setup</h5>
 
     <div class="row g-4">
       <!-- Left side -->

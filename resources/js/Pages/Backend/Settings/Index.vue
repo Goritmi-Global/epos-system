@@ -70,12 +70,13 @@ const current = computed(
                 </ul>
 
                 <!-- ACTIVE TAB CONTENT -->
-                <div class="tab-body py-3">
-                    <component
-                        :is="current"
-                        :profile="props.profile"
-                        :profile-data="props.profileData"
-                    />
+                    <div class="tab-body py-3">
+                        <component
+                            :is="current"
+                            :profile="props.profile"
+                            :profile-data="props.profileData"
+                            :is-onboarding="false"
+                        />
                 </div>
             </div>
         </div>

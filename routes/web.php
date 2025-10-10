@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\CustomPasswordResetController;
 use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 /* ---------- Auth scaffolding ---------- */
@@ -33,6 +34,7 @@ use App\Http\Controllers\Reference\ReferenceManagementController;
 use App\Http\Controllers\Reference\SupplierController;
 use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
+use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -50,6 +52,9 @@ Route::get('/', fn () => Inertia::render('Auth/Login'));
 // email verification links & OTP verify
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
+Route::post('/forgot-password', [CustomPasswordResetController::class, 'requestReset'])
+    ->name('password.custom-request');
+
 
 /* =========================================================
 |  Authenticated (auth + verified where needed)
@@ -278,6 +283,10 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::delete('/{user}', [UsersController::class, 'destroy'])->name('destroy');
     });
 
+});
+
+Route::middleware(['auth', 'role:Super Admin'])->group(function() {
+    Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
 });
 
 /* ---------- Public settings/locations page (if intended public) ---------- */

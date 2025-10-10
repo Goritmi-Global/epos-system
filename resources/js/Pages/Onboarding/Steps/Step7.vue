@@ -2,7 +2,7 @@
 import { reactive, toRaw, watch } from "vue"
 
 const STEP_NUMBER = 7;
-const props = defineProps({ model: Object, formErrors: Object })
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } })
 const emit = defineEmits(["save"])
 
 const form = reactive({
@@ -28,7 +28,7 @@ watch(form, emitSave, { deep: true, immediate: true })
 
 <template>
   <div>
-    <h5 class="fw-bold mb-4">Step 7 of 9 - Payment Method</h5>
+    <h5 class="fw-bold mb-4" v-if="props.isOnboarding">Step 7 of 9 - Payment Method</h5>
 
     <!-- Cash -->
     <div class="mb-3 d-flex align-items-center justify-content-between">

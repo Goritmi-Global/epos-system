@@ -22,6 +22,9 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+        if (!$user) {
+            return redirect()->route('login'); // or abort(403)
+        }
         $role = $user->getRoleNames()->first();
 
         // ✅ Step check for onboarding

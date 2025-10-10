@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, toRaw, watch, ref, computed } from "vue"
 
-const props = defineProps({ model: Object, formErrors: Object })
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } })
 const emit = defineEmits(["save"])
 
 // Step 5 reactive form
@@ -134,7 +134,7 @@ const hasTableDetailsError = computed(() => {
 
 <template>
   <div>
-    <h5 class="fw-bold mb-3">Step 5 of 9 - Order Type & Service Options</h5>
+    <h5 class="fw-bold mb-3" v-if="props.isOnboarding">Step 5 of 9 - Order Type & Service Options</h5>
 
     <!-- Order types -->
     <label class="mb-2 fw-semibold">Enable Order types</label>

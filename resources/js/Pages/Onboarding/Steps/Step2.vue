@@ -4,7 +4,7 @@ import Select from "primevue/select";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 
-const props = defineProps({ model: Object, formErrors: Object });
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } });
 
 const emit = defineEmits(["save"]);
 
@@ -271,7 +271,7 @@ const flagUrl = (iso, size = "24x18") =>
 
 <template>
     <div>
-        <h5 class="fw-bold mb-4">Step 2 of 9 - Business Information</h5>
+        <h5 class="fw-bold mb-4" v-if="props.isOnboarding">Step 2 of 9 - Business Information</h5>
 
         <div class="row g-4">
             <!-- Business Name -->

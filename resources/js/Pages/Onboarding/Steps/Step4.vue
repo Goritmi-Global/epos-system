@@ -2,7 +2,7 @@
 import { reactive, toRaw, watch, ref } from "vue";
 import Select from "primevue/select"; // PrimeVue Select
 
-const props = defineProps({ model: Object, formErrors: Object });
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } });
 const emit = defineEmits(["save"]);
 
 const form = reactive({
@@ -63,7 +63,7 @@ const taxTypeOptions = ref([
 
 <template>
   <div>
-    <h5 class="fw-bold mb-4">Step 4 of 9 - Tax & VAT Setup</h5>
+    <h5 class="fw-bold mb-4" v-if="props.isOnboarding">Step 4 of 9 - Tax & VAT Setup</h5>
 
     <!-- Tax Registered -->
     <div class="mb-3">

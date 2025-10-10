@@ -6,7 +6,7 @@ import { onMounted, ref } from "vue";
 import { useFormatters } from '@/composables/useFormatters'
 import { toast } from "vue3-toastify";
 
-const { formatMoney, formatCurrencySymbol,  formatNumber, dateFmt } = useFormatters();
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
 const series = [
   {
@@ -140,20 +140,24 @@ const goToInventory = () => {
   window.location.href = '/inventory'
 }
 
+
+// compute whether to use 24-hour or 12-hour
+const is24Hour = computed(() => page?.props?.onboarding?.currency_and_locale?.time_format === '24-hour')
+
+// adjust display format accordingly
+const timeFormat = computed(() => (is24Hour.value ? 'HH:mm' : 'hh:mm a'))
+
 const openReminderPicker = () => {
   showReminderPicker.value = true
 
   const now = new Date()
-  now.setHours(now.getHours() + 1)
-
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-
-  reminderDate.value = `${year}-${month}-${day}`
-  reminderTime.value = `${hours}:${minutes}`
+  
+  // VueDatePicker expects Date objects, not strings
+  reminderDate.value = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  reminderTime.value = {
+    hours: now.getHours(),
+    minutes: now.getMinutes()
+  }
 }
 
 const setReminder = () => {
@@ -167,8 +171,18 @@ const setReminder = () => {
   }
 
   try {
+    // Extract date components from the Date object
+    const date = new Date(reminderDate.value)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    
+    // Extract time components (VueDatePicker time-picker returns an object)
+    const hours = String(reminderTime.value.hours).padStart(2, '0')
+    const minutes = String(reminderTime.value.minutes).padStart(2, '0')
+    
     // Create datetime string in ISO format
-    const datetimeString = `${reminderDate.value}T${reminderTime.value}:00`
+    const datetimeString = `${year}-${month}-${day}T${hours}:${minutes}:00`
     console.log('DateTime string:', datetimeString)
 
     const datetime = new Date(datetimeString)
@@ -469,8 +483,10 @@ const dismissReminder = () => {
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
-              <input type="time" v-model="reminderTime"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+
+              <VueDatePicker v-model="reminderTime" time-picker :format="timeFormat" :is24="is24Hour" teleport="body"
+                placeholder="Select time" />
+
             </div>
           </div>
           <div class="flex gap-2">

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, toRaw, watch } from "vue"
 
-const props = defineProps({ model: Object })
+const props = defineProps({ model: Object, isOnboarding: { type: Boolean, default: false } })
 const emit  = defineEmits(["save"])
 const form = reactive({
   feat_loyalty:       props.model?.feat_loyalty       ?? "yes",
@@ -95,7 +95,7 @@ const icons = {
 
 <template>
   <div>
-    <h5 class="fw-bold mb-4">Step 9 of 9 - Optional Features</h5>
+    <h5 class="fw-bold mb-4" v-if="props.isOnboarding">Step 9 of 9 - Optional Features</h5>
 
     <div class="vstack gap-2" style="max-width:620px">
       <div v-for="row in rows" :key="row.key" class="feat-row d-flex align-items-center justify-content-between">

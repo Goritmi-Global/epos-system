@@ -39,16 +39,9 @@ Please confirm your email to activate your account.
 
 <!-- Confirm Button -->
 @component('mail::button', ['url' => route('verify.account', ['id' => $user->id]), 'color' => 'primary'])
-<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
-<tr>
-<td align="center" bgcolor="#004AAD" style="border-radius: 5px;">
-    <a href="{{ route('verify.account', ['id' => $user->id]) }}" target="_blank" style="display: inline-block; padding: 12px 24px; color: #ffffff; background-color: #004AAD; border-radius: 5px; text-decoration: none; font-weight: bold;">
-        Confirm email
-    </a>
-</td>
-</tr>
-</table>
+Confirm email
 @endcomponent
+
 
 {{-- Only show OTP if available --}}
 @if(!empty($otp))

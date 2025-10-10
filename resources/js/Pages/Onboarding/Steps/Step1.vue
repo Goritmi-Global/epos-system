@@ -6,7 +6,7 @@ import { toast } from "vue3-toastify"
 
 
 const emit = defineEmits(["save"])
-const props = defineProps({ model: Object, formErrors: Object })
+const props = defineProps({ model: Object, formErrors: Object,  isOnboarding: { type: Boolean, default: false }  })
 
 const selectedCountry = ref(null)
 const selectedLanguage = ref(null)
@@ -154,7 +154,7 @@ watch(selectedLanguage, (opt) => {
 
 <template>
   <div>
-    <h5 class="fw-bold mb-3">Step 1 of 9 - Welcome & Language Selection</h5>
+    <h5 class="fw-bold mb-3" v-if="props.isOnboarding">Step 1 of 9 - Welcome & Language Selection</h5>
 
     <div class="section p-3 p-md-4">
       <div class="row g-3">

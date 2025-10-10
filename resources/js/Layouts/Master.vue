@@ -12,14 +12,59 @@ import { useDark, useToggle, } from "@vueuse/core";
 import { Moon, Sun } from "lucide-vue-next";
 import { usePage } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
+import ConfirmModal from "@/Components/ConfirmModal.vue";
 /* =========================
    Sidebar structure (array)
    ========================= */
 const page = usePage();
+const showConfirmRestore = ref(false);
+// Add this function to handle the sidebar action
+const handleSidebarAction = (action) => {
+    console.log('Sidebar action triggered:', action);
+    if (action === "systemRestore") {
+        showConfirmRestore.value = true;
+        console.log('showConfirmRestore set to:', showConfirmRestore.value);
+    }
+};
+
+const handleSystemRestore = async () => {
+    try {
+        const response = await axios.post(route('system.restore'));
+
+        if (response.data.success) {
+            toast.success('System restored successfully!');
+            showConfirmRestore.value = false;
+            // Optionally redirect or reload
+            window.location.href = route('register');
+        }
+    } catch (error) {
+        console.error('System restore error:', error);
+
+        // Extract the most meaningful message
+        let message = 'Failed to restore system. Please try again.';
+
+        if (error.response) {
+            // Laravel returned a response with status code and message
+            if (error.response.data?.message) {
+                message = error.response.data.message;
+            } else if (error.response.data?.error) {
+                message = error.response.data.error;
+            } else {
+                message = `Error ${error.response.status}: ${error.response.statusText}`;
+            }
+        } else if (error.message) {
+            // Network error or other JS error
+            message = error.message;
+        }
+
+        toast.error(message);
+    }
+};
+
 
 const formErrors = ref({});
 const logedIUser = computed(() => page.props.current_user ?? {});
-
+console.log("logedIUser", logedIUser.value);
 const businessInfo = computed(() => page.props.business_info ?? {});
 
 const isDark = useDark({
@@ -103,6 +148,7 @@ const sidebarMenus = ref([
         section: "Other Menu",
         children: [
             { label: "Settings", icon: "settings", route: "settings.index" },
+            { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
             {
                 label: "Log Out",
                 icon: "log-out",
@@ -231,7 +277,7 @@ const profileForm = ref({
     username: logedIUser.value.name ?? "",
     password: "",
     pin: "",
-    role: "Super Admin",
+    role: logedIUser.value.roles[0] ?? "",
 });
 
 const updateProfile = async () => {
@@ -258,6 +304,15 @@ const updateProfile = async () => {
     }
 };
 
+// Reset form errors and optionally fields when modal closes
+onMounted(() => {
+    const modalEl = document.getElementById("userProfileModal");
+    modalEl.addEventListener("hidden.bs.modal", () => {
+        formErrors.value = {};
+        profileForm.value.password = "";
+        profileForm.value.pin = "";
+    });
+});
 // ------------------ Notifications --------------------------
 
 const notifications = ref([]);
@@ -482,7 +537,7 @@ onMounted(fetchNotifications);
                     <div class="ms-2 d-none d-sm-block">
                         <b class="fw-bold text-black">{{ logedIUser.name }}</b>
                         <br />
-                        <small class="super-admin text-black">Super Admin</small>
+                        <small class="super-admin text-black">{{ logedIUser.roles[0] }}</small>
                     </div>
 
                 </li>
@@ -492,98 +547,98 @@ onMounted(fetchNotifications);
 
         <!-- =================== SIDEBAR =================== -->
         <aside class="sidebar" id="sidebar" aria-label="Primary">
-            <div class="sidebar-inner">
-                <div id="sidebar-menu" class="sidebar-menu px-2">
-                    <ul class="mb-3">
-                        <template v-for="block in sidebarMenus" :key="block.label || block.section">
-                            <!-- Simple top item -->
-                            <li v-if="!block.section" :class="{ active: isActive(block.route) }">
-                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                                <i :data-feather="block.icon" class="me-2 icons"></i>
-                                <span class="truncate-when-mini">{{
-                                    block.label
-                                    }}</span>
-                                </Link>
-                            </li>
+    <div class="sidebar-inner">
+        <div id="sidebar-menu" class="sidebar-menu px-2">
+            <ul class="mb-3">
+                <template v-for="block in sidebarMenus" :key="block.label || block.section">
+                    <!-- Simple top item -->
+                    <li v-if="!block.section" :class="{ active: isActive(block.route) }">
+                        <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
+                            <i :data-feather="block.icon" class="me-2 icons"></i>
+                            <span class="truncate-when-mini">{{ block.label }}</span>
+                        </Link>
+                    </li>
 
-                            <!-- Section -->
-                            <template v-else>
-                                <li
-                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
-                                    {{ block.section }}
-                                </li>
+                    <!-- Section -->
+                    <template v-else>
+                        <li class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
+                            {{ block.section }}
+                        </li>
 
-                                <template v-for="item in block.children" :key="item.label">
-                                    <!-- Dropdown group -->
-                                    <li v-if="
-                                        item.children &&
-                                        item.children.length
-                                    ">
-                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                                            :class="{
-                                                active:
-                                                    openGroups.has(
-                                                        item.label
-                                                    ) ||
-                                                    isAnyChildActive(
-                                                        item.children
-                                                    ),
-                                            }" @click="toggleGroup(item.label)" type="button" :aria-expanded="openGroups.has(item.label) ||
-                                                isAnyChildActive(item.children)
-                                                ">
-                                            <i :data-feather="item.icon" class="me-2"></i>
-                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                            }}</span>
-                                            <i :data-feather="openGroups.has(
-                                                item.label
-                                            ) ||
-                                                isAnyChildActive(
-                                                    item.children
-                                                )
-                                                ? 'chevron-up'
-                                                : 'chevron-down'
-                                                "></i>
-                                        </button>
+                        <template v-for="item in block.children" :key="item.label">
+                            <!-- Dropdown group -->
+                            <li v-if="item.children && item.children.length">
+                                <button 
+                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                    :class="{
+                                        active: openGroups.has(item.label) || isAnyChildActive(item.children),
+                                    }" 
+                                    @click="toggleGroup(item.label)" 
+                                    type="button" 
+                                    :aria-expanded="openGroups.has(item.label) || isAnyChildActive(item.children)"
+                                >
+                                    <i :data-feather="item.icon" class="me-2"></i>
+                                    <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
+                                    <i :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+                                </button>
 
-                                        <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) ||
-                                            isAnyChildActive(item.children)
-                                            ">
-                                            <li v-for="child in item.children" :key="child.label" :class="{
-                                                active: isActive(
-                                                    child.route
-                                                ),
-                                            }">
-                                                <Link :href="route(child.route)" :method="child.method || 'get'
-                                                    " class="d-flex align-items-center side-link px-3 py-2">
-                                                <i :data-feather="child.icon
-                                                    " class="me-2"></i>
-                                                <span>{{
-                                                    child.label
-                                                    }}</span>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </li>
-
-                                    <!-- Flat item -->
-                                    <li v-else :class="{
-                                        active: isActive(item.route),
-                                    }">
-                                        <Link :href="route(item.route)" :method="item.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2">
-                                        <i :data-feather="item.icon" class="me-2"></i>
-                                        <span class="truncate-when-mini">{{
-                                            item.label
-                                            }}</span>
+                                <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) || isAnyChildActive(item.children)">
+                                    <li v-for="child in item.children" :key="child.label" :class="{ active: isActive(child.route) }">
+                                        <Link 
+                                            :href="route(child.route)" 
+                                            :method="child.method || 'get'"
+                                            class="d-flex align-items-center side-link px-3 py-2"
+                                        >
+                                            <i :data-feather="child.icon" class="me-2"></i>
+                                            <span>{{ child.label }}</span>
                                         </Link>
                                     </li>
-                                </template>
-                            </template>
+                                </ul>
+                            </li>
+
+                            <!-- Flat item -->
+                            <li v-else :class="{ active: item.route ? isActive(item.route) : false }">
+                                <!-- Action button (for items with action property) -->
+                                <!-- <button
+                                    v-if="item.action"
+                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                    @click="handleSidebarAction(item.action)"
+                                    type="button"
+                                >
+                                    <i :data-feather="item.icon" class="me-2"></i>
+                                    <span class="truncate-when-mini">{{ item.label }}</span>
+                                </button> -->
+                                
+                                    <ConfirmModal v-if="item.action" :title="'Confirm Restore'"
+                                                    :message="`Are you sure you want to restore the system? This action cannot be undone.`"
+                                                    :showConfirmRestore="true" @confirm="
+                                                        () => {
+                                                            handleSystemRestore(item.action);
+                                                        }
+                                                    " @cancel="
+                                                        () => {
+                                                            showConfirmRestore = false;
+                                                        }
+                                                    " />
+
+                                <!-- Normal Link (for items with route property) -->
+                                <Link
+                                    v-else-if="item.route"
+                                    :href="route(item.route)"
+                                    :method="item.method || 'get'"
+                                    class="d-flex align-items-center side-link px-3 py-2"
+                                >
+                                    <i :data-feather="item.icon" class="me-2"></i>
+                                    <span class="truncate-when-mini">{{ item.label }}</span>
+                                </Link>
+                            </li>
                         </template>
-                    </ul>
-                </div>
-            </div>
-        </aside>
+                    </template>
+                </template>
+            </ul>
+        </div>
+    </div>
+</aside>
 
         <!-- Mobile overlay backdrop -->
         <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
@@ -627,7 +682,8 @@ onMounted(fetchNotifications);
                         <!-- Password -->
                         <div class="col-md-6">
                             <label class="form-label">Password</label>
-                            <input type="password" class="form-control" :class="{ 'is-invalid': formErrors.password }"
+                            <input type="password" class="form-control"
+                            placeholder="Enter new password (leave blank to keep current)" :class="{ 'is-invalid': formErrors.password }"
                                 v-model="profileForm.password" />
                             <div v-if="formErrors.password" class="invalid-feedback">
                                 {{ formErrors.password[0] }}
@@ -638,6 +694,7 @@ onMounted(fetchNotifications);
                         <div class="col-md-6">
                             <label class="form-label">Pin</label>
                             <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.pin }"
+                            placeholder="Enter new PIN (leave blank to keep current)"
                                 v-model="profileForm.pin" />
                             <div v-if="formErrors.pin" class="invalid-feedback">
                                 {{ formErrors.pin[0] }}
@@ -665,6 +722,7 @@ onMounted(fetchNotifications);
             </div>
         </div>
     </div>
+
 </template>
 
 <style>

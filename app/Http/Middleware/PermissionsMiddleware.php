@@ -16,25 +16,24 @@ class PermissionsMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $user = auth()->user();
 
-        // If Super user than bypass all the permissions check
-        if (!empty(auth()->user()->getRoleNames()->toArray()) && count(auth()->user()->getRoleNames()) > 0) {
-            if (auth()->user()->getRoleNames()[0] == 'Super Admin') {
-                return $next($request);
-            }
+        if (!$user) {
+            abort(403, 'Unauthorized');
         }
 
-        // If not Super Admin User
+        $role = $user->getRoleNames()->first();
+        if ($role === 'Super Admin') {
+            return $next($request);
+        }
+
         $routeName = Route::currentRouteName();
+        $userPermissions = $user->getAllPermissions()->pluck('name')->toArray();
 
-        $userPermissions = auth()->user()->getAllPermissions()->pluck('name')->toArray();
-
-        // Check if the user has the required permission
         if (!in_array($routeName, $userPermissions)) {
             abort(403, 'Unauthorized');
         }
 
-        // If user has the permission
         return $next($request);
     }
 }

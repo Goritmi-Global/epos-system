@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use App\Mail\ResetPasswordMail;
+use Illuminate\Support\Facades\Mail;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -48,5 +50,15 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $url = url(route('password.reset', [
+            'token' => $token,
+            'email' => $this->email,
+        ], false));
+
+        Mail::to($this->email)->send(new ResetPasswordMail($this, $url));
     }
 }
