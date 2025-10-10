@@ -222,7 +222,7 @@ onUpdated(() => window.feather?.replace());
             <h4 class="fw-semibold mb-3">Promo Management</h4>
 
             <!-- KPI Cards -->
-            <div class="row g-3 mb-4">
+            <div class="row g-3">
                 <div v-for="stat in promoStats" :key="stat.label" class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center">

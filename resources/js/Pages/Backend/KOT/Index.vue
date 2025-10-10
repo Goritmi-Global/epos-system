@@ -13,11 +13,11 @@ const orders = ref([]);
 const fetchOrders = async () => {
     try {
         const response = await axios.get("/api/kots/all-orders");
-        
+
         orders.value = (response.data.data || []).map(ko => {
             const posOrder = ko.pos_order_type?.order;
             const posOrderItems = posOrder?.items || [];
-            
+
             return {
                 id: posOrder?.id || ko.id,
                 created_at: posOrder?.created_at || ko.created_at,
@@ -32,11 +32,11 @@ const fetchOrders = async () => {
                 payment: posOrder?.payment,
                 items: (ko.items || []).map(kotItem => {
                     // Find matching POS item to get price
-                    const matchingPosItem = posOrderItems.find(posItem => 
-                        posItem.title === kotItem.item_name || 
+                    const matchingPosItem = posOrderItems.find(posItem =>
+                        posItem.title === kotItem.item_name ||
                         posItem.product_id === kotItem.product_id
                     );
-                    
+
                     return {
                         ...kotItem,
                         title: kotItem.item_name,
@@ -49,7 +49,7 @@ const fetchOrders = async () => {
                 orderIndex: ko.id
             };
         });
-        
+
         console.log("Transformed orders:", orders.value);
     } catch (error) {
         console.error("Error fetching orders:", error);
@@ -83,7 +83,7 @@ const allItems = computed(() => {
             uniqueId: `${order.id}-${itemIndex}`
         })) || [];
     });
-    
+
     return flattened;
 });
 
@@ -95,13 +95,13 @@ const filtered = computed(() => {
             orderTypeFilter.value === "All"
                 ? true
                 : (item.order?.type?.order_type ?? "").toLowerCase() ===
-                  orderTypeFilter.value.toLowerCase()
+                orderTypeFilter.value.toLowerCase()
         )
         .filter((item) =>
             statusFilter.value === "All"
                 ? true
                 : (item.status ?? "").toLowerCase() ===
-                  statusFilter.value.toLowerCase()
+                statusFilter.value.toLowerCase()
         )
         .filter((item) => {
             if (!term) return true;
@@ -174,13 +174,13 @@ const updateKotStatus = async (order, status) => {
     try {
         console.log(`Updating KOT status: Order ID ${order.id} -> ${status}`);
         const response = await axios.put(`/api/pos/kot/${order.id}/status`, { status });
-        
+
         // Update local state
         const orderIndex = orders.value.findIndex(o => o.id === order.id);
         if (orderIndex !== -1) {
             orders.value[orderIndex].status = status;
         }
-        
+
         toast.success(response.data.message || 'Status updated successfully');
     } catch (err) {
         console.error("Failed to update status:", err);
@@ -190,25 +190,25 @@ const updateKotStatus = async (order, status) => {
 
 const printOrder = (order) => {
     const plainOrder = JSON.parse(JSON.stringify(order));
-    
+
     // Access order data directly from the order object
     const customerName = plainOrder?.customer_name || 'Walk-in Customer';
     const orderType = plainOrder?.type?.order_type || 'Dine In';
     const tableNumber = plainOrder?.type?.table_number;
     const payment = plainOrder?.payment;
     const posOrderItems = plainOrder?.items || [];
-    
+
     // Calculate totals from items
-    const subTotal = posOrderItems.reduce((sum, item) => 
+    const subTotal = posOrderItems.reduce((sum, item) =>
         sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0
     );
     const totalAmount = plainOrder?.total_amount || subTotal;
-    
+
     // Format date and time
     const createdDate = plainOrder?.created_at ? new Date(plainOrder.created_at) : new Date();
     const orderDate = createdDate.toISOString().split('T')[0];
     const orderTime = createdDate.toTimeString().split(' ')[0];
-    
+
     const type = (payment?.payment_method || "cash").toLowerCase();
     let payLine = "";
     if (type === "split") {
@@ -220,8 +220,8 @@ const printOrder = (order) => {
     }
 
     const itemsWithPrices = (plainOrder.items || []).map(kotItem => {
-        const matchingPosItem = posOrderItems.find(posItem => 
-            posItem.title === kotItem.item_name || 
+        const matchingPosItem = posOrderItems.find(posItem =>
+            posItem.title === kotItem.item_name ||
             posItem.product_id === kotItem.product_id
         );
         return {
@@ -286,10 +286,10 @@ const printOrder = (order) => {
         </thead>
         <tbody>
          ${posOrderItems.map(item => {
-      const qty = Number(item.quantity) || 1;
-      const price = Number(item.price) || 0;
-      const itemName = item.title || item.item_name || 'Unknown Item';
-      return `
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.price) || 0;
+        const itemName = item.title || item.item_name || 'Unknown Item';
+        return `
       <tr>
         <td>${itemName}</td>
         <td>${qty}</td>
@@ -330,6 +330,7 @@ const printOrder = (order) => {
 </script>
 
 <template>
+
     <Head title="Kitchen Orders" />
 
     <Master>
@@ -337,52 +338,72 @@ const printOrder = (order) => {
             <h4 class="fw-semibold mb-3">Kitchen Order Tickets</h4>
 
             <!-- KPI Cards -->
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-0">
+                <!-- Total Tables -->
                 <div class="col-6 col-md-3">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body d-flex flex-column justify-content-center text-center">
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-table"></i>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ totalTables }}</h3>
+                                <p class="text-muted mb-0 small">Total Tables</p>
                             </div>
-                            <div class="kpi-label text-muted">Total Tables</div>
-                            <div class="kpi-value">{{ totalTables }}</div>
+                            <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-table fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Total Items -->
                 <div class="col-6 col-md-3">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body d-flex flex-column justify-content-center text-center">
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-basket"></i>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ totalItems }}</h3>
+                                <p class="text-muted mb-0 small">Total Items</p>
                             </div>
-                            <div class="kpi-label text-muted">Total Items</div>
-                            <div class="kpi-value">{{ totalItems }}</div>
+                            <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-basket fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Pending Orders -->
                 <div class="col-6 col-md-3">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body d-flex flex-column justify-content-center text-center">
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-hourglass-split"></i>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ pendingOrders }}</h3>
+                                <p class="text-muted mb-0 small">Pending Orders</p>
                             </div>
-                            <div class="kpi-label text-muted">Pending Orders</div>
-                            <div class="kpi-value">{{ pendingOrders }}</div>
+                            <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-hourglass-split fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Cancelled Orders -->
                 <div class="col-6 col-md-3">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body d-flex flex-column justify-content-center text-center">
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-x-circle"></i>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ cancelledOrders }}</h3>
+                                <p class="text-muted mb-0 small">Cancelled Orders</p>
                             </div>
-                            <div class="kpi-label text-muted">Cancelled Orders</div>
-                            <div class="kpi-value">{{ cancelledOrders }}</div>
+                            <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-x-circle fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
 
             <!-- Orders Table -->
             <div class="card border-0 shadow-lg rounded-4">
@@ -401,9 +422,8 @@ const printOrder = (order) => {
 
                             <!-- Order Type filter -->
                             <div style="min-width: 170px">
-                                <Select v-model="orderTypeFilter" :options="orderTypeOptions"
-                                    placeholder="Order Type" class="w-100" :appendTo="'body'" :autoZIndex="true"
-                                    :baseZIndex="2000">
+                                <Select v-model="orderTypeFilter" :options="orderTypeOptions" placeholder="Order Type"
+                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
                                     <template #value="{ value, placeholder }">
                                         <span v-if="value">{{ value }}</span>
                                         <span v-else>{{ placeholder }}</span>
@@ -510,7 +530,7 @@ const printOrder = (order) => {
     color: #4e73df;
 }
 
-.dark .icon-wrap{
+.dark .icon-wrap {
     color: #fff !important;
 }
 
@@ -524,7 +544,8 @@ const printOrder = (order) => {
     font-weight: 600;
     color: #2c3e50;
 }
-.dark .kpi-value{
+
+.dark .kpi-value {
     color: #fff !important;
 }
 
@@ -550,4 +571,251 @@ const printOrder = (order) => {
     border-color: #4e73df;
     box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
 }
+
+:deep(.p-multiselect-overlay) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Header area (filter + select all) */
+:deep(.p-multiselect-header) {
+    background: #fff !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Options list container */
+:deep(.p-multiselect-list) {
+    background: #fff !important;
+}
+
+/* Each option */
+:deep(.p-multiselect-option) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Hover/selected option */
+:deep(.p-multiselect-option.p-highlight) {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+}
+
+:deep(.p-multiselect),
+:deep(.p-multiselect-panel),
+:deep(.p-multiselect-token) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Checkbox box in dropdown */
+:deep(.p-multiselect-overlay .p-checkbox-box) {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+}
+
+:deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
+    background: #007bff !important;
+    /* blue when checked */
+    border-color: #007bff !important;
+}
+
+/* Search filter input */
+:deep(.p-multiselect-filter) {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Optional: adjust filter container */
+:deep(.p-multiselect-filter-container) {
+    background: #fff !important;
+}
+
+/* Selected chip inside the multiselect */
+:deep(.p-multiselect-chip) {
+    background: #e9ecef !important;
+    /* light gray, like Bootstrap badge */
+    color: #000 !important;
+    border-radius: 12px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:deep(.p-multiselect-chip .p-chip-remove-icon) {
+    color: #555 !important;
+}
+
+:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #dc3545 !important;
+    /* red on hover */
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+:deep(.p-multiselect-label) {
+    color: #000 !important;
+}
+
+/* ====================Select Styling===================== */
+/* Entire select container */
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #000 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important; /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
+}
+
+
 </style>

@@ -191,6 +191,7 @@ async function bulkSubmit() {
                                 <tr>
                                     <th>Name</th>
                                     <th>Category</th>
+                                    <th>Unit</th>
                                     <th>Qty</th>
                                     <th>Unit Price</th>
                                     <th>Expiry</th>
@@ -199,7 +200,10 @@ async function bulkSubmit() {
                                 </tr>
                             </thead>
                             <tbody>
+
                                 <tr v-for="(it, idx) in bulkItems" :key="it.id">
+                                    <td>{{ it.name }}</td>
+                                    <td>{{ it.category?.name || "-" }}</td>
                                     <td>{{ it.name }}</td>
                                     <td>{{ it.category?.name || "-" }}</td>
                                     <td>

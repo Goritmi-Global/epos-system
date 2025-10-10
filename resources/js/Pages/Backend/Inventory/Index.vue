@@ -1191,9 +1191,9 @@ const handleImport = (data) => {
             <h4 class="mb-3">Overall Inventory</h4>
 
             <!-- KPI Cards -->
-            <div class="row g-3">
-                <div v-for="c in kpis" :key="c.label" class="col">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="row g-4">
+                <div v-for="c in kpis" :key="c.label" class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
                                 <div class="fw-bold fs-4">
@@ -1212,7 +1212,7 @@ const handleImport = (data) => {
             </div>
 
             <!-- Stock Table -->
-            <div class="card border-0 shadow-lg rounded-4 mt-3">
+            <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body">
                     <!-- Toolbar -->
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -2405,9 +2405,9 @@ row, i
     color: #fff !important;
 }
 
-.dark svg{
+/* .dark svg{
     color: #fff !important;
-}
+} */
 
 
 /* Search filter input */

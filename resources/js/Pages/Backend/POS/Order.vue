@@ -1,4 +1,5 @@
-ot<script setup>
+ot
+<script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
@@ -39,14 +40,14 @@ const filtered = computed(() => {
                 orderTypeFilter.value === "All"
                     ? true
                     : (o.type?.order_type ?? "").toLowerCase() ===
-                      orderTypeFilter.value.toLowerCase()
+                    orderTypeFilter.value.toLowerCase()
             )
             // Payment Type (Cash / Card / Split)
             .filter((o) =>
                 paymentTypeFilter.value === "All"
                     ? true
                     : (o.payment?.payment_type ?? "").toLowerCase() ===
-                      paymentTypeFilter.value.toLowerCase()
+                    paymentTypeFilter.value.toLowerCase()
             )
             // Search
             .filter((o) => {
@@ -245,9 +246,8 @@ function printReceipt(order) {
 
   <hr/>
   <div><small>Customer: ${safe(customer)}</small></div>
-  <div><small>Order Type: ${safe(orderType)}${
-        tableNo ? ` | Table: ${safe(tableNo)}` : ""
-    }</small></div>
+  <div><small>Order Type: ${safe(orderType)}${tableNo ? ` | Table: ${safe(tableNo)}` : ""
+        }</small></div>
   <div><small>${payLine}</small></div>
 
   <hr/>
@@ -256,44 +256,40 @@ function printReceipt(order) {
   <hr/>
 
   <div class="row"><span>Subtotal:</span><span class="right">${money(
-      subTotal
-  )}</span></div>
-  ${
-      Number(order?.tax ?? 0)
-          ? `<div class="row"><span>Tax:</span><span class="right">${money(
+            subTotal
+        )}</span></div>
+  ${Number(order?.tax ?? 0)
+            ? `<div class="row"><span>Tax:</span><span class="right">${money(
                 order.tax
             )}</span></div>`
-          : ""
-  }
-  ${
-      Number(order?.service_charges ?? 0)
-          ? `<div class="row"><span>Service:</span><span class="right">${money(
+            : ""
+        }
+  ${Number(order?.service_charges ?? 0)
+            ? `<div class="row"><span>Service:</span><span class="right">${money(
                 order.service_charges
             )}</span></div>`
-          : ""
-  }
-  ${
-      Number(order?.delivery_charges ?? 0)
-          ? `<div class="row"><span>Delivery:</span><span class="right">${money(
+            : ""
+        }
+  ${Number(order?.delivery_charges ?? 0)
+            ? `<div class="row"><span>Delivery:</span><span class="right">${money(
                 order.delivery_charges
             )}</span></div>`
-          : ""
-  }
+            : ""
+        }
 
   <div class="row bold mt-4"><span>Total:</span><span class="right">${money(
-      total
-  )}</span></div>
+            total
+        )}</span></div>
 
-  ${
-      payType === "cash" || !payType
-          ? `<div class="row"><span>Cash Received:</span><span class="right">${money(
+  ${payType === "cash" || !payType
+            ? `<div class="row"><span>Cash Received:</span><span class="right">${money(
                 order?.cash_received ?? paymentObj?.amount_received ?? 0
             )}</span></div>
        <div class="row"><span>Change:</span><span class="right">${money(
-           order?.change ?? 0
-       )}</span></div>`
-          : ""
-  }
+                order?.change ?? 0
+            )}</span></div>`
+            : ""
+        }
 
   <hr/>
   <div class="center">
@@ -335,6 +331,7 @@ function printReceipt(order) {
 </script>
 
 <template>
+
     <Head title="Orders" />
 
     <Master>
@@ -344,85 +341,73 @@ function printReceipt(order) {
 
             <!-- KPI Cards (same style as sample) -->
             <div class="row g-3">
-                <div class="col-6 col-md-4">
+                <div class="col-md-6 col-xl-4">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div
-                            class="card-body d-flex flex-column justify-content-center text-center"
-                        >
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-list-task"></i>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+
+                            <!-- Left Text Section -->
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ totalOrders }}</h3>
+                                <p class="text-muted mb-0 small">Total Orders</p>
                             </div>
-                            <div class="kpi-label text-muted">Total Orders</div>
-                            <div class="kpi-value">{{ totalOrders }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div
-                            class="card-body d-flex flex-column justify-content-center text-center"
-                        >
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-check2-circle"></i>
-                            </div>
-                            <div class="kpi-label text-muted">
-                                Completed Orders
-                            </div>
-                            <div class="kpi-value">
-                                {{ completedOrders }}
+
+                            <!-- Right Icon Section -->
+                            <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-primary"
+                                style="width: 40px; height: 40px">
+                                <i class="bi bi-list-task fs-4"></i>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-4">
+
+                <div class="col-md-6 col-xl-4">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div
-                            class="card-body d-flex flex-column justify-content-center text-center"
-                        >
-                            <div class="icon-wrap mb-2">
-                                <i class="bi bi-hourglass-split"></i>
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ completedOrders }}</h3>
+                                <p class="text-muted mb-0 small">Completed Orders</p>
                             </div>
-                            <div class="kpi-label text-muted">
-                                Pending Orders
+                            <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-success"
+                                style="width: 40px; height: 40px">
+                                <i class="bi bi-check2-circle fs-4"></i>
                             </div>
-                            <div class="kpi-value">{{ pendingOrders }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ pendingOrders }}</h3>
+                                <p class="text-muted mb-0 small">Pending Orders</p>
+                            </div>
+                            <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-warning"
+                                style="width: 40px; height: 40px">
+                                <i class="bi bi-hourglass-split fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Orders Table -->
-            <div class="card border-0 shadow-lg rounded-4 mt-3">
+            <div class="card border-0 shadow-lg rounded-4 mt-0">
                 <div class="card-body">
                     <!-- Toolbar -->
-                    <div
-                        class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"
-                    >
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 fw-semibold">Orders</h5>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <!-- Search -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input
-                                    v-model="q"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search"
-                                />
+                                <input v-model="q" type="text" class="form-control search-input" placeholder="Search" />
                             </div>
 
                             <!-- Order Type filter -->
                             <div style="min-width: 170px">
-                                <Select
-                                    v-model="orderTypeFilter"
-                                    :options="orderTypeOptions"
-                                    placeholder="Order Type"
-                                    class="w-100"
-                                    :appendTo="'body'"
-                                    :autoZIndex="true"
-                                    :baseZIndex="2000"
-                                >
+                                <Select v-model="orderTypeFilter" :options="orderTypeOptions" placeholder="Order Type"
+                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
                                     <template #value="{ value, placeholder }">
                                         <span v-if="value">{{ value }}</span>
                                         <span v-else>{{ placeholder }}</span>
@@ -432,15 +417,9 @@ function printReceipt(order) {
 
                             <!-- Payment Type filter (replaces Status) -->
                             <div style="min-width: 160px">
-                                <Select
-                                    v-model="paymentTypeFilter"
-                                    :options="paymentTypeOptions"
-                                    placeholder="Payment Type"
-                                    class="w-100"
-                                    :appendTo="'body'"
-                                    :autoZIndex="true"
-                                    :baseZIndex="2000"
-                                >
+                                <Select v-model="paymentTypeFilter" :options="paymentTypeOptions"
+                                    placeholder="Payment Type" class="w-100" :appendTo="'body'" :autoZIndex="true"
+                                    :baseZIndex="2000">
                                     <template #value="{ value, placeholder }">
                                         <span v-if="value">{{ value }}</span>
                                         <span v-else>{{ placeholder }}</span>
@@ -450,28 +429,16 @@ function printReceipt(order) {
 
                             <!-- Download -->
                             <div class="dropdown">
-                                <button
-                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown"
-                                >
+                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
                                     Download
                                 </button>
-                                <ul
-                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                >
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:void(0)"
-                                            >Download as PDF</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:void(0)">Download as PDF</a>
                                     </li>
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:void(0)"
-                                            >Download as Excel</a
-                                        >
+                                        <a class="dropdown-item py-2" href="javascript:void(0)">Download as Excel</a>
                                     </li>
                                 </ul>
                             </div>
@@ -480,10 +447,7 @@ function printReceipt(order) {
 
                     <!-- Table -->
                     <div class="table-responsive">
-                        <table
-                            class="table table-hover align-middle mb-0"
-                            style="min-height: 320px"
-                        >
+                        <table class="table table-hover align-middle mb-0" style="min-height: 320px">
                             <thead class="border-top small text-muted">
                                 <tr>
                                     <th style="width: 70px">S. #</th>
@@ -509,10 +473,7 @@ function printReceipt(order) {
                                     <td>{{ timeAgo(o.created_at) }}</td>
                                     <td>{{ o.customer_name ?? "-" }}</td>
                                     <td>
-                                        <span
-                                            class="text-primary cursor-pointer"
-                                            @click="openPaymentModal(o.payment)"
-                                        >
+                                        <span class="text-primary cursor-pointer" @click="openPaymentModal(o.payment)">
                                             {{ o.payment?.payment_type ?? "-" }}
                                         </span>
                                     </td>
@@ -536,21 +497,15 @@ function printReceipt(order) {
                                             </span>
                                         </td> -->
                                     <td class="text-center">
-                                        <button
-                                            class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
-                                            @click="openOrderDetails(o)"
-                                            title="View Order"
-                                        >
+                                        <button class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
+                                            @click="openOrderDetails(o)" title="View Order">
                                             <Eye class="w-4 h-4" />
                                         </button>
                                     </td>
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td
-                                        colspan="9"
-                                        class="text-center text-muted py-4"
-                                    >
+                                    <td colspan="9" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>
@@ -561,16 +516,9 @@ function printReceipt(order) {
             </div>
 
             <!-- Payment Details Modal -->
-            <div
-                class="modal fade"
-                id="paymentDetailsModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-md modal-dialog-centered">
-                    <div
-                        class="modal-content border-0 shadow-lg rounded-4 overflow-hidden"
-                    >
+                    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <!-- Header -->
                         <div class="modal-header border-0 text-black">
                             <h6 class="modal-title fw-semibold">
@@ -580,23 +528,10 @@ function printReceipt(order) {
 
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-danger"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -607,13 +542,11 @@ function printReceipt(order) {
                                     <!-- Payment Type -->
                                     <div class="col-6">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Payment Type</span
-                                            >
+                                            <span class="label">Payment Type</span>
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -637,9 +570,7 @@ function printReceipt(order) {
                                     <!-- Amount -->
                                     <div class="col-6">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Amount Received</span
-                                            >
+                                            <span class="label">Amount Received</span>
                                             <span class="value">{{
                                                 money(
                                                     selectedPayment?.amount_received
@@ -649,17 +580,12 @@ function printReceipt(order) {
                                     </div>
 
                                     <!-- Split amounts -->
-                                    <div
-                                        v-if="
-                                            selectedPayment?.payment_type ===
-                                            'Split'
-                                        "
-                                        class="col-6"
-                                    >
+                                    <div v-if="
+                                        selectedPayment?.payment_type ===
+                                        'Split'
+                                    " class="col-6">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Cash Amount</span
-                                            >
+                                            <span class="label">Cash Amount</span>
                                             <span class="value">{{
                                                 money(
                                                     selectedPayment?.cash_amount
@@ -668,17 +594,12 @@ function printReceipt(order) {
                                         </div>
                                     </div>
 
-                                    <div
-                                        v-if="
-                                            selectedPayment?.payment_type ===
-                                            'Split'
-                                        "
-                                        class="col-6"
-                                    >
+                                    <div v-if="
+                                        selectedPayment?.payment_type ===
+                                        'Split'
+                                    " class="col-6">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Card Amount</span
-                                            >
+                                            <span class="label">Card Amount</span>
                                             <span class="value">{{
                                                 money(
                                                     selectedPayment?.card_amount
@@ -690,9 +611,7 @@ function printReceipt(order) {
                                     <!-- Date -->
                                     <div class="col-6">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Payment Date</span
-                                            >
+                                            <span class="label">Payment Date</span>
                                             <span class="value">{{
                                                 formatDate(
                                                     selectedPayment?.payment_date
@@ -702,68 +621,45 @@ function printReceipt(order) {
                                     </div>
 
                                     <!-- Card Brand -->
-                                    <div
-                                        class="col-6"
-                                        v-if="selectedPayment?.brand"
-                                    >
+                                    <div class="col-6" v-if="selectedPayment?.brand">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Card Brand</span
-                                            >
-                                            <span
-                                                class="value text-capitalize"
-                                                >{{
-                                                    selectedPayment.brand
-                                                }}</span
-                                            >
+                                            <span class="label">Card Brand</span>
+                                            <span class="value text-capitalize">{{
+                                                selectedPayment.brand
+                                            }}</span>
                                         </div>
                                     </div>
 
                                     <!-- Last Digits -->
-                                    <div
-                                        class="col-6"
-                                        v-if="selectedPayment?.last_digits"
-                                    >
+                                    <div class="col-6" v-if="selectedPayment?.last_digits">
                                         <div class="info-card">
-                                            <span class="label"
-                                                >Last 4 Digits</span
-                                            >
-                                            <span class="value"
-                                                >**** **** ****
+                                            <span class="label">Last 4 Digits</span>
+                                            <span class="value">**** **** ****
                                                 {{
                                                     selectedPayment.last_digits
-                                                }}</span
-                                            >
+                                                }}</span>
                                         </div>
                                     </div>
 
                                     <!-- Expiry -->
-                                    <div
-                                        class="col-6"
-                                        v-if="selectedPayment?.exp_month"
-                                    >
+                                    <div class="col-6" v-if="selectedPayment?.exp_month">
                                         <div class="info-card">
                                             <span class="label">Expiry</span>
-                                            <span class="value"
-                                                >{{
-                                                    selectedPayment.exp_month
-                                                }}/{{
+                                            <span class="value">{{
+                                                selectedPayment.exp_month
+                                            }}/{{
                                                     selectedPayment.exp_year
-                                                }}</span
-                                            >
+                                                }}</span>
                                         </div>
                                     </div>
 
                                     <!-- Currency -->
-                                    <div
-                                        class="col-6"
-                                        v-if="selectedPayment?.currency_code"
-                                    >
+                                    <div class="col-6" v-if="selectedPayment?.currency_code">
                                         <div class="info-card">
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -774,32 +670,20 @@ function printReceipt(order) {
             </div>
 
             <!-- Order View Modal -->
-            <div
-                class="modal fade"
-                id="orderDetailsModal"
-                tabindex="-1"
-                aria-hidden="true"
-            >
+            <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 shadow border-0">
                         <!-- Header -->
-                        <div
-                            class="modal-header bg-white border-0 position-relative px-4 pt-4"
-                        >
+                        <div class="modal-header bg-white border-0 position-relative px-4 pt-4">
                             <div class="d-flex align-items-center gap-3">
-                                <span
-                                    class="badge bg-gradient rounded-circle p-3 shadow-sm"
-                                    style="
+                                <span class="badge bg-gradient rounded-circle p-3 shadow-sm" style="
                                         background: linear-gradient(
                                             135deg,
                                             #4e73df,
                                             #224abe
                                         );
-                                    "
-                                >
-                                    <i
-                                        class="bi bi-receipt fs-5 text-black"
-                                    ></i>
+                                    ">
+                                    <i class="bi bi-receipt fs-5 text-black"></i>
                                 </span>
                                 <div class="d-flex flex-column">
                                     <h5 class="modal-title fw-bold mb-0">
@@ -817,33 +701,17 @@ function printReceipt(order) {
                             <!-- Custom Close Button -->
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-danger"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
                         <!-- Body -->
                         <div class="modal-body bg-light px-4 pb-4">
-                            <div
-                                v-if="selectedOrder"
-                                class="rounded-3 bg-white shadow-sm p-4"
-                            >
+                            <div v-if="selectedOrder" class="rounded-3 bg-white shadow-sm p-4">
                                 <!-- Order Info -->
                                 <div class="mb-4">
                                     <h6 class="fw-bold mb-3 text-primary">
@@ -851,18 +719,14 @@ function printReceipt(order) {
                                     </h6>
                                     <div class="row text-muted small">
                                         <div class="col-md-4 mb-2">
-                                            <span class="fw-semibold text-dark"
-                                                >Order Type:</span
-                                            >
+                                            <span class="fw-semibold text-dark">Order Type:</span>
                                             {{
                                                 selectedOrder?.type
                                                     ?.order_type ?? "—"
                                             }}
                                         </div>
                                         <div class="col-md-4 mb-2">
-                                            <span class="fw-semibold text-dark"
-                                                >Date:</span
-                                            >
+                                            <span class="fw-semibold text-dark">Date:</span>
                                             {{
                                                 dateFmt(
                                                     selectedOrder?.created_at
@@ -895,11 +759,8 @@ function printReceipt(order) {
                                 </h6>
                                 <div class="table-responsive">
                                     <table
-                                        class="table align-middle table-striped table-hover border rounded-3 overflow-hidden shadow-sm"
-                                    >
-                                        <thead
-                                            class="bg-light text-muted small"
-                                        >
+                                        class="table align-middle table-striped table-hover border rounded-3 overflow-hidden shadow-sm">
+                                        <thead class="bg-light text-muted small">
                                             <tr>
                                                 <th class="px-3">#</th>
                                                 <th>Item</th>
@@ -908,12 +769,9 @@ function printReceipt(order) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr
-                                                v-for="(
-                                                    item, idx
-                                                ) in selectedOrder?.items ?? []"
-                                                :key="item.id"
-                                            >
+                                            <tr v-for="(
+item, idx
+                                                ) in selectedOrder?.items ?? []" :key="item.id">
                                                 <td class="px-3">
                                                     {{ idx + 1 }}
                                                 </td>
@@ -923,16 +781,11 @@ function printReceipt(order) {
                                                     {{ formatMoney(item.price) }}
                                                 </td>
                                             </tr>
-                                            <tr
-                                                v-if="
-                                                    (selectedOrder?.items ?? [])
-                                                        .length === 0
-                                                "
-                                            >
-                                                <td
-                                                    colspan="4"
-                                                    class="text-center text-muted py-4"
-                                                >
+                                            <tr v-if="
+                                                (selectedOrder?.items ?? [])
+                                                    .length === 0
+                                            ">
+                                                <td colspan="4" class="text-center text-muted py-4">
                                                     No items found
                                                 </td>
                                             </tr>
@@ -943,19 +796,12 @@ function printReceipt(order) {
                         </div>
 
                         <!-- Footer -->
-                        <div
-                            class="modal-footer bg-white border-0 shadow-sm px-4 py-3"
-                        >
-                            <button
-                                class="btn btn-light border rounded-pill px-4 p-2"
-                                data-bs-dismiss="modal"
-                            >
+                        <div class="modal-footer bg-white border-0 shadow-sm px-4 py-3">
+                            <button class="btn btn-light border rounded-pill px-4 p-2" data-bs-dismiss="modal">
                                 Close
                             </button>
-                            <button
-                                class="btn btn-primary shadow-sm rounded-pill px-4 py-2"
-                                @click="printReceipt(selectedOrder)"
-                            >
+                            <button class="btn btn-primary shadow-sm rounded-pill px-4 py-2"
+                                @click="printReceipt(selectedOrder)">
                                 <i class="bi bi-printer me-1"></i> Print Receipt
                             </button>
                         </div>
@@ -970,15 +816,20 @@ function printReceipt(order) {
 .dark h4 {
     color: white;
 }
+
 .dark .card {
-    background-color: #181818 !important; /* gray-800 */
-    color: #ffffff !important; /* gray-50 */
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #ffffff !important;
+    /* gray-50 */
 }
 
 .dark .table {
-    background-color: #181818 !important; /* gray-900 */
+    background-color: #181818 !important;
+    /* gray-900 */
     color: #f9fafb !important;
 }
+
 .dark .table thead {
     background-color: #181818 !important;
     color: #ffffff;
@@ -988,6 +839,7 @@ function printReceipt(order) {
     background-color: #181818 !important;
     color: #ffffff;
 }
+
 :root {
     --brand: #1c0d82;
 }
@@ -1006,6 +858,10 @@ function printReceipt(order) {
     font-size: 1.8rem;
     font-weight: 700;
     color: #181818;
+}
+
+.dark .kpi-value {
+    color: #fff !important;
 }
 
 /* Search pill */
@@ -1140,7 +996,7 @@ function printReceipt(order) {
     color: #fff !important;
 }
 
-.dark svg{
+.dark svg {
     color: #fff !important;
 }
 
@@ -1296,19 +1152,20 @@ function printReceipt(order) {
     padding: 0.25rem 0.5rem !important;
 }
 
-.dark .p-inputtext{
+.dark .p-inputtext {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-.dark .p-checkbox-icon{
-    color: #fff !important;
-}
-.dark .p-checkbox-input{
+.dark .p-checkbox-icon {
     color: #fff !important;
 }
 
-.dark .p-component{
+.dark .p-checkbox-input {
+    color: #fff !important;
+}
+
+.dark .p-component {
     color: #fff !important;
 }
 

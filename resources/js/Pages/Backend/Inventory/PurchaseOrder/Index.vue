@@ -379,17 +379,17 @@ onUpdated(() => window.feather?.replace?.());
 
                             <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
                                 data-bs-target="#bulkOrderModal">
-                                Bulk Orders
+                                Bulk Purchase
                             </button>
 
                             <BulkOrderComponent :suppliers="supplierOptions" :items="p_filteredInv"
                                 @refresh-data="fetchPurchaseOrders" />
 
 
-                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
+                            <!-- <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
                                 data-bs-target="#addPurchaseModal">
                                 Purchase
-                            </button>
+                            </button> -->
                             <PurchaseComponent :suppliers="supplierOptions" :items="p_filteredInv"
                                 @refresh-data="fetchPurchaseOrders" @update:search="p_search = $event" />
 
