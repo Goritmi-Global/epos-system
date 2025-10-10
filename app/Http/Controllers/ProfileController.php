@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -67,16 +68,19 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'username' => 'required|string|max:255',
-            'password' => 'required|string|min:6',
-            'pin' => 'required|string|max:10',
+            'password' => 'nullable|string|min:6',
+            'pin' => 'nullable|string|max:10',
             'role' => 'required|string',
         ]);
 
-        $user->name = $validated['username'];
-        if (! empty($validated['password'])) {
-            $user->password = bcrypt($validated['password']);
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
         }
-        $user->pin = $validated['pin'] ?? $user->pin;
+
+        if (!empty($validated['pin'])) {
+            $user->pin = Hash::make($validated['pin']); // hash it properly
+        }
+
         $user->role = $validated['role'];
         $user->save();
 

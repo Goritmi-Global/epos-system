@@ -192,14 +192,14 @@ function changeSection(sectionId) {
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h3 class="fw-bold mb-1">Restaurant Settings</h3>
-                    <p class="text-muted mb-0">
+                    <!-- <p class="text-muted mb-0">
                         Section {{ currentSection }} of {{ sections.length }} -
                         {{ currentSectionInfo?.title }}
-                    </p>
+                    </p> -->
                 </div>
 
                 <!-- Progress Bar (replacing Back to Dashboard button) -->
-                <div
+                <!-- <div
                     class="d-flex align-items-center gap-2"
                     style="min-width: 220px"
                 >
@@ -216,7 +216,7 @@ function changeSection(sectionId) {
                     <small class="fw-semibold"
                         >{{ currentSection }}/{{ sections.length }}</small
                     >
-                </div>
+                </div> -->
             </div>
         </div>
 
@@ -331,7 +331,7 @@ function changeSection(sectionId) {
                 </div>
 
                 <!-- Quick Navigation -->
-                <div class="quick-nav mt-3 d-flex justify-content-between">
+                <!-- <div class="quick-nav mt-3 d-flex justify-content-between">
                     <button
                         class="btn btn-outline-secondary rounded-pill"
                         :disabled="currentSection === 1"
@@ -348,7 +348,7 @@ function changeSection(sectionId) {
                         Next
                         <i class="bi bi-chevron-right ms-2"></i>
                     </button>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -594,7 +594,7 @@ function changeSection(sectionId) {
 
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
     .settings-wrapper {
-        padding-left: 220px;
+        padding-left: 20px;
         padding-right: 15px;
     }
     .settings-header h3 {
@@ -617,7 +617,7 @@ function changeSection(sectionId) {
 
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
     .settings-wrapper {
-        padding-left: 240px;
+        padding-left: 20px;
         padding-right: 20px;
     }
     .settings-header h3 {

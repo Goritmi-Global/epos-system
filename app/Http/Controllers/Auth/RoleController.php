@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
-use App\Http\Controllers\Controller; 
+
+use App\Http\Controllers\Controller;
 
 use App\Models\Role;
 use App\Models\Permission;
@@ -14,7 +15,7 @@ class RoleController extends Controller
     public function index()
     {
         $roles = Role::query()
-            ->select('id','name')
+            ->select('id', 'name')
             ->with(['permissions:id,name,description'])
             ->orderBy('name')
             ->get();
@@ -37,10 +38,10 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'        => ['required','string','max:255','unique:roles,name'],
-            'permissions' => ['nullable','array'],
-            'permissions.*' => ['integer','exists:permissions,id'],
-            'guard_name'  => ['nullable','string','max:255'],
+            'name'        => ['required', 'string', 'max:255', 'unique:roles,name'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['integer', 'exists:permissions,id'],
+            'guard_name'  => ['nullable', 'string', 'max:255'],
         ]);
 
         $data['guard_name'] = $data['guard_name'] ?? config('auth.defaults.guard', 'web');
@@ -58,32 +59,41 @@ class RoleController extends Controller
         app('cache')->store(config('permission.cache.store') !== 'default' ? config('permission.cache.store') : null)
             ->forget(config('permission.cache.key'));
 
-        return response()->json($role->only(['id','name']), 201);
+        return response()->json($role->only(['id', 'name']), 201);
     }
 
     // PUT /roles/{role}
     public function update(Request $request, Role $role)
-    {
-        $data = $request->validate([
-            'name'        => ['required','string','max:255', Rule::unique('roles','name')->ignore($role->id)],
-            'permissions' => ['nullable','array'],
-            'permissions.*' => ['integer','exists:permissions,id'],
-        ]);
+{
+    $data = $request->validate([
+        'name' => ['required', 'string', 'max:255', Rule::unique('roles','name')->ignore($role->id)],
+        'permissions' => ['nullable', 'array'],
+        'permissions.*.id' => ['exists:permissions,id'], 
+    ]);
 
-        $role->update(['name' => $data['name']]);
-        $role->syncPermissions($data['permissions'] ?? []);
+    // Normalize permissions to integer IDs
+    $data['permissions'] = array_map(function($p) {
+        if (is_array($p) && isset($p['id'])) return $p['id'];
+        if (is_object($p) && isset($p->id)) return $p->id;
+        return $p; 
+    }, $request->permissions ?? []);
 
-        app('cache')->store(config('permission.cache.store') !== 'default' ? config('permission.cache.store') : null)
-            ->forget(config('permission.cache.key'));
+    $role->update(['name' => $data['name']]);
+    $role->syncPermissions($data['permissions'] ?? []);
 
-        return response()->json($role->only(['id','name']));
-    }
+    // Clear cache
+    app('cache')->store(config('permission.cache.store') !== 'default' ? config('permission.cache.store') : null)
+        ->forget(config('permission.cache.key'));
+
+    return response()->json($role->only(['id','name']));
+}
+
 
     // Optional helper: list all permissions (for modal)
     public function allPermissions()
     {
         return response()->json(
-            Permission::select('id','name','description')->orderBy('name')->get()
+            Permission::select('id', 'name', 'description')->orderBy('name')->get()
         );
     }
 }

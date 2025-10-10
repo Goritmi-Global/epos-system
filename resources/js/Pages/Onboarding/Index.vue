@@ -20,6 +20,12 @@ const current = ref(1)
 const formErrors = ref({})
 const isSaving = ref(false)
 
+const props = defineProps({
+  isOnboarding: {
+    type: Boolean,
+    default: true
+  }
+})
 
 
 const isDark = useDark({
@@ -255,7 +261,7 @@ async function goNext(stepData) {
       <div class="col-lg-9">
         <div class="card wizard-card shadow-lg border-0 rounded-4 d-flex flex-column">
           <div class="wizard-scroll p-3 p-md-4">
-            <component :is="comp" :model="profile" :form-errors="formErrors" @save="saveStep" />
+            <component :is="comp" :model="profile" :form-errors="formErrors" @save="saveStep" :is-onboarding="true" />
           </div>
 
           <div class="wizard-footer footer d-flex justify-content-end gap-2 p-3">

@@ -5,6 +5,15 @@ namespace App\Http\Controllers\POS;
 use App\Helpers\UploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessHour;
+use App\Models\ProfileStep1;
+use App\Models\ProfileStep2;
+use App\Models\ProfileStep3;
+use App\Models\ProfileStep4;
+use App\Models\ProfileStep5;
+use App\Models\ProfileStep6;
+use App\Models\ProfileStep7;
+use App\Models\ProfileStep8;
+use App\Models\ProfileStep9;
 use App\Models\RestaurantProfile;
 use App\Models\Upload;
 use Illuminate\Http\Request;
@@ -19,23 +28,39 @@ class SettingsController extends Controller
     {
         $user = $request->user();
 
-        // Get the complete profile
-        $profile = RestaurantProfile::where('user_id', $user->id)->first();
-
-        if (!$profile) {
-            return redirect()->route('onboarding.index')
-                ->with('message', 'Please complete onboarding first');
+        if (! $user) {
+            return redirect()->route('login');
         }
 
-        // Load all step data
+        $role = $user->getRoleNames()->first();
+
+        // Only enforce onboarding for Super Admin
+        if ($role === 'Super Admin') {
+            $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+                && ProfileStep2::where('user_id', $user->id)->exists()
+                && ProfileStep3::where('user_id', $user->id)->exists()
+                && ProfileStep4::where('user_id', $user->id)->exists()
+                && ProfileStep5::where('user_id', $user->id)->exists()
+                && ProfileStep6::where('user_id', $user->id)->exists()
+                && ProfileStep7::where('user_id', $user->id)->exists()
+                && ProfileStep8::where('user_id', $user->id)->exists()
+                && ProfileStep9::where('user_id', $user->id)->exists();
+
+            if (! $stepsCompleted) {
+                return redirect()->route('onboarding.index')
+                    ->with('message', 'Please complete onboarding first');
+            }
+        }
+
+        // Load all step data if needed (optional)
         $profileData = $this->loadAllStepData($user->id);
-        // dd($profileData);
 
         return Inertia::render('Backend/Settings/Index', [
-            'profile' => $profile,
             'profileData' => $profileData,
+            'role' => $role, // optional: pass role to frontend
         ]);
     }
+
 
     /**
      * Update a specific step/section
@@ -301,7 +326,7 @@ class SettingsController extends Controller
                     'phone_local'   => 'required|string|max:60',
                     'email'         => 'required|email|max:190',
                     'address'       => 'required|string|max:500',
-                    'website'       => 'required|max:190',
+                    'website'       => 'nullable|max:190',
                     'logo'          => 'nullable',
                     // FIXED: Check existing data properly
                     'logo_file'     => (!empty($existingData['upload_id']) || !empty($existingData['logo_url']))

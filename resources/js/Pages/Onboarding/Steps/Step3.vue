@@ -3,7 +3,7 @@ import { reactive, toRaw, watch, onMounted } from "vue";
 import Select from "primevue/select";
 
 const STEP_NUMBER = 3;
-const props = defineProps({ model: Object, formErrors: Object });
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } });
 const emit = defineEmits(["save"]);
 
 const form = reactive({
@@ -181,7 +181,7 @@ watch(form, emitSave, { deep: true, immediate: true });
 
 <template>
     <div>
-        <h5 class="fw-bold mb-4">Step 3 of 9 - Currency & Locale</h5>
+        <h5 class="fw-bold mb-4" v-if="props.isOnboarding">Step 3 of 9 - Currency & Locale</h5>
 
         <div class="row g-3">
             <!-- Currency -->

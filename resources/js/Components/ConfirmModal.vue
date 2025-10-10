@@ -1,14 +1,26 @@
 <template>
     <div>
-        <!-- Delete Trigger Button -->
-        <button v-if="showDeleteButton" @click="show = true"
-            class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
-            title="Delete">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
-            </svg>
+        <!-- Delete / Custom Trigger Button -->
+        <button v-if="showDeleteButton || showConfirmRestore" @click="show = true" :class="[
+            'inline-flex items-center justify-center p-2.5 rounded-full',
+            showConfirmRestore ? 'sidebar-btn py-2' : 'text-red-600 hover:bg-red-100'
+        ]" :title="showConfirmRestore ? 'Restore System' : 'Delete'">
+            <template v-if="showConfirmRestore">
+                <!-- Custom icon + text for Restore -->
+                <RefreshCcw class="w-6 h-6 me-2" />
+                <span>Restore System</span>
+            </template>
+            <template v-else>
+                <!-- Default Delete Icon -->
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
+                </svg>
+            </template>
         </button>
+
+
+
 
         <!-- Status Change Trigger Button -->
         <!-- Toggle Status Button -->
@@ -79,12 +91,14 @@
 
 <script setup>
 import { ref } from "vue";
+import { RefreshCcw } from "lucide-vue-next";
 
 const props = defineProps({
     title: String,
     message: String,
     showDeleteButton: Boolean,
     showStatusButton: { type: Boolean, default: false },
+    showConfirmRestore: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["confirm", "cancel"]);
@@ -107,21 +121,21 @@ const handleCancel = () => {
     transition: all 0.3s ease;
 }
 
-.dark .bg-white{
+.dark .bg-white {
     background-color: #212121 !important;
     color: #fff !important;
 
 }
 
-.dark h3{
+.dark h3 {
     color: #fff !important;
 }
 
-.dark p{
+.dark p {
     color: #fff !important;
 }
 
-.dark .bg-gray-100{
+.dark .bg-gray-100 {
     background-color: #121212 !important;
 }
 
@@ -138,12 +152,18 @@ const handleCancel = () => {
 .animate-drop-in {
     animation: dropIn 0.25s ease-out;
 }
+.sidebar-btn{
+    background-color: red !important;
+    color: #fff !important;
+    border-radius: 10px !important;
+    width: 175px !important;
+}
 
-
-.status-btn{
+.status-btn {
     height: 12px !important;
     width: 8px !important;
 }
+
 @keyframes dropIn {
     from {
         opacity: 0;

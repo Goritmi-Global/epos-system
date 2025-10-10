@@ -2,7 +2,7 @@
 import { reactive, toRaw, computed, onMounted, watch } from "vue"
 import Select from "primevue/select"
 
-const props = defineProps({ model: Object, formErrors: Object })
+const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } })
 const emit = defineEmits(["save"])
 
 const defaultDay = (name) => ({ name, open: true, start: "09:00", end: "17:00", breaks: [] })
@@ -103,7 +103,7 @@ const timeItems = computed(() => {
 </script>
 <template>
   <div>
-    <h5 class="fw-bold mb-3">Step 8 of 9 - Business Hours</h5>
+    <h5 class="fw-bold mb-3" v-if="props.isOnboarding">Step 8 of 9 - Business Hours</h5>
 
     <!-- Auto disable -->
     <div class="mb-3 d-flex align-items-center justify-content-between">
