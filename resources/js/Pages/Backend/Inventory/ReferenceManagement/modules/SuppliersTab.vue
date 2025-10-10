@@ -10,9 +10,11 @@ import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
+import { usePage } from "@inertiajs/vue3";
+const pageProps = usePage();
 
-
-
+const onboarding = computed(() => pageProps.props.onboarding.language_and_location.country_id ?? "PK");
+console.log("Onboarding Props:", onboarding.value);
 const suppliers = ref([]);
 const page = ref(1);
 const perPage = ref(15);
@@ -38,15 +40,25 @@ const fetchSuppliers = () => {
 
 const q = ref("");
 
+
 const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    if (!t) return suppliers.value;
-    return suppliers.value.filter((s) =>
-        [s.name, s.phone, s.email, s.address, s.preferred_items].some((v) =>
-            (v || "").toLowerCase().includes(t)
-        )
-    );
+    // Normalize query: remove all non-digit characters for phone search
+    const query = q.value.trim().toLowerCase();
+    const queryDigits = q.value.replace(/\D/g, ""); // digits only
+
+    if (!query) return suppliers.value;
+
+    return suppliers.value.filter((s) => {
+        // Normalize phone/contact
+        const phoneDigits = (s.phone || "").replace(/\D/g, "");
+        const contactDigits = (s.contact || "").replace(/\D/g, "");
+
+        return [s.name, s.email, s.address, s.preferred_items].some((v) =>
+            (v || "").toLowerCase().includes(query)
+        ) || phoneDigits.includes(queryDigits) || contactDigits.includes(queryDigits);
+    });
 });
+
 
 const onDownload = (type) => {
     if (!suppliers.value || suppliers.value.length === 0) {
@@ -674,7 +686,7 @@ const handleImport = (data) => {
                         <div class="col-lg-6">
                             <label class="form-label">Phone</label>
 
-                            <vue-tel-input v-model="form.phone" default-country="PK" mode="international" class="phone"
+                            <vue-tel-input v-model="form.phone" :default-country="onboarding" mode="international" class="phone"
                                 @validate="checkPhone" :auto-format="true" :enable-formatting="true"
                                 :input-options="{ showDialCode: true }" :class="{
                                     'is-invalid': formErrors.contact || phoneError,
