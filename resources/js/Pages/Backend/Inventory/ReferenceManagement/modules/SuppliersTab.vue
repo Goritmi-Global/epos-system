@@ -14,7 +14,7 @@ import { usePage } from "@inertiajs/vue3";
 const pageProps = usePage();
 
 const onboarding = computed(() => pageProps.props.onboarding.language_and_location.country_id ?? "PK");
-console.log("Onboarding Props:", onboarding.value);
+
 const suppliers = ref([]);
 const page = ref(1);
 const perPage = ref(15);

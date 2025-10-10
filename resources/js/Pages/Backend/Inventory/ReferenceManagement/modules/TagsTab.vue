@@ -58,7 +58,8 @@ const filteredTags = computed(() => {
         : tags.value;
 });
 
-const selectAll = () => (commonTags.value = options.value.map((o) => o.value));
+const selectAll = () => (commonTags.value = availableOptions.value.map(o => o.value));
+
 
 const addCustom = () => {
     const name = (filterText.value || "").trim();

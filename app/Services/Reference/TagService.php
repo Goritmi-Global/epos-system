@@ -18,7 +18,7 @@ class TagService
             $q->where('name', 'like', "%{$s}%");
         }
 
-        return $q->latest()->paginate(15);
+        return $q->latest()->paginate(20);
     }
 
     public function create(array $data): array
