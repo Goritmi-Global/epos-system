@@ -54,16 +54,28 @@ const subTotal = computed(() =>
         )
         : 0
 );
+const isLoading = ref(false);
 
-const handleConfirm = () => {
+const handleConfirm = async () => {
+    // prevent multiple clicks
+    if (isLoading.value) return;
+
+    isLoading.value = true;
+
+    // emit the event
     emit("confirm", {
         paymentMethod: paymentMethod.value,
         cashReceived: cashReceived.value,
         changeAmount: changeAmount.value,
         items: props.orderItems,
         autoPrintKot: autoPrintKot.value,
+        done: () => {
+            // parent can call this to stop loader
+            isLoading.value = false;
+        },
     });
 };
+
 
 const formattedOrderType = computed(() => {
     if (!props.orderType) return "";
@@ -313,11 +325,15 @@ item, index
                                                     @click="$emit('close')">
                                                     Cancel
                                                 </button>
-                                                <button class="btn btn-primary brand-btn rounded-pill btn-sm px-3 py-2"
-                                                    @click="handleConfirm">
-                                                    <i class="bi bi-check2-circle me-1"></i>
-                                                    Confirm & Place
+                                                <button
+                                                    class="btn btn-primary brand-btn rounded-pill btn-sm px-3 py-2 d-flex align-items-center gap-2"
+                                                    @click="handleConfirm" :disabled="isLoading">
+                                                    <span v-if="isLoading" class="spinner-border spinner-border-sm"
+                                                        role="status" aria-hidden="true"></span>
+                                                    <i v-else class="bi bi-check2-circle"></i>
+                                                    <span>{{ isLoading ? 'Processing...' : 'Confirm & Place' }}</span>
                                                 </button>
+
                                             </div>
                                         </div>
 
@@ -330,14 +346,14 @@ item, index
                                                 :serviceCharges="serviceCharges ?? 0
                                                     " :deliveryCharges="deliveryCharges ?? 0
                                                         " :note="note" :orderDate="orderDate ??
-                                                        new Date()
-                                                            .toISOString()
-                                                            .split('T')[0]
-                                                        " :orderTime="orderTime ??
-                                                        new Date()
-                                                            .toTimeString()
-                                                            .split(' ')[0]
-                                                        " :paymentMethod="paymentMethod" :change="changeAmount" />
+                                                            new Date()
+                                                                .toISOString()
+                                                                .split('T')[0]
+                                                            " :orderTime="orderTime ??
+                                                                new Date()
+                                                                    .toTimeString()
+                                                                    .split(' ')[0]
+                                                                " :paymentMethod="paymentMethod" :change="changeAmount" />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
@@ -381,14 +397,14 @@ item, index
                                                 :serviceCharges="serviceCharges ?? 0
                                                     " :deliveryCharges="deliveryCharges ?? 0
                                                         " :note="note" :orderDate="orderDate ??
-                                                        new Date()
-                                                            .toISOString()
-                                                            .split('T')[0]
-                                                        " :orderTime="orderTime ??
-                                                        new Date()
-                                                            .toTimeString()
-                                                            .split(' ')[0]
-                                                        " :paymentMethod="paymentMethod" :change="changeAmount"
+                                                            new Date()
+                                                                .toISOString()
+                                                                .split('T')[0]
+                                                            " :orderTime="orderTime ??
+                                                                new Date()
+                                                                    .toTimeString()
+                                                                    .split(' ')[0]
+                                                                " :paymentMethod="paymentMethod" :change="changeAmount"
                                                 :paymentType="paymentMethod" />
                                         </div>
 
@@ -440,7 +456,7 @@ item, index
     border: 1px solid rgba(28, 13, 130, 0.15);
 }
 
-.dark .brand-badge{
+.dark .brand-badge {
     background-color: #212121 !important;
     border: 1px solid #fff !important;
 }
@@ -511,10 +527,10 @@ item, index
     background: #1C0D82 !important;
     color: #fff;
     box-shadow: none;
-   
+
 }
 
-.dark .bg-light{
+.dark .bg-light {
     background-color: #212121 !important;
     color: #fff !important;
 }

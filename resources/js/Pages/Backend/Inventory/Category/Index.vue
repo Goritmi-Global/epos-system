@@ -988,7 +988,7 @@ const handleImport = (data) => {
                                         </div>
                                     </td>
                                     <td>{{ formatCurrencySymbol(row.total_value) }}</td>
-                                    <td>{{ row.total_items }}</td>
+                                    <td>{{ row.primary_inventory_items_count }}</td>
                                     <td>{{ row.out_of_stock }}</td>
                                     <td>{{ row.low_stock }}</td>
                                     <td>{{ row.in_stock }}</td>

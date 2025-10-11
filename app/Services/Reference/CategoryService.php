@@ -104,7 +104,7 @@ class CategoryService
      * @param array $categoryData
      * @return Category
      */
-     private function createSingleCategory(array $categoryData): InventoryCategory
+    private function createSingleCategory(array $categoryData): InventoryCategory
     {
         $category = InventoryCategory::create([
             'name'         => $categoryData['name'],
@@ -128,8 +128,13 @@ class CategoryService
      */
     public function getAllCategories()
     {
-        return InventoryCategory::with(['subcategories', 'parent'])->get();
+        return InventoryCategory::withCount('primaryInventoryItems') // adds primary_inventory_items_count
+            ->with(['subcategories' => function ($q) {
+                $q->withCount('primaryInventoryItems');
+            }, 'parent'])
+            ->get();
     }
+
 
     /**
      * Get only parent categories (for dropdown)

@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, toRaw, watch, onMounted } from "vue";
+import { reactive, toRaw, watch, onMounted, ref } from "vue";
 import Select from "primevue/select";
 
 const STEP_NUMBER = 3;
@@ -7,74 +7,72 @@ const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { t
 const emit = defineEmits(["save"]);
 
 const form = reactive({
-    currency: props.model?.currency ?? "PKR",
+    currency: props.model?.currency ?? "₨",  // Default to symbol
     currency_symbol_position: props.model?.currency_symbol_position ?? "after",
     date_format: props.model?.date_format ?? "dd/MM/yyyy",
     number_format: props.model?.number_format ?? "1,000",
     time_format: props.model?.time_format ?? "12-hour",
 });
 
-// 🌍 Country to Currency Mapping
+// 🌍 Country to Currency Mapping (with symbols)
 const countryCurrencyMap = {
-    'US': 'USD',
-    'GB': 'GBP',
-    'PK': 'PKR',
-    'IN': 'INR',
-    'AE': 'AED',
-    'SA': 'SAR',
-    'EU': 'EUR',
-    'DE': 'EUR',
-    'FR': 'EUR',
-    'IT': 'EUR',
-    'ES': 'EUR',
-    'CN': 'CNY',
-    'JP': 'JPY',
-    'AU': 'AUD',
-    'CA': 'CAD',
-    'CH': 'CHF',
-    'SE': 'SEK',
-    'NO': 'NOK',
-    'DK': 'DKK',
-    'SG': 'SGD',
-    'MY': 'MYR',
-    'TH': 'THB',
-    'ID': 'IDR',
-    'PH': 'PHP',
-    'VN': 'VND',
-    'BD': 'BDT',
-    'LK': 'LKR',
-    'NP': 'NPR',
-    'AF': 'AFN',
-    'TR': 'TRY',
-    'EG': 'EGP',
-    'ZA': 'ZAR',
-    'NG': 'NGN',
-    'KE': 'KES',
-    'BR': 'BRL',
-    'MX': 'MXN',
-    'AR': 'ARS',
-    'CL': 'CLP',
-    'NZ': 'NZD',
-    'KR': 'KRW',
-    'HK': 'HKD',
-    'TW': 'TWD',
-    'RU': 'RUB',
-    'PL': 'PLN',
-    'CZ': 'CZK',
-    'HU': 'HUF',
-    'RO': 'RON',
-    'IL': 'ILS',
-    'QA': 'QAR',
-    'KW': 'KWD',
-    'BH': 'BHD',
-    'OM': 'OMR',
-    'JO': 'JOD',
-    'LB': 'LBP',
+    'US': '$',
+    'GB': '£',
+    'PK': '₨',
+    'IN': '₹',
+    'AE': 'د.إ',
+    'SA': '﷼',
+    'EU': '€',
+    'DE': '€',
+    'FR': '€',
+    'IT': '€',
+    'ES': '€',
+    'CN': '¥',
+    'JP': '¥',
+    'AU': 'A$',
+    'CA': 'C$',
+    'CH': 'Fr',
+    'SE': 'kr',
+    'NO': 'kr',
+    'DK': 'kr',
+    'SG': 'S$',
+    'MY': 'RM',
+    'TH': '฿',
+    'ID': 'Rp',
+    'PH': '₱',
+    'VN': '₫',
+    'BD': '৳',
+    'LK': 'Rs',
+    'NP': 'Rs',
+    'AF': '؋',
+    'TR': '₺',
+    'EG': '£',
+    'ZA': 'R',
+    'NG': '₦',
+    'KE': 'KSh',
+    'BR': 'R$',
+    'MX': '$',
+    'AR': '$',
+    'CL': '$',
+    'NZ': 'NZ$',
+    'KR': '₩',
+    'HK': 'HK$',
+    'TW': 'NT$',
+    'RU': '₽',
+    'PL': 'zł',
+    'CZ': 'Kč',
+    'HU': 'Ft',
+    'RO': 'lei',
+    'IL': '₪',
+    'QA': 'ر.ق',
+    'KW': 'د.ك',
+    'BH': 'ب.د',
+    'OM': 'ر.ع',
+    'JO': 'د.ا',
+    'LB': 'ل.ل',
 };
 
-// const currencies = ["PKR", "GBP", "USD", "EUR", "AED", "SAR", "INR", "CNY", "JPY", "AUD", "CAD", "CHF"];
-const currencies = ["₨", "£", "$", "€", "د.إ", "﷼", "₹", "¥", "¥", "A$", "C$", "Fr"];
-
+const currencies = ["₨", "£", "$", "€", "د.إ", "﷼", "₹", "¥", "A$", "C$", "Fr", "kr", "S$", "RM", "฿", "Rp", "₱", "₫", "৳", "Rs", "؋", "₺", "R", "₦", "KSh", "R$", "NZ$", "₩", "HK$", "NT$", "₽", "zł", "Kč", "Ft", "lei", "₪", "ر.ق", "د.ك", "ب.د", "ر.ع", "د.ا", "ل.ل"];
 
 // 💰 Money Symbol Positions
 const symbolPositions = [
@@ -114,23 +112,38 @@ const numberFormats = [
     "１０００",  // Full-width Japanese
 ];
 
+// Track if user manually changed currency in THIS session
+const userChangedCurrency = ref(false);
+// Track last auto-detected country to know when to reset
+const lastDetectedCountry = ref(null);
+
 // 🎯 Auto-detect currency from country
-const detectCurrencyFromCountry = () => {
+const detectCurrencyFromCountry = (forceUpdate = false) => {
     const countryCode = props.model?.country_code;
-    console.log("💱 [CURRENCY] Detecting for country:", countryCode);
+    console.log("💱 [CURRENCY] Detecting for country:", countryCode, "| Force:", forceUpdate);
     
-    if (!countryCode) return;
+    if (!countryCode) {
+        console.log("⚠️ [CURRENCY] No country code found");
+        return;
+    }
     
     const detectedCurrency = countryCurrencyMap[countryCode.toUpperCase()];
     
     if (detectedCurrency) {
         console.log("💱 [CURRENCY] Detected currency:", detectedCurrency);
-        // Only auto-set if user hasn't manually changed it yet
-        if (!props.model?.currency || props.model?.currency === 'PKR') {
+        console.log("💱 [CURRENCY] userChangedCurrency:", userChangedCurrency.value);
+        console.log("💱 [CURRENCY] lastDetectedCountry:", lastDetectedCountry.value);
+        
+        // Update currency if:
+        // 1. Force update (country changed)
+        // 2. User hasn't manually changed it
+        // 3. Country is different from last detection
+        if (forceUpdate || !userChangedCurrency.value || lastDetectedCountry.value !== countryCode) {
             form.currency = detectedCurrency;
+            lastDetectedCountry.value = countryCode;
             console.log("✅ [CURRENCY] Auto-set to:", detectedCurrency);
         } else {
-            console.log("ℹ️ [CURRENCY] User already has currency set:", props.model.currency);
+            console.log("ℹ️ [CURRENCY] User manually selected currency, skipping auto-detect");
         }
     } else {
         console.log("⚠️ [CURRENCY] No mapping found for:", countryCode);
@@ -139,14 +152,32 @@ const detectCurrencyFromCountry = () => {
 
 onMounted(() => {
     console.log("🚀 [STEP 3] Mounted with model:", props.model);
-    detectCurrencyFromCountry();
+    detectCurrencyFromCountry(true);
 });
 
 // Watch for country changes from Step 1
 watch(() => props.model?.country_code, (newCountry, oldCountry) => {
     console.log("👀 [CURRENCY] Country changed:", oldCountry, "→", newCountry);
-    if (newCountry && newCountry !== oldCountry) {
-        detectCurrencyFromCountry();
+    if (newCountry) {
+        // When country changes, reset the manual change flag and force update
+        userChangedCurrency.value = false;
+        detectCurrencyFromCountry(true);
+    }
+}, { immediate: false });
+
+// Watch for manual currency changes (only when user clicks the dropdown)
+watch(() => form.currency, (newCurrency, oldCurrency) => {
+    // Only mark as manual change if:
+    // 1. There was an old value
+    // 2. The new value is different
+    // 3. It's not the initial auto-detection
+    if (oldCurrency && newCurrency !== oldCurrency && lastDetectedCountry.value) {
+        const expectedCurrency = countryCurrencyMap[props.model?.country_code?.toUpperCase()];
+        // Only set flag if user chose something different from auto-detected
+        if (newCurrency !== expectedCurrency) {
+            console.log("👤 [CURRENCY] User manually changed currency to:", newCurrency);
+            userChangedCurrency.value = true;
+        }
     }
 });
 
@@ -154,9 +185,9 @@ watch(
     () => props.model,
     (newModel) => {
         if (newModel) {
-            // Don't override currency if already detected
-            if (!form.currency || form.currency === 'PKR') {
-                form.currency = newModel.currency ?? "PKR";
+            // Only update from model if not auto-detected and user hasn't changed it
+            if (newModel.currency && !userChangedCurrency) {
+                form.currency = newModel.currency;
             }
             form.currency_symbol_position = newModel.currency_symbol_position ?? "after";
             form.date_format = newModel.date_format ?? "dd/MM/yyyy";
@@ -176,7 +207,7 @@ const emitSave = () => {
     }
 };
 
-watch(form, emitSave, { deep: true, immediate: true });
+watch(form, emitSave, { deep: true });
 </script>
 
 <template>
@@ -228,7 +259,7 @@ watch(form, emitSave, { deep: true, immediate: true });
             <!-- Date Format -->
             <div class="col-md-6">
                 <label class="form-label">Date Format*</label>
-                <Select v-model="form.date_format" :options="dateFormats":pt="{
+                <Select v-model="form.date_format" :options="dateFormats" :pt="{
                     root: { class: 'bg-white text-black' },
                     label: { class: 'text-black' },
                     listContainer: { class: 'bg-white text-black' },
