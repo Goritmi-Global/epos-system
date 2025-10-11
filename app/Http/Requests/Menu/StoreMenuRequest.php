@@ -38,10 +38,10 @@ class StoreMenuRequest extends FormRequest
             'nutrition.fat'          => ['nullable', 'numeric', 'min:0'],
             'nutrition.carbs'        => ['nullable', 'numeric', 'min:0'],
 
-            // allergies + tags
-            'allergies'   => ['required', 'array', 'min:1'],
+            // allergies + tags (now nullable)
+            'allergies'   => ['nullable', 'array'],
             'allergies.*' => ['numeric', 'exists:allergies,id'],
-            'tags'        => ['required', 'array', 'min:1'],
+            'tags'        => ['nullable', 'array'],
             'tags.*'      => ['numeric', 'exists:tags,id'],
 
             // ingredients

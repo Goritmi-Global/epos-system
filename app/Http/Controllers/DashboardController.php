@@ -14,7 +14,12 @@ use App\Models\ProfileStep7;
 use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
 use App\Models\InventoryItem;
+use App\Models\Payment;
+use App\Models\PosOrder;
+use App\Models\PosOrderItem;
+use App\Models\PurchaseOrder;
 use App\Models\StockEntry;
+use App\Models\Supplier;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -95,9 +100,113 @@ class DashboardController extends Controller
             'nearExpiryItems' => $nearExpiryItems,
         ];
 
+        // Count all suppliers
+        $totalSuppliers = Supplier::count();
+
+        // ✅ Calculate Total Purchase Amount
+        $totalPurchaseAmount = PurchaseOrder::sum('total_amount');
+        $totalCompletedPurchases = PurchaseOrder::where('status', 'completed')->sum('total_amount');
+        $totalPendingPurchases = PurchaseOrder::where('status', '!=', 'completed')->sum('total_amount');
+
+        // Total received amount (all time)
+        $totalPayments = Payment::sum('amount_received');
+
+        // Cash payments total
+        $totalCash = Payment::where('payment_type', 'cash')->sum('cash_amount');
+
+        // Card payments total
+        $totalCard = Payment::where('payment_type', 'card')->sum('card_amount');
+
+        // Completed payments
+        $completedPayments = Payment::where('payment_status', 'completed')->sum('amount_received');
+
+        // Pending payments
+        $pendingPayments = Payment::where('payment_status', 'pending')->sum('amount_received');
+
+        // Today’s payments
+        $todayPayments = Payment::whereDate('payment_date', today())->sum('amount_received');
+
+        // This month’s payments
+        $monthPayments = Payment::whereMonth('payment_date', now()->month)
+            ->whereYear('payment_date', now()->year)
+            ->sum('amount_received');
+
+
+        // ✅ 1. Total sales (sum of all completed order amounts)
+        $totalSales = PosOrder::where('status', 'completed')->sum('total_amount');
+
+        // ✅ 2. Pending orders total (sum of pending order amounts)
+        $pendingSales = PosOrder::where('status', 'pending')->sum('total_amount');
+
+        // ✅ 3. Total orders count
+        $totalOrders = PosOrder::count();
+
+        // ✅ 4. Completed orders count
+        $completedOrders = PosOrder::where('status', 'completed')->count();
+
+        // ✅ 5. Pending orders count
+        $pendingOrders = PosOrder::where('status', 'pending')->count();
+
+        // ✅ 6. Today’s sales (filter by today's date)
+        $todaySales = PosOrder::whereDate('order_date', today())
+            ->where('status', 'completed')
+            ->sum('total_amount');
+
+        // ✅ 7. This month’s sales
+        $monthSales = PosOrder::whereMonth('order_date', now()->month)
+            ->whereYear('order_date', now()->year)
+            ->where('status', 'completed')
+            ->sum('total_amount');
+
+        // ✅ 8. Average order value
+        $averageOrder = PosOrder::where('status', 'completed')->avg('total_amount');
+
+        // ✅ 9. Total taxes collected
+        $totalTax = PosOrder::sum('tax');
+
+        // ✅ 10. Total service charges
+        $totalServiceCharges = PosOrder::sum('service_charges');
+
+        // Recent orders - last 10 orders
+        $recentItems = PosOrderItem::with('order')
+            ->latest('id')
+            ->take(10)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title' => $item->title,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'total' => $item->quantity * $item->price,
+                    'order_date' => optional($item->order)->order_date,
+                ];
+            });
+
         return Inertia::render('Backend/Dashboard/Index', [
             'inventoryAlerts' => $inventoryAlerts,
             'showPopup' => session('show_inventory_popup', false),
+            'totalSuppliers' => $totalSuppliers,
+            'totalPurchaseAmount' => $totalPurchaseAmount,
+            'totalCompletedPurchases' => $totalCompletedPurchases,
+            'totalPendingPurchases' => $totalPendingPurchases,
+            'totalPayments' => $totalPayments,
+            'totalCash' => $totalCash,
+            'totalCard' => $totalCard,
+            'completedPayments' => $completedPayments,
+            'pendingPayments' => $pendingPayments,
+            'todayPayments' => $todayPayments,
+            'monthPayments' => $monthPayments,
+            'totalSales' => $totalSales,
+            'pendingSales' => $pendingSales,
+            'totalOrders' => $totalOrders,
+            'completedOrders' => $completedOrders,
+            'pendingOrders' => $pendingOrders,
+            'todaySales' => $todaySales,
+            'monthSales' => $monthSales,
+            'averageOrder' => $averageOrder,
+            'totalTax' => $totalTax,
+            'totalServiceCharges' => $totalServiceCharges,
+            'recentItems' => $recentItems,
         ]);
     }
 }

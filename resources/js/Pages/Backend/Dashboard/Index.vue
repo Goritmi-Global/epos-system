@@ -8,6 +8,17 @@ import { toast } from "vue3-toastify";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
+const props = defineProps({
+  totalSuppliers: {
+    type: Number,
+    default: 0
+  },
+  recentItems: {
+    type: Array,
+    default: () => []
+  }
+})
+
 const series = [
   {
     name: "Sales",
@@ -151,7 +162,7 @@ const openReminderPicker = () => {
   showReminderPicker.value = true
 
   const now = new Date()
-  
+
   // VueDatePicker expects Date objects, not strings
   reminderDate.value = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   reminderTime.value = {
@@ -176,11 +187,11 @@ const setReminder = () => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
-    
+
     // Extract time components (VueDatePicker time-picker returns an object)
     const hours = String(reminderTime.value.hours).padStart(2, '0')
     const minutes = String(reminderTime.value.minutes).padStart(2, '0')
-    
+
     // Create datetime string in ISO format
     const datetimeString = `${year}-${month}-${day}T${hours}:${minutes}:00`
     console.log('DateTime string:', datetimeString)
@@ -305,7 +316,7 @@ const dismissReminder = () => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das1">
             <div class="dash-counts">
-              <h4>{{ formatNumber(suppliersCount) }}</h4>
+              <h4>{{ formatNumber(totalSuppliers) }}</h4>
               <h5>Suppliers</h5>
             </div>
             <div class="dash-imgs"><i data-feather="user-check"></i></div>
@@ -366,14 +377,14 @@ const dismissReminder = () => {
         <div class="col-lg-5 col-sm-12 col-12 d-flex">
           <div class="card flex-fill">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center">
-              <h4 class="card-title mb-0">Recently Added Products</h4>
+              <h4 class="card-title mb-0">Recently Order Items</h4>
               <div class="dropdown">
                 <a href="javascript:void(0);" data-bs-toggle="dropdown" aria-expanded="false" class="dropset">
                   <i class="fa fa-ellipsis-v"></i>
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                  <li><a href="productlist.html" class="dropdown-item">Product List</a></li>
-                  <li><a href="addproduct.html" class="dropdown-item">Product Add</a></li>
+                  <li><a href="/productlist" class="dropdown-item">Product List</a></li>
+                  <li><a href="/addproduct" class="dropdown-item">Add Product</a></li>
                 </ul>
               </div>
             </div>
@@ -384,20 +395,25 @@ const dismissReminder = () => {
                   <thead>
                     <tr>
                       <th>Sno</th>
-                      <th>Products</th>
+                      <th>Product</th>
+                      <th>Qty</th>
                       <th>Price</th>
+                      <th>Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(p, idx) in recentProducts" :key="p.id">
-                      <td>{{ idx + 1 }}</td>
-                      <td class="productimgname">
-                        <a href="productlist.html" class="product-img">
-                          <img :src="p.img" :alt="p.name" />
-                        </a>
-                        <a href="productlist.html">{{ p.name }}</a>
+                    <tr v-if="!props.recentItems.length">
+                      <td colspan="5" class="text-center text-muted py-3">
+                        No recent products found
                       </td>
-                      <td>{{ formatCurrencySymbol(p.priceMinor) }}</td>
+                    </tr>
+
+                    <tr v-for="(item, idx) in props.recentItems" :key="idx">
+                      <td>{{ idx + 1 }}</td>
+                      <td>{{ item.title }}</td>
+                      <td>{{ item.quantity }}</td>
+                      <td>{{ item.price }}</td>
+                      <td>{{ item.total }}</td>
                     </tr>
                   </tbody>
                 </table>

@@ -65,8 +65,8 @@ class MenuCategoryService
                         'name'      => $cat['name'],
                         'icon'      => $cat['icon'] ?? '🧰',
                         'active'    => $cat['active'] ?? true,
-                        'parent_id' => $cat['parent_id'] ?? null, 
-                        
+                        'parent_id' => $cat['parent_id'] ?? null,
+
                     ]);
                     // dd($cat['color']);
 
@@ -107,7 +107,7 @@ class MenuCategoryService
     private function createSingleCategory(array $categoryData): MenuCategory
     {
         $category = MenuCategory::create([
-            'name' => $categoryData['name'], 
+            'name' => $categoryData['name'],
             'icon' => $categoryData['icon'] ?? '🧰',
             'active' => $categoryData['active'] ?? true,
             'parent_id' => $categoryData['parent_id'],
@@ -139,8 +139,16 @@ class MenuCategoryService
      */
     public function getParentCategories()
     {
-        return MenuCategory::with(['subcategories', 'parent'])->whereNull('parent_id')->get();
+        return MenuCategory::with(['subcategories', 'parent'])
+            ->withCount('menuItems')
+            ->whereNull('parent_id')
+            ->get()
+            ->map(function ($category) {
+                $category->total_menu_items = $category->menu_items_count;
+                return $category;
+            });
     }
+
 
     /**
      * Get category by ID with relationships
@@ -189,7 +197,7 @@ class MenuCategoryService
 
             //  UPDATE THE MAIN CATEGORY FIRST
             $category->update([
-                'name' => $data['name'] ?? $category->name, 
+                'name' => $data['name'] ?? $category->name,
                 'icon' => $data['icon'] ?? $category->icon,
                 'active' => $data['active'] ?? $category->active,
                 'parent_id' => $data['parent_id'] ?? $category->parent_id,
