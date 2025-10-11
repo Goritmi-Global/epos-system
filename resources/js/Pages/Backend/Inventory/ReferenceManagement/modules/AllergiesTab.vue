@@ -54,7 +54,7 @@ const filteredAllergys = computed(() => {
 });
 
 const selectAll = () =>
-  (commonAllergies.value = availableOptions.value.map((o) => o.value));
+    (commonAllergies.value = availableOptions.value.map((o) => o.value));
 
 
 const addCustom = () => {
@@ -294,13 +294,11 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         // Define headers
-        const headers = ["Name", "Created At", "Created By"];
+        const headers = ["Name"];
 
         // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
-            `"${s.created_at || ""}"`,
-            `"${s.updated_at || ""}"`,
         ]);
 
         // Combine into CSV string
@@ -564,7 +562,13 @@ const handleImport = (data) => {
                     " class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Allergy
                     </button>
-                    <ImportFile label="Import" @on-import="handleImport" />
+                    <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+                    <ImportFile label="Import" :sampleHeaders="['Name']" :sampleData="[
+                        ['Milk'],
+                        ['Peanuts'],
+                        ['Gluten']
+                    ]" @on-import="handleImport" />
+
                     <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
@@ -668,7 +672,7 @@ const handleImport = (data) => {
                         <input v-model="customAllergy" class="form-control" placeholder="e.g., Vegan"
                             :class="{ 'is-invalid': formErrors.customAllergy }" />
                         <span class="text-danger" v-if="formErrors.customAllergy">{{ formErrors.customAllergy[0]
-                            }}</span>
+                        }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonAllergies" :options="availableOptions" optionLabel="label"
@@ -699,20 +703,21 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.allergies">{{
                             formErrors.allergies[0]
-                            }}</span>
+                        }}</span>
                     </div>
 
-                   <div class="col-md-2">
-                     <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
-                        <template v-if="isSubmitting">
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            Saving...
-                        </template>
-                        <template v-else>
-                            {{ isEditing ? "Save" : "Save" }}
-                        </template>
-                    </button>
-                   </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting"
+                            @click="onSubmit">
+                            <template v-if="isSubmitting">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Saving...
+                            </template>
+                            <template v-else>
+                                {{ isEditing ? "Save" : "Save" }}
+                            </template>
+                        </button>
+                    </div>
 
 
                 </div>
@@ -722,7 +727,6 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
-
 :root {
     --brand: #1c0d82;
 }
@@ -750,12 +754,12 @@ const handleImport = (data) => {
     border-radius: 9999px;
 }
 
-.dark .border-top{
+.dark .border-top {
     background-color: #121212 !important;
     color: #fff !important;
 }
 
-.dark .p-multiselect-empty-message{
+.dark .p-multiselect-empty-message {
     background-color: #121212 !important;
     color: #fff !important;
 }
@@ -877,9 +881,10 @@ const handleImport = (data) => {
 /* =================== Dark mode deep classes =================================== */
 /* ======================== Dark Mode MultiSelect ============================= */
 
-.dark .header{
+.dark .header {
     background-color: #121212;
 }
+
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -954,7 +959,8 @@ const handleImport = (data) => {
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -969,7 +975,9 @@ const handleImport = (data) => {
     background-color: #121212 !important;
     color: #fff !important;
 }
+
 .dark .p-multiselect
+
 /* Each option */
 :global(.dark .p-select-option) {
     background-color: #121212 !important;
@@ -990,5 +998,4 @@ const handleImport = (data) => {
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
-
 </style>

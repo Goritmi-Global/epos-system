@@ -541,7 +541,13 @@ const handleImport = (data) => {
                     " class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Tag
                     </button>
-                    <ImportFile label="Import" @on-import="handleImport" />
+                    <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+                    <ImportFile label="Import" :sampleHeaders="['Name']" :sampleData="[
+                        ['Vegan'],
+                        ['Gluten-Free'],
+                        ['Organic']
+                    ]" @on-import="handleImport" />
+
                     <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
@@ -646,7 +652,7 @@ const handleImport = (data) => {
                             :class="{ 'is-invalid': formErrors.customTag }" />
                         <span class="text-danger" v-if="formErrors.customTag">{{
                             formErrors.customTag[0]
-                        }}</span>
+                            }}</span>
                     </div>
                     <div v-else>
                         <MultiSelect v-model="commonTags" :options="availableOptions" optionLabel="label"
@@ -668,8 +674,7 @@ const handleImport = (data) => {
                                     class="p-2 border-top d-flex justify-content-between align-items-center">
                                     <small class="text-muted">Not found in the list? Add it as a
                                         custom tag</small>
-                                    <button type="button" class="btn btn-primary rounded-pill"
-                                        @click="addCustom">
+                                    <button type="button" class="btn btn-primary rounded-pill" @click="addCustom">
                                         Add "{{ filterText.trim() }}"
                                     </button>
                                 </div>
@@ -677,19 +682,20 @@ const handleImport = (data) => {
                         </MultiSelect>
                         <span class="text-danger" v-if="formErrors.tags">{{
                             formErrors.tags[0]
-                        }}</span>
+                            }}</span>
                     </div>
 
                     <div class="col-md-2">
-                        <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting" @click="onSubmit">
-                        <template v-if="isSubmitting">
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            Saving...
-                        </template>
-                        <template v-else>
-                            {{ isEditing ? "Save" : "Save" }}
-                        </template>
-                    </button>
+                        <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting"
+                            @click="onSubmit">
+                            <template v-if="isSubmitting">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Saving...
+                            </template>
+                            <template v-else>
+                                {{ isEditing ? "Save" : "Save" }}
+                            </template>
+                        </button>
                     </div>
 
 
@@ -700,7 +706,6 @@ const handleImport = (data) => {
 </template>
 
 <style scoped>
-
 :root {
     --brand: #1c0d82;
 }
@@ -763,31 +768,33 @@ const handleImport = (data) => {
     color: #000 !important;
 }
 
-.dark .p-multiselect{
+.dark .p-multiselect {
     background-color: #121212 !important;
 }
 
-.dark .p-multiselect{
+.dark .p-multiselect {
     background-color: #121212 !important;
 }
-.dark .p-multiselect-list{
+
+.dark .p-multiselect-list {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-.dark .border-top{
+.dark .border-top {
     background-color: #121212 !important;
     color: #fff !important;
 }
 
-.dark .p-multiselect-empty-message{
+.dark .p-multiselect-empty-message {
     background-color: #121212 !important;
     color: #fff !important;
 }
 
-.dark .p-multiselect-list{
+.dark .p-multiselect-list {
     background-color: #181818 !important;
 }
+
 :deep(.p-select .p-component .p-inputwrapper) {
     background: #fff !important;
     color: #000 !important;
@@ -867,11 +874,12 @@ const handleImport = (data) => {
     background-color: #fff !important;
     color: #000 !important;
 }
-.dark .header{
+
+.dark .header {
     background-color: #121212;
 }
 
-.dark .p-inputtext{
+.dark .p-inputtext {
     background-color: #181818 !important;
     color: #fff !important;
 }
@@ -883,6 +891,7 @@ const handleImport = (data) => {
     background-color: #121212 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect) {
     background-color: #121212 !important;
     color: #fff !important;
@@ -957,7 +966,8 @@ const handleImport = (data) => {
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -993,5 +1003,4 @@ const handleImport = (data) => {
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
-
 </style>

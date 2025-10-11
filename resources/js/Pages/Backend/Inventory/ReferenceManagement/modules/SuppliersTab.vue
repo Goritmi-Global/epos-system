@@ -598,7 +598,12 @@ const handleImport = (data) => {
                         class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn-sm btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
-                    <ImportFile label="Import" @on-import="handleImport" />
+                    <ImportFile label="Import"
+                        :sampleHeaders="['Name', 'Email', 'Contact', 'Address', 'Preferred Items']" :sampleData="[
+                            ['Ali Khan', 'ali@example.com', '03001234567', 'Lahore, Pakistan', 'Steel'],
+                            ['Ahmed Raza', 'ahmed@example.com', '03111234567', 'Karachi, Pakistan', 'Cement']
+                        ]" @on-import="handleImport" />
+
                     <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
