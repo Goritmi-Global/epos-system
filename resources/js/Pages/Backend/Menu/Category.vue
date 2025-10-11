@@ -4,6 +4,8 @@ import { ref, computed, onMounted, onUpdated } from "vue";
 import MultiSelect from "primevue/multiselect";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
+import FilterModal from "@/Components/FilterModal.vue";
+import { nextTick } from "vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -27,6 +29,15 @@ const categories = ref([]);
 const editingCategory = ref(null);
 const manualSubcategories = ref([]);
 
+const filters = ref({
+    sortBy: "",
+    status: "",
+    hasSubcategories: "",
+    stockStatus: "",
+    valueMin: null,
+    valueMax: null,
+});
+
 const fetchCategories = async () => {
     try {
         const res = await axios.get("/api/menu-categories/parents/list");
@@ -37,7 +48,22 @@ const fetchCategories = async () => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+     q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
     fetchCategories();
 });
 
@@ -73,17 +99,132 @@ const CategoriesDetails = computed(() => [
 
 /* ---------------- Search ---------------- */
 const q = ref("");
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
     // First, get only parent categories
-    const parents = categories.value.filter((c) => c.parent_id === null);
+    let parents = categories.value.filter((c) => c.parent_id === null);
 
-    // If no search term, return all parent categories
-    if (!t) return parents;
+    // Text search
+    if (t) {
+        parents = parents.filter((c) => c.name.toLowerCase().includes(t));
+    }
 
-    // Otherwise, filter parents by search term
-    return parents.filter((c) => c.name.toLowerCase().includes(t));
+    // Status filter
+    if (filters.value.status !== "") {
+        parents = parents.filter((cat) => {
+            return filters.value.status === "active" 
+                ? cat.active === 1 || cat.active === true
+                : cat.active === 0 || cat.active === false;
+        });
+    }
+
+    // Has Subcategories filter
+    if (filters.value.hasSubcategories !== "") {
+        parents = parents.filter((cat) => {
+            const hasSubcats = cat.subcategories && cat.subcategories.length > 0;
+            return filters.value.hasSubcategories === "yes" ? hasSubcats : !hasSubcats;
+        });
+    }
+
+    // Stock Status filter
+    if (filters.value.stockStatus) {
+        parents = parents.filter((cat) => {
+            const outOfStock = cat.out_of_stock || 0;
+            const lowStock = cat.low_stock || 0;
+            const inStock = cat.in_stock || 0;
+            const totalItems = cat.total_items || 0;
+
+            switch (filters.value.stockStatus) {
+                case "in_stock":
+                    return inStock > 0;
+                case "low_stock":
+                    return lowStock > 0;
+                case "out_of_stock":
+                    return outOfStock > 0;
+                case "has_items":
+                    return totalItems > 0;
+                case "no_items":
+                    return totalItems === 0;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    // Value range filter
+    if (filters.value.valueMin !== null || filters.value.valueMax !== null) {
+        parents = parents.filter((cat) => {
+            const value = cat.total_value || 0;
+            const min = filters.value.valueMin || 0;
+            const max = filters.value.valueMax || Infinity;
+            return value >= min && value <= max;
+        });
+    }
+
+    return parents;
 });
+
+const sortedCategories = computed(() => {
+    const arr = [...filtered.value];
+    const sortBy = filters.value.sortBy;
+
+    switch (sortBy) {
+        case "name_asc":
+            return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        case "name_desc":
+            return arr.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        case "value_desc":
+            return arr.sort((a, b) => (b.total_value || 0) - (a.total_value || 0));
+        case "value_asc":
+            return arr.sort((a, b) => (a.total_value || 0) - (b.total_value || 0));
+        case "items_desc":
+            return arr.sort((a, b) => (b.total_items || 0) - (a.total_items || 0));
+        case "items_asc":
+            return arr.sort((a, b) => (a.total_items || 0) - (b.total_items || 0));
+        default:
+            return arr;
+    }
+});
+
+const filterOptions = computed(() => ({
+    sortOptions: [
+        { value: "name_asc", label: "Name: A to Z" },
+        { value: "name_desc", label: "Name: Z to A" },
+        { value: "value_desc", label: "Value: High to Low" },
+        { value: "value_asc", label: "Value: Low to High" },
+        { value: "items_desc", label: "Items: High to Low" },
+        { value: "items_asc", label: "Items: Low to High" },
+    ],
+    statusOptions: [
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+    ],
+    hasSubcategoriesOptions: [
+        { value: "yes", label: "Has Subcategories" },
+        { value: "no", label: "No Subcategories" },
+    ],
+    stockStatusOptions: [
+        { value: "in_stock", label: "In Stock" },
+        { value: "low_stock", label: "Low Stock" },
+        { value: "out_of_stock", label: "Out of Stock" },
+        { value: "has_items", label: "Has Items" },
+        { value: "no_items", label: "No Items" },
+    ],
+}));
+
+const handleFilterApply = (appliedFilters) => {
+    console.log("Filters applied:", appliedFilters);
+    // Additional logic if needed
+};
+
+const handleFilterClear = () => {
+    console.log("Filters cleared");
+    // Additional logic if needed
+};
 
 /* ---------------- Helpers ---------------- */
 const money = (n, currency = "GBP") =>
@@ -868,8 +1009,51 @@ const handleImport = (data) => {
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input v-model="q" type="text" class="form-control search-input" placeholder="Search" />
+                                <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
                             </div>
+
+                          <FilterModal
+        v-model="filters"
+        title="Menu Categories"
+        modal-id="categoryFilterModal"
+        modal-size="modal-lg"
+        :sort-options="filterOptions.sortOptions"
+        :status-options="filterOptions.statusOptions"
+        :stock-status-options="filterOptions.stockStatusOptions"
+        :show-price-range="true"
+        price-label="Total Value Range"
+        @apply="handleFilterApply"
+        @clear="handleFilterClear"
+    >
+        <!-- Custom filters slot -->
+        <template #customFilters="{ filters }">
+            <div class="col-12">
+                <label class="form-label fw-semibold text-dark">
+                    <i class="fas fa-sitemap me-2 text-muted"></i>Subcategories
+                </label>
+                <select
+                    v-model="filters.hasSubcategories"
+                    class="form-select"
+                >
+                    <option value="">All</option>
+                    <option
+                        v-for="opt in filterOptions.hasSubcategoriesOptions"
+                        :key="opt.value"
+                        :value="opt.value"
+                    >
+                        {{ opt.label }}
+                    </option>
+                </select>
+            </div>
+        </template>
+    </FilterModal>
 
                             <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
                                 resetErrors;
@@ -924,7 +1108,7 @@ const handleImport = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(row, i) in filtered" :key="row.id">
+                               <tr v-for="(row, i) in sortedCategories" :key="row.id">
                                     <td>{{ i + 1 }}</td>
                                     <td class="fw-semibold">
                                         {{ row.name }}
@@ -1387,6 +1571,13 @@ const handleImport = (data) => {
     width: 40px;
     height: 40px;
     background: #f1f5f9;
+}
+.dark .form-label{
+    color: #fff !important;
+}
+
+.dark .form-select{
+    color: #212121 !important;
 }
 
 /* Chips */

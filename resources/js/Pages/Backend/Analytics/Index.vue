@@ -5,6 +5,9 @@ import { ref, computed, watch, onMounted, onUpdated } from "vue";
 import Select from "primevue/select";
 import axios from "axios";
 import { useFormatters } from '@/composables/useFormatters'
+import FilterModal from "@/Components/FilterModal.vue";
+import { nextTick } from "vue";
+
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -12,6 +15,20 @@ const { formatMoney, formatNumber, dateFmt } = useFormatters()
 const range = ref("last30"); // today | last7 | last30 | thisMonth | all
 const orderType = ref("All"); // All | dine | delivery
 const payType = ref("All"); // All | cash | card | qr | bank
+
+const filters = ref({
+    sortBy: "",
+    range: "last30",
+    orderType: "",
+    paymentType: "",
+    dateFrom: "",
+    dateTo: "",
+});
+
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+
 
 const rangeOptions = ["today", "last7", "last30", "thisMonth", "all"];
 const orderTypeOptions = ["All", "dine", "delivery"];
@@ -66,7 +83,54 @@ const fetchAnalytics = () => {
         }
     }, 180);
 };
-watch([range, orderType, payType], fetchAnalytics, { immediate: true });
+// watch([range, orderType, payType], fetchAnalytics, { immediate: true });
+
+watch(
+    () => [filters.value.range, filters.value.orderType, filters.value.paymentType, filters.value.dateFrom, filters.value.dateTo],
+    fetchAnalytics,
+    { immediate: true }
+);
+
+const filterOptions = computed(() => ({
+    sortOptions: [
+        { value: "revenue_desc", label: "Revenue: High to Low" },
+        { value: "revenue_asc", label: "Revenue: Low to High" },
+        { value: "qty_desc", label: "Quantity: High to Low" },
+        { value: "qty_asc", label: "Quantity: Low to High" },
+        { value: "name_asc", label: "Item Name: A to Z" },
+        { value: "name_desc", label: "Item Name: Z to A" },
+    ],
+    rangeOptions: [
+        { value: "today", label: "Today" },
+        { value: "last7", label: "Last 7 Days" },
+        { value: "last30", label: "Last 30 Days" },
+        { value: "thisMonth", label: "This Month" },
+        { value: "all", label: "All Time" },
+    ],
+    orderTypeOptions: [
+        { value: "dine", label: "Dine In" },
+        { value: "delivery", label: "Delivery" },
+    ],
+    paymentTypeOptions: [
+        { value: "cash", label: "Cash" },
+        { value: "card", label: "Card" },
+        { value: "qr", label: "QR" },
+        { value: "bank", label: "Bank" },
+    ],
+}));
+// ===============================================
+
+// ========== ADD FILTER HANDLERS ==========
+const handleFilterApply = (appliedFilters) => {
+    console.log("Filters applied:", appliedFilters);
+};
+
+const handleFilterClear = () => {
+    console.log("Filters cleared");
+};
+
+
+
 
 /* ---------------- Helpers ---------------- */
 const money = (n, c = "GBP") =>
@@ -125,17 +189,63 @@ function buildMarkers(series, W, H, m = { l: 40, r: 10, t: 16, b: 28 }) {
 const bigLinePath = computed(() => buildLine(salesSeries.value, 840, 280));
 const markerPoints = computed(() => buildMarkers(salesSeries.value, 840, 280));
 
+// const topItemsFiltered = computed(() => {
+//     const t = qItems.value.trim().toLowerCase();
+//     return t
+//         ? (topItems.value || []).filter((i) =>
+//             (i.name || "").toLowerCase().includes(t)
+//         )
+//         : topItems.value || [];
+// });
+
 const topItemsFiltered = computed(() => {
     const t = qItems.value.trim().toLowerCase();
-    return t
+    let result = t
         ? (topItems.value || []).filter((i) =>
             (i.name || "").toLowerCase().includes(t)
         )
         : topItems.value || [];
+
+    // Apply sorting
+    const sortBy = filters.value.sortBy;
+    switch (sortBy) {
+        case "revenue_desc":
+            return result.sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
+        case "revenue_asc":
+            return result.sort((a, b) => (Number(a.revenue) || 0) - (Number(b.revenue) || 0));
+        case "qty_desc":
+            return result.sort((a, b) => (Number(b.qty) || 0) - (Number(a.qty) || 0));
+        case "qty_asc":
+            return result.sort((a, b) => (Number(a.qty) || 0) - (Number(b.qty) || 0));
+        case "name_asc":
+            return result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        case "name_desc":
+            return result.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        default:
+            return result;
+    }
 });
 
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
+onMounted(async () => {
+    q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
+});
+
 </script>
 
 <template>
@@ -146,27 +256,78 @@ onUpdated(() => window.feather?.replace());
             <!-- Filters row -->
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
                 <div class="d-flex flex-wrap gap-2">
-                    <div class="filter">
-                        <Select v-model="range" :options="rangeOptions" class="w-100" :appendTo="'body'">
-                            <template #value="{ value, placeholder }"><span>{{
-                                value || placeholder
-                                    }}</span></template>
-                        </Select>
-                    </div>
-                    <div class="filter">
-                        <Select v-model="orderType" :options="orderTypeOptions" class="w-100" :appendTo="'body'">
-                            <template #value="{ value, placeholder }"><span>{{
-                                value || placeholder
-                                    }}</span></template>
-                        </Select>
-                    </div>
-                    <div class="filter">
-                        <Select v-model="payType" :options="payTypeOptions" class="w-100" :appendTo="'body'">
-                            <template #value="{ value, placeholder }"><span>{{
-                                value || placeholder
-                                    }}</span></template>
-                        </Select>
-                    </div>
+                     <FilterModal
+                        v-model="filters"
+                        title="Analytics"
+                        modal-id="analyticsFilterModal"
+                        modal-size="modal-lg"
+                        :sort-options="filterOptions.sortOptions"
+                        :show-date-range="true"
+                        @apply="handleFilterApply"
+                        @clear="handleFilterClear"
+                    >
+                        <!-- Custom filters slot for Range, Order Type, and Payment Type -->
+                        <template #customFilters="{ filters }">
+                            <!-- Date Range Selection -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fas fa-calendar-alt me-2 text-muted"></i>Date Range
+                                </label>
+                                <select
+                                    v-model="filters.range"
+                                    class="form-select"
+                                >
+                                    <option
+                                        v-for="opt in filterOptions.rangeOptions"
+                                        :key="opt.value"
+                                        :value="opt.value"
+                                    >
+                                        {{ opt.label }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Order Type -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
+                                </label>
+                                <select
+                                    v-model="filters.orderType"
+                                    class="form-select"
+                                >
+                                    <option value="">All</option>
+                                    <option
+                                        v-for="opt in filterOptions.orderTypeOptions"
+                                        :key="opt.value"
+                                        :value="opt.value"
+                                    >
+                                        {{ opt.label }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Payment Type -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
+                                </label>
+                                <select
+                                    v-model="filters.paymentType"
+                                    class="form-select"
+                                >
+                                    <option value="">All</option>
+                                    <option
+                                        v-for="opt in filterOptions.paymentTypeOptions"
+                                        :key="opt.value"
+                                        :value="opt.value"
+                                    >
+                                        {{ opt.label }}
+                                    </option>
+                                </select>
+                            </div>
+                        </template>
+                    </FilterModal>
                 </div>
 
                 <div class="dropdown">
@@ -354,8 +515,14 @@ onUpdated(() => window.feather?.replace());
                         <h6 class="fw-semibold mb-0">Top Items</h6>
                         <div class="search-wrap">
                             <i class="bi bi-search"></i>
-                            <input v-model="qItems" type="text" class="form-control search-input"
-                                placeholder="Search item name" />
+                             <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
                         </div>
                     </div>
 
@@ -502,6 +669,15 @@ onUpdated(() => window.feather?.replace());
 .muted {
     fill: #6b7280;
     font-size: 12px;
+}
+
+.dark .form-label{
+    color: #fff !important;
+}
+
+.dark .form-select{
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 /* Progress blocks */

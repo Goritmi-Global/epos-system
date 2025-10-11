@@ -100,7 +100,7 @@
 
                   <!-- Actions -->
                   <div class="d-flex justify-content-center">
-                    <button class="btn btn-sm btn-outline-primary" @click="printOrder(order)">
+                    <button class="btn btn-sm btn-primary" @click="printOrder(order)">
                       <Printer class="w-5 h-5" />
                     </button>
                   </div>
@@ -263,6 +263,11 @@ watch(() => props.show, (newVal) => {
 /* Badge styling for status and order types */
 .badge {
   font-size: 0.8rem;
+}
+
+.dark .bg-light{
+  background-color: #212121 !important;
+  color: #fff !important;
 }
 
 /* Button spacing */

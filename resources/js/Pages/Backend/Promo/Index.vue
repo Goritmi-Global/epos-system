@@ -8,6 +8,7 @@ import Select from "primevue/select";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 // import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { useFormatters } from '@/composables/useFormatters'
+import { nextTick } from "vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -39,7 +40,22 @@ const fetchPromos = async () => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+      q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
     fetchPromos();
 });
 
@@ -77,6 +93,10 @@ const promoStats = computed(() => [
 
 /* ---------------- Search ---------------- */
 const q = ref("");
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
     if (!t) return promos.value;
@@ -247,8 +267,14 @@ onUpdated(() => window.feather?.replace());
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input v-model="q" type="text" class="form-control search-input"
-                                    placeholder="Search promos" />
+                                   <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
                             </div>
 
                             <button data-bs-toggle="modal" data-bs-target="#promoModal" @click="resetModal"

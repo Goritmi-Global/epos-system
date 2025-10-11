@@ -100,10 +100,15 @@ function handleCardConfirm(payload) {
                         Confirm Order
                     </h5>
 
-                    <button class="btn btn-sm btn-light rounded-circle border-0" data-bs-dismiss="modal"
-                        aria-label="Close" title="Close" @click="$emit('close')">
-                        <i class="bi bi-x-lg"></i>
+                    <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        @click="$emit('close')" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
+
                 </div>
 
                 <!-- Body -->
@@ -127,7 +132,7 @@ function handleCardConfirm(payload) {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -152,7 +157,7 @@ function handleCardConfirm(payload) {
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -287,8 +292,8 @@ item, index
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
                                                 <span :class="changeAmount < 0
-                                                        ? 'text-danger fw-bold'
-                                                        : 'text-success fw-bold'
+                                                    ? 'text-danger fw-bold'
+                                                    : 'text-success fw-bold'
                                                     ">
                                                     {{ formatCurrencySymbol(changeAmount) }}
                                                 </span>
@@ -304,11 +309,11 @@ item, index
 
 
                                             <div class="d-flex gap-2 mt-3">
-                                                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2"
+                                                <button class="btn btn-secondary btn-sm rounded-pill px-3 py-2"
                                                     @click="$emit('close')">
                                                     Cancel
                                                 </button>
-                                                <button class="btn brand-btn rounded-pill btn-sm px-3 py-2"
+                                                <button class="btn btn-primary brand-btn rounded-pill btn-sm px-3 py-2"
                                                     @click="handleConfirm">
                                                     <i class="bi bi-check2-circle me-1"></i>
                                                     Confirm & Place
@@ -324,21 +329,21 @@ item, index
                                                 :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
                                                 :serviceCharges="serviceCharges ?? 0
                                                     " :deliveryCharges="deliveryCharges ?? 0
-                                                    " :note="note" :orderDate="orderDate ??
-                                                    new Date()
-                                                        .toISOString()
-                                                        .split('T')[0]
-                                                    " :orderTime="orderTime ??
-                                                    new Date()
-                                                        .toTimeString()
-                                                        .split(' ')[0]
-                                                    " :paymentMethod="paymentMethod" :change="changeAmount" />
+                                                        " :note="note" :orderDate="orderDate ??
+                                                        new Date()
+                                                            .toISOString()
+                                                            .split('T')[0]
+                                                        " :orderTime="orderTime ??
+                                                        new Date()
+                                                            .toTimeString()
+                                                            .split(' ')[0]
+                                                        " :paymentMethod="paymentMethod" :change="changeAmount" />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
                                                 <span :class="changeAmount < 0
-                                                        ? 'text-danger fw-bold'
-                                                        : 'text-success fw-bold'
+                                                    ? 'text-danger fw-bold'
+                                                    : 'text-success fw-bold'
                                                     ">
                                                     {{ formatCurrencySymbol(changeAmount) }}
                                                 </span>
@@ -375,15 +380,15 @@ item, index
                                                 :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
                                                 :serviceCharges="serviceCharges ?? 0
                                                     " :deliveryCharges="deliveryCharges ?? 0
-                                                    " :note="note" :orderDate="orderDate ??
-                                                    new Date()
-                                                        .toISOString()
-                                                        .split('T')[0]
-                                                    " :orderTime="orderTime ??
-                                                    new Date()
-                                                        .toTimeString()
-                                                        .split(' ')[0]
-                                                    " :paymentMethod="paymentMethod" :change="changeAmount"
+                                                        " :note="note" :orderDate="orderDate ??
+                                                        new Date()
+                                                            .toISOString()
+                                                            .split('T')[0]
+                                                        " :orderTime="orderTime ??
+                                                        new Date()
+                                                            .toTimeString()
+                                                            .split(' ')[0]
+                                                        " :paymentMethod="paymentMethod" :change="changeAmount"
                                                 :paymentType="paymentMethod" />
                                         </div>
 
@@ -435,6 +440,11 @@ item, index
     border: 1px solid rgba(28, 13, 130, 0.15);
 }
 
+.dark .brand-badge{
+    background-color: #212121 !important;
+    border: 1px solid #fff !important;
+}
+
 /* ===== Primary button ===== */
 .brand-btn {
     background: var(--brand);
@@ -447,6 +457,16 @@ item, index
     display: inline-flex;
     gap: 0;
     background: #fff;
+    border: 1px solid rgba(28, 13, 130, 0.18);
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+}
+
+.dark .segmented {
+    display: inline-flex;
+    gap: 0;
+    background: #212121 !important;
     border: 1px solid rgba(28, 13, 130, 0.18);
     border-radius: 999px;
     overflow: hidden;
@@ -468,6 +488,15 @@ item, index
     transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.dark .segmented-label {
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    color: #fff !important;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
 .segmented-label+.segmented-input+.segmented-label {
     border-left: 1px solid rgba(28, 13, 130, 0.12);
 }
@@ -477,6 +506,19 @@ item, index
     color: #fff;
     box-shadow: inset 0 0 0 1px var(--brand);
 }
+
+.dark .segmented-input:checked+.segmented-label {
+    background: #1C0D82 !important;
+    color: #fff;
+    box-shadow: none;
+   
+}
+
+.dark .bg-light{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
 
 .segmented-input:focus-visible+.segmented-label {
     outline: 2px solid var(--brand-300);
@@ -493,9 +535,10 @@ item, index
 .compact-table td {
     white-space: nowrap;
 }
+
 .form-check-input:checked {
-  background-color: #1b1670;
-  border-color: #1b1670;
+    background-color: #1b1670;
+    border-color: #1b1670;
 }
 
 

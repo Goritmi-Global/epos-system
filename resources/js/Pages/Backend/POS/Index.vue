@@ -1176,7 +1176,7 @@ const handleViewOrderDetails = (order) => {
                                 <div class="totals">
                                     <div class="trow">
                                         <span>Sub Total</span>
-                                        <b>{{ formatCurrencySymbol(subTotal) }}</b>
+                                        <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
                                     </div>
                                     <div class="trow" v-if="orderType === 'delivery'">
                                         <span>Delivery</span>
@@ -1347,6 +1347,10 @@ const handleViewOrderDetails = (order) => {
 
 .dark .cart-footer {
     background-color: #181818;
+}
+
+.dark .sub-total{
+    color: #fff !important;
 }
 
 .dark .form-control {
@@ -1734,7 +1738,22 @@ const handleViewOrderDetails = (order) => {
     background: #1b1670;
     color: #fff;
     font-weight: 800;
-    line-height: 1;
+    line-height: 1.5;
+}
+
+.dark .qty {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 0;
+    background: #1b1670;
+    color: #fff;
+    font-weight: 800;
+    line-height: 1.5;
+}
+
+.dark .del{
+    background-color: #212121 !important;
 }
 
 .qty-btn.disabled {
