@@ -6,6 +6,8 @@ import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
 import { Pencil, Eye } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
+import FilterModal from "@/Components/FilterModal.vue";
+import { nextTick } from "vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -19,57 +21,228 @@ const fetchOrders = async () => {
         console.error("Error fetching inventory:", error);
     }
 };
-onMounted(() => {
+onMounted(async () => {
+    
+  q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
     fetchOrders();
 });
 
 const q = ref("");
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+const filters = ref({
+    sortBy: "",
+    orderType: "",
+    paymentType: "",
+    status: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: "",
+    dateTo: "",
+});
 const orderTypeFilter = ref("All");
 const paymentTypeFilter = ref("All"); // <-- renamed
 
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway"]);
 const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]); // <-- new
 
+// const filtered = computed(() => {
+//     const term = q.value.trim().toLowerCase();
+
+//     return (
+//         orders.value
+//             // Order Type (Dine In / Delivery / Takeaway)
+//             .filter((o) =>
+//                 orderTypeFilter.value === "All"
+//                     ? true
+//                     : (o.type?.order_type ?? "").toLowerCase() ===
+//                     orderTypeFilter.value.toLowerCase()
+//             )
+//             // Payment Type (Cash / Card / Split)
+//             .filter((o) =>
+//                 paymentTypeFilter.value === "All"
+//                     ? true
+//                     : (o.payment?.payment_type ?? "").toLowerCase() ===
+//                     paymentTypeFilter.value.toLowerCase()
+//             )
+//             // Search
+//             .filter((o) => {
+//                 if (!term) return true;
+//                 return [
+//                     String(o.id),
+//                     o.type?.table_number ?? "",
+//                     o.type?.order_type ?? "",
+//                     o.customer_name ?? "",
+//                     o.payment?.payment_type ?? "",
+//                     o.status ?? "",
+//                     String(o.total_amount ?? ""),
+//                     formatDate(o.created_at),
+//                     timeAgo(o.created_at),
+//                 ]
+//                     .join(" ")
+//                     .toLowerCase()
+//                     .includes(term);
+//             })
+//     );
+// });
+
+
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
+    let result = [...orders.value];
 
-    return (
-        orders.value
-            // Order Type (Dine In / Delivery / Takeaway)
-            .filter((o) =>
-                orderTypeFilter.value === "All"
-                    ? true
-                    : (o.type?.order_type ?? "").toLowerCase() ===
-                    orderTypeFilter.value.toLowerCase()
-            )
-            // Payment Type (Cash / Card / Split)
-            .filter((o) =>
-                paymentTypeFilter.value === "All"
-                    ? true
-                    : (o.payment?.payment_type ?? "").toLowerCase() ===
-                    paymentTypeFilter.value.toLowerCase()
-            )
-            // Search
-            .filter((o) => {
-                if (!term) return true;
-                return [
-                    String(o.id),
-                    o.type?.table_number ?? "",
-                    o.type?.order_type ?? "",
-                    o.customer_name ?? "",
-                    o.payment?.payment_type ?? "",
-                    o.status ?? "",
-                    String(o.total_amount ?? ""),
-                    formatDate(o.created_at),
-                    timeAgo(o.created_at),
-                ]
-                    .join(" ")
-                    .toLowerCase()
-                    .includes(term);
-            })
-    );
+    // Text search
+    if (term) {
+        result = result.filter((o) =>
+            [
+                String(o.id),
+                o.type?.table_number ?? "",
+                o.type?.order_type ?? "",
+                o.customer_name ?? "",
+                o.payment?.payment_type ?? "",
+                o.status ?? "",
+                String(o.total_amount ?? ""),
+                formatDate(o.created_at),
+                timeAgo(o.created_at),
+            ]
+                .join(" ")
+                .toLowerCase()
+                .includes(term)
+        );
+    }
+
+    // Order Type filter
+    if (filters.value.orderType) {
+        result = result.filter(
+            (o) =>
+                (o.type?.order_type ?? "").toLowerCase() ===
+                filters.value.orderType.toLowerCase()
+        );
+    }
+
+    // Payment Type filter
+    if (filters.value.paymentType) {
+        result = result.filter(
+            (o) =>
+                (o.payment?.payment_type ?? "").toLowerCase() ===
+                filters.value.paymentType.toLowerCase()
+        );
+    }
+
+    // Status filter
+    if (filters.value.status) {
+        result = result.filter((o) => {
+            return o.status?.toLowerCase() === filters.value.status.toLowerCase();
+        });
+    }
+
+    // Price range filter
+    if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
+        result = result.filter((o) => {
+            const price = o.total_amount || 0;
+            const min = filters.value.priceMin || 0;
+            const max = filters.value.priceMax || Infinity;
+            return price >= min && price <= max;
+        });
+    }
+
+    // Date range filter
+    if (filters.value.dateFrom) {
+        result = result.filter((o) => {
+            const orderDate = new Date(o.created_at);
+            const filterDate = new Date(filters.value.dateFrom);
+            return orderDate >= filterDate;
+        });
+    }
+
+    if (filters.value.dateTo) {
+        result = result.filter((o) => {
+            const orderDate = new Date(o.created_at);
+            const filterDate = new Date(filters.value.dateTo);
+            filterDate.setHours(23, 59, 59, 999); // End of day
+            return orderDate <= filterDate;
+        });
+    }
+
+    return result;
 });
 
+const sortedOrders = computed(() => {
+    const arr = [...filtered.value];
+    const sortBy = filters.value.sortBy;
+
+    switch (sortBy) {
+        case "date_desc":
+            return arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        case "date_asc":
+            return arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        case "price_desc":
+            return arr.sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
+        case "price_asc":
+            return arr.sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0));
+        case "customer_asc":
+            return arr.sort((a, b) => 
+                (a.customer_name || "").localeCompare(b.customer_name || "")
+            );
+        case "customer_desc":
+            return arr.sort((a, b) => 
+                (b.customer_name || "").localeCompare(a.customer_name || "")
+            );
+        default:
+            return arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+});
+
+const filterOptions = computed(() => ({
+    sortOptions: [
+        { value: "date_desc", label: "Date: Newest First" },
+        { value: "date_asc", label: "Date: Oldest First" },
+        { value: "price_desc", label: "Price: High to Low" },
+        { value: "price_asc", label: "Price: Low to High" },
+        { value: "customer_asc", label: "Customer: A to Z" },
+        { value: "customer_desc", label: "Customer: Z to A" },
+    ],
+    orderTypeOptions: [
+        { value: "Dine In", label: "Dine In" },
+        { value: "Delivery", label: "Delivery" },
+        { value: "Takeaway", label: "Takeaway" },
+    ],
+    paymentTypeOptions: [
+        { value: "Cash", label: "Cash" },
+        { value: "Card", label: "Card" },
+        { value: "Split", label: "Split" },
+    ],
+    statusOptions: [
+        { value: "paid", label: "Paid" },
+        { value: "pending", label: "Pending" },
+        { value: "cancelled", label: "Cancelled" },
+    ],
+}));
+
+const handleFilterApply = (appliedFilters) => {
+    console.log("Filters applied:", appliedFilters);
+    // Additional logic if needed
+};
+
+const handleFilterClear = () => {
+    console.log("Filters cleared");
+    // Additional logic if needed
+};
 /* ===================== KPIs ===================== */
 const totalOrders = computed(() => orders.value.length);
 const completedOrders = computed(
@@ -401,11 +574,74 @@ function printReceipt(order) {
                             <!-- Search -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input v-model="q" type="text" class="form-control search-input" placeholder="Search" />
+                                   <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
                             </div>
 
+                              <FilterModal
+            v-model="filters"
+            title="Orders"
+            modal-id="orderFilterModal"
+            modal-size="modal-lg"
+            :sort-options="filterOptions.sortOptions"
+            :status-options="filterOptions.statusOptions"
+            :show-price-range="true"
+            :show-date-range="true"
+            price-label="Total Amount Range"
+            @apply="handleFilterApply"
+            @clear="handleFilterClear"
+        >
+            <!-- Custom filters slot for Order Type and Payment Type -->
+            <template #customFilters="{ filters }">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold text-dark">
+                        <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
+                    </label>
+                    <select
+                        v-model="filters.orderType"
+                        class="form-select"
+                    >
+                        <option value="">All</option>
+                        <option
+                            v-for="opt in filterOptions.orderTypeOptions"
+                            :key="opt.value"
+                            :value="opt.value"
+                        >
+                            {{ opt.label }}
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 mt-3">
+                    <label class="form-label fw-semibold text-dark">
+                        <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
+                    </label>
+                    <select
+                        v-model="filters.paymentType"
+                        class="form-select"
+                    >
+                        <option value="">All</option>
+                        <option
+                            v-for="opt in filterOptions.paymentTypeOptions"
+                            :key="opt.value"
+                            :value="opt.value"
+                        >
+                            {{ opt.label }}
+                        </option>
+                    </select>
+                </div>
+            </template>
+        </FilterModal>
+
+
                             <!-- Order Type filter -->
-                            <div style="min-width: 170px">
+                            <!-- <div style="min-width: 170px">
                                 <Select v-model="orderTypeFilter" :options="orderTypeOptions" placeholder="Order Type"
                                     class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
                                     <template #value="{ value, placeholder }">
@@ -413,10 +649,10 @@ function printReceipt(order) {
                                         <span v-else>{{ placeholder }}</span>
                                     </template>
                                 </Select>
-                            </div>
+                            </div> -->
 
                             <!-- Payment Type filter (replaces Status) -->
-                            <div style="min-width: 160px">
+                            <!-- <div style="min-width: 160px">
                                 <Select v-model="paymentTypeFilter" :options="paymentTypeOptions"
                                     placeholder="Payment Type" class="w-100" :appendTo="'body'" :autoZIndex="true"
                                     :baseZIndex="2000">
@@ -425,7 +661,7 @@ function printReceipt(order) {
                                         <span v-else>{{ placeholder }}</span>
                                     </template>
                                 </Select>
-                            </div>
+                            </div> -->
 
                             <!-- Download -->
                             <div class="dropdown">
@@ -463,7 +699,7 @@ function printReceipt(order) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(o, i) in filtered" :key="o.id">
+                                <tr v-for="(o, i) in sortedOrders" :key="o.id">
                                     <td>{{ i + 1 }}</td>
                                     <td>
                                         {{ o.type?.table_number ?? "-" }}
@@ -497,10 +733,16 @@ function printReceipt(order) {
                                             </span>
                                         </td> -->
                                     <td class="text-center">
-                                        <button class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
-                                            @click="openOrderDetails(o)" title="View Order">
+                                        <button @click="openOrderDetails(o)" data-bs-toggle="modal"
+                                                data-bs-target="#viewItemModal" title="View Item"
+                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                <Eye class="w-4 h-4" />
+                                            </button>
+
+                                        <!-- <button class=" p-2 rounded-full hover:bg-blue-100"
+                                            @click="" title="View Order">
                                             <Eye class="w-4 h-4" />
-                                        </button>
+                                        </button> -->
                                     </td>
                                 </tr>
 
@@ -824,6 +1066,9 @@ item, idx
     /* gray-50 */
 }
 
+.dark .text-primary{
+    color: #E3E3F1 !important;
+}
 .dark .table {
     background-color: #181818 !important;
     /* gray-900 */
@@ -891,10 +1136,13 @@ item, idx
     border-color: var(--brand);
 }
 
+
 .btn-primary:hover {
     filter: brightness(1.05);
 }
-
+.dark .form-label {
+    color: #fff !important;
+}
 /* Table polish */
 .table thead th {
     font-weight: 600;
@@ -1220,6 +1468,11 @@ item, idx
 
 .dark .logo-frame {
     background-color: #181818 !important;
+}
+
+.dark .form-select{
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 

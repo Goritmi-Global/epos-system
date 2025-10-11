@@ -14,6 +14,7 @@ import { Eye, Plus, Trash2 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
 import { useFormatters } from '@/composables/useFormatters'
 import BulkOrderComponent from "./BulkOrderComponent.vue";
+import { nextTick } from "vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -22,6 +23,10 @@ const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         Number(n || 0)
     );
+
+    const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
 
 const fmtDateTime = (iso) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -84,7 +89,23 @@ const filteredOrders = computed(() => {
     );
 });
 
-onMounted(() => {
+onMounted(async () => {
+      q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
+
     fetchInventory();
     fetchSuppliers();
 });
@@ -373,8 +394,14 @@ onUpdated(() => window.feather?.replace?.());
                         <div class="d-flex gap-2 align-items-center">
                             <div class="search-wrap me-1">
                                 <i class="bi bi-search"></i>
-                                <input v-model="p_search" type="text" class="form-control search-input"
-                                    placeholder="Search" />
+                              <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
                             </div>
 
                             <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"

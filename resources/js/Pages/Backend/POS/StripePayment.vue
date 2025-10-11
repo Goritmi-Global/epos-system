@@ -9,7 +9,7 @@
 
     <button
       type="button"
-      class="btn pay-btn rounded-pill mt-3 d-inline-flex align-items-center justify-content-center"
+      class="btn btn-primary pay-btn rounded-pill mt-3 d-inline-flex align-items-center justify-content-center"
       :disabled="!isReady || isPaying"
       @click="pay"
     >
@@ -246,4 +246,8 @@ onMounted(async () => {
 .pay-btn:hover:not(:disabled) { box-shadow: 0 10px 22px rgba(28, 13, 130, 0.35); }
 .pay-btn:active:not(:disabled) { transform: translateY(1px); }
 .pay-btn:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
+
+.dark .stripe-box{
+  background-color: #212121 !important;
+}
 </style>

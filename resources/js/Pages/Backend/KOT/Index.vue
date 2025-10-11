@@ -5,6 +5,8 @@ import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
 import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
+import FilterModal from "@/Components/FilterModal.vue";
+import { nextTick } from "vue";
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -57,11 +59,36 @@ const fetchOrders = async () => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+      q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
     fetchOrders();
 });
 
 const q = ref("");
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+const filters = ref({
+    sortBy: "",
+    orderType: "",
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+});
 const orderTypeFilter = ref("All");
 const statusFilter = ref("All");
 
@@ -87,25 +114,45 @@ const allItems = computed(() => {
     return flattened;
 });
 
+// const filtered = computed(() => {
+//     const term = q.value.trim().toLowerCase();
+
+//     return allItems.value
+//         .filter((item) =>
+//             orderTypeFilter.value === "All"
+//                 ? true
+//                 : (item.order?.type?.order_type ?? "").toLowerCase() ===
+//                 orderTypeFilter.value.toLowerCase()
+//         )
+//         .filter((item) =>
+//             statusFilter.value === "All"
+//                 ? true
+//                 : (item.status ?? "").toLowerCase() ===
+//                 statusFilter.value.toLowerCase()
+//         )
+//         .filter((item) => {
+//             if (!term) return true;
+//             return [
+//                 String(item.order?.id),
+//                 item.item_name ?? "",
+//                 item.variant_name ?? "",
+//                 item.ingredients?.join(', ') ?? "",
+//                 item.status ?? "",
+//             ]
+//                 .join(" ")
+//                 .toLowerCase()
+//                 .includes(term);
+//         });
+// });
+
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
+    let result = [...allItems.value];
 
-    return allItems.value
-        .filter((item) =>
-            orderTypeFilter.value === "All"
-                ? true
-                : (item.order?.type?.order_type ?? "").toLowerCase() ===
-                orderTypeFilter.value.toLowerCase()
-        )
-        .filter((item) =>
-            statusFilter.value === "All"
-                ? true
-                : (item.status ?? "").toLowerCase() ===
-                statusFilter.value.toLowerCase()
-        )
-        .filter((item) => {
-            if (!term) return true;
-            return [
+    // Text search
+    if (term) {
+        result = result.filter((item) =>
+            [
                 String(item.order?.id),
                 item.item_name ?? "",
                 item.variant_name ?? "",
@@ -114,9 +161,104 @@ const filtered = computed(() => {
             ]
                 .join(" ")
                 .toLowerCase()
-                .includes(term);
+                .includes(term)
+        );
+    }
+
+    // Order Type filter
+    if (filters.value.orderType) {
+        result = result.filter(
+            (item) =>
+                (item.order?.type?.order_type ?? "").toLowerCase() ===
+                filters.value.orderType.toLowerCase()
+        );
+    }
+
+    // Status filter
+    if (filters.value.status) {
+        result = result.filter((item) => {
+            return item.status?.toLowerCase() === filters.value.status.toLowerCase();
         });
+    }
+
+    // Date range filter
+    if (filters.value.dateFrom) {
+        result = result.filter((item) => {
+            const orderDate = new Date(item.order?.created_at);
+            const filterDate = new Date(filters.value.dateFrom);
+            return orderDate >= filterDate;
+        });
+    }
+
+    if (filters.value.dateTo) {
+        result = result.filter((item) => {
+            const orderDate = new Date(item.order?.created_at);
+            const filterDate = new Date(filters.value.dateTo);
+            filterDate.setHours(23, 59, 59, 999);
+            return orderDate <= filterDate;
+        });
+    }
+
+    return result;
 });
+
+
+const sortedItems = computed(() => {
+    const arr = [...filtered.value];
+    const sortBy = filters.value.sortBy;
+
+    switch (sortBy) {
+        case "date_desc":
+            return arr.sort((a, b) => new Date(b.order?.created_at) - new Date(a.order?.created_at));
+        case "date_asc":
+            return arr.sort((a, b) => new Date(a.order?.created_at) - new Date(b.order?.created_at));
+        case "item_asc":
+            return arr.sort((a, b) => 
+                (a.item_name || "").localeCompare(b.item_name || "")
+            );
+        case "item_desc":
+            return arr.sort((a, b) => 
+                (b.item_name || "").localeCompare(a.item_name || "")
+            );
+        case "order_asc":
+            return arr.sort((a, b) => (a.order?.id || 0) - (b.order?.id || 0));
+        case "order_desc":
+            return arr.sort((a, b) => (b.order?.id || 0) - (a.order?.id || 0));
+        default:
+            return arr.sort((a, b) => new Date(b.order?.created_at) - new Date(a.order?.created_at));
+    }
+});
+
+const filterOptions = computed(() => ({
+    sortOptions: [
+        { value: "date_desc", label: "Date: Newest First" },
+        { value: "date_asc", label: "Date: Oldest First" },
+        { value: "item_asc", label: "Item: A to Z" },
+        { value: "item_desc", label: "Item: Z to A" },
+        { value: "order_asc", label: "Order ID: Low to High" },
+        { value: "order_desc", label: "Order ID: High to Low" },
+    ],
+    orderTypeOptions: [
+        { value: "Dine In", label: "Dine In" },
+        { value: "Delivery", label: "Delivery" },
+        { value: "Takeaway", label: "Takeaway" },
+        { value: "Collection", label: "Collection" },
+    ],
+    statusOptions: [
+        { value: "Waiting", label: "Waiting" },
+        { value: "Done", label: "Done" },
+        { value: "Cancelled", label: "Cancelled" },
+    ],
+}));
+
+const handleFilterApply = (appliedFilters) => {
+    console.log("Filters applied:", appliedFilters);
+};
+
+const handleFilterClear = () => {
+    console.log("Filters cleared");
+};
+
 
 /* ===================== KPIs ===================== */
 const totalTables = computed(() => {
@@ -416,12 +558,69 @@ const printOrder = (order) => {
                             <!-- Search -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input v-model="q" type="text" class="form-control search-input"
-                                    placeholder="Search items..." />
+                                 <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
                             </div>
 
+                             <FilterModal
+                                v-model="filters"
+                                title="Kitchen Orders"
+                                modal-id="kotFilterModal"
+                                modal-size="modal-lg"
+                                :sort-options="filterOptions.sortOptions"
+                                :show-date-range="true"
+                                @apply="handleFilterApply"
+                                @clear="handleFilterClear"
+                            >
+                                <!-- Custom filters slot for Order Type and Status -->
+                                <template #customFilters="{ filters }">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
+                                        </label>
+                                        <select
+                                            v-model="filters.orderType"
+                                            class="form-select"
+                                        >
+                                            <option value="">All</option>
+                                            <option
+                                                v-for="opt in filterOptions.orderTypeOptions"
+                                                :key="opt.value"
+                                                :value="opt.value"
+                                            >
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6 mt-3">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-tasks me-2 text-muted"></i>Order Status
+                                        </label>
+                                        <select
+                                            v-model="filters.status"
+                                            class="form-select"
+                                        >
+                                            <option value="">All</option>
+                                            <option
+                                                v-for="opt in filterOptions.statusOptions"
+                                                :key="opt.value"
+                                                :value="opt.value"
+                                            >
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                </template>
+                            </FilterModal>
                             <!-- Order Type filter -->
-                            <div style="min-width: 170px">
+                            <!-- <div style="min-width: 170px">
                                 <Select v-model="orderTypeFilter" :options="orderTypeOptions" placeholder="Order Type"
                                     class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
                                     <template #value="{ value, placeholder }">
@@ -429,10 +628,10 @@ const printOrder = (order) => {
                                         <span v-else>{{ placeholder }}</span>
                                     </template>
                                 </Select>
-                            </div>
+                            </div> -->
 
                             <!-- Status filter -->
-                            <div style="min-width: 160px">
+                            <!-- <div style="min-width: 160px">
                                 <Select v-model="statusFilter" :options="statusOptions" placeholder="Status"
                                     class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
                                     <template #value="{ value, placeholder }">
@@ -440,7 +639,7 @@ const printOrder = (order) => {
                                         <span v-else>{{ placeholder }}</span>
                                     </template>
                                 </Select>
-                            </div>
+                            </div> -->
 
                             <!-- Download -->
                             <div class="dropdown">
@@ -595,6 +794,10 @@ const printOrder = (order) => {
     color: #000 !important;
 }
 
+.dark .form-label{
+    color: #fff !important;
+}
+
 /* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
@@ -625,6 +828,11 @@ const printOrder = (order) => {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
+}
+
+.dark .form-select{
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 /* Optional: adjust filter container */

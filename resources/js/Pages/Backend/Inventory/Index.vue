@@ -9,6 +9,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
 
+
 import { useFormatters } from '@/composables/useFormatters'
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
@@ -87,13 +88,33 @@ const fetchInventories = async () => {
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+     q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
     fetchInventories();
     fetchStockForCounting();
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
+
+
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
 const sortBy = ref(""); // 'stock_desc' | 'stock_asc' | 'name_asc' | 'name_desc'
 
 // Add to your components section
@@ -1221,7 +1242,15 @@ const handleImport = (data) => {
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input v-model="q" type="text" class="form-control search-input" placeholder="Search" />
+                               <!-- Hidden decoy input to catch autofill -->
+                        <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
                             </div>
 
                             <!-- Filter By -->
@@ -2336,6 +2365,10 @@ row, i
 }
 
 .dark .text-muted{
+    color: #fff !important;
+}
+
+.dark .form-label{
     color: #fff !important;
 }
 

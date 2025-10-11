@@ -239,4 +239,10 @@ function confirmSplit() {
 
 <style scoped>
 .pay-header i { color: var(--brand); }
+
+.dark .input-group-text{
+  color: #fff !important;
+  background-color: #212121 !important;
+
+}
 </style>

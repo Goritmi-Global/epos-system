@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUpdated, watch } from "vue";
 import { toast } from "vue3-toastify";
 import axios from "axios";
 import { Pencil, Eye } from "lucide-vue-next";
+import { nextTick } from "vue";
 
 
 import { useFormatters } from '@/composables/useFormatters'

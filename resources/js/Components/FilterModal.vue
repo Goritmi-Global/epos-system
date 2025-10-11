@@ -213,20 +213,21 @@
 
           <div class="modal-footer border-0 pt-0">
             <div class="w-100 d-flex gap-2">
+               <button
+                type="button"
+                class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
+                @click="applyFilters"
+              >
+                <i class="fas fa-check me-2"></i>Apply
+              </button>
               <button
                 type="button"
                 class="btn btn-secondary rounded-pill px-4 ms-2"
                 @click="clearAllFilters"
               >
-                <i class="fas fa-undo me-2"></i>Clear All
+                <i class="fas fa-undo me-2"></i>Clear
               </button>
-              <button
-                type="button"
-                class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
-                @click="applyFilters"
-              >
-                <i class="fas fa-check me-2"></i>Apply Filters
-              </button>
+             
             </div>
           </div>
         </div>
@@ -482,5 +483,24 @@ onMounted(() => {
 .form-control:focus {
   border-color: var(--bs-primary);
   box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.dark .form-select:focus,
+.form-control:focus {
+  border-color: #212122 !important;
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.dark .form-label{
+  color: #fff !important;
+}
+
+.dark input{
+  background-color: #212121 !important;
+}
+
+.dark .form-select{
+  background-color: #212121 !important;
+  color: #fff !important;
 }
 </style>
