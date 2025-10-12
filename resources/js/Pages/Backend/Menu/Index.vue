@@ -203,7 +203,7 @@ const showMenuModal = () => {
 };
 
 onMounted(async () => {
-      q.value = "";
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -1235,6 +1235,7 @@ const handleImport = (data) => {
         .then(() => {
             toast.success("Items imported successfully");
             fetchInventories();
+            fetchMenus();
         })
         .catch((err) => {
             console.error(err);
@@ -1281,14 +1282,16 @@ const handleImport = (data) => {
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                 <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
                             <!-- Filter By -->
@@ -1311,7 +1314,36 @@ const handleImport = (data) => {
                                 class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Menu
                             </button>
-                            <ImportFile label="Import" @on-import="handleImport" />
+                            <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+                            <ImportFile label="Import" :sampleHeaders="[
+                                'Item Name',
+                                'Category',
+                                'Description',
+                                'price',
+                                'Nutrition',
+                                'Allergies',
+                                'Tags'
+                            ]" :sampleData="[
+    [
+        'Chicken',
+        'Spices & Herbs',
+        'Test',
+        '100',
+        'calories: 99.00; protein: 69.00; fat: 132.00; carbs: 93.00',
+        'Gluten',
+        'Gluten-Free'
+    ],
+    [
+        'Aalo',
+        'Spices & Herbs',
+        'xzc',
+        '100',
+        'calories: 66.00; protein: 46.00; fat: 88.00; carbs: 62.00',
+        'Gluten',
+        'Gluten-Free, Organic'
+    ]
+]" @on-import="handleImport" />
+
                             <!-- Download all -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
@@ -1406,8 +1438,8 @@ const handleImport = (data) => {
                                             <!-- </button> -->
 
                                             <ConfirmModal :title="'Confirm Status'" :message="`Are you sure you want to change status to ${item.status === 1
-                                                    ? 'Inactive'
-                                                    : 'Active'
+                                                ? 'Inactive'
+                                                : 'Active'
                                                 }?`" :showDeleteButton="true" @confirm="
                                                     () => {
                                                         toggleStatus(item);
@@ -1496,9 +1528,9 @@ const handleImport = (data) => {
                                         :autoZIndex="true" :baseZIndex="2000" @update:modelValue="
                                             form.subcategory = ''
                                             " :class="{
-                                            'is-invalid':
-                                                formErrors.category_id,
-                                        }" />
+                                                'is-invalid':
+                                                    formErrors.category_id,
+                                            }" />
                                     <small v-if="formErrors.category_id" class="text-danger">
                                         {{ formErrors.category_id[0] }}
                                     </small>
@@ -1756,8 +1788,8 @@ ing, idx
                                         <div class="card-body">
                                             <div class="d-flex align-items-start gap-3">
                                                 <img :src="it.image_url
-                                                        ? `${it.image_url}`
-                                                        : '/default.png'
+                                                    ? `${it.image_url}`
+                                                    : '/default.png'
                                                     " class="rounded" style="
                                                         width: 56px;
                                                         height: 56px;

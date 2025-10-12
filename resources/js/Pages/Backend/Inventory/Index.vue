@@ -89,7 +89,7 @@ const fetchInventories = async () => {
 };
 
 onMounted(async () => {
-     q.value = "";
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -1242,15 +1242,17 @@ const handleImport = (data) => {
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                               <!-- Hidden decoy input to catch autofill -->
-                        <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                <!-- Hidden decoy input to catch autofill -->
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
                             <!-- Filter By -->
@@ -1284,7 +1286,58 @@ const handleImport = (data) => {
                                 ">
                                 <Plus class="w-4 h-4" /> Add Item
                             </button>
-                            <ImportFile label="Import" @on-import="handleImport" />
+                            <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+
+                            <ImportFile label="Import" :sampleHeaders="[
+                                'name',
+                                'sku',
+                                'category',
+                                'min_alert',
+                                'unit',
+                                'preferred_supplier',
+                                'purchase_price',
+                                'sale_price',
+                                'stock',
+                                'active',
+                                'calories',
+                                'fat',
+                                'protein',
+                                'carbs'
+                            ]" :sampleData="[
+    [
+        'Black Tea',
+        'SKU-001',
+        'Dairy',
+        5,
+        14,
+        1,
+        'Des',
+        'Des',
+        'Des',
+        'Des',
+        33,
+        23,
+        44,
+        31
+    ],
+    [
+        'Green Tea',
+        'SKU-002',
+        'Beverages',
+        10,
+        12,
+        2,
+        'Supplier A',
+        '200',
+        '350',
+        '150',
+        20,
+        15,
+        10,
+        25
+    ]
+]" @on-import="handleImport" />
+
 
                             <!-- Download all -->
                             <div class="dropdown">
@@ -1496,7 +1549,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1507,7 +1560,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1609,7 +1662,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -1850,14 +1903,14 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.notExpiredQty
-                                            }}</span>
+                                                }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <!-- <div
@@ -1906,7 +1959,7 @@ const handleImport = (data) => {
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -2364,11 +2417,11 @@ row, i
     font-weight: 500;
 }
 
-.dark .text-muted{
+.dark .text-muted {
     color: #fff !important;
 }
 
-.dark .form-label{
+.dark .form-label {
     color: #fff !important;
 }
 
@@ -2598,19 +2651,20 @@ row, i
     padding: 0.25rem 0.5rem !important;
 }
 
-.dark .p-inputtext{
+.dark .p-inputtext {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-.dark .p-checkbox-icon{
-    color: #fff !important;
-}
-.dark .p-checkbox-input{
+.dark .p-checkbox-icon {
     color: #fff !important;
 }
 
-.dark .p-component{
+.dark .p-checkbox-input {
+    color: #fff !important;
+}
+
+.dark .p-component {
     color: #fff !important;
 }
 

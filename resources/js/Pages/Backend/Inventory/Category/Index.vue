@@ -36,7 +36,7 @@ const fetchCategories = async () => {
 };
 
 onMounted(async () => {
-      q.value = "";
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -629,17 +629,24 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
+    console.log("Data are", data);
     try {
         // Define headers
-        const headers = ["category", "subcategory", "icon", "active"];
+        const headers = ["category", "subcategory", "active"];
 
-        // Build CSV rows
-        const rows = data.map((s) => [
-            `"${s.name || ""}"`,
-            `"${s.parent_id || ""}"`,
-            `"${s.icon || ""}"`,
-            `${s.active ? 1 : 0}`,
-        ]);
+        // Build CSV rows - one row per parent category with subcategories joined
+        const rows = data.map((category) => {
+            // Get all subcategory names and join them
+            const subcategoryNames = category.subcategories && category.subcategories.length > 0
+                ? category.subcategories.map(sub => sub.name).join(", ")
+                : "";
+
+            return [
+                `"${category.name || ""}"`,
+                `"${subcategoryNames}"`,
+                `${category.active ? 1 : 0}`,
+            ];
+        });
 
         // Combine into CSV string
         const csvContent = [
@@ -672,7 +679,6 @@ const downloadCSV = (data) => {
         });
     }
 };
-
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
@@ -828,7 +834,6 @@ const handleImport = (data) => {
         return {
             category: row[0] || "", // Parent category
             subcategory: row[1] || null, // Child category (optional)
-            icon: row[2] || "", // Emoji/icon
             active: row[3] || 1, // Default active=1
         };
     });
@@ -887,14 +892,16 @@ const handleImport = (data) => {
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                     <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
                             <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
@@ -907,7 +914,14 @@ const handleImport = (data) => {
                                 class="d-flex align-items-center gap-1 px-4 py-2 btn-sm rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Category
                             </button>
-                            <ImportFile label="Import" @on-import="handleImport" />
+                            <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+                            <ImportFile label="Import" :sampleHeaders="['category', 'subcategory', 'active']"
+                                :sampleData="[
+                                    ['Dairy', 'TestSubCat', 1],
+                                    ['Bakery', 'Bread', 1],
+                                    ['Beverages', 'Juices', 0]
+                                ]" @on-import="handleImport" />
+
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
@@ -984,7 +998,7 @@ const handleImport = (data) => {
                                             class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                             <span class="fs-5">{{
                                                 row.icon || "📦"
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </td>
                                     <td>{{ formatCurrencySymbol(row.total_value) }}</td>
@@ -994,8 +1008,8 @@ const handleImport = (data) => {
                                     <td>{{ row.in_stock }}</td>
                                     <td class="text-center">
                                         <span :class="row.active
-                                                ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20'
-                                                : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'
+                                            ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20'
+                                            : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'
                                             ">
                                             {{
                                                 row.active
@@ -1011,8 +1025,7 @@ const handleImport = (data) => {
                                                 () => {
                                                     editRow(row);
                                                 }
-                                            " title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                            " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Pencil class="w-4 h-4" />
                                             </button>
 
@@ -1062,7 +1075,7 @@ const handleImport = (data) => {
                                 <strong>Icon:</strong>
                                 <span class="fs-4">{{
                                     viewingCategory.icon
-                                    }}</span>
+                                }}</span>
                             </p>
                             <p>
                                 <strong>Status:</strong>
@@ -1157,7 +1170,7 @@ const handleImport = (data) => {
                                                 catFormErrors?.parent_id,
                                         }" required>
                                             <option disabled :value="null">
-                                                -- Choose Parent Category --
+                                                Choose Parent Category
                                             </option>
                                             <option v-for="cat in parentCategories" :key="cat.id" :value="cat.id">
                                                 {{ cat.name }}
@@ -1182,7 +1195,7 @@ const handleImport = (data) => {
                                             <span>
                                                 <span class="me-2">{{
                                                     manualIcon.value
-                                                    }}</span>
+                                                }}</span>
                                                 {{ manualIcon.label }}
                                             </span>
                                             <i class="bi bi-caret-down-fill"></i>
@@ -1193,7 +1206,7 @@ const handleImport = (data) => {
                                                     @click="manualIcon = opt">
                                                     <span class="me-2">{{
                                                         opt.value
-                                                        }}</span>
+                                                    }}</span>
                                                     {{ opt.label }}
                                                 </a>
                                             </li>
@@ -1357,7 +1370,7 @@ const handleImport = (data) => {
                                     v-model="editingSubCategory.name" :disabled="submittingSub" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                    }}</small>
+                                }}</small>
                             </div>
                             <button type="button" class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
                                 @click="submitSubCategory" :disabled="submittingSub">
@@ -1387,6 +1400,11 @@ const handleImport = (data) => {
     color: #000000;
 }
 
+.dark .p-3 {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
 /* Search pill */
 .search-wrap {
     position: relative;
@@ -1405,6 +1423,10 @@ const handleImport = (data) => {
     padding-left: 38px;
     border-radius: 9999px;
     background: #fff;
+}
+
+.dark .p-multiselect-empty-message {
+    color: #fff !important;
 }
 
 /* Buttons */
@@ -1448,6 +1470,11 @@ const handleImport = (data) => {
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
     color: #000 !important;
+}
+
+.dark .form-select {
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 /* Header area (filter + select all) */
