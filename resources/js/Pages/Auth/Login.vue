@@ -4,12 +4,21 @@ import { ref, onMounted, watch, nextTick } from "vue";
 import { toast } from "vue3-toastify";
 import { usePage } from "@inertiajs/vue3";
 import VerifyOtpModal from "@/Components/VerifyOtpModal.vue";
+import { useDark, useToggle } from '@vueuse/core'
 const form = useForm({
     email: "",
     password: "",
     pin: "",
     remember: false,
 });
+
+
+
+
+const isDark = useDark()
+const toggleDark = useToggle(isDark)
+
+
 
 const showPassword = ref(false);
 const showPin = ref(false);
@@ -89,6 +98,9 @@ watch([() => form.email, () => form.pin], () => {
 });
 
 onMounted(() => {
+   if (!isDark.value) {
+    toggleDark(true)
+  }
     initializeTooltips();
 });
 watch(
@@ -124,6 +136,7 @@ const registeredEmail = ref("");
 </script>
 
 <template>
+
     <Head title="Login" />
     <div class="account-page">
         <div class="main-wrapper">
@@ -131,8 +144,9 @@ const registeredEmail = ref("");
                 <div class="login-wrapper">
                     <div class="login-content">
                         <div class="login-userset">
-                            <div class="login-logo">
-                                <img src="/assets/img/logo-trans.png" alt="img" />
+                            <div class="login-logo d-flex justify-content-center">
+                                <!-- /assets/img/logo-trans.png -->
+                                <img src="/assets/img/10x Global.png" alt="img" />
                             </div>
                             <div class="login-userheading">
                                 <h3>Sign In</h3>
@@ -140,129 +154,78 @@ const registeredEmail = ref("");
                             </div>
                             <form @submit.prevent="submit">
                                 <div class="form-login">
-                                    <label>Email</label>
+                                    <label class="form-label">Email</label>
                                     <div class="form-addons">
-                                        <input
-                                            type="email"
-                                            v-model="form.email"
-                                            :readonly="emailReadonly"
-                                            :title="
-                                                emailReadonly
-                                                    ? 'You’re logging in using your PIN Code.'
-                                                    : ''
-                                            "
-                                            :data-bs-toggle="
-                                                emailReadonly ? 'tooltip' : null
-                                            "
-                                            placeholder="Enter your email address"
-                                        />
+                                        <input type="email" v-model="form.email" :readonly="emailReadonly" :title="emailReadonly
+                                                ? 'You’re logging in using your PIN Code.'
+                                                : ''
+                                            " :data-bs-toggle="emailReadonly ? 'tooltip' : null
+                                                " placeholder="Enter your email address" />
 
-                                        <img
-                                            src="/assets/img/icons/mail.svg"
-                                            alt="img"
-                                        />
+                                        <img src="/assets/img/icons/mail.svg" alt="img" />
                                     </div>
                                     <span class="text-danger text-sm">{{
                                         form.errors.email
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="form-login">
-                                    <label>Password</label>
+                                    <label class="form-label">Password</label>
                                     <div class="pass-group">
-                                        <input
-                                            :type="
-                                                showPassword
-                                                    ? 'text'
-                                                    : 'password'
-                                            "
-                                            v-model="form.password"
-                                            class="pass-input"
-                                            :readonly="passwordReadonly"
-                                            :title="
-                                                passwordReadonly
+                                        <input :type="showPassword
+                                                ? 'text'
+                                                : 'password'
+                                            " v-model="form.password" class="pass-input" :readonly="passwordReadonly"
+                                            :title="passwordReadonly
                                                     ? 'You’re logging in using your PIN Code.'
                                                     : ''
-                                            "
-                                            :data-bs-toggle="
-                                                passwordReadonly
+                                                " :data-bs-toggle="passwordReadonly
                                                     ? 'tooltip'
                                                     : null
-                                            "
-                                            placeholder="Enter your password"
-                                        />
+                                                " placeholder="Enter your password" />
 
-                                        <span
-                                            class="fas toggle-password"
-                                            :class="
-                                                showPassword
-                                                    ? 'fa-eye'
-                                                    : 'fa-eye-slash'
-                                            "
-                                            @click="
+                                        <span class="fas toggle-password" :class="showPassword
+                                                ? 'fa-eye'
+                                                : 'fa-eye-slash'
+                                            " @click="
                                                 showPassword = !showPassword
-                                            "
-                                        ></span>
+                                                "></span>
                                     </div>
                                     <span class="text-danger text-sm">{{
                                         form.errors.password
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="form-login text-center">
-                                    <label class="text-start w-100"
-                                        >PIN Code</label
-                                    >
-                                    <div
-                                        class="pin-group d-flex justify-content-center"
-                                    >
-                                        <input
-                                            type="text"
-                                            v-model="form.pin"
-                                            class="pass-input text-center"
-                                            :readonly="pinReadonly"
-                                            :title="
-                                                pinReadonly
+                                    <label class="form-label text-start w-100">PIN Code</label>
+                                    <div class="pin-group d-flex justify-content-center">
+                                        <input type="text" v-model="form.pin" class="pass-input text-center"
+                                            :readonly="pinReadonly" :title="pinReadonly
                                                     ? 'You’re logging in using Email & Password.'
                                                     : ''
-                                            "
-                                            :data-bs-toggle="
-                                                pinReadonly ? 'tooltip' : null
-                                            "
-                                            placeholder="••••"
-                                            maxlength="4"
-                                            inputmode="numeric"
-                                            pattern="[0-9]*"
+                                                " :data-bs-toggle="pinReadonly ? 'tooltip' : null
+                                                " placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*"
                                             @input="
                                                 form.pin = form.pin
                                                     .replace(/\D/g, '')
                                                     .slice(0, 4)
-                                            "
-                                        />
+                                                " />
                                     </div>
                                     <span class="text-danger text-sm">{{
                                         form.errors.pin
-                                    }}</span>
+                                        }}</span>
                                 </div>
 
                                 <div class="form-login">
                                     <div class="alreadyuser">
                                         <h4>
-                                            <a
-                                                :href="
-                                                    route('password.request')
-                                                "
-                                                class="hover-a"
-                                            >
+                                            <a :href="route('password.request')
+                                                " class="hover-a">
                                                 Forgot Password?
                                             </a>
                                         </h4>
                                     </div>
                                 </div>
                                 <div class="form-login">
-                                    <button
-                                        type="submit"
-                                        class="btn btn-login"
-                                        :disabled="form.processing"
-                                    >
+                                    <button type="submit" class="btn btn-login" :disabled="form.processing">
                                         Sign In
                                     </button>
                                 </div>
@@ -272,11 +235,7 @@ const registeredEmail = ref("");
 
                     <!-- Right Side Image & Overlay -->
                     <div class="login-img position-relative">
-                        <img
-                            src="/assets/img/login.jpg"
-                            alt="img"
-                            class="w-100 h-100 object-fit-cover"
-                        />
+                        <img src="/assets/img/login.jpg" alt="img" class="w-100 h-100 object-fit-cover" />
                         <div class="login-overlay text-center">
                             <div class="overlay-content">
                                 <h1 class="restaurant-name">The Tasty House</h1>
@@ -291,18 +250,12 @@ const registeredEmail = ref("");
             </div>
         </div>
     </div>
-    <VerifyOtpModal
-    v-if="showOtpModal"
-    :open="showOtpModal"
-    :email="registeredEmail"
-    @verified="() => {
+    <VerifyOtpModal v-if="showOtpModal" :open="showOtpModal" :email="registeredEmail" @verified="() => {
         showOtpModal = false;
         window.location.href = route('dashboard');
-    }"
-    @closed="() => {
+    }" @closed="() => {
         showOtpModal = false;
-    }"
-/>
+    }" />
 
 
 </template>
@@ -334,6 +287,38 @@ const registeredEmail = ref("");
     object-fit: cover;
     display: block;
 }
+
+.dark h3{
+    color: #fff !important;
+}
+
+.dark h4{
+    color: #fff !important;
+}
+
+.dark .form-label{
+    color: #fff !important;
+}
+.dark .login-wrapper {
+  background-color: #121212;
+  color: #f8f9fa;
+}
+
+.dark input {
+  background-color: #1e1e1e;
+  color: #fff;
+  border-color: #444;
+}
+
+.dark .btn-login {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.dark .restaurant-name {
+  color: #fff;
+}
+
 
 .login-overlay {
     position: absolute;

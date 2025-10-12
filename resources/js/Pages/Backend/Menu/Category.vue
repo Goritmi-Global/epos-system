@@ -743,23 +743,24 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
+    console.log("Data are", data);
     try {
         // Define headers
-        const headers = [
-            "category",
-            "subcategory",
-            "icon",
-            "active",
-        ];
+        const headers = ["category", "subcategory", "active"];
 
-        // Build CSV rows
-        const rows = data.map((s) => [
-            `"${s.name || ""}"`,
-            `"${s.parent_id || ""}"`,
-            `"${s.icon || ""}"`,
-            `"${s.active || ""}"`,
+        // Build CSV rows - one row per parent category with subcategories joined
+        const rows = data.map((category) => {
+            // Get all subcategory names and join them
+            const subcategoryNames = category.subcategories && category.subcategories.length > 0
+                ? category.subcategories.map(sub => sub.name).join(", ")
+                : "";
 
-        ]);
+            return [
+                `"${category.name || ""}"`,
+                `"${subcategoryNames}"`,
+                `${category.active ? 1 : 0}`,
+            ];
+        });
 
         // Combine into CSV string
         const csvContent = [
@@ -792,7 +793,6 @@ const downloadCSV = (data) => {
         });
     }
 };
-
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
@@ -948,8 +948,7 @@ const handleImport = (data) => {
         return {
             category: row[0] || "",       // Parent category
             subcategory: row[1] || null,  // Child category (optional)
-            icon: row[2] || "",           // Emoji/icon
-            active: row[3] || 1           // Default active=1
+            active: row[2] || 1           // Default active=1
         };
     });
 
@@ -1068,20 +1067,20 @@ const handleImport = (data) => {
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
-                                    Download
+                                    Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Download as PDF</a>
+                                            @click="onDownload('pdf')">Export as PDF</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Download as Excel</a>
+                                            @click="onDownload('excel')">Export as Excel</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Download as CSV
+                                            Export as CSV
                                         </a>
                                     </li>
                                 </ul>
@@ -1499,6 +1498,15 @@ const handleImport = (data) => {
     /* gray-50 */
 }
 
+
+.dark .p-3{
+    background-color: #181818 !important;
+    color: #fff !important;
+} 
+
+:global(.dark .p-multiselect-empty-message){
+color: #fff !important;
+}
 .dark .table {
     background-color: #181818 !important;
     /* gray-900 */

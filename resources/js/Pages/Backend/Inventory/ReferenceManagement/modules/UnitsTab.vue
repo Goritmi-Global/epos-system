@@ -615,24 +615,29 @@ const handleImport = (data) => {
                     " class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Unit
                     </button>
-                    <ImportFile label="Import" @on-import="handleImport" />
+                    <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+                    <ImportFile label="Import" :sampleHeaders="['Name']" :sampleData="[
+                        ['Example Unit 1'],
+                        ['Example Unit 2']
+                    ]" @on-import="handleImport" />
+
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
-                            Download
+                            Export
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Download as
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Export as
                                     PDF</a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Download
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Export
                                     as Excel</a>
                             </li>
                             <li>
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                    Download as CSV
+                                    Export as CSV
                                 </a>
                             </li>
                         </ul>
@@ -855,24 +860,28 @@ const handleImport = (data) => {
 .table-container {
     overflow: visible !important;
 }
-.dark .alert-info{
+
+.dark .alert-info {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #fff !important;
 }
-.dark .form-select{
+
+.dark .form-select {
     background-color: #181818 !important;
     color: #fff !important;
 }
-.dark .header{
+
+.dark .header {
     background-color: #121212;
 }
 
-.dark .p-inputtext{
+.dark .p-inputtext {
     background-color: #121212 !important;
     color: #fff !important;
 }
-.dark .border-top{
+
+.dark .border-top {
     background-color: #121212 !important;
     color: #fff !important;
 }
@@ -886,7 +895,7 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-.dark .form-select:focus{
+.dark .form-select:focus {
     background-color: #212121 !important;
 }
 

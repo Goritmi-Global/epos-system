@@ -1,8 +1,9 @@
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import VerifyOtpModal from "@/Components/VerifyOtpModal.vue";
 import { toast } from "vue3-toastify";
+import { useDark, useToggle } from '@vueuse/core'
 
 const form = useForm({
     name: "",
@@ -11,6 +12,10 @@ const form = useForm({
     password_confirmation: "",
     pin: "",
 });
+
+const isDark = useDark()
+const toggleDark = useToggle(isDark)
+
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
@@ -44,6 +49,12 @@ const submit = () => {
        onFinish: () => form.reset("password", "password_confirmation", "pin"),
     });
 };
+
+onMounted(() => {
+   if (!isDark.value) {
+    toggleDark(true)
+  }
+});
  
 
 
@@ -75,7 +86,7 @@ const registeredEmail = ref("");
 
                             <form @submit.prevent="submit">
                                 <div class="form-login">
-                                    <label>Full Name</label>
+                                    <label class="form-label">Full Name</label>
                                     <div class="form-addons">
                                         <input
                                             type="text"
@@ -93,7 +104,7 @@ const registeredEmail = ref("");
                                 </div>
 
                                 <div class="form-login">
-                                    <label>Email</label>
+                                    <label class="form-label">Email</label>
                                     <div class="form-addons">
                                         <input
                                             type="email"
@@ -111,7 +122,7 @@ const registeredEmail = ref("");
                                 </div>
 
                                 <div class="form-login">
-                                    <label>Password</label>
+                                    <label class="form-label">Password</label>
                                     <div class="pass-group">
                                         <input
                                             :type="
@@ -141,7 +152,7 @@ const registeredEmail = ref("");
                                 </div>
 
                                 <div class="form-login">
-                                    <label>Confirm Password</label>
+                                    <label class="form-label">Confirm Password</label>
                                     <div class="pass-group">
                                         <input
                                             :type="
@@ -172,7 +183,7 @@ const registeredEmail = ref("");
                                 </div>
 
                                 <div class="form-login">
-                                    <label
+                                    <label class="form-label"
                                         >Enter 4-digit PIN (for quick
                                         login)</label
                                     >
@@ -273,7 +284,36 @@ const registeredEmail = ref("");
 .pass-group {
     position: relative;
 }
+.dark h3{
+    color: #fff !important;
+}
 
+.dark h4{
+    color: #fff !important;
+}
+
+.dark .form-label{
+    color: #fff !important;
+}
+.dark .login-wrapper {
+  background-color: #121212;
+  color: #f8f9fa;
+}
+
+.dark input {
+  background-color: #1e1e1e;
+  color: #fff;
+  border-color: #444;
+}
+
+.dark .btn-login {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.dark .restaurant-name {
+  color: #fff;
+}
 .pin-group .pass-input {
     width: 100px;
     font-size: 24px;

@@ -104,41 +104,41 @@ class MenuController extends Controller
         ]);
     }
 
-    public function import(Request $request): JsonResponse
-    {
-        $items = $request->input('items', []);
+   public function import(Request $request): JsonResponse
+{
+    $items = $request->input('items', []);
 
-        foreach ($items as $row) {
-
-            // 1. Handle category
-            $category = null;
-            if (! empty($row['category'])) {
-                $category = MenuItem::firstOrCreate(
-                    ['name' => $row['category'], 'category_id' => null],
-                    ['icon' => '📦', 'active' => 1]
-                );
-            }
-
-            $item = MenuItem::create([
-                'name' => $row['name'],
-                'price' => $row['price'],
-                'category_id' => $category?->id,
-                'active' => $row['active'] ?? 1,
-
-            ]);
-
-            // 5. Insert nutrition if available
-            if ($row['calories'] || $row['fat'] || $row['protein'] || $row['carbs']) {
-                DB::table('menu_nutrition')->insert([
-                    'menu_item_id' => $item->id,
-                    'calories' => $row['calories'] ?? 0,
-                    'fat' => $row['fat'] ?? 0,
-                    'protein' => $row['protein'] ?? 0,
-                    'carbs' => $row['carbs'] ?? 0,
-                ]);
-            }
+    foreach ($items as $row) {
+        // ✅ 1. Handle Category properly using MenuCategory model
+        $category = null;
+        if (!empty($row['category'])) {
+            $category = MenuCategory::firstOrCreate(
+                ['name' => $row['category']],
+                ['icon' => '📦', 'active' => 1]
+            );
         }
 
-        return response()->json(['message' => 'Items imported successfully']);
+        // ✅ 2. Create Menu Item with price
+        $item = MenuItem::create([
+            'name' => $row['name'] ?? '',
+            'price' => $row['price'] ?? 0, // <— this ensures price is never null
+            'description' => $row['description'] ?? '',
+            'category_id' => $category?->id,
+            'active' => $row['active'] ?? 1,
+        ]);
+
+        // ✅ 3. Nutrition (optional)
+        if (!empty($row['calories']) || !empty($row['fat']) || !empty($row['protein']) || !empty($row['carbs'])) {
+            DB::table('menu_nutrition')->insert([
+                'menu_item_id' => $item->id,
+                'calories' => $row['calories'] ?? 0,
+                'fat' => $row['fat'] ?? 0,
+                'protein' => $row['protein'] ?? 0,
+                'carbs' => $row['carbs'] ?? 0,
+            ]);
+        }
     }
+
+    return response()->json(['message' => 'Items imported successfully']);
+}
 }
