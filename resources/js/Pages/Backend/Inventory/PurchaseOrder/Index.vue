@@ -23,8 +23,8 @@ const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         Number(n || 0)
     );
-
-    const searchKey = ref(Date.now());
+const q = ref("");
+const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
