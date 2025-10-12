@@ -645,12 +645,12 @@ const printOrder = (order) => {
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
-                                    Download
+                                    Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Download as PDF</a>
+                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Export as PDF</a>
                                     </li>
-                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Download as Excel</a>
+                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Export as Excel</a>
                                     </li>
                                 </ul>
                             </div>

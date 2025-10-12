@@ -429,21 +429,21 @@ onUpdated(() => window.feather?.replace?.());
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
-                                    Download
+                                    Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Download as PDF</a>
+                                            @click="onDownload('pdf')">Export as PDF</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Download as Excel</a>
+                                            @click="onDownload('excel')">Export as Excel</a>
                                     </li>
 
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Download as CSV
+                                            Export as CSV
                                         </a>
                                     </li>
                                 </ul>

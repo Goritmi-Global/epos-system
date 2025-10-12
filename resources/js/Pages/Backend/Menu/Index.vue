@@ -1348,20 +1348,20 @@ const handleImport = (data) => {
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
-                                    Download
+                                    Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Download as PDF</a>
+                                            @click="onDownload('pdf')">Export as PDF</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Download as Excel</a>
+                                            @click="onDownload('excel')">Export as Excel</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                            Download as CSV
+                                            Export as CSV
                                         </a>
                                     </li>
                                 </ul>
@@ -1569,7 +1569,7 @@ const handleImport = (data) => {
                                 <div class="col-md-6">
                                     <label class="form-label d-block">Allergies</label>
                                     <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
-                                        optionValue="id" filter placeholder="Select Allergies" class="w-full md:w-80"
+                                        optionValue="id" filter placeholder="Select Allergies" class="select w-full md:w-80"
                                         appendTo="self" :class="{
                                             'is-invalid': formErrors.allergies,
                                         }" />
@@ -1968,6 +1968,9 @@ ing, idx
     color: #ffffff !important;
     /* gray-50 */
 }
+:global(.dark .p-multiselect-empty-message){
+color: #fff !important;
+}
 
 .dark .table {
     background-color: #181818 !important;
@@ -2019,7 +2022,10 @@ ing, idx
     color: #6b7280;
     font-size: 1rem;
 }
-
+.dark .select {
+    background-color: #181818 !important;
+    color: #f9fafb !important;
+}
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -2081,6 +2087,10 @@ ing, idx
     font-size: 0.8rem;
     margin-bottom: 0.25rem;
     font-weight: 500;
+}
+
+.dark .form-label.text-muted{
+    color: #fff !important;
 }
 
 .fw-semibold {

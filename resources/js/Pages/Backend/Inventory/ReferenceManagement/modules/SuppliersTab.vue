@@ -608,22 +608,22 @@ const handleImport = (data) => {
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
-                            Download
+                            Export
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
-                                    Download as PDF
+                                    Export as PDF
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
-                                    Download as Excel
+                                    Export as Excel
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                    Download as CSV
+                                    Export as CSV
                                 </a>
                             </li>
                         </ul>
@@ -821,6 +821,9 @@ const handleImport = (data) => {
     border-color: var(--brand);
 }
 
+:global(.dark .vti__dropdown.disabled){
+    background-color: #212121 !important;
+}
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
@@ -829,6 +832,10 @@ const handleImport = (data) => {
 .form-control[readonly] {
     background-color: #fff !important;
     opacity: 1 !important;
+}
+
+.dark .vti__dropdown.disabled {
+    background-color: #212121 !important;
 }
 
 

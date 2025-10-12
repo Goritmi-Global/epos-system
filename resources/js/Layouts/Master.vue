@@ -127,7 +127,7 @@ const sidebarMenus = ref([
             },
             { label: "Sale", icon: "shopping-bag", route: "pos.order" },
             { label: "Orders", icon: "list", route: "orders.index" },
-           { label: "KOT", icon: "clipboard", route: "kots.index" },
+            { label: "KOT", icon: "clipboard", route: "kots.index" },
             { label: "Payment", icon: "credit-card", route: "payment.index" },
             {
                 label: "Analytics",
@@ -135,11 +135,11 @@ const sidebarMenus = ref([
                 route: "analytics.index",
             },
 
-          {
-    label: "Promo",
-    icon: "tag",
-    route: "promos.index",
-},
+            {
+                label: "Promo",
+                icon: "tag",
+                route: "promos.index",
+            },
 
         ],
     },
@@ -476,7 +476,8 @@ onMounted(fetchNotifications);
                             <template v-if="notifications.length">
                                 <div v-for="n in notifications" :key="n.id"
                                     class="d-flex align-items-start justify-content-between p-3 border-bottom  cursor-pointer transition-all"
-                                    :class="n.is_read ? 'bg-gray-50 m-2 mb-2' : 'bg-white shadow-sm m-2'" @click.stop="markAsRead(n.id)">
+                                    :class="n.is_read ? 'bg-gray-50 m-2 mb-2' : 'bg-white shadow-sm m-2'"
+                                    @click.stop="markAsRead(n.id)">
                                     <!-- Left content -->
                                     <div class="flex-grow-1 me-2">
                                         <div class="fw-semibold text-sm text-gray-800">{{ n.message }}</div>
@@ -547,59 +548,57 @@ onMounted(fetchNotifications);
 
         <!-- =================== SIDEBAR =================== -->
         <aside class="sidebar" id="sidebar" aria-label="Primary">
-    <div class="sidebar-inner">
-        <div id="sidebar-menu" class="sidebar-menu px-2">
-            <ul class="mb-3">
-                <template v-for="block in sidebarMenus" :key="block.label || block.section">
-                    <!-- Simple top item -->
-                    <li v-if="!block.section" :class="{ active: isActive(block.route) }">
-                        <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                            <i :data-feather="block.icon" class="me-2 icons"></i>
-                            <span class="truncate-when-mini">{{ block.label }}</span>
-                        </Link>
-                    </li>
-
-                    <!-- Section -->
-                    <template v-else>
-                        <li class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
-                            {{ block.section }}
-                        </li>
-
-                        <template v-for="item in block.children" :key="item.label">
-                            <!-- Dropdown group -->
-                            <li v-if="item.children && item.children.length">
-                                <button 
-                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                                    :class="{
-                                        active: openGroups.has(item.label) || isAnyChildActive(item.children),
-                                    }" 
-                                    @click="toggleGroup(item.label)" 
-                                    type="button" 
-                                    :aria-expanded="openGroups.has(item.label) || isAnyChildActive(item.children)"
-                                >
-                                    <i :data-feather="item.icon" class="me-2"></i>
-                                    <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
-                                    <i :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
-                                </button>
-
-                                <ul class="list-unstyled my-1" v-show="openGroups.has(item.label) || isAnyChildActive(item.children)">
-                                    <li v-for="child in item.children" :key="child.label" :class="{ active: isActive(child.route) }">
-                                        <Link 
-                                            :href="route(child.route)" 
-                                            :method="child.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2"
-                                        >
-                                            <i :data-feather="child.icon" class="me-2"></i>
-                                            <span>{{ child.label }}</span>
-                                        </Link>
-                                    </li>
-                                </ul>
+            <div class="sidebar-inner">
+                <div id="sidebar-menu" class="sidebar-menu px-2">
+                    <ul class="mb-3">
+                        <template v-for="block in sidebarMenus" :key="block.label || block.section">
+                            <!-- Simple top item -->
+                            <li v-if="!block.section" :class="{ active: isActive(block.route) }">
+                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
+                                <i :data-feather="block.icon" class="me-2 icons"></i>
+                                <span class="truncate-when-mini">{{ block.label }}</span>
+                                </Link>
                             </li>
 
-                            <!-- Flat item -->
-                            <li v-else :class="{ active: item.route ? isActive(item.route) : false }">
-                                <!-- Action button (for items with action property) -->
-                                <!-- <button
+                            <!-- Section -->
+                            <template v-else>
+                                <li
+                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
+                                    {{ block.section }}
+                                </li>
+
+                                <template v-for="item in block.children" :key="item.label">
+                                    <!-- Dropdown group -->
+                                    <li v-if="item.children && item.children.length">
+                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                            :class="{
+                                                active: openGroups.has(item.label) || isAnyChildActive(item.children),
+                                            }" @click="toggleGroup(item.label)" type="button"
+                                            :aria-expanded="openGroups.has(item.label) || isAnyChildActive(item.children)">
+                                            <i :data-feather="item.icon" class="me-2"></i>
+                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
+                                                }}</span>
+                                            <i
+                                                :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+                                        </button>
+
+                                        <ul class="list-unstyled my-1"
+                                            v-show="openGroups.has(item.label) || isAnyChildActive(item.children)">
+                                            <li v-for="child in item.children" :key="child.label"
+                                                :class="{ active: isActive(child.route) }">
+                                                <Link :href="route(child.route)" :method="child.method || 'get'"
+                                                    class="d-flex align-items-center side-link px-3 py-2">
+                                                <i :data-feather="child.icon" class="me-2"></i>
+                                                <span>{{ child.label }}</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+
+                                    <!-- Flat item -->
+                                    <li v-else :class="{ active: item.route ? isActive(item.route) : false }">
+                                        <!-- Action button (for items with action property) -->
+                                        <!-- <button
                                     v-if="item.action"
                                     class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
                                     @click="handleSidebarAction(item.action)"
@@ -608,37 +607,34 @@ onMounted(fetchNotifications);
                                     <i :data-feather="item.icon" class="me-2"></i>
                                     <span class="truncate-when-mini">{{ item.label }}</span>
                                 </button> -->
-                                
-                                    <ConfirmModal v-if="item.action" :title="'Confirm Restore'"
-                                                    :message="`Are you sure you want to restore the system? This action cannot be undone.`"
-                                                    :showConfirmRestore="true" @confirm="
-                                                        () => {
-                                                            handleSystemRestore(item.action);
-                                                        }
-                                                    " @cancel="
+
+                                        <ConfirmModal v-if="item.action" :title="'Confirm Restore'"
+                                            :message="`Are you sure you want to restore the system? This action cannot be undone.`"
+                                            :showConfirmRestore="true" @confirm="
+                                                () => {
+                                                    handleSystemRestore(item.action);
+                                                }
+                                            " @cancel="
                                                         () => {
                                                             showConfirmRestore = false;
                                                         }
                                                     " />
 
-                                <!-- Normal Link (for items with route property) -->
-                                <Link
-                                    v-else-if="item.route"
-                                    :href="route(item.route)"
-                                    :method="item.method || 'get'"
-                                    class="d-flex align-items-center side-link px-3 py-2"
-                                >
-                                    <i :data-feather="item.icon" class="me-2"></i>
-                                    <span class="truncate-when-mini">{{ item.label }}</span>
-                                </Link>
-                            </li>
+                                        <!-- Normal Link (for items with route property) -->
+                                        <Link v-else-if="item.route" :href="route(item.route)"
+                                            :method="item.method || 'get'"
+                                            class="d-flex align-items-center side-link px-3 py-2">
+                                        <i :data-feather="item.icon" class="me-2"></i>
+                                        <span class="truncate-when-mini">{{ item.label }}</span>
+                                        </Link>
+                                    </li>
+                                </template>
+                            </template>
                         </template>
-                    </template>
-                </template>
-            </ul>
-        </div>
-    </div>
-</aside>
+                    </ul>
+                </div>
+            </div>
+        </aside>
 
         <!-- Mobile overlay backdrop -->
         <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
@@ -683,8 +679,8 @@ onMounted(fetchNotifications);
                         <div class="col-md-6">
                             <label class="form-label">Password</label>
                             <input type="password" class="form-control"
-                            placeholder="Enter new password (leave blank to keep current)" :class="{ 'is-invalid': formErrors.password }"
-                                v-model="profileForm.password" />
+                                placeholder="Enter new password (leave blank to keep current)"
+                                :class="{ 'is-invalid': formErrors.password }" v-model="profileForm.password" />
                             <div v-if="formErrors.password" class="invalid-feedback">
                                 {{ formErrors.password[0] }}
                             </div>
@@ -694,8 +690,7 @@ onMounted(fetchNotifications);
                         <div class="col-md-6">
                             <label class="form-label">Pin</label>
                             <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.pin }"
-                            placeholder="Enter new PIN (leave blank to keep current)"
-                                v-model="profileForm.pin" />
+                                placeholder="Enter new PIN (leave blank to keep current)" v-model="profileForm.pin" />
                             <div v-if="formErrors.pin" class="invalid-feedback">
                                 {{ formErrors.pin[0] }}
                             </div>
@@ -740,65 +735,70 @@ onMounted(fetchNotifications);
     --border: #eef0f3;
 }
 
+
+
 /* Css for dark mood */
 .dark .icons {
     color: #fff;
 }
 
-.dark .bg-yellow-100{
-   background-color: #79733b;
-   color: #fff !important;
+.dark .bg-yellow-100 {
+    background-color: #79733b;
+    color: #fff !important;
 }
 
 
-.dark .cat-card{
+.dark .cat-card {
     background: #181818 !important;
     color: #fff !important;
 }
 
-.dark .cat-name{
+.dark .cat-name {
     color: #fff !important;
 }
 
-.dark .cat-icon-wrap{
+.dark .cat-icon-wrap {
     background: #212121 !important;
     color: #fff !important;
 }
-.dark .bg-blue-100{
+
+.dark .bg-blue-100 {
     background-color: rgb(71 140 231) !important;
 }
 
-.dark .notifi-span{
+.dark .notifi-span {
     color: #A16207;
 }
 
-.dark .user-menu.nav>li>a.dropdown-toggle.nav-link.show{
+.dark .user-menu.nav>li>a.dropdown-toggle.nav-link.show {
     background-color: #212121 !important;
     color: #fff !important;
 }
-.dark .notifications .noti-content{
+
+.dark .notifications .noti-content {
     background: #212121 !important;
 }
 
-.dark .bg-white{
+.dark .bg-white {
     background-color: #181818 !important;
     border-bottom: #181818 !important;
     color: #fff !important;
 }
 
-.dark .bg-gray-50{
+.dark .bg-gray-50 {
     background-color: #181818 !important;
     border-bottom: #181818 !important;
 }
-.dark .text-gray-800{
+
+.dark .text-gray-800 {
     color: #fff !important;
 }
 
-.dark .text-orange-700{
+.dark .text-orange-700 {
     color: rgb(194 65 12)
 }
 
-.dark .bg-orange-200{
+.dark .bg-orange-200 {
     background-color: orange;
 }
 
@@ -911,7 +911,7 @@ html.dark .side-link {
     background-color: #181818 !important;
 }
 
-.dark .p-select-header{
+.dark .p-select-header {
     background-color: #121212 !important;
 }
 
@@ -980,7 +980,7 @@ html.dark .main {
     gap: 10px;
 }
 
-.dark .help-popover{
+.dark .help-popover {
     background-color: #212121 !important;
 }
 
@@ -1052,7 +1052,7 @@ html.dark .main {
     align-items: center;
 }
 
-.dark .p-checkbox-checked .p-checkbox-icon{
+.dark .p-checkbox-checked .p-checkbox-icon {
     color: #fff !important;
 }
 
@@ -1550,5 +1550,4 @@ li.active>.side-link {
     background: #1C0D92 !important;
     color: white !important;
 }
-
 </style>

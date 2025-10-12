@@ -1343,20 +1343,20 @@ const handleImport = (data) => {
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary btn-sm py-2 rounded-pill px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
-                                    Download
+                                    Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('pdf')">Download as PDF</a>
+                                            @click="onDownload('pdf')">Export as PDF</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('excel')">Download as Excel</a>
+                                            @click="onDownload('excel')">Export as Excel</a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
-                                            @click="onDownload('csv')">Download as CSV</a>
+                                            @click="onDownload('csv')">Export as CSV</a>
                                     </li>
                                 </ul>
                             </div>
@@ -2170,7 +2170,7 @@ row, i
                                 <div class="col-md-12">
                                     <label class="form-label">Expiry Date</label>
 
-                                    <VueDatePicker v-model="stockForm.expiry_date" :format="dateFmt" :class="{
+                                    <VueDatePicker v-model="stockForm.expiry_date" :format="dateFmt" :min-date="new Date()" :class="{
                                         'is-invalid':
                                             formErrors.expiry_date,
                                     }" :enableTimePicker="false" placeholder="Select date" />
@@ -2704,8 +2704,18 @@ row, i
     color: #fff !important;
 }
 
+.dark .p-select-dropdown {
+    background-color: #212121 !important;
+    color: #fff !important;
+    border: 1px solid #fff !important;
+}
+
 :global(.dark .p-select-label) {
     color: #fff !important;
+    background-color: #212121 !important;
+}
+:global(.dark .p-select-list){
+    background-color: #212121 !important;
 }
 
 :global(.dark .p-placeholder) {

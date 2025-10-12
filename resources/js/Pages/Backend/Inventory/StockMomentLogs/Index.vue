@@ -6,12 +6,17 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
+import { nextTick } from "vue";
 
 import StockInLogs from "./components/StockInLogs.vue";
 import StockOutLogs from "./components/StockOutLogs.vue";
 
 const logs = ref([]);
 const q = ref("");
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+
 const activeTab = ref("stockin"); // 'stockin' | 'stockout'
 
 const fetchLogs = async () => {
@@ -22,7 +27,26 @@ const fetchLogs = async () => {
         toast.error("Failed to fetch logs", e);
     }
 };
-onMounted(fetchLogs);
+// onMounted();
+
+onMounted(async () => {
+    q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
+    fetchLogs();
+});
 
 /* ------- Search (same logic) ------- */
 const filtered = computed(() => {
@@ -181,9 +205,8 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `logs_moment_${
-            new Date().toISOString().split("T")[0]
-        }.pdf`;
+        const fileName = `logs_moment_${new Date().toISOString().split("T")[0]
+            }.pdf`;
         doc.save(fileName);
         toast.success("PDF downloaded successfully");
     } catch (error) {
@@ -230,9 +253,8 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        const fileName = `logs_moment_${
-            new Date().toISOString().split("T")[0]
-        }.xlsx`;
+        const fileName = `logs_moment_${new Date().toISOString().split("T")[0]
+            }.xlsx`;
         XLSX.writeFile(workbook, fileName);
         toast.success("Excel file downloaded successfully ", {
             autoClose: 2500,
@@ -252,57 +274,43 @@ const downloadExcel = (data) => {
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body p-4">
                     <!-- Header with search + downloads -->
-                    <div
-                        class="d-flex align-items-center justify-content-between mb-3"
-                    >
+                    <div class="d-flex align-items-center justify-content-between mb-3">
                         <h4 class="mb-0">Stock Moment Logs</h4>
 
                         <div class="d-flex gap-2 align-items-center">
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                <input
-                                    v-model="q"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search"
-                                />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
+
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search"
+                                    disabled type="text"/>
                             </div>
 
                             <div class="dropdown">
-                                <button
-                                    class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
-                                    data-bs-toggle="dropdown"
-                                >
-                                    Download all
+                                <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Export
                                 </button>
-                                <ul
-                                    class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2"
-                                >
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('pdf')"
-                                        >
-                                            Download as PDF
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
+                                            Export as PDF
                                         </a>
                                     </li>
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('excel')"
-                                        >
-                                            Download as Excel
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
+                                            Export as Excel
                                         </a>
                                     </li>
                                     <li>
-                                        <a
-                                            class="dropdown-item py-2"
-                                            href="javascript:;"
-                                            @click="onDownload('csv')"
-                                        >
-                                            Download as CSV
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
                                         </a>
                                     </li>
                                 </ul>
@@ -312,36 +320,20 @@ const downloadExcel = (data) => {
 
                     <!-- Underline Tabs like screenshot -->
                     <div class="tabs-underline mb-2">
-                        <button
-                            class="tab-link fw-semibold"
-                            :class="{ active: activeTab === 'stockin' }"
-                            @click="activeTab = 'stockin'"
-                        >
+                        <button class="tab-link fw-semibold" :class="{ active: activeTab === 'stockin' }"
+                            @click="activeTab = 'stockin'">
                             Stock In
                         </button>
-                        <button
-                            class="tab-link fw-semibold"
-                            :class="{ active: activeTab === 'stockout' }"
-                            @click="activeTab = 'stockout'"
-                        >
+                        <button class="tab-link fw-semibold" :class="{ active: activeTab === 'stockout' }"
+                            @click="activeTab = 'stockout'">
                             Stock Out
                         </button>
                     </div>
                     <div class="border-bottom mb-3"></div>
 
                     <!-- Content -->
-                    <StockInLogs
-                        v-if="activeTab === 'stockin'"
-                        :logs="logs"
-                        :q="q"
-                        @updated="fetchLogs"
-                    />
-                    <StockOutLogs
-                        v-else
-                        :logs="logs"
-                        :q="q"
-                        @updated="fetchLogs"
-                    />
+                    <StockInLogs v-if="activeTab === 'stockin'" :logs="logs" :q="q" @updated="fetchLogs" />
+                    <StockOutLogs v-else :logs="logs" :q="q" @updated="fetchLogs" />
                 </div>
             </div>
         </div>
@@ -354,6 +346,7 @@ const downloadExcel = (data) => {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -362,6 +355,7 @@ const downloadExcel = (data) => {
     color: #6b7280;
     font-size: 1rem;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -374,30 +368,35 @@ const downloadExcel = (data) => {
     align-items: center;
     gap: 28px;
 }
+
 .tab-link {
     background: none;
     border: 0;
     padding: 0;
     font-size: 1.05rem;
-    color: #6c757d; /* muted like screenshot */
+    color: #6c757d;
+    /* muted like screenshot */
     font-weight: 600;
     position: relative;
 }
+
 .tab-link.active {
-    color: #181818; /* darker text when active */
+    color: #181818;
+    /* darker text when active */
 }
 
-.dark .tab-link.active{
+.dark .tab-link.active {
     color: #fff !important;
 }
+
 .tab-link.active::after {
     content: "";
     display: block;
     height: 4px;
-    width: 44px; /* short underline */
-    background: var(
-        --bs-primary
-    ); /* uses your theme's primary (purple in screenshot) */
+    width: 44px;
+    /* short underline */
+    background: var(--bs-primary);
+    /* uses your theme's primary (purple in screenshot) */
     border-radius: 9999px;
     margin-top: 6px;
 }
