@@ -425,7 +425,7 @@ onUpdated(() => window.feather?.replace());
                                 <div class="col-md-6">
                                     <label class="form-label">Start Date</label>
 
-                                    <VueDatePicker v-model="promoForm.start_date" :format="dateFmt"
+                                    <VueDatePicker v-model="promoForm.start_date" :format="dateFmt"  :min-date="new Date()"
                                         :enableTimePicker="false" placeholder="Select Start date" :class="{
                                             'is-invalid': promoFormErrors.start_date,
                                         }" />
@@ -437,7 +437,7 @@ onUpdated(() => window.feather?.replace());
                                 <!-- End Date -->
                                 <div class="col-md-6">
                                     <label class="form-label">End Date</label>
-                                    <VueDatePicker v-model="promoForm.end_date" :format="dateFmt"
+                                    <VueDatePicker v-model="promoForm.end_date" :format="dateFmt" :min-date="new Date()"
                                         :enableTimePicker="false" placeholder="Select End date" :class="{
                                             'is-invalid': promoFormErrors.end_date,
                                         }" />
