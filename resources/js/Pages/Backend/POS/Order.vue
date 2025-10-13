@@ -721,7 +721,7 @@ onMounted(fetchPrinters);
                                     <td>{{ timeAgo(o.created_at) }}</td>
                                     <td>{{ o.customer_name ?? "-" }}</td>
                                     <td>
-                                        <span class="text-primary cursor-pointer" @click="openPaymentModal(o.payment)">
+                                        <span class=" cursor-pointer" @click="openPaymentModal(o.payment)">
                                             {{ o.payment?.payment_type ?? "-" }}
                                         </span>
                                     </td>
@@ -1078,11 +1078,6 @@ item, idx
     /* gray-50 */
 }
 
-.dark .text-primary {
-    color: #E3E3F1 !important;
-}
-
-
 .dark .table {
     background-color: #181818 !important;
     /* gray-900 */
@@ -1261,7 +1256,7 @@ item, idx
 }
 
 .dark svg {
-    color: #fff !important;
+    color: #237BFC !important;
 }
 
 
