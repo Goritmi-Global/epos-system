@@ -22,7 +22,7 @@
     >
       <div class="modal-dialog modal-dialog-centered" :class="modalSize">
         <div class="modal-content rounded-4">
-          <div class="modal-header border-0 pb-0">
+          <div class="modal-header border-0 pb-2">
             <h5 class="modal-title fw-bold" id="filterModalLabel">
               <i class="fas fa-filter text-primary me-2"></i>
               Filter {{ title }}
@@ -502,5 +502,9 @@ onMounted(() => {
 .dark .form-select{
   background-color: #212121 !important;
   color: #fff !important;
+}
+
+.dark .form-check-input{
+  outline: 1px solid #fff !important;
 }
 </style>
