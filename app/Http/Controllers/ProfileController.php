@@ -68,8 +68,8 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'username' => 'required|string|max:255',
-            'password' => 'nullable|string|min:6',
-            'pin' => 'nullable|string|max:10',
+            'password' => 'required|string|min:6',
+            'pin' => 'nullable|string|max:4',
             'role' => 'required|string',
         ]);
 
