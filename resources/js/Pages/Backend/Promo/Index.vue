@@ -113,6 +113,7 @@ const promoForm = ref({
     min_purchase: 0,
     max_discount: null,
     description: "",
+    discount_amount: null,
 });
 
 
@@ -127,6 +128,7 @@ const resetModal = () => {
         min_purchase: 0,
         max_discount: null,
         description: "",
+        discount_amount: null,
     };
     editingPromo.value = null;
     promoFormErrors.value = {};
@@ -421,6 +423,19 @@ onUpdated(() => window.feather?.replace());
                                         {{ promoFormErrors.status[0] }}
                                     </small>
                                 </div>
+                                <!-- Discount Amount -->
+                                <div class="col-12">
+                                    <label class="form-label">Discount Amount</label>
+                                    <input v-model="promoForm.discount_amount" type="number" class="form-control" :class="{
+                                        'is-invalid': promoFormErrors.discount_amount,
+                                    }" placeholder="Enter discount amount" />
+                                    <small v-if="promoFormErrors.discount_amount" class="text-danger">
+                                        {{ promoFormErrors.discount_amount[0] }}
+                                    </small>
+                                </div>
+                                    <small v-if="promoFormErrors.name" class="text-danger">
+                                        {{ promoFormErrors.name[0] }}
+                                    </small>
                                 <!-- Start Date -->
                                 <div class="col-md-6">
                                     <label class="form-label">Start Date</label>

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('variant_name')->nullable();
             $table->integer('quantity')->default(1);
             $table->json('ingredients')->nullable();
+            $table->enum('status', ['Waiting', 'Done', 'Cancelled'])->default('Waiting');   
             $table->timestamps();
         });
     }

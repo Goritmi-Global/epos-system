@@ -539,8 +539,8 @@ onUpdated(() => window.feather?.replace?.());
                     </div>
 
                     <!-- your GLOBAL Paginator component -->
-                    <Paginator class="mt-2" :meta="meta" :links="links" :disabled="loading" :show-sizes="true"
-                        :sizes="[10, 20, 30, 50, 100]" @go="onGo" @size="onSize" />
+                    <!-- <Paginator class="mt-2" :meta="meta" :links="links" :disabled="loading" :show-sizes="true"
+                        :sizes="[10, 20, 30, 50, 100]" @go="onGo" @size="onSize" /> -->
                 </div>
             </div>
 

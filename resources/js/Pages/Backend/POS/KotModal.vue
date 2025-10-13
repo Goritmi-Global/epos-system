@@ -73,15 +73,15 @@
                                     </td>
                                     <td>
                                         <div class="d-flex justify-content-center align-items-center gap-2">
-                                            <button @click="updateKotStatus(item.order, 'Waiting')" title="Waiting"
+                                            <button @click="updateKotStatus(item, 'Waiting')" title="Waiting"
                                                 class="p-2 rounded-full text-warning hover:bg-gray-100">
                                                 <Clock class="w-5 h-5" />
                                             </button>
-                                            <button @click="updateKotStatus(item.order, 'Done')" title="Done"
+                                            <button @click="updateKotStatus(item, 'Done')" title="Done"
                                                 class="p-2 rounded-full text-success hover:bg-gray-100">
                                                 <CheckCircle class="w-5 h-5" />
                                             </button>
-                                            <button @click="updateKotStatus(item.order, 'Cancelled')" title="Cancelled"
+                                            <button @click="updateKotStatus(item, 'Cancelled')" title="Cancelled"
                                                 class="p-2 rounded-full text-danger hover:bg-gray-100">
                                                 <XCircle class="w-5 h-5" />
                                             </button>
@@ -138,15 +138,14 @@ const allItems = computed(() => {
     }
 
     const flattened = props.kot.flatMap((order, orderIndex) => {
-
         return order.items?.map((item, itemIndex) => ({
             ...item,
-            status: order.status,
             orderIndex,
             order,
             uniqueId: `${order.id}-${itemIndex}`
         })) || [];
     });
+
 
     return flattened;
 });
@@ -168,16 +167,31 @@ const filteredItems = computed(() => {
 });
 
 
-const updateKotStatus = async (order, status) => {
-    try {
-        console.log(`Updating KOT status: Order ID ${order.id} -> ${status}`);
-        const response = await axios.put(`/api/pos/kot/${order.id}/status`, { status });
-        emit('status-updated', { id: order.id, status: response.data.status, message: response.data.message });
-    } catch (err) {
-        console.error("Failed to update status:", err);
-        toast.error(err.response?.data?.message || 'Failed to update status');
+const updateKotStatus = async (item, status) => {
+  try {
+    const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
+
+    // ✅ Find the real item in props.kot and update its status
+    const order = props.kot.find(o => o.id === item.order.id);
+    if (order) {
+      const kotItem = order.items.find(i => i.id === item.id);
+      if (kotItem) {
+        kotItem.status = response.data.status || status;
+      }
     }
+
+    toast.success(`"${item.item_name}" marked as ${status}`);
+
+    // Optional: notify parent
+    emit('status-updated', { id: item.id, status });
+  } catch (err) {
+    console.error(err);
+    toast.error(err.response?.data?.message || "Failed to update status");
+  }
 };
+
+
+
 
 const getStatusBadge = (status) => {
     switch (status) {
@@ -220,25 +234,25 @@ const printers = ref([]);
 const loadingPrinters = ref(false);
 
 const fetchPrinters = async () => {
-  loadingPrinters.value = true;
-  try {
-    const res = await axios.get("/api/printers");
-    console.log("Printers:", res.data.data);
+    loadingPrinters.value = true;
+    try {
+        const res = await axios.get("/api/printers");
+        console.log("Printers:", res.data.data);
 
-    // ✅ Only show connected printers (status OK)
-    printers.value = res.data.data
-      .filter(p => p.is_connected === true || p.status === "OK")
-      .map(p => ({
-        label: `${p.name}`,
-        value: p.name,
-        driver: p.driver,
-        port: p.port,
-      }));
-  } catch (err) {
-    console.error("Failed to fetch printers:", err);
-  } finally {
-    loadingPrinters.value = false;
-  }
+        // ✅ Only show connected printers (status OK)
+        printers.value = res.data.data
+            .filter(p => p.is_connected === true || p.status === "OK")
+            .map(p => ({
+                label: `${p.name}`,
+                value: p.name,
+                driver: p.driver,
+                port: p.port,
+            }));
+    } catch (err) {
+        console.error("Failed to fetch printers:", err);
+    } finally {
+        loadingPrinters.value = false;
+    }
 };
 
 // 🔹 Fetch once on mount

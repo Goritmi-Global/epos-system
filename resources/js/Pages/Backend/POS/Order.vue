@@ -1082,6 +1082,7 @@ item, idx
     color: #E3E3F1 !important;
 }
 
+
 .dark .table {
     background-color: #181818 !important;
     /* gray-900 */

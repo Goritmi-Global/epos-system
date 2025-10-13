@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('kitchen_orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pos_order_type_id')->constrained('pos_order_types')->onDelete('cascade');
-            $table->enum('status', ['Waiting', 'Done', 'Cancelled'])->default('Waiting');
             $table->time('order_time');
             $table->date('order_date');
             $table->text('note')->nullable();

@@ -5,41 +5,51 @@
         <div class="modal-header border-0">
           <h5 class="modal-title fw-bold">Select a Promo</h5>
 
-            <button
-                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                @click="$emit('close')"
-                                data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-
-    
+          <button
+            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+            @click="$emit('close')"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+            title="Close"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+              viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div class="modal-body">
-          <div v-if="filteredPromos.length === 0" class="alert alert-light text-center">
-            No promotions available today
+          <!-- ✅ Loader while fetching -->
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading promotions...</p>
           </div>
 
-          <!-- Grid layout for 2 cards per row -->
-          <div class="promo-grid">
-            <div v-for="promo in filteredPromos" :key="promo.id" class="promo-card">
-              <div class="promo-header d-flex align-items-center justify-content-between">
-                <span class="fw-bold fs-6">{{ promo.name }}</span>
-                <span class="badge bg-primary text-white small">{{ promo.type.toUpperCase() }}</span>
-              </div>
-              <p class="promo-desc text-muted">{{ promo.description }}</p>
-              <div class="promo-info small text-muted">
-                Min: ${{ promo.min_purchase }} | Max: ${{ promo.max_discount }}
-              </div>
-              <div class="promo-discount text-success fw-bold fs-5 mt-2">
-                -${{ calculateDiscount(promo) }}
+          <!-- ✅ Show promos after loading -->
+          <div v-else>
+            <div v-if="filteredPromos.length === 0" class="alert alert-light text-center">
+              No promotions available today
+            </div>
+
+            <div class="promo-grid">
+              <div v-for="promo in filteredPromos" :key="promo.id" class="promo-card">
+                <div class="promo-header d-flex align-items-center justify-content-between">
+                  <span class="fw-bold fs-6">{{ promo.name }}</span>
+                  <span class="badge bg-primary text-white small">{{ promo.type.toUpperCase() }}</span>
+                </div>
+                <p class="promo-desc text-muted">{{ promo.description }}</p>
+                <div class="promo-info small text-muted">
+                  Min: ${{ promo.min_purchase }} | Max: ${{ promo.max_discount }}
+                </div>
+                <div class="promo-discount text-success fw-bold fs-5 mt-2">
+                  -${{ calculateDiscount(promo) }}
+                </div>
               </div>
             </div>
           </div>
-
         </div>
 
         <div class="modal-footer border-0">
@@ -50,6 +60,7 @@
     <div class="modal-backdrop fade show"></div>
   </div>
 </template>
+
 
 <script setup>
 import { computed } from 'vue';
@@ -63,6 +74,10 @@ const props = defineProps({
   subtotal: {
     type: Number,
     default: 0
+  },
+  loading: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -75,18 +90,18 @@ const calculateDiscount = (promo) => {
   return 0;
 };
 
-// Filter promos: only those starting today
+// Filter promos starting today
 const filteredPromos = computed(() => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // normalize to compare only dates
-
+  today.setHours(0, 0, 0, 0);
   return props.promos.filter(promo => {
     const promoDate = new Date(promo.start_date);
     promoDate.setHours(0, 0, 0, 0);
-    return promoDate.getTime() === today.getTime(); // only promos starting today
+    return promoDate.getTime() === today.getTime();
   });
 });
 </script>
+
 
 <style scoped>
 .modal-backdrop {
@@ -95,7 +110,7 @@ const filteredPromos = computed(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   z-index: 1040;
 }
 
@@ -114,7 +129,7 @@ const filteredPromos = computed(() => {
   border-radius: 1rem;
   padding: 15px;
   background: #ffffff;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
 }
@@ -127,7 +142,7 @@ const filteredPromos = computed(() => {
 
 .promo-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .promo-header {
