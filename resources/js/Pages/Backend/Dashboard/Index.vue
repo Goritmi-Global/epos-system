@@ -460,7 +460,7 @@ const dismissReminder = () => {
     </div>
 
     <!-- Inventory Alert Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div v-if="showModal" class="inventory-stock-alert fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
 
         <button @click="dismissReminder"
@@ -658,6 +658,10 @@ const dismissReminder = () => {
   color: #fff !important;
 }
 
+.dark .inventory-stock-alert{
+  border: 1px solid #fff !important;
+}
+
 .dark .bi-alarm-fill {
   color: #fff !important;
 }
@@ -673,6 +677,9 @@ const dismissReminder = () => {
 
 .dark .text-gray-500 {
   color: #fff !important;
+}
+.dark .bg-white{
+  border: 1px solid #fff !important;
 }
 
 .dark .border-yellow-200 {

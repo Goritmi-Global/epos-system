@@ -769,12 +769,9 @@ const handleImport = (data) => {
 }
 
 .dark .p-multiselect {
-    background-color: #121212 !important;
+    background-color: #212121 !important;
 }
 
-.dark .p-multiselect {
-    background-color: #121212 !important;
-}
 
 .dark .p-multiselect-list {
     background-color: #181818 !important;
@@ -794,6 +791,7 @@ const handleImport = (data) => {
 .dark .p-multiselect-list {
     background-color: #181818 !important;
 }
+
 
 :deep(.p-select .p-component .p-inputwrapper) {
     background: #fff !important;
@@ -876,7 +874,7 @@ const handleImport = (data) => {
 }
 
 .dark .header {
-    background-color: #121212;
+    background-color: #212121 !important;
 }
 
 .dark .p-inputtext {
@@ -939,11 +937,20 @@ const handleImport = (data) => {
     border: 1px solid #555 !important;
 }
 
+:global(.dark .p-multiselect-empty-message){
+    color: #fff !important;
+}
+
+
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
+}
+
+:global(.dark .p-multiselect-filter){
+    background-color: #212121 !important;
 }
 
 /* Optional: adjust filter container */
