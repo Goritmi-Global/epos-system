@@ -599,9 +599,9 @@ const handleImport = (data) => {
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
                     <ImportFile label="Import"
-                        :sampleHeaders="['Name', 'Email', 'Contact', 'Address', 'Preferred Items']" :sampleData="[
-                            ['Ali Khan', 'ali@example.com', '03001234567', 'Lahore, Pakistan', 'Steel'],
-                            ['Ahmed Raza', 'ahmed@example.com', '03111234567', 'Karachi, Pakistan', 'Cement']
+                        :sampleHeaders="['Name', 'Email', 'Phone', 'Address', 'Preferred Items']" :sampleData="[
+                            ['Ali Khan', 'ali@example.com', '03001234567', 'Lahore', 'Steel'],
+                            ['Ahmed Raza', 'ahmed@example.com', '03111234567', 'Karachi', 'Cement']
                         ]" @on-import="handleImport" />
 
                     <!-- Download all -->
