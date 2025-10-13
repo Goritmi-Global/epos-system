@@ -1001,6 +1001,7 @@ html.dark .side-link {
     color: #fff ip !important;
 }
 
+
 html.dark .side-link:hover {
     color: #fff !important;
     /* your brand color */

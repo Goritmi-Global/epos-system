@@ -1224,7 +1224,7 @@ const handleViewOrderDetails = (order) => {
                             <div class="cart-header">
 
                                 <div class="order-type">
-                                    <button v-for="(type, i) in orderTypes" :key="i" class="ot-pill"
+                                    <button v-for="(type, i) in orderTypes" :key="i" class="ot-pill btn"
                                         :class="{ active: orderType === type }" @click="orderType = type">
                                         {{ type.replace(/_/g, " ") }}
                                     </button>
@@ -1335,10 +1335,10 @@ const handleViewOrderDetails = (order) => {
                             </div>
 
                             <div class="cart-footer">
-                                <button class="btn-clear" @click="resetCart()">
+                                <button class="btn btn-secondary btn-clear" @click="resetCart()">
                                     Clear
                                 </button>
-                                <button class="btn-place" @click="openConfirmModal">
+                                <button class="btn btn-primary btn-place" @click="openConfirmModal">
                                     Place Order
                                 </button>
                             </div>
@@ -1485,6 +1485,18 @@ const handleViewOrderDetails = (order) => {
 
 .dark .cart-body {
     background-color: #181818;
+}
+
+.dark .item-title{
+    color: #fff !important;
+}
+
+.dark b{
+    color: #fff !important;
+}
+
+.dark .item-sub{
+    color: #fff !important;
 }
 
 .dark .cart-footer {
@@ -1952,7 +1964,7 @@ const handleViewOrderDetails = (order) => {
     margin-top: 0.25rem;
     padding-top: 0.6rem;
     color: #181818;
-    font-size: 1.05rem;
+    font-size: 16px;
     font-weight: 800;
 }
 

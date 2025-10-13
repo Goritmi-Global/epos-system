@@ -75,11 +75,11 @@
                     <!-- Buttons -->
                     <div class="flex justify-center gap-3">
                         <button @click="handleConfirm"
-                            class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-primary text-white">
+                            class="btn btn-primary d-flex align-items-center gap-1 px-2 py-2 rounded-pill btn btn-primary text-white">
                             Yes, I'm sure
                         </button>
                         <button @click="handleCancel"
-                            class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-secondary text-white">
+                            class="btn btn-secondary d-flex align-items-center gap-1  px-2 py-2 rounded-pill btn btn-secondary text-white">
                             Cancel
                         </button>
                     </div>
