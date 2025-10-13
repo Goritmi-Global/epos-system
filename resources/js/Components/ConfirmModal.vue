@@ -153,11 +153,16 @@ const handleCancel = () => {
     animation: dropIn 0.25s ease-out;
 }
 .sidebar-btn{
-    background-color: red !important;
-    color: #fff !important;
+   
     border-radius: 10px !important;
-    width: 175px !important;
+    width: 160px !important;
 }
+
+.sidebar-btn:hover{
+    color: #fff !important;
+    background-color: #1B2850 !important;
+}
+
 
 .status-btn {
     height: 12px !important;

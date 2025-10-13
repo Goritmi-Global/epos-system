@@ -710,7 +710,7 @@ onMounted(fetchNotifications);
 
 
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-primary w-30 rounded-pill" @click="updateProfile">
+                    <button type="button" class="btn btn-primary py-2 px-2 w-30 rounded-pill" @click="updateProfile">
                         Update
                     </button>
                 </div>
