@@ -99,7 +99,7 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="d-flex justify-content-center">
+                  <div class="d-flex justify-content-center" v-if="printers.length > 0">
                     <button class="btn btn-sm btn-primary" @click="printOrder(order)">
                       <Printer class="w-5 h-5" />
                     </button>
@@ -118,8 +118,9 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, watch } from "vue";
+import { defineProps, defineEmits, watch, onMounted } from "vue";
 import { Eye, Printer } from "lucide-vue-next";
+import { ref } from "vue";
 
 // Props
 const props = defineProps({
@@ -135,6 +136,35 @@ const formatCurrency = (amount) => {
   return parseFloat(amount).toFixed(2);
 };
 
+
+// Get All Connected Printers
+const printers = ref([]);
+const loadingPrinters = ref(false);
+
+const fetchPrinters = async () => {
+  loadingPrinters.value = true;
+  try {
+    const res = await axios.get("/api/printers");
+    console.log("Printers:", res.data.data);
+
+    // ✅ Only show connected printers (status OK)
+    printers.value = res.data.data
+      .filter(p => p.is_connected === true || p.status === "OK")
+      .map(p => ({
+        label: `${p.name}`,
+        value: p.name,
+        driver: p.driver,
+        port: p.port,
+      }));
+  } catch (err) {
+    console.error("Failed to fetch printers:", err);
+  } finally {
+    loadingPrinters.value = false;
+  }
+};
+
+// 🔹 Fetch once on mount
+onMounted(fetchPrinters);
 // Print function
 function printOrder(order) {
   // Make a safe copy
@@ -265,7 +295,7 @@ watch(() => props.show, (newVal) => {
   font-size: 0.8rem;
 }
 
-.dark .bg-light{
+.dark .bg-light {
   background-color: #212121 !important;
   color: #fff !important;
 }

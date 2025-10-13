@@ -85,10 +85,13 @@
                                                 class="p-2 rounded-full text-danger hover:bg-gray-100">
                                                 <XCircle class="w-5 h-5" />
                                             </button>
-                                            <button class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                            <!-- ✅ Only show if printers are available -->
+                                            <button v-if="printers.length > 0"
+                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
                                                 @click.prevent="printOrder(item.order)" title="Print">
                                                 <Printer class="w-5 h-5" />
                                             </button>
+
                                         </div>
                                     </td>
                                 </tr>
@@ -109,7 +112,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted  } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import axios from 'axios';
 import { toast } from 'vue3-toastify';
 import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
@@ -192,24 +195,54 @@ const getStatusBadge = (status) => {
 let modalInstance = null;
 
 onMounted(() => {
-  const el = document.getElementById("kotModal");
-  modalInstance = new bootstrap.Modal(el, {
-    backdrop: "static",
-    keyboard: false
-  });
+    const el = document.getElementById("kotModal");
+    modalInstance = new bootstrap.Modal(el, {
+        backdrop: "static",
+        keyboard: false
+    });
 });
 
 watch(
-  () => props.show,
-  (newVal) => {
-    if (!modalInstance) return;
-    if (newVal) {
-      modalInstance.show();
-    } else {
-      modalInstance.hide();
+    () => props.show,
+    (newVal) => {
+        if (!modalInstance) return;
+        if (newVal) {
+            modalInstance.show();
+        } else {
+            modalInstance.hide();
+        }
     }
-  }
 );
+
+
+// Get All Connected Printers
+const printers = ref([]);
+const loadingPrinters = ref(false);
+
+const fetchPrinters = async () => {
+  loadingPrinters.value = true;
+  try {
+    const res = await axios.get("/api/printers");
+    console.log("Printers:", res.data.data);
+
+    // ✅ Only show connected printers (status OK)
+    printers.value = res.data.data
+      .filter(p => p.is_connected === true || p.status === "OK")
+      .map(p => ({
+        label: `${p.name}`,
+        value: p.name,
+        driver: p.driver,
+        port: p.port,
+      }));
+  } catch (err) {
+    console.error("Failed to fetch printers:", err);
+  } finally {
+    loadingPrinters.value = false;
+  }
+};
+
+// 🔹 Fetch once on mount
+onMounted(fetchPrinters);
 
 
 // Print function for individual orders
