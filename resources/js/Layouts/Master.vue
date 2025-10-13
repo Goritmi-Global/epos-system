@@ -397,7 +397,7 @@ onMounted(fetchNotifications);
             </div>
 
             <ul class="nav user-menu">
-                <a class="btn btn-primary rounded-pill px-4 fw-semibold me-3" href="/pos/order">
+                <a class="btn btn-primary rounded-pill py-2 px-2" href="/pos/order">
                     Quick Order
                 </a>
 
@@ -596,7 +596,7 @@ onMounted(fetchNotifications);
                                     </li>
 
                                     <!-- Flat item -->
-                                    <li v-else :class="{ active: item.route ? isActive(item.route) : false }">
+                                    <li v-else :class="{ active: item.route ? isActive(item.route) : false }" class="side-link">
                                         <!-- Action button (for items with action property) -->
                                         <!-- <button
                                     v-if="item.action"
@@ -736,6 +736,79 @@ onMounted(fetchNotifications);
 }
 
 
+/* ========= COLLAPSED SIDEBAR (ICONS ONLY) ========= */
+.state-desktop.sidebar-collapsed .sidebar,
+.state-tablet.sidebar-collapsed .sidebar {
+  width: var(--sidebar-w-collapsed);
+  overflow: visible;
+}
+
+/* Remove padding from menu container */
+.state-desktop.sidebar-collapsed .sidebar-menu,
+.state-tablet.sidebar-collapsed .sidebar-menu {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Center all list items */
+.state-desktop.sidebar-collapsed .sidebar-menu > ul > li,
+.state-tablet.sidebar-collapsed .sidebar-menu > ul > li {
+  text-align: center;
+  display: block;
+}
+
+/* Center icons and remove all padding/margins */
+.state-desktop.sidebar-collapsed .sidebar .side-link,
+.state-tablet.sidebar-collapsed .sidebar .side-link {
+  justify-content: center !important;
+  padding: 12px 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Icons only — remove margins and ensure centering */
+.state-desktop.sidebar-collapsed .sidebar .side-link i,
+.state-tablet.sidebar-collapsed .sidebar .side-link i {
+  margin: 0 !important;
+}
+
+/* Hide all text labels */
+.state-desktop.sidebar-collapsed .sidebar .truncate-when-mini,
+.state-tablet.sidebar-collapsed .sidebar .truncate-when-mini {
+  display: none !important;
+}
+
+/* Hide section titles and submenu arrows */
+.state-desktop.sidebar-collapsed .sidebar .section-title,
+.state-tablet.sidebar-collapsed .sidebar .section-title,
+.state-desktop.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-down"],
+.state-tablet.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-down"],
+.state-desktop.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-up"],
+.state-tablet.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-up"] {
+  display: none !important;
+}
+
+/* Hide all submenus by default */
+.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled,
+.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
+  display: none !important;
+}
+
+/* Optional tooltip on hover */
+.state-desktop.sidebar-collapsed .sidebar .side-link[title]:hover::after,
+.state-tablet.sidebar-collapsed .sidebar .side-link[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 70px;
+  background: #1b2850;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  z-index: 2000;
+}
 
 /* Css for dark mood */
 .dark .icons {

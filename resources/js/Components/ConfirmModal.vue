@@ -1,9 +1,9 @@
 <template>
-    <div>
+    <div class="side-link">
         <!-- Delete / Custom Trigger Button -->
         <button v-if="showDeleteButton || showConfirmRestore" @click="show = true" :class="[
             'inline-flex items-center justify-center p-2.5 rounded-full',
-            showConfirmRestore ? 'sidebar-btn py-2' : 'text-red-600 hover:bg-red-100'
+            showConfirmRestore ? 'sidebar-btn py-2 side-link' : 'text-red-600 hover:bg-red-100'
         ]" :title="showConfirmRestore ? 'Restore System' : 'Delete'">
             <template v-if="showConfirmRestore">
                 <!-- Custom icon + text for Restore -->
