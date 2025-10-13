@@ -252,40 +252,80 @@ const iconOptions = [
 ];
 
 const commonChips = ref([
-    {
-        label: "Produce (Veg/Fruit)",
-        value: "Produce (Veg/Fruit)",
-        icon: "🥬",
-        selected: false,
-    },
-    { label: "Dairy", value: "Dairy", icon: "🧀", selected: false },
-    {
-        label: "Grains & Rice",
-        value: "Grains & Rice",
-        icon: "🌾",
-        selected: false,
-    },
-    {
-        label: "Spices & Herbs",
-        value: "Spices & Herbs",
-        icon: "🧂",
-        selected: false,
-    },
-    { label: "Oils & Fats", value: "Oils & Fats", icon: "🫒", selected: false },
-    {
-        label: "Sauces & Condiments",
-        value: "Sauces & Condiments",
-        icon: "🍶",
-        selected: false,
-    },
-    {
-        label: "Nuts & Seeds",
-        value: "Nuts & Seeds",
-        icon: "🥜",
-        selected: false,
-    },
-    { label: "Other", value: "Other", icon: "🧰", selected: false },
+  {
+    label: "Hot Drinks",
+    value: "Hot Drinks",
+    icon: "☕",
+    selected: false,
+  },
+  {
+    label: "Cold Drinks",
+    value: "Cold Drinks",
+    icon: "🥤",
+    selected: false,
+  },
+  {
+    label: "Breakfast",
+    value: "Breakfast",
+    icon: "🍳",
+    selected: false,
+  },
+  {
+    label: "Street Snacks",
+    value: "Street Snacks",
+    icon: "🌯",
+    selected: false,
+  },
+  {
+    label: "Wala Wraps",
+    value: "Wala Wraps",
+    icon: "🌮",
+    selected: false,
+  },
+  {
+    label: "Bombay Toasties",
+    value: "Bombay Toasties",
+    icon: "🥪",
+    selected: false,
+  },
+  {
+    label: "Salads",
+    value: "Salads",
+    icon: "🥗",
+    selected: false,
+  },
+  {
+    label: "Bombay Bowls",
+    value: "Bombay Bowls",
+    icon: "🍛",
+    selected: false,
+  },
+  {
+    label: "Bakery",
+    value: "Bakery",
+    icon: "🥐",
+    selected: false,
+  },
+  {
+    label: "Soup",
+    value: "Soup",
+    icon: "🥣",
+    selected: false,
+  },
+  {
+    label: "Desserts",
+    value: "Desserts",
+    icon: "🍰",
+    selected: false,
+  },
+  {
+    label: "Ice Cream",
+    value: "Ice Cream",
+    icon: "🍦",
+    selected: false,
+  },
 ]);
+
 
 const resetModal = () => {
     isSub.value = false;
@@ -1585,7 +1625,8 @@ color: #fff !important;
 }
 
 .dark .form-select{
-    color: #212121 !important;
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 /* Chips */

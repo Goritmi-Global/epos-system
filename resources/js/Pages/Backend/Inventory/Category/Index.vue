@@ -135,40 +135,74 @@ const iconOptions = [
 ];
 
 const commonChips = ref([
-    {
-        label: "Produce (Veg/Fruit)",
-        value: "Produce (Veg/Fruit)",
-        icon: "🥬",
-        selected: false,
-    },
-    { label: "Dairy", value: "Dairy", icon: "🧀", selected: false },
-    {
-        label: "Grains & Rice",
-        value: "Grains & Rice",
-        icon: "🌾",
-        selected: false,
-    },
-    {
-        label: "Spices & Herbs",
-        value: "Spices & Herbs",
-        icon: "🧂",
-        selected: false,
-    },
-    { label: "Oils & Fats", value: "Oils & Fats", icon: "🫒", selected: false },
-    {
-        label: "Sauces & Condiments",
-        value: "Sauces & Condiments",
-        icon: "🍶",
-        selected: false,
-    },
-    {
-        label: "Nuts & Seeds",
-        value: "Nuts & Seeds",
-        icon: "🥜",
-        selected: false,
-    },
-    { label: "Other", value: "Other", icon: "🧰", selected: false },
+  {
+    label: "Produce (Veg/Fruit)",
+    value: "Produce (Veg/Fruit)",
+    icon: "🥬",
+    selected: false,
+  },
+  {
+    label: "Meat",
+    value: "Meat",
+    icon: "🥩",
+    selected: false,
+  },
+  {
+    label: "Poultry",
+    value: "Poultry",
+    icon: "🍗",
+    selected: false,
+  },
+  {
+    label: "Dairy",
+    value: "Dairy",
+    icon: "🧀",
+    selected: false,
+  },
+  {
+    label: "Grains & Rice",
+    value: "Grains & Rice",
+    icon: "🌾",
+    selected: false,
+  },
+  {
+    label: "Flour & Baking",
+    value: "Flour & Baking",
+    icon: "🍞",
+    selected: false,
+  },
+  {
+    label: "Spices & Herbs",
+    value: "Spices & Herbs",
+    icon: "🧂",
+    selected: false,
+  },
+  {
+    label: "Oils & Fats",
+    value: "Oils & Fats",
+    icon: "🫒",
+    selected: false,
+  },
+  {
+    label: "Sauces & Condiments",
+    value: "Sauces & Condiments",
+    icon: "🍶",
+    selected: false,
+  },
+  {
+    label: "Nuts & Seeds",
+    value: "Nuts & Seeds",
+    icon: "🥜",
+    selected: false,
+  },
+  {
+    label: "Other",
+    value: "Other",
+    icon: "🧰",
+    selected: false,
+  },
 ]);
+
 
 const resetModal = () => {
     isSub.value = false;

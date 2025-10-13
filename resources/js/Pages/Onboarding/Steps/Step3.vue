@@ -451,6 +451,10 @@ watch(form, emitSave, { deep: true });
     color: #181818 !important;
 }
 
+.dark .p-select-label{
+    border: 1px solid #fff !important;
+}
+
 :deep(.p-placeholder) {
     color: #80878e !important;
 }

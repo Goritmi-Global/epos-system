@@ -2,9 +2,13 @@
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { onMounted, reactive, ref, toRaw, watch } from "vue";
 import Select from 'primevue/select';
+import { useFormatters } from '@/composables/useFormatters'
 
 const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } });
 const emit = defineEmits(["save"]);
+
+const { formatMoney, formatNumber, formatCurrencySymbol, dateFmt } = useFormatters()
+
 
 const form = reactive({
   receipt_header: props.model?.receipt_header ?? "",
@@ -219,12 +223,12 @@ onMounted(fetchPrinters);
           <div class="small">
             <div class="d-flex justify-content-between fw-semibold"> <span>Name</span><span>Qty</span><span>Price</span>
             </div>
-            <div class="d-flex justify-content-between"> <span>Item A</span><span>1</span><span>Rs 950</span> </div>
-            <div class="d-flex justify-content-between"> <span>Item B</span><span>2</span><span>Rs 50</span> </div>
+            <div class="d-flex justify-content-between"> <span>Item A</span><span>1</span><span>{{ formatCurrencySymbol(950, 'PKR') }}</span> </div>
+            <div class="d-flex justify-content-between"> <span>Item B</span><span>2</span><span>{{ formatCurrencySymbol(50, 'Rs') }}</span> </div>
           </div>
           <hr class="my-2" />
           <div class="small">
-            <div class="d-flex justify-content-between"> <span>Total Price:</span><span>Rs 2000</span> </div>
+            <div class="d-flex justify-content-between"> <span>Total Price:</span><span>{{ formatCurrencySymbol(2000, 'Rs') }}</span> </div>
             <div class="d-flex justify-content-between"> <span>Tax:</span><span>23%</span> </div>
           </div>
           <div v-if="form.show_qr === 1" class="d-flex justify-content-center my-2">

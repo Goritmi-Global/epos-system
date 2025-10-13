@@ -287,7 +287,7 @@ onUpdated(() => window.feather?.replace());
                                     title="Adjustment">
                                     <Pencil class="w-4 h-4" />
                                 </button>
-                                <button class="p-2 rounded-full text-gray-600 hover:bg-blue-100" @click="View(row)"
+                                <button class="p-2 rounded-full text-primary hover:bg-blue-100" @click="View(row)"
                                     title="Show">
                                     <Eye class="w-4 h-4" />
                                 </button>
