@@ -1250,7 +1250,7 @@ html.dark .main {
 /* Links */
 .side-link {
     text-decoration: none;
-    color: var(--brand);
+    /* color: var(--brand); */
     border-radius: 10px;
     transition: background 0.15s ease, color 0.15s ease;
 }
