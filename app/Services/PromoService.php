@@ -44,13 +44,13 @@ class PromoService
         return Promo::create([
             'name' => $data['name'],
             'type' => $data['type'],
-            'discount' => $data['discount'],
             'status' => $data['status'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'min_purchase' => $data['min_purchase'],
             'max_discount' => $data['max_discount'] ?? null,
             'description' => $data['description'] ?? null,
+            'discount_amount' => $data['discount_amount'],
         ]);
     }
 

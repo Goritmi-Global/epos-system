@@ -22,6 +22,7 @@ class StorePromoRequest extends FormRequest
             'min_purchase' => 'required|numeric|min:0',
             'max_discount' => 'nullable|numeric|min:0',
             'description' => 'nullable|string|max:1000',
+            'discount_amount' => 'required|numeric|min:0',
         ];
     }
 

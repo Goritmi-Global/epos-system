@@ -7,6 +7,7 @@ import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
+import { toast } from 'vue3-toastify';
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -95,7 +96,7 @@ const statusFilter = ref("All");
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway", "Collection"]);
 const statusOptions = ref(["All", "Waiting", "Done", "Cancelled"]);
 
-// Flatten all items from all orders
+// ✅ STEP 1: Fix allItems computed to use item.status instead of order.status
 const allItems = computed(() => {
     if (!orders.value || orders.value.length === 0) {
         return [];
@@ -104,7 +105,7 @@ const allItems = computed(() => {
     const flattened = orders.value.flatMap((order, orderIndex) => {
         return order.items?.map((item, itemIndex) => ({
             ...item,
-            status: order.status,
+            status: item.status, // ✅ Use item's own status, not order.status
             orderIndex,
             order,
             uniqueId: `${order.id}-${itemIndex}`
@@ -312,23 +313,35 @@ const getStatusBadge = (status) => {
     }
 };
 
-const updateKotStatus = async (order, status) => {
-    try {
-        console.log(`Updating KOT status: Order ID ${order.id} -> ${status}`);
-        const response = await axios.put(`/api/pos/kot/${order.id}/status`, { status });
 
-        // Update local state
-        const orderIndex = orders.value.findIndex(o => o.id === order.id);
-        if (orderIndex !== -1) {
-            orders.value[orderIndex].status = status;
-        }
 
-        toast.success(response.data.message || 'Status updated successfully');
-    } catch (err) {
-        console.error("Failed to update status:", err);
-        toast.error(err.response?.data?.message || 'Failed to update status');
+
+// ✅ STEP 2: Update function to modify the item status in orders.value
+const updateKotStatus = async (item, status) => {
+  try {
+    console.log(`Updating KOT item ID ${item.id} -> ${status}`);
+    const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
+
+    // ✅ Find the order in orders.value and update the item's status
+    const order = orders.value.find(o => o.id === item.order.id);
+    if (order && order.items) {
+      const kotItem = order.items.find(i => i.id === item.id);
+      if (kotItem) {
+        kotItem.status = response.data.status || status;
+        
+        // Force reactivity by creating a new items array
+        order.items = [...order.items];
+      }
     }
+
+    toast.success(`"${item.item_name}" marked as ${status}`);
+  } catch (err) {
+    console.error("Failed to update KOT item status:", err);
+    toast.error(err.response?.data?.message || 'Failed to update status');
+  }
 };
+
+
 
 const printOrder = (order) => {
     const plainOrder = JSON.parse(JSON.stringify(order));
@@ -700,17 +713,17 @@ onMounted(fetchPrinters);
                                     </td>
                                     <td>
                                         <div class="d-flex justify-content-center align-items-center gap-2">
-                                            <button @click="updateKotStatus(item.order, 'Waiting')" title="Waiting"
+                                            <button @click="updateKotStatus(item, 'Waiting')" title="Waiting"
                                                 class="p-2 rounded-full text-warning hover:bg-gray-100">
                                                 <Clock class="w-5 h-5" />
                                             </button>
 
-                                            <button @click="updateKotStatus(item.order, 'Done')" title="Done"
+                                            <button @click="updateKotStatus(item, 'Done')" title="Done"
                                                 class="p-2 rounded-full text-success hover:bg-gray-100">
                                                 <CheckCircle class="w-5 h-5" />
                                             </button>
 
-                                            <button @click="updateKotStatus(item.order, 'Cancelled')" title="Cancelled"
+                                            <button @click="updateKotStatus(item, 'Cancelled')" title="Cancelled"
                                                 class="p-2 rounded-full text-danger hover:bg-gray-100">
                                                 <XCircle class="w-5 h-5" />
                                             </button>
@@ -720,8 +733,8 @@ onMounted(fetchPrinters);
                                                 @click.prevent="printOrder(item.order)" title="Print">
                                                 <Printer class="w-5 h-5" />
                                             </button>
-
                                         </div>
+
                                     </td>
                                 </tr>
 

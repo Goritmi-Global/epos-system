@@ -207,7 +207,8 @@ const emitSave = () => {
     }
 };
 
-watch(form, emitSave, { deep: true });
+watch(form, emitSave, { deep: true, immediate: true });
+
 </script>
 
 <template>

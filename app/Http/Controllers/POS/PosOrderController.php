@@ -5,6 +5,7 @@ namespace App\Http\Controllers\POS;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PosOrders\StorePosOrderRequest;
 use App\Models\KitchenOrder;
+use App\Models\KitchenOrderItem;
 use App\Services\POS\PosOrderService;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
@@ -47,20 +48,21 @@ class PosOrderController extends Controller
         return $profileTables;
     }
 
-    public function updateKotStatus(Request $request, KitchenOrder $kot)
+    public function updateKotItemStatus(Request $request, KitchenOrderItem $item)
     {
         $request->validate([
-            'status' => 'required|in:Waiting,Done,Cancelled'
+            'status' => 'required|in:Waiting,Done,Cancelled',
         ]);
 
-        $kot->status = $request->status;
-        $kot->save();
+        $item->update(['status' => $request->status]);
 
         return response()->json([
-            'status' => $kot->status,
-            'message' => 'KOT status updated successfully'
+            'status' => $item->status,
+            'message' => 'Item status updated successfully.',
         ]);
     }
+
+
 
     // Fetch Today KOT order
     public function getTodaysOrders()

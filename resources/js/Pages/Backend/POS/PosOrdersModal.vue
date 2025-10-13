@@ -53,13 +53,14 @@
                         {{ order.pos_order_type.order_type }}
                       </span>
                       <span class="badge px-3 py-1 d-block rounded-pill" :class="{
-                        'bg-success': order.status?.toLowerCase() === 'paid',
-                        'bg-warning text-dark': order.status?.toLowerCase() === 'waiting',
-                        'bg-danger': order.status?.toLowerCase() === 'cancelled',
-                        'bg-secondary': !order.status
+                        'bg-success': order.pos_order_type.order.status?.toLowerCase() === 'paid',
+                        'bg-warning text-dark': order.pos_order_type.order.status?.toLowerCase() === 'waiting',
+                        'bg-danger': order.pos_order_type.order.status?.toLowerCase() === 'cancelled',
+                        'bg-secondary': !order.pos_order_type.order.status
                       }">
-                        {{ order.status || 'Unknown' }}
+                        {{ order.pos_order_type.order.status || 'Unknown' }}
                       </span>
+
                     </div>
                   </div>
 
