@@ -108,8 +108,6 @@ class DashboardController extends Controller
         $totalCompletedPurchases = PurchaseOrder::where('status', 'completed')->sum('total_amount');
         $totalPendingPurchases = PurchaseOrder::where('status', '!=', 'completed')->sum('total_amount');
 
-        // Total received amount (all time)
-        $totalPayments = Payment::sum('amount_received');
 
         // Cash payments total
         $totalCash = Payment::where('payment_type', 'cash')->sum('cash_amount');
@@ -123,21 +121,6 @@ class DashboardController extends Controller
         // Pending payments
         $pendingPayments = Payment::where('payment_status', 'pending')->sum('amount_received');
 
-        // Today’s payments
-        $todayPayments = Payment::whereDate('payment_date', today())->sum('amount_received');
-
-        // Last 7 days payments
-        $sevenDaysPayments = Payment::whereBetween('payment_date', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
-            ->sum('amount_received');
-
-        // This month’s payments
-        $monthPayments = Payment::whereMonth('payment_date', now()->month)
-            ->whereYear('payment_date', now()->year)
-            ->sum('amount_received');
-
-        // This year’s payments
-        $yearPayments = Payment::whereBetween('payment_date', [now()->subYear()->startOfDay(), now()->endOfDay()])
-            ->sum('amount_received');
 
 
 
@@ -146,10 +129,10 @@ class DashboardController extends Controller
 
         // ✅ 2. Pending orders total (sum of pending order amounts)
         $pendingSales = PosOrder::where('status', 'pending')->sum('total_amount');
-
-        // ✅ 3. Total orders count
-        $totalOrders = PosOrder::count();
-
+        // ✅ 3. Payment Counts Summaries
+        $paymentSums = $this->calculatePayments();
+        // ✅ 4. Order Counts Summaries
+        $orderCounts = $this->calculateOrderCounts();
         // ✅ 4. Completed orders count
         $completedOrders = PosOrder::where('status', 'completed')->count();
 
@@ -198,18 +181,27 @@ class DashboardController extends Controller
             'totalPurchaseAmount' => $totalPurchaseAmount,
             'totalCompletedPurchases' => $totalCompletedPurchases,
             'totalPendingPurchases' => $totalPendingPurchases,
-            'totalPayments' => $totalPayments,
+
             'totalCash' => $totalCash,
             'totalCard' => $totalCard,
             'completedPayments' => $completedPayments,
             'pendingPayments' => $pendingPayments,
-            'todayPayments' => $todayPayments,
-            'sevenDaysPayments' => $sevenDaysPayments,
-            'monthPayments' => $monthPayments,
-            'yearPayments' => $yearPayments,
+            // Payments over different time frames
+            'totalPayments'      => $paymentSums['totalPayments'],
+            'todayPayments'      => $paymentSums['todayPayments'],
+            'threeDaysPayments'  => $paymentSums['threeDaysPayments'],
+            'sevenDaysPayments'  => $paymentSums['sevenDaysPayments'],
+            'monthPayments'      => $paymentSums['monthPayments'],
+            'yearPayments'       => $paymentSums['yearPayments'],
             'totalSales' => $totalSales,
             'pendingSales' => $pendingSales,
-            'totalOrders' => $totalOrders,
+            // Orders over different time frames
+            'totalOrders'        => $orderCounts['totalOrders'],
+            'todayOrders'        => $orderCounts['todayOrders'],
+            'threeDaysOrders'    => $orderCounts['threeDaysOrders'],
+            'sevenDaysOrders'    => $orderCounts['sevenDaysOrders'],
+            'yearOrders'         => $orderCounts['yearOrders'],
+
             'completedOrders' => $completedOrders,
             'pendingOrders' => $pendingOrders,
             'todaySales' => $todaySales,
@@ -219,5 +211,48 @@ class DashboardController extends Controller
             'totalServiceCharges' => $totalServiceCharges,
             'recentItems' => $recentItems,
         ]);
+    }
+
+    protected function calculateOrderCounts()
+    {
+        return [
+            'totalOrders'     => PosOrder::count(),
+            'todayOrders'     => PosOrder::whereDate('order_date', today())->count(),
+            'threeDaysOrders' => PosOrder::whereBetween('order_date', [
+                now()->subDays(2)->startOfDay(), // include today
+                now()->endOfDay()
+            ])->count(),
+            'sevenDaysOrders' => PosOrder::whereBetween('order_date', [
+                now()->subDays(6)->startOfDay(),
+                now()->endOfDay()
+            ])->count(),
+            'yearOrders'      => PosOrder::whereBetween('order_date', [
+                now()->subYear()->startOfDay(),
+                now()->endOfDay()
+            ])->count(),
+        ];
+    }
+
+    protected function calculatePayments()
+    {
+        return [
+            'totalPayments'      => Payment::sum('amount_received'),
+            'todayPayments'      => Payment::whereDate('payment_date', today())->sum('amount_received'),
+            'threeDaysPayments'  => Payment::whereBetween('payment_date', [
+                now()->subDays(2)->startOfDay(), // include today
+                now()->endOfDay()
+            ])->sum('amount_received'),
+            'sevenDaysPayments'  => Payment::whereBetween('payment_date', [
+                now()->subDays(6)->startOfDay(),
+                now()->endOfDay()
+            ])->sum('amount_received'),
+            'monthPayments'      => Payment::whereMonth('payment_date', now()->month)
+                ->whereYear('payment_date', now()->year)
+                ->sum('amount_received'),
+            'yearPayments'       => Payment::whereBetween('payment_date', [
+                now()->subYear()->startOfDay(),
+                now()->endOfDay()
+            ])->sum('amount_received'),
+        ];
     }
 }

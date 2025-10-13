@@ -17,10 +17,6 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  totalPayments: {
-    type: Number,
-    default: 0
-  },
   totalCash: {
     type: Number,
     default: 0
@@ -37,7 +33,16 @@ const props = defineProps({
     type: Number,
     default: 0
   },
+  // Payments over different time frames
+  totalPayments: {
+    type: Number,
+    default: 0
+  },
   todayPayments: {
+    type: Number,
+    default: 0
+  },
+  threeDaysPayments: {
     type: Number,
     default: 0
   },
@@ -50,6 +55,27 @@ const props = defineProps({
     default: 0
   },
   yearPayments: {
+    type: Number,
+    default: 0
+  },
+  // Orders over different time frames
+  totalOrders: {
+    type: Number,
+    default: 0
+  },
+  todayOrders: {
+    type: Number,
+    default: 0
+  },
+  threeDaysOrders: {
+    type: Number,
+    default: 0
+  },
+  sevenDaysOrders: {
+    type: Number,
+    default: 0
+  },
+  yearOrders: {
     type: Number,
     default: 0
   },
@@ -313,17 +339,33 @@ const filteredPayments = computed(() => {
     case 'today':
       return props.todayPayments;
     case '3d':
-      // If backend doesn't provide 3 days, you might want to add an endpoint to fetch 3-day sum
-      return props.sevenDaysPayments; // fallback
+      return props.threeDaysPayments; 
     case '7d':
       return props.sevenDaysPayments;
     case '1y':
-      return props.yearPayments; // if you have yearly data, use it; otherwise calculate here
+      return props.yearPayments; 
     case 'all':
     default:
       return props.totalPayments;
   }
 });
+
+const filteredOrders = computed(() => {
+  switch (selectedTimeFilter.value) {
+    case 'today':
+      return props.todayOrders;
+    case '3d':
+      return props.threeDaysOrders;
+    case '7d':
+      return props.sevenDaysOrders;
+    case '1y':
+      return props.yearOrders;
+    case 'all':
+    default:
+      return props.totalOrders;
+  }
+});
+
 
 </script>
 
@@ -383,8 +425,8 @@ const filteredPayments = computed(() => {
               <span><img src="assets/img/icons/dash2.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatCurrencySymbol(totalSalesDueMinor) }}</h5>
-              <h6>Total Sales Due</h6>
+              <h5>{{ formatCurrencySymbol(filteredOrders) }}</h5>
+              <h6>Total Orders</h6>
             </div>
           </div>
         </div>
