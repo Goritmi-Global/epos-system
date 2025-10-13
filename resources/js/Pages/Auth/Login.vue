@@ -296,6 +296,9 @@ const registeredEmail = ref("");
     color: #fff !important;
 }
 
+.dark h4 a{
+    color: #fff !important;
+}
 .dark .form-label{
     color: #fff !important;
 }

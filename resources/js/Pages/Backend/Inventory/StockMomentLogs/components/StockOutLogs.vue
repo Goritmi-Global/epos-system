@@ -238,7 +238,7 @@ onUpdated(() => window.feather?.replace());
                                     <Pencil class="w-4 h-4" />
                                 </button>
                                 <button
-                                    class="p-2 rounded-full text-gray-600 hover:bg-blue-100"
+                                    class="p-2 rounded-full text-primary hover:bg-blue-100"
                                     @click="View(row)"
                                     title="Show"
                                 >
@@ -579,5 +579,10 @@ onUpdated(() => window.feather?.replace());
 .dark .table thead th{
   background-color:#181818 !important; ;
   color: #ffffff;
+}
+
+.dark .bg-light{
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 </style>

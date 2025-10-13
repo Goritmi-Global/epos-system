@@ -939,6 +939,11 @@ html.dark .main {
     color: #fff;
 }
 
+
+.dark .form-check-input{
+  outline: 1px solid #fff !important;
+}
+
 .dark .dash-widget {
     background-color: #181818 !important;
     color: #ffffff;
@@ -1483,6 +1488,29 @@ li.active>.side-link {
     overflow: hidden;
     white-space: nowrap;
 }
+
+
+h1{
+    font-size: 32px !important;
+}
+
+h2{
+    font-size: 24px !important;
+}
+h3{
+    font-size: 20px;
+}
+
+h4{
+    font-size: 18px;
+}
+
+.btn{
+    border-radius: 10px !important;
+    height: 42px !important;
+    font-size: 16px !important;
+}
+
 
 @media (max-width: 767px) {
     .logo img {
