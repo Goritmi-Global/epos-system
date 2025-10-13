@@ -60,7 +60,7 @@ const fetchOrders = async () => {
 };
 
 onMounted(async () => {
-      q.value = "";
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -213,11 +213,11 @@ const sortedItems = computed(() => {
         case "date_asc":
             return arr.sort((a, b) => new Date(a.order?.created_at) - new Date(b.order?.created_at));
         case "item_asc":
-            return arr.sort((a, b) => 
+            return arr.sort((a, b) =>
                 (a.item_name || "").localeCompare(b.item_name || "")
             );
         case "item_desc":
-            return arr.sort((a, b) => 
+            return arr.sort((a, b) =>
                 (b.item_name || "").localeCompare(a.item_name || "")
             );
         case "order_asc":
@@ -469,6 +469,37 @@ const printOrder = (order) => {
         w.close();
     };
 };
+
+
+
+// Get All Connected Printers
+const printers = ref([]);
+const loadingPrinters = ref(false);
+
+const fetchPrinters = async () => {
+    loadingPrinters.value = true;
+    try {
+        const res = await axios.get("/api/printers");
+        console.log("Printers:", res.data.data);
+
+        // ✅ Only show connected printers (status OK)
+        printers.value = res.data.data
+            .filter(p => p.is_connected === true || p.status === "OK")
+            .map(p => ({
+                label: `${p.name}`,
+                value: p.name,
+                driver: p.driver,
+                port: p.port,
+            }));
+    } catch (err) {
+        console.error("Failed to fetch printers:", err);
+    } finally {
+        loadingPrinters.value = false;
+    }
+};
+
+// 🔹 Fetch once on mount
+onMounted(fetchPrinters);
 </script>
 
 <template>
@@ -558,42 +589,31 @@ const printOrder = (order) => {
                             <!-- Search -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                 <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
-                             <FilterModal
-                                v-model="filters"
-                                title="Kitchen Orders"
-                                modal-id="kotFilterModal"
-                                modal-size="modal-lg"
-                                :sort-options="filterOptions.sortOptions"
-                                :show-date-range="true"
-                                @apply="handleFilterApply"
-                                @clear="handleFilterClear"
-                            >
+                            <FilterModal v-model="filters" title="Kitchen Orders" modal-id="kotFilterModal"
+                                modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-date-range="true"
+                                @apply="handleFilterApply" @clear="handleFilterClear">
                                 <!-- Custom filters slot for Order Type and Status -->
                                 <template #customFilters="{ filters }">
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold text-dark">
                                             <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
                                         </label>
-                                        <select
-                                            v-model="filters.orderType"
-                                            class="form-select"
-                                        >
+                                        <select v-model="filters.orderType" class="form-select">
                                             <option value="">All</option>
-                                            <option
-                                                v-for="opt in filterOptions.orderTypeOptions"
-                                                :key="opt.value"
-                                                :value="opt.value"
-                                            >
+                                            <option v-for="opt in filterOptions.orderTypeOptions" :key="opt.value"
+                                                :value="opt.value">
                                                 {{ opt.label }}
                                             </option>
                                         </select>
@@ -603,16 +623,10 @@ const printOrder = (order) => {
                                         <label class="form-label fw-semibold text-dark">
                                             <i class="fas fa-tasks me-2 text-muted"></i>Order Status
                                         </label>
-                                        <select
-                                            v-model="filters.status"
-                                            class="form-select"
-                                        >
+                                        <select v-model="filters.status" class="form-select">
                                             <option value="">All</option>
-                                            <option
-                                                v-for="opt in filterOptions.statusOptions"
-                                                :key="opt.value"
-                                                :value="opt.value"
-                                            >
+                                            <option v-for="opt in filterOptions.statusOptions" :key="opt.value"
+                                                :value="opt.value">
                                                 {{ opt.label }}
                                             </option>
                                         </select>
@@ -701,10 +715,12 @@ const printOrder = (order) => {
                                                 <XCircle class="w-5 h-5" />
                                             </button>
 
-                                            <button class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                            <button v-if="printers.length > 0"
+                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
                                                 @click.prevent="printOrder(item.order)" title="Print">
                                                 <Printer class="w-5 h-5" />
                                             </button>
+
                                         </div>
                                     </td>
                                 </tr>
@@ -794,7 +810,7 @@ const printOrder = (order) => {
     color: #000 !important;
 }
 
-.dark .form-label{
+.dark .form-label {
     color: #fff !important;
 }
 
@@ -830,7 +846,7 @@ const printOrder = (order) => {
     border: 1px solid #ccc !important;
 }
 
-.dark .form-select{
+.dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }
@@ -866,6 +882,7 @@ const printOrder = (order) => {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
@@ -988,7 +1005,8 @@ const printOrder = (order) => {
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -1024,6 +1042,4 @@ const printOrder = (order) => {
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
-
-
 </style>

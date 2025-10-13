@@ -151,6 +151,7 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
     const menuStock = calculateMenuStock(baseItem);
     const idx = orderItems.value.findIndex((i) => i.title === baseItem.title);
 
+
     if (idx >= 0) {
         const newQty = orderItems.value[idx].qty + qty;
         if (newQty <= orderItems.value[idx].stock) {
@@ -173,6 +174,7 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             title: baseItem.title,
             img: baseItem.img,
             price: Number(baseItem.price) || 0,
+            unit_price: Number(baseItem.price) || 0,
             qty: qty,
             note: note || "",
             stock: menuStock,
@@ -235,6 +237,7 @@ const incCart = async (i) => {
     // If stock is okay
     it.outOfStock = false;
     it.qty++;
+    it.price = it.unit_price * it.qty;  
 };
 
 
@@ -248,6 +251,7 @@ const decCart = async (i) => {
     try {
         // await updateStock(it, 1, "stockin");
         it.qty--;
+        it.price = it.unit_price * it.qty;
     } catch (err) {
         toast.error("Failed to remove item. Please try again.");
     }
@@ -256,8 +260,9 @@ const decCart = async (i) => {
 const removeCart = (i) => orderItems.value.splice(i, 1);
 
 const subTotal = computed(() =>
-    orderItems.value.reduce((s, i) => s + i.price * i.qty, 0)
+    orderItems.value.reduce((s, i) => s + i.price, 0)
 );
+
 const deliveryCharges = computed(() =>
     orderType.value === "delivery"
         ? (subTotal.value * deliveryPercent.value) / 100
@@ -587,21 +592,123 @@ const openConfirmModal = () => {
    Print Receipt 
 -----------------------------*/
 function printReceipt(order) {
-    const type = (order?.payment_type || "").toLowerCase();
+    const plainOrder = JSON.parse(JSON.stringify(order));
+
+    const type = (plainOrder?.payment_type || "").toLowerCase();
     let payLine = "";
+
     if (type === "split") {
         payLine = `Payment Type: Split 
-      (Cash: £${Number(order?.cash_amount ?? 0).toFixed(2)}, 
-       Card: £${Number(order?.card_amount ?? 0).toFixed(2)})`;
+        (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
+        Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${order?.card_brand ? ` (${order.card_brand}` : ""
-            }${order?.last4 ? ` •••• ${order.last4}` : ""}${order?.card_brand ? ")" : ""
-            }`;
+        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
     } else {
-        payLine = `Payment Type: ${order?.payment_method || "Cash"}`;
+        payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
-    const html = `...`; // unchanged
-    const w = window.open("", "", "width=400,height=600");
+
+    const html = `
+    <html>
+    <head>
+      <title>Customer Receipt</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        html, body {
+          width: 78mm; /* ✅ reduce slightly for print margins */
+          margin: 0;
+          padding: 8px 10px 8px 8px; /* ✅ added right padding */
+          font-family: monospace, Arial, sans-serif;
+          font-size: 12px;
+          line-height: 1.4;
+          box-sizing: border-box;
+        }
+        .header { text-align: center; margin-bottom: 10px; }
+        .order-info { margin: 10px 0; word-break: break-word; }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 10px 0;
+          table-layout: fixed; /* ✅ prevents overflow */
+        }
+        th, td {
+          padding: 4px 2px;
+          text-align: left;
+          word-wrap: break-word;
+        }
+        th {
+          border-bottom: 1px solid #000;
+        }
+        td:last-child, th:last-child {
+          text-align: right;
+          padding-right: 4px; /* ✅ extra space from right edge */
+        }
+        .totals {
+          margin-top: 10px;
+          border-top: 1px dashed #000;
+          padding-top: 8px;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 10px;
+          font-size: 11px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>Customer Receipt</h2>
+      </div>
+
+      <div class="order-info">
+        <div><strong>Date:</strong> ${plainOrder.order_date || new Date().toLocaleDateString()}</div>
+        <div><strong>Time:</strong> ${plainOrder.order_time || new Date().toLocaleTimeString()}</div>
+        <div><strong>Customer:</strong> ${plainOrder.customer_name || "Walk-in"}</div>
+        <div><strong>Order Type:</strong> ${plainOrder.order_type || "In-Store"}</div>
+        ${plainOrder.note ? `<div><strong>Note:</strong> ${plainOrder.note}</div>` : ""}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50%;">Item</th>
+            <th style="width: 20%;">Qty</th>
+            <th style="width: 30%;">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(plainOrder.items || [])
+            .map((item) => {
+                const qty = Number(item.quantity) || Number(item.qty) || 0;
+                const price = Number(item.unit_price || item.price) || 0;
+                const total = price * qty;
+                return `
+                  <tr>
+                    <td>${item.title || "Unknown Item"}</td>
+                    <td>${qty}</td>
+                    <td>£${total.toFixed(2)}</td>
+                  </tr>
+                `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
+        <div><strong>Total: £${Number(plainOrder.total_amount || plainOrder.sub_total || 0).toFixed(2)}</strong></div>
+        <div>${payLine}</div>
+        ${plainOrder.cash_received ? `<div>Cash Received: £${Number(plainOrder.cash_received).toFixed(2)}</div>` : ""}
+        ${plainOrder.change ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>` : ""}
+      </div>
+
+      <div class="footer">
+        Customer Copy - Thank you for your purchase!
+      </div>
+    </body>
+    </html>
+    `;
+
+    const w = window.open("", "_blank", "width=400,height=600");
     if (!w) {
         alert("Please allow popups for this site to print receipts");
         return;
@@ -609,7 +716,12 @@ function printReceipt(order) {
     w.document.open();
     w.document.write(html);
     w.document.close();
+    w.onload = () => {
+        w.print();
+        w.close();
+    };
 }
+
 
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
@@ -626,12 +738,12 @@ function printKot(order) {
     let payLine = "";
     if (type === "split") {
         payLine = `Payment Type: Split 
-      (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
-       Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
+        (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
+        Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""
-            }${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""
-            }`;
+        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${
+            plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
+        }${plainOrder?.card_brand ? ")" : ""}`;
     } else {
         payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
@@ -643,21 +755,44 @@ function printKot(order) {
       <style>
         @page { size: 80mm auto; margin: 0; }
         html, body {
-          width: 80mm;
+          width: 78mm; /* ✅ slightly narrower for proper margins */
           margin: 0;
-          padding: 8px;
+          padding: 8px 10px 8px 8px; /* ✅ added padding like receipt */
           font-family: monospace, Arial, sans-serif;
           font-size: 12px;
           line-height: 1.4;
+          box-sizing: border-box;
         }
         .header { text-align: center; margin-bottom: 10px; }
-        .order-info { margin: 10px 0; }
-        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-        th, td { padding: 4px 0; text-align: left; }
-        th { border-bottom: 1px solid #000; }
-        td:last-child, th:last-child { text-align: right; }
-        .totals { margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px; }
-        .footer { text-align: center; margin-top: 10px; font-size: 11px; }
+        .order-info { margin: 10px 0; word-break: break-word; }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 10px 0;
+          table-layout: fixed; /* ✅ prevents overflow and aligns text */
+        }
+        th, td {
+          padding: 4px 2px;
+          text-align: left;
+          word-wrap: break-word;
+        }
+        th {
+          border-bottom: 1px solid #000;
+        }
+        th:last-child, td:last-child {
+          text-align: right;
+          padding-right: 4px; /* ✅ extra right padding for cleaner look */
+        }
+        .totals {
+          margin-top: 10px;
+          border-top: 1px dashed #000;
+          padding-top: 8px;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 10px;
+          font-size: 11px;
+        }
       </style>
     </head>
     <body>
@@ -666,57 +801,58 @@ function printKot(order) {
       </div>
       
       <div class="order-info">
-        <div><strong>Date:</strong> ${plainOrder.order_date}</div>
-        <div><strong>Time:</strong> ${plainOrder.order_time}</div>
-        <div><strong>Customer:</strong> ${plainOrder.customer_name}</div>
-        <div><strong>Order Type:</strong> ${plainOrder.order_type}</div>
-        ${plainOrder.note
-            ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
-            : ""
+        <div><strong>Date:</strong> ${plainOrder.order_date || new Date().toLocaleDateString()}</div>
+        <div><strong>Time:</strong> ${plainOrder.order_time || new Date().toLocaleTimeString()}</div>
+        <div><strong>Customer:</strong> ${plainOrder.customer_name || "Walk-in"}</div>
+        <div><strong>Order Type:</strong> ${plainOrder.order_type || "In-Store"}</div>
+        ${
+            plainOrder.note
+                ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
+                : ""
         }
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Price</th>
+            <th style="width: 50%;">Item</th>
+            <th style="width: 20%;">Qty</th>
+            <th style="width: 30%;">Price</th>
           </tr>
         </thead>
         <tbody>
           ${(plainOrder.items || [])
-            .map((item) => {
-                const qty = Number(item.quantity) || 0;
-                const price = Number(item.price) || 0;
-                const total = qty * price;
-                return `
-            <tr>
-              <td>${item.title || "Unknown Item"}</td>
-              <td>${qty}</td>
-              <td>£${total.toFixed(2)}</td>
-            </tr>
-          `;
-            })
-            .join("")}
+              .map((item) => {
+                  const qty = Number(item.quantity) || 0;
+                  const price = Number(item.price) || 0;
+                  const total = qty * price;
+                  return `
+                  <tr>
+                    <td>${item.title || "Unknown Item"}</td>
+                    <td>${qty}</td>
+                    <td>£${total.toFixed(2)}</td>
+                  </tr>
+                `;
+              })
+              .join("")}
         </tbody>
       </table>
 
       <div class="totals">
-        <div>Subtotal: £${Number(plainOrder.sub_total).toFixed(2)}</div>
-        <div><strong>Total: £${Number(plainOrder.total_amount).toFixed(
-                2
-            )}</strong></div>
+        <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
+        <div><strong>Total: £${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></div>
         <div>${payLine}</div>
-        ${plainOrder.cash_received
-            ? `<div>Cash Received: £${Number(
-                plainOrder.cash_received
-            ).toFixed(2)}</div>`
-            : ""
+        ${
+            plainOrder.cash_received
+                ? `<div>Cash Received: £${Number(
+                      plainOrder.cash_received
+                  ).toFixed(2)}</div>`
+                : ""
         }
-        ${plainOrder.change
-            ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
-            : ""
+        ${
+            plainOrder.change
+                ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
+                : ""
         }
       </div>
 
@@ -751,6 +887,7 @@ const confirmOrder = async ({
     changeAmount,
     items,
     autoPrintKot,
+    done
 }) => {
     try {
         const payload = {
@@ -809,6 +946,9 @@ const confirmOrder = async ({
         console.error("Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
     }
+    finally {
+    if (done) done();
+  }
 };
 
 /* ----------------------------
@@ -1078,8 +1218,6 @@ const handleViewOrderDetails = (order) => {
                         <div class="cart card border-0 shadow-lg rounded-4">
 
                             <div class="cart-header">
-
-                                <div class="cart-title">Shopping Cart</div>
 
                                 <div class="order-type">
                                     <button v-for="(type, i) in orderTypes" :key="i" class="ot-pill"
@@ -1557,6 +1695,10 @@ const handleViewOrderDetails = (order) => {
     position: relative;
     z-index: 3;
 } */
+ .dark .form-select{
+    background-color: #212121;
+    color: #fff;
+ }
 
 .item-price {
     position: absolute;
