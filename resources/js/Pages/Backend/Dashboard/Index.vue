@@ -16,8 +16,50 @@ const props = defineProps({
   recentItems: {
     type: Array,
     default: () => []
-  }
+  },
+  totalPayments: {
+    type: Number,
+    default: 0
+  },
+  totalCash: {
+    type: Number,
+    default: 0
+  },
+  totalCard: {
+    type: Number,
+    default: 0
+  },
+  completedPayments: {
+    type: Number,
+    default: 0
+  },
+  pendingPayments: {
+    type: Number,
+    default: 0
+  },
+  todayPayments: {
+    type: Number,
+    default: 0
+  },
+  sevenDaysPayments: {
+    type: Number,
+    default: 0
+  },
+  monthPayments: {
+    type: Number,
+    default: 0
+  },
+  yearPayments: {
+    type: Number,
+    default: 0
+  },
 })
+
+
+// =========================================
+// Payments cards data
+// =========================================
+
 
 const series = [
   {
@@ -245,6 +287,44 @@ const dismissReminder = () => {
   showModal.value = false
   showReminderPicker.value = false
 }
+
+
+// Add after your existing refs
+const selectedTimeFilter = ref('all');
+
+const timeFilters = [
+  { value: 'all', label: 'All', icon: 'bi-infinity' },
+  { value: 'today', label: 'Today', icon: 'bi-calendar-day' },
+  { value: '3d', label: '3D', icon: 'bi-calendar-day' },
+  { value: '7d', label: '7D', icon: 'bi-calendar-week' },
+  { value: '1y', label: '1Y', icon: 'bi-calendar-range' }
+];
+
+const setTimeFilter = (filter) => {
+  selectedTimeFilter.value = filter;
+  console.log('Filter changed to:', filter);
+
+  // You can add API call here to fetch filtered data
+  // Example:
+  // fetchDashboardData(filter);
+};
+const filteredPayments = computed(() => {
+  switch (selectedTimeFilter.value) {
+    case 'today':
+      return props.todayPayments;
+    case '3d':
+      // If backend doesn't provide 3 days, you might want to add an endpoint to fetch 3-day sum
+      return props.sevenDaysPayments; // fallback
+    case '7d':
+      return props.sevenDaysPayments;
+    case '1y':
+      return props.yearPayments; // if you have yearly data, use it; otherwise calculate here
+    case 'all':
+    default:
+      return props.totalPayments;
+  }
+});
+
 </script>
 
 <template>
@@ -253,6 +333,35 @@ const dismissReminder = () => {
 
   <Master>
     <div class="page-wrapper">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div class="d-flex gap-2 mb-2 mb-md-0">
+          <button v-for="filter in timeFilters" :key="filter.value" @click="setTimeFilter(filter.value)" :class="[
+            'btn',
+            'rounded-pill',
+            'px-4',
+            'py-2',
+            'd-flex',
+            'align-items-center',
+            'gap-2',
+            'transition-all',
+            'fw-medium',
+            selectedTimeFilter === filter.value
+              ? 'btn-primary shadow-sm scale-active'
+              : 'btn-outline-secondary hover-lift'
+          ]" style="min-width: 90px;">
+            <i :class="filter.icon" class="fs-6"></i>
+            <span>{{ filter.label }}</span>
+          </button>
+        </div>
+
+        <div class="text-muted small d-flex align-items-center gap-2">
+          <i class="bi bi-funnel"></i>
+          <span>Showing: </span>
+          <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+            {{timeFilters.find(f => f.value === selectedTimeFilter)?.label}}
+          </span>
+        </div>
+      </div>
       <div class="row">
         <!-- Dashboard cards (keeping your existing structure) -->
         <div class="col-lg-3 col-sm-6 col-12">
@@ -261,8 +370,9 @@ const dismissReminder = () => {
               <span><img src="assets/img/icons/dash1.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatCurrencySymbol(totalPurchaseDueMinor) }}</h5>
-              <h6>Total Purchase Due</h6>
+              <!-- Payment amount -->
+              <h5>{{ formatCurrencySymbol(filteredPayments) }}</h5>
+              <h6>Total Income</h6>
             </div>
           </div>
         </div>
