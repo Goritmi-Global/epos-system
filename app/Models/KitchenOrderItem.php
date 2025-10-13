@@ -15,14 +15,20 @@ class KitchenOrderItem extends Model
         'variant_name',
         'quantity',
         'ingredients',
+        'status',
     ];
 
     protected $casts = [
-        'ingredients' => 'array', // so JSON is automatically converted to array
+        'ingredients' => 'array',
     ];
+
+    const STATUS_WAITING = 'Waiting';
+    const STATUS_DONE = 'Done';
+    const STATUS_CANCELLED = 'Cancelled';
 
     public function order()
     {
         return $this->belongsTo(KitchenOrder::class, 'kitchen_order_id');
     }
 }
+

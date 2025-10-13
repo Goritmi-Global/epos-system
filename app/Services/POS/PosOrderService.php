@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\KitchenOrder;
+use App\Models\KitchenOrderItem;
 use App\Models\Payment;
 use App\Models\PosOrderType;
 use App\Models\StockEntry;
@@ -102,7 +103,6 @@ class PosOrderService
 
                 $kot = KitchenOrder::create([
                     'pos_order_type_id' => $orderType->id,
-                    'status'            => KitchenOrder::STATUS_WAITING,
                     'order_time'        => now()->toTimeString(),
                     'order_date'        => now()->toDateString(),
                     'note'              => $data['note'] ?? null,
@@ -122,7 +122,8 @@ class PosOrderService
                         'item_name'    => $orderItem->title,
                         'quantity'     => $orderItem->quantity,
                         'variant_name' => $orderItem->variant_name ?? null,
-                        'ingredients'  => $ingredientsArray, 
+                        'ingredients'  => $ingredientsArray,
+                        'status'       => KitchenOrderItem::STATUS_WAITING,
                     ]);
                 }
                 $kot->load('items');

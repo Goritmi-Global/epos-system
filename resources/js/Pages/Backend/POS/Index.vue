@@ -1003,7 +1003,7 @@ const handleKotStatusUpdated = ({ id, status, message }) => {
         kot.id === id ? { ...kot, status } : kot
     );
 
-    toast.success(message); // optional
+    // toast.success(message); // optional
 };
 
 
@@ -1056,9 +1056,11 @@ const openPosOrdersModal = async () => {
 };
 
 const showPromoModal = ref(false);
+const loadingPromos = ref(true);
 const promosData = ref([]);
 
 const openPromoModal = async () => {
+     loadingPromos.value = true;
     try {
         // Show the modal immediately (optional)
         showPromoModal.value = true;
@@ -1076,7 +1078,9 @@ const openPromoModal = async () => {
     } catch (error) {
         console.error('Error fetching promos', error);
         promosData.value = [];
-    }
+    } finally {
+    loadingPromos.value = false;
+  }
 };
 
 const handleViewOrderDetails = (order) => {
@@ -1209,9 +1213,9 @@ const handleViewOrderDetails = (order) => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             </button>
-                            <!-- <button class="btn btn-warning rounded-pill" @click="openPromoModal">
+                            <button class="btn btn-warning rounded-pill" @click="openPromoModal">
                                 Promos
-                            </button> -->
+                            </button>
 
                         </div>
 
@@ -1466,7 +1470,7 @@ const handleViewOrderDetails = (order) => {
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />
 
-            <PromoModal :show="showPromoModal" :promos="promosData" @close="showPromoModal = false" />
+            <PromoModal :show="showPromoModal"  :loading="loadingPromos" :promos="promosData" @close="showPromoModal = false" />
 
 
         </div>
