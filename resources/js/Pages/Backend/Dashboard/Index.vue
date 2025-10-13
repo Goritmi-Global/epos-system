@@ -9,10 +9,6 @@ import { toast } from "vue3-toastify";
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
 
 const props = defineProps({
-  totalSuppliers: {
-    type: Number,
-    default: 0
-  },
   recentItems: {
     type: Array,
     default: () => []
@@ -25,11 +21,7 @@ const props = defineProps({
     type: Number,
     default: 0
   },
-  completedPayments: {
-    type: Number,
-    default: 0
-  },
-  pendingPayments: {
+  totalPendingPurchases: {
     type: Number,
     default: 0
   },
@@ -79,95 +71,159 @@ const props = defineProps({
     type: Number,
     default: 0
   },
+  // Total Orders Average
+  totalOrderAverage: {
+    type: Number,
+    default: 0
+  },
+  todayOrderAverage: {
+    type: Number,
+    default: 0
+  },
+  threeDaysOrderAverage: {
+    type: Number,
+    default: 0
+  },
+  sevenDaysOrderAverage: {
+    type: Number,
+    default: 0
+  },
+  monthOrderAverage: {
+    type: Number,
+    default: 0
+  },
+  yearOrderAverage: {
+    type: Number,
+    default: 0
+  },
+  // Purchased totals over different time frames
+  totalPurchaseCompleted: {
+    type: Number,
+    default: 0
+  },
+  todayPurchaseCompleted: {
+    type: Number,
+    default: 0
+  },
+  threeDaysPurchaseCompleted: {
+    type: Number,
+    default: 0
+  },
+  sevenDaysPurchaseCompleted: {
+    type: Number,
+    default: 0
+  },
+  monthPurchaseCompleted: {
+    type: Number,
+    default: 0
+  },
+  yearPurchaseCompleted: {
+    type: Number,
+    default: 0
+  },
+  // Suppliers over different time frames
+  totalSuppliers: {
+    type: Number,
+    default: 0
+  },
+  todaySuppliers: {
+    type: Number,
+    default: 0
+  },
+  threeDaysSuppliers: {
+    type: Number,
+    default: 0
+  },
+  sevenDaysSuppliers: {
+    type: Number,
+    default: 0
+  },
+  monthSuppliers: {
+    type: Number,
+    default: 0
+  },
+  yearSuppliers: {
+    type: Number,
+    default: 0
+  },
+  // Daily Purchases and Sales for the current month
+  dailyPurchases: {
+    type: Array,
+    default: () => []
+  },
+  dailySales: {
+    type: Array,
+    default: () => []
+  },
 })
 
 
 // =========================================
-// Payments cards data
+// Purchase and Sales Graph Overview
 // =========================================
+const dailySalesArray = props.dailySales.length
+  ? props.dailySales
+  : Array(31).fill(0);
 
+const dailyPurchasesArray = props.dailyPurchases.length
+  ? props.dailyPurchases
+  : Array(31).fill(0);
 
-const series = [
+const series = computed(() => [
   {
     name: "Sales",
-    data: [50, 45, 60, 70, 50, 45, 60, 70],
+    data: dailySalesArray,
   },
   {
-    name: "Purchase",
-    data: [-20, -80, -25, -70, -15, -20, -35, -30],
+    name: "Purchases",
+    data: dailyPurchasesArray,
   },
-];
+]);
 
 const chartOptions = {
   chart: {
-    type: "bar",
+    type: "line", // change from 'bar' to 'line'
     height: 350,
-    stacked: true,
-    toolbar: { show: false },
+    toolbar: { show: true },
+    zoom: { enabled: false },
+  },
+  stroke: {
+    curve: "smooth", // makes the lines curved
+    width: 3,
   },
   colors: ["#65FA9E", "#EA5455"],
-  plotOptions: {
-    bar: {
-      horizontal: false,
-      columnWidth: "20%",
-      borderRadius: 3,
-      dataLabels: {
-        position: "top",
-      },
-    },
-  },
   dataLabels: {
-    enabled: true,
-    offsetY: -8,
-    style: {
-      fontSize: "12px",
-      colors: ["#333"],
-    },
-    formatter: (val) => Math.abs(val),
+    enabled: false, // optional: remove labels for cleaner look
+  },
+  markers: {
+    size: 4,
+    hover: { sizeOffset: 3 },
   },
   xaxis: {
-    categories: [
-      "Jan",
-      "Feb",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-    ],
+    categories: Array.from({ length: dailySalesArray.length }, (_, i) => `${i + 1}`),
+    title: { text: "Day of Month" },
     axisBorder: { show: false },
     axisTicks: { show: false },
   },
   yaxis: {
-    min: -60,
-    max: 90,
-    labels: {
-      formatter: (val) => Math.abs(val),
-    },
+    title: { text: "Amount" },
+    labels: { formatter: (val) => val.toFixed(0) },
+  },
+  tooltip: {
+    shared: true,
+    intersect: false,
+    y: { formatter: (val) => `$${val}` },
   },
   legend: {
     position: "top",
     horizontalAlign: "left",
-    markers: {
-      radius: 12,
-    },
+    markers: { radius: 12 },
   },
-  grid: {
-    borderColor: "#e0e0e0",
-    strokeDashArray: 4,
-  },
+  grid: { borderColor: "#e0e0e0", strokeDashArray: 4 },
 };
 
-const totalPurchaseDueMinor = 123123123.33
-const totalSalesDueMinor = 438500
-const totalSaleAmountMinor = 38565650
-const anotherSaleMinor = 40000
 
-const customersCount = 1.400
-const suppliersCount = 1030
-const purchaseInvCnt = 1020
-const salesInvCnt = 1435
+
 
 import { usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
@@ -339,11 +395,11 @@ const filteredPayments = computed(() => {
     case 'today':
       return props.todayPayments;
     case '3d':
-      return props.threeDaysPayments; 
+      return props.threeDaysPayments;
     case '7d':
       return props.sevenDaysPayments;
     case '1y':
-      return props.yearPayments; 
+      return props.yearPayments;
     case 'all':
     default:
       return props.totalPayments;
@@ -366,6 +422,56 @@ const filteredOrders = computed(() => {
   }
 });
 
+// Order Averages
+const orderAverages = computed(() => {
+  switch (selectedTimeFilter.value) {
+    case 'today':
+      return props.todayOrderAverage;
+    case '3d':
+      return props.threeDaysOrderAverage;
+    case '7d':
+      return props.sevenDaysOrderAverage;
+    case '1y':
+      return props.yearOrderAverage;
+    case 'all':
+    default:
+      return props.totalOrderAverage;
+  }
+});
+
+// Purchase Completed
+const purchaseCompleted = computed(() => {
+  switch (selectedTimeFilter.value) {
+    case 'today':
+      return props.todayPurchaseCompleted;
+    case '3d':
+      return props.threeDaysPurchaseCompleted;
+    case '7d':
+      return props.sevenDaysPurchaseCompleted;
+    case '1y':
+      return props.yearPurchaseCompleted;
+    case 'all':
+    default:
+      return props.totalPurchaseCompleted;
+  }
+});
+
+// Suppliers Count
+const suppliersCount = computed(() => {
+  switch (selectedTimeFilter.value) {
+    case 'today':
+      return props.todaySuppliers;
+    case '3d':
+      return props.threeDaysSuppliers;
+    case '7d':
+      return props.sevenDaysSuppliers;
+    case '1y':
+      return props.yearSuppliers;
+    case 'all':
+    default:
+      return props.totalSuppliers;
+  }
+});
 
 </script>
 
@@ -396,13 +502,7 @@ const filteredOrders = computed(() => {
           </button>
         </div>
 
-        <div class="text-muted small d-flex align-items-center gap-2">
-          <i class="bi bi-funnel"></i>
-          <span>Showing: </span>
-          <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
-            {{timeFilters.find(f => f.value === selectedTimeFilter)?.label}}
-          </span>
-        </div>
+        
       </div>
       <div class="row">
         <!-- Dashboard cards (keeping your existing structure) -->
@@ -437,8 +537,8 @@ const filteredOrders = computed(() => {
               <span><img src="assets/img/icons/dash3.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatCurrencySymbol(totalSaleAmountMinor) }}</h5>
-              <h6>Total Sale Amount</h6>
+              <h5>{{ formatCurrencySymbol(orderAverages) }}</h5>
+              <h6>Orders Average</h6>
             </div>
           </div>
         </div>
@@ -449,8 +549,8 @@ const filteredOrders = computed(() => {
               <span><img src="assets/img/icons/dash4.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatCurrencySymbol(anotherSaleMinor) }}</h5>
-              <h6>Total Sale Amount</h6>
+              <h5>{{ formatCurrencySymbol(purchaseCompleted) }}</h5>
+              <h6>Total Purchase</h6>
             </div>
           </div>
         </div>
@@ -458,8 +558,8 @@ const filteredOrders = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count">
             <div class="dash-counts">
-              <h4>{{ formatNumber(customersCount) }}</h4>
-              <h5>Customers</h5>
+              <h4>{{ formatNumber(suppliersCount) }}</h4>
+              <h5>Suppliers</h5>
             </div>
             <div class="dash-imgs"><i data-feather="user"></i></div>
           </div>
@@ -468,8 +568,8 @@ const filteredOrders = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das1">
             <div class="dash-counts">
-              <h4>{{ formatNumber(totalSuppliers) }}</h4>
-              <h5>Suppliers</h5>
+              <h4>{{ formatNumber(totalCash) }}</h4>
+              <h5>Cash Payments</h5>
             </div>
             <div class="dash-imgs"><i data-feather="user-check"></i></div>
           </div>
@@ -478,8 +578,8 @@ const filteredOrders = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das2">
             <div class="dash-counts">
-              <h4>{{ formatNumber(purchaseInvCnt) }}</h4>
-              <h5>Purchase Invoice</h5>
+              <h4>{{ formatNumber(totalCard) }}</h4>
+              <h5>Card Payments</h5>
             </div>
             <div class="dash-imgs"><i data-feather="file-text"></i></div>
           </div>
@@ -488,8 +588,8 @@ const filteredOrders = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das3">
             <div class="dash-counts">
-              <h4>{{ formatNumber(salesInvCnt) }}</h4>
-              <h5>Sales Invoice</h5>
+              <h4>{{ formatNumber(totalPendingPurchases) }}</h4>
+              <h5>Pending Purchase Amount</h5>
             </div>
             <div class="dash-imgs"><i data-feather="file"></i></div>
           </div>
@@ -525,11 +625,11 @@ const filteredOrders = computed(() => {
             </div>
           </div>
         </div>
-
+        <!-- Top Selling Items -->
         <div class="col-lg-5 col-sm-12 col-12 d-flex">
           <div class="card flex-fill">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center">
-              <h4 class="card-title mb-0">Recently Order Items</h4>
+              <h4 class="card-title mb-0">Top Selling Items</h4>
               <div class="dropdown">
                 <a href="javascript:void(0);" data-bs-toggle="dropdown" aria-expanded="false" class="dropset">
                   <i class="fa fa-ellipsis-v"></i>
@@ -564,9 +664,10 @@ const filteredOrders = computed(() => {
                       <td>{{ idx + 1 }}</td>
                       <td>{{ item.title }}</td>
                       <td>{{ item.quantity }}</td>
-                      <td>{{ item.price }}</td>
-                      <td>{{ item.total }}</td>
+                      <td>{{ formatCurrencySymbol(formatNumber(item.price)) }}</td>
+                      <td>{{ formatCurrencySymbol(formatNumber(item.total)) }}</td>
                     </tr>
+
                   </tbody>
                 </table>
               </div>
@@ -575,44 +676,39 @@ const filteredOrders = computed(() => {
         </div>
       </div>
 
-      <div class="card mb-0">
-        <div class="card-body">
-          <h4 class="card-title">Expired Products</h4>
-          <div class="table-responsive dataview">
-            <table class="table datatable">
-              <thead>
-                <tr>
-                  <th>SNo</th>
-                  <th>Product Code</th>
-                  <th>Product Name</th>
-                  <th>Brand Name</th>
-                  <th>Category Name</th>
-                  <th>Expiry Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>1</td>
-                  <td><a href="javascript:void(0);">IT0001</a></td>
-                  <td class="productimgname">
-                    <a class="product-img" href="productlist.html">
-                      <img src="assets/img/product/product2.jpg" alt="product" />
-                    </a>
-                    <a href="productlist.html">Orange</a>
-                  </td>
-                  <td>N/D</td>
-                  <td>Fruits</td>
-                  <td>{{ dateFmt('03-12-2022') }}</td>
-                </tr>
-              </tbody>
-            </table>
+      <div class="col-lg-5 col-sm-6 col-12">
+        <div class="dash-widget dash2">
+          <div class="dash-widgetimg">
+            <span><img src="assets/img/icons/dash3.svg" alt="img" /></span>
+          </div>
+          <div class="dash-widgetcontent">
+            <h5>Inventory Alerts</h5>
+
+            <div class="badge-container d-flex flex-wrap gap-1 mt-2">
+              <span class="badge bg-danger">
+                Out of Stock: {{ page.props.inventoryAlerts?.outOfStock ?? 0 }}
+              </span>
+              <span class="badge bg-warning text-dark">
+                Low Stock: {{ page.props.inventoryAlerts?.lowStock ?? 0 }}
+              </span>
+              <span class="badge bg-secondary">
+                Expired: {{ page.props.inventoryAlerts?.expired ?? 0 }}
+              </span>
+              <span class="badge bg-info text-dark">
+                Near Expiry: {{ page.props.inventoryAlerts?.nearExpiry ?? 0 }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
+
+
+
     </div>
 
     <!-- Inventory Alert Modal -->
-    <div v-if="showModal" class="inventory-stock-alert fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div v-if="showModal"
+      class="inventory-stock-alert fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
 
         <button @click="dismissReminder"
@@ -810,7 +906,7 @@ const filteredOrders = computed(() => {
   color: #fff !important;
 }
 
-.dark .inventory-stock-alert{
+.dark .inventory-stock-alert {
   border: 1px solid #fff !important;
 }
 
@@ -830,7 +926,8 @@ const filteredOrders = computed(() => {
 .dark .text-gray-500 {
   color: #fff !important;
 }
-.dark .bg-white{
+
+.dark .bg-white {
   border: 1px solid #fff !important;
 }
 

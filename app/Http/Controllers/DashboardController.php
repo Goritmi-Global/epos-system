@@ -21,6 +21,7 @@ use App\Models\PurchaseOrder;
 use App\Models\StockEntry;
 use App\Models\Supplier;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -100,92 +101,81 @@ class DashboardController extends Controller
             'nearExpiryItems' => $nearExpiryItems,
         ];
 
-        // Count all suppliers
-        $totalSuppliers = Supplier::count();
-
+        // ✅ 1. Payment Counts Summaries
+        $paymentSums = $this->calculatePayments();
+        // ✅ 2. Order Counts Summaries
+        $orderCounts = $this->calculateOrderCounts();
+        // ✅ 3. Average Order Value Summaries
+        $averageOrders = $this->calculateAverageOrders();
+        // ✅ 4. Total Purchase Amount Summaries
+        $purchaseTotals = $this->calculateCompletedPurchaseTotal();
+        // ✅ 5. Total Suppliers Count Summaries
+        $supplierCounts = $this->calculateSuppliers();
         // ✅ Calculate Total Purchase Amount
-        $totalPurchaseAmount = PurchaseOrder::sum('total_amount');
-        $totalCompletedPurchases = PurchaseOrder::where('status', 'completed')->sum('total_amount');
         $totalPendingPurchases = PurchaseOrder::where('status', '!=', 'completed')->sum('total_amount');
-
+        // ✅ Recent Top 10 Selling Items
+        $recentItems = $this->getTopSellingItems();
 
         // Cash payments total
         $totalCash = Payment::where('payment_type', 'cash')->sum('cash_amount');
-
         // Card payments total
         $totalCard = Payment::where('payment_type', 'card')->sum('card_amount');
 
-        // Completed payments
-        $completedPayments = Payment::where('payment_status', 'completed')->sum('amount_received');
+        // Get current month and year dynamically
+        $now = Carbon::now();
+        $currentMonth = $now->month;
+        $currentYear  = $now->year;
 
-        // Pending payments
-        $pendingPayments = Payment::where('payment_status', 'pending')->sum('amount_received');
+        $dailyPurchases = PurchaseOrder::where('status', 'completed')
+            ->whereMonth('purchase_date', $currentMonth)
+            ->whereYear('purchase_date', $currentYear)
+            ->select(
+                DB::raw('DAY(purchase_date) as day'),
+                DB::raw('SUM(total_amount) as total')
+            )
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total', 'day'); // returns [day => total_amount]
+
+        // Fill missing days with 0 so array has length = number of days in month
+        $daysInMonth = $now->daysInMonth;
+        $dailyPurchasesArray = [];
+
+        for ($i = 1; $i <= $daysInMonth; $i++) {
+            $dailyPurchasesArray[] = $dailyPurchases->get($i, 0);
+        }
+
+
+        $dailySales = PosOrder::where('status', 'paid')
+            ->whereMonth('order_date', $currentMonth)
+            ->whereYear('order_date', $currentYear)
+            ->select(
+                DB::raw('DAY(order_date) as day'),
+                DB::raw('SUM(total_amount) as total')
+            )
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total', 'day'); // [day => total]
+
+        $daysInMonth = $now->daysInMonth;
+        $dailySalesArray = [];
+
+        for ($i = 1; $i <= $daysInMonth; $i++) {
+            $dailySalesArray[] = $dailySales->get($i, 0); // fill 0 if no sales
+        }
 
 
 
-
-        // ✅ 1. Total sales (sum of all completed order amounts)
-        $totalSales = PosOrder::where('status', 'completed')->sum('total_amount');
-
-        // ✅ 2. Pending orders total (sum of pending order amounts)
-        $pendingSales = PosOrder::where('status', 'pending')->sum('total_amount');
-        // ✅ 3. Payment Counts Summaries
-        $paymentSums = $this->calculatePayments();
-        // ✅ 4. Order Counts Summaries
-        $orderCounts = $this->calculateOrderCounts();
-        // ✅ 4. Completed orders count
-        $completedOrders = PosOrder::where('status', 'completed')->count();
-
-        // ✅ 5. Pending orders count
-        $pendingOrders = PosOrder::where('status', 'pending')->count();
-
-        // ✅ 6. Today’s sales (filter by today's date)
-        $todaySales = PosOrder::whereDate('order_date', today())
-            ->where('status', 'completed')
-            ->sum('total_amount');
-
-        // ✅ 7. This month’s sales
-        $monthSales = PosOrder::whereMonth('order_date', now()->month)
-            ->whereYear('order_date', now()->year)
-            ->where('status', 'completed')
-            ->sum('total_amount');
-
-        // ✅ 8. Average order value
-        $averageOrder = PosOrder::where('status', 'completed')->avg('total_amount');
-
-        // ✅ 9. Total taxes collected
-        $totalTax = PosOrder::sum('tax');
-
-        // ✅ 10. Total service charges
-        $totalServiceCharges = PosOrder::sum('service_charges');
-
-        // Recent orders - last 10 orders
-        $recentItems = PosOrderItem::with('order')
-            ->latest('id')
-            ->take(10)
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'title' => $item->title,
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
-                    'total' => $item->quantity * $item->price,
-                    'order_date' => optional($item->order)->order_date,
-                ];
-            });
+        // Render the dashboard view with all calculated data
 
         return Inertia::render('Backend/Dashboard/Index', [
             'inventoryAlerts' => $inventoryAlerts,
             'showPopup' => session('show_inventory_popup', false),
-            'totalSuppliers' => $totalSuppliers,
-            'totalPurchaseAmount' => $totalPurchaseAmount,
-            'totalCompletedPurchases' => $totalCompletedPurchases,
-            'totalPendingPurchases' => $totalPendingPurchases,
 
+            'totalPendingPurchases' => $totalPendingPurchases,
             'totalCash' => $totalCash,
             'totalCard' => $totalCard,
-            'completedPayments' => $completedPayments,
-            'pendingPayments' => $pendingPayments,
+
             // Payments over different time frames
             'totalPayments'      => $paymentSums['totalPayments'],
             'todayPayments'      => $paymentSums['todayPayments'],
@@ -193,8 +183,15 @@ class DashboardController extends Controller
             'sevenDaysPayments'  => $paymentSums['sevenDaysPayments'],
             'monthPayments'      => $paymentSums['monthPayments'],
             'yearPayments'       => $paymentSums['yearPayments'],
-            'totalSales' => $totalSales,
-            'pendingSales' => $pendingSales,
+
+            // Average order values over different time frames
+            'totalOrderAverage'      => $averageOrders['totalAverage'],
+            'todayOrderAverage'      => $averageOrders['todayAverage'],
+            'threeDaysOrderAverage'  => $averageOrders['threeDaysAverage'],
+            'sevenDaysOrderAverage'  => $averageOrders['sevenDaysAverage'],
+            'monthOrderAverage'      => $averageOrders['monthAverage'],
+            'yearOrderAverage'       => $averageOrders['yearAverage'],
+
             // Orders over different time frames
             'totalOrders'        => $orderCounts['totalOrders'],
             'todayOrders'        => $orderCounts['todayOrders'],
@@ -202,14 +199,26 @@ class DashboardController extends Controller
             'sevenDaysOrders'    => $orderCounts['sevenDaysOrders'],
             'yearOrders'         => $orderCounts['yearOrders'],
 
-            'completedOrders' => $completedOrders,
-            'pendingOrders' => $pendingOrders,
-            'todaySales' => $todaySales,
-            'monthSales' => $monthSales,
-            'averageOrder' => $averageOrder,
-            'totalTax' => $totalTax,
-            'totalServiceCharges' => $totalServiceCharges,
+            // Completed purchase totals over different time frames
+            'totalPurchaseCompleted'    => $purchaseTotals['totalAmount'],
+            'todayPurchaseCompleted'    => $purchaseTotals['todayAmount'],
+            'threeDaysPurchaseCompleted' => $purchaseTotals['threeDaysAmount'],
+            'sevenDaysPurchaseCompleted' => $purchaseTotals['sevenDaysAmount'],
+            'monthPurchaseCompleted'    => $purchaseTotals['monthAmount'],
+            'yearPurchaseCompleted'     => $purchaseTotals['yearAmount'],
+            // Suppliers over different time frames
+            'totalSuppliers'        => $supplierCounts['totalSuppliers'],
+            'todaySuppliers'        => $supplierCounts['todaySuppliers'],
+            'threeDaysSuppliers'    => $supplierCounts['threeDaysSuppliers'],
+            'sevenDaysSuppliers'    => $supplierCounts['sevenDaysSuppliers'],
+            'monthSuppliers'        => $supplierCounts['monthSuppliers'],
+            'yearSuppliers'         => $supplierCounts['yearSuppliers'],
+
             'recentItems' => $recentItems,
+
+            // Daily Purchases & Sales for current month (chart)
+            'dailyPurchases' => $dailyPurchasesArray,
+            'dailySales'     => $dailySalesArray,
         ]);
     }
 
@@ -254,5 +263,127 @@ class DashboardController extends Controller
                 now()->endOfDay()
             ])->sum('amount_received'),
         ];
+    }
+
+    protected function calculateAverageOrders()
+    {
+        return [
+            'totalAverage'      => PosOrder::where('status', 'paid')->avg('total_amount'),
+
+            'todayAverage'      => PosOrder::where('status', 'paid')
+                ->whereDate('created_at', today())
+                ->avg('total_amount'),
+
+            'threeDaysAverage'  => PosOrder::where('status', 'paid')
+                ->whereBetween('created_at', [
+                    now()->subDays(2)->startOfDay(), // includes today
+                    now()->endOfDay()
+                ])
+                ->avg('total_amount'),
+
+            'sevenDaysAverage'  => PosOrder::where('status', 'paid')
+                ->whereBetween('created_at', [
+                    now()->subDays(6)->startOfDay(),
+                    now()->endOfDay()
+                ])
+                ->avg('total_amount'),
+
+            'monthAverage'      => PosOrder::where('status', 'paid')
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->avg('total_amount'),
+
+            'yearAverage'       => PosOrder::where('status', 'paid')
+                ->whereBetween('created_at', [
+                    now()->subYear()->startOfDay(),
+                    now()->endOfDay()
+                ])
+                ->avg('total_amount'),
+        ];
+    }
+
+    // Total Purchase Amount Calculation
+    protected function calculateCompletedPurchaseTotal()
+    {
+        return [
+            'totalAmount' => PurchaseOrder::where('status', 'completed')->sum('total_amount'),
+
+            'todayAmount' => PurchaseOrder::where('status', 'completed')
+                ->whereDate('purchase_date', today())
+                ->sum('total_amount'),
+
+            'threeDaysAmount' => PurchaseOrder::where('status', 'completed')
+                ->whereBetween('purchase_date', [
+                    now()->subDays(2)->startOfDay(), // includes today
+                    now()->endOfDay()
+                ])
+                ->sum('total_amount'),
+
+            'sevenDaysAmount' => PurchaseOrder::where('status', 'completed')
+                ->whereBetween('purchase_date', [
+                    now()->subDays(6)->startOfDay(),
+                    now()->endOfDay()
+                ])
+                ->sum('total_amount'),
+
+            'monthAmount' => PurchaseOrder::where('status', 'completed')
+                ->whereMonth('purchase_date', now()->month)
+                ->whereYear('purchase_date', now()->year)
+                ->sum('total_amount'),
+
+            'yearAmount' => PurchaseOrder::where('status', 'completed')
+                ->whereBetween('purchase_date', [
+                    now()->subYear()->startOfDay(),
+                    now()->endOfDay()
+                ])
+                ->sum('total_amount'),
+        ];
+    }
+
+    // Total Suppliers Count
+    protected function calculateSuppliers()
+    {
+        return [
+            'totalSuppliers' => Supplier::count(),
+
+            'todaySuppliers' => Supplier::whereDate('created_at', today())->count(),
+
+            'threeDaysSuppliers' => Supplier::whereBetween('created_at', [
+                now()->subDays(2)->startOfDay(),
+                now()->endOfDay()
+            ])->count(),
+
+            'sevenDaysSuppliers' => Supplier::whereBetween('created_at', [
+                now()->subDays(6)->startOfDay(),
+                now()->endOfDay()
+            ])->count(),
+
+            'monthSuppliers' => Supplier::whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->count(),
+
+            'yearSuppliers' => Supplier::whereBetween('created_at', [
+                now()->subYear()->startOfDay(),
+                now()->endOfDay()
+            ])->count(),
+        ];
+    }
+
+    // Top Products Calculation (Optional)
+    protected function getTopSellingItems()
+    {
+        return PosOrderItem::select(
+            'title',
+            DB::raw('SUM(quantity) as quantity'),
+            DB::raw('AVG(price) as price'),
+            DB::raw('SUM(quantity * price) as total')
+        )
+            ->whereHas('order', function ($query) {
+                $query->where('status', 'paid'); // match your DB status
+            })
+            ->groupBy('title')
+            ->orderByDesc('quantity')
+            ->take(10)
+            ->get();
     }
 }
