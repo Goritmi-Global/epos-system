@@ -22,8 +22,8 @@ const fetchOrders = async () => {
     }
 };
 onMounted(async () => {
-    
-  q.value = "";
+
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -196,11 +196,11 @@ const sortedOrders = computed(() => {
         case "price_asc":
             return arr.sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0));
         case "customer_asc":
-            return arr.sort((a, b) => 
+            return arr.sort((a, b) =>
                 (a.customer_name || "").localeCompare(b.customer_name || "")
             );
         case "customer_desc":
-            return arr.sort((a, b) => 
+            return arr.sort((a, b) =>
                 (b.customer_name || "").localeCompare(a.customer_name || "")
             );
         default:
@@ -501,6 +501,36 @@ function printReceipt(order) {
     w.document.write(html);
     w.document.close();
 }
+
+
+// Get All Connected Printers
+const printers = ref([]);
+const loadingPrinters = ref(false);
+
+const fetchPrinters = async () => {
+    loadingPrinters.value = true;
+    try {
+        const res = await axios.get("/api/printers");
+        console.log("Printers:", res.data.data);
+
+        // ✅ Only show connected printers (status OK)
+        printers.value = res.data.data
+            .filter(p => p.is_connected === true || p.status === "OK")
+            .map(p => ({
+                label: `${p.name}`,
+                value: p.name,
+                driver: p.driver,
+                port: p.port,
+            }));
+    } catch (err) {
+        console.error("Failed to fetch printers:", err);
+    } finally {
+        loadingPrinters.value = false;
+    }
+};
+
+// 🔹 Fetch once on mount
+onMounted(fetchPrinters);
 </script>
 
 <template>
@@ -574,70 +604,52 @@ function printReceipt(order) {
                             <!-- Search -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                   <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
-                              <FilterModal
-            v-model="filters"
-            title="Orders"
-            modal-id="orderFilterModal"
-            modal-size="modal-lg"
-            :sort-options="filterOptions.sortOptions"
-            :status-options="filterOptions.statusOptions"
-            :show-price-range="true"
-            :show-date-range="true"
-            price-label="Total Amount Range"
-            @apply="handleFilterApply"
-            @clear="handleFilterClear"
-        >
-            <!-- Custom filters slot for Order Type and Payment Type -->
-            <template #customFilters="{ filters }">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-dark">
-                        <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
-                    </label>
-                    <select
-                        v-model="filters.orderType"
-                        class="form-select"
-                    >
-                        <option value="">All</option>
-                        <option
-                            v-for="opt in filterOptions.orderTypeOptions"
-                            :key="opt.value"
-                            :value="opt.value"
-                        >
-                            {{ opt.label }}
-                        </option>
-                    </select>
-                </div>
+                            <FilterModal v-model="filters" title="Orders" modal-id="orderFilterModal"
+                                modal-size="modal-lg" :sort-options="filterOptions.sortOptions"
+                                :status-options="filterOptions.statusOptions" :show-price-range="true"
+                                :show-date-range="true" price-label="Total Amount Range" @apply="handleFilterApply"
+                                @clear="handleFilterClear">
+                                <!-- Custom filters slot for Order Type and Payment Type -->
+                                <template #customFilters="{ filters }">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
+                                        </label>
+                                        <select v-model="filters.orderType" class="form-select">
+                                            <option value="">All</option>
+                                            <option v-for="opt in filterOptions.orderTypeOptions" :key="opt.value"
+                                                :value="opt.value">
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
+                                    </div>
 
-                <div class="col-md-6 mt-3">
-                    <label class="form-label fw-semibold text-dark">
-                        <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
-                    </label>
-                    <select
-                        v-model="filters.paymentType"
-                        class="form-select"
-                    >
-                        <option value="">All</option>
-                        <option
-                            v-for="opt in filterOptions.paymentTypeOptions"
-                            :key="opt.value"
-                            :value="opt.value"
-                        >
-                            {{ opt.label }}
-                        </option>
-                    </select>
-                </div>
-            </template>
-        </FilterModal>
+                                    <div class="col-md-6 mt-3">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
+                                        </label>
+                                        <select v-model="filters.paymentType" class="form-select">
+                                            <option value="">All</option>
+                                            <option v-for="opt in filterOptions.paymentTypeOptions" :key="opt.value"
+                                                :value="opt.value">
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                </template>
+                            </FilterModal>
 
 
                             <!-- Order Type filter -->
@@ -734,10 +746,10 @@ function printReceipt(order) {
                                         </td> -->
                                     <td class="text-center">
                                         <button @click="openOrderDetails(o)" data-bs-toggle="modal"
-                                                data-bs-target="#viewItemModal" title="View Item"
-                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
-                                                <Eye class="w-4 h-4" />
-                                            </button>
+                                            data-bs-target="#viewItemModal" title="View Item"
+                                            class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                            <Eye class="w-4 h-4" />
+                                        </button>
 
                                         <!-- <button class=" p-2 rounded-full hover:bg-blue-100"
                                             @click="" title="View Order">
@@ -788,7 +800,7 @@ function printReceipt(order) {
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -868,7 +880,7 @@ function printReceipt(order) {
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -889,7 +901,7 @@ function printReceipt(order) {
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                            }}/{{
+                                                }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -901,7 +913,7 @@ function printReceipt(order) {
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1042,7 +1054,7 @@ item, idx
                             <button class="btn btn-light border rounded-pill px-4 p-2" data-bs-dismiss="modal">
                                 Close
                             </button>
-                            <button class="btn btn-primary shadow-sm rounded-pill px-4 py-2"
+                            <button v-if="printers.length > 0" class="btn btn-primary shadow-sm rounded-pill px-4 py-2"
                                 @click="printReceipt(selectedOrder)">
                                 <i class="bi bi-printer me-1"></i> Print Receipt
                             </button>
@@ -1066,9 +1078,10 @@ item, idx
     /* gray-50 */
 }
 
-.dark .text-primary{
+.dark .text-primary {
     color: #E3E3F1 !important;
 }
+
 .dark .table {
     background-color: #181818 !important;
     /* gray-900 */
@@ -1140,9 +1153,11 @@ item, idx
 .btn-primary:hover {
     filter: brightness(1.05);
 }
+
 .dark .form-label {
     color: #fff !important;
 }
+
 /* Table polish */
 .table thead th {
     font-weight: 600;
@@ -1470,7 +1485,7 @@ item, idx
     background-color: #181818 !important;
 }
 
-.dark .form-select{
+.dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }
