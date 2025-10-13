@@ -840,6 +840,10 @@ const handleImport = (data) => {
     color: #6b7280;
 }
 
+.dark .p-multiselect{
+    background-color: #212121 !important;
+}
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -1017,12 +1021,12 @@ const handleImport = (data) => {
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #181818 !important;
+    background: #212121 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #000 !important;
+    background: #212121 !important;
     color: #fff !important;
 }
 
@@ -1043,13 +1047,13 @@ const handleImport = (data) => {
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #000 !important;
+    background: #212121 !important;
     border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #000 !important;
+    background: #212121 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
@@ -1113,6 +1117,6 @@ const handleImport = (data) => {
 }
 
 .dark .header {
-    background-color: #000;
+    background-color: #212121 !important;
 }
 </style>

@@ -539,4 +539,8 @@ onUpdated(() => window.feather?.replace());
      background-color:#181818 !important; ;
   color: #ffffff;
 }
+
+:global(.dark .p-select-dropdown) {
+    background-color: #212121 !important;
+}
 </style>

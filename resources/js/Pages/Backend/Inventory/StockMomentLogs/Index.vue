@@ -400,4 +400,10 @@ const downloadExcel = (data) => {
     border-radius: 9999px;
     margin-top: 6px;
 }
+
+
+
+:global(.dark .p-select-dropdown) {
+    background-color: #212121 !important;
+}
 </style>

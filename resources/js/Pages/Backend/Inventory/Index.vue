@@ -2619,7 +2619,7 @@ row, i
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #181818 !important;
+    background: #212121 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
@@ -2704,10 +2704,10 @@ row, i
     color: #fff !important;
 }
 
-.dark .p-select-dropdown {
+:global(.dark .p-select-dropdown) {
     background-color: #212121 !important;
     color: #fff !important;
-    border: 1px solid #fff !important;
+   
 }
 
 :global(.dark .p-select-label) {

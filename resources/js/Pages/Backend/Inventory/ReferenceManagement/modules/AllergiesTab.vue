@@ -740,6 +740,9 @@ const handleImport = (data) => {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
+.dark .p-multiselect{
+    background-color: #212121 !important;
+}
 
 .search-wrap .bi-search {
     position: absolute;
@@ -882,7 +885,7 @@ const handleImport = (data) => {
 /* ======================== Dark Mode MultiSelect ============================= */
 
 .dark .header {
-    background-color: #121212;
+    background-color: #212121 !important;
 }
 
 :global(.dark .p-multiselect-header) {
@@ -921,7 +924,7 @@ const handleImport = (data) => {
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #121212 !important;
+    background: #212121 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
@@ -976,7 +979,6 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-.dark .p-multiselect
 
 /* Each option */
 :global(.dark .p-select-option) {
