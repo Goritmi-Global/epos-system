@@ -39,7 +39,7 @@ const validatePhone = () => {
     // Convert to string to handle both string and number inputs
     const phoneLocal = String(form.phone_local || '').trim()
     const fullPhone = form.phone_code + phoneLocal
-    
+
     if (!phoneLocal) {
         phoneError.value = 'Phone number is required'
         return false
@@ -48,7 +48,7 @@ const validatePhone = () => {
     try {
         // Validate with country context
         const isValid = isValidPhoneNumber(fullPhone, form.phone_country)
-        
+
         if (!isValid) {
             phoneError.value = `Invalid phone number for ${form.phone_country}`
             return false
@@ -84,7 +84,7 @@ const businessTypeOptions = ref([
 // Initialize selected business type with support for custom types
 const initializeBusinessType = () => {
     const savedType = props.model?.business_type;
-    
+
     if (!savedType) {
         selectedBusinessType.value = null;
         return;
@@ -92,7 +92,7 @@ const initializeBusinessType = () => {
 
     // Check if the saved type exists in options
     let found = businessTypeOptions.value.find((o) => o.name === savedType);
-    
+
     // If not found, it means it was a custom type - add it back
     if (!found) {
         const customOption = {
@@ -103,7 +103,7 @@ const initializeBusinessType = () => {
         businessTypeOptions.value.push(customOption);
         found = customOption;
     }
-    
+
     selectedBusinessType.value = found;
 };
 
@@ -115,7 +115,7 @@ const businessTypeFilterValue = ref('');
 const isNewBusinessType = computed(() => {
     if (!businessTypeFilterValue.value || businessTypeFilterValue.value.trim() === '') return false;
     const searchTerm = businessTypeFilterValue.value.toLowerCase().trim();
-    return !businessTypeOptions.value.some(opt => 
+    return !businessTypeOptions.value.some(opt =>
         opt.name.toLowerCase() === searchTerm
     );
 });
@@ -134,7 +134,7 @@ const addCustomBusinessType = () => {
     businessTypeOptions.value.push(newOption);
     selectedBusinessType.value = newOption;
     businessTypeFilterValue.value = '';
-    
+
 };
 
 watch(selectedBusinessType, (opt) => {
@@ -180,37 +180,37 @@ function buildFullPhone() {
 }
 
 onMounted(async () => {
-    
+
     // Initialize business type first
     initializeBusinessType();
-    
+
     await fetchCountriesDial()
     initializePhoneData()
 })
 
 // Separate function to initialize/reset phone data
 function initializePhoneData() {
-    
+
     // ✅ Always prioritize country_code from Step 1
     // This ensures when user changes country in Step 1, we get the new value
     const countryCode = props.model?.country_code || props.model?.phone_country;
-    
+
     if (countryCode) {
         syncDialFromIso(countryCode)
     }
 
     // If phone_local is empty but full phone exists, extract it
     let phoneLocal = props.model?.phone_local || "";
-    
+
     if (!phoneLocal && props.model?.phone) {
         const full = props.model.phone
         const matched = countriesDial.value.find(opt => full.startsWith(opt.dial));
-        
+
         // ✅ CRITICAL FIX: Only extract if the phone matches the current country
         // This prevents old phone data from overwriting the new country selection
         if (matched && matched.iso === countryCode) {
             phoneLocal = full.slice(matched.dial.length)
-        } 
+        }
     }
 
     form.phone_local = phoneLocal
@@ -261,8 +261,16 @@ function onCropped({ file }) {
 }
 
 function emitSave() {
-    emit("save", { step: 2, data: toRaw(form) });
+  const isValidNow = validatePhone(); // returns true/false
+
+  // Emit full form + validity status to parent
+  emit("save", {
+    step: 2,
+    data: toRaw(form),
+    valid: isValidNow
+  });
 }
+
 
 /* helper for flags */
 const flagUrl = (iso, size = "24x18") =>
@@ -306,13 +314,8 @@ const flagUrl = (iso, size = "24x18") =>
             <div class="col-md-8">
                 <!-- Business Type -->
                 <label class="form-label">Business Type*</label>
-                <Select 
-                    v-model="selectedBusinessType" 
-                    :options="businessTypeOptions" 
-                    optionLabel="name" 
-                    :filter="true"
-                    @filter="(e) => businessTypeFilterValue = e.value"
-                    :pt="{
+                <Select v-model="selectedBusinessType" :options="businessTypeOptions" optionLabel="name" :filter="true"
+                    @filter="(e) => businessTypeFilterValue = e.value" :pt="{
                         listContainer: { class: 'bg-white text-black' },
                         option: { class: 'text-black hover:bg-gray-100' },
                         header: { class: 'bg-white text-black' },
@@ -320,30 +323,26 @@ const flagUrl = (iso, size = "24x18") =>
                         InputText: { class: 'bg-white' },
                         pcFilter: { class: 'bg-white' },
                         pcFilterContainer: { class: 'bg-white' }
-                    }" 
-                    placeholder="Select or type business type" 
-                    class="w-100" 
+                    }" placeholder="Select or type business type" class="w-100"
                     :class="{ 'is-invalid': formErrors?.business_type }">
-                    
+
                     <template #value="{ value, placeholder }">
                         <span v-if="value">{{ value.name }}</span>
                         <span v-else>{{ placeholder }}</span>
                     </template>
-                    
+
                     <template #option="{ option }">
                         <div class="d-flex align-items-center gap-2">
                             <span>{{ option.name }}</span>
-                            <span v-if="option.custom" class="badge bg-primary text-white" style="font-size: 10px;">Custom</span>
+                            <span v-if="option.custom" class="badge bg-primary text-white"
+                                style="font-size: 10px;">Custom</span>
                         </div>
                     </template>
 
                     <!-- Footer with "Add Custom" button -->
                     <template #footer>
                         <div v-if="isNewBusinessType" class="p-2 border-top">
-                            <button 
-                                type="button"
-                                class="btn btn-sm btn-primary w-100"
-                                @click="addCustomBusinessType">
+                            <button type="button" class="btn btn-sm btn-primary w-100" @click="addCustomBusinessType">
                                 <i class="bi bi-plus-circle me-1"></i>
                                 Add "{{ businessTypeFilterValue }}"
                             </button>
@@ -364,14 +363,15 @@ const flagUrl = (iso, size = "24x18") =>
 
                 <div class="row g-3 mt-1">
                     <!-- Phone -->
-                    <div class="col-md-6">
+                    <!-- <div class="col-md-6">
                         <label class="form-label">Phone*</label>
                         <div class="input-group">
                             <span class="input-group-text p-0">
                                 <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial" :pt="{
                                     listContainer: { class: 'bg-white text-black' },
                                     option: { class: 'text-black hover:bg-gray-100' },
-                                    header: { class: 'bg-white text-black' }
+                                    header: { class: 'bg-white text-black' },
+                                     trigger: { class: 'hidden' }
                                 }" placeholder="Code" class="dial-select" />
 
                             </span>
@@ -383,7 +383,35 @@ const flagUrl = (iso, size = "24x18") =>
                                     'is-valid': isPhoneValid && form.phone_local 
                                 }" />
                         </div>
-                        <!-- Show validation error -->
+                        <small v-if="phoneError" class="text-danger d-block mt-1">
+                            {{ phoneError }}
+                        </small>
+                        <small v-else-if="formErrors?.phone_local" class="text-danger d-block mt-1">
+                            {{ formErrors.phone_local[0] }}
+                        </small>
+                        <small v-else-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
+                            ✓ Valid phone number
+                        </small>
+                    </div> -->
+
+                    <div class="col-md-6">
+                        <label class="form-label">Phone*</label>
+                        <div class="input-group">
+                            <!-- Country Code (readonly input instead of dropdown) -->
+                            <span class="input-group-text p-0">
+                                <input type="text" class="form-control text-center border-0 bg-light fw-semibold"
+                                    v-model="form.phone_code" readonly style="width: 70px;" />
+                            </span>
+
+                            <!-- Local Phone Input -->
+                            <input class="form-control phone-input" inputmode="numeric" placeholder="Phone number"
+                                v-model="form.phone_local" @blur="validatePhone" :class="{
+                                    'is-invalid': formErrors?.phone_local || phoneError,
+                                    'is-valid': isPhoneValid && form.phone_local
+                                }" />
+                        </div>
+
+                        <!-- Validation messages -->
                         <small v-if="phoneError" class="text-danger d-block mt-1">
                             {{ phoneError }}
                         </small>
@@ -394,6 +422,7 @@ const flagUrl = (iso, size = "24x18") =>
                             ✓ Valid phone number
                         </small>
                     </div>
+
 
                     <!-- Email -->
                     <div class="col-md-6">
@@ -436,15 +465,18 @@ const flagUrl = (iso, size = "24x18") =>
     background: white;
     color: #000000 !important;
 }
-:global(.p-inputtext){
+
+:global(.p-inputtext) {
     color: #000 !important;
 }
-.btn-custom{
+
+.btn-custom {
     background-color: #1C0D82 !important;
     color: #fff !important;
     padding: 8px 0px !important;
 }
-.custom-btn-border{
+
+.custom-btn-border {
     border-top: 1px solid #555;
     background-color: #181818 !important;
 }

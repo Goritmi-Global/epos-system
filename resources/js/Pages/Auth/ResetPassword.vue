@@ -5,16 +5,12 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { EyeIcon, EyeOffIcon } from 'lucide-vue-next'; // 👁️ Use lucide icons
 
 const props = defineProps({
-    email: {
-        type: String,
-        required: true,
-    },
-    token: {
-        type: String,
-        required: true,
-    },
+    email: { type: String, required: true },
+    token: { type: String, required: true },
 });
 
 const form = useForm({
@@ -24,21 +20,27 @@ const form = useForm({
     password_confirmation: '',
 });
 
+// 👁️ Reactive toggles for visibility
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+
+const togglePassword = () => (showPassword.value = !showPassword.value);
+const toggleConfirmPassword = () =>
+    (showConfirmPassword.value = !showConfirmPassword.value);
+
 const submit = () => {
-    form.post(route('password.store'), {
-        onFinish: () => form.reset('password', 'password_confirmation'),
-    });
+    form.post(route('password.store'));
 };
 </script>
 
 <template>
     <GuestLayout>
         <Head title="Reset Password" />
-
+        
         <form @submit.prevent="submit">
+            <!-- Email -->
             <div>
                 <InputLabel for="email" value="Email" />
-
                 <TextInput
                     id="email"
                     type="email"
@@ -48,46 +50,56 @@ const submit = () => {
                     autofocus
                     autocomplete="username"
                 />
-
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
-            <div class="mt-4">
+            <!-- Password -->
+            <div class="mt-4 relative">
                 <InputLabel for="password" value="Password" />
-
                 <TextInput
                     id="password"
-                    type="password"
-                    class="mt-1 block w-full"
+                    :type="showPassword ? 'text' : 'password'"
+                    class="mt-1 block w-full pr-10"
                     v-model="form.password"
                     required
                     autocomplete="new-password"
                 />
-
+                <span
+                    class="absolute right-3 top-9 cursor-pointer text-gray-500"
+                    @click="togglePassword"
+                >
+                    <component :is="showPassword ? EyeOffIcon : EyeIcon" size="20" />
+                </span>
                 <InputError class="mt-2" :message="form.errors.password" />
             </div>
 
-            <div class="mt-4">
-                <InputLabel
-                    for="password_confirmation"
-                    value="Confirm Password"
-                />
-
+            <!-- Confirm Password -->
+            <div class="mt-4 relative">
+                <InputLabel for="password_confirmation" value="Confirm Password" />
                 <TextInput
                     id="password_confirmation"
-                    type="password"
-                    class="mt-1 block w-full"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    class="mt-1 block w-full pr-10"
                     v-model="form.password_confirmation"
                     required
                     autocomplete="new-password"
                 />
-
+                <span
+                    class="absolute right-3 top-9 cursor-pointer text-gray-500"
+                    @click="toggleConfirmPassword"
+                >
+                    <component
+                        :is="showConfirmPassword ? EyeOffIcon : EyeIcon"
+                        size="20"
+                    />
+                </span>
                 <InputError
                     class="mt-2"
                     :message="form.errors.password_confirmation"
                 />
             </div>
 
+            <!-- Submit -->
             <div class="mt-4 flex items-center justify-end">
                 <PrimaryButton
                     :class="{ 'opacity-25': form.processing }"
