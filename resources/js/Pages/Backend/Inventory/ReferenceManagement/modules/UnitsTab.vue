@@ -10,32 +10,33 @@ import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 
 const options = ref([
-    // Weight Units
-    { label: "Kilogram (kg)", value: "kg" },
-    { label: "Gram (g)", value: "g" },
-    { label: "Milligram (mg)", value: "mg" },
-    { label: "Pound (lb)", value: "lb" },
-    { label: "Ounce (oz)", value: "oz" },
+  // Weight Units
+  { label: "Kilogram (kg)", value: "Kilogram (kg)" },
+  { label: "Gram (g)", value: "Gram (g)" },
+  { label: "Milligram (mg)", value: "Milligram (mg)" },
+  { label: "Pound (lb)", value: "Pound (lb)" },
+  { label: "Ounce (oz)", value: "Ounce (oz)" },
 
-    // Volume Units
-    { label: "Litre (L)", value: "L" },
-    { label: "Millilitre (ml)", value: "ml" },
-    { label: "Pint (pt)", value: "pt" },
-    { label: "Gallon (gal)", value: "gal" },
+  // Volume Units
+  { label: "Litre (L)", value: "Litre (L)" },
+  { label: "Millilitre (ml)", value: "Millilitre (ml)" },
+  { label: "Pint (pt)", value: "Pint (pt)" },
+  { label: "Gallon (gal)", value: "Gallon (gal)" },
 
-    // Count / Package Units
-    { label: "Piece (pc)", value: "pc" },
-    { label: "Dozen (doz)", value: "doz" },
-    { label: "Crate", value: "crate" },
-    { label: "Box", value: "box" },
-    { label: "Bottle", value: "bottle" },
-    { label: "Pack", value: "pack" },
-    { label: "Carton", value: "carton" },
-    { label: "Bag", value: "bag" },
-    { label: "Bundle", value: "bundle" },
-    { label: "Bunch", value: "bunch" },
-    { label: "Serving", value: "serving" }
+  // Count / Package Units
+  { label: "Piece (pc)", value: "Piece (pc)" },
+  { label: "Dozen (doz)", value: "Dozen (doz)" },
+  { label: "Crate", value: "Crate" },
+  { label: "Box", value: "Box" },
+  { label: "Bottle", value: "Bottle" },
+  { label: "Pack", value: "Pack" },
+  { label: "Carton", value: "Carton" },
+  { label: "Bag", value: "Bag" },
+  { label: "Bundle", value: "Bundle" },
+  { label: "Bunch", value: "Bunch" },
+  { label: "Serving", value: "Serving" }
 ]);
+
 
 const commonUnits = ref([]); // array of values
 const filterText = ref("");

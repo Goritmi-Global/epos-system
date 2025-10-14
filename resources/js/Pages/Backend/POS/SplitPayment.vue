@@ -245,4 +245,12 @@ function confirmSplit() {
   background-color: #212121 !important;
 
 }
+
+.dark .bi-check2-circle{
+  color: #fff !important;
+}
+
+.dark .brand-btn{
+  color: #fff !important;
+}
 </style>

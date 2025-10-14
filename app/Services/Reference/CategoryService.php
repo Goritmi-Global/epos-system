@@ -3,17 +3,15 @@
 namespace App\Services\Reference;
 
 use App\Models\InventoryCategory;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class CategoryService
 {
     /**
      * Create categories (both parent and subcategories)
      *
-     * @param array $data
-     * @return array
      * @throws Exception
      */
     public function createCategories(array $data): array
@@ -24,8 +22,7 @@ class CategoryService
             $createdCategories = [];
             $isSubCategory = $data['isSubCategory'] ?? false;
 
-
-            if (!empty($data['categories'])) {
+            if (! empty($data['categories'])) {
                 foreach ($data['categories'] as $cat) {
                     // Validate based on isSubCategory flag
                     if ($isSubCategory) {
@@ -40,13 +37,13 @@ class CategoryService
                             ->whereNull('parent_id')
                             ->first();
 
-                        if (!$parent) {
+                        if (! $parent) {
                             Log::error('Invalid parent category:', $cat['parent_id']);
                             throw new Exception('Invalid parent category');
                         }
                     } else {
                         // Creating parent category - must NOT have parent_id
-                        if (!empty($cat['parent_id'])) {
+                        if (! empty($cat['parent_id'])) {
                             Log::error('Parent category has parent_id:', $cat);
                             throw new Exception('Parent category cannot have parent_id');
                         }
@@ -59,14 +56,15 @@ class CategoryService
 
                     if ($existingCategory) {
                         Log::info('Category already exists, skipping:', $cat['name']);
+
                         continue;
                     }
 
                     // Create the category
                     $category = $this->createSingleCategory([
-                        'name'      => $cat['name'],
-                        'icon'      => $cat['icon'] ?? '🧰',
-                        'active'    => $cat['active'] ?? true,
+                        'name' => $cat['name'],
+                        'icon' => $cat['icon'] ?? '🧰',
+                        'active' => $cat['active'] ?? true,
                         'parent_id' => $cat['parent_id'] ?? null,
                     ]);
 
@@ -85,37 +83,34 @@ class CategoryService
             ];
         } catch (Exception $e) {
             DB::rollback();
-            Log::error('Category creation failed: ' . $e->getMessage());
+            Log::error('Category creation failed: '.$e->getMessage());
             Log::error('Stack trace:', [$e->getTraceAsString()]);
 
             return [
                 'success' => false,
-                'message' => 'Failed to create categories: ' . $e->getMessage(),
+                'message' => 'Failed to create categories: '.$e->getMessage(),
                 'data' => null,
             ];
         }
     }
 
-
-
     /**
      * Create a single category
      *
-     * @param array $categoryData
      * @return Category
      */
     private function createSingleCategory(array $categoryData): InventoryCategory
     {
         $category = InventoryCategory::create([
-            'name'         => $categoryData['name'],
-            'icon'         => $categoryData['icon'] ?? '🧰',
-            'active'       => $categoryData['active'] ?? true,
-            'parent_id'    => $categoryData['parent_id'] ?? null,
-            'total_value'  => 0,
-            'total_items'  => 0,
+            'name' => $categoryData['name'],
+            'icon' => $categoryData['icon'] ?? '🧰',
+            'active' => $categoryData['active'] ?? true,
+            'parent_id' => $categoryData['parent_id'] ?? null,
+            'total_value' => 0,
+            'total_items' => 0,
             'out_of_stock' => 0,
-            'low_stock'    => 0,
-            'in_stock'     => 0,
+            'low_stock' => 0,
+            'in_stock' => 0,
         ]);
 
         return $category; // now matches return type
@@ -128,13 +123,15 @@ class CategoryService
      */
     public function getAllCategories()
     {
-        return InventoryCategory::withCount('primaryInventoryItems') // adds primary_inventory_items_count
-            ->with(['subcategories' => function ($q) {
-                $q->withCount('primaryInventoryItems');
-            }, 'parent'])
-            ->get();
-    }
+        return InventoryCategory::withCount('primaryInventoryItems')
+            ->whereNull('parent_id')
+            ->get()
+            ->map(function ($category) {
+                $category->total_inventory_items = $category->primary_inventory_items_count;
 
+                return $category;
+            });
+    }
 
     /**
      * Get only parent categories (for dropdown)
@@ -149,7 +146,6 @@ class CategoryService
     /**
      * Get category by ID with relationships
      *
-     * @param int $id
      * @return Category|null
      */
     public function getCategoryById(int $id): ?InventoryCategory
@@ -159,29 +155,24 @@ class CategoryService
 
     /**
      * Update category
-     *
-     * @param int $id
-     * @param array $data
-     * @return array
      */
-
     public function updateCategory(int $id, array $data): array
     {
         try {
             $category = InventoryCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
             // Validate parent category if updating to subcategory
             if (isset($data['parent_id']) && $data['parent_id']) {
                 $parentCategory = InventoryCategory::find($data['parent_id']);
-                if (!$parentCategory) {
+                if (! $parentCategory) {
                     throw new Exception('Parent category not found');
                 }
 
@@ -231,7 +222,7 @@ class CategoryService
 
                 //  DELETE subcategories that were removed from the list
                 $subcategoriesToDelete = array_diff($currentSubcategoryIds, $updatedSubcategoryIds);
-                if (!empty($subcategoriesToDelete)) {
+                if (! empty($subcategoriesToDelete)) {
                     InventoryCategory::whereIn('id', $subcategoriesToDelete)
                         ->where('parent_id', $category->id) // Extra safety check
                         ->delete();
@@ -244,22 +235,19 @@ class CategoryService
             return [
                 'success' => true,
                 'message' => 'Category updated successfully',
-                'data' => $updatedCategory
+                'data' => $updatedCategory,
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
-                'data' => null
+                'data' => null,
             ];
         }
     }
 
     /**
      * Delete category
-     *
-     * @param int $id
-     * @return array
      */
     public function deleteCategory(int $id): array
     {
@@ -268,11 +256,11 @@ class CategoryService
 
             $category = InventoryCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
@@ -287,39 +275,35 @@ class CategoryService
             return [
                 'success' => true,
                 'message' => 'Category and its subcategories deleted successfully',
-                'data' => null
+                'data' => null,
             ];
         } catch (Exception $e) {
             DB::rollback();
-            Log::error('Category deletion failed: ' . $e->getMessage());
+            Log::error('Category deletion failed: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Failed to delete category: ' . $e->getMessage(),
-                'data' => null
+                'message' => 'Failed to delete category: '.$e->getMessage(),
+                'data' => null,
             ];
         }
     }
 
-
     /**
      * Search categories by name
      *
-     * @param string $query
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function searchCategories(string $query)
     {
         return InventoryCategory::with(['subcategories', 'parent'])
-            ->where('name', 'like', '%' . $query . '%')
+            ->where('name', 'like', '%'.$query.'%')
             ->orderBy('name')
             ->get();
     }
 
     /**
      * Get category statistics
-     *
-     * @return array
      */
     public function getCategoryStatistics(): array
     {
@@ -340,55 +324,48 @@ class CategoryService
 
     /**
      * Toggle category active status
-     *
-     * @param int $id
-     * @return array
      */
     public function toggleCategoryStatus(int $id): array
     {
         try {
             $category = InventoryCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
-                    'data' => null
+                    'data' => null,
                 ];
             }
 
-            $category->active = !$category->active;
+            $category->active = ! $category->active;
             $category->save();
 
             return [
                 'success' => true,
                 'message' => 'Category status updated successfully',
-                'data' => $category
+                'data' => $category,
             ];
         } catch (Exception $e) {
-            Log::error('Category status toggle failed: ' . $e->getMessage());
+            Log::error('Category status toggle failed: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Failed to update category status: ' . $e->getMessage(),
-                'data' => null
+                'message' => 'Failed to update category status: '.$e->getMessage(),
+                'data' => null,
             ];
         }
     }
 
     /**
      * Update only the subcategory name
-     *
-     * @param int $subcategoryId
-     * @param string $newName
-     * @return array
      */
     public function updateSubcategoryName(int $subcategoryId, string $newName): array
     {
         try {
             $subcategory = InventoryCategory::find($subcategoryId);
 
-            if (!$subcategory || !$subcategory->parent_id) {
+            if (! $subcategory || ! $subcategory->parent_id) {
                 return [
                     'success' => false,
                     'message' => 'Subcategory not found or it is not a subcategory',
