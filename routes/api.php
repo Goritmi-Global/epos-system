@@ -68,6 +68,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Promos
     Route::prefix('promos')->name('api.promos.')->group(function () {
         Route::get('/all', [PromoController::class, 'fetchAllPromos'])->name('fetchAll');
+        Route::get('/today', [PromoController::class, 'getTodayPromos'])->name('today');
         Route::patch('/{id}/toggle-status', [PromoController::class, 'toggleStatus'])->name('toggle');
     });
 

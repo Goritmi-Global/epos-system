@@ -285,11 +285,6 @@ onMounted(fetchAll);
               <Select v-model="form.role_id" :options="userRoles" optionLabel="name" optionValue="value"
                 placeholder="Select Role" class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
                 :class="{ 'is-invalid': formErrors.role_id }" />
-
-
-
-
-
               <div v-if="formErrors.role_id" class="invalid-feedback d-block">
                 {{ formErrors.role_id[0] }}
               </div>
@@ -308,8 +303,8 @@ onMounted(fetchAll);
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-primary rounded-pill" @click="save">Save</button>
-          <button class="btn btn-secondary rounded-pill" @click="show = false">Cancel</button>
+          <button class="btn btn-primary rounded-pill px-2 py-2" @click="save">Save</button>
+          <button class="btn btn-secondary rounded-pill px-2 py-2" @click="show = false">Cancel</button>
         </div>
       </div>
     </div>

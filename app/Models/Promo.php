@@ -23,8 +23,8 @@ class Promo extends Model
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
         'min_purchase' => 'decimal:2',
         'max_discount' => 'decimal:2',
     ];

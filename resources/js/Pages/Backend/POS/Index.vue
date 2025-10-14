@@ -185,7 +185,7 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             id: baseItem.id,
             title: baseItem.title,
             img: baseItem.img,
-            price: Number(baseItem.price) || 0,
+            price: baseItem.price * qty || 0,
             unit_price: Number(baseItem.price) || 0,
             qty: qty,
             note: note || "",
@@ -1076,10 +1076,10 @@ const openPromoModal = async () => {
         showPromoModal.value = true;
 
         // Fetch promos from API
-        const response = await axios.get('/api/promos/all'); // adjust URL if needed
+        const response = await axios.get('/api/promos/today'); 
+        console.log('API response:', response); // Debug log
         console.log('Fetched promos:', response.data);
         if (response.data.success) {
-            // Assuming your API returns { success: true, data: [...] }
             promosData.value = response.data.data;
         } else {
             console.error('Failed to fetch promos', response.data);
