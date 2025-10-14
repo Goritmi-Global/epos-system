@@ -28,6 +28,8 @@ const props = defineProps({
 });
 console.log(props.orderItems);
 const autoPrintKot = ref(false);
+const formErrors = ref({});
+
 
 const emit = defineEmits(["close", "confirm", "update:cashReceived"]);
 
@@ -57,6 +59,14 @@ const subTotal = computed(() =>
 const isLoading = ref(false);
 
 const handleConfirm = async () => {
+
+     formErrors.value.cashReceived = null;
+
+    if (!props.cashReceived || props.cashReceived <= 0) {
+        formErrors.value.cashReceived = "Enter a valid cash amount.";
+        toast.error("Enter a valid cash amount.");
+        return;
+    }
     // prevent multiple clicks
     if (isLoading.value) return;
 
@@ -301,9 +311,13 @@ item, index
                                             </div>
                                             <input type="number" v-model.number="cashReceived"
                                                 class="form-control rounded-3" />
+                                                
+    <small v-if="formErrors.cashReceived" class="text-danger">
+        {{ formErrors.cashReceived }}
+    </small>
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
-                                                <span :class="changeAmount < 0
+                                                <span :class="[changeAmount] < 0
                                                     ? 'text-danger fw-bold'
                                                     : 'text-success fw-bold'
                                                     ">

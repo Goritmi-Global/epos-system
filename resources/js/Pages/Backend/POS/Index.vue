@@ -590,6 +590,13 @@ const openConfirmModal = () => {
         toast.error("Please select a table number for Dine In orders.");
         return;
     }
+      if ((orderType.value === "Delivery" || orderType.value === "Takeaway")  && !customer.value) {
+        formErrors.value.customer = [
+            "Customer name is required for delivery.",
+        ];
+        toast.error("Customer name is required for delivery.");
+        return;
+    }
     if (!hasEnoughStockForOrder()) {
         // Stop the process if not enough stock
         return;
@@ -1285,7 +1292,11 @@ const handleViewOrderDetails = (order) => {
                                     <div v-else>
                                         <label class="form-label small">Customer</label>
                                         <input v-model="customer" class="form-control form-control-sm"
-                                            placeholder="Walk In" />
+                                            placeholder="Walk In" :class="{'is-invalid': formErrors.customer}" />
+
+                                             <div v-if="formErrors.customer" class="invalid-feedback d-block">
+                                                {{ formErrors.customer[0] }}
+                                            </div>
                                     </div>
                                 </div>
 
