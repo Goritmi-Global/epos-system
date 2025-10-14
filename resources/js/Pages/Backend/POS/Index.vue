@@ -1,3 +1,4 @@
+
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head, usePage } from "@inertiajs/vue3";
@@ -121,14 +122,20 @@ const fetchProfileTables = async () => {
     try {
         const response = await axios.get("/api/pos/fetch-profile-tables");
         profileTables.value = response.data;
+
         if (profileTables.value.order_types) {
-            orderTypes.value = profileTables.value.order_types;
+            // Capitalize first character of each type
+            orderTypes.value = profileTables.value.order_types.map(type => 
+                type.charAt(0).toUpperCase() + type.slice(1)
+            );
+
             orderType.value = orderTypes.value[0];
         }
     } catch (error) {
         console.error("Error fetching profile tables:", error);
     }
 };
+
 
 const visibleProducts = computed(
     () => productsByCat.value[activeCat.value] ?? []
