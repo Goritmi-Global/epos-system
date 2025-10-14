@@ -20,7 +20,10 @@ const props = defineProps(["client_secret", "order_code"]);
    Categories
 -----------------------------*/
 const menuCategories = ref([]);
+const menuCategoriesLoading = ref(true);
+
 const fetchMenuCategories = async () => {
+    menuCategoriesLoading.value = true;
     try {
         const response = await axios.get("/api/pos/fetch-menu-categories");
         menuCategories.value = response.data;
@@ -28,7 +31,9 @@ const fetchMenuCategories = async () => {
             activeCat.value = menuCategories.value[0].id;
         }
     } catch (error) {
-        console.error("Error fetching inventory:", error);
+        console.error("Error fetching categories:", error);
+    } finally {
+        menuCategoriesLoading.value = false;
     }
 };
 
@@ -221,23 +226,25 @@ const incCart = async (i) => {
     if (it.ingredients?.length) {
         for (const ing of it.ingredients) {
             const id = ing.inventory_item_id;
-            const available = ingredientStock[id] ?? parseFloat(ing.inventory_stock);
+            // restore stock by adding back current item's usage
+            const currentStock = (ingredientStock[id] ?? parseFloat(ing.inventory_stock))
+                + parseFloat(ing.quantity) * it.qty;
+
             const required = parseFloat(ing.quantity) * (it.qty + 1);
 
-            if (available < required) {
-                it.outOfStock = true; // 🚩 mark visually
-                toast.error(
-                    `Not enough stock for "${it.title}".`
-                );
+            if (currentStock < required) {
+                it.outOfStock = true;
+                toast.error(`Not enough stock for "${it.title}".`);
                 return;
             }
         }
     }
 
+
     // If stock is okay
     it.outOfStock = false;
     it.qty++;
-    it.price = it.unit_price * it.qty;  
+    it.price = it.unit_price * it.qty;
 };
 
 
@@ -741,9 +748,8 @@ function printKot(order) {
         (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
         Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${
-            plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
-        }${plainOrder?.card_brand ? ")" : ""}`;
+        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
+            }${plainOrder?.card_brand ? ")" : ""}`;
     } else {
         payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
@@ -805,10 +811,9 @@ function printKot(order) {
         <div><strong>Time:</strong> ${plainOrder.order_time || new Date().toLocaleTimeString()}</div>
         <div><strong>Customer:</strong> ${plainOrder.customer_name || "Walk-in"}</div>
         <div><strong>Order Type:</strong> ${plainOrder.order_type || "In-Store"}</div>
-        ${
-            plainOrder.note
-                ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
-                : ""
+        ${plainOrder.note
+            ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
+            : ""
         }
       </div>
 
@@ -822,19 +827,19 @@ function printKot(order) {
         </thead>
         <tbody>
           ${(plainOrder.items || [])
-              .map((item) => {
-                  const qty = Number(item.quantity) || 0;
-                  const price = Number(item.price) || 0;
-                  const total = qty * price;
-                  return `
+            .map((item) => {
+                const qty = Number(item.quantity) || 0;
+                const price = Number(item.price) || 0;
+                const total = qty * price;
+                return `
                   <tr>
                     <td>${item.title || "Unknown Item"}</td>
                     <td>${qty}</td>
                     <td>£${total.toFixed(2)}</td>
                   </tr>
                 `;
-              })
-              .join("")}
+            })
+            .join("")}
         </tbody>
       </table>
 
@@ -842,17 +847,15 @@ function printKot(order) {
         <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
         <div><strong>Total: £${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></div>
         <div>${payLine}</div>
-        ${
-            plainOrder.cash_received
-                ? `<div>Cash Received: £${Number(
-                      plainOrder.cash_received
-                  ).toFixed(2)}</div>`
-                : ""
+        ${plainOrder.cash_received
+            ? `<div>Cash Received: £${Number(
+                plainOrder.cash_received
+            ).toFixed(2)}</div>`
+            : ""
         }
-        ${
-            plainOrder.change
-                ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
-                : ""
+        ${plainOrder.change
+            ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
+            : ""
         }
       </div>
 
@@ -947,8 +950,8 @@ const confirmOrder = async ({
         toast.error(err.response?.data?.message || "Failed to place order");
     }
     finally {
-    if (done) done();
-  }
+        if (done) done();
+    }
 };
 
 /* ----------------------------
@@ -1060,7 +1063,7 @@ const loadingPromos = ref(true);
 const promosData = ref([]);
 
 const openPromoModal = async () => {
-     loadingPromos.value = true;
+    loadingPromos.value = true;
     try {
         // Show the modal immediately (optional)
         showPromoModal.value = true;
@@ -1079,8 +1082,8 @@ const openPromoModal = async () => {
         console.error('Error fetching promos', error);
         promosData.value = [];
     } finally {
-    loadingPromos.value = false;
-  }
+        loadingPromos.value = false;
+    }
 };
 
 const handleViewOrderDetails = (order) => {
@@ -1103,27 +1106,36 @@ const handleViewOrderDetails = (order) => {
                     <div class="col-lg-8">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3">
-                            <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-3">
-                                <div class="cat-card" @click="openCategory(c)">
-                                    <div class="cat-icon-wrap">
-                                        <!-- use emoji/text icon OR place an <img> inside -->
-                                        <span class="cat-icon">{{
-                                            c.icon || "🍵"
-                                            }}</span>
-                                    </div>
-                                    <div class="cat-name">{{ c.name }}</div>
-                                    <div class="cat-pill">
-                                        {{ c.menu_items_count }} items
-                                    </div>
-                                </div>
+                            <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
+                                <div class="spinner-border" role="status"
+                                    style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;"></div>
+                                <div class="mt-2 fw-semibold text-muted">Loading...</div>
                             </div>
 
-                            <div v-if="menuCategories.length === 0" class="col-12">
-                                <div class="alert alert-light border text-center rounded-4">
-                                    No categories found
+
+                            <!-- Categories List -->
+                            <template v-else>
+                                <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-3">
+                                    <div class="cat-card" @click="openCategory(c)">
+                                        <div class="cat-icon-wrap">
+                                            <span class="cat-icon">{{ c.icon || "🍵" }}</span>
+                                        </div>
+                                        <div class="cat-name">{{ c.name }}</div>
+                                        <div class="cat-pill">
+                                            {{ c.menu_items_count }} items
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+
+                                <!-- No Categories Found -->
+                                <div v-if="!menuCategoriesLoading && menuCategories.length === 0" class="col-12">
+                                    <div class="alert alert-light border text-center rounded-4">
+                                        No categories found
+                                    </div>
+                                </div>
+                            </template>
                         </div>
+
 
                         <!-- Items in selected category -->
                         <div v-else>
@@ -1470,7 +1482,8 @@ const handleViewOrderDetails = (order) => {
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />
 
-            <PromoModal :show="showPromoModal"  :loading="loadingPromos" :promos="promosData" @close="showPromoModal = false" />
+            <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData"
+                @close="showPromoModal = false" />
 
 
         </div>
@@ -1487,15 +1500,15 @@ const handleViewOrderDetails = (order) => {
     background-color: #181818;
 }
 
-.dark .item-title{
+.dark .item-title {
     color: #fff !important;
 }
 
-.dark b{
+.dark b {
     color: #fff !important;
 }
 
-.dark .item-sub{
+.dark .item-sub {
     color: #fff !important;
 }
 
@@ -1503,7 +1516,7 @@ const handleViewOrderDetails = (order) => {
     background-color: #181818;
 }
 
-.dark .sub-total{
+.dark .sub-total {
     color: #fff !important;
 }
 
@@ -1711,10 +1724,10 @@ const handleViewOrderDetails = (order) => {
     position: relative;
     z-index: 3;
 } */
- .dark .form-select{
+.dark .form-select {
     background-color: #212121;
     color: #fff;
- }
+}
 
 .item-price {
     position: absolute;
@@ -1910,7 +1923,7 @@ const handleViewOrderDetails = (order) => {
     line-height: 1.5;
 }
 
-.dark .del{
+.dark .del {
     background-color: #212121 !important;
 }
 

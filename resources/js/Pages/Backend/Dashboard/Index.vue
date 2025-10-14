@@ -525,7 +525,7 @@ const suppliersCount = computed(() => {
               <span><img src="assets/img/icons/dash2.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatCurrencySymbol(filteredOrders) }}</h5>
+              <h5>{{ filteredOrders }}</h5>
               <h6>Total Orders</h6>
             </div>
           </div>
@@ -537,7 +537,7 @@ const suppliersCount = computed(() => {
               <span><img src="assets/img/icons/dash3.svg" alt="img" /></span>
             </div>
             <div class="dash-widgetcontent">
-              <h5>{{ formatCurrencySymbol(orderAverages) }}</h5>
+              <h5>{{ formatCurrencySymbol(formatNumber(orderAverages)) }}</h5>
               <h6>Orders Average</h6>
             </div>
           </div>
@@ -568,7 +568,7 @@ const suppliersCount = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das1">
             <div class="dash-counts">
-              <h4>{{ formatNumber(totalCash) }}</h4>
+              <h4>{{ formatCurrencySymbol(formatNumber(totalCash)) }}</h4>
               <h5>Cash Payments</h5>
             </div>
             <div class="dash-imgs"><i data-feather="user-check"></i></div>
@@ -578,7 +578,7 @@ const suppliersCount = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das2">
             <div class="dash-counts">
-              <h4>{{ formatNumber(totalCard) }}</h4>
+              <h4>{{ formatCurrencySymbol(formatNumber(totalCard)) }}</h4>
               <h5>Card Payments</h5>
             </div>
             <div class="dash-imgs"><i data-feather="file-text"></i></div>
@@ -588,7 +588,7 @@ const suppliersCount = computed(() => {
         <div class="col-lg-3 col-sm-6 col-12 d-flex">
           <div class="dash-count das3">
             <div class="dash-counts">
-              <h4>{{ formatNumber(totalPendingPurchases) }}</h4>
+              <h4>{{ formatCurrencySymbol(formatNumber(totalPendingPurchases)) }}</h4>
               <h5>Pending Purchase Amount</h5>
             </div>
             <div class="dash-imgs"><i data-feather="file"></i></div>
