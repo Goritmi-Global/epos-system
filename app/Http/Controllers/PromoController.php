@@ -44,6 +44,26 @@ class PromoController extends Controller
     }
 
     /**
+     * Get today's active promos
+     */
+    public function getTodayPromos()
+    {
+        try {
+            $promos = $this->promoService->getTodayPromos();
+
+            return response()->json([
+                'success' => true,
+                'data' => $promos,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Store a newly created promo
      */
     public function store(StorePromoRequest $request)
