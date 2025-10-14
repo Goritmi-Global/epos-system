@@ -583,11 +583,18 @@ const openConfirmModal = () => {
         toast.error("Please add at least one item to the cart.");
         return;
     }
-    if (orderType.value === "dine_in" && !selectedTable.value) {
+    if (orderType.value === "Dine_in" && !selectedTable.value) {
         formErrors.value.table_number = [
             "Table number is required for dine-in orders.",
         ];
         toast.error("Please select a table number for Dine In orders.");
+        return;
+    }
+      if ((orderType.value === "Delivery" || orderType.value === "Takeaway")  && !customer.value) {
+        formErrors.value.customer = [
+            "Customer name is required for delivery.",
+        ];
+        toast.error("Customer name is required for delivery.");
         return;
     }
     if (!hasEnoughStockForOrder()) {
@@ -899,7 +906,9 @@ const confirmOrder = async ({
     autoPrintKot,
     done
 }) => {
+    formErrors.value = {};
     try {
+
         const payload = {
             customer_name: customer.value,
             sub_total: subTotal.value,
@@ -1256,10 +1265,11 @@ const handleViewOrderDetails = (order) => {
                             <div class="cart-body">
                                 <!-- Dine-in table / customer -->
                                 <div class="mb-3">
-                                    <div v-if="orderType === 'dine_in'" class="row g-2">
+
+                                    <div v-if="orderType === 'Dine_in'" class="row g-2">
                                         <div class="col-6">
                                             <label class="form-label small">Table</label>
-                                            <select v-model="selectedTable" class="form-select form-select-sm" :class="{
+                                            <select v-model="selectedTable" class="form-select form-select-sm" placeholder="Select Table" :class="{
                                                 'is-invalid':
                                                     formErrors.table_number,
                                             }">
@@ -1282,7 +1292,11 @@ const handleViewOrderDetails = (order) => {
                                     <div v-else>
                                         <label class="form-label small">Customer</label>
                                         <input v-model="customer" class="form-control form-control-sm"
-                                            placeholder="Walk In" />
+                                            placeholder="Walk In" :class="{'is-invalid': formErrors.customer}" />
+
+                                             <div v-if="formErrors.customer" class="invalid-feedback d-block">
+                                                {{ formErrors.customer[0] }}
+                                            </div>
                                     </div>
                                 </div>
 

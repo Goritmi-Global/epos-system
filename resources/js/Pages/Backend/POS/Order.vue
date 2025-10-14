@@ -221,6 +221,7 @@ const filterOptions = computed(() => ({
         { value: "Dine In", label: "Dine In" },
         { value: "Delivery", label: "Delivery" },
         { value: "Takeaway", label: "Takeaway" },
+        { value: "Collection", label: "Collection" },
     ],
     paymentTypeOptions: [
         { value: "Cash", label: "Cash" },
@@ -800,7 +801,7 @@ onMounted(fetchPrinters);
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -880,7 +881,7 @@ onMounted(fetchPrinters);
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -901,7 +902,7 @@ onMounted(fetchPrinters);
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                                }}/{{
+                                            }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -913,7 +914,7 @@ onMounted(fetchPrinters);
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -956,7 +957,7 @@ onMounted(fetchPrinters);
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                                 data-bs-dismiss="modal" aria-label="Close" title="Close">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
@@ -1051,7 +1052,7 @@ item, idx
 
                         <!-- Footer -->
                         <div class="modal-footer bg-white border-0 shadow-sm px-4 py-3">
-                            <button class="btn btn-light border rounded-pill px-4 p-2" data-bs-dismiss="modal">
+                            <button class="btn btn-secondary  rounded-pill px-4 p-2" data-bs-dismiss="modal">
                                 Close
                             </button>
                             <button v-if="printers.length > 0" class="btn btn-primary shadow-sm rounded-pill px-4 py-2"
@@ -1255,9 +1256,7 @@ item, idx
     color: #fff !important;
 }
 
-.dark svg {
-    color: #237BFC !important;
-}
+
 
 
 /* Search filter input */

@@ -518,7 +518,7 @@ onUpdated(() => window.feather?.replace?.());
 
                                         <td class="text-end">
                                             <button
-                                                class="p-2 rounded-pill text-gray-600 hover:bg-gray-100 btn btn-light btn-sm"
+                                                class="p-2 rounded-pill text-primary hover:bg-gray-100 btn"
                                                 @click="openModal(row)" title="View Item">
                                                 <Eye class="w-4 h-4" />
                                             </button>
@@ -635,7 +635,7 @@ onUpdated(() => window.feather?.replace?.());
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="(item, index) in isEditing
+                                        <tr class="black-row" v-for="(item, index) in isEditing
                                             ? editItems
                                             : selectedOrder.items" :key="item.id || index">
                                             <!-- Product -->
@@ -802,6 +802,9 @@ onUpdated(() => window.feather?.replace?.());
     color: #6b7280;
 }
 
+.dark .black-row{
+    background-color: #181818 !important;
+}
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;

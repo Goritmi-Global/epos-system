@@ -434,7 +434,8 @@ function changeSection(sectionId) {
     transform: translateX(4px);
 }
 .nav-link.active {
-    background: linear-gradient(135deg, #1c0d82 0%, #2d1ba8 100%);
+    /* background: linear-gradient(135deg, #1c0d82 0%, #2d1ba8 100%); */
+    background-color: #1C0D82;
     color: #fff;
     box-shadow: 0 4px 12px rgba(28, 13, 130, 0.3);
     border-color: #1c0d82;
