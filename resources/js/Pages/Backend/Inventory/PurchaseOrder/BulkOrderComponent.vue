@@ -260,3 +260,198 @@ async function bulkSubmit() {
         </div>
     </div>
 </template>
+
+
+<style scoped>
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+
+/* ====================================================== */
+
+/* ====================Select Styling===================== */
+/* Entire select container */
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #000 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #000 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #212121 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+.dark .p-inputtext {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+.dark .p-checkbox-icon {
+    color: #fff !important;
+}
+
+.dark .p-checkbox-input {
+    color: #fff !important;
+}
+
+.dark .p-component {
+    color: #fff !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important;
+    /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #000 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-dropdown) {
+    background-color: #212121 !important;
+    color: #fff !important;
+
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+    background-color: #212121 !important;
+}
+
+:global(.dark .p-select-list) {
+    background-color: #212121 !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
+}
+</style>

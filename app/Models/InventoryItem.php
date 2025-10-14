@@ -105,4 +105,6 @@ class InventoryItem extends BaseModel
             return $in - $out;
         });
     }
+
+    
 }
