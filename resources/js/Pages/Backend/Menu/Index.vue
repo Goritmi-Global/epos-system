@@ -1724,9 +1724,9 @@ ing, idx
                                                                 {{ ing.qty }}
                                                             </td>
                                                             <td>
-                                                                {{
-                                                                   formatCurrencySymbol(ing.unitPrice)
-                                                                }}
+                                                              
+                                                               {{formatCurrencySymbol(ing.unitPrice)}}
+                                                               
                                                             </td>
                                                             <td>
                                                                 {{ formatCurrencySymbol(ing.cost) }}

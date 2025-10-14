@@ -89,10 +89,18 @@ const current = computed(
     color: #444;
 }
 .nav-tabs .nav-link.active {
-    background: #1c0d82;
+    background: #1C0D82;;
     color: #fff;
     box-shadow: 0 4px 12px rgba(28, 13, 130, 0.25);
 }
+
+.nav-link.active {
+    background: #1C0D82;;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(28, 13, 130, 0.25);
+}
+
+
 .dark .nav-tabs .nav-link {
     color: #e9e9e9;
 }
@@ -145,7 +153,7 @@ const current = computed(
 
 /* active state */
 .tablink.active {
-    color: #1c0d82;
+    color: #1C0D82;
 }
 .tablink.active::after {
     transform: scaleX(1);
