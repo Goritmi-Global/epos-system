@@ -145,6 +145,12 @@ const filteredPromos = computed(() => {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
+.dark .alert-light{
+  background-color: #181818 !important;
+  color: #fff !important;
+  border: none;
+}
+
 .promo-header {
   margin-bottom: 5px;
 }
