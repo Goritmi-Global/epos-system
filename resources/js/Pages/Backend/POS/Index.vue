@@ -911,11 +911,11 @@ const confirmOrder = async ({
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
             order_type:
-                orderType.value === "dine_in"
+                orderType.value === "Dine_in"
                     ? "Dine In"
-                    : orderType.value === "delivery"
+                    : orderType.value === "Delivery"
                         ? "Delivery"
-                        : orderType.value === "takeaway"
+                        : orderType.value === "Takeaway"
                             ? "Takeaway"
                             : "Collection",
             table_number: selectedTable.value?.name || null,
