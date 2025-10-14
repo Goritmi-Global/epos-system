@@ -83,12 +83,17 @@ class UnitController extends Controller
     /**
      * Delete a unit
      */
+
     public function destroy(Unit $unit)
     {
-        $this->service->delete($unit);
-
-        return response()->json(null, 204);
+        try {
+            $this->service->delete($unit);
+            return response()->json(['message' => 'Unit deleted successfully.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
+
 
     /**
      * Import: similar to store batch. Kept for compatibility.
