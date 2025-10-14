@@ -8,10 +8,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class PromoService
 {
-    
+
     public function getAllPromos(array $filters = []): Collection
     {
         $query = Promo::query()->latest();
+
 
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -26,6 +27,18 @@ class PromoService
         }
 
         return $query->get();
+    }
+
+    /**
+     * Get today's active promos
+     */
+    public function getTodayPromos(): Collection
+    {
+        return Promo::query()
+            ->where('status', 'active')
+            ->whereDate('start_date', '<=', now())
+            ->latest()
+            ->get();
     }
 
     /**
@@ -60,7 +73,7 @@ class PromoService
     public function updatePromo(int $id, array $data): Promo
     {
         $promo = Promo::findOrFail($id);
-        
+
         $promo->update([
             'name' => $data['name'],
             'type' => $data['type'],

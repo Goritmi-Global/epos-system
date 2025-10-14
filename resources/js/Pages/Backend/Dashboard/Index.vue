@@ -923,8 +923,19 @@ const suppliersCount = computed(() => {
   color: #fff !important;
 }
 
+
+.dark .btn-white{
+  background-color: #181818 !important;
+  border: 1px solid #fff !important;
+  color: #fff !important;
+}
 .dark .text-gray-500 {
   color: #fff !important;
+}
+
+.dark a:hover {
+  color: #fff !important;
+  background-color: #212121 !important;
 }
 
 .dark .bg-white {

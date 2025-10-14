@@ -821,6 +821,11 @@ onMounted(fetchNotifications);
 }
 
 
+.dark a:hover {
+    color: #fff !important;
+    background-color: #212121 !important;
+}
+
 .dark .cat-card {
     background: #181818 !important;
     color: #fff !important;
