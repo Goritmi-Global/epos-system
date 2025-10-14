@@ -12,7 +12,7 @@ import FilterModal from "@/Components/FilterModal.vue";
 
 import { useFormatters } from '@/composables/useFormatters'
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 import {
     Package,
@@ -832,6 +832,8 @@ const downloadCSV = (data) => {
             "fat",
             "protein",
             "carbs",
+            "allergies",
+            "tags"
         ];
         const rows = data.map((s) => {
             let nutritionStr = "";
@@ -1166,7 +1168,11 @@ const totals = computed(() => {
 
 // handle import function for items
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
+ 
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return; // Stop execution
+    }
 
     const headers = data[0];
     // CSV headers: ["name","sku","category","purchase_price","sale_price","stock","active","calories","fat","protein","carbs"]
@@ -1191,6 +1197,27 @@ const handleImport = (data) => {
             carbs: parseFloat(row[13]) || 0,
         };
     });
+
+    // Check for duplicate item names within the CSV
+    const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
+    const duplicatesInCSV = itemNames.filter((name, index) => itemNames.indexOf(name) !== index);
+    
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return; // Stop execution
+    }
+
+    // Check for duplicate item names in the existing table
+    const existingNames = items.value.map(item => item.name.trim().toLowerCase());
+    const duplicatesInTable = itemsToImport.filter(importItem => 
+        existingNames.includes(importItem.name.trim().toLowerCase())
+    );
+    
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(item => item.name).join(", ");
+        toast.error(`Items already exist in the table: ${duplicateNamesList}`);
+        return; // Stop execution
+    }
 
     axios
         .post("/api/inventory/import", { items: itemsToImport })
@@ -1302,41 +1329,47 @@ const handleImport = (data) => {
                                 'calories',
                                 'fat',
                                 'protein',
-                                'carbs'
+                                'carbs',
+                                'allergies',
+                                'tags'
                             ]" :sampleData="[
-    [
-        'Black Tea',
-        'SKU-001',
-        'Dairy',
-        5,
-        14,
-        1,
-        'Des',
-        'Des',
-        'Des',
-        'Des',
-        33,
-        23,
-        44,
-        31
-    ],
-    [
-        'Green Tea',
-        'SKU-002',
-        'Beverages',
-        10,
-        12,
-        2,
-        'Supplier A',
-        '200',
-        '350',
-        '150',
-        20,
-        15,
-        10,
-        25
-    ]
-]" @on-import="handleImport" />
+                                [
+                                    'Black Tea',
+                                    'SKU-001',
+                                    'Dairy',
+                                    5,
+                                    'Kilogram (kg)',
+                                    1,
+                                    'Supplier A',
+                                    '200',
+                                    '350',
+                                    '150',
+                                    33,
+                                    23,
+                                    44,
+                                    31,
+                                    'Eggs',
+                                    'Fairtrade'
+                                ],
+                                [
+                                    'Green Tea',
+                                    'SKU-002',
+                                    'Beverages',
+                                    10,
+                                    'Gram (g)',
+                                    2,
+                                    'Supplier B',
+                                    '200',
+                                    '350',
+                                    '150',
+                                    20,
+                                    15,
+                                    10,
+                                    25,
+                                    'Mutun',
+                                    'Tag A'
+                                ]
+                            ]" @on-import="handleImport" />
 
 
                             <!-- Download all -->
@@ -1549,7 +1582,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1560,7 +1593,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1662,7 +1695,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -1903,14 +1936,14 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.notExpiredQty
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                            }}</span>
+                                                }}</span>
                                         </div>
 
                                         <!-- <div
@@ -1959,7 +1992,7 @@ const handleImport = (data) => {
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1995,10 +2028,10 @@ row, i
                                                 </td>
                                                 <td>{{ row.quantity }}</td>
                                                 <td>
-                                                    {{ row.price }}
+                                                    {{formatCurrencySymbol(row.price) }}
                                                 </td>
                                                 <td class="fw-semibold">
-                                                    {{ row.value }}
+                                                    {{ formatCurrencySymbol(row.value) }}
                                                 </td>
                                                 <td class="text-muted">
                                                     {{ row.description || "—" }}
@@ -2047,12 +2080,12 @@ row, i
                                                 </th>
                                                 <th>
                                                     {{
-                                                        totals.totalPrice
+                                                       formatCurrencySymbol(totals.totalPrice)
                                                     }}
                                                 </th>
-                                                <th class="fw-semibold text-muted">
+                                                <th class="fw-semibold text-muted w-50">
                                                     {{
-                                                        totals.totalValue
+                                                       formatCurrencySymbol(totals.totalValue)
                                                     }}
                                                 </th>
                                                 <th colspan="4"></th>
@@ -2170,10 +2203,11 @@ row, i
                                 <div class="col-md-12">
                                     <label class="form-label">Expiry Date</label>
 
-                                    <VueDatePicker v-model="stockForm.expiry_date" :format="dateFmt" :min-date="new Date()" :class="{
-                                        'is-invalid':
-                                            formErrors.expiry_date,
-                                    }" :enableTimePicker="false" placeholder="Select date" />
+                                    <VueDatePicker v-model="stockForm.expiry_date" :format="dateFmt"
+                                        :min-date="new Date()" :class="{
+                                            'is-invalid':
+                                                formErrors.expiry_date,
+                                        }" :enableTimePicker="false" placeholder="Select date" />
                                     <small v-if="formErrors.expiry_date" class="text-danger">
                                         {{ formErrors.expiry_date[0] }}
                                     </small>
@@ -2187,10 +2221,13 @@ row, i
 
                             <div class="mt-4">
                                 <button
-                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                                    class="d-flex align-items-center justify-content-center gap-2 px-4 py-2 rounded-pill btn btn-primary text-white"
                                     :disabled="submittingStock" @click="submitStockIn">
-                                    Stock In
+                                    <span v-if="submittingStock" class="spinner-border spinner-border-sm" role="status"
+                                        aria-hidden="true"></span>
+                                    <span>{{ submittingStock ? "Saving..." : "Stock In" }}</span>
                                 </button>
+
                             </div>
                         </div>
                     </div>
@@ -2707,14 +2744,15 @@ row, i
 :global(.dark .p-select-dropdown) {
     background-color: #212121 !important;
     color: #fff !important;
-   
+
 }
 
 :global(.dark .p-select-label) {
     color: #fff !important;
     background-color: #212121 !important;
 }
-:global(.dark .p-select-list){
+
+:global(.dark .p-select-list) {
     background-color: #212121 !important;
 }
 

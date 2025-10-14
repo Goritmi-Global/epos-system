@@ -49,7 +49,7 @@ const fetchCategories = async () => {
 };
 
 onMounted(async () => {
-     q.value = "";
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -116,7 +116,7 @@ const filtered = computed(() => {
     // Status filter
     if (filters.value.status !== "") {
         parents = parents.filter((cat) => {
-            return filters.value.status === "active" 
+            return filters.value.status === "active"
                 ? cat.active === 1 || cat.active === true
                 : cat.active === 0 || cat.active === false;
         });
@@ -252,78 +252,78 @@ const iconOptions = [
 ];
 
 const commonChips = ref([
-  {
-    label: "Hot Drinks",
-    value: "Hot Drinks",
-    icon: "☕",
-    selected: false,
-  },
-  {
-    label: "Cold Drinks",
-    value: "Cold Drinks",
-    icon: "🥤",
-    selected: false,
-  },
-  {
-    label: "Breakfast",
-    value: "Breakfast",
-    icon: "🍳",
-    selected: false,
-  },
-  {
-    label: "Street Snacks",
-    value: "Street Snacks",
-    icon: "🌯",
-    selected: false,
-  },
-  {
-    label: "Wala Wraps",
-    value: "Wala Wraps",
-    icon: "🌮",
-    selected: false,
-  },
-  {
-    label: "Bombay Toasties",
-    value: "Bombay Toasties",
-    icon: "🥪",
-    selected: false,
-  },
-  {
-    label: "Salads",
-    value: "Salads",
-    icon: "🥗",
-    selected: false,
-  },
-  {
-    label: "Bombay Bowls",
-    value: "Bombay Bowls",
-    icon: "🍛",
-    selected: false,
-  },
-  {
-    label: "Bakery",
-    value: "Bakery",
-    icon: "🥐",
-    selected: false,
-  },
-  {
-    label: "Soup",
-    value: "Soup",
-    icon: "🥣",
-    selected: false,
-  },
-  {
-    label: "Desserts",
-    value: "Desserts",
-    icon: "🍰",
-    selected: false,
-  },
-  {
-    label: "Ice Cream",
-    value: "Ice Cream",
-    icon: "🍦",
-    selected: false,
-  },
+    {
+        label: "Hot Drinks",
+        value: "Hot Drinks",
+        icon: "☕",
+        selected: false,
+    },
+    {
+        label: "Cold Drinks",
+        value: "Cold Drinks",
+        icon: "🥤",
+        selected: false,
+    },
+    {
+        label: "Breakfast",
+        value: "Breakfast",
+        icon: "🍳",
+        selected: false,
+    },
+    {
+        label: "Street Snacks",
+        value: "Street Snacks",
+        icon: "🌯",
+        selected: false,
+    },
+    {
+        label: "Wala Wraps",
+        value: "Wala Wraps",
+        icon: "🌮",
+        selected: false,
+    },
+    {
+        label: "Bombay Toasties",
+        value: "Bombay Toasties",
+        icon: "🥪",
+        selected: false,
+    },
+    {
+        label: "Salads",
+        value: "Salads",
+        icon: "🥗",
+        selected: false,
+    },
+    {
+        label: "Bombay Bowls",
+        value: "Bombay Bowls",
+        icon: "🍛",
+        selected: false,
+    },
+    {
+        label: "Bakery",
+        value: "Bakery",
+        icon: "🥐",
+        selected: false,
+    },
+    {
+        label: "Soup",
+        value: "Soup",
+        icon: "🥣",
+        selected: false,
+    },
+    {
+        label: "Desserts",
+        value: "Desserts",
+        icon: "🍰",
+        selected: false,
+    },
+    {
+        label: "Ice Cream",
+        value: "Ice Cream",
+        icon: "🍦",
+        selected: false,
+    },
 ]);
 
 
@@ -978,8 +978,12 @@ const downloadExcel = (data) => {
 };
 
 
+// handle import function for menu categories
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return; // Stop execution
+    }
 
     const headers = data[0];
     const rows = data.slice(1);
@@ -988,9 +992,34 @@ const handleImport = (data) => {
         return {
             category: row[0] || "",       // Parent category
             subcategory: row[1] || null,  // Child category (optional)
-            active: row[2] || 1           // Default active=1
+            active: row[2] == "0" ? 0 : 1 // Default active=1
         };
     });
+
+    // Check for duplicate parent category names within the CSV
+    const parentCategoryNames = categoriesToImport
+        .filter(cat => cat.category) // Only check parent categories
+        .map(cat => cat.category.trim().toLowerCase());
+    const duplicatesInCSV = parentCategoryNames.filter((name, index) => parentCategoryNames.indexOf(name) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate parent category names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return; // Stop execution
+    }
+
+    // Check for duplicate parent category names in the existing table
+    const existingParentCategoryNames = categories.value
+        .filter(cat => !cat.parent_id) // Only parent categories
+        .map(cat => cat.name.trim().toLowerCase());
+    const duplicatesInTable = categoriesToImport
+        .filter(cat => cat.category) // Only check parent categories
+        .filter(importCat => existingParentCategoryNames.includes(importCat.category.trim().toLowerCase()));
+
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(cat => cat.category).join(", ");
+        toast.error(`Parent categories already exist in the table: ${duplicateNamesList}`);
+        return; // Stop execution
+    }
 
     axios
         .post("/api/menu-categories/import", { categories: categoriesToImport })
@@ -1003,7 +1032,6 @@ const handleImport = (data) => {
             toast.error("Import failed");
         });
 };
-
 </script>
 
 <template>
@@ -1049,50 +1077,38 @@ const handleImport = (data) => {
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
                                 <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
-                          <FilterModal
-        v-model="filters"
-        title="Menu Categories"
-        modal-id="categoryFilterModal"
-        modal-size="modal-lg"
-        :sort-options="filterOptions.sortOptions"
-        :status-options="filterOptions.statusOptions"
-        :stock-status-options="filterOptions.stockStatusOptions"
-        :show-price-range="true"
-        price-label="Total Value Range"
-        @apply="handleFilterApply"
-        @clear="handleFilterClear"
-    >
-        <!-- Custom filters slot -->
-        <template #customFilters="{ filters }">
-            <div class="col-12">
-                <label class="form-label fw-semibold text-dark">
-                    <i class="fas fa-sitemap me-2 text-muted"></i>Subcategories
-                </label>
-                <select
-                    v-model="filters.hasSubcategories"
-                    class="form-select"
-                >
-                    <option value="">All</option>
-                    <option
-                        v-for="opt in filterOptions.hasSubcategoriesOptions"
-                        :key="opt.value"
-                        :value="opt.value"
-                    >
-                        {{ opt.label }}
-                    </option>
-                </select>
-            </div>
-        </template>
-    </FilterModal>
+                            <FilterModal v-model="filters" title="Menu Categories" modal-id="categoryFilterModal"
+                                modal-size="modal-lg" :sort-options="filterOptions.sortOptions"
+                                :status-options="filterOptions.statusOptions"
+                                :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="true"
+                                price-label="Total Value Range" @apply="handleFilterApply" @clear="handleFilterClear">
+                                <!-- Custom filters slot -->
+                                <template #customFilters="{ filters }">
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-sitemap me-2 text-muted"></i>Subcategories
+                                        </label>
+                                        <select v-model="filters.hasSubcategories" class="form-select">
+                                            <option value="">All</option>
+                                            <option v-for="opt in filterOptions.hasSubcategoriesOptions"
+                                                :key="opt.value" :value="opt.value">
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                </template>
+                            </FilterModal>
 
                             <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
                                 resetErrors;
@@ -1103,7 +1119,16 @@ const handleImport = (data) => {
                                 class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Category
                             </button>
-                            <ImportFile label="Import" @on-import="handleImport" />
+
+                            <ImportFile label="Import" :sampleHeaders="[
+                             'category', 'subcategory', 'active'
+                            ]" :sampleData="[
+                              ['Dairy', 'TestSubCat', 1],
+                                    ['Bakery', 'Bread', 1],
+                                    ['Beverages', 'Juices', 0]
+                            ]" @on-import="handleImport" />
+
+                            <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
@@ -1147,7 +1172,7 @@ const handleImport = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                               <tr v-for="(row, i) in sortedCategories" :key="row.id">
+                                <tr v-for="(row, i) in sortedCategories" :key="row.id">
                                     <td>{{ i + 1 }}</td>
                                     <td class="fw-semibold">
                                         {{ row.name }}
@@ -1184,7 +1209,7 @@ const handleImport = (data) => {
                                             class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                             <span class="fs-5">{{
                                                 row.icon || "📦"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </td>
                                     <td>{{ formatCurrencySymbol(row.total_value) }}</td>
@@ -1207,8 +1232,7 @@ const handleImport = (data) => {
                                                 () => {
                                                     editRow(row);
                                                 }
-                                            " title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                            " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Pencil class="w-4 h-4" />
                                             </button>
 
@@ -1322,7 +1346,7 @@ const handleImport = (data) => {
                                             <span>
                                                 <span class="me-2">{{
                                                     manualIcon.value
-                                                }}</span>
+                                                    }}</span>
                                                 {{ manualIcon.label }}
                                             </span>
                                             <i class="bi bi-caret-down-fill"></i>
@@ -1334,7 +1358,7 @@ const handleImport = (data) => {
                                                     ">
                                                     <span class="me-2">{{
                                                         opt.value
-                                                    }}</span>
+                                                        }}</span>
                                                     {{ opt.label }}
                                                 </a>
                                             </li>
@@ -1362,8 +1386,8 @@ const handleImport = (data) => {
                                         @keydown.enter.prevent="
                                             addCustomCategory
                                         " @blur="addCustomCategory" @filter="
-                                                (e) => (filterText = e.value)
-                                            ">
+                                            (e) => (filterText = e.value)
+                                        ">
                                         <template #option="{ option }">
                                             {{ option.label }}
                                         </template>
@@ -1387,14 +1411,14 @@ const handleImport = (data) => {
                                             'is-invalid':
                                                 catFormErrors?.subcategories ||
                                                 catFormErrors?.name,
-                                        }" placeholder="Select or add subcategories..." class="w-100"
-                                        appendTo="self" @filter="
+                                        }" placeholder="Select or add subcategories..." class="w-100" appendTo="self"
+                                        @filter="
                                             (e) =>
                                             (currentFilterValue =
                                                 e.value || '')
                                         " @keydown.enter.prevent="
-                                                addCustomSubcategory
-                                            " @blur="addCustomSubcategory">
+                                            addCustomSubcategory
+                                        " @blur="addCustomSubcategory">
                                         <template #option="{ option }">
                                             <div>{{ option.label }}</div>
                                         </template>
@@ -1404,7 +1428,7 @@ const handleImport = (data) => {
                                                     size="small" icon="pi pi-plus" @click="
                                                         addCustomSubcategory
                                                     " :disabled="!currentFilterValue.trim()
-                                                            " />
+                                                        " />
                                                 <div class="d-flex gap-2">
                                                     <Button label="Select All" severity="secondary" variant="text"
                                                         size="small" icon="pi pi-check" @click="
@@ -1507,7 +1531,7 @@ const handleImport = (data) => {
                                     }" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                }}</small>
+                                    }}</small>
                             </div>
                             <button type="button" class="btn btn-primary rounded-pill px-4" @click="submitSubCategory"
                                 :disabled="submittingSub">
@@ -1539,14 +1563,15 @@ const handleImport = (data) => {
 }
 
 
-.dark .p-3{
+.dark .p-3 {
     background-color: #181818 !important;
     color: #fff !important;
-} 
-
-:global(.dark .p-multiselect-empty-message){
-color: #fff !important;
 }
+
+:global(.dark .p-multiselect-empty-message) {
+    color: #fff !important;
+}
+
 .dark .table {
     background-color: #181818 !important;
     /* gray-900 */
@@ -1620,11 +1645,12 @@ color: #fff !important;
     height: 40px;
     background: #f1f5f9;
 }
-.dark .form-label{
+
+.dark .form-label {
     color: #fff !important;
 }
 
-.dark .form-select{
+.dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }

@@ -104,7 +104,7 @@ class MenuController extends Controller
         ]);
     }
 
-   public function import(Request $request): JsonResponse
+public function import(Request $request): JsonResponse
 {
     $items = $request->input('items', []);
 
@@ -121,7 +121,7 @@ class MenuController extends Controller
         // ✅ 2. Create Menu Item with price
         $item = MenuItem::create([
             'name' => $row['name'] ?? '',
-            'price' => $row['price'] ?? 0, // <— this ensures price is never null
+            'price' => $row['price'] ?? 0,
             'description' => $row['description'] ?? '',
             'category_id' => $category?->id,
             'active' => $row['active'] ?? 1,
@@ -136,6 +136,61 @@ class MenuController extends Controller
                 'protein' => $row['protein'] ?? 0,
                 'carbs' => $row['carbs'] ?? 0,
             ]);
+        }
+
+        // ✅ 4. Handle Allergies (comma-separated string or array)
+        if (!empty($row['allergies'])) {
+            $allergies = is_array($row['allergies']) 
+                ? $row['allergies'] 
+                : array_map('trim', explode(',', $row['allergies']));
+
+            foreach ($allergies as $allergyName) {
+                if (!empty($allergyName)) {
+                    // Find or create the allergy
+                    $allergy = Allergy::firstOrCreate(
+                        ['name' => $allergyName],
+                        ['description' => '', 'active' => 1]
+                    );
+
+                    // Attach to menu item via pivot table
+                    DB::table('menu_allergies')->insertOrIgnore([
+                        'menu_item_id' => $item->id,
+                        'allergy_id' => $allergy->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        // ✅ 5. Handle Tags (comma-separated string, array, or IDs)
+        if (!empty($row['tags'])) {
+            $tags = is_array($row['tags']) 
+                ? $row['tags'] 
+                : array_map('trim', explode(',', $row['tags']));
+
+            foreach ($tags as $tagValue) {
+                if (!empty($tagValue)) {
+                    // If it's numeric, treat as tag ID; otherwise find/create by name
+                    if (is_numeric($tagValue)) {
+                        $tagId = (int) $tagValue;
+                    } else {
+                        $tag = Tag::firstOrCreate(
+                            ['name' => $tagValue],
+                            ['description' => '', 'active' => 1]
+                        );
+                        $tagId = $tag->id;
+                    }
+
+                    // Attach to menu item via pivot table
+                    DB::table('menu_tags')->insertOrIgnore([
+                        'menu_item_id' => $item->id,
+                        'tag_id' => $tagId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
         }
     }
 

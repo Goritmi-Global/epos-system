@@ -46,7 +46,7 @@ const submit = () => {
             if (errors.pin) form.errors.pin = errors.pin;
         },
 
-       onFinish: () => form.reset("password", "password_confirmation", "pin"),
+    //    onFinish: () => form.reset("password", "password_confirmation", "pin"),
     });
 };
 
@@ -110,6 +110,7 @@ const registeredEmail = ref("");
                                             type="email"
                                             v-model="form.email"
                                             placeholder="Enter your email address"
+                                            :class="{ 'is-invalid': form.errors.email }"
                                         />
                                         <img
                                             src="/assets/img/icons/mail.svg"
