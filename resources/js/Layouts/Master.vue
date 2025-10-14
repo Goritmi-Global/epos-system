@@ -486,7 +486,7 @@ onMounted(fetchNotifications);
                                         <span
                                             class="inline-flex notifi-span items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1"
                                             :class="{
-                                                'text-red-700 bg-red-100': n.status?.toLowerCase() === 'out_of_stock',
+                                                'text-red-700 bg-red-300': n.status?.toLowerCase() === 'out_of_stock',
                                                 'text-yellow-700 bg-yellow-100': n.status?.toLowerCase() === 'low_stock',
                                                 'text-orange-700 bg-orange-200': n.status?.toLowerCase() === 'expired',
                                                 'text-blue-700 bg-blue-100': n.status?.toLowerCase() === 'near_expiry'
