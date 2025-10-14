@@ -30,4 +30,9 @@ class Unit extends Model
     {
         return $this->hasMany(Unit::class, 'base_unit_id');
     }
+
+    public function inventoryItems()
+    {
+        return $this->hasMany(InventoryItem::class, 'unit_id');
+    }
 }

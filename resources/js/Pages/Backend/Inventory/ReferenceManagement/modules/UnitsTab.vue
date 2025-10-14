@@ -123,13 +123,28 @@ const openEdit = (row) => {
 
 const deleteUnit = async (row) => {
     try {
+        // Reset previous errors
+        formErrors.value = {};
+
+        // Send delete request
         await axios.delete(`/units/${row.id}`);
+
+        // Remove deleted unit from list
         units.value = units.value.filter((t) => t.id !== row.id);
+
         toast.success("Unit deleted successfully");
-    } catch (e) {
-        toast.error("Delete failed");
+    } catch (error) {
+        // Extract backend message if available
+        if (error.response && error.response.data && error.response.data.message) {
+            formErrors.value.delete = error.response.data.message; // store message
+            toast.error(error.response.data.message); // optional toast
+        } else {
+            formErrors.value.delete = "An unexpected error occurred while deleting the unit.";
+            toast.error("Delete failed");
+        }
     }
 };
+
 
 const isSubmitting = ref(false);
 const onSubmit = async () => {

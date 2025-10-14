@@ -2,6 +2,8 @@
 
 namespace App\Services\Reference;
 
+use App\Models\InventoryItem;
+use App\Models\PurchaseItem;
 use App\Models\Unit;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -71,22 +73,22 @@ class UnitsService
     /**
      * Update an existing unit
      */
-   public function update(Unit $unit, array $data): Unit
-{
-    $unit->name = $data['name'] ?? $unit->name;
+    public function update(Unit $unit, array $data): Unit
+    {
+        $unit->name = $data['name'] ?? $unit->name;
 
-    if (array_key_exists('base_unit_id', $data)) {
-        $unit->base_unit_id = $data['base_unit_id'] ?: null;
+        if (array_key_exists('base_unit_id', $data)) {
+            $unit->base_unit_id = $data['base_unit_id'] ?: null;
+        }
+
+        if (array_key_exists('conversion_factor', $data)) {
+            $unit->conversion_factor = $data['conversion_factor'] ?: 1;
+        }
+
+        $unit->save();
+
+        return $unit;
     }
-
-    if (array_key_exists('conversion_factor', $data)) {
-        $unit->conversion_factor = $data['conversion_factor'] ?: 1;
-    }
-
-    $unit->save();
-
-    return $unit;
-}
 
 
     /**
@@ -96,6 +98,13 @@ class UnitsService
     {
         // Consider what to do with derived units — set base_unit_id null or cascade deletion.
         // Current migration uses onDelete('set null'), so deleting a base unit leaves derived units with NULL base_unit_id.
+        $inUse = InventoryItem::where('unit_id', $unit->id)->exists();
+
+        if ($inUse) {
+            // Throw exception to handle gracefully in controller
+            throw new \Exception("This unit is already in use and cannot be deleted.");
+        }
+
         $unit->delete();
     }
 }
