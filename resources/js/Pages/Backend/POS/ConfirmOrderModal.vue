@@ -26,7 +26,7 @@ const props = defineProps({
     paymentMethod: String,
     change: Number,
 });
-
+console.log(props.orderItems);
 const autoPrintKot = ref(false);
 
 const emit = defineEmits(["close", "confirm", "update:cashReceived"]);
@@ -219,7 +219,7 @@ item, index
                                                             <td class="text-end">
                                                                 {{
                                                                     formatCurrencySymbol(
-                                                                        item.price
+                                                                        item.unit_price
                                                                     )
                                                                 }}
                                                             </td>
@@ -227,7 +227,7 @@ item, index
                                                                 {{
                                                                     formatCurrencySymbol(
                                                                         (Number(
-                                                                            item.price
+                                                                            item.unit_price
                                                                         ) ||
                                                                             0) *
                                                                         (Number(

@@ -1725,11 +1725,11 @@ ing, idx
                                                             </td>
                                                             <td>
                                                                 {{
-                                                                    ing.unitPrice
+                                                                   formatCurrencySymbol(ing.unitPrice)
                                                                 }}
                                                             </td>
                                                             <td>
-                                                                {{ ing.cost }}
+                                                                {{ formatCurrencySymbol(ing.cost) }}
                                                             </td>
                                                         </tr>
                                                     </tbody>
