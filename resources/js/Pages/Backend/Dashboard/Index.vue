@@ -426,16 +426,16 @@ const filteredOrders = computed(() => {
 const orderAverages = computed(() => {
   switch (selectedTimeFilter.value) {
     case 'today':
-      return props.todayOrderAverage;
+      return props.todayOrderAverage ?? 0;
     case '3d':
-      return props.threeDaysOrderAverage;
+      return props.threeDaysOrderAverage ?? 0;
     case '7d':
-      return props.sevenDaysOrderAverage;
+      return props.sevenDaysOrderAverage ?? 0;
     case '1y':
-      return props.yearOrderAverage;
+      return props.yearOrderAverage ?? 0;
     case 'all':
     default:
-      return props.totalOrderAverage;
+      return props.totalOrderAverage ?? 0;
   }
 });
 

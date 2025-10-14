@@ -700,7 +700,7 @@ onMounted(fetchNotifications);
                         <div class="col-md-6">
                             <label class="form-label">Role</label>
                             <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.role }"
-                                v-model="profileForm.role" />
+                                v-model="profileForm.role" readonly/>
                             <div v-if="formErrors.role" class="invalid-feedback">
                                 {{ formErrors.role[0] }}
                             </div>
