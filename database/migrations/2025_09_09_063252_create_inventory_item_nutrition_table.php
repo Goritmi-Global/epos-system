@@ -15,10 +15,10 @@ return new class extends Migration
                   ->constrained('inventory_items')
                   ->cascadeOnDelete();
 
-            $table->decimal('calories', 10, 2)->default(0);
-            $table->decimal('fat', 10, 2)->default(0);
-            $table->decimal('carbs', 10, 2)->default(0);
-            $table->decimal('protein', 10, 2)->default(0);
+            $table->decimal('calories', 10, 3)->default(0);
+            $table->decimal('fat', 10, 3)->default(0);
+            $table->decimal('carbs', 10, 3)->default(0);
+            $table->decimal('protein', 10, 3)->default(0);
 
             $table->timestamps();
 

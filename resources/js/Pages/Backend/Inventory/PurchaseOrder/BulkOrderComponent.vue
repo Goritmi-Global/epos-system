@@ -246,7 +246,7 @@ async function bulkSubmit() {
                     </div>
 
                     <div class="text-end fw-bold mt-3">
-                        Total: {{ b_total.toFixed(2) }}
+                        Total: {{ formatCurrencySymbol(b_total.toFixed(2)) }}
                     </div>
                 </div>
 

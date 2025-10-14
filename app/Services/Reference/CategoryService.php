@@ -123,10 +123,16 @@ class CategoryService
      */
     public function getAllCategories()
     {
-        return InventoryCategory::withCount('primaryInventoryItems')
+        return InventoryCategory::with([
+            'subcategories' => function ($query) {
+                $query->withCount('primaryInventoryItems');
+            },
+        ])
+            ->withCount('primaryInventoryItems')
             ->whereNull('parent_id')
             ->get()
             ->map(function ($category) {
+                // Add total count for parent
                 $category->total_inventory_items = $category->primary_inventory_items_count;
 
                 return $category;

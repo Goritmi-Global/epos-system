@@ -69,7 +69,10 @@ class InventoryService
                     'image_url'     => UploadHelper::url($item->upload_id),
                     'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
                 ];
+
             });
+       
+            
     }
 
     /** ----------------------------------------------------------------

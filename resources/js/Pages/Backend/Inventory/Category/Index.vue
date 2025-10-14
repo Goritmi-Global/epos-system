@@ -135,72 +135,72 @@ const iconOptions = [
 ];
 
 const commonChips = ref([
-  {
-    label: "Produce (Veg/Fruit)",
-    value: "Produce (Veg/Fruit)",
-    icon: "🥬",
-    selected: false,
-  },
-  {
-    label: "Meat",
-    value: "Meat",
-    icon: "🥩",
-    selected: false,
-  },
-  {
-    label: "Poultry",
-    value: "Poultry",
-    icon: "🍗",
-    selected: false,
-  },
-  {
-    label: "Dairy",
-    value: "Dairy",
-    icon: "🧀",
-    selected: false,
-  },
-  {
-    label: "Grains & Rice",
-    value: "Grains & Rice",
-    icon: "🌾",
-    selected: false,
-  },
-  {
-    label: "Flour & Baking",
-    value: "Flour & Baking",
-    icon: "🍞",
-    selected: false,
-  },
-  {
-    label: "Spices & Herbs",
-    value: "Spices & Herbs",
-    icon: "🧂",
-    selected: false,
-  },
-  {
-    label: "Oils & Fats",
-    value: "Oils & Fats",
-    icon: "🫒",
-    selected: false,
-  },
-  {
-    label: "Sauces & Condiments",
-    value: "Sauces & Condiments",
-    icon: "🍶",
-    selected: false,
-  },
-  {
-    label: "Nuts & Seeds",
-    value: "Nuts & Seeds",
-    icon: "🥜",
-    selected: false,
-  },
-  {
-    label: "Other",
-    value: "Other",
-    icon: "🧰",
-    selected: false,
-  },
+    {
+        label: "Produce (Veg/Fruit)",
+        value: "Produce (Veg/Fruit)",
+        icon: "🥬",
+        selected: false,
+    },
+    {
+        label: "Meat",
+        value: "Meat",
+        icon: "🥩",
+        selected: false,
+    },
+    {
+        label: "Poultry",
+        value: "Poultry",
+        icon: "🍗",
+        selected: false,
+    },
+    {
+        label: "Dairy",
+        value: "Dairy",
+        icon: "🧀",
+        selected: false,
+    },
+    {
+        label: "Grains & Rice",
+        value: "Grains & Rice",
+        icon: "🌾",
+        selected: false,
+    },
+    {
+        label: "Flour & Baking",
+        value: "Flour & Baking",
+        icon: "🍞",
+        selected: false,
+    },
+    {
+        label: "Spices & Herbs",
+        value: "Spices & Herbs",
+        icon: "🧂",
+        selected: false,
+    },
+    {
+        label: "Oils & Fats",
+        value: "Oils & Fats",
+        icon: "🫒",
+        selected: false,
+    },
+    {
+        label: "Sauces & Condiments",
+        value: "Sauces & Condiments",
+        icon: "🍶",
+        selected: false,
+    },
+    {
+        label: "Nuts & Seeds",
+        value: "Nuts & Seeds",
+        icon: "🥜",
+        selected: false,
+    },
+    {
+        label: "Other",
+        value: "Other",
+        icon: "🧰",
+        selected: false,
+    },
 ]);
 
 
@@ -564,6 +564,7 @@ const submittingSub = ref(false);
 const subCatErrors = ref("");
 
 const submitSubCategory = async () => {
+    submittingSub.value = true;
     if (!editingSubCategory.value.name.trim()) {
         subCatErrors.value = "Subcategory name cannot be empty";
         return;
@@ -857,20 +858,46 @@ const downloadExcel = (data) => {
     }
 };
 
-// handle import function
+// handle import function for categories
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return; // Stop execution
+    }
 
-    const headers = data[0]; // ["category","subcategory","icon","active"]
+    const headers = data[0]; // ["category","subcategory","active"]
     const rows = data.slice(1);
 
     const categoriesToImport = rows.map((row) => {
         return {
-            category: row[0] || "", // Parent category
-            subcategory: row[1] || null, // Child category (optional)
-            active: row[2] || 1, // Default active=1
+            category: row[0] || "",
+            subcategory: row[1] || null,
+            active: row[2] == "0" ? 0 : 1,
         };
     });
+
+    // Check for duplicate category names within the CSV
+    const categoryNames = categoriesToImport
+        .filter(cat => cat.category) // Only check parent categories
+        .map(cat => cat.category.trim().toLowerCase());
+    const duplicatesInCSV = categoryNames.filter((name, index) => categoryNames.indexOf(name) !== index);
+    
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate category names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return; // Stop execution
+    }
+
+    // Check for duplicate category names in the existing table
+    const existingCategoryNames = parentCategories.value.map(cat => cat.name.trim().toLowerCase());
+    const duplicatesInTable = categoriesToImport
+        .filter(cat => cat.category) // Only check parent categories
+        .filter(importCat => existingCategoryNames.includes(importCat.category.trim().toLowerCase()));
+    
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(cat => cat.category).join(", ");
+        toast.error(`Categories already exist in the table: ${duplicateNamesList}`);
+        return; // Stop execution
+    }
 
     axios
         .post("/api/categories/import", { categories: categoriesToImport })
@@ -1032,7 +1059,7 @@ const handleImport = (data) => {
                                             class="rounded d-inline-flex align-items-center justify-content-center img-chip">
                                             <span class="fs-5">{{
                                                 row.icon || "📦"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </td>
                                     <td>{{ formatCurrencySymbol(row.total_value) }}</td>
@@ -1109,7 +1136,7 @@ const handleImport = (data) => {
                                 <strong>Icon:</strong>
                                 <span class="fs-4">{{
                                     viewingCategory.icon
-                                }}</span>
+                                    }}</span>
                             </p>
                             <p>
                                 <strong>Status:</strong>
@@ -1229,7 +1256,7 @@ const handleImport = (data) => {
                                             <span>
                                                 <span class="me-2">{{
                                                     manualIcon.value
-                                                }}</span>
+                                                    }}</span>
                                                 {{ manualIcon.label }}
                                             </span>
                                             <i class="bi bi-caret-down-fill"></i>
@@ -1240,7 +1267,7 @@ const handleImport = (data) => {
                                                     @click="manualIcon = opt">
                                                     <span class="me-2">{{
                                                         opt.value
-                                                    }}</span>
+                                                        }}</span>
                                                     {{ opt.label }}
                                                 </a>
                                             </li>
@@ -1404,12 +1431,16 @@ const handleImport = (data) => {
                                     v-model="editingSubCategory.name" :disabled="submittingSub" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                }}</small>
+                                    }}</small>
                             </div>
-                            <button type="button" class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
+                            <button type="button"
+                                class="px-4 py-2 rounded-pill btn btn-primary text-white text-center d-flex align-items-center justify-content-center gap-2"
                                 @click="submitSubCategory" :disabled="submittingSub">
-                                {{ submittingSub ? "Saving..." : "Update" }}
+                                <span v-if="submittingSub" class="spinner-border spinner-border-sm text-light"
+                                    role="status"></span>
+                                <span>{{ submittingSub ? "Saving..." : "Save" }}</span>
                             </button>
+
                         </div>
                     </div>
                 </div>

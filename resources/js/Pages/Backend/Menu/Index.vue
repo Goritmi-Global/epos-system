@@ -1210,11 +1210,15 @@ const downloadExcel = (data) => {
     }
 };
 
+// handle import function for menu items
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return; // Stop execution
+    }
 
     const headers = data[0];
-    // CSV headers: ["name","sku","category","purchase_price","sale_price","stock","active","calories","fat","protein","carbs"]
+    // CSV headers: ["name","category","active","price","calories","fat","protein","carbs"]
     const rows = data.slice(1);
 
     const itemsToImport = rows.map((row) => {
@@ -1229,6 +1233,27 @@ const handleImport = (data) => {
             carbs: parseFloat(row[7]) || 0,
         };
     });
+
+    // Check for duplicate item names within the CSV
+    const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
+    const duplicatesInCSV = itemNames.filter((name, index) => itemNames.indexOf(name) !== index);
+    
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return; // Stop execution
+    }
+
+    // Check for duplicate item names in the existing menu items table
+    const existingMenuItemNames = menuItems.value.map(item => item.name.trim().toLowerCase());
+    const duplicatesInTable = itemsToImport.filter(importItem => 
+        existingMenuItemNames.includes(importItem.name.trim().toLowerCase())
+    );
+    
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(item => item.name).join(", ");
+        toast.error(`Menu items already exist in the table: ${duplicateNamesList}`);
+        return; // Stop execution
+    }
 
     axios
         .post("/api/menu/menu_items/import", { items: itemsToImport })
@@ -1340,7 +1365,7 @@ const handleImport = (data) => {
         '100',
         'calories: 66.00; protein: 46.00; fat: 88.00; carbs: 62.00',
         'Gluten',
-        'Gluten-Free, Organic'
+        'Gluten-Free'
     ]
 ]" @on-import="handleImport" />
 
