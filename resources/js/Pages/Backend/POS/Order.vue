@@ -736,8 +736,9 @@ onMounted(fetchPrinters);
                                     </td>
 
                                     <td>
-                                        {{ o.promo?.promo_name ?? 0 }}
+                                        {{ o.promo?.promo_name || '-' }}
                                     </td>
+
 
                                     <!-- Total after discount -->
                                     <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
@@ -1027,10 +1028,13 @@ onMounted(fetchPrinters);
                                                 <td>{{ item.quantity }}</td>
                                                 <td class="fw-semibold">{{ formatCurrencySymbol(item.price) }}</td>
                                                 <td>-</td>
-                                                <td> <span v-if="selectedOrder.promo.promo_name">
-                                                        ({{ selectedOrder.promo.promo_name }})
-                                                    </span></td>
-                                                <td class="fw-bold text-success">{{ formatCurrencySymbol(item.price) }}</td>
+                                                <td>
+                                                    {{ selectedOrder?.promo?.promo_name || '-' }}
+                                                </td>
+                                                <td class="fw-bold text-success">
+                                                    {{ formatCurrencySymbol(item.price) }}
+                                                </td>
+
                                             </tr>
 
                                             <!-- Promo Discount Row (applied at order level) -->
@@ -1040,12 +1044,12 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td colspan="3" class="text-end text-muted">
                                                     Promo Discount
-                                                   
+
                                                 </td>
                                                 <td class="text-success fw-semibold" colspan="3">
                                                     -{{ formatCurrencySymbol(selectedOrder.promo.discount_amount) }}
                                                 </td>
-                                                
+
                                             </tr>
 
                                             <!-- Grand Total Row -->
