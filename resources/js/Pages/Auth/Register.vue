@@ -224,7 +224,7 @@ const registeredEmail = ref("");
                                         class="btn btn-login"
                                         :disabled="form.processing"
                                     >
-                                        Sign Up
+                                        Register
                                     </button>
                                 </div>
                             </form>
