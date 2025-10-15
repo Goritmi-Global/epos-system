@@ -1,10 +1,10 @@
 <script scoped>
 
-
 export default {
   name: 'EposLanding',
   data() {
     return {
+       showScrollTop: false,
       features: [
         {
           title: 'Inventory Management',
@@ -162,12 +162,30 @@ export default {
       ]
     }
   },
+
+  mounted() {
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
+  },
+
   methods: {
+
+     handleScroll() {
+      this.showScrollTop = window.pageYOffset > 300;
+    },
+    scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    },
     scrollToSection(section) {
       // Add scroll logic
     },
     startFreeTrial() {
-      // Add trial logic
+
     },
     watchDemo() {
       // Add demo logic
@@ -184,7 +202,7 @@ export default {
     <!-- Navigation -->
     <nav class="navbar bg-red navbar-expand-lg navbar-dark">
       <div class="container">
-        <a class="navbar-brand fw-bold" href="#">EPOS</a>
+        <a class="navbar-brand fw-bold" href="#">10X GLOBAL</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
           <span class="navbar-toggler-icon"></span>
         </button>
@@ -207,32 +225,37 @@ export default {
           </li>
         </ul>
         <button class="btn btn-light btn-get-trial" @click="startFreeTrial">Get Free Trial</button>
+        <button class="btn btn-light btn-get-trial" @click="startFreeTrial">Login</button>
 
       </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero-section">
-      <div class="container">
-        <div class="row align-items-center">
-          <div class="col-lg-6">
-            <h1 class="hero-title mb-4">
-              Modern Cloud-Based EPOS<br>
-              for Restaurants <span class="text-light-blue">& Retail.</span>
-            </h1>
-            <div class="d-flex gap-3">
-              <button class="btn btn-primary btn-lg" @click="startFreeTrial">Start Free Trial</button>
-              <button class="btn btn-outline-light btn-lg" @click="watchDemo">Watch Demo</button>
-            </div>
-          </div>
-          <div class="col-lg-6">
-            <div class="hero-devices">
-              <img src="/assets/img/hero-section-laptops.png" alt="Analytics Dashboard" class="device-right">
-            </div>
-          </div>
+   <section class="hero-section">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <h1 class="hero-title mb-4">
+          Modern Cloud-Based EPOS<br>
+          for Restaurants <span class="text-light-blue">& Retail.</span>
+        </h1>
+
+        <!-- Buttons -->
+        <div class="d-flex gap-3">
+          <button class="btn btn-primary px-4 py-2" @click="startFreeTrial">Start Free Trial</button>
+          <button class="btn btn-outline-light py-2 px-4" @click="watchDemo">Watch Demo</button>
         </div>
       </div>
-    </section>
+
+      <div class="col-lg-6">
+        <div class="hero-devices">
+          <img src="/assets/img/hero-section-laptops.png" alt="Analytics Dashboard" class="device-right">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 
     <!-- Features Section -->
     <section id="features" class="features-section py-5">
@@ -412,7 +435,7 @@ export default {
           <div class="col-md-2 col-sm-4 col-6 mb-4" v-for="page in pages" :key="page.id">
             <div class="circle-box text-center mx-auto">
               <div class="circle-number">{{ page.id }}</div>
-              <p class="circle-text mb-0">{{ page.text }}</p>
+              <p class="circle-text  mb-0">{{ page.text }}</p>
             </div>
           </div>
         </div>
@@ -461,7 +484,7 @@ export default {
           <div class="col-md-6 text-white p-5 d-flex flex-column justify-content-center right-info-section">
             <h3 class="fw-bold">Lorem ipsum dolor <br> <span class="text-light">sit amet</span></h3>
             <h6 class="text-uppercase text-dark mt-3">Think We Do Next.</h6>
-            <p class="mt-4">Our team will contact you within one business day.<br>
+            <p class="mt-4 footer-para">Our team will contact you within one business day.<br>
               We will conduct an initial discussion to understand your requirements.<br>
               Our analysts and developers will assess the project scope.<br>
               We will collaboratively propose the next steps.<br>
@@ -516,7 +539,14 @@ export default {
       </footer>
     </section>
 
-
+<button 
+  v-show="showScrollTop" 
+  @click="scrollToTop" 
+  class="scroll-to-top-btn"
+  aria-label="Scroll to top"
+>
+  <i class="bi bi-arrow-up"></i>
+</button>
   </div>
 </template>
 
@@ -528,6 +558,23 @@ export default {
   --text-light: #E8EAFF;
 }
 
+.hero-section::before {
+  pointer-events: none; /* prevent overlay from blocking clicks */
+  z-index: 0;
+}
+
+.container.shadow-light {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+}
+
+
+.hero-section .container,
+.hero-section .row,
+.hero-section .col-lg-6 {
+  position: relative;
+  z-index: 1; /* ensures buttons & text stay above the overlay */
+}
 #free-trial {
   position: relative;
   z-index: 2;
@@ -535,13 +582,53 @@ export default {
   /* adjust value depending on your design */
 }
 
+.hero-section .btn-primary {
+  background: #3B4DA8;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.col-md-3{
+  line-height: 30px;
+} 
+
+.hero-section .btn-primary:hover {
+  background: #5b74e8;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(59, 77, 168, 0.4);
+}
+
+.hero-section .btn-outline-light {
+
+  color: white;
+  padding: 12px 32px;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.hero-section .btn-outline-light:hover {
+  background: white;
+  color: #3B4DA8;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+}
+
+
+
 #frequent-pages {
   position: relative;
   z-index: 1;
 }
 
+
 .footer-para{
   margin-top: 60px;
+  line-height: 30px;
 }
 
 #frequent-pages {
@@ -608,12 +695,13 @@ export default {
 }
 
 .btn-get-trial {
-  background: #2C50AA;
+  background: #1C0D82;
   color: white;
   font-weight: 600;
   padding: 8px 24px;
   border-radius: 6px;
   border: none;
+  margin-right: 7px;
 }
 
 .btn-get-trial:hover {
@@ -1189,4 +1277,56 @@ export default {
 input {
   border: 1px solid #fff !important;
 }
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  background: #1C0D82;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 15px rgba(74, 95, 191, 0.3);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  animation: fadeIn 0.3s ease;
+}
+
+.scroll-to-top-btn:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(74, 95, 191, 0.4);
+  background: linear-gradient(135deg, #5B6FD8 0%, #7B8EE8 100%);
+}
+
+.scroll-to-top-btn:active {
+  transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .scroll-to-top-btn {
+    width: 45px;
+    height: 45px;
+    bottom: 20px;
+    right: 20px;
+    font-size: 18px;
+  }
+}
+
 </style>
