@@ -100,18 +100,17 @@ function addIngredient(item) {
             ? Number(item.unitPrice)
             : Number(item.defaultPrice || 0);
 
-    formErrors.value = {};
+    // clear only this item's errors
+    formErrors.value[item.id] = {};
 
-    if (!qty || qty <= 0) formErrors.value.qty = "Enter a valid quantity.";
-    if (!price || price <= 0)
-        formErrors.value.unitPrice = "Enter a valid unit price.";
+    // validation for this item only
+    if (!qty || qty <= 0) formErrors.value[item.id].qty = "Enter a valid quantity.";
+    if (!price || price <= 0) formErrors.value[item.id].unitPrice = "Enter a valid unit price.";
 
-    if (Object.keys(formErrors.value).length > 0) {
-        const messages = Object.values(formErrors.value).flat().join("\n");
-        toast.error(messages, {
-            style: { whiteSpace: "pre-line" },
-        });
-
+    // if validation errors exist for this item
+    if (Object.keys(formErrors.value[item.id]).length > 0) {
+        const messages = Object.values(formErrors.value[item.id]).join("\n");
+        toast.error(messages, { style: { whiteSpace: "pre-line" } });
         return;
     }
 
@@ -1237,7 +1236,7 @@ const handleImport = (data) => {
     // Check for duplicate item names within the CSV
     const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
     const duplicatesInCSV = itemNames.filter((name, index) => itemNames.indexOf(name) !== index);
-    
+
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
         return; // Stop execution
@@ -1245,10 +1244,10 @@ const handleImport = (data) => {
 
     // Check for duplicate item names in the existing menu items table
     const existingMenuItemNames = menuItems.value.map(item => item.name.trim().toLowerCase());
-    const duplicatesInTable = itemsToImport.filter(importItem => 
+    const duplicatesInTable = itemsToImport.filter(importItem =>
         existingMenuItemNames.includes(importItem.name.trim().toLowerCase())
     );
-    
+
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(item => item.name).join(", ");
         toast.error(`Menu items already exist in the table: ${duplicateNamesList}`);
@@ -1349,25 +1348,25 @@ const handleImport = (data) => {
                                 'Allergies',
                                 'Tags'
                             ]" :sampleData="[
-    [
-        'Chicken',
-        'Spices & Herbs',
-        'Test',
-        '100',
-        'calories: 99.00; protein: 69.00; fat: 132.00; carbs: 93.00',
-        'Gluten',
-        'Gluten-Free'
-    ],
-    [
-        'Aalo',
-        'Spices & Herbs',
-        'xzc',
-        '100',
-        'calories: 66.00; protein: 46.00; fat: 88.00; carbs: 62.00',
-        'Gluten',
-        'Gluten-Free'
-    ]
-]" @on-import="handleImport" />
+                                [
+                                    'Chicken',
+                                    'Spices & Herbs',
+                                    'Test',
+                                    '100',
+                                    'calories: 99.00; protein: 69.00; fat: 132.00; carbs: 93.00',
+                                    'Gluten',
+                                    'Gluten-Free'
+                                ],
+                                [
+                                    'Aalo',
+                                    'Spices & Herbs',
+                                    'xzc',
+                                    '100',
+                                    'calories: 66.00; protein: 46.00; fat: 88.00; carbs: 62.00',
+                                    'Gluten',
+                                    'Gluten-Free'
+                                ]
+                            ]" @on-import="handleImport" />
 
                             <!-- Download all -->
                             <div class="dropdown">
@@ -1594,8 +1593,8 @@ const handleImport = (data) => {
                                 <div class="col-md-6">
                                     <label class="form-label d-block">Allergies</label>
                                     <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
-                                        optionValue="id" filter placeholder="Select Allergies" class="select w-full md:w-80"
-                                        appendTo="self" :class="{
+                                        optionValue="id" filter placeholder="Select Allergies"
+                                        class="select w-full md:w-80" appendTo="self" :class="{
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <br />
@@ -1724,9 +1723,9 @@ ing, idx
                                                                 {{ ing.qty }}
                                                             </td>
                                                             <td>
-                                                              
-                                                               {{formatCurrencySymbol(ing.unitPrice)}}
-                                                               
+
+                                                                {{ formatCurrencySymbol(ing.unitPrice) }}
+
                                                             </td>
                                                             <td>
                                                                 {{ formatCurrencySymbol(ing.cost) }}
@@ -1871,20 +1870,16 @@ ing, idx
                                                     <label class="small text-muted">Quantity</label>
                                                     <input v-model.number="it.qty" type="number" min="0"
                                                         class="form-control form-control-sm" />
-                                                    <small v-if="formErrors.qty" class="text-danger">
-                                                        {{ formErrors.qty }}
+                                                    <small v-if="formErrors[it.id]?.qty" class="text-danger">
+                                                        {{ formErrors[it.id].qty }}
                                                     </small>
                                                 </div>
                                                 <div class="col-4">
                                                     <label class="small text-muted">Unit Price</label>
                                                     <input v-model.number="it.unitPrice
                                                         " type="number" min="0" class="form-control form-control-sm" />
-                                                    <small v-if="
-                                                        formErrors.unitPrice
-                                                    " class="text-danger">
-                                                        {{
-                                                            formErrors.unitPrice
-                                                        }}
+                                                    <small v-if="formErrors[it.id]?.unitPrice" class="text-danger">
+                                                        {{ formErrors[it.id].unitPrice }}
                                                     </small>
                                                 </div>
                                             </div>
@@ -1993,8 +1988,9 @@ ing, idx
     color: #ffffff !important;
     /* gray-50 */
 }
-:global(.dark .p-multiselect-empty-message){
-color: #fff !important;
+
+:global(.dark .p-multiselect-empty-message) {
+    color: #fff !important;
 }
 
 .dark .table {
@@ -2047,10 +2043,12 @@ color: #fff !important;
     color: #6b7280;
     font-size: 1rem;
 }
+
 .dark .select {
     background-color: #181818 !important;
     color: #f9fafb !important;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
@@ -2114,7 +2112,7 @@ color: #fff !important;
     font-weight: 500;
 }
 
-.dark .form-label.text-muted{
+.dark .form-label.text-muted {
     color: #fff !important;
 }
 

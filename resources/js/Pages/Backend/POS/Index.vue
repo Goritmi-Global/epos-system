@@ -1001,7 +1001,7 @@ onMounted(() => bumpToasts());
 onMounted(() => {
     const s = page.props.flash?.success;
     const e = page.props.flash?.error;
-    if (s) toast.success(s);
+    // if (s) toast.success(s);
     if (e) toast.error(e);
 
     const payload = page.props.flash?.print_payload; // from controller
