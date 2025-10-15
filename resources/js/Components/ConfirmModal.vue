@@ -7,8 +7,8 @@
         ]" :title="showConfirmRestore ? 'Restore System' : 'Delete'">
             <template v-if="showConfirmRestore">
                 <!-- Custom icon + text for Restore -->
-              <RefreshCcw class="w-6 h-6" />
-<span v-if="!isCollapsed" class="ml-2">Restore System</span>
+                <RefreshCcw class="w-6 h-6" />
+                <span v-if="!isCollapsed" class="ml-2">Restore System</span>
 
             </template>
             <template v-else>
@@ -19,9 +19,6 @@
                 </svg>
             </template>
         </button>
-
-
-
 
         <!-- Status Change Trigger Button -->
         <!-- Toggle Status Button -->
@@ -100,7 +97,7 @@ const props = defineProps({
     showDeleteButton: Boolean,
     showStatusButton: { type: Boolean, default: false },
     showConfirmRestore: { type: Boolean, default: false },
-     isCollapsed: { type: Boolean, default: false }, // 👈 new prop
+    isCollapsed: { type: Boolean, default: false }, // 👈 new prop
 });
 
 const emit = defineEmits(["confirm", "cancel"]);
@@ -119,7 +116,6 @@ const handleCancel = () => {
 </script>
 
 <style scoped>
-
 /* Keep icon centered when collapsed */
 .sidebar-btn {
     border-radius: 10px !important;
@@ -169,13 +165,14 @@ const handleCancel = () => {
 .animate-drop-in {
     animation: dropIn 0.25s ease-out;
 }
-.sidebar-btn{
-   
+
+.sidebar-btn {
+
     border-radius: 10px !important;
     width: 160px !important;
 }
 
-.sidebar-btn:hover{
+.sidebar-btn:hover {
     color: #fff !important;
     background-color: #1B2850 !important;
 }
