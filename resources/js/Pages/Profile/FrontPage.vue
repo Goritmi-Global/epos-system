@@ -424,7 +424,7 @@ export default {
         <div class="row align-items-stretch shadow-lg">
           <!-- Left: Form Section -->
           <div class="col-md-6 bg-dark text-white p-5">
-            <h3 class="text-primary fw-bold mb-4">Start Free <span class="text-white">Trial</span></h3>
+            <h3 class="text-white fw-bold mb-4">Start Free <span class="text-primary">Trial</span></h3>
             <form>
               <div class="row mb-3">
                 <div class="col">
@@ -458,9 +458,9 @@ export default {
           </div>
 
           <!-- Right: Info Section -->
-          <div class="col-md-6 bg-primary text-white p-5 d-flex flex-column justify-content-center">
+          <div class="col-md-6 text-white p-5 d-flex flex-column justify-content-center right-info-section">
             <h3 class="fw-bold">Lorem ipsum dolor <br> <span class="text-light">sit amet</span></h3>
-            <h6 class="text-uppercase text-light mt-3">Think We Do Next.</h6>
+            <h6 class="text-uppercase text-dark mt-3">Think We Do Next.</h6>
             <p class="mt-4">Our team will contact you within one business day.<br>
               We will conduct an initial discussion to understand your requirements.<br>
               Our analysts and developers will assess the project scope.<br>
@@ -468,6 +468,7 @@ export default {
               All information exchanges are secure and confidential.
             </p>
           </div>
+
         </div>
       </div>
 
@@ -476,7 +477,7 @@ export default {
         <div class="container">
           <div class="row">
             <div class="col-md-3">
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
+              <p class="footer-para">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
             </div>
             <div class="col-md-3">
               <h6 class="fw-bold">Menu</h6>
@@ -526,10 +527,12 @@ export default {
   --light-blue: #4262B3;
   --text-light: #E8EAFF;
 }
+
 #free-trial {
   position: relative;
   z-index: 2;
-  margin-top: -100px; /* adjust value depending on your design */
+  margin-top: -100px;
+  /* adjust value depending on your design */
 }
 
 #frequent-pages {
@@ -537,11 +540,36 @@ export default {
   z-index: 1;
 }
 
+.footer-para{
+  margin-top: 60px;
+}
+
 #frequent-pages {
   background-color: #F0F1F2;
   border-bottom-left-radius: 15%;
   border-bottom-right-radius: 15%;
 }
+
+.text-dark{
+  color: #000 !important;
+  font-weight: 600;
+}
+.right-info-section {
+  background: url('/assets/img/discussion-img.jpg') center center/cover no-repeat;
+  position: relative;
+  z-index: 1;
+}
+
+/* Optional overlay to make text readable */
+.right-info-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(41, 62, 120, 0.75); /* dark overlay */
+  z-index: -1;
+  border-radius: inherit;
+}
+
 
 .box {
   background-color: pink;
