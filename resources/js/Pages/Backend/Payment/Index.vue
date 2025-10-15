@@ -14,13 +14,13 @@ const fetchOrdersWithPayment = async () => {
     try {
         const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
-        console.log(orders.value);
+        console.log("orders.value", orders.value);
     } catch (error) {
         console.error("Error fetching orders:", error);
     }
 };
-onMounted(async() => {
-      q.value = "";
+onMounted(async () => {
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -61,11 +61,15 @@ const payments = computed(() =>
         customer: o.customer_name,
         user: o.user?.name || "—",
         type: o.payment?.payment_type || "—",
-        amount: o.payment?.amount_received || 0,
+        amountReceived: Number(o.sub_total || 0),
+        promoDiscount: Number(o.sub_total || 0) - Number(o.total_amount || 0), // calculate discount
+        grandTotal: Number(o.total_amount || 0),
+        promoName: o.promo?.promo_name || "—",
         paidAt: o.payment?.payment_date || null,
         status: o.status,
     }))
 );
+
 
 // const filtered = computed(() => {
 //     const term = q.value.trim().toLowerCase();
@@ -122,16 +126,16 @@ const filtered = computed(() => {
     }
 
     // Amount range filter
-   // ========== USE THIS INSTEAD ==========
-// Amount range filter
-if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
-    result = result.filter((p) => {
-        const amount = Number(p.amount) || 0;  // Ensure it's a number
-        const min = Number(filters.value.priceMin) || 0;
-        const max = filters.value.priceMax ? Number(filters.value.priceMax) : Infinity;
-        return amount >= min && amount <= max;
-    });
-}
+    // ========== USE THIS INSTEAD ==========
+    // Amount range filter
+    if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
+        result = result.filter((p) => {
+            const amount = Number(p.amount) || 0;  // Ensure it's a number
+            const min = Number(filters.value.priceMin) || 0;
+            const max = filters.value.priceMax ? Number(filters.value.priceMax) : Infinity;
+            return amount >= min && amount <= max;
+        });
+    }
 
     // Date range filter
     if (filters.value.dateFrom) {
@@ -321,43 +325,31 @@ onUpdated(() => window.feather?.replace());
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
                                 <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
 
                             </div>
-                             <FilterModal
-                                v-model="filters"
-                                title="Payments"
-                                modal-id="paymentFilterModal"
-                                modal-size="modal-lg"
-                                :sort-options="filterOptions.sortOptions"
-                                :show-price-range="true"
-                                :show-date-range="true"
-                                price-label="Amount Range"
-                                @apply="handleFilterApply"
-                                @clear="handleFilterClear"
-                            >
+                            <FilterModal v-model="filters" title="Payments" modal-id="paymentFilterModal"
+                                modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-price-range="true"
+                                :show-date-range="true" price-label="Amount Range" @apply="handleFilterApply"
+                                @clear="handleFilterClear">
                                 <!-- Custom filters slot for Payment Type -->
                                 <template #customFilters="{ filters }">
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold text-dark">
                                             <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
                                         </label>
-                                        <select
-                                            v-model="filters.paymentType"
-                                            class="form-select"
-                                        >
+                                        <select v-model="filters.paymentType" class="form-select">
                                             <option value="">All</option>
-                                            <option
-                                                v-for="opt in filterOptions.paymentTypeOptions"
-                                                :key="opt.value"
-                                                :value="opt.value"
-                                            >
+                                            <option v-for="opt in filterOptions.paymentTypeOptions" :key="opt.value"
+                                                :value="opt.value">
                                                 {{ opt.label }}
                                             </option>
                                         </select>
@@ -403,28 +395,34 @@ onUpdated(() => window.feather?.replace());
                                 <tr>
                                     <th>S. #</th>
                                     <th>Order ID</th>
-                                    <th>Amount Received</th>
+                                    <th>Actual Payment</th>
+                                    <th>Promo Discount</th>
+                                    <th>Grand Total</th>
+                                    <th>Promo Name</th>
                                     <th>Payment Date</th>
                                     <th>Payment Type</th>
                                 </tr>
                             </thead>
+
                             <tbody>
-                                <tr v-for="(p, idx) in filtered" :key="p.id">
+                                <tr v-for="(p, idx) in filtered" :key="p.orderId">
                                     <td>{{ idx + 1 }}</td>
                                     <td>{{ p.orderId }}</td>
-                                    <td>{{ formatCurrencySymbol(p.amount, "GBP") }}</td>
+                                    <td>{{ formatCurrencySymbol(p.amountReceived) }}</td>
+                                    <td class="text-success">{{ formatCurrencySymbol(p.promoDiscount) }}</td>
+                                    <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
+                                    <td>{{ p.promoName }}</td>
                                     <td>{{ dateFmt(p.paidAt) }}</td>
-                                    <td class="text-capitalize">
-                                        {{ p.type }}
-                                    </td>
+                                    <td class="text-capitalize">{{ p.type }}</td>
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="5" class="text-center text-muted py-4">
+                                    <td colspan="8" class="text-center text-muted py-4">
                                         No payments found.
                                     </td>
                                 </tr>
                             </tbody>
+
                         </table>
                     </div>
                 </div>
@@ -526,11 +524,11 @@ onUpdated(() => window.feather?.replace());
     color: #000 !important;
 }
 
-.dark .form-label{
+.dark .form-label {
     color: #fff !important;
 }
 
-.dark .form-select{
+.dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }
@@ -616,6 +614,7 @@ onUpdated(() => window.feather?.replace());
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
@@ -738,7 +737,8 @@ onUpdated(() => window.feather?.replace());
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important; /* lighter red */
+    color: #f87171 !important;
+    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -774,5 +774,4 @@ onUpdated(() => window.feather?.replace());
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
-
 </style>
