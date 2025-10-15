@@ -569,31 +569,30 @@ onMounted(fetchNotifications);
 
                                 <template v-for="item in block.children" :key="item.label">
                                     <!-- Dropdown group -->
-                                    <li v-if="item.children && item.children.length">
-                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                                            :class="{
-                                                active: openGroups.has(item.label) || isAnyChildActive(item.children),
-                                            }" @click="toggleGroup(item.label)" type="button"
-                                            :aria-expanded="openGroups.has(item.label) || isAnyChildActive(item.children)">
-                                            <i :data-feather="item.icon" class="me-2"></i>
-                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
-                                            <i
-                                                :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
-                                        </button>
+                                 <li v-if="item.children && item.children.length" class="dropdown-parent">
+    <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+        :class="{
+            active: openGroups.has(item.label) || isAnyChildActive(item.children),
+        }" @click="toggleGroup(item.label)" type="button">
+        <i :data-feather="item.icon" class="me-2"></i>
+        <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
+        <i class="chevron-icon"
+            :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+    </button>
 
-                                        <ul class="list-unstyled my-1"
-                                            v-show="openGroups.has(item.label) || isAnyChildActive(item.children)">
-                                            <li v-for="child in item.children" :key="child.label"
-                                                :class="{ active: isActive(child.route) }">
-                                                <Link :href="route(child.route)" :method="child.method || 'get'"
-                                                    class="d-flex align-items-center side-link px-3 py-2">
-                                                <i :data-feather="child.icon" class="me-2"></i>
-                                                <span>{{ child.label }}</span>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </li>
+    <!-- Always render the submenu, control visibility via CSS -->
+    <ul class="list-unstyled my-1 submenu-dropdown"
+        :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
+        <li v-for="child in item.children" :key="child.label"
+            :class="{ active: isActive(child.route) }">
+            <Link :href="route(child.route)" :method="child.method || 'get'"
+                class="d-flex align-items-center side-link px-3 py-2">
+            <i :data-feather="child.icon" class="me-2"></i>
+            <span>{{ child.label }}</span>
+            </Link>
+        </li>
+    </ul>
+</li>
 
                                     <!-- Flat item -->
                                     <li v-else :class="{ active: item.route ? isActive(item.route) : false }" class="side-link">
@@ -735,57 +734,105 @@ onMounted(fetchNotifications);
     --border: #eef0f3;
 }
 /* ========= SUBMENU HOVER FOR COLLAPSED SIDEBAR ========= */
-.state-desktop.sidebar-collapsed .sidebar-menu > ul > li,
-.state-tablet.sidebar-collapsed .sidebar-menu > ul > li {
+/* ========= SUBMENU STYLES ========= */
+
+/* Normal state - collapsed submenu */
+.sidebar .submenu-dropdown {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+/* Expanded state - show submenu */
+.sidebar .submenu-dropdown.expanded {
+  max-height: 500px;
+}
+
+/* ========= COLLAPSED SIDEBAR SPECIFIC ========= */
+
+/* Position parent for absolute submenu */
+.state-desktop.sidebar-collapsed .sidebar-menu > ul > li.dropdown-parent,
+.state-tablet.sidebar-collapsed .sidebar-menu > ul > li.dropdown-parent {
   position: relative;
 }
 
-/* Hide submenu by default when collapsed */
-.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled,
-.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
+/* Hide chevron when collapsed */
+.state-desktop.sidebar-collapsed .sidebar .chevron-icon,
+.state-tablet.sidebar-collapsed .sidebar .chevron-icon {
   display: none !important;
+}
+
+/* When collapsed: position submenu to the right */
+.state-desktop.sidebar-collapsed .sidebar .submenu-dropdown,
+.state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
   position: absolute;
-  left: var(--sidebar-w-collapsed);
+  left: 100%;
   top: 0;
   background: #fff;
-  border: 1px solid var(--border);
+  border: 1px solid #eef0f3;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  min-width: 200px;
-  z-index: 2000;
+  min-width: 220px;
+  max-width: 280px;
+  z-index: 9999;
   padding: 8px 0;
+  margin-left: 8px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
 }
 
-/* Show submenu on hover when sidebar is collapsed */
-.state-desktop.sidebar-collapsed .sidebar-menu > ul > li:hover .list-unstyled,
-.state-tablet.sidebar-collapsed .sidebar-menu > ul > li:hover .list-unstyled {
-  display: block !important;
+/* Show on parent hover - CRITICAL */
+.state-desktop.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown,
+.state-tablet.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown {
+  max-height: 600px;
+  overflow-y: auto;
 }
 
-/* Style submenu items in hover popup */
-.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled li .side-link,
-.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled li .side-link {
-  padding-left: 1rem !important;
+/* Style submenu items */
+.state-desktop.sidebar-collapsed .sidebar .submenu-dropdown li .side-link {
+  padding: 12px 16px !important;
   display: flex !important;
-  align-items: center;
-  white-space: nowrap;
+  align-items: center !important;
+  white-space: nowrap !important;
+  padding-left: 16px !important;
 }
 
-/* Show submenu text when in hover popup */
-.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled li .side-link span,
-.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled li .side-link span {
+/* Show submenu text when collapsed */
+.state-desktop.sidebar-collapsed .sidebar .submenu-dropdown li .side-link span,
+.state-tablet.sidebar-collapsed .sidebar .submenu-dropdown li .side-link span {
   display: inline-block !important;
   max-width: none !important;
   overflow: visible !important;
+  white-space: nowrap !important;
 }
 
-/* Dark mode for hover submenu */
-html.dark .state-desktop.sidebar-collapsed .sidebar ul .list-unstyled,
-html.dark .state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
+/* Icon spacing */
+.state-desktop.sidebar-collapsed .sidebar .submenu-dropdown li .side-link i,
+.state-tablet.sidebar-collapsed .sidebar .submenu-dropdown li .side-link i {
+  margin-right: 12px !important;
+}
+
+/* Remove left border when collapsed */
+.state-desktop.sidebar-collapsed .sidebar .submenu-dropdown,
+.state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
+  border-left: none;
+  margin-left: 8px;
+  padding-left: 0;
+}
+
+/* Dark mode */
+html.dark .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown,
+html.dark .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
   background: #181818;
   border-color: #333;
 }
 
+/* Make sure expanded class works in collapsed mode too */
+.state-desktop.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown.expanded,
+.state-tablet.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown.expanded {
+  max-height: 600px;
+}
 
 /* ========= COLLAPSED SIDEBAR (ICONS ONLY) ========= */
 .state-desktop.sidebar-collapsed .sidebar,
@@ -859,6 +906,63 @@ html.dark .state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
   white-space: nowrap;
   font-size: 0.8rem;
   z-index: 2000;
+}
+
+
+/* ========= FIX ICON HOVER SIZE IN COLLAPSED MODE ========= */
+
+/* Make the link container fit the icon only when collapsed */
+.state-desktop.sidebar-collapsed .sidebar .side-link,
+.state-tablet.sidebar-collapsed .sidebar .side-link {
+  width: 48px !important;
+  height: 48px !important;
+  padding: 12px !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+}
+
+/* Center the icon */
+.state-desktop.sidebar-collapsed .sidebar .side-link i,
+.state-tablet.sidebar-collapsed .sidebar .side-link i {
+  margin: 0 !important;
+}
+
+/* For dropdown parent buttons in collapsed mode */
+.state-desktop.sidebar-collapsed .dropdown-parent > button.side-link,
+.state-tablet.sidebar-collapsed .dropdown-parent > button.side-link {
+  width: 53px !important;
+  height: 53px !important;
+  padding: 12px !important;
+  margin: -10px auto !important;
+  justify-content: center !important;
+}
+
+.state-desktop.sidebar-collapsed .sidebar .side-link{
+  width: 53px !important;
+  height: 53px !important;
+  padding: 12px !important;
+  justify-content: center !important;
+}
+
+/* Center icons within list items */
+.state-desktop.sidebar-collapsed .sidebar-menu > ul > li,
+.state-tablet.sidebar-collapsed .sidebar-menu > ul > li {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+/* Add positioning to parent items - CRITICAL FOR POSITIONING */
+.state-desktop.sidebar-collapsed .sidebar-menu>ul>li.dropdown-parent,
+.state-tablet.sidebar-collapsed .sidebar-menu>ul>li.dropdown-parent {
+    position: relative !important;
+}
+
+/* Ensure the button inside doesn't interfere */
+.state-desktop.sidebar-collapsed .dropdown-parent > button,
+.state-tablet.sidebar-collapsed .dropdown-parent > button {
+    position: relative;
 }
 
 /* Css for dark mood */

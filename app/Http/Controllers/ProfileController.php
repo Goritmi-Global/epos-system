@@ -25,6 +25,11 @@ class ProfileController extends Controller
         ]);
     }
 
+    public function frontPage(){
+        return Inertia::render('Profile/FrontPage');
+    }
+
+
     /**
      * Update the user's profile information.
      */

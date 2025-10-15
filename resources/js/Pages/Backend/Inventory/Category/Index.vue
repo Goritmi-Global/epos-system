@@ -1467,7 +1467,7 @@ const handleImport = (data) => {
 
 .side-link{
   border-radius: 55%;
-  background-color: #ffffff !important;
+  background-color: #fff !important;
 }
 
 .dark .side-link{

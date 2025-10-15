@@ -68,6 +68,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/front-page', [ProfileController::class, 'frontPage'])->name('front-page');
 
     /* -------- Onboarding (must be reachable after login) -------- */
     Route::prefix('onboarding')->name('onboarding.')->group(function () {

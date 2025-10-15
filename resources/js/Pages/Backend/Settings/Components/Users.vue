@@ -485,13 +485,13 @@ onMounted(fetchAll);
 }
 
 .side-link{
-  border-radius: 55%;
+  border-radius: 50%;
   background-color: #fff !important;
 }
 
 .dark .side-link{
   border-radius: 55%;
-  background-color: #181818 !important;
+  background-color: #181818!important;
 }
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
