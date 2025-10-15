@@ -836,6 +836,7 @@ const downloadCSV = (data) => {
             "tags"
         ];
         const rows = data.map((s) => {
+            console.log("data", data);
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 nutritionStr = Object.entries(s.nutrition)
@@ -1339,11 +1340,11 @@ const handleImport = (data) => {
                                     'Dairy',
                                     5,
                                     'Kilogram (kg)',
-                                    1,
                                     'Supplier A',
                                     '200',
                                     '350',
                                     '150',
+                                    '1',
                                     33,
                                     23,
                                     44,
