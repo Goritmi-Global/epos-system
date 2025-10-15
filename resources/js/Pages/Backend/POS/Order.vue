@@ -1115,6 +1115,11 @@ onMounted(fetchPrinters);
     color: #ffffff;
 }
 
+.dark .info-card{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
 .dark .table thead th {
     background-color: #181818 !important;
     color: #ffffff;

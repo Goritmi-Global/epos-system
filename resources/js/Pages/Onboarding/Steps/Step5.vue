@@ -245,13 +245,13 @@ const hasTableDetailsError = computed(() => {
           </div>
 
           <div class="modal-footer mt-4">
-            <button class="btn btn-primary rounded-pill px-4" :disabled="submitting" @click="saveTableDetails"
+            <button class="btn btn-primary rounded-pill py-2 px-2" :disabled="submitting" @click="saveTableDetails"
               data-bs-dismiss="modal">
               <span v-if="!submitting">Save</span>
               <span v-else>Saving...</span>
             </button>
 
-            <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal" @click="resetTableDetails">
+            <button class="btn btn-secondary rounded-pill px-2 py-2 ms-2" data-bs-dismiss="modal" @click="resetTableDetails">
               Cancel
             </button>
           </div>
@@ -309,6 +309,12 @@ const hasTableDetailsError = computed(() => {
 .dark .modal-content{
   background-color: #181818 !important;
   color: #fff !important;
+}
+
+.btn{
+    border-radius: 10px !important;
+    height: 42px !important;
+    font-size: 16px !important;
 }
 
 .dark .modal-body{
