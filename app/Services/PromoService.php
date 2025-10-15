@@ -36,10 +36,12 @@ class PromoService
     {
         return Promo::query()
             ->where('status', 'active')
-            ->whereDate('start_date', '<=', now())
+            ->whereDate('start_date', '<=', today())
+            ->whereDate('end_date', '>=', today())
             ->latest()
             ->get();
     }
+
 
     /**
      * Get paginated promos
@@ -77,7 +79,7 @@ class PromoService
         $promo->update([
             'name' => $data['name'],
             'type' => $data['type'],
-            'discount' => $data['discount'],
+            'discount_amount' => $data['discount_amount'],
             'status' => $data['status'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],

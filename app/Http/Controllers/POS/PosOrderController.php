@@ -112,7 +112,6 @@ class PosOrderController extends Controller
 
     public function placeStripeOrder(Request $request)
     {
-
         $paymentIntentId = $request->query('payment_intent');
         $redirectStatus  = $request->query('redirect_status'); // succeeded | failed | requires_action
 
@@ -187,8 +186,12 @@ class PosOrderController extends Controller
             'currency_code'  => $currency,
             'exp_month'      => $expMonth,
             'exp_year'       => $expYear,
-        ];
 
+            'promo_id'         => $request->query('promo_id') ?: null,
+            'promo_name'       => $request->query('promo_name') ?: null,
+            'promo_discount'   => (float) $request->query('promo_discount', 0),
+            'promo_type'       => $request->query('promo_type') ?: null,
+        ];
 
         $order = $this->service->create($data);
 
@@ -204,6 +207,11 @@ class PosOrderController extends Controller
             'total_amount'   => $data['total_amount'] ?? 0,
             'items'          => $data['items'] ?? [], // from your query params
             'payment_type'          => $data['payment_type'] ?? [], // from your query params
+
+            // ✅ Add promo to print payload
+            'promo_discount' => $data['promo_discount'] ?? 0,
+            'promo_name'     => $data['promo_name'] ?? null,
+            'promo_type'     => $data['promo_type'] ?? null,
         ];
 
 

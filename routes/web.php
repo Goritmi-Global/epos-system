@@ -246,7 +246,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/', [PromoController::class, 'store'])->name('store');
         Route::post('/{id}', [PromoController::class, 'update'])->name('update');
         Route::get('/{id}', [PromoController::class, 'show'])->name('show');
-        // Route::delete('/{id}', [PromoController::class, 'destroy'])->name('destroy');
 
     });
 

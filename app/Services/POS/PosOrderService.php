@@ -99,34 +99,34 @@ class PosOrderService
             $kot = null;
 
             // 2. Handle KOT (after items exist)
-            
 
-                $kot = KitchenOrder::create([
-                    'pos_order_type_id' => $orderType->id,
-                    'order_time'        => now()->toTimeString(),
-                    'order_date'        => now()->toDateString(),
-                    'note'              => $data['note'] ?? null,
-                ]);
 
-                foreach ($order->items as $orderItem) {
-                    $menuItem = MenuItem::with('ingredients')->find($orderItem->menu_item_id);
+            $kot = KitchenOrder::create([
+                'pos_order_type_id' => $orderType->id,
+                'order_time'        => now()->toTimeString(),
+                'order_date'        => now()->toDateString(),
+                'note'              => $data['note'] ?? null,
+            ]);
 
-                    $ingredientsArray = [];
-                    if ($menuItem && $menuItem->ingredients->count()) {
-                        foreach ($menuItem->ingredients as $ingredient) {
-                            $ingredientsArray[] = $ingredient->product_name; 
-                        }
+            foreach ($order->items as $orderItem) {
+                $menuItem = MenuItem::with('ingredients')->find($orderItem->menu_item_id);
+
+                $ingredientsArray = [];
+                if ($menuItem && $menuItem->ingredients->count()) {
+                    foreach ($menuItem->ingredients as $ingredient) {
+                        $ingredientsArray[] = $ingredient->product_name;
                     }
-
-                    $kot->items()->create([
-                        'item_name'    => $orderItem->title,
-                        'quantity'     => $orderItem->quantity,
-                        'variant_name' => $orderItem->variant_name ?? null,
-                        'ingredients'  => $ingredientsArray,
-                        'status'       => KitchenOrderItem::STATUS_WAITING,
-                    ]);
                 }
-                $kot->load('items');
+
+                $kot->items()->create([
+                    'item_name'    => $orderItem->title,
+                    'quantity'     => $orderItem->quantity,
+                    'variant_name' => $orderItem->variant_name ?? null,
+                    'ingredients'  => $ingredientsArray,
+                    'status'       => KitchenOrderItem::STATUS_WAITING,
+                ]);
+            }
+            $kot->load('items');
 
 
             $cashAmount = null;
@@ -170,10 +170,21 @@ class PosOrderService
                 'exp_year'                 => $data['exp_year'] ?? null,
             ]);
 
+            // Store promo details if promo was applied
+            if (!empty($data['promo_id']) && !empty($data['promo_discount'])) {
+                \App\Models\OrderPromo::create([
+                    'order_id'        => $order->id,
+                    'promo_id'        => $data['promo_id'],
+                    'promo_name'      => $data['promo_name'] ?? null,
+                    'promo_type'      => $data['promo_type'] ?? 'flat',
+                    'discount_amount' => $data['promo_discount'],
+                ]);
+            }
+
+
             $order->load(['items', 'kot.items']);
             // dd("Service class Done ",$data);
             return $order;
-
         });
     }
 
@@ -277,7 +288,7 @@ class PosOrderService
         return RestaurantProfile::select('order_types', 'table_details')->first();
     }
 
-     public function getTodaysOrders()
+    public function getTodaysOrders()
     {
         $today = now()->toDateString();
 

@@ -185,6 +185,7 @@ const editRow = (row) => {
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
+        discount_amount: row.discount_amount,
     };
 
     const modalEl = document.getElementById("promoModal");

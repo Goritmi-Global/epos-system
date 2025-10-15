@@ -7,12 +7,9 @@
 
     <div id="payment-element" class="stripe-box rounded-4 p-3"></div>
 
-    <button
-      type="button"
+    <button type="button"
       class="btn btn-primary pay-btn rounded-pill mt-3 d-inline-flex align-items-center justify-content-center"
-      :disabled="!isReady || isPaying"
-      @click="pay"
-    >
+      :disabled="!isReady || isPaying" @click="pay">
       <span v-if="!isPaying">Pay £{{ (grandTotal ?? 0).toFixed(2) }}</span>
       <span v-else class="d-inline-flex align-items-center gap-2">
         Processing…
@@ -40,7 +37,7 @@ const props = defineProps({
   selectedTable: Object,
   orderItems: Array,
   grandTotal: Number,
-  money: Function, 
+  money: Function,
   cashReceived: Number,
   cardPayment: Number,
   subTotal: Number,
@@ -55,6 +52,13 @@ const props = defineProps({
   change: Number,
   type: String, // 'full-payment' | 'split-payment'
   cardCharge: Number, // required if type is 'split-payment'  
+
+  // ✅ ADD PROMO PROPS HERE
+  promoDiscount: { type: Number, default: 0 },
+  promoId: { type: [Number, String, null], default: null },
+  promoName: { type: [String, null], default: null },
+  promoType: { type: [String, null], default: null },
+  promoDiscountAmount: { type: Number, default: 0 },
 });
 
 
@@ -69,7 +73,7 @@ const isReady = ref(false);
 const isPaying = ref(false);
 let paymentElement = null;
 
-// --- Create PI on the server with FINAL amount (GBP) ---
+// --- Create PI on the server with FINAL amount (£) ---
 async function createPI() {
   try {
     const payload = {
@@ -127,6 +131,80 @@ async function initStripe() {
   isReady.value = true;
 }
 
+// async function pay() {
+//   if (!stripe.value || !elements.value || !isReady.value) {
+//     toast.error("Payment is not ready yet. Please wait a moment.");
+//     return;
+//   }
+//   isPaying.value = true;
+
+//   const params = new URLSearchParams({
+//     order_code: props.order_code ?? "",
+//     customer_name: props.customer ?? "",
+//     sub_total: String(props.subTotal ?? props.grandTotal ?? 0),
+//     total_amount: String(props.grandTotal ?? 0),
+//     // for split payment
+//     cardCharge: String(props.cardCharge ?? 0),
+//     type: String(props.type ?? 0),
+
+//     tax: String(props.tax ?? 0),
+//     service_charges: String(props.serviceCharges ?? 0),
+//     delivery_charges: String(props.deliveryCharges ?? 0),
+
+//     note: props.note ?? "",
+//     order_date: props.orderDate ?? new Date().toISOString().split("T")[0],
+//     order_time: props.orderTime ?? new Date().toTimeString().split(" ")[0],
+//     order_type:
+//       props.orderType === "Dine_in"
+//         ? "Dine In"
+//         : props.orderType === "Delivery"
+//         ? "Delivery"
+//         : props.orderType === "Takeaway"
+//         ? "Takeaway"
+//         : "Collection",
+//     table_number: props.selectedTable?.name ?? "",
+//     payment_method: props.paymentMethod ?? "Stripe",
+//     payment_type: props.paymentType ?? props.paymentMethod,
+//     cash_received: String(props.cashReceived ?? props.grandTotal ?? 0),
+//     card_payment: String(props.cardPayment ?? 0),
+//     change: String(props.change ?? 0),
+//     items: JSON.stringify(
+//       (props.orderItems ?? []).map((it) => ({
+//         product_id: it.id,
+//         title: it.title,
+//         quantity: it.qty,
+//         price: it.price,
+//         note: it.note ?? null,
+//       }))
+//     ),
+//   });
+
+//   try {
+//     const { error } = await stripe.value.confirmPayment({
+//       elements: elements.value,
+//       confirmParams: {
+//         return_url: `${window.location.origin}/pos/place-stripe-order?${params.toString()}`,
+//       },
+//     });
+
+//     if (error) {
+//       toast.error(error.message || "Payment failed. Please try again.");
+//       isPaying.value = false;
+//       return;
+//     }
+
+//     // Stripe will redirect; keep spinner
+//     toast.success("Payment authorized. Finalizing your order…");
+//   } catch (err) {
+//     console.error(err);
+//     toast.error("Something went wrong while confirming payment.");
+//     isPaying.value = false;
+//   }
+// }
+
+
+// In your Stripe payment component (Document 2), update the pay() function
+
 async function pay() {
   if (!stripe.value || !elements.value || !isReady.value) {
     toast.error("Payment is not ready yet. Please wait a moment.");
@@ -139,10 +217,17 @@ async function pay() {
     customer_name: props.customer ?? "",
     sub_total: String(props.subTotal ?? props.grandTotal ?? 0),
     total_amount: String(props.grandTotal ?? 0),
+
+    // Add promo fields
+    promo_discount: String(props.promoDiscount ?? 0),
+    promo_id: String(props.promoId ?? ''),
+    promo_name: String(props.promoName ?? ''),
+    promo_type: String(props.promoType ?? ''),
+
     // for split payment
     cardCharge: String(props.cardCharge ?? 0),
     type: String(props.type ?? 0),
-    
+
     tax: String(props.tax ?? 0),
     service_charges: String(props.serviceCharges ?? 0),
     delivery_charges: String(props.deliveryCharges ?? 0),
@@ -154,10 +239,10 @@ async function pay() {
       props.orderType === "Dine_in"
         ? "Dine In"
         : props.orderType === "Delivery"
-        ? "Delivery"
-        : props.orderType === "Takeaway"
-        ? "Takeaway"
-        : "Collection",
+          ? "Delivery"
+          : props.orderType === "Takeaway"
+            ? "Takeaway"
+            : "Collection",
     table_number: props.selectedTable?.name ?? "",
     payment_method: props.paymentMethod ?? "Stripe",
     payment_type: props.paymentType ?? props.paymentMethod,
@@ -188,9 +273,6 @@ async function pay() {
       isPaying.value = false;
       return;
     }
-
-    // Stripe will redirect; keep spinner
-    toast.success("Payment authorized. Finalizing your order…");
   } catch (err) {
     console.error(err);
     toast.error("Something went wrong while confirming payment.");
@@ -227,27 +309,54 @@ onMounted(async () => {
   --brand-600: #000000;
   --brand-300: #4b3bb0;
 }
-.pay-header { color: var(--brand); }
-.pay-header i { font-size: 1.25rem; }
-.pay-header h2 { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.2px; }
+
+.pay-header {
+  color: var(--brand);
+}
+
+.pay-header i {
+  font-size: 1.25rem;
+}
+
+.pay-header h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
 .stripe-box {
   border: 1px solid rgba(28, 13, 130, 0.15);
   background: #fff;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.06);
 }
+
 .pay-btn {
-  height: 56px; width: 100%;
-  font-weight: 700; font-size: 18px;
-  border: none; color: #fff;
+  height: 56px;
+  width: 100%;
+  font-weight: 700;
+  font-size: 18px;
+  border: none;
+  color: #fff;
   background: var(--brand);
   transition: transform 0.05s ease, box-shadow 0.2s ease, background 0.2s ease;
   box-shadow: 0 8px 18px rgba(28, 13, 130, 0.25);
 }
-.pay-btn:hover:not(:disabled) { box-shadow: 0 10px 22px rgba(28, 13, 130, 0.35); }
-.pay-btn:active:not(:disabled) { transform: translateY(1px); }
-.pay-btn:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
 
-.dark .stripe-box{
+.pay-btn:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(28, 13, 130, 0.35);
+}
+
+.pay-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.pay-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.dark .stripe-box {
   background-color: #212121 !important;
 }
 </style>
