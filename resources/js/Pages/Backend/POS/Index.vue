@@ -1,4 +1,3 @@
-
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head, usePage } from "@inertiajs/vue3";
@@ -125,7 +124,7 @@ const fetchProfileTables = async () => {
 
         if (profileTables.value.order_types) {
             // Capitalize first character of each type
-            orderTypes.value = profileTables.value.order_types.map(type => 
+            orderTypes.value = profileTables.value.order_types.map(type =>
                 type.charAt(0).toUpperCase() + type.slice(1)
             );
 
@@ -278,11 +277,14 @@ const subTotal = computed(() =>
 );
 
 const deliveryCharges = computed(() =>
-    orderType.value === "delivery"
+    orderType.value === "Delivery"
         ? (subTotal.value * deliveryPercent.value) / 100
         : 0
 );
-const grandTotal = computed(() => subTotal.value + deliveryCharges.value);
+const grandTotal = computed(() => {
+    const total = subTotal.value + deliveryCharges.value - promoDiscount.value;
+    return Math.max(0, total); 
+});
 
 const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
 
@@ -518,6 +520,7 @@ const decQty = async () => {
    Order + Receipt
 -----------------------------*/
 const formErrors = ref({});
+// Update resetCart to clear promo
 const resetCart = () => {
     orderItems.value = [];
     customer.value = "Walk In";
@@ -525,6 +528,7 @@ const resetCart = () => {
     orderType.value = orderTypes.value[0] || "dine_in";
     note.value = "";
     deliveryPercent.value = 0;
+    selectedPromo.value = null; // Clear promo
 };
 watch(orderType, () => (formErrors.value = {}));
 
@@ -590,7 +594,7 @@ const openConfirmModal = () => {
         toast.error("Please select a table number for Dine In orders.");
         return;
     }
-      if ((orderType.value === "Delivery" || orderType.value === "Takeaway")  && !customer.value) {
+    if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
         formErrors.value.customer = [
             "Customer name is required for delivery.",
         ];
@@ -908,14 +912,18 @@ const confirmOrder = async ({
 }) => {
     formErrors.value = {};
     try {
-
         const payload = {
             customer_name: customer.value,
             sub_total: subTotal.value,
-            total_amount: grandTotal.value,
+            // Promo Details with payload
+            promo_discount: promoDiscount.value, 
+            promo_id: selectedPromo.value?.id || null, 
+            promo_name: selectedPromo.value?.name || null,
+            promo_type: selectedPromo.value?.type || null,
+            total_amount: grandTotal.value, 
             tax: 0,
             service_charges: 0,
-            delivery_charges: 0,
+            delivery_charges: deliveryCharges.value,
             note: note.value,
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
@@ -954,13 +962,16 @@ const confirmOrder = async ({
 
         // Open KOT modal after confirmation
         if (autoPrintKot) {
-            kotData.value = await openPosOrdersModal(); // kotData not needed
-            printKot(JSON.parse(JSON.stringify(lastOrder.value))); // still prints last order
+            kotData.value = await openPosOrdersModal();
+            printKot(JSON.parse(JSON.stringify(lastOrder.value)));
             showKotModal.value = true;
         }
 
         // Print receipt immediately
         printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
+
+        // Clear promo after successful order
+        selectedPromo.value = null;
     } catch (err) {
         console.error("Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
@@ -1077,6 +1088,30 @@ const openPosOrdersModal = async () => {
 const showPromoModal = ref(false);
 const loadingPromos = ref(true);
 const promosData = ref([]);
+const selectedPromo = ref(null);
+
+// Update handleApplyPromo function
+const handleApplyPromo = (promo) => {
+    console.log("Applying promo:", promo);
+    selectedPromo.value = promo;
+
+    // Check if cart meets minimum purchase requirement
+    if (promo.min_purchase && subTotal.value < parseFloat(promo.min_purchase)) {
+        toast.warning(`Minimum purchase of ${formatCurrencySymbol(promo.min_purchase)} required for this promo.`);
+    } else {
+        toast.success(`Promo "${promo.name}" applied! You saved ${formatCurrencySymbol(promoDiscount.value)}`);
+    }
+
+    showPromoModal.value = false;
+};
+
+
+
+const handleClearPromo = () => {
+    selectedPromo.value = null;
+    toast.info("Promo cleared.");
+};
+
 
 const openPromoModal = async () => {
     loadingPromos.value = true;
@@ -1085,9 +1120,7 @@ const openPromoModal = async () => {
         showPromoModal.value = true;
 
         // Fetch promos from API
-        const response = await axios.get('/api/promos/today'); 
-        console.log('API response:', response); // Debug log
-        console.log('Fetched promos:', response.data);
+        const response = await axios.get('/api/promos/today');
         if (response.data.success) {
             promosData.value = response.data.data;
         } else {
@@ -1107,6 +1140,38 @@ const handleViewOrderDetails = (order) => {
     showReceiptModal.value = true;
     showPosOrdersModal.value = false;
 };
+
+// =============Promos Discount ======================
+// Add these computed properties after your existing computed properties
+
+const promoDiscount = computed(() => {
+    if (!selectedPromo.value) return 0;
+
+    const promo = selectedPromo.value;
+    const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
+    const subtotal = subTotal.value;
+
+    // Check minimum purchase requirement
+    if (promo.min_purchase && subtotal < parseFloat(promo.min_purchase)) {
+        return 0;
+    }
+
+    // Calculate based on promo type
+    if (promo.type === 'flat') {
+        return rawDiscount;
+    }
+
+    if (promo.type === 'percent') {
+        const discount = (subtotal * rawDiscount) / 100;
+        const maxCap = parseFloat(promo.max_discount ?? 0) || 0;
+        if (maxCap > 0 && discount > maxCap) {
+            return maxCap;
+        }
+        return discount;
+    }
+
+    return 0;
+});
 
 </script>
 
@@ -1269,10 +1334,11 @@ const handleViewOrderDetails = (order) => {
                                     <div v-if="orderType === 'Dine_in'" class="row g-2">
                                         <div class="col-6">
                                             <label class="form-label small">Table</label>
-                                            <select v-model="selectedTable" class="form-select form-select-sm" placeholder="Select Table" :class="{
-                                                'is-invalid':
-                                                    formErrors.table_number,
-                                            }">
+                                            <select v-model="selectedTable" class="form-select form-select-sm"
+                                                placeholder="Select Table" :class="{
+                                                    'is-invalid':
+                                                        formErrors.table_number,
+                                                }">
                                                 <option v-for="(table, idx) in profileTables.table_details" :key="idx"
                                                     :value="table">
                                                     {{ table.name }}
@@ -1292,11 +1358,11 @@ const handleViewOrderDetails = (order) => {
                                     <div v-else>
                                         <label class="form-label small">Customer</label>
                                         <input v-model="customer" class="form-control form-control-sm"
-                                            placeholder="Walk In" :class="{'is-invalid': formErrors.customer}" />
+                                            placeholder="Walk In" :class="{ 'is-invalid': formErrors.customer }" />
 
-                                             <div v-if="formErrors.customer" class="invalid-feedback d-block">
-                                                {{ formErrors.customer[0] }}
-                                            </div>
+                                        <div v-if="formErrors.customer" class="invalid-feedback d-block">
+                                            {{ formErrors.customer[0] }}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1348,20 +1414,37 @@ const handleViewOrderDetails = (order) => {
                                 </div>
 
                                 <!-- Totals -->
+                                <!-- Totals -->
                                 <div class="totals">
                                     <div class="trow">
                                         <span>Sub Total</span>
                                         <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
                                     </div>
-                                    <div class="trow" v-if="orderType === 'delivery'">
+
+                                    <!-- Delivery Charges -->
+                                    <div class="trow" v-if="orderType === 'Delivery'">
                                         <span>Delivery</span>
                                         <b>{{ deliveryPercent }}%</b>
                                     </div>
+
+                                    <!-- Promo Discount -->
+                                    <div class="trow promo-discount" v-if="selectedPromo && promoDiscount > 0">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-tag-fill text-success"></i>
+                                            Promo: {{ selectedPromo.name }}
+                                        </span>
+                                        <b class="text-success">-{{ formatCurrencySymbol(promoDiscount) }}</b>
+                                    </div>
+
+                                    <!-- Total -->
                                     <div class="trow total">
                                         <span>Total</span>
                                         <b>{{ formatCurrencySymbol(grandTotal) }}</b>
                                     </div>
                                 </div>
+
+                                <!-- <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
+                                    placeholder="Note"></textarea> -->
 
                                 <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
                                     placeholder="Note"></textarea>
@@ -1490,7 +1573,7 @@ const handleViewOrderDetails = (order) => {
 
 
             <!-- Confirm / Receipt (unchanged props) -->
-            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+            <!-- <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
                 :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
                 v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
                 :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="0" :note="note"
@@ -1498,13 +1581,24 @@ const handleViewOrderDetails = (order) => {
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
                 :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
             <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money"
-                @close="showReceiptModal = false" />
+                @close="showReceiptModal = false" /> -->
+
+
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
+                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
+                :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="deliveryCharges"
+                :promo-discount="promoDiscount" :promo-id="selectedPromo?.id" :promo-name="selectedPromo?.name" :promo-type="selectedPromo?.type"
+                :promo-discount-amount="promoDiscount"
+                :note="note" :order-date="new Date().toISOString().split('T')[0]"
+                :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
+                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
 
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />
 
-            <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData"
-                @close="showPromoModal = false" />
+            <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData" :order-items="orderItems"
+                @apply-promo="handleApplyPromo" @close="showPromoModal = false" />
 
 
         </div>

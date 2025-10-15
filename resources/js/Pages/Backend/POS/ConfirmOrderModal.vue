@@ -26,6 +26,11 @@ const props = defineProps({
     orderTime: String,
     paymentMethod: String,
     change: Number,
+    promoDiscount: { type: Number, default: 0 },
+    promoId: { type: [Number, String, null], default: null },
+    promoName: { type: [String, null], default: null },
+    promoType: { type: [String, null], default: null },
+    promoDiscountAmount: { type: Number, default: 0 },
 });
 console.log(props.orderItems);
 const autoPrintKot = ref(false);
@@ -49,14 +54,24 @@ const changeAmount = computed(() => {
 });
 
 // Subtotal (since you pass :subTotal to StripePayment)
+// const subTotal = computed(() =>
+//     Array.isArray(props.orderItems)
+//         ? props.orderItems.reduce(
+//             (sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0),
+//             0
+//         )
+//         : 0
+// );
+
 const subTotal = computed(() =>
     Array.isArray(props.orderItems)
         ? props.orderItems.reduce(
-            (sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0),
+            (sum, i) => sum + (Number(i.unit_price) || 0) * (Number(i.qty) || 0),
             0
         )
         : 0
 );
+
 const isLoading = ref(false);
 
 const handleConfirm = async () => {
@@ -160,7 +175,7 @@ function handleCardConfirm(payload) {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -179,13 +194,13 @@ function handleCardConfirm(payload) {
                                             </div>
 
                                             <!-- Table No (if dine in) -->
-                                            <div v-if="orderType === 'dine_in'" class="col-12 col-sm-6">
+                                            <div v-if="orderType === 'Dine_in'" class="col-12 col-sm-6">
                                                 <div class="p-3 rounded-3 bg-light d-flex flex-column">
                                                     <span class="text-muted small">Table No</span>
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -207,9 +222,7 @@ function handleCardConfirm(payload) {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        <tr v-for="(
-item, index
-                                                            ) in orderItems" :key="item.id || index
+                                                        <tr v-for="(item, index) in orderItems" :key="item.id || index
                                                                 ">
                                                             <td>
                                                                 {{ index + 1 }}
@@ -256,19 +269,26 @@ item, index
                                                         </tr>
                                                     </tbody>
                                                     <tfoot>
+
+                                                        <tr v-if="promoDiscount > 0">
+                                                            <td colspan="4" class="text-end text-muted">
+                                                                Promo <span v-if="promoName">({{ promoName }})</span>
+                                                            </td>
+                                                            <td class="text-end text-success">
+                                                                -{{ formatCurrencySymbol(promoDiscount) }}
+                                                            </td>
+                                                        </tr>
+
                                                         <tr class="fw-bold">
                                                             <td colspan="4" class="text-end">
                                                                 Grand Total
                                                             </td>
                                                             <td class="text-end text-success">
-                                                                {{
-                                                                    formatCurrencySymbol(
-                                                                        grandTotal
-                                                                    )
-                                                                }}
+                                                                {{ formatCurrencySymbol(grandTotal) }}
                                                             </td>
                                                         </tr>
                                                     </tfoot>
+
                                                 </table>
                                             </div>
                                         </div>
@@ -317,9 +337,9 @@ item, index
                                             </div>
                                             <input type="number" v-model.number="cashReceived"
                                                 class="form-control rounded-3" :class="{
-                                                'is-invalid':
-                                                    formErrors.cashReceived,
-                                            }" />
+                                                    'is-invalid':
+                                                        formErrors.cashReceived,
+                                                }" />
 
                                             <small v-if="formErrors.cashReceived" class="text-danger">
                                                 {{ formErrors.cashReceived }}
@@ -362,22 +382,31 @@ item, index
 
                                         <!-- Card -->
                                         <div v-if="paymentMethod === 'Card'" class="pt-3 border-top">
-                                            <StripePayment :order_code="order_code" :show="show" :customer="customer"
-                                                :orderType="orderType" :selectedTable="selectedTable"
-                                                :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
-                                                :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
-                                                :serviceCharges="serviceCharges ?? 0
-                                                    " :deliveryCharges="deliveryCharges ?? 0
-                                                        " :note="note" :orderDate="orderDate ??
-                                                            new Date()
-                                                                .toISOString()
-                                                                .split('T')[0]
-                                                            " :orderTime="orderTime ??
-                                                                new Date()
-                                                                    .toTimeString()
-                                                                    .split(' ')[0]
-                                                                " :paymentMethod="paymentMethod"
-                                                :change="changeAmount" />
+                                            <StripePayment 
+                                            :order_code="order_code" 
+                                            :show="show" 
+                                            :customer="customer"
+                                            :orderType="orderType" 
+                                            :selectedTable="selectedTable"
+                                            :orderItems="orderItems" 
+                                            :grandTotal="grandTotal" 
+                                            :money="money"
+                                            :cashReceived="cashReceived" 
+                                            :subTotal="subTotal" 
+                                            :tax="tax ?? 0"
+                                            :serviceCharges="serviceCharges ?? 0" 
+                                            :deliveryCharges="deliveryCharges ?? 0" 
+                                            :note="note" 
+                                            :orderDate="orderDate ?? new Date().toISOString().split('T')[0]" 
+                                            :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
+                                            :paymentMethod="paymentMethod" 
+                                            :change="changeAmount"
+                                            :promo-discount="promoDiscount" 
+                                            :promo-id="promoId"
+                                            :promo-name="promoName"
+                                            :promo-type="promoType"
+                                            :promo-discount-amount="promoDiscountAmount"
+                                            />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
@@ -414,22 +443,32 @@ item, index
                                                 @confirm="handleSplitConfirm"
                                             /> -->
 
-                                            <SplitPayment :order_code="order_code" :show="show" :customer="customer"
-                                                :orderType="orderType" :selectedTable="selectedTable"
-                                                :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
-                                                :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
-                                                :serviceCharges="serviceCharges ?? 0
-                                                    " :deliveryCharges="deliveryCharges ?? 0
-                                                        " :note="note" :orderDate="orderDate ??
-                                                            new Date()
-                                                                .toISOString()
-                                                                .split('T')[0]
-                                                            " :orderTime="orderTime ??
-                                                                new Date()
-                                                                    .toTimeString()
-                                                                    .split(' ')[0]
-                                                                " :paymentMethod="paymentMethod" :change="changeAmount"
-                                                :paymentType="paymentMethod" />
+                                            <SplitPayment 
+                                            :order_code="order_code" 
+                                            :show="show" 
+                                            :customer="customer"
+                                            :orderType="orderType" 
+                                            :selectedTable="selectedTable"
+                                            :orderItems="orderItems" 
+                                            :grandTotal="grandTotal" 
+                                            :money="money"
+                                            :cashReceived="cashReceived" 
+                                            :subTotal="subTotal" 
+                                            :tax="tax ?? 0"
+                                            :serviceCharges="serviceCharges ?? 0" 
+                                            :deliveryCharges="deliveryCharges ?? 0"
+                                            :note="note" 
+                                            :orderDate="orderDate ?? new Date().toISOString().split('T')[0]" 
+                                            :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
+                                            :paymentMethod="paymentMethod" 
+                                            :change="changeAmount"
+                                            :paymentType="paymentMethod" 
+                                            :promo-discount="promoDiscount" 
+                                            :promo-id="promoId"
+                                            :promo-name="promoName"
+                                            :promo-type="promoType"
+                                            :promo-discount-amount="promoDiscountAmount"
+                                            />
                                         </div>
 
                                         <div class="mt-auto small text-muted pt-2">
