@@ -23,6 +23,30 @@ use Inertia\Inertia;
 
 class OnboardingController extends Controller
 {
+    // public function index(Request $request)
+    // {
+    //     $user = $request->user();
+    //     if (! $user) {
+    //         return redirect()->route('login');
+    //     }
+
+    //     $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+    //         && ProfileStep2::where('user_id', $user->id)->exists()
+    //         && ProfileStep3::where('user_id', $user->id)->exists()
+    //         && ProfileStep4::where('user_id', $user->id)->exists()
+    //         && ProfileStep5::where('user_id', $user->id)->exists()
+    //         && ProfileStep6::where('user_id', $user->id)->exists()
+    //         && ProfileStep7::where('user_id', $user->id)->exists()
+    //         && ProfileStep8::where('user_id', $user->id)->exists()
+    //         && ProfileStep9::where('user_id', $user->id)->exists();
+
+    //     if ($stepsCompleted) {
+    //         return redirect()->route('dashboard');
+    //     }
+
+    //     return Inertia::render('Onboarding/Index');
+    // }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -30,22 +54,27 @@ class OnboardingController extends Controller
             return redirect()->route('login');
         }
 
-        $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
-            && ProfileStep2::where('user_id', $user->id)->exists()
-            && ProfileStep3::where('user_id', $user->id)->exists()
-            && ProfileStep4::where('user_id', $user->id)->exists()
-            && ProfileStep5::where('user_id', $user->id)->exists()
-            && ProfileStep6::where('user_id', $user->id)->exists()
-            && ProfileStep7::where('user_id', $user->id)->exists()
-            && ProfileStep8::where('user_id', $user->id)->exists()
-            && ProfileStep9::where('user_id', $user->id)->exists();
+        // Only first super admin should see onboarding
+        if ($user->is_first_super_admin) {
+            $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+                && ProfileStep2::where('user_id', $user->id)->exists()
+                && ProfileStep3::where('user_id', $user->id)->exists()
+                && ProfileStep4::where('user_id', $user->id)->exists()
+                && ProfileStep5::where('user_id', $user->id)->exists()
+                && ProfileStep6::where('user_id', $user->id)->exists()
+                && ProfileStep7::where('user_id', $user->id)->exists()
+                && ProfileStep8::where('user_id', $user->id)->exists()
+                && ProfileStep9::where('user_id', $user->id)->exists();
 
-        if ($stepsCompleted) {
-            return redirect()->route('dashboard');
+            if (! $stepsCompleted) {
+                return Inertia::render('Onboarding/Index');
+            }
         }
 
-        return Inertia::render('Onboarding/Index');
+        // If not first super admin or steps completed, go to dashboard
+        return redirect()->route('dashboard');
     }
+
 
 
     /**
