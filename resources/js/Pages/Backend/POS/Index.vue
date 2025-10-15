@@ -283,7 +283,7 @@ const deliveryCharges = computed(() =>
 );
 const grandTotal = computed(() => {
     const total = subTotal.value + deliveryCharges.value - promoDiscount.value;
-    return Math.max(0, total); 
+    return Math.max(0, total);
 });
 
 const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
@@ -690,6 +690,7 @@ function printReceipt(order) {
         <div><strong>Customer:</strong> ${plainOrder.customer_name || "Walk-in"}</div>
         <div><strong>Order Type:</strong> ${plainOrder.order_type || "In-Store"}</div>
         ${plainOrder.note ? `<div><strong>Note:</strong> ${plainOrder.note}</div>` : ""}
+        <div>${payLine}</div>
       </div>
 
       <table>
@@ -704,13 +705,13 @@ function printReceipt(order) {
           ${(plainOrder.items || [])
             .map((item) => {
                 const qty = Number(item.quantity) || Number(item.qty) || 0;
-                const price = Number(item.unit_price || item.price) || 0;
+                const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
                 const total = price * qty;
                 return `
                   <tr>
                     <td>${item.title || "Unknown Item"}</td>
                     <td>${qty}</td>
-                    <td>£${total.toFixed(2)}</td>
+                    <td>£${price.toFixed(2)}</td>
                   </tr>
                 `;
             })
@@ -718,13 +719,15 @@ function printReceipt(order) {
         </tbody>
       </table>
 
-      <div class="totals">
-        <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
-        <div><strong>Total: £${Number(plainOrder.total_amount || plainOrder.sub_total || 0).toFixed(2)}</strong></div>
-        <div>${payLine}</div>
-        ${plainOrder.cash_received ? `<div>Cash Received: £${Number(plainOrder.cash_received).toFixed(2)}</div>` : ""}
-        ${plainOrder.change ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>` : ""}
-      </div>
+        <div class="totals">
+            <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
+            ${plainOrder.promo_discount ? `<div>Promo Discount: -£${Number(plainOrder.promo_discount).toFixed(2)}</div>` : ""}
+            <div><strong>Total: £${Number(plainOrder.total_amount || plainOrder.sub_total || 0).toFixed(2)}</strong></div>
+            
+            ${plainOrder.cash_received ? `<div>Cash Received: £${Number(plainOrder.cash_received).toFixed(2)}</div>` : ""}
+            ${plainOrder.change ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>` : ""}
+        </div>
+
 
       <div class="footer">
         Customer Copy - Thank you for your purchase!
@@ -916,11 +919,11 @@ const confirmOrder = async ({
             customer_name: customer.value,
             sub_total: subTotal.value,
             // Promo Details with payload
-            promo_discount: promoDiscount.value, 
-            promo_id: selectedPromo.value?.id || null, 
+            promo_discount: promoDiscount.value,
+            promo_id: selectedPromo.value?.id || null,
             promo_name: selectedPromo.value?.name || null,
             promo_type: selectedPromo.value?.type || null,
-            total_amount: grandTotal.value, 
+            total_amount: grandTotal.value,
             tax: 0,
             service_charges: 0,
             delivery_charges: deliveryCharges.value,
@@ -946,6 +949,7 @@ const confirmOrder = async ({
                 quantity: it.qty,
                 price: it.price,
                 note: it.note ?? "",
+                unit_price: it.unit_price,
             })),
         };
 
@@ -1588,9 +1592,9 @@ const promoDiscount = computed(() => {
                 :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
                 v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
                 :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="deliveryCharges"
-                :promo-discount="promoDiscount" :promo-id="selectedPromo?.id" :promo-name="selectedPromo?.name" :promo-type="selectedPromo?.type"
-                :promo-discount-amount="promoDiscount"
-                :note="note" :order-date="new Date().toISOString().split('T')[0]"
+                :promo-discount="promoDiscount" :promo-id="selectedPromo?.id" :promo-name="selectedPromo?.name"
+                :promo-type="selectedPromo?.type" :promo-discount-amount="promoDiscount" :note="note"
+                :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
                 :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
 
