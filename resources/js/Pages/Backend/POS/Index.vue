@@ -619,13 +619,17 @@ const openConfirmModal = () => {
 function printReceipt(order) {
     const plainOrder = JSON.parse(JSON.stringify(order));
 
+    // Normalize the payment fields so it works for all cases
+    const cash = Number(plainOrder.cashReceived ?? plainOrder.cash_received ?? 0);
+    const card = Number(plainOrder.cardAmount ?? plainOrder.cardPayment ?? 0);
+    const change = Number(plainOrder.changeAmount ?? plainOrder.change ?? 0);
+    console.log("Printing receipt for order:", plainOrder);
     const type = (plainOrder?.payment_type || "").toLowerCase();
     let payLine = "";
 
     if (type === "split") {
-        payLine = `Payment Type: Split 
-        (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
-        Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
+        const cardAmount = (Number(plainOrder.total_amount || plainOrder.sub_total || 0) - cash) || 0;
+        payLine = `Payment Type: Split (Cash: £${cash.toFixed(2)}, Card: £${cardAmount.toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
         payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
     } else {
@@ -866,6 +870,7 @@ function printKot(order) {
 
       <div class="totals">
         <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
+        
         <div><strong>Total: £${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></div>
         <div>${payLine}</div>
         ${plainOrder.cash_received
@@ -908,6 +913,7 @@ function printKot(order) {
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
+    cardAmount,  // ✅ Add this parameter
     changeAmount,
     items,
     autoPrintKot,
@@ -918,7 +924,7 @@ const confirmOrder = async ({
         const payload = {
             customer_name: customer.value,
             sub_total: subTotal.value,
-            // Promo Details with payload
+            // Promo Details
             promo_discount: promoDiscount.value,
             promo_id: selectedPromo.value?.id || null,
             promo_name: selectedPromo.value?.name || null,
@@ -941,8 +947,18 @@ const confirmOrder = async ({
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
             auto_print_kot: autoPrintKot,
+
+            // ✅ Add split payment handling
             cash_received: cashReceived,
             change: changeAmount,
+
+            // ✅ Add these for split payments
+            ...(paymentMethod === 'Split' && {
+                payment_type: 'split',
+                cash_amount: cashReceived,
+                card_amount: cardAmount
+            }),
+
             items: (orderItems.value ?? []).map((it) => ({
                 product_id: it.id,
                 title: it.title,
@@ -958,10 +974,15 @@ const confirmOrder = async ({
         showConfirmModal.value = false;
         toast.success(res.data.message);
 
+        // ✅ Merge the response with payload to include split payment data
         lastOrder.value = {
             ...res.data.order,
             ...payload,
             items: payload.items,
+            // Ensure split payment data is included
+            payment_type: paymentMethod === 'Split' ? 'split' : paymentMethod.toLowerCase(),
+            cash_amount: paymentMethod === 'Split' ? cashReceived : null,
+            card_amount: paymentMethod === 'Split' ? cardAmount : null,
         };
 
         // Open KOT modal after confirmation
@@ -1583,9 +1604,9 @@ const promoDiscount = computed(() => {
                 :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="0" :note="note"
                 :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
-                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
+                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" /> -->
             <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money"
-                @close="showReceiptModal = false" /> -->
+                @close="showReceiptModal = false" />
 
 
             <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
