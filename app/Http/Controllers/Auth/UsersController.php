@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use App\Mail\VerifyAccountMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rules\Password;
 
 class UsersController extends Controller
 {
@@ -45,7 +46,14 @@ class UsersController extends Controller
         $validated = $request->validate([
             'name'     => ['required','string','max:255'],
             'email'    => ['required','email','max:255','unique:users,email'],
-            'password' => ['required','confirmed','min:8'],
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8)               // Minimum 8 characters
+                    ->letters()               // Must contain letters
+                    ->mixedCase()             
+                    ->numbers()               // Must contain at least one number
+            ],
             'pin'      => ['required','digits:4','unique:users,pin'],
             'status'   => ['required', Rule::in(['Active','Inactive'])],
             'role_id'  => ['required','integer','exists:roles,id'],
