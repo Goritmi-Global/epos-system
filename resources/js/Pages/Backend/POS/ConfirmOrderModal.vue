@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import StripePayment from "./StripePayment.vue";
 import SplitPayment from "./SplitPayment.vue";
 import { useFormatters } from '@/composables/useFormatters'
+import { toast } from "vue3-toastify";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const props = defineProps({
@@ -60,11 +61,16 @@ const isLoading = ref(false);
 
 const handleConfirm = async () => {
 
-     formErrors.value.cashReceived = null;
+    formErrors.value.cashReceived = null;
 
     if (!props.cashReceived || props.cashReceived <= 0) {
         formErrors.value.cashReceived = "Enter a valid cash amount.";
         toast.error("Enter a valid cash amount.");
+        return;
+    }
+    if (props.cashReceived < props.grandTotal) {
+        formErrors.value.cashReceived = "Cash received cannot be less than total amount.";
+        toast.error("Cash received cannot be less than total amount.");
         return;
     }
     // prevent multiple clicks
@@ -154,7 +160,7 @@ function handleCardConfirm(payload) {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -179,7 +185,7 @@ function handleCardConfirm(payload) {
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -310,11 +316,14 @@ item, index
                                                 </h6>
                                             </div>
                                             <input type="number" v-model.number="cashReceived"
-                                                class="form-control rounded-3" />
-                                                
-    <small v-if="formErrors.cashReceived" class="text-danger">
-        {{ formErrors.cashReceived }}
-    </small>
+                                                class="form-control rounded-3" :class="{
+                                                'is-invalid':
+                                                    formErrors.cashReceived,
+                                            }" />
+
+                                            <small v-if="formErrors.cashReceived" class="text-danger">
+                                                {{ formErrors.cashReceived }}
+                                            </small>
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
                                                 <span :class="[changeAmount] < 0
@@ -367,7 +376,8 @@ item, index
                                                                 new Date()
                                                                     .toTimeString()
                                                                     .split(' ')[0]
-                                                                " :paymentMethod="paymentMethod" :change="changeAmount" />
+                                                                " :paymentMethod="paymentMethod"
+                                                :change="changeAmount" />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
