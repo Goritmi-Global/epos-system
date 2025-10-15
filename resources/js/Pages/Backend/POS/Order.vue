@@ -706,67 +706,60 @@ onMounted(fetchPrinters);
                                     <th>Time</th>
                                     <th>Customer</th>
                                     <th>Payment Type</th>
-                                    <th>Total Price</th>
-                                    <!-- <th class="text-center">Status</th> -->
+                                    <th>Actual Price</th>
+                                    <th>Promo Discount</th>
+                                    <th>Promo Name</th>
+                                    <th>Total</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="(o, i) in sortedOrders" :key="o.id">
                                     <td>{{ i + 1 }}</td>
-                                    <td>
-                                        {{ o.type?.table_number ?? "-" }}
-                                    </td>
+                                    <td>{{ o.type?.table_number ?? "-" }}</td>
                                     <td>{{ o.type?.order_type ?? "-" }}</td>
                                     <td>{{ dateFmt(o.created_at) }}</td>
                                     <td>{{ timeAgo(o.created_at) }}</td>
                                     <td>{{ o.customer_name ?? "-" }}</td>
                                     <td>
-                                        <span class=" cursor-pointer" @click="openPaymentModal(o.payment)">
+                                        <span class="cursor-pointer" @click="openPaymentModal(o.payment)">
                                             {{ o.payment?.payment_type ?? "-" }}
                                         </span>
                                     </td>
 
+                                    <!-- Actual price before promo -->
+                                    <td>{{ formatCurrencySymbol(o.sub_total ?? 0) }}</td>
+
+                                    <!-- Promo discount -->
+                                    <td class="text-success">
+                                        -{{ formatCurrencySymbol(o.promo?.discount_amount ?? 0) }}
+                                    </td>
+
+                                    <td>
+                                        {{ o.promo?.promo_name ?? 0 }}
+                                    </td>
+
+                                    <!-- Total after discount -->
                                     <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
-                                    <!-- <td class="text-center">
-                                            <span
-                                                class="badge rounded-pill fw-semibold px-5 py-2 text-capitalize paid-text"
-                                                :class="
-                                                    o.status === 'paid'
-                                                        ? 'bg-success text-white'
-                                                        : o.status === 'pending'
-                                                        ? 'bg-warning text-dark'
-                                                        : o.status ===
-                                                          'cancelled'
-                                                        ? 'bg-danger text-white'
-                                                        : 'bg-secondary text-white'
-                                                "
-                                            >
-                                                {{ o.status }}
-                                            </span>
-                                        </td> -->
+
                                     <td class="text-center">
                                         <button @click="openOrderDetails(o)" data-bs-toggle="modal"
                                             data-bs-target="#viewItemModal" title="View Item"
                                             class="p-2 rounded-full text-primary hover:bg-gray-100">
                                             <Eye class="w-4 h-4" />
                                         </button>
-
-                                        <!-- <button class=" p-2 rounded-full hover:bg-blue-100"
-                                            @click="" title="View Order">
-                                            <Eye class="w-4 h-4" />
-                                        </button> -->
                                     </td>
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="9" class="text-center text-muted py-4">
+                                    <td colspan="11" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
+
                 </div>
             </div>
 
@@ -1020,32 +1013,60 @@ onMounted(fetchPrinters);
                                                 <th class="px-3">#</th>
                                                 <th>Item</th>
                                                 <th>Qty</th>
-                                                <th>Price</th>
+                                                <th>Actual Price</th>
+                                                <th>Promo Discount</th>
+                                                <th>Promo Name</th>
+                                                <th>Total Price</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="(
-item, idx
-                                                ) in selectedOrder?.items ?? []" :key="item.id">
-                                                <td class="px-3">
-                                                    {{ idx + 1 }}
-                                                </td>
+                                            <!-- Order Items -->
+                                            <tr v-for="(item, idx) in selectedOrder.items ?? []" :key="item.id">
+                                                <td class="px-3">{{ idx + 1 }}</td>
                                                 <td>{{ item.title }}</td>
                                                 <td>{{ item.quantity }}</td>
-                                                <td class="fw-semibold">
-                                                    {{ formatCurrencySymbol(item.price) }}
+                                                <td class="fw-semibold">{{ formatCurrencySymbol(item.price) }}</td>
+                                                <td>-</td>
+                                                <td> <span v-if="selectedOrder.promo.promo_name">
+                                                        ({{ selectedOrder.promo.promo_name }})
+                                                    </span></td>
+                                                <td class="fw-bold text-success">{{ formatCurrencySymbol(item.price) }}</td>
+                                            </tr>
+
+                                            <!-- Promo Discount Row (applied at order level) -->
+                                            <tr v-if="selectedOrder.promo">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted">
+                                                    Promo Discount
+                                                   
+                                                </td>
+                                                <td class="text-success fw-semibold" colspan="3">
+                                                    -{{ formatCurrencySymbol(selectedOrder.promo.discount_amount) }}
+                                                </td>
+                                                
+                                            </tr>
+
+                                            <!-- Grand Total Row -->
+                                            <tr>
+                                                <td colspan="6" rowspan="2" class="text-end fw-bold">Grand Total</td>
+                                                <td class="fw-bold text-success">
+                                                    {{ formatCurrencySymbol(selectedOrder.total_amount) }}
                                                 </td>
                                             </tr>
-                                            <tr v-if="
-                                                (selectedOrder?.items ?? [])
-                                                    .length === 0
-                                            ">
-                                                <td colspan="4" class="text-center text-muted py-4">
+
+                                            <!-- No items fallback -->
+                                            <tr v-if="(selectedOrder.items ?? []).length === 0">
+                                                <td colspan="7" class="text-center text-muted py-4">
                                                     No items found
                                                 </td>
                                             </tr>
                                         </tbody>
                                     </table>
+
+
+
                                 </div>
                             </div>
                         </div>

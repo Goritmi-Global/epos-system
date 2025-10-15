@@ -42,4 +42,8 @@ class PosOrder extends Model
     {
         return $this->hasOne(KitchenOrder::class, 'pos_order_type_id', 'id');
     }
+    public function promo()
+    {
+        return $this->hasOne(OrderPromo::class, 'order_id');
+    }
 }

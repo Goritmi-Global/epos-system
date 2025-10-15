@@ -45,6 +45,12 @@ class StorePosOrderRequest extends FormRequest
             // KOT validations
             'auto_print_kot' => 'nullable|boolean',
 
+            // Promo validations
+            'promo_id'       => 'nullable|integer|exists:promos,id',
+            'promo_name'     => 'nullable|string|max:255',
+            'promo_discount' => 'nullable|numeric|min:0',
+            'promo_type'     => 'nullable|in:flat,percent',
+
         ];
     }
 

@@ -27,6 +27,13 @@ const props = defineProps({
   paymentMethod: String,        
   paymentType: String,        
   change: Number,
+
+  // ✅ ADD PROMO PROPS HERE
+  promoDiscount: { type: Number, default: 0 },
+  promoId: { type: [Number, String, null], default: null },
+  promoName: { type: [String, null], default: null },
+  promoType: { type: [String, null], default: null },
+  promoDiscountAmount: { type: Number, default: 0 },
 });
 
 
@@ -110,6 +117,11 @@ function confirmSplit() {
     cashReceived: Number(cash.value) || 0,
     cardAmount: Number(card.value) || 0,
     changeAmount: 0,
+
+    promoDiscount: props.promoDiscount,
+    promoId: props.promoId,
+    promoName: props.promoName,
+    promoType: props.promoType,
   });
 }
 </script>
@@ -220,6 +232,13 @@ function confirmSplit() {
 
         :paymentType="paymentType"
         :cardCharge="cardCharge"
+
+        :promo-discount="promoDiscount"
+        :promo-id="promoId"
+        :promo-name="promoName"
+        :promo-type="promoType"
+        :promo-discount-amount="promoDiscountAmount"
+
       />
     </div>
 
