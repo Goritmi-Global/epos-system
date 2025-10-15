@@ -6,6 +6,7 @@ import Select from "primevue/select";
 import { Pencil, Plus } from "lucide-vue-next";
 
 
+
 const rows = ref([]);
 const roles = ref([]);
 
@@ -95,8 +96,12 @@ async function fetchAll() {
 const roleOptions = computed(() =>
   (roles.value || []).map(r => ({ label: r.name, value: r.id }))
 );
+
+const isSaving = ref(false);
+
 async function save() {
   try {
+   isSaving.value = true;
     formErrors.value = {};
     if (editingId.value) {
       const { data } = await axios.put(`/users/${editingId.value}`, form.value);
@@ -117,16 +122,18 @@ async function save() {
     } else {
       toast.error(err?.response?.data?.message || "Something went wrong");
     }
+  }finally {
+    isSaving.value = false;
   }
 }
 
 async function remove(row) {
   if (!canDelete(row)) return;
-  if (!confirm(`Delete user "${row.name}"?`)) return;
+ 
   try {
     await axios.delete(`/users/${row.id}`);
     rows.value = rows.value.filter((x) => x.id !== row.id);
-    toast.success("Deleted");
+     toast.success("User deleted successfully"); // Changed message
   } catch (e) {
     toast.error(e?.response?.data?.message || "Delete failed");
   }
@@ -171,20 +178,35 @@ onMounted(fetchAll);
               </td>
               <td>{{ u.role || '—' }}</td>
               <td>
-                <span :class="['badge rounded-pill py-1 px-2', (u.status === 'Active' ? 'bg-success' : 'bg-secondary')]">
+                <span
+                  :class="['badge rounded-pill py-1 px-2', (u.status === 'Active' ? 'bg-success' : 'bg-secondary')]">
                   {{ u.status }}
                 </span>
               </td>
               <td>
-                <div class="d-flex gap-2">
+                <div class="d-inline-flex align-items-center gap-3">
                   <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="openEdit(u)" title="Edit">
                     <Pencil class="w-4 h-4" />
                   </button>
-                  <button
-                    class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
-                    :disabled="!canDelete(u)" title="Delete" @click="remove(u)">
-                    <i class="bi bi-trash"></i>
-                  </button>
+                 <!-- ConfirmModal for deletable users -->
+<ConfirmModal
+  v-if="canDelete(u)"
+  :title="'Delete User'"
+  :message="`Are you sure you want to delete user '${u.name}'?`"
+  :showDeleteButton="true"
+  @confirm="() => remove(u)"
+  @cancel="() => {}"
+/>
+
+<!-- Disabled button for non-deletable users -->
+<button
+  v-else
+  class="inline-flex items-center justify-center p-2 rounded-full text-gray-400 cursor-not-allowed"
+  disabled
+  title="Cannot delete Super Admin/Admin users"
+>
+  <i class="bi bi-trash"></i>
+</button>
                 </div>
               </td>
             </tr>
@@ -303,7 +325,12 @@ onMounted(fetchAll);
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-primary rounded-pill px-2 py-2" @click="save">Save</button>
+          <button class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center justify-content-center"
+            @click="save" :disabled="isSaving">
+            <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            {{ isSaving ? 'Saving...' : 'Save' }}
+          </button>
+
           <button class="btn btn-secondary rounded-pill px-2 py-2" @click="show = false">Cancel</button>
         </div>
       </div>
@@ -323,7 +350,7 @@ onMounted(fetchAll);
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
+  z-index: 2000 !important;
 }
 
 /* ====================================================== */
@@ -331,184 +358,193 @@ onMounted(fetchAll);
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
-    background-color: white !important;
-    color: black !important;
-    border-color: #9b9c9c;
+  background-color: white !important;
+  color: black !important;
+  border-color: #9b9c9c;
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-    background-color: white !important;
-    color: black !important;
+  background-color: white !important;
+  color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-    background-color: transparent !important;
-    /* instead of 'none' */
-    color: black !important;
+  background-color: transparent !important;
+  /* instead of 'none' */
+  color: black !important;
 }
+
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-    background-color: #f0f0f0 !important;
-    color: black !important;
+  background-color: #f0f0f0 !important;
+  color: black !important;
 }
 
 :deep(.p-select-label) {
-    color: #000 !important;
+  color: #000 !important;
 }
 
 :deep(.p-placeholder) {
-    color: #80878e !important;
+  color: #80878e !important;
 }
 
 
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
-    background-color: #181818 !important;
-    color: #fff !important;
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect-label) {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #000 !important;
-    color: #fff !important;
-    border-bottom: 1px solid #555 !important;
+  background: #000 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #555 !important;
 }
 
 /* Options list container */
 :global(.dark .p-multiselect-list) {
-    background: #181818 !important;
+  background: #181818 !important;
 }
 
 /* Each option */
 :global(.dark .p-multiselect-option) {
-    background: #181818 !important;
-    color: #fff !important;
+  background: #181818 !important;
+  color: #fff !important;
 }
 
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
-    background: #181818 !important;
-    color: #fff !important;
+  background: #181818 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #212121 !important;
-    color: #fff !important;
-    border-color: #555 !important;
+  background: #212121 !important;
+  color: #fff !important;
+  border-color: #555 !important;
 }
 
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #181818 !important;
-    border: 1px solid #555 !important;
+  background: #181818 !important;
+  border: 1px solid #555 !important;
 }
 
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
-    background: #181818 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border: 1px solid #555 !important;
 }
 
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
-    background: #181818 !important;
+  background: #181818 !important;
 }
 
 /* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
-    background: #181818 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    border-radius: 12px !important;
-    padding: 0.25rem 0.5rem !important;
+  background: #181818 !important;
+  color: #fff !important;
+  border: 1px solid #555 !important;
+  border-radius: 12px !important;
+  padding: 0.25rem 0.5rem !important;
 }
 
 .dark .p-inputtext {
-    background-color: #181818 !important;
-    color: #fff !important;
+  background-color: #181818 !important;
+  color: #fff !important;
 }
 
 .dark .p-checkbox-icon {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 .dark .p-checkbox-input {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 .dark .p-component {
-    color: #fff !important;
+  color: #fff !important;
 }
 
+.side-link{
+  border-radius: 55%;
+  background-color: #fff !important;
+}
+
+.dark .side-link{
+  border-radius: 55%;
+  background-color: #181818 !important;
+}
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
-    color: #fff !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important;
-    /* lighter red */
+  color: #f87171 !important;
+  /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
-    background-color: #000 !important;
-    color: #fff !important;
-    border-color: #555 !important;
+  background-color: #000 !important;
+  color: #fff !important;
+  border-color: #555 !important;
 }
 
 /* Options container */
 :global(.dark .p-select-list-container) {
-    background-color: #000 !important;
-    color: #fff !important;
+  background-color: #000 !important;
+  color: #fff !important;
 }
 
 /* Each option */
 :global(.dark .p-select-option) {
-    background-color: transparent !important;
-    color: #fff !important;
+  background-color: transparent !important;
+  color: #fff !important;
 }
 
 /* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
-    background-color: #222 !important;
-    color: #fff !important;
+  background-color: #222 !important;
+  color: #fff !important;
 }
 
 :global(.dark .p-select-dropdown) {
-    background-color: #212121 !important;
-    color: #fff !important;
+  background-color: #212121 !important;
+  color: #fff !important;
 
 }
 
 :global(.dark .p-select-label) {
-    color: #fff !important;
-    background-color: #212121 !important;
+  color: #fff !important;
+  background-color: #212121 !important;
 }
 
 :global(.dark .p-select-list) {
-    background-color: #212121 !important;
+  background-color: #212121 !important;
 }
 
 :global(.dark .p-placeholder) {
-    color: #aaa !important;
+  color: #aaa !important;
 }
-
 </style>

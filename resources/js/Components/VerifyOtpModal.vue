@@ -120,4 +120,9 @@ body.modal-open {
 
     letter-spacing: 8px;
 }
+.btn{
+    border-radius: 10px !important;
+    height: 42px !important;
+    font-size: 16px !important;
+}
 </style>

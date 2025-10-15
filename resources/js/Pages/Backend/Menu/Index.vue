@@ -2116,6 +2116,16 @@ ing, idx
     color: #fff !important;
 }
 
+.side-link{
+  border-radius: 55%;
+  background-color: #fff !important;
+}
+
+.dark .side-link{
+  border-radius: 55%;
+  background-color: #181818 !important;
+}
+
 .fw-semibold {
     font-size: 0.95rem;
     color: #333;

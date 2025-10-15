@@ -829,6 +829,16 @@ const handleImport = (data) => {
     width: clamp(220px, 28vw, 360px);
 }
 
+.side-link{
+  border-radius: 55%;
+  background-color: #fff !important;
+}
+
+.dark .side-link{
+  border-radius: 55%;
+  background-color: #181818 !important;
+}
+
 .form-control[readonly] {
     background-color: #fff !important;
     opacity: 1 !important;
