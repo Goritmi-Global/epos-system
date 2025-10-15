@@ -908,6 +908,7 @@ const suppliersCount = computed(() => {
 
 .dark .inventory-stock-alert {
   border: 1px solid #fff !important;
+
 }
 
 .dark .bi-alarm-fill {
@@ -940,6 +941,8 @@ const suppliersCount = computed(() => {
 
 .dark .bg-white {
   border: 1px solid #fff !important;
+  height: 80vh;
+  margin-top: 50px;
 }
 
 .dark .border-yellow-200 {

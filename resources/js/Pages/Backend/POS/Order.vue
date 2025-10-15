@@ -1052,7 +1052,7 @@ item, idx
 
                         <!-- Footer -->
                         <div class="modal-footer bg-white border-0 shadow-sm px-4 py-3">
-                            <button class="btn btn-secondary  rounded-pill px-4 p-2" data-bs-dismiss="modal">
+                            <button class="btn btn-secondary px-2 py-2" data-bs-dismiss="modal">
                                 Close
                             </button>
                             <button v-if="printers.length > 0" class="btn btn-primary shadow-sm rounded-pill px-4 py-2"

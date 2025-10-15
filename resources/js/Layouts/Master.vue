@@ -728,11 +728,62 @@ onMounted(fetchNotifications);
     /* desktop full width */
     --sidebar-w-tablet: 220px;
     /* tablet full width (slightly smaller) */
-    --sidebar-w-collapsed: 72px;
+    --sidebar-w-collapsed: 70px;
     /* collapsed (icons-only) width for desktop/tablet */
     --brand: #1b2850;
     --bg-muted: #f5f6f8;
     --border: #eef0f3;
+}
+/* ========= SUBMENU HOVER FOR COLLAPSED SIDEBAR ========= */
+.state-desktop.sidebar-collapsed .sidebar-menu > ul > li,
+.state-tablet.sidebar-collapsed .sidebar-menu > ul > li {
+  position: relative;
+}
+
+/* Hide submenu by default when collapsed */
+.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled,
+.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
+  display: none !important;
+  position: absolute;
+  left: var(--sidebar-w-collapsed);
+  top: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 200px;
+  z-index: 2000;
+  padding: 8px 0;
+}
+
+/* Show submenu on hover when sidebar is collapsed */
+.state-desktop.sidebar-collapsed .sidebar-menu > ul > li:hover .list-unstyled,
+.state-tablet.sidebar-collapsed .sidebar-menu > ul > li:hover .list-unstyled {
+  display: block !important;
+}
+
+/* Style submenu items in hover popup */
+.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled li .side-link,
+.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled li .side-link {
+  padding-left: 1rem !important;
+  display: flex !important;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* Show submenu text when in hover popup */
+.state-desktop.sidebar-collapsed .sidebar ul .list-unstyled li .side-link span,
+.state-tablet.sidebar-collapsed .sidebar ul .list-unstyled li .side-link span {
+  display: inline-block !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+/* Dark mode for hover submenu */
+html.dark .state-desktop.sidebar-collapsed .sidebar ul .list-unstyled,
+html.dark .state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
+  background: #181818;
+  border-color: #333;
 }
 
 
@@ -876,6 +927,10 @@ onMounted(fetchNotifications);
     color: rgb(194 65 12)
 }
 
+.sidebar .sidebar-menu>ul>li>a span{
+    margin-left: 0px !important;
+}
+
 .dark .bg-orange-200 {
     background-color: orange;
 }
@@ -996,6 +1051,7 @@ html.dark .side-link {
 /* .dark .btn-secondary {
     background-color: #212121 !important;
 } */
+ 
 
 .dark .text-muted {
     color: #fff !important;
@@ -1616,20 +1672,7 @@ h4{
     }
 }
 
-/* Landscape mode */
-@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
-    .sidebar {
-        width: 200px;
-    }
 
-    .page-wrapper {
-        margin-left: 200px;
-    }
-
-    .header {
-        padding: 0 10px;
-    }
-}
 
 /* dark code for modal */
 .dark .modal-content {

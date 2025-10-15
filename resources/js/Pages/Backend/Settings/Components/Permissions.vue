@@ -210,11 +210,11 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="modal-footer">
-                     <button class="btn btn-primary rounded-pill" :disabled="saving" @click="save">
+                     <button class="btn btn-primary rounded-pill px-2 py-2" :disabled="saving" @click="save">
                         <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
                         Save
                     </button>
-                    <button class="btn btn-secondary rounded-pill" @click="show = false">
+                    <button class="btn btn-secondary rounded-pill px-2 py-2" @click="show = false">
                         Cancel
                     </button>
                    
@@ -228,4 +228,9 @@ onBeforeUnmount(() => {
 .dark .bg-light{
     background-color: #212121 !important;
 }
+
+.dark .btn-secondary{
+    background-color: #212121 !important;
+}
+
 </style>

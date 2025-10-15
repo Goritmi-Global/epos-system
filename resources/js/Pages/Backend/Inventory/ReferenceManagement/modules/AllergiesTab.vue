@@ -986,6 +986,16 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
+.side-link{
+  border-radius: 55%;
+  background-color: #fff !important;
+}
+
+.dark .side-link{
+  border-radius: 55%;
+  background-color: #181818 !important;
+}
+
 /* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
