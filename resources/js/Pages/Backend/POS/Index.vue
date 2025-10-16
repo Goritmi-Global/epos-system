@@ -1202,6 +1202,107 @@ const promoDiscount = computed(() => {
     return 0;
 });
 
+
+// ========================================
+// // Get quantity for a product in the cart
+// ========================================
+const getCardQty = (product) => {
+    const cartItem = orderItems.value.find(item => item.id === product.id);
+    return cartItem ? cartItem.qty : 0;
+};
+
+// Check if we can add more of this product
+const canAddMore = (product) => {
+    const currentQty = getCardQty(product);
+    const menuStock = calculateMenuStock(product);
+
+    if (menuStock <= 0) return false;
+    if (currentQty >= menuStock) return false;
+
+    return checkIngredientAvailability(product, currentQty + 1);
+};
+
+// Check if ingredients are available for a specific quantity
+const checkIngredientAvailability = (product, targetQty) => {
+    if (!product.ingredients?.length) return true;
+
+    const ingredientStock = {};
+
+    // Build current stock map based on items in cart
+    for (const item of orderItems.value) {
+        if (!item.ingredients?.length) continue;
+        for (const ing of item.ingredients) {
+            const id = ing.inventory_item_id;
+            if (!ingredientStock[id]) {
+                ingredientStock[id] = parseFloat(ing.inventory_stock);
+            }
+            ingredientStock[id] -= parseFloat(ing.quantity) * item.qty;
+        }
+    }
+
+    // Check if enough stock for one more unit
+    for (const ing of product.ingredients) {
+        const id = ing.inventory_item_id;
+        const availableStock = ingredientStock[id] ?? parseFloat(ing.inventory_stock);
+        const requiredQty = parseFloat(ing.quantity);
+
+        if (availableStock < requiredQty) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+// Increment quantity directly from card
+const incrementCardQty = (product) => {
+    const currentQty = getCardQty(product);
+    const menuStock = calculateMenuStock(product);
+
+    if ((product.stock ?? 0) <= 0) {
+        toast.error(`${product.title} is out of stock.`);
+        return;
+    }
+
+    if (currentQty >= menuStock) {
+        toast.error(`Not enough stock for "${product.title}".`);
+        return;
+    }
+
+    if (!checkIngredientAvailability(product, currentQty + 1)) {
+        toast.error(`Not enough ingredients for "${product.title}".`);
+        return;
+    }
+
+    const existingIndex = orderItems.value.findIndex(item => item.id === product.id);
+
+    if (existingIndex >= 0) {
+        orderItems.value[existingIndex].qty++;
+        orderItems.value[existingIndex].price =
+            orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
+        orderItems.value[existingIndex].outOfStock = false;
+    } else {
+        addToOrder(product, 1, "");
+    }
+};
+
+// Decrement quantity directly from card
+const decrementCardQty = (product) => {
+    const existingIndex = orderItems.value.findIndex(item => item.id === product.id);
+    if (existingIndex < 0) return;
+
+    const item = orderItems.value[existingIndex];
+    if (item.qty <= 1) {
+        orderItems.value.splice(existingIndex, 1);
+        
+    } else {
+        item.qty--;
+        item.price = item.unit_price * item.qty;
+        item.outOfStock = false;
+    }
+};
+
+
 </script>
 
 <template>
@@ -1216,6 +1317,10 @@ const promoDiscount = computed(() => {
                     <div class="col-lg-8">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3">
+                            <div class="col-12 mb-3">
+                                <h5 class="fw-bold text-primary mb-0">Menu Categories</h5>
+                                <hr class="mt-2 mb-3">
+                            </div>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
                                 <div class="spinner-border" role="status"
                                     style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;"></div>
@@ -1232,7 +1337,7 @@ const promoDiscount = computed(() => {
                                         </div>
                                         <div class="cat-name">{{ c.name }}</div>
                                         <div class="cat-pill">
-                                            {{ c.menu_items_count }} items
+                                            {{ c.menu_items_count }} Menu
                                         </div>
                                     </div>
                                 </div>
@@ -1269,7 +1374,7 @@ const promoDiscount = computed(() => {
                                 </div>
                             </div>
 
-                            <div class="row g-3">
+                            <!-- <div class="row g-3">
                                 <div class="col-6 col-md-4 col-xl-3 d-flex" v-for="p in filteredProducts"
                                     :key="p.title">
                                     <div class="item-card" :class="{
@@ -1309,12 +1414,129 @@ const promoDiscount = computed(() => {
 
                                     </div>
                                 </div>
+
+                                
                                 <div v-if="filteredProducts.length === 0" class="col-12">
                                     <div class="alert alert-light border text-center rounded-4">
                                         No items found
                                     </div>
                                 </div>
+                            </div> -->
+
+
+                            <div class="row g-3">
+                                <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
+                                    :key="p.title">
+                                    <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
+                                        :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
+                                        :style="{ borderColor: p.label_color || '#1B1670' }">
+
+                                        <!-- Left Side (Image + Price + Badge + Quantity Controls) -->
+                                        <div class="p-2 d-flex flex-column align-items-center justify-content-between position-relative bg-light"
+                                            style="flex: 0 0 40%; max-width: 40%; position: relative;">
+
+                                            <!-- Image -->
+                                            <div
+                                                class="d-flex align-items-center justify-content-center w-100 flex-grow-1">
+                                                <img :src="p.img" alt="" class="img-fluid rounded-3"
+                                                    style="max-height: 150px; object-fit: contain;" />
+                                            </div>
+
+                                            <!-- Price Badge -->
+                                            <span
+                                                class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small"
+                                                :style="{ background: p.label_color || '#1B1670' }">
+                                                {{ formatCurrencySymbol(p.price) }}
+                                            </span>
+
+                                            <!-- OUT OF STOCK Badge -->
+                                            <span v-if="(p.stock ?? 0) <= 0"
+                                                class="position-absolute bottom-0 start-0 m-2 badge bg-danger">
+                                                OUT OF STOCK
+                                            </span>
+
+                                            <!-- Quantity Controls at Bottom -->
+                                            <div v-if="(p.stock ?? 0) > 0"
+                                                class="qty-group d-flex align-items-center justify-content-center gap-2 mt-2 w-100"
+                                                @click.stop style="padding: 0.5rem;">
+                                                <button class="qty-btn btn btn-outline-secondary btn-sm rounded-circle"
+                                                    @click.stop="decrementCardQty(p)"
+                                                    :disabled="getCardQty(p) <= 0">−</button>
+                                                <div class="qty-box border rounded-pill px-3 py-1 text-center small">
+                                                    {{ getCardQty(p) }}
+                                                </div>
+                                                <button class="qty-btn btn btn-outline-secondary btn-sm rounded-circle"
+                                                    @click.stop="incrementCardQty(p)"
+                                                    :disabled="!canAddMore(p)">+</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Right Side (Details) -->
+                                        <div class="p-3 d-flex flex-column justify-content-between"
+                                            style="flex: 1 1 60%; min-width: 0;">
+
+                                            <div>
+                                                <div class="h5 fw-bold mb-1"
+                                                    >
+                                                    {{ p.title }}
+                                                </div>
+                                                <div class="text-muted mb-2 small"
+                                                    :style="{ color: p.label_color || '#1B1670' }">
+                                                    {{ p.family }}
+                                                </div>
+
+                                                <!-- Chips Section -->
+                                                <div class="chips small">
+                                                    <!-- Nutrition -->
+                                                    <div v-if="p.nutrition" class="mb-3">
+                                                        <strong class="d-block mb-1">Nutrition:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-if="p.nutrition.calories" class="chip chip-orange">
+                                                                Cal: {{ p.nutrition.calories }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.carbs" class="chip chip-green">
+                                                                Carbs: {{ p.nutrition.carbs }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.fat" class="chip chip-purple">
+                                                                Fat: {{ p.nutrition.fat }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.protein" class="chip chip-blue">
+                                                                Protein: {{ p.nutrition.protein }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Allergies -->
+                                                    <div v-if="p.allergies?.length" class="mb-3">
+                                                        <strong class="d-block mb-1">Allergies:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-for="(a, i) in p.allergies" :key="'a-' + i"
+                                                                class="chip chip-red">
+                                                                {{ a.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Tags -->
+                                                    <div v-if="p.tags?.length">
+                                                        <strong class="d-block mb-1">Tags:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-for="(t, i) in p.tags" :key="'t-' + i"
+                                                                class="chip chip-teal">
+                                                                {{ t.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+
+
+
                         </div>
                     </div>
 
@@ -1493,7 +1715,7 @@ const promoDiscount = computed(() => {
             </div>
 
             <!-- Choose Item Modal (unchanged content/ids) -->
-            <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
+            <!-- <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow">
                         <div class="modal-header border-0">
@@ -1527,7 +1749,6 @@ const promoDiscount = computed(() => {
                                         }}
                                     </div>
 
-                                    <!-- Chips -->
                                     <div class="chips mb-3">
                                         <div class="mb-1">
                                             <strong>Nutrition:</strong>
@@ -1595,7 +1816,7 @@ const promoDiscount = computed(() => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <KotModal :show="showKotModal" :kot="kotData" :loading="kotLoading" @close="showKotModal = false"
                 @status-updated="handleKotStatusUpdated" />
