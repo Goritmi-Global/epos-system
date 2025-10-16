@@ -266,10 +266,10 @@ async function goNext(stepData) {
           </div>
 
           <div class="wizard-footer footer d-flex justify-content-end gap-2 p-3">
-            <button class="btn btn-secondary py-2 px-2" :disabled="current === 1"
+            <button class="btn btn-secondary py-2 px-4" :disabled="current === 1"
               @click="current--">Back</button>
 
-            <button v-if="current < steps.length" class="btn btn-primary rounded-pill px-2 py-2" @click="goNext(profile)">
+            <button v-if="current < steps.length" class="btn btn-primary rounded-pill px-4 py-2" @click="goNext(profile)">
               Next
             </button>
 
