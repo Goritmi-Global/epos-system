@@ -1,201 +1,91 @@
-<script scoped>
+<script setup>
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
+// Reactive state
+const showScrollTop = ref(false);
 
-export default {
-  name: 'EposLanding',
-  data() {
-    return {
-       showScrollTop: false,
-      features: [
-        {
-          title: 'Inventory Management',
-          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt'
-        },
-        {
-          title: 'Multi-Outlet Support',
-          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt'
-        },
-        {
-          title: 'Smart Analytics',
-          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt'
-        },
-        {
-          title: 'Real-Time Sales Reports',
-          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt'
-        },
-        {
-          title: 'Role-Based Permissions',
-          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt'
-        },
-        {
-          title: 'Offline Mode',
-          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt'
-        }
-      ],
-      howItWorks: [
-        {
-          title: 'Register & Set Up',
-          description: 'Sign up & verify your business.',
-          image: 'path-to-register-image.jpg'
-        },
-        {
-          title: 'Configure POS setup',
-          description: 'Configure POS setup in minutes.',
-          image: 'path-to-configure-image.jpg'
-        },
-        {
-          title: 'Start selling instantly',
-          description: 'Start selling instantly.',
-          image: 'path-to-selling-image.jpg'
-        }
-      ],
-      isAnnual: false,
-      pricingPlans: [
-        {
-          name: 'Free Trial',
-          monthlyPrice: 3,
-          annualPrice: 3,
-          features: [
-            '14 days',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum'
-          ]
-        },
-        {
-          name: 'Pro Plan',
-          monthlyPrice: 6,
-          annualPrice: 6,
-          features: [
-            '1 Free Migration',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum'
-          ],
-          popular: false
-        },
-        {
-          name: 'Enterprise',
-          monthlyPrice: 8,
-          annualPrice: 8,
-          features: [
-            '1 Free Migration',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum',
-            'Lorem ipsum'
-          ]
-        }
-      ],
-      testimonials: [
-        {
-          name: 'Lorem Ipsum',
-          role: 'Has Been Dummy Text',
-          rating: 5,
-          text: 'Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry. Lorem Ipsum Has Been The Industry\'s Standard Dummy Text Ever Since The 1500s., Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry.'
-        },
-        {
-          name: 'Lorem Ipsum',
-          role: 'Has Been Dummy Text',
-          rating: 5,
-          text: 'Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry. Lorem Ipsum Has Been The Industry\'s Standard Dummy Text Ever Since The 1500s., Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry.'
-        },
-        {
-          name: 'Lorem Ipsum',
-          role: 'Has Been Dummy Text',
-          rating: 5,
-          text: 'Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry. Lorem Ipsum Has Been The Industry\'s Standard Dummy Text Ever Since The 1500s., Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry.'
-        },
-        {
-          name: 'Lorem Ipsum',
-          role: 'Has Been Dummy Text',
-          rating: 5,
-          text: 'Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry. Lorem Ipsum Has Been The Industry\'s Standard Dummy Text Ever Since The 1500s., Lorem Ipsum Is Simply Dummy Text Of The Printing And Typesetting Industry.'
-        }
-      ],
-      faqs: [
-        {
-          question: 'How long until we deliver your first blog post?',
-          answer: 'Really they joe country she unable her sister. Feet you off for his for joy. Among she are tears her. hair Now. & Really they joe country she unable her sister among wammy.',
-          open: false
-        },
-        {
-          question: 'How long until we deliver your first blog post?',
-          answer: 'Really they joe country she unable her sister. Feet you off for his for joy. Among she are tears her. hair Now. & Really they joe country she unable her sister among wammy.',
-          open: false
-        },
-        {
-          question: 'How long until we deliver your first blog post?',
-          answer: 'Really they joe country she unable her sister. Feet you off for his for joy. Among she are tears her. hair Now. & Really they joe country she unable her sister among wammy.',
-          open: false
-        },
-        {
-          question: 'How long until we deliver your first blog post?',
-          answer: 'Really they joe country she unable her sister. Feet you off for his for joy. Among she are tears her. hair Now. & Really they joe country she unable her sister among wammy.',
-          open: false
-        },
-        {
-          question: 'How long until we deliver your first blog post?',
-          answer: 'Really they joe country she unable her sister. Feet you off for his for joy. Among she are tears her. hair Now. & Really they joe country she unable her sister among wammy.',
-          open: false
-        },
-        {
-          question: 'How long until we deliver your first blog post?',
-          answer: 'Really they joe country she unable her sister. Feet you off for his for joy. Among she are tears her. hair Now. & Really they joe country she unable her sister among wammy.',
-          open: false
-        }
-      ],
-      pages: [
-        { id: "01", text: "POS Dashboard" },
-        { id: "02", text: "Inventory Tracking" },
-        { id: "03", text: "Expense & Accounting" },
-        { id: "04", text: "Staff Roles & Permissions" },
-        { id: "05", text: "Multi-Location Management" },
-        { id: "06", text: "Payment Integrations" }
-      ]
-    }
-  },
+const features = ref([
+  { title: 'Inventory Management', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt' },
+  { title: 'Multi-Outlet Support', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt' },
+  { title: 'Smart Analytics', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt' },
+  { title: 'Real-Time Sales Reports', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt' },
+  { title: 'Role-Based Permissions', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt' },
+  { title: 'Offline Mode', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt' },
+]);
 
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll);
-  },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll);
-  },
+const howItWorks = ref([
+  { title: 'Register & Set Up', description: 'Sign up & verify your business.', image: 'path-to-register-image.jpg' },
+  { title: 'Configure POS setup', description: 'Configure POS setup in minutes.', image: 'path-to-configure-image.jpg' },
+  { title: 'Start selling instantly', description: 'Start selling instantly.', image: 'path-to-selling-image.jpg' },
+]);
 
-  methods: {
+const isAnnual = ref(false);
 
-     handleScroll() {
-      this.showScrollTop = window.pageYOffset > 300;
-    },
-    scrollToTop() {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    },
-    scrollToSection(section) {
-      // Add scroll logic
-    },
-    startFreeTrial() {
+const pricingPlans = ref([
+  { name: 'Free Trial', monthlyPrice: 3, annualPrice: 3, features: ['14 days','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum'] },
+  { name: 'Pro Plan', monthlyPrice: 6, annualPrice: 6, features: ['1 Free Migration','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum'], popular: false },
+  { name: 'Enterprise', monthlyPrice: 8, annualPrice: 8, features: ['1 Free Migration','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum','Lorem ipsum'] },
+]);
 
-    },
-    watchDemo() {
-      // Add demo logic
-    },
-    toggleFaq(index) {
-      this.faqs[index].open = !this.faqs[index].open;
-    }
-  }
-}
+const testimonials = ref([
+  { name: 'Lorem Ipsum', role: 'Has Been Dummy Text', rating: 5, text: 'Lorem Ipsum Is Simply Dummy Text...' },
+  { name: 'Lorem Ipsum', role: 'Has Been Dummy Text', rating: 5, text: 'Lorem Ipsum Is Simply Dummy Text...' },
+  { name: 'Lorem Ipsum', role: 'Has Been Dummy Text', rating: 5, text: 'Lorem Ipsum Is Simply Dummy Text...' },
+  { name: 'Lorem Ipsum', role: 'Has Been Dummy Text', rating: 5, text: 'Lorem Ipsum Is Simply Dummy Text...' },
+]);
+
+const faqs = ref([
+  { question: 'How long until we deliver your first blog post?', answer: 'Really they joe country...', open: false },
+  { question: 'How long until we deliver your first blog post?', answer: 'Really they joe country...', open: false },
+  { question: 'How long until we deliver your first blog post?', answer: 'Really they joe country...', open: false },
+  { question: 'How long until we deliver your first blog post?', answer: 'Really they joe country...', open: false },
+  { question: 'How long until we deliver your first blog post?', answer: 'Really they joe country...', open: false },
+  { question: 'How long until we deliver your first blog post?', answer: 'Really they joe country...', open: false },
+]);
+
+const pages = ref([
+  { id: "01", text: "POS Dashboard" },
+  { id: "02", text: "Inventory Tracking" },
+  { id: "03", text: "Expense & Accounting" },
+  { id: "04", text: "Staff Roles & Permissions" },
+  { id: "05", text: "Multi-Location Management" },
+  { id: "06", text: "Payment Integrations" }
+]);
+
+// Methods
+const handleScroll = () => {
+  showScrollTop.value = window.pageYOffset > 300;
+};
+
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const scrollToSection = (section) => {
+  // Add scroll logic here
+};
+
+const startFreeTrial = () => {
+  
+};
+
+const watchDemo = () => {
+  // Add demo logic
+};
+
+const toggleFaq = (index) => {
+  faqs.value[index].open = !faqs.value[index].open;
+};
+
+// Lifecycle hooks
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
+
 
 <template>
   <div class="epos-landing">
@@ -223,9 +113,10 @@ export default {
           <li class="nav-item">
             <a class="nav-link" href="#faqs">FAQs</a>
           </li>
-        </ul>
-        <button class="btn btn-light btn-get-trial" @click="startFreeTrial">Get Free Trial</button>
-        <button class="btn btn-light btn-get-trial" @click="startFreeTrial">Login</button>
+          </ul>
+
+        <a href="/register" class="btn btn-light btn-get-trial">Get Free Trial</a>
+        <a href="/login" class="btn btn-light btn-get-trial">Login</a>
 
       </div>
     </nav>
@@ -242,8 +133,8 @@ export default {
 
         <!-- Buttons -->
         <div class="d-flex gap-3">
-          <button class="btn btn-primary px-4 py-2" @click="startFreeTrial">Start Free Trial</button>
-          <button class="btn btn-outline-light py-2 px-4" @click="watchDemo">Watch Demo</button>
+          <a href="/register" class="btn btn-primary px-4 py-2">Start Free Trial</a>
+          <a href="/login" class="btn btn-outline-light py-2 px-4">Watch Demo</a>
         </div>
       </div>
 
