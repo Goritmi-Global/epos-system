@@ -60,17 +60,20 @@ const selectAll = () =>
 const addCustom = () => {
     const name = (filterText.value || "").trim();
     if (!name) return;
-    if (
-        !commonExistingAllergiesList.value.some(
-            (o) => o.label.toLowerCase() === name.toLowerCase()
-        )
-    ) {
-        commonExistingAllergiesList.value.push({ label: name, value: name });
+
+    // Add to options if not exists
+    if (!availableOptions.value.some(o => o.value === name)) {
+        availableOptions.value.push({ label: name, value: name });
     }
-    if (!commonAllergies.value.includes(name))
+
+    // Add to selected
+    if (!commonAllergies.value.includes(name)) {
         commonAllergies.value = [...commonAllergies.value, name];
+    }
+
     filterText.value = "";
 };
+
 
 const openAdd = () => {
     isEditing.value = false;
