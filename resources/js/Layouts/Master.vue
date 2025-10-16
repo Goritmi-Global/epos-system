@@ -415,6 +415,11 @@ onMounted(fetchNotifications);
                     Quick Order
                 </a>
 
+<Link :href="route('logout')" method="post" as="button" class="btn btn-danger rounded-pill py-2 px-2">
+  Quick Logout
+</Link>
+
+
                 <li class="nav-item">
                     <button class="icon-btn" @click="toggleDark()">
                         <Sun v-if="isDark" :size="20" />

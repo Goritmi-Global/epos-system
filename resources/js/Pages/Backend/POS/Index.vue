@@ -1465,10 +1465,10 @@ const decrementCardQty = (product) => {
                                             <div v-if="(p.stock ?? 0) > 0"
                                                 class="qty-group d-flex align-items-center justify-content-center gap-2 mt-2 w-100"
                                                 @click.stop style="padding: 0.5rem;">
-                                                <button class="qty-btn btn btn-outline-secondary btn-sm rounded-circle"
+                                                <button class="qty-btn btn px-2 py-2 btn-outline-secondary btn-sm"
                                                     @click.stop="decrementCardQty(p)"
                                                     :disabled="getCardQty(p) <= 0">−</button>
-                                                <div class="qty-box border rounded-pill px-3 py-1 text-center small">
+                                                <div class="qty-box border rounded-pill px-2 py-2 text-center small">
                                                     {{ getCardQty(p) }}
                                                 </div>
                                                 <button class="qty-btn btn btn-outline-secondary btn-sm rounded-circle"
@@ -1873,6 +1873,10 @@ const decrementCardQty = (product) => {
 
 .dark .item-title {
     color: #fff !important;
+}
+
+.dark .bg-light{
+    background-color: #181818 !important;
 }
 
 .dark b {

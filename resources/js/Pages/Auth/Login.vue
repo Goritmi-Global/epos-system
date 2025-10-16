@@ -304,6 +304,7 @@ const switchToPin = () => {
     max-width: 200px;
     height: auto;
     width: 100%;
+    margin-left: 550px;
 }
 
 @media (max-width: 768px) {
