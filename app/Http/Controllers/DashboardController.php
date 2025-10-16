@@ -32,7 +32,6 @@ class DashboardController extends Controller
             return redirect()->route('login'); // or abort(403)
         }
          $role = $user->getRoleNames()->first();
-
     // ✅ Redirect cashier directly to POS and block dashboard access
     if ($role === 'Cashier') {
         return redirect()->route('pos.order');
