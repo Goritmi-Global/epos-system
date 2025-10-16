@@ -111,7 +111,7 @@ async function save() {
     } else {
       const { data } = await axios.post("/users", form.value);
       rows.value.push(data.user);
-      toast.success("User created");
+      toast.success("User created Successfully");
     }
     show.value = false;
   } catch (err) {
