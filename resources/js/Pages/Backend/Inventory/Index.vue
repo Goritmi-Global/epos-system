@@ -545,6 +545,8 @@ import { nextTick } from "vue";
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
+import StockOutConfirmationModal from "@/Components/StockOutConfirmationModal.vue";
+
 
 const editItem = (item) => {
     const toNum = (v) =>
@@ -755,7 +757,24 @@ const stockInItemCategory = ref(null);
 
 const selectedStockOutItem = ref(null);
 
+const showConfirm = ref(false)
+const selectedItem = ref(null)
+
+const openConfirmModal = (item) => {
+  selectedItem.value = item
+  showConfirm.value = true
+}
+
+const handleStockOut = () => {
+  showConfirm.value = false
+
+  // Call your stock-out function here
+  confirmStockOut(selectedItem.value)
+}
+
+
 async function confirmStockOut(item) {
+    openConfirmModal();
     if (!item) return;
 
     try {
@@ -790,6 +809,8 @@ async function confirmStockOut(item) {
     } catch (err) {
         toast.error("Stock out failed. Please try again.");
         console.error(err);
+    } finally{
+        showConfirm.value = false;
     }
 }
 
@@ -1247,7 +1268,7 @@ const totals = computed(() => {
 
 // handle import function for items
 const handleImport = (data) => {
- 
+
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
         return; // Stop execution
@@ -1280,7 +1301,7 @@ const handleImport = (data) => {
     // Check for duplicate item names within the CSV
     const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
     const duplicatesInCSV = itemNames.filter((name, index) => itemNames.indexOf(name) !== index);
-    
+
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
         return; // Stop execution
@@ -1288,10 +1309,10 @@ const handleImport = (data) => {
 
     // Check for duplicate item names in the existing table
     const existingNames = items.value.map(item => item.name.trim().toLowerCase());
-    const duplicatesInTable = itemsToImport.filter(importItem => 
+    const duplicatesInTable = itemsToImport.filter(importItem =>
         existingNames.includes(importItem.name.trim().toLowerCase())
     );
-    
+
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(item => item.name).join(", ");
         toast.error(`Items already exist in the table: ${duplicateNamesList}`);
@@ -1563,14 +1584,20 @@ const handleImport = (data) => {
                                                 class="p-2 rounded-full text-red-600 hover:bg-red-100">
                                                 <Upload class="w-4 h-4" />
                                             </button> -->
-                                            <button
-    @click="confirmStockOut(item)"
-    title="Stock Out"
-    class="p-2 rounded-full text-red-600 hover:bg-red-100"
->
-    <Upload class="w-4 h-4" />
-</button>
+                                            <button @click="openConfirmModal(item)" title="Stock Out"
+                                                class="p-2 rounded-full text-red-600 hover:bg-red-100">
+                                                <Upload class="w-4 h-4" />
+                                            </button>
 
+                                             <StockOutConfirmationModal
+      :show="showConfirm"
+      title="Confirm Stock Out"
+      message="Are you sure you want to stock out this item?"
+      @confirm="confirmStockOut(item)"
+      @close="showConfirm = false"
+    />
+
+                                        
                                             <button @click="ViewItem(item)" data-bs-toggle="modal"
                                                 data-bs-target="#viewItemModal" title="View Item"
                                                 class="p-2 rounded-full text-primary hover:bg-gray-100">
@@ -1669,7 +1696,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1680,7 +1707,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1782,7 +1809,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -2023,14 +2050,14 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.notExpiredQty
-                                            }}</span>
+                                                }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <!-- <div
@@ -2079,7 +2106,7 @@ const handleImport = (data) => {
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -2115,7 +2142,7 @@ row, i
                                                 </td>
                                                 <td>{{ row.quantity }}</td>
                                                 <td>
-                                                    {{formatCurrencySymbol(row.price) }}
+                                                    {{ formatCurrencySymbol(row.price) }}
                                                 </td>
                                                 <td class="fw-semibold">
                                                     {{ formatCurrencySymbol(row.value) }}
@@ -2167,12 +2194,12 @@ row, i
                                                 </th>
                                                 <th>
                                                     {{
-                                                       formatCurrencySymbol(totals.totalPrice)
+                                                        formatCurrencySymbol(totals.totalPrice)
                                                     }}
                                                 </th>
                                                 <th class="fw-semibold text-muted w-50">
                                                     {{
-                                                       formatCurrencySymbol(totals.totalValue)
+                                                        formatCurrencySymbol(totals.totalValue)
                                                     }}
                                                 </th>
                                                 <th colspan="4"></th>
