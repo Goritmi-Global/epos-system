@@ -10,18 +10,15 @@ class PermissionsTableSeeder extends Seeder
 {
     public function run(): void
     {
-        // Get all route names
         $routes = collect(Route::getRoutes())
-            ->map(function ($route) {
-                return $route->getName();
-            })
-            ->filter() // remove null route names
+            ->map(fn($route) => $route->getName())
+            ->filter()
             ->unique();
 
         $count = 0;
 
         foreach ($routes as $name) {
-            // Skip unnecessary routes (like login, logout, etc.)
+            // Skip system or irrelevant routes
             if (
                 str_contains($name, 'sanctum') ||
                 str_contains($name, 'ignition') ||
@@ -31,14 +28,46 @@ class PermissionsTableSeeder extends Seeder
                 continue;
             }
 
+            $description = $this->generateMeaningfulDescription($name);
+
             Permission::firstOrCreate(
                 ['name' => $name, 'guard_name' => 'web'],
-                ['description' => ucfirst(str_replace('.', ' → ', $name))]
+                ['description' => $description]
             );
 
             $count++;
         }
 
         $this->command->info("✅ Created or updated {$count} permissions successfully.");
+    }
+
+    private function generateMeaningfulDescription(string $routeName): string
+    {
+        $parts = explode('.', $routeName);
+
+        if (count($parts) < 2) {
+            return ucfirst(str_replace('.', ' → ', $routeName));
+        }
+
+        $module = ucfirst($parts[0]);
+        $action = strtolower(end($parts));
+
+        // Map common Laravel route actions to readable verbs
+        $actionMap = [
+            'index' => 'View',
+            'show' => 'View Details of',
+            'create' => 'Create',
+            'store' => 'Add',
+            'edit' => 'Edit',
+            'update' => 'Update',
+            'destroy' => 'Delete',
+            'delete' => 'Delete',
+            'export' => 'Export',
+            'import' => 'Import',
+        ];
+
+        $verb = $actionMap[$action] ?? ucfirst($action);
+
+        return "{$verb} {$module}";
     }
 }

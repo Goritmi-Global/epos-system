@@ -27,6 +27,16 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
+    // public function store(LoginRequest $request): RedirectResponse
+    // {
+    //     $request->authenticate();
+    //     session()->flash('show_inventory_popup', true);
+
+    //     $request->session()->regenerate();
+
+    //     return redirect()->intended(route('dashboard', absolute: false));
+    // }
+
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
@@ -34,6 +44,16 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // ✅ Get logged-in user and check role
+        $user = Auth::user();
+        $role = $user->getRoleNames()->first();
+
+        // ✅ If role is Cashier, redirect to POS module
+        if ($role === 'Cashier') {
+            return redirect()->route('pos.order');
+        }
+
+        // ✅ Otherwise, redirect to dashboard (default)
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

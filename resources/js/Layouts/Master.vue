@@ -61,6 +61,20 @@ const handleSystemRestore = async () => {
     }
 };
 
+const userPermissions = computed(() => page.props.current_user?.permissions ?? []);
+const userRoles = computed(() => page.props.current_user?.roles ?? []);
+console.log("userPermissions", userPermissions.value);
+// helper
+const hasPermission = (perm) => {
+    if (!perm) return true; // sections or headers without route
+    if (userRoles.value.includes("Super Admin")) return true;
+
+    const permissions = Array.isArray(userPermissions.value)
+        ? userPermissions.value
+        : [];
+    return permissions.includes(perm);
+};
+
 
 const formErrors = ref({});
 const logedIUser = computed(() => page.props.current_user ?? {});
@@ -569,33 +583,35 @@ onMounted(fetchNotifications);
 
                                 <template v-for="item in block.children" :key="item.label">
                                     <!-- Dropdown group -->
-                                 <li v-if="item.children && item.children.length" class="dropdown-parent">
-    <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-        :class="{
-            active: openGroups.has(item.label) || isAnyChildActive(item.children),
-        }" @click="toggleGroup(item.label)" type="button">
-        <i :data-feather="item.icon" class="me-2"></i>
-        <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
-        <i class="chevron-icon"
-            :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
-    </button>
+                                    <li v-if="item.children && item.children.length" class="dropdown-parent">
+                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                            :class="{
+                                                active: openGroups.has(item.label) || isAnyChildActive(item.children),
+                                            }" @click="toggleGroup(item.label)" type="button">
+                                            <i :data-feather="item.icon" class="me-2"></i>
+                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
+                                                }}</span>
+                                            <i class="chevron-icon"
+                                                :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+                                        </button>
 
-    <!-- Always render the submenu, control visibility via CSS -->
-    <ul class="list-unstyled my-1 submenu-dropdown"
-        :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
-        <li v-for="child in item.children" :key="child.label"
-            :class="{ active: isActive(child.route) }">
-            <Link :href="route(child.route)" :method="child.method || 'get'"
-                class="d-flex align-items-center side-link px-3 py-2">
-            <i :data-feather="child.icon" class="me-2"></i>
-            <span>{{ child.label }}</span>
-            </Link>
-        </li>
-    </ul>
-</li>
+                                        <!-- Always render the submenu, control visibility via CSS -->
+                                        <ul class="list-unstyled my-1 submenu-dropdown"
+                                            :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
+                                            <li v-for="child in item.children" :key="child.label"
+                                                :class="{ active: isActive(child.route) }">
+                                                <Link :href="route(child.route)" :method="child.method || 'get'"
+                                                    class="d-flex align-items-center side-link px-3 py-2">
+                                                <i :data-feather="child.icon" class="me-2"></i>
+                                                <span>{{ child.label }}</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
 
                                     <!-- Flat item -->
-                                    <li v-else :class="{ active: item.route ? isActive(item.route) : false }" class="side-link">
+                                    <li v-else :class="{ active: item.route ? isActive(item.route) : false }"
+                                        class="side-link">
                                         <!-- Action button (for items with action property) -->
                                         <!-- <button
                                     v-if="item.action"
@@ -614,10 +630,10 @@ onMounted(fetchNotifications);
                                                     handleSystemRestore(item.action);
                                                 }
                                             " @cancel="
-                                                        () => {
-                                                            showConfirmRestore = false;
-                                                        }
-                                                    " />
+                                                () => {
+                                                    showConfirmRestore = false;
+                                                }
+                                            " />
 
                                         <!-- Normal Link (for items with route property) -->
                                         <Link v-else-if="item.route" :href="route(item.route)"
@@ -699,7 +715,7 @@ onMounted(fetchNotifications);
                         <div class="col-md-6">
                             <label class="form-label">Role</label>
                             <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.role }"
-                                v-model="profileForm.role" readonly/>
+                                v-model="profileForm.role" readonly />
                             <div v-if="formErrors.role" class="invalid-feedback">
                                 {{ formErrors.role[0] }}
                             </div>
@@ -733,148 +749,149 @@ onMounted(fetchNotifications);
     --bg-muted: #f5f6f8;
     --border: #eef0f3;
 }
+
 /* ========= SUBMENU HOVER FOR COLLAPSED SIDEBAR ========= */
 /* ========= SUBMENU STYLES ========= */
 
 /* Normal state - collapsed submenu */
 .sidebar .submenu-dropdown {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
 }
 
 /* Expanded state - show submenu */
 .sidebar .submenu-dropdown.expanded {
-  max-height: 500px;
+    max-height: 500px;
 }
 
 /* ========= COLLAPSED SIDEBAR SPECIFIC ========= */
 
 /* Position parent for absolute submenu */
-.state-desktop.sidebar-collapsed .sidebar-menu > ul > li.dropdown-parent,
-.state-tablet.sidebar-collapsed .sidebar-menu > ul > li.dropdown-parent {
-  position: relative;
+.state-desktop.sidebar-collapsed .sidebar-menu>ul>li.dropdown-parent,
+.state-tablet.sidebar-collapsed .sidebar-menu>ul>li.dropdown-parent {
+    position: relative;
 }
 
 /* Hide chevron when collapsed */
 .state-desktop.sidebar-collapsed .sidebar .chevron-icon,
 .state-tablet.sidebar-collapsed .sidebar .chevron-icon {
-  display: none !important;
+    display: none !important;
 }
 
 /* When collapsed: position submenu to the right */
 .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown,
 .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  background: #fff;
-  border: 1px solid #eef0f3;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  min-width: 220px;
-  max-width: 280px;
-  z-index: 9999;
-  padding: 8px 0;
-  margin-left: 8px;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: #fff;
+    border: 1px solid #eef0f3;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 220px;
+    max-width: 280px;
+    z-index: 9999;
+    padding: 8px 0;
+    margin-left: 8px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
 }
 
 /* Show on parent hover - CRITICAL */
-.state-desktop.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown,
-.state-tablet.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown {
-  max-height: 600px;
-  overflow-y: auto;
+.state-desktop.sidebar-collapsed .dropdown-parent:hover>.submenu-dropdown,
+.state-tablet.sidebar-collapsed .dropdown-parent:hover>.submenu-dropdown {
+    max-height: 600px;
+    overflow-y: auto;
 }
 
 /* Style submenu items */
 .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown li .side-link {
-  padding: 12px 16px !important;
-  display: flex !important;
-  align-items: center !important;
-  white-space: nowrap !important;
-  padding-left: 16px !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    padding-left: 16px !important;
 }
 
 /* Show submenu text when collapsed */
 .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown li .side-link span,
 .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown li .side-link span {
-  display: inline-block !important;
-  max-width: none !important;
-  overflow: visible !important;
-  white-space: nowrap !important;
+    display: inline-block !important;
+    max-width: none !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
 }
 
 /* Icon spacing */
 .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown li .side-link i,
 .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown li .side-link i {
-  margin-right: 12px !important;
+    margin-right: 12px !important;
 }
 
 /* Remove left border when collapsed */
 .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown,
 .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
-  border-left: none;
-  margin-left: 8px;
-  padding-left: 0;
+    border-left: none;
+    margin-left: 8px;
+    padding-left: 0;
 }
 
 /* Dark mode */
 html.dark .state-desktop.sidebar-collapsed .sidebar .submenu-dropdown,
 html.dark .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
-  background: #181818;
-  border-color: #333;
+    background: #181818;
+    border-color: #333;
 }
 
 /* Make sure expanded class works in collapsed mode too */
-.state-desktop.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown.expanded,
-.state-tablet.sidebar-collapsed .dropdown-parent:hover > .submenu-dropdown.expanded {
-  max-height: 600px;
+.state-desktop.sidebar-collapsed .dropdown-parent:hover>.submenu-dropdown.expanded,
+.state-tablet.sidebar-collapsed .dropdown-parent:hover>.submenu-dropdown.expanded {
+    max-height: 600px;
 }
 
 /* ========= COLLAPSED SIDEBAR (ICONS ONLY) ========= */
 .state-desktop.sidebar-collapsed .sidebar,
 .state-tablet.sidebar-collapsed .sidebar {
-  width: var(--sidebar-w-collapsed);
-  overflow: visible;
+    width: var(--sidebar-w-collapsed);
+    overflow: visible;
 }
 
 /* Remove padding from menu container */
 .state-desktop.sidebar-collapsed .sidebar-menu,
 .state-tablet.sidebar-collapsed .sidebar-menu {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
 }
 
 /* Center all list items */
-.state-desktop.sidebar-collapsed .sidebar-menu > ul > li,
-.state-tablet.sidebar-collapsed .sidebar-menu > ul > li {
-  text-align: center;
-  display: block;
+.state-desktop.sidebar-collapsed .sidebar-menu>ul>li,
+.state-tablet.sidebar-collapsed .sidebar-menu>ul>li {
+    text-align: center;
+    display: block;
 }
 
 /* Center icons and remove all padding/margins */
 .state-desktop.sidebar-collapsed .sidebar .side-link,
 .state-tablet.sidebar-collapsed .sidebar .side-link {
-  justify-content: center !important;
-  padding: 12px 0 !important;
-  margin: 0 !important;
-  display: flex !important;
-  align-items: center !important;
+    justify-content: center !important;
+    padding: 12px 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 /* Icons only — remove margins and ensure centering */
 .state-desktop.sidebar-collapsed .sidebar .side-link i,
 .state-tablet.sidebar-collapsed .sidebar .side-link i {
-  margin: 0 !important;
+    margin: 0 !important;
 }
 
 /* Hide all text labels */
 .state-desktop.sidebar-collapsed .sidebar .truncate-when-mini,
 .state-tablet.sidebar-collapsed .sidebar .truncate-when-mini {
-  display: none !important;
+    display: none !important;
 }
 
 /* Hide section titles and submenu arrows */
@@ -884,28 +901,28 @@ html.dark .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
 .state-tablet.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-down"],
 .state-desktop.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-up"],
 .state-tablet.sidebar-collapsed .sidebar .side-link i[data-feather="chevron-up"] {
-  display: none !important;
+    display: none !important;
 }
 
 /* Hide all submenus by default */
 .state-desktop.sidebar-collapsed .sidebar ul .list-unstyled,
 .state-tablet.sidebar-collapsed .sidebar ul .list-unstyled {
-  display: none !important;
+    display: none !important;
 }
 
 /* Optional tooltip on hover */
 .state-desktop.sidebar-collapsed .sidebar .side-link[title]:hover::after,
 .state-tablet.sidebar-collapsed .sidebar .side-link[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  left: 70px;
-  background: #1b2850;
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  z-index: 2000;
+    content: attr(title);
+    position: absolute;
+    left: 70px;
+    background: #1b2850;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    z-index: 2000;
 }
 
 
@@ -914,43 +931,43 @@ html.dark .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
 /* Make the link container fit the icon only when collapsed */
 .state-desktop.sidebar-collapsed .sidebar .side-link,
 .state-tablet.sidebar-collapsed .sidebar .side-link {
-  width: 48px !important;
-  height: 48px !important;
-  padding: 12px !important;
-  margin: 0 auto !important;
-  justify-content: center !important;
-  border-radius: 10px !important;
+    width: 48px !important;
+    height: 48px !important;
+    padding: 12px !important;
+    margin: 0 auto !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
 }
 
 /* Center the icon */
 .state-desktop.sidebar-collapsed .sidebar .side-link i,
 .state-tablet.sidebar-collapsed .sidebar .side-link i {
-  margin: 0 !important;
+    margin: 0 !important;
 }
 
 /* For dropdown parent buttons in collapsed mode */
-.state-desktop.sidebar-collapsed .dropdown-parent > button.side-link,
-.state-tablet.sidebar-collapsed .dropdown-parent > button.side-link {
-  width: 53px !important;
-  height: 53px !important;
-  padding: 12px !important;
-  margin: -10px auto !important;
-  justify-content: center !important;
+.state-desktop.sidebar-collapsed .dropdown-parent>button.side-link,
+.state-tablet.sidebar-collapsed .dropdown-parent>button.side-link {
+    width: 53px !important;
+    height: 53px !important;
+    padding: 12px !important;
+    margin: -10px auto !important;
+    justify-content: center !important;
 }
 
-.state-desktop.sidebar-collapsed .sidebar .side-link{
-  width: 53px !important;
-  height: 53px !important;
-  padding: 12px !important;
-  justify-content: center !important;
+.state-desktop.sidebar-collapsed .sidebar .side-link {
+    width: 53px !important;
+    height: 53px !important;
+    padding: 12px !important;
+    justify-content: center !important;
 }
 
 /* Center icons within list items */
-.state-desktop.sidebar-collapsed .sidebar-menu > ul > li,
-.state-tablet.sidebar-collapsed .sidebar-menu > ul > li {
-  display: flex;
-  justify-content: center;
-  padding: 4px 0;
+.state-desktop.sidebar-collapsed .sidebar-menu>ul>li,
+.state-tablet.sidebar-collapsed .sidebar-menu>ul>li {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
 }
 
 /* Add positioning to parent items - CRITICAL FOR POSITIONING */
@@ -960,8 +977,8 @@ html.dark .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
 }
 
 /* Ensure the button inside doesn't interfere */
-.state-desktop.sidebar-collapsed .dropdown-parent > button,
-.state-tablet.sidebar-collapsed .dropdown-parent > button {
+.state-desktop.sidebar-collapsed .dropdown-parent>button,
+.state-tablet.sidebar-collapsed .dropdown-parent>button {
     position: relative;
 }
 
@@ -1031,7 +1048,7 @@ html.dark .state-tablet.sidebar-collapsed .sidebar .submenu-dropdown {
     color: rgb(194 65 12)
 }
 
-.sidebar .sidebar-menu>ul>li>a span{
+.sidebar .sidebar-menu>ul>li>a span {
     margin-left: 0px !important;
 }
 
@@ -1155,7 +1172,7 @@ html.dark .side-link {
 /* .dark .btn-secondary {
     background-color: #212121 !important;
 } */
- 
+
 
 .dark .text-muted {
     color: #fff !important;
@@ -1179,8 +1196,8 @@ html.dark .main {
 }
 
 
-.dark .form-check-input{
-  outline: 1px solid #fff !important;
+.dark .form-check-input {
+    outline: 1px solid #fff !important;
 }
 
 .dark .dash-widget {
@@ -1729,22 +1746,23 @@ li.active>.side-link {
 }
 
 
-h1{
+h1 {
     font-size: 32px !important;
 }
 
-h2{
+h2 {
     font-size: 24px !important;
 }
-h3{
+
+h3 {
     font-size: 20px;
 }
 
-h4{
+h4 {
     font-size: 18px;
 }
 
-.btn{
+.btn {
     border-radius: 10px !important;
     height: 42px !important;
     font-size: 16px !important;
