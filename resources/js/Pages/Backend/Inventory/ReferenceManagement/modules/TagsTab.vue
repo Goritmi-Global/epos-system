@@ -720,6 +720,10 @@ const handleImport = (data) => {
     width: clamp(220px, 28vw, 360px);
 }
 
+
+.dark .text-danger{
+    color: #dc3545 !important;
+}
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;

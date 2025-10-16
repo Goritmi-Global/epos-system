@@ -521,6 +521,18 @@ const handleImport = (data) => {
         return; // ask user to fix file before sending
     }
 
+     // Check for duplicates against existing allergies in database
+    const existingNames = allergies.value.map((a) => a.name.toLowerCase());
+    const duplicatesInDB = allergiesToImport.filter((a) =>
+        existingNames.includes(a.name.toLowerCase())
+    );
+    
+    if (duplicatesInDB.length > 0) {
+        const dupeNames = duplicatesInDB.map((a) => a.name).join(", ");
+        toast.error(`These allergies already exist in the database: ${dupeNames}`);
+        return;
+    }
+
     // All good -> send to backend
     axios
         .post("/api/allergies/import", { allergies: allergiesToImport })
@@ -1004,6 +1016,10 @@ const handleImport = (data) => {
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
     color: #fff !important;
+}
+
+.dark .text-danger{
+    color: #dc3545 !important;
 }
 
 :global(.dark .p-select-label) {
