@@ -565,87 +565,65 @@ onMounted(fetchNotifications);
             <div class="sidebar-inner">
                 <div id="sidebar-menu" class="sidebar-menu px-2">
                     <ul class="mb-3">
-                        <template v-for="block in sidebarMenus" :key="block.label || block.section">
-                            <!-- Simple top item -->
-                            <li v-if="!block.section" :class="{ active: isActive(block.route) }">
-                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                                <i :data-feather="block.icon" class="me-2 icons"></i>
-                                <span class="truncate-when-mini">{{ block.label }}</span>
-                                </Link>
-                            </li>
+                      <template v-for="block in sidebarMenus" :key="block.label || block.section">
+  <!-- Simple top item -->
+  <li v-if="!block.section && hasPermission(block.route)" :class="{ active: isActive(block.route) }">
+    <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
+      <i :data-feather="block.icon" class="me-2 icons"></i>
+      <span class="truncate-when-mini">{{ block.label }}</span>
+    </Link>
+  </li>
 
-                            <!-- Section -->
-                            <template v-else>
-                                <li
-                                    class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini">
-                                    {{ block.section }}
-                                </li>
+  <!-- Section -->
+  <template v-else>
+    <li
+      class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini"
+      v-if="block.section && block.children.some(child => hasPermission(child.route))"
+    >
+      {{ block.section }}
+    </li>
 
-                                <template v-for="item in block.children" :key="item.label">
-                                    <!-- Dropdown group -->
-                                    <li v-if="item.children && item.children.length" class="dropdown-parent">
-                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                                            :class="{
-                                                active: openGroups.has(item.label) || isAnyChildActive(item.children),
-                                            }" @click="toggleGroup(item.label)" type="button">
-                                            <i :data-feather="item.icon" class="me-2"></i>
-                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
-                                            <i class="chevron-icon"
-                                                :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
-                                        </button>
+    <template v-for="item in block.children" :key="item.label">
+      <!-- Dropdown group -->
+      <li v-if="item.children && item.children.length && item.children.some(child => hasPermission(child.route))"
+          class="dropdown-parent">
+        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+          :class="{ active: openGroups.has(item.label) || isAnyChildActive(item.children) }"
+          @click="toggleGroup(item.label)" type="button">
+          <i :data-feather="item.icon" class="me-2"></i>
+          <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
+          <i class="chevron-icon"
+             :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+        </button>
 
-                                        <!-- Always render the submenu, control visibility via CSS -->
-                                        <ul class="list-unstyled my-1 submenu-dropdown"
-                                            :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
-                                            <li v-for="child in item.children" :key="child.label"
-                                                :class="{ active: isActive(child.route) }">
-                                                <Link :href="route(child.route)" :method="child.method || 'get'"
-                                                    class="d-flex align-items-center side-link px-3 py-2">
-                                                <i :data-feather="child.icon" class="me-2"></i>
-                                                <span>{{ child.label }}</span>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </li>
+        <ul class="list-unstyled my-1 submenu-dropdown"
+            :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
+          <li v-for="child in item.children" :key="child.label"
+              v-if="hasPermission(child?.route)"
+              :class="{ active: isActive(child.route) }">
+            <Link :href="route(child.route)" :method="child.method || 'get'"
+              class="d-flex align-items-center side-link px-3 py-2">
+              <i :data-feather="child.icon" class="me-2"></i>
+              <span>{{ child.label }}</span>
+            </Link>
+          </li>
+        </ul>
+      </li>
 
-                                    <!-- Flat item -->
-                                    <li v-else :class="{ active: item.route ? isActive(item.route) : false }"
-                                        class="side-link">
-                                        <!-- Action button (for items with action property) -->
-                                        <!-- <button
-                                    v-if="item.action"
-                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
-                                    @click="handleSidebarAction(item.action)"
-                                    type="button"
-                                >
-                                    <i :data-feather="item.icon" class="me-2"></i>
-                                    <span class="truncate-when-mini">{{ item.label }}</span>
-                                </button> -->
+      <!-- Flat item -->
+      <li v-else-if="item.route && hasPermission(item.route)"
+          :class="{ active: item.route ? isActive(item.route) : false }"
+          class="side-link">
+        <Link :href="route(item.route)" :method="item.method || 'get'"
+          class="d-flex align-items-center side-link px-3 py-2">
+          <i :data-feather="item.icon" class="me-2"></i>
+          <span class="truncate-when-mini">{{ item.label }}</span>
+        </Link>
+      </li>
+    </template>
+  </template>
+</template>
 
-                                        <ConfirmModal v-if="item.action" :title="'Confirm Restore'"
-                                            :message="`Are you sure you want to restore the system? This action cannot be undone.`"
-                                            :showConfirmRestore="true" @confirm="
-                                                () => {
-                                                    handleSystemRestore(item.action);
-                                                }
-                                            " @cancel="
-                                                () => {
-                                                    showConfirmRestore = false;
-                                                }
-                                            " />
-
-                                        <!-- Normal Link (for items with route property) -->
-                                        <Link v-else-if="item.route" :href="route(item.route)"
-                                            :method="item.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2">
-                                        <i :data-feather="item.icon" class="me-2"></i>
-                                        <span class="truncate-when-mini">{{ item.label }}</span>
-                                        </Link>
-                                    </li>
-                                </template>
-                            </template>
-                        </template>
                     </ul>
                 </div>
             </div>

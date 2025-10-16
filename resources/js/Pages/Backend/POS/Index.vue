@@ -725,13 +725,19 @@ function printReceipt(order) {
         </tbody>
       </table>
 
-        <div class="totals">
-            <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
-            ${plainOrder.promo_discount ? `<div>Promo Discount: -£${Number(plainOrder.promo_discount).toFixed(2)}</div>` : ""}
-            <div><strong>Total: £${Number(plainOrder.total_amount || plainOrder.sub_total || 0).toFixed(2)}</strong></div>
+          <div class="totals">
+            <div style="display: flex; justify-content: space-between;">
+                <span>Subtotal:</span>
+                <span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span>
+            </div>
+            ${plainOrder.promo_discount ? `<div style="display: flex; justify-content: space-between;"><span>Promo Discount:</span><span>-£${Number(plainOrder.promo_discount).toFixed(2)}</span></div>` : ""}
+            <div style="display: flex; justify-content: space-between;">
+                <span><strong>Total:</strong></span>
+                <span><strong>£${Number(plainOrder.total_amount || plainOrder.sub_total || 0).toFixed(2)}</strong></span>
+            </div>
             
-            ${plainOrder.cash_received ? `<div>Cash Received: £${Number(plainOrder.cash_received).toFixed(2)}</div>` : ""}
-            ${plainOrder.change ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>` : ""}
+            ${plainOrder.cash_received ? `<div style="display: flex; justify-content: space-between;"><span>Cash Received:</span><span>£${Number(plainOrder.cash_received).toFixed(2)}</span></div>` : ""}
+            ${plainOrder.change ? `<div style="display: flex; justify-content: space-between;"><span>Change:</span><span>£${Number(plainOrder.change).toFixed(2)}</span></div>` : ""}
         </div>
 
 
@@ -797,7 +803,7 @@ function printKot(order) {
           box-sizing: border-box;
         }
         .header { text-align: center; margin-bottom: 10px; }
-        .order-info { margin: 10px 0; word-break: break-word; }
+        .order-info { margin: 70px 0; word-break: break-word; }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -1314,7 +1320,7 @@ const decrementCardQty = (product) => {
             <div class="container-fluid px-3 py-3">
                 <div class="row gx-3 gy-3">
                     <!-- LEFT: Menu -->
-                    <div class="col-lg-8">
+                    <div  :class="showCategories ? 'col-md-12' : 'col-lg-8'">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3">
                             <div class="col-12 mb-3">
@@ -1542,7 +1548,7 @@ const decrementCardQty = (product) => {
 
                     <!-- RIGHT: Cart -->
 
-                    <div class="col-lg-4">
+                    <div class="col-lg-4" v-if="!showCategories">
                         <div class="col-lg-4 d-flex align-items-center gap-2 mb-2">
                             <!-- KOT Orders button -->
                             <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
