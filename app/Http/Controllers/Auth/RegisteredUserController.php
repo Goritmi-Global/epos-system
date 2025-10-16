@@ -31,7 +31,6 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request)
     {
-
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
@@ -40,7 +39,7 @@ class RegisteredUserController extends Controller
                 'confirmed',
                 Password::min(8)               // Minimum 8 characters
                     ->letters()               // Must contain letters
-                    ->mixedCase()             
+                    ->mixedCase()
                     ->numbers()               // Must contain at least one number
             ],
             'pin' => 'required|digits:4|unique:users,pin',
@@ -50,12 +49,16 @@ class RegisteredUserController extends Controller
         $rawPin = $request->pin;
         $otp = rand(100000, 999999);
 
+        // Check if there is already a first super admin
+        $hasFirstSuperAdmin = User::where('is_first_super_admin', true)->exists();
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($rawPassword),
             'pin' => Hash::make($rawPin),
             'verifying_otp' => $otp,
+            'is_first_super_admin' => $hasFirstSuperAdmin ? false : true,
         ]);
 
         // ✅ Ensure Super Admin role exists before assigning
@@ -68,13 +71,16 @@ class RegisteredUserController extends Controller
 
         // ✅ (Optional) give all permissions to Super Admin automatically
         $role->syncPermissions(\Spatie\Permission\Models\Permission::all());
-        // Send a custom verification email (Laravel Recommended via Mailable)
+
+        // Send verification email
         Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin, $otp));
+
         throw ValidationException::withMessages([
             'unverified' => 'Account not verified. A new OTP has been sent to your email.',
             'email_address' => $user->email,
         ]);
     }
+
 
     public function verifyOtp(Request $request)
     {

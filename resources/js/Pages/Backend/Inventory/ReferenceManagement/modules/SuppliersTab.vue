@@ -13,7 +13,7 @@ import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
 import { usePage } from "@inertiajs/vue3";
 const pageProps = usePage();
 
-const onboarding = computed(() => pageProps.props.onboarding.language_and_location.country_id ?? "PK");
+const onboarding = computed(() => pageProps.props.onboarding.language_and_location?.country_id ?? "PK");
 console.log("🌍 Onboarding Country:", onboarding.value);
 
 const suppliers = ref([]);

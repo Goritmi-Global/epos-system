@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('pin')->unique();
             $table->string('verifying_otp', 6)->nullable();
             $table->string('status')->default('Active'); 
+            $table->boolean('is_first_super_admin')->default(false);
             $table->rememberToken();
             $table->timestamps();
         });

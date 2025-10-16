@@ -47,7 +47,9 @@ use Inertia\Inertia;
 Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
 
 // root -> login screen (Inertia)
-Route::get('/', fn () => Inertia::render('Auth/Login'));
+Route::get('/login', fn () => Inertia::render('Auth/Login'));
+
+Route::get('/', [ProfileController::class, 'frontPage'])->name('front-page');
 
 // email verification links & OTP verify
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
@@ -68,7 +70,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::get('/front-page', [ProfileController::class, 'frontPage'])->name('front-page');
 
     /* -------- Onboarding (must be reachable after login) -------- */
     Route::prefix('onboarding')->name('onboarding.')->group(function () {

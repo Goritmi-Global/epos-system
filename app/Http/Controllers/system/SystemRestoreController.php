@@ -39,7 +39,7 @@ class SystemRestoreController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'System restored. All tables truncated.',
-            'redirect' => route('register')
+            'redirect' => route('front-page')
         ]);
     }
 }

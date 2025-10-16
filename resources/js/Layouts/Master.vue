@@ -35,7 +35,7 @@ const handleSystemRestore = async () => {
             toast.success('System restored successfully!');
             showConfirmRestore.value = false;
             // Optionally redirect or reload
-            window.location.href = route('register');
+            window.location.href = route('front-page');
         }
     } catch (error) {
         console.error('System restore error:', error);
