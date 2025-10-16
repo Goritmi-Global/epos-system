@@ -700,9 +700,10 @@ function printReceipt(order) {
       <table>
         <thead>
           <tr>
-            <th style="width: 50%;">Item</th>
-            <th style="width: 20%;">Qty</th>
-            <th style="width: 30%;">Price</th>
+            <th style="width: 30%;">Item</th>
+            <th style="width: 25%;">Qty</th>
+            <th style="width: 25%;">Price</th>
+            <th style="width: 30%;">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -713,9 +714,10 @@ function printReceipt(order) {
                 const total = price * qty;
                 return `
                   <tr>
-                    <td>${item.title || "Unknown Item"}</td>
-                    <td>${qty}</td>
-                    <td>£${price.toFixed(2)}</td>
+                    <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
+                    <td style="font-size: 12px;">${qty}</td>
+                    <td style="font-size: 12px;">£${price.toFixed(2)}</td>
+                    <td style="font-size: 12px;">£${total.toFixed(2)}</td>
                   </tr>
                 `;
             })
@@ -845,22 +847,24 @@ function printKot(order) {
       <table>
         <thead>
           <tr>
-            <th style="width: 50%;">Item</th>
-            <th style="width: 20%;">Qty</th>
-            <th style="width: 30%;">Price</th>
+            <th style="width: 30%;">Item</th>
+            <th style="width: 15%;">Qty</th>
+            <th style="width: 25%;">Price</th>
+            <th style="width: 30%;">Total</th>
           </tr>
         </thead>
         <tbody>
           ${(plainOrder.items || [])
             .map((item) => {
                 const qty = Number(item.quantity) || 0;
-                const price = Number(item.price) || 0;
+                const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
                 const total = qty * price;
                 return `
                   <tr>
-                    <td>${item.title || "Unknown Item"}</td>
-                    <td>${qty}</td>
-                    <td>£${total.toFixed(2)}</td>
+                    <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
+                    <td style="font-size: 12px;">${qty}</td>
+                    <td style="font-size: 12px;">£${price.toFixed(2)}</td>
+                    <td style="font-size: 12px;">£${total.toFixed(2)}</td>
                   </tr>
                 `;
             })
