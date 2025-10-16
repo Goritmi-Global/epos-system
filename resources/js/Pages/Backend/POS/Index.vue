@@ -635,6 +635,8 @@ function printReceipt(order) {
     } else {
         payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
+      const businessName = page.props.business_info.business_name || "Business Name";
+  const businessLogo = page.props.business_info.image_url|| "";
 
     const html = `
     <html>
@@ -681,10 +683,34 @@ function printReceipt(order) {
           margin-top: 10px;
           font-size: 11px;
         }
+
+         .totals > div {
+          display: flex;
+          justify-content: space-between;
+          margin: 3px 0;
+        }
+
+.header {
+        text-align: center;
+      }
+      .header img {
+        max-width: 60px;
+        max-height: 60px;
+        object-fit: contain;
+        margin-bottom: 5px;
+      }
+
+  .business-name {
+        font-size: 14px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
       </style>
     </head>
     <body>
       <div class="header">
+        ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
+      <div class="business-name">${businessName}</div>
         <h2>Customer Receipt</h2>
       </div>
 
@@ -787,6 +813,9 @@ function printKot(order) {
         payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
 
+    const businessName = page.props.business_info.business_name || "Business Name";
+    const businessLogo = page.props.business_info.image_url || "";
+
     const html = `
     <html>
     <head>
@@ -803,7 +832,7 @@ function printKot(order) {
           box-sizing: border-box;
         }
         .header { text-align: center; margin-bottom: 10px; }
-        .order-info { margin: 70px 0; word-break: break-word; }
+        .order-info { margin: 10px 0; word-break: break-word; }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -827,15 +856,36 @@ function printKot(order) {
           border-top: 1px dashed #000;
           padding-top: 8px;
         }
+        .totals > div {
+          display: flex;
+          justify-content: space-between;
+          margin: 3px 0;
+        }
         .footer {
           text-align: center;
           margin-top: 10px;
           font-size: 11px;
         }
+           .business-name {
+        font-size: 14px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+           .header {
+        text-align: center;
+      }
+      .header img {
+        max-width: 60px;
+        max-height: 60px;
+        object-fit: contain;
+        margin-bottom: 5px;
+      }
       </style>
     </head>
     <body>
       <div class="header">
+        ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
+      <div class="business-name">${businessName}</div>
         <h2>KITCHEN ORDER TICKET</h2>
       </div>
       
@@ -879,18 +929,18 @@ function printKot(order) {
       </table>
 
       <div class="totals">
-        <div>Subtotal: £${Number(plainOrder.sub_total || 0).toFixed(2)}</div>
+        <div><span>Subtotal:</span><span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span></div>
         
-        <div><strong>Total: £${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></div>
-        <div>${payLine}</div>
+        <div><strong>Total:</strong><strong>£${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></div>
+        <div><span>${payLine.split(':')[0]}:</span><span>${payLine.split(':')[1]?.trim() || ''}</span></div>
         ${plainOrder.cash_received
-            ? `<div>Cash Received: £${Number(
+            ? `<div><span>Cash Received:</span><span>£${Number(
                 plainOrder.cash_received
-            ).toFixed(2)}</div>`
+            ).toFixed(2)}</span></div>`
             : ""
         }
         ${plainOrder.change
-            ? `<div>Change: £${Number(plainOrder.change).toFixed(2)}</div>`
+            ? `<div><span>Change:</span><span>£${Number(plainOrder.change).toFixed(2)}</span></div>`
             : ""
         }
       </div>
@@ -915,8 +965,6 @@ function printKot(order) {
         w.close();
     };
 }
-
-
 /* ----------------------------
    Confirm Order
 -----------------------------*/
@@ -1060,6 +1108,8 @@ watch(
     () => bumpToasts(),
     { deep: true }
 );
+
+
 
 const handleKotStatusUpdated = ({ id, status, message }) => {
     console.log("KOT updated:", id, status, message);
@@ -1300,7 +1350,7 @@ const decrementCardQty = (product) => {
     const item = orderItems.value[existingIndex];
     if (item.qty <= 1) {
         orderItems.value.splice(existingIndex, 1);
-        
+
     } else {
         item.qty--;
         item.price = item.unit_price * item.qty;
@@ -1320,7 +1370,7 @@ const decrementCardQty = (product) => {
             <div class="container-fluid px-3 py-3">
                 <div class="row gx-3 gy-3">
                     <!-- LEFT: Menu -->
-                    <div  :class="showCategories ? 'col-md-12' : 'col-lg-8'">
+                    <div :class="showCategories ? 'col-md-12' : 'col-lg-8'">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3">
                             <div class="col-12 mb-3">
@@ -1482,8 +1532,7 @@ const decrementCardQty = (product) => {
                                             style="flex: 1 1 60%; min-width: 0;">
 
                                             <div>
-                                                <div class="h5 fw-bold mb-1"
-                                                    >
+                                                <div class="h5 fw-bold mb-1">
                                                     {{ p.title }}
                                                 </div>
                                                 <div class="text-muted mb-2 small"
@@ -1875,7 +1924,7 @@ const decrementCardQty = (product) => {
     color: #fff !important;
 }
 
-.dark .bg-light{
+.dark .bg-light {
     background-color: #181818 !important;
 }
 

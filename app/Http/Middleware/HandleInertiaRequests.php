@@ -11,6 +11,7 @@ use App\Models\ProfileStep6;
 use App\Models\ProfileStep7;
 use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Helpers\UploadHelper;
@@ -67,14 +68,19 @@ class HandleInertiaRequests extends Middleware
             'optional_features'     => ProfileStep9::class,
         ];
 
-        //  initialize
+        // Initialize
         $onboarding   = [];
         $businessInfo = null;
 
         if ($user) {
+            // 🔥 GET FIRST SUPER ADMIN'S USER ID (instead of current user)
+            $superAdmin = User::where('is_first_super_admin', true)->first();
+            $onboardingUserId = $superAdmin ? $superAdmin->id : $user->id; // Fallback to current user if no super admin found
+
+            // Fetch onboarding data using super admin's ID
             foreach ($models as $key => $modelClass) {
                 $cols = $fields[$key] ?? ['id'];
-                $row  = $modelClass::where('user_id', $user->id)->select($cols)->first();
+                $row  = $modelClass::where('user_id', $onboardingUserId)->select($cols)->first();
                 $onboarding[$key] = $row ? $row->toArray() : null;
             }
 
@@ -88,14 +94,12 @@ class HandleInertiaRequests extends Middleware
 
         // Normalized formatting block for the SPA
         $fmt = [
-            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'), //  real locale
+            'locale'           => data_get($onboarding, 'language_and_location.language', 'en-US'),
             'dateFormat'       => data_get($onboarding, 'currency_and_locale.date_format', 'yyyy-MM-dd'),
             'timeFormat'       => data_get($onboarding, 'currency_and_locale.time_format', 'HH:mm'),
             'currency'         => strtoupper(data_get($onboarding, 'currency_and_locale.currency', 'PKR')),
             'currencyPosition' => data_get($onboarding, 'currency_and_locale.currency_symbol_position', 'before'),
             'timezone'         => data_get($onboarding, 'language_and_location.timezone', 'UTC'),
-
-            // Optional: keep the human pattern if you want (but DO NOT pass to Intl as locale)
             'numberPattern'    => data_get($onboarding, 'currency_and_locale.number_format', '1,234.56'),
         ];
 
@@ -114,7 +118,6 @@ class HandleInertiaRequests extends Middleware
             'stripe_public_key' => $stripe_public_key,
             'onboarding' => $onboarding,
             'business_info' => $businessInfo,
-            // Normalized formatting data
             'formatting' => $fmt,
 
             'flash' => [
@@ -125,7 +128,6 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
-
     protected function getUserPermissions()
     {
         if (auth()->check()) {
@@ -133,7 +135,6 @@ class HandleInertiaRequests extends Middleware
         }
         return [];
     }
-
 
     protected function getUserRoles()
     {
