@@ -18,11 +18,11 @@ class RolesTableSeeder extends Seeder
         // Get all permissions
         $allPermissions = Permission::all();
 
-        // Assign all permissions to Super Admin
+        // ✅ Super Admin → all permissions
         $superAdmin->syncPermissions($allPermissions);
         $this->command->info('✅ Super Admin assigned all permissions.');
 
-        // Assign Manager permissions: dashboard, inventory, menu
+        // ✅ Manager → dashboard, inventory, menu
         $managerPermissions = Permission::query()
             ->where(function ($query) {
                 $query->where('name', 'like', 'dashboard%')
@@ -34,13 +34,16 @@ class RolesTableSeeder extends Seeder
         $manager->syncPermissions($managerPermissions);
         $this->command->info('✅ Manager assigned Dashboard, Inventory, and Menu permissions.');
 
-        // Assign Cashier permissions: all POS routes
+        // ✅ Cashier → POS + Dashboard
         $cashierPermissions = Permission::query()
-            ->where('name', 'like', 'pos%')
+            ->where(function ($query) {
+                $query->where('name', 'like', 'pos%')
+                      ->orWhere('name', 'like', 'dashboard%');
+            })
             ->get();
 
         $cashier->syncPermissions($cashierPermissions);
-        $this->command->info('✅ Cashier assigned all POS permissions.');
+        $this->command->info('✅ Cashier assigned POS and Dashboard permissions.');
 
         $this->command->info('🎉 Roles and permissions seeded successfully!');
     }
