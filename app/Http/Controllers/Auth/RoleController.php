@@ -40,7 +40,7 @@ class RoleController extends Controller
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:255', 'unique:roles,name'],
             'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['integer', 'exists:permissions,id'],
+            'permissions.*.id' => ['exists:permissions,id'], // ✅ expect objects
             'guard_name'  => ['nullable', 'string', 'max:255'],
         ]);
 
