@@ -44,18 +44,18 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // ✅ Get logged-in user and check role
-        $user = Auth::user();
+        $user = auth()->user();
         $role = $user->getRoleNames()->first();
 
-        // ✅ If role is Cashier, redirect to POS module
+        // ✅ Force redirect if Cashier
         if ($role === 'Cashier') {
             return redirect()->route('pos.order');
         }
 
-        // ✅ Otherwise, redirect to dashboard (default)
-        return redirect()->intended(route('dashboard', absolute: false));
+        // ✅ Default for other roles
+        return redirect()->route('dashboard');
     }
+
 
     /**
      * Destroy an authenticated session.
