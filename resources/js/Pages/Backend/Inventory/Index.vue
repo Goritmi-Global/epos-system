@@ -730,27 +730,105 @@ async function submitStockIn() {
 const stockOutItemCategory = ref(null);
 const stockInItemCategory = ref(null);
 // =========================== Stockout Modal ===========================
-function openStockOutModal(item) {
-    resetErrors();
-    stockOutItemCategory.value = item.category.name;
-    axios.get(`/stock_entries/total/${item.id}`).then((res) => {
+// function openStockOutModal(item) {
+//     resetErrors();
+//     stockOutItemCategory.value = item.category.name;
+//     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
+//         const totalStock = res.data.total?.original || {};
+//         stockForm.value = {
+//             product_id: item.id,
+//             name: item.name,
+//             category_id: item.category.id,
+//             available_quantity: totalStock.available || 0,
+//             quantity: 0,
+//             price: 0,
+//             value: 0,
+//             description: "",
+//             operation_type: "inventory_stockout",
+//             stock_type: "stockout",
+//             purchase_date: new Date().toISOString().slice(0, 10),
+//             user_id: 1,
+//         };
+//     });
+// }
+
+
+const selectedStockOutItem = ref(null);
+
+async function confirmStockOut(item) {
+    if (!item) return;
+
+    try {
+        const res = await axios.get(`/stock_entries/total/${item.id}`);
         const totalStock = res.data.total?.original || {};
-        stockForm.value = {
+        const availableQty = totalStock.available || 0;
+
+        if (availableQty <= 0) {
+            toast.warning("No available stock to stock out.");
+            return;
+        }
+
+        const payload = {
             product_id: item.id,
             name: item.name,
-            category_id: item.category.id,
-            available_quantity: totalStock.available || 0,
-            quantity: 0,
+            category_id: item.category?.id,
+            available_quantity: availableQty,
+            quantity: availableQty, // 👈 stock-out all
             price: 0,
             value: 0,
-            description: "",
+            description: "Auto full stock-out",
             operation_type: "inventory_stockout",
             stock_type: "stockout",
             purchase_date: new Date().toISOString().slice(0, 10),
             user_id: 1,
         };
-    });
+
+        await axios.post("/stock_entries", payload);
+        toast.success(`All ${availableQty} items of "${item.name}" stock-out successfully.`);
+        await fetchInventories();
+        await fetchStockForCounting();
+    } catch (err) {
+        toast.error("Stock out failed. Please try again.");
+        console.error(err);
+    }
 }
+
+async function openStockOutModal(item) {
+    try {
+        const res = await axios.get(`/stock_entries/total/${item.id}`);
+        const totalStock = res.data.total?.original || {};
+        const availableQty = totalStock.available || 0;
+
+        if (availableQty <= 0) {
+            toast.warning("No available stock to stock out.");
+            return;
+        }
+
+        const payload = {
+            product_id: item.id,
+            name: item.name,
+            category_id: item.category.id,
+            available_quantity: availableQty,
+            quantity: availableQty, // 👈 Stock out everything
+            price: 0,
+            value: 0,
+            description: "Auto full stock-out",
+            operation_type: "inventory_stockout",
+            stock_type: "stockout",
+            purchase_date: new Date().toISOString().slice(0, 10),
+            user_id: 1,
+        };
+
+        await axios.post("/stock_entries", payload);
+        toast.success(`All ${availableQty} items stock-out successfully.`);
+        await fetchInventories();
+        await fetchStockForCounting();
+    } catch (err) {
+        toast.error("Stock out failed. Please try again.");
+        console.error(err);
+    }
+}
+
 
 async function submitStockOut() {
     submittingStock.value = true;
@@ -1475,16 +1553,24 @@ const handleImport = (data) => {
                                     </td>
                                     <td class="text-center">
                                         <div class="d-inline-flex align-items-center gap-3">
-                                            <button @click="openStockModal(item)" data-bs-toggle="modal"
+                                            <!-- <button @click="openStockModal(item)" data-bs-toggle="modal"
                                                 data-bs-target="#stockInModal" title="Stock In"
                                                 class="p-2 rounded-full text-green-600 hover:bg-green-100">
                                                 <Download class="w-4 h-4" />
-                                            </button>
-                                            <button @click="openStockOutModal(item)" data-bs-toggle="modal"
+                                            </button> -->
+                                            <!-- <button @click="openStockOutModal(item)" data-bs-toggle="modal"
                                                 data-bs-target="#stockOutModal" title="Stock Out"
                                                 class="p-2 rounded-full text-red-600 hover:bg-red-100">
                                                 <Upload class="w-4 h-4" />
-                                            </button>
+                                            </button> -->
+                                            <button
+    @click="confirmStockOut(item)"
+    title="Stock Out"
+    class="p-2 rounded-full text-red-600 hover:bg-red-100"
+>
+    <Upload class="w-4 h-4" />
+</button>
+
                                             <button @click="ViewItem(item)" data-bs-toggle="modal"
                                                 data-bs-target="#viewItemModal" title="View Item"
                                                 class="p-2 rounded-full text-primary hover:bg-gray-100">
