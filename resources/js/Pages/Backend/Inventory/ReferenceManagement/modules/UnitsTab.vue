@@ -317,7 +317,7 @@ const onDownload = (type) => {
 
 const downloadCSV = (data) => {
     try {
-        const headers = ["name"];
+        const headers = ["Name"];
 
         const rows = data.map((s) => [
             `"${s.name || ""}"`,

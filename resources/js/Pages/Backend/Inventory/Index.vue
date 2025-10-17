@@ -761,15 +761,15 @@ const showConfirm = ref(false)
 const selectedItem = ref(null)
 
 const openConfirmModal = (item) => {
-  selectedItem.value = item
-  showConfirm.value = true
+    selectedItem.value = item
+    showConfirm.value = true
 }
 
 const handleStockOut = () => {
-  showConfirm.value = false
+    showConfirm.value = false
 
-  // Call your stock-out function here
-  confirmStockOut(selectedItem.value)
+    // Call your stock-out function here
+    confirmStockOut(selectedItem.value)
 }
 
 
@@ -809,7 +809,7 @@ async function confirmStockOut(item) {
     } catch (err) {
         toast.error("Stock out failed. Please try again.");
         console.error(err);
-    } finally{
+    } finally {
         showConfirm.value = false;
     }
 }
@@ -923,10 +923,8 @@ const downloadCSV = (data) => {
             "min_alert",
             "unit",
             "preferred_supplier",
-            "purchase_price",
-            "sale_price",
-            "stock",
-            "active",
+            "min_stock_alert",
+            "available_stock",
             "calories",
             "fat",
             "protein",
@@ -935,6 +933,7 @@ const downloadCSV = (data) => {
             "tags"
         ];
         const rows = data.map((s) => {
+            console.log(data);
             console.log("data", data);
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
@@ -949,12 +948,10 @@ const downloadCSV = (data) => {
                 `"${s.sku || ""}"`,
                 `"${s.category.name || ""}"`,
                 `"${s.minAlert || ""}"`,
-                `"${s.unit_id || ""}"`,
-                `"${s.supplier_id || ""}"`,
-                `"${s.description || ""}"`,
-                `"${s.description || ""}"`,
-                `"${s.description || ""}"`,
-                `"${s.description || ""}"`,
+                `"${s.unit_name || ""}"`,
+                `"${s.supplier_name || ""}"`,
+                `"${s.minAlert || ""}"`,
+                `"${s.availableStock || ""}"`,
                 `"${s.nutrition.calories}"`,
                 `"${s.nutrition.protein}"`,
                 `"${s.nutrition.fat}"`,
@@ -1266,35 +1263,37 @@ const totals = computed(() => {
     return { totalQty, totalPrice, totalValue, notExpiredQty };
 });
 
-// handle import function for items
 const handleImport = (data) => {
-
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
-        return; // Stop execution
+        return;
     }
 
     const headers = data[0];
-    // CSV headers: ["name","sku","category","purchase_price","sale_price","stock","active","calories","fat","protein","carbs"]
+    console.log("headers are ", headers);
+
     const rows = data.slice(1);
+    console.log("rows data", rows);
 
     const itemsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",
-            sku: row[1] || "",
-            category: row[2] || "",
-            min_alert: row[3] || "",
-            unit: row[4] || "",
-            preferred_supplier: row[5] || "",
-            purchase_price: parseFloat(row[6]) || 0,
-            sale_price: parseFloat(row[7]) || 0,
-            stock: parseInt(row[8]) || 0,
-            active: row[9] == "0" ? 0 : 1,
-
-            calories: parseFloat(row[10]) || 0,
-            fat: parseFloat(row[11]) || 0,
-            protein: parseFloat(row[12]) || 0,
-            carbs: parseFloat(row[13]) || 0,
+            name: row[0] || "",                    // name
+            sku: row[1] || "",                     // sku
+            category: row[2] || "",                // category
+            min_alert: row[3] || "",               // min_alert
+            unit: row[4] || "",                    // unit
+            preferred_supplier: row[5] || "",      // preferred_supplier
+            // row[6] is min_stock_alert (duplicate of min_alert)
+            stock: parseInt(row[7]) || 0,          // available_stock
+            active: 1,                             // Not in CSV, default to 1
+            calories: parseFloat(row[8]) || 0,     // calories
+            protein: parseFloat(row[9]) || 0,      // protein (was at index 9 in download)
+            fat: parseFloat(row[10]) || 0,         // fat (was at index 10 in download)
+            carbs: parseFloat(row[11]) || 0,       // carbs
+            allergies: row[12] ? row[12].trim() : "",  // allergies
+            tags: row[13] ? row[13].trim() : "",       // tags
+            purchase_price: 0,                     // Not in CSV, default to 0
+            sale_price: 0,                         // Not in CSV, default to 0
         };
     });
 
@@ -1304,7 +1303,7 @@ const handleImport = (data) => {
 
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
-        return; // Stop execution
+        return;
     }
 
     // Check for duplicate item names in the existing table
@@ -1316,7 +1315,7 @@ const handleImport = (data) => {
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(item => item.name).join(", ");
         toast.error(`Items already exist in the table: ${duplicateNamesList}`);
-        return; // Stop execution
+        return;
     }
 
     axios
@@ -1452,22 +1451,22 @@ const handleImport = (data) => {
                                     'Fairtrade'
                                 ],
                                 [
-                                    'Green Tea',
+                                    'Sugar',
                                     'SKU-002',
-                                    'Beverages',
-                                    10,
-                                    'Gram (g)',
-                                    2,
+                                    'Sweets',
+                                    5,
+                                    'Kilogram (kg)',
                                     'Supplier B',
-                                    '200',
-                                    '350',
+                                    '159',
+                                    '100',
                                     '150',
-                                    20,
-                                    15,
-                                    10,
-                                    25,
-                                    'Mutun',
-                                    'Tag A'
+                                    '1',
+                                    33,
+                                    23,
+                                    44,
+                                    31,
+                                    'Eggs',
+                                    'Fairtrade'
                                 ]
                             ]" @on-import="handleImport" />
 
@@ -1589,15 +1588,11 @@ const handleImport = (data) => {
                                                 <Upload class="w-4 h-4" />
                                             </button>
 
-                                             <StockOutConfirmationModal
-      :show="showConfirm"
-      title="Confirm Stock Out"
-      message="Are you sure you want to stock out this item?"
-      @confirm="confirmStockOut(item)"
-      @close="showConfirm = false"
-    />
+                                            <StockOutConfirmationModal :show="showConfirm" title="Confirm Stock Out"
+                                                message="Are you sure you want to stock out this item?"
+                                                @confirm="confirmStockOut(item)" @close="showConfirm = false" />
 
-                                        
+
                                             <button @click="ViewItem(item)" data-bs-toggle="modal"
                                                 data-bs-target="#viewItemModal" title="View Item"
                                                 class="p-2 rounded-full text-primary hover:bg-gray-100">

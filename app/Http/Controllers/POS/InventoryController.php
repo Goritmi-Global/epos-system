@@ -32,9 +32,9 @@ class InventoryController extends Controller
             'allergies' => Allergy::select('id', 'name')->orderBy('name')->get(),
             'tags' => Tag::select('id', 'name')->orderBy('name')->get(),
             'units' => Unit::select('id', 'name')
-            ->whereNull('base_unit_id')
-            ->orderBy('name')
-            ->get(),
+                ->whereNull('base_unit_id')
+                ->orderBy('name')
+                ->get(),
             'suppliers' => Supplier::select('id', 'name')->orderBy('name')->get(),
 
             // if you have parent/child categories, keep parent_id; otherwise just id/name
@@ -96,8 +96,9 @@ class InventoryController extends Controller
     public function import(Request $request): JsonResponse
     {
         $items = $request->input('items', []);
-
+    
         foreach ($items as $row) {
+
             // 1. Handle category
             $category = null;
             if (! empty($row['category'])) {
@@ -107,12 +108,13 @@ class InventoryController extends Controller
                 );
             }
 
-            // 2. Handle supplier (if you have a suppliers table)
+            // 2. Handle supplier
             $supplier = null;
             if (! empty($row['preferred_supplier'])) {
                 $supplier = Supplier::where('name', $row['preferred_supplier'])->first();
             }
 
+            // 3. Handle unit
             $unit = null;
             if (! empty($row['unit'])) {
                 $unit = Unit::firstOrCreate(
@@ -121,28 +123,28 @@ class InventoryController extends Controller
                 );
             }
 
-            // 3. Skip if SKU already exists
+            // 4. Skip if SKU already exists
             $existing = InventoryItem::where('sku', $row['sku'])->first();
             if ($existing) {
                 continue;
             }
 
-            // 4. Create item
+            // 5. Create the inventory item
             $item = InventoryItem::create([
                 'name' => $row['name'],
                 'sku' => $row['sku'],
                 'category_id' => $category?->id,
                 'minAlert' => $row['min_alert'],
-                'unit_id' => $unit?->id, 
+                'unit_id' => $unit?->id,
                 'supplier_id' => $supplier?->id,
-                'purchase_price' => $row['purchase_price'],
-                'sale_price' => $row['sale_price'],
-                'stock' => $row['stock'],
+                'purchase_price' => $row['purchase_price'] ?? null,
+                'sale_price' => $row['sale_price'] ?? null,
+                'stock' => $row['available_stock'] ?? 0,
                 'active' => $row['active'] ?? 1,
             ]);
 
-            // 5. Insert nutrition if available
-            if ($row['calories'] || $row['fat'] || $row['protein'] || $row['carbs']) {
+            // 6. Insert nutrition info
+            if (! empty($row['calories']) || ! empty($row['fat']) || ! empty($row['protein']) || ! empty($row['carbs'])) {
                 DB::table('inventory_item_nutrition')->insert([
                     'inventory_item_id' => $item->id,
                     'calories' => $row['calories'] ?? 0,
@@ -150,6 +152,44 @@ class InventoryController extends Controller
                     'protein' => $row['protein'] ?? 0,
                     'carbs' => $row['carbs'] ?? 0,
                 ]);
+            }
+
+            // 7. Handle allergies
+            if (! empty($row['allergies'])) {
+                $allergies = explode(',', $row['allergies']);
+                foreach ($allergies as $a) {
+                    $a = trim($a);
+                    if ($a === '') {
+                        continue;
+                    }
+
+                    $allergy = Allergy::firstOrCreate(['name' => $a]);
+                    DB::table('inventory_item_allergies')->insert([
+                        'inventory_item_id' => $item->id,
+                        'allergy_id' => $allergy->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            // 8. Handle tags
+            if (! empty($row['tags'])) {
+                $tags = explode(',', $row['tags']);
+                foreach ($tags as $t) {
+                    $t = trim($t);
+                    if ($t === '') {
+                        continue;
+                    }
+
+                    $tag = Tag::firstOrCreate(['name' => $t]);
+                    DB::table('inventory_item_tags')->insert([
+                        'inventory_item_id' => $item->id,
+                        'tag_id' => $tag->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
         }
 
