@@ -301,7 +301,7 @@ const onDownload = (type) => {
 const downloadCSV = (data) => {
     try {
         // Define headers
-        const headers = ["name"];
+        const headers = ["Name"];
 
         // Build CSV rows
         const rows = data.map((s) => [
@@ -465,26 +465,22 @@ onMounted(async () => {
     window.feather?.replace();
 });
 
-// 🟢 Watch customTag input
+
 watch(customTag, (newVal) => {
     if (newVal && formErrors.value.customTag) {
-        // Clear only this field’s error
         delete formErrors.value.customTag;
     }
 });
 
-// 🟢 Watch commonTags multi-select
+
 watch(commonTags, (newVal) => {
     if (newVal.length > 0 && formErrors.value.tags) {
-        // Clear only tags error
         delete formErrors.value.tags;
     }
 });
 
 
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
-
     if (!data || data.length <= 1) {
         toast.error("The file is empty", {
             autoClose: 3000,
@@ -492,13 +488,12 @@ const handleImport = (data) => {
         return;
     }
 
-    // data is 2D array: [ [col1, col2, ...], [val1, val2, ...] ]
     const headers = data[0];
     const rows = data.slice(1);
 
     const tagsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",
+            Name: row[0] || "",
         };
     });
 

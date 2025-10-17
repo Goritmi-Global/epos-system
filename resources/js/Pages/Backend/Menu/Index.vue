@@ -906,12 +906,14 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
+    console.log("menu Items", data);
     try {
         // Define headers
         const headers = [
             "Item Name",
             "Category",
             "Description",
+            "Price",
             "Nutrition",
             "Allergies",
             "Tags",
@@ -955,6 +957,7 @@ const downloadCSV = (data) => {
                 `"${s.name || ""}"`,
                 `"${category}"`,
                 `"${s.description || ""}"`,
+                `"${s.price || ""}"`,
                 `"${nutritionStr}"`,
                 `"${allergies}"`,
                 `"${tags}"`,
@@ -1213,25 +1216,50 @@ const downloadExcel = (data) => {
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
-        return; // Stop execution
+        return;
     }
 
     const headers = data[0];
-    // CSV headers: ["name","category","active","price","calories","fat","protein","carbs"]
+    console.log("headers are ", headers);
+
     const rows = data.slice(1);
+    console.log("rows data", rows);
 
     const itemsToImport = rows.map((row) => {
+        // Parse nutrition string: "calories: 210.00; protein: 120.00; fat: 210.00; carbs: 330.00"
+        let calories = 0, protein = 0, fat = 0, carbs = 0;
+
+        if (row[4]) { // Nutrition column
+            const nutritionStr = row[4];
+            const parts = nutritionStr.split(';').map(s => s.trim());
+
+            parts.forEach(part => {
+                const [key, value] = part.split(':').map(s => s.trim());
+                const numValue = parseFloat(value) || 0;
+
+                if (key === 'calories') calories = numValue;
+                else if (key === 'protein') protein = numValue;
+                else if (key === 'fat') fat = numValue;
+                else if (key === 'carbs') carbs = numValue;
+            });
+        }
+
         return {
-            name: row[0] || "",
-            category: row[1] || "",
-            active: row[2] == "0" ? 0 : 1,
-            price: row[3] || 100,
-            calories: parseFloat(row[4]) || 0,
-            fat: parseFloat(row[5]) || 0,
-            protein: parseFloat(row[6]) || 0,
-            carbs: parseFloat(row[7]) || 0,
+            name: row[0] || "",              // Item Name
+            category: row[1] || "",          // Category
+            description: row[2] || "",       // Description
+            price: parseFloat(row[3]) || 0,  // Price (lowercase 'p')
+            calories: calories,
+            protein: protein,
+            fat: fat,
+            carbs: carbs,
+            allergies: row[5] ? row[5].trim() : "",  // Allergies (comma-separated)
+            tags: row[6] ? row[6].trim() : "",       // Tags (comma-separated)
+            active: 1,  // Default to active since it's not in CSV
         };
     });
+
+    console.log("Items to import:", itemsToImport);
 
     // Check for duplicate item names within the CSV
     const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
@@ -1239,7 +1267,7 @@ const handleImport = (data) => {
 
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
-        return; // Stop execution
+        return;
     }
 
     // Check for duplicate item names in the existing menu items table
@@ -1251,7 +1279,7 @@ const handleImport = (data) => {
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(item => item.name).join(", ");
         toast.error(`Menu items already exist in the table: ${duplicateNamesList}`);
-        return; // Stop execution
+        return;
     }
 
     axios
@@ -2116,14 +2144,14 @@ ing, idx
     color: #fff !important;
 }
 
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
+.side-link {
+    border-radius: 55%;
+    background-color: #fff !important;
 }
 
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
+.dark .side-link {
+    border-radius: 55%;
+    background-color: #181818 !important;
 }
 
 .fw-semibold {

@@ -8,7 +8,7 @@ const emit = defineEmits(["save"]);
 
 const form = reactive({
     currency: props.model?.currency ?? "₨",  // Default to symbol
-    currency_symbol_position: props.model?.currency_symbol_position ?? "after",
+    currency_symbol_position: props.model?.currency_symbol_position ?? "before",
     date_format: props.model?.date_format ?? "dd/MM/yyyy",
     number_format: props.model?.number_format ?? "1,000",
     time_format: props.model?.time_format ?? "12-hour",
@@ -189,7 +189,7 @@ watch(
             if (newModel.currency && !userChangedCurrency) {
                 form.currency = newModel.currency;
             }
-            form.currency_symbol_position = newModel.currency_symbol_position ?? "after";
+            form.currency_symbol_position = newModel.currency_symbol_position ?? "before";
             form.date_format = newModel.date_format ?? "dd/MM/yyyy";
             form.number_format = newModel.number_format ?? "1,000";
             form.time_format = newModel.time_format ?? "12-hour";
