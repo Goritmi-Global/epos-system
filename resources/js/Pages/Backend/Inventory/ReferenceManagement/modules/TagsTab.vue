@@ -118,119 +118,181 @@ const runQuery = async (payload) => {
     }
 };
 const isSubmitting = ref(false);
-const onSubmit = async () => {
-    if (isEditing.value) {
-        if (!customTag.value.trim()) {
-            toast.error("Please fill out the field can't save an empty field.");
-            formErrors.value = {
-                customTag: [
-                    "Please fill out the field can't save an empty field",
-                ],
-            };
-            return;
-        }
-        try {
-            isSubmitting.value = true;
-            const { data } = await axios.put(`/tags/${editingRow.value.id}`, {
-                name: customTag.value.trim(),
-            });
+// const onSubmit = async () => {
+//     if (isEditing.value) {
+//         if (!customTag.value.trim()) {
+//             toast.error("Please fill out the field can't save an empty field.");
+//             formErrors.value = {
+//                 customTag: [
+//                     "Please fill out the field can't save an empty field",
+//                 ],
+//             };
+//             return;
+//         }
+//         try {
+//             isSubmitting.value = true;
+//             const { data } = await axios.put(`/tags/${editingRow.value.id}`, {
+//                 name: customTag.value.trim(),
+//             });
 
-            const idx = tags.value.findIndex(
-                (t) => t.id === editingRow.value.id
-            );
+//             const idx = tags.value.findIndex(
+//                 (t) => t.id === editingRow.value.id
+//             );
+//             if (idx !== -1) tags.value[idx] = data;
+
+//             toast.success("Tag updated Successfully");
+//             await fetchTags();
+//             // Hide the modal after successful update
+//             resetForm();
+//             closeModal("modalTagForm");
+//         } catch (e) {
+//             if (e.response?.data?.errors) {
+//                 // Reset errors object
+//                 formErrors.value = {};
+//                 // Loop through backend errors
+//                 Object.entries(e.response.data.errors).forEach(
+//                     ([field, msgs]) => {
+//                         // Show toast(s)
+//                         msgs.forEach((m) => toast.error(m));
+
+//                         // Attach to formErrors so it shows below inputs
+//                         formErrors.value = { customTag: msgs };
+//                     }
+//                 );
+//             } else {
+//                 toast.error("Update failed");
+//             }
+//         }
+//         finally {
+//             isSubmitting.value = false;
+//         }
+//     } else {
+//         if (commonTags.value.length === 0) {
+//             formErrors.value = { tags: ["Please select at least one Tag"] };
+//             toast.error("Please select at least one Tag", {
+//                 autoClose: 3000,
+//             });
+//             return;
+//         }
+//         // create
+//         const newTags = commonTags.value
+//             .filter((v) => !tags.value.some((t) => t.name === v))
+//             .map((v) => ({ name: v }));
+
+//         // Filter new tags and detect duplicates
+//         const existingTags = commonTags.value.filter((v) =>
+//             tags.value.some((t) => t.name === v)
+//         );
+
+//         if (newTags.length === 0) {
+//             // Show which tags already exist
+//             const msg = `Tag${existingTags.length > 1 ? "s" : ""
+//                 } already exist: ${existingTags.join(", ")}`;
+
+//             toast.error(msg);
+//             formErrors.value = { tags: [msg] };
+
+//             // closeModal("modalTagForm");
+//             return;
+//         }
+
+//         try {
+//             isSubmitting.value = true;
+//             const response = await axios.post("/tags", { tags: newTags });
+
+//             // If backend returns array directly
+//             const createdTags = response.data?.tags ?? response.data;
+
+//             if (Array.isArray(createdTags) && createdTags.length) {
+//                 tags.value = [...tags.value, ...createdTags];
+//             }
+
+//             toast.success("Tags added successfully");
+
+//             resetForm();
+//             closeModal("modalTagForm");
+
+//             // Hide the modal after successful creation
+
+//             await fetchTags();
+//         } catch (e) {
+//             // Only show create failed if there is a real error
+//             if (e.response?.data?.errors) {
+//                 Object.values(e.response.data.errors).forEach((msgs) =>
+//                     msgs.forEach((m) => toast.error(m))
+//                 );
+//             } else {
+//                 console.error(e); // log actual error for debugging
+//                 toast.error("Create failed");
+//             }
+//         }
+//         finally {
+//             isSubmitting.value = false;
+//         }
+//     }
+// };
+
+
+const onSubmit = async () => {
+    const tagName = customTag.value.trim();
+
+    if (!tagName) {
+        toast.error("Please fill out the field, can't save an empty field.");
+        formErrors.value = { customTag: ["Please fill out the field, can't save an empty field"] };
+        return;
+    }
+
+    try {
+        isSubmitting.value = true;
+
+        if (isEditing.value) {
+            // Update tag
+            const { data } = await axios.put(`/tags/${editingRow.value.id}`, { name: tagName });
+            const idx = tags.value.findIndex(t => t.id === editingRow.value.id);
             if (idx !== -1) tags.value[idx] = data;
 
-            toast.success("Tag updated Successfully");
-            await fetchTags();
-            // Hide the modal after successful update
-            resetForm();
-            closeModal("modalTagForm");
-        } catch (e) {
-            if (e.response?.data?.errors) {
-                // Reset errors object
-                formErrors.value = {};
-                // Loop through backend errors
-                Object.entries(e.response.data.errors).forEach(
-                    ([field, msgs]) => {
-                        // Show toast(s)
-                        msgs.forEach((m) => toast.error(m));
-
-                        // Attach to formErrors so it shows below inputs
-                        formErrors.value = { customTag: msgs };
-                    }
-                );
-            } else {
-                toast.error("Update failed");
+            toast.success("Tag updated successfully");
+        } else {
+            // Check if tag already exists
+            const exists = tags.value.some(t => t.name.toLowerCase() === tagName.toLowerCase());
+            if (exists) {
+                const msg = `Tag "${tagName}" already exists.`;
+                toast.error(msg);
+                formErrors.value = { customTag: [msg] };
+                return;
             }
+
+            // Create new tag
+            const { data } = await axios.post("/tags", { tags: [{ name: tagName }] });
+            const createdTag = Array.isArray(data) ? data[0] : data;
+            tags.value.push(createdTag);
+
+            toast.success("Tag added successfully");
         }
-        finally {
-            isSubmitting.value = false;
-        }
-    } else {
-        if (commonTags.value.length === 0) {
-            formErrors.value = { tags: ["Please select at least one Tag"] };
-            toast.error("Please select at least one Tag", {
-                autoClose: 3000,
+
+        // Reset and close
+        resetForm();
+        closeModal("modalTagForm");
+        await fetchTags();
+
+    } catch (e) {
+        if (e.response?.data?.errors) {
+            // Backend validation errors
+            formErrors.value = {};
+            Object.entries(e.response.data.errors).forEach(([field, msgs]) => {
+                msgs.forEach(m => toast.error(m));
+                formErrors.value = { customTag: msgs };
             });
-            return;
+        } else {
+            toast.error("Operation failed ❌");
+            console.error(e);
         }
-        // create
-        const newTags = commonTags.value
-            .filter((v) => !tags.value.some((t) => t.name === v))
-            .map((v) => ({ name: v }));
-
-        // Filter new tags and detect duplicates
-        const existingTags = commonTags.value.filter((v) =>
-            tags.value.some((t) => t.name === v)
-        );
-
-        if (newTags.length === 0) {
-            // Show which tags already exist
-            const msg = `Tag${existingTags.length > 1 ? "s" : ""
-                } already exist: ${existingTags.join(", ")}`;
-
-            toast.error(msg);
-            formErrors.value = { tags: [msg] };
-
-            // closeModal("modalTagForm");
-            return;
-        }
-
-        try {
-            isSubmitting.value = true;
-            const response = await axios.post("/tags", { tags: newTags });
-
-            // If backend returns array directly
-            const createdTags = response.data?.tags ?? response.data;
-
-            if (Array.isArray(createdTags) && createdTags.length) {
-                tags.value = [...tags.value, ...createdTags];
-            }
-
-            toast.success("Tags added successfully");
-
-            resetForm();
-            closeModal("modalTagForm");
-
-            // Hide the modal after successful creation
-
-            await fetchTags();
-        } catch (e) {
-            // Only show create failed if there is a real error
-            if (e.response?.data?.errors) {
-                Object.values(e.response.data.errors).forEach((msgs) =>
-                    msgs.forEach((m) => toast.error(m))
-                );
-            } else {
-                console.error(e); // log actual error for debugging
-                toast.error("Create failed");
-            }
-        }
-        finally {
-            isSubmitting.value = false;
-        }
+    } finally {
+        isSubmitting.value = false;
     }
 };
+
+
 
 // Function to properly hide modal and clean up backdrop
 const closeModal = (id) => {
@@ -654,7 +716,7 @@ const handleImport = (data) => {
                             formErrors.customTag[0]
                             }}</span>
                     </div>
-                    <div v-else>
+                    <!-- <div v-else>
                         <MultiSelect v-model="commonTags" :options="availableOptions" optionLabel="label"
                             optionValue="value" :multiple="true" showClear :filter="true" display="chip"
                             placeholder="Choose common  tags or add new one" class="w-100 select" appendTo="self"
@@ -683,7 +745,15 @@ const handleImport = (data) => {
                         <span class="text-danger" v-if="formErrors.tags">{{
                             formErrors.tags[0]
                             }}</span>
+                    </div> -->
+
+                    <div v-else>
+                        <label class="form-label">Tag Name</label>
+                        <input v-model="customTag" class="form-control" placeholder="Enter tag name"
+                            :class="{ 'is-invalid': formErrors.customTag }" />
+                        <span class="text-danger" v-if="formErrors.customTag">{{ formErrors.customTag[0] }}</span>
                     </div>
+
 
                     <div class="col-md-2">
                         <button class="btn btn-primary rounded-pill py-2 btn-sm w-100 mt-4" :disabled="isSubmitting"
