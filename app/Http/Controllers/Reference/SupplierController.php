@@ -75,21 +75,40 @@ class SupplierController extends Controller
     // SupplierController.php
     public function import(Request $request): JsonResponse
     {
-    
         $suppliers = $request->input('suppliers', []);
-        
+        $imported = 0;
+        $skipped = [];
+
         foreach ($suppliers as $data) {
+            // Basic validation for required fields only
             $validated = validator($data, [
                 'name' => 'required|string|max:100',
-                'email' => 'required|email|max:100|unique:suppliers,email',
-                'contact' => 'nullable|unique:suppliers,contact',
+                'email' => 'required|email|max:100',
+                'contact' => 'nullable|string|max:50',
                 'address' => 'required|string|max:255',
-                'preferred_items' => 'nullable|string',
+                'preferred_items' => 'nullable|string|max:255',
             ])->validate();
 
+            // Check if supplier already exists by email or contact
+            $exists = \App\Models\Supplier::where('email', $validated['email'])
+                ->orWhere('contact', $validated['contact'])
+                ->exists();
+
+            if ($exists) {
+                $skipped[] = $validated['email'] ?? $validated['contact'];
+
+                continue; // skip duplicate
+            }
+
+            // Create new record only if unique
             $this->service->create($validated);
+            $imported++;
         }
 
-        return response()->json(['message' => 'Suppliers imported successfully']);
+        return response()->json([
+            'message' => 'Suppliers imported successfully',
+            'imported' => $imported,
+            'skipped' => $skipped,
+        ]);
     }
 }

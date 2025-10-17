@@ -1,7 +1,7 @@
 <template>
     <div class="side-link">
         <!-- Delete / Custom Trigger Button -->
-        <button v-if="showDeleteButton || showConfirmRestore" @click="show = true" :class="[
+        <button v-if="showDeleteButton || showConfirmRestore && hasPermission('system.restore')" @click="show = true" :class="[
             'inline-flex items-center justify-center p-2.5 rounded-full',
             showConfirmRestore ? 'sidebar-btn py-2 side-link' : 'text-red-600 hover:bg-red-100'
         ]" :title="showConfirmRestore ? 'Restore System' : 'Delete'">
@@ -90,6 +90,11 @@
 <script setup>
 import { ref } from "vue";
 import { RefreshCcw } from "lucide-vue-next";
+import { computed } from "vue";
+import { usePage } from "@inertiajs/vue3";
+
+
+const page = usePage();
 
 const props = defineProps({
     title: String,
@@ -108,6 +113,21 @@ const handleConfirm = () => {
     emit("confirm");
     show.value = false;
 };
+
+const userPermissions = computed(() => page.props.current_user?.permissions ?? []);
+const userRoles = computed(() => page.props.current_user?.roles ?? []);
+console.log("userPermissions", userPermissions.value);
+// helper
+const hasPermission = (perm) => {
+    if (!perm) return true; // sections or headers without route
+    if (userRoles.value.includes("Super Admin")) return true;
+
+    const permissions = Array.isArray(userPermissions.value)
+        ? userPermissions.value
+        : [];
+    return permissions.includes(perm);
+};
+
 
 const handleCancel = () => {
     emit("cancel");
