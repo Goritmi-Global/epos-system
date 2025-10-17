@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { toast } from "vue3-toastify";
-import MultiSelect from "primevue/multiselect";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -10,40 +9,17 @@ import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 
-const commonExistingAllergiesList = ref([
-    { label: "Crustaceans", value: "Crustaceans" },
-    { label: "Eggs", value: "Eggs" },
-    { label: "Fish", value: "Fish" },
-    { label: "Lupin", value: "Lupin" },
-    { label: "Milk", value: "Milk" },
-    { label: "Molluscs", value: "Molluscs" },
-    { label: "Mustard", value: "Mustard" },
-    { label: "Peanuts", value: "Peanuts" },
-    { label: "Sesame seeds", value: "Sesame seeds" },
-    { label: "Soybeans", value: "Soybeans" },
-    {
-        label: "Sulphur dioxide / sulphites",
-        value: "Sulphur dioxide / sulphites",
-    },
-    { label: "Tree nuts", value: "Tree nuts" },
-]);
-
-const commonAllergies = ref([]); // array of values
-const filterText = ref(""); // Fixed: Added missing filterText ref
-
+const customAllergy = ref("");
 const isEditing = ref(false);
 const editingRow = ref(null);
-const customAllergy = ref("");
 
 const q = ref("");
 
 const resetForm = () => {
     customAllergy.value = "";
-    commonAllergies.value = [];
     formErrors.value = {};
 };
 
-// Fixed: Create filtered computed property that works with allergies array
 const filteredAllergys = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
     return searchTerm
@@ -53,50 +29,16 @@ const filteredAllergys = computed(() => {
         : allergies.value;
 });
 
-const selectAll = () =>
-    (commonAllergies.value = availableOptions.value.map((o) => o.value));
-
-
-const addCustom = () => {
-    const name = (filterText.value || "").trim();
-    if (!name) return;
-
-    // Add to options if not exists
-    if (!availableOptions.value.some(o => o.value === name)) {
-        availableOptions.value.push({ label: name, value: name });
-    }
-
-    // Add to selected
-    if (!commonAllergies.value.includes(name)) {
-        commonAllergies.value = [...commonAllergies.value, name];
-    }
-
-    filterText.value = "";
-};
-
-
 const openAdd = () => {
     isEditing.value = false;
-    commonAllergies.value = [];
-    filterText.value = "";
+    customAllergy.value = "";
 };
 
-const availableOptions = computed(() => {
-    return commonExistingAllergiesList.value.filter(
-        (option) =>
-            !allergies.value.some(
-                (allergy) =>
-                    allergy.name.toLowerCase() === option.value.toLowerCase()
-            )
-    );
-});
 const openEdit = (row) => {
     isEditing.value = true;
     editingRow.value = row;
     customAllergy.value = row.name;
 };
-
-// const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
 
 const deleteAllergy = async (row) => {
     try {
@@ -107,19 +49,21 @@ const deleteAllergy = async (row) => {
         toast.error("Delete failed");
     }
 };
+
 const isSubmitting = ref(false);
 const onSubmit = async () => {
     if (isSubmitting.value) return;
+    
+    if (!customAllergy.value.trim()) {
+        toast.error("Please enter an allergy name");
+        formErrors.value = {
+            customAllergy: ["Please enter an allergy name"],
+        };
+        return;
+    }
+
     if (isEditing.value) {
-        if (!customAllergy.value.trim()) {
-            toast.error("Please fill out the field can't save an empty field.");
-            formErrors.value = {
-                customAllergy: [
-                    "Please fill out the field can't save an empty field",
-                ],
-            };
-            return;
-        }
+        // Update existing allergy
         try {
             isSubmitting.value = true;
             const { data } = await axios.put(
@@ -134,24 +78,16 @@ const onSubmit = async () => {
             );
             if (idx !== -1) allergies.value[idx] = data;
 
-            toast.success("Allergy updated Successfully");
-
+            toast.success("Allergy updated successfully");
             await fetchAllergies();
-
-            // Hide the modal after successful update
             resetForm();
             closeModal("modalAllergyForm");
         } catch (e) {
             if (e.response?.data?.errors) {
-                // Reset errors object
                 formErrors.value = {};
-                // Loop through backend errors
                 Object.entries(e.response.data.errors).forEach(
                     ([field, msgs]) => {
-                        // Show toast(s)
                         msgs.forEach((m) => toast.error(m));
-
-                        // Attach to formErrors so it shows below inputs
                         formErrors.value = { customAllergy: msgs };
                     }
                 );
@@ -162,74 +98,51 @@ const onSubmit = async () => {
             isSubmitting.value = false;
         }
     } else {
-        if (commonAllergies.value.length === 0) {
-            formErrors.value = {
-                allergies: ["Please select at least one Allergy Item"],
-            };
-            toast.error("Please select at least one Allergy");
-            return;
-        }
-        // create
-        const newAllergy = commonAllergies.value
-            .filter((v) => !allergies.value.some((t) => t.name === v))
-            .map((v) => ({ name: v }));
-
-        // Filter new allergies and detect duplicates
-        const existingAllergy = commonAllergies.value.filter((v) =>
-            allergies.value.some((t) => t.name === v)
+        // Create new allergy
+        const allergyName = customAllergy.value.trim();
+        
+        // Check if already exists
+        const exists = allergies.value.some(
+            (a) => a.name.toLowerCase() === allergyName.toLowerCase()
         );
-
-        if (newAllergy.length === 0) {
-            // Show which allergies already exist
-            const msg = `Allergy${existingAllergy.length > 1 ? "s" : ""
-                } already exist: ${existingAllergy.join(", ")}`;
-
-            toast.error(msg);
-            formErrors.value = { allergies: [msg] };
-
-            // closeModal("modalAllergyForm");
+        
+        if (exists) {
+            toast.error(`Allergy "${allergyName}" already exists`);
+            formErrors.value = { customAllergy: ["This allergy already exists"] };
             return;
         }
 
         try {
             isSubmitting.value = true;
             const response = await axios.post("/allergies", {
-                allergies: newAllergy,
+                allergies: [{ name: allergyName }],
             });
 
-            // If backend returns array directly
             const createdTags = response.data?.allergies ?? response.data;
 
             if (Array.isArray(createdTags) && createdTags.length) {
                 allergies.value = [...allergies.value, ...createdTags];
             }
 
-            toast.success("Allergies added successfully");
-
+            toast.success("Allergy added successfully");
             resetForm();
             closeModal("modalAllergyForm");
-
-            // Hide the modal after successful creation
-
             await fetchAllergies();
         } catch (e) {
-            // Only show create failed if there is a real error
             if (e.response?.data?.errors) {
                 Object.values(e.response.data.errors).forEach((msgs) =>
                     msgs.forEach((m) => toast.error(m))
                 );
             } else {
-                console.error(e); // log actual error for debugging
+                console.error(e);
                 toast.error("Create failed");
             }
-        }
-        finally {
+        } finally {
             isSubmitting.value = false;
         }
     }
 };
 
-// Function to properly hide modal and clean up backdrop
 const closeModal = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -239,12 +152,12 @@ const closeModal = (id) => {
     modal.hide();
 };
 
-// show Index page
 const allergies = ref([]);
 const page = ref(1);
 const perPage = ref(15);
 const loading = ref(false);
 const formErrors = ref({});
+
 const fetchAllergies = async () => {
     loading.value = true;
     try {
@@ -253,8 +166,6 @@ const fetchAllergies = async () => {
         });
 
         allergies.value = data?.data ?? data?.allergies?.data ?? data ?? [];
-
-        // wait for DOM update before replacing icons
         await nextTick();
         window.feather?.replace();
     } catch (err) {
@@ -270,8 +181,7 @@ const onDownload = (type) => {
         return;
     }
 
-    // Use filtered data if there's a search query, otherwise use all suppliers
-    const dataToExport = q.value.trim() ? filtered.value : allergies.value;
+    const dataToExport = q.value.trim() ? filteredAllergys.value : allergies.value;
 
     if (dataToExport.length === 0) {
         toast.error("No Allergies found to download");
@@ -296,27 +206,17 @@ const onDownload = (type) => {
 
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = ["Name"];
-
-        // Build CSV rows
-        const rows = data.map((s) => [
-            `"${s.name || ""}"`,
-        ]);
-
-        // Combine into CSV string
+        const rows = data.map((s) => [`"${s.name || ""}"`]);
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
 
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -339,18 +239,16 @@ const downloadCSV = (data) => {
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
-
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
         doc.text("Allergies Report", 14, 20);
-
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Allergies: ${data.length}`, 14, 34);
 
-        const tableColumns = ["Name", "Created At", "Created By"];
+        const tableColumns = ["Name", "Created At", "Updated At"];
         const tableRows = data.map((s) => [
             s.name || "",
             s.created_at || "",
@@ -387,11 +285,8 @@ const downloadPDF = (data) => {
             },
         });
 
-        // 💾 Save file
-        const fileName = `Allergys_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        const fileName = `Allergies_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
-
         toast.success("PDF downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
@@ -403,35 +298,21 @@ const downloadPDF = (data) => {
 
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // Prepare worksheet data
         const worksheetData = data.map((allergy) => ({
             Name: allergy.name || "",
         }));
 
-        // Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // Set column widths
-        const colWidths = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
-            { wch: 10 }, // ID
-        ];
+        const colWidths = [{ wch: 20 }];
         worksheet["!cols"] = colWidths;
 
-        // Add worksheet to workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, "Allergies");
 
-        // Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -440,11 +321,7 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
-        const fileName = `Allergys_${new Date().toISOString().split("T")[0]
-            }.xlsx`;
-
-        // Save the file
+        const fileName = `Allergies_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
         toast.success("Excel file downloaded successfully", {
@@ -463,36 +340,23 @@ onMounted(async () => {
     window.feather?.replace();
 });
 
-// 🟢 Watch customAllergy input
 watch(customAllergy, (newVal) => {
     if (newVal && formErrors.value.customAllergy) {
-        // Clear only this field’s error
         delete formErrors.value.customAllergy;
     }
 });
 
-// 🟢 Watch commonAllergies multi-select
-watch(commonAllergies, (newVal) => {
-    if (newVal.length > 0 && formErrors.value.allergies) {
-        // Clear only allergies error
-        delete formErrors.value.allergies;
-    }
-});
-
-
 const handleImport = (data) => {
     console.log("Imported Data:", data);
 
-    // basic guard
     if (!Array.isArray(data) || data.length === 0) {
         toast.error("File is empty.");
         return;
     }
 
     const headers = data[0] || [];
-    const rows = data.slice(1); // everything after header row
+    const rows = data.slice(1);
 
-    // remove rows that are entirely empty (no non-empty cells)
     const nonEmptyRows = rows.filter((row) =>
         Array.isArray(row) && row.some((cell) => String(cell ?? "").trim() !== "")
     );
@@ -502,7 +366,6 @@ const handleImport = (data) => {
         return;
     }
 
-    // Map rows to objects and trim values; ignore rows without a name
     const allergiesToImport = nonEmptyRows
         .map((row) => ({ name: String(row[0] ?? "").trim() }))
         .filter((r) => r.name !== "");
@@ -512,16 +375,14 @@ const handleImport = (data) => {
         return;
     }
 
-    // Optional: detect duplicates inside the file before sending
     const namesLower = allergiesToImport.map((a) => a.name.toLowerCase());
     const dupes = namesLower.filter((n, i) => namesLower.indexOf(n) !== i);
     if (dupes.length) {
         const uniqueDupes = [...new Set(dupes)];
         toast.error(`Duplicate entries found in file: ${uniqueDupes.join(", ")}`);
-        return; // ask user to fix file before sending
+        return;
     }
 
-     // Check for duplicates against existing allergies in database
     const existingNames = allergies.value.map((a) => a.name.toLowerCase());
     const duplicatesInDB = allergiesToImport.filter((a) =>
         existingNames.includes(a.name.toLowerCase())
@@ -533,7 +394,6 @@ const handleImport = (data) => {
         return;
     }
 
-    // All good -> send to backend
     axios
         .post("/api/allergies/import", { allergies: allergiesToImport })
         .then(() => {
@@ -543,7 +403,6 @@ const handleImport = (data) => {
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
-                // prefer a backend message if available, otherwise generic
                 const msg =
                     err.response.data.message ||
                     "There may be duplication or validation errors in the data.";
@@ -554,7 +413,6 @@ const handleImport = (data) => {
             }
         });
 };
-
 </script>
 
 <template>
@@ -577,14 +435,13 @@ const handleImport = (data) => {
                     " class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Allergy
                     </button>
-                    <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+
                     <ImportFile label="Import" :sampleHeaders="['Name']" :sampleData="[
                         ['Milk'],
                         ['Peanuts'],
                         ['Gluten']
                     ]" @on-import="handleImport" />
 
-                    <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
@@ -592,18 +449,13 @@ const handleImport = (data) => {
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Export as
-                                    PDF</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Export as PDF</a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Export
-                                    as Excel</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Export as Excel</a>
                             </li>
-
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
-                                    Export as CSV
-                                </a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">Export as CSV</a>
                             </li>
                         </ul>
                     </div>
@@ -620,11 +472,9 @@ const handleImport = (data) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Fixed: Use filteredAllergys instead of allergies for proper filtering -->
                         <tr v-for="(r, i) in filteredAllergys" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
-
                             <td class="text-center">
                                 <div class="d-inline-flex align-items-center gap-3">
                                     <button data-bs-toggle="modal" data-bs-target="#modalAllergyForm" @click="
@@ -647,7 +497,6 @@ const handleImport = (data) => {
                             </td>
                         </tr>
 
-                        <!-- Fixed: Check filteredAllergys length instead of allergies -->
                         <tr v-if="filteredAllergys.length === 0">
                             <td colspan="3" class="text-center text-muted py-4">
                                 {{
@@ -682,43 +531,18 @@ const handleImport = (data) => {
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div v-if="isEditing">
+                    <div>
                         <label class="form-label">Allergy Name</label>
-                        <input v-model="customAllergy" class="form-control" placeholder="e.g., Vegan"
-                            :class="{ 'is-invalid': formErrors.customAllergy }" />
-                        <span class="text-danger" v-if="formErrors.customAllergy">{{ formErrors.customAllergy[0]
-                        }}</span>
-                    </div>
-                    <div v-else>
-                        <MultiSelect v-model="commonAllergies" :options="availableOptions" optionLabel="label"
-                            optionValue="value" :multiple="true" showClear :filter="true" display="chip"
-                            placeholder="Choose common  allergies or add new one" class="w-100" appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')"
-                            :class="{ 'is-invalid': formErrors.allergies }" :invalid="formErrors.allergies?.length">
-                            <template #header>
-                                <div class="w-100 d-flex header justify-content-end">
-                                    <button type="button" class="btn btn-sm btn-link text-primary"
-                                        @click.stop="selectAll">
-                                        Select All
-                                    </button>
-                                </div>
-                            </template>
-
-                            <template #footer>
-                                <div v-if="filterText?.trim()"
-                                    class="p-2 border-top d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">Not found in the list? Add it as a
-                                        custom allergy</small>
-                                    <button type="button" class="btn btn-sm btn-primary rounded-pill"
-                                        @click="addCustom">
-                                        Add "{{ filterText.trim() }}"
-                                    </button>
-                                </div>
-                            </template>
-                        </MultiSelect>
-                        <span class="text-danger" v-if="formErrors.allergies">{{
-                            formErrors.allergies[0]
-                        }}</span>
+                        <input 
+                            v-model="customAllergy" 
+                            class="form-control" 
+                            placeholder="e.g., Vegan"
+                            :class="{ 'is-invalid': formErrors.customAllergy }"
+                            @keyup.enter="onSubmit"
+                        />
+                        <span class="text-danger" v-if="formErrors.customAllergy">
+                            {{ formErrors.customAllergy[0] }}
+                        </span>
                     </div>
 
                     <div class="col-md-2">
@@ -733,8 +557,6 @@ const handleImport = (data) => {
                             </template>
                         </button>
                     </div>
-
-
                 </div>
             </div>
         </div>
@@ -755,9 +577,6 @@ const handleImport = (data) => {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
-.dark .p-multiselect{
-    background-color: #212121 !important;
-}
 
 .search-wrap .bi-search {
     position: absolute;
@@ -772,261 +591,22 @@ const handleImport = (data) => {
     border-radius: 9999px;
 }
 
-.dark .border-top {
-    background-color: #121212 !important;
-    color: #fff !important;
-}
-
-.dark .p-multiselect-empty-message {
-    background-color: #121212 !important;
-    color: #fff !important;
-}
-
-.p-multiselect {
-    background-color: white !important;
-    color: black !important;
-}
-
-
 .dropdown-menu {
     position: absolute !important;
     z-index: 1050 !important;
 }
 
-/* Ensure the table container doesn't clip the dropdown */
 .table-container {
     overflow: visible !important;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
-:deep(.p-multiselect-panel),
-:deep(.p-select-panel),
-:deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
+.text-danger {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
 }
 
-/* ========================  MultiSelect Styling   ============================= */
-:deep(.p-multiselect-header) {
-    background-color: white !important;
-    color: black !important;
-
-}
-
-:deep(.p-multiselect-label) {
-    color: #000 !important;
-}
-
-:deep(.p-select .p-component .p-inputwrapper) {
-    background: #fff !important;
-    color: #000 !important;
-    border-bottom: 1px solid #ddd;
-}
-
-/* Options list container */
-:deep(.p-multiselect-list) {
-    background: #fff !important;
-}
-
-/* Each option */
-:deep(.p-multiselect-option) {
-    background: #fff !important;
-    color: #000 !important;
-}
-
-/* Hover/selected option */
-:deep(.p-multiselect-option.p-highlight) {
-    background: #f0f0f0 !important;
-    color: #000 !important;
-}
-
-:deep(.p-multiselect),
-:deep(.p-multiselect-panel),
-:deep(.p-multiselect-token) {
-    background: #fff !important;
-    color: #000 !important;
-    border-color: #a4a7aa;
-}
-
-/* Checkbox box in dropdown */
-:deep(.p-multiselect-overlay .p-checkbox-box) {
-    background: #fff !important;
-    border: 1px solid #ccc !important;
-}
-
-/* Search filter input */
-:deep(.p-multiselect-filter) {
-    background: #fff !important;
-    color: #000 !important;
-    border: 1px solid #ccc !important;
-}
-
-/* Optional: adjust filter container */
-:deep(.p-multiselect-filter-container) {
-    background: #fff !important;
-}
-
-/* Selected chip inside the multiselect */
-:deep(.p-multiselect-chip) {
-    background: #e9ecef !important;
-    color: #000 !important;
-    border-radius: 12px !important;
-    border: 1px solid #ccc !important;
-    padding: 0.25rem 0.5rem !important;
-}
-
-/* Chip remove (x) icon */
-:deep(.p-multiselect-chip .p-chip-remove-icon) {
-    color: #555 !important;
-}
-
-:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+.dark .text-danger {
     color: #dc3545 !important;
-    /* red on hover */
-}
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
-:deep(.p-multiselect-panel),
-:deep(.p-select-panel),
-:deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
-}
-
-:deep(.p-multiselect-overlay) {
-    background-color: #fff !important;
-    color: #000 !important;
-}
-
-/* =================== Dark mode deep classes =================================== */
-/* ======================== Dark Mode MultiSelect ============================= */
-
-.dark .header {
-    background-color: #212121 !important;
-}
-
-:global(.dark .p-multiselect-header) {
-    background-color: #181818 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-multiselect-label) {
-    color: #fff !important;
-}
-
-:global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #121212 !important;
-    color: #fff !important;
-    border-bottom: 1px solid #555 !important;
-}
-
-/* Options list container */
-:global(.dark .p-multiselect-list) {
-    background: #181818 !important;
-}
-
-/* Each option */
-:global(.dark .p-multiselect-option) {
-    background: #121212 !important;
-    color: #fff !important;
-}
-
-/* Hover/selected option */
-:global(.dark .p-multiselect-option.p-highlight),
-:global(.dark .p-multiselect-option:hover) {
-    background: #222 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-multiselect),
-:global(.dark .p-multiselect-panel),
-:global(.dark .p-multiselect-token) {
-    background: #212121 !important;
-    color: #fff !important;
-    border-color: #555 !important;
-}
-
-/* Checkbox box in dropdown */
-:global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #121212 !important;
-    border: 1px solid #555 !important;
-}
-
-/* Search filter input */
-:global(.dark .p-multiselect-filter) {
-    background: #121212 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-}
-
-/* Optional: adjust filter container */
-:global(.dark .p-multiselect-filter-container) {
-    background: #121212 !important;
-}
-
-/* Selected chip inside the multiselect */
-:global(.dark .p-multiselect-chip) {
-    background: #111 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    border-radius: 12px !important;
-    padding: 0.25rem 0.5rem !important;
-}
-
-/* Chip remove (x) icon */
-:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
-    color: #ccc !important;
-}
-
-:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important;
-    /* lighter red */
-}
-
-/* ==================== Dark Mode Select Styling ====================== */
-:global(.dark .p-select) {
-    background-color: #121212 !important;
-    color: #fff !important;
-    border-color: #555 !important;
-}
-
-/* Options container */
-:global(.dark .p-select-list-container) {
-    background-color: #121212 !important;
-    color: #fff !important;
-}
-
-
-/* Each option */
-:global(.dark .p-select-option) {
-    background-color: #121212 !important;
-    color: #fff !important;
-}
-
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
-}
-
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
-}
-
-/* Hovered option */
-:global(.dark .p-select-option:hover),
-:global(.dark .p-select-option.p-focus) {
-    background-color: #222 !important;
-    color: #fff !important;
-}
-
-.dark .text-danger{
-    color: #dc3545 !important;
-}
-
-:global(.dark .p-select-label) {
-    color: #fff !important;
-}
-
-:global(.dark .p-placeholder) {
-    color: #aaa !important;
 }
 </style>

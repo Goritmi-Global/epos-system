@@ -1,45 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { toast } from "vue3-toastify";
-import MultiSelect from "primevue/multiselect";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
-
-const options = ref([
-  // Weight Units
-  { label: "Kilogram (kg)", value: "Kilogram (kg)" },
-  { label: "Gram (g)", value: "Gram (g)" },
-  { label: "Milligram (mg)", value: "Milligram (mg)" },
-  { label: "Pound (lb)", value: "Pound (lb)" },
-  { label: "Ounce (oz)", value: "Ounce (oz)" },
-
-  // Volume Units
-  { label: "Litre (L)", value: "Litre (L)" },
-  { label: "Millilitre (ml)", value: "Millilitre (ml)" },
-  { label: "Pint (pt)", value: "Pint (pt)" },
-  { label: "Gallon (gal)", value: "Gallon (gal)" },
-
-  // Count / Package Units
-  { label: "Piece (pc)", value: "Piece (pc)" },
-  { label: "Dozen (doz)", value: "Dozen (doz)" },
-  { label: "Crate", value: "Crate" },
-  { label: "Box", value: "Box" },
-  { label: "Bottle", value: "Bottle" },
-  { label: "Pack", value: "Pack" },
-  { label: "Carton", value: "Carton" },
-  { label: "Bag", value: "Bag" },
-  { label: "Bundle", value: "Bundle" },
-  { label: "Bunch", value: "Bunch" },
-  { label: "Serving", value: "Serving" }
-]);
-
-
-const commonUnits = ref([]); // array of values
-const filterText = ref("");
+import ConfirmModal from "@/Components/ConfirmModal.vue";
 
 const isEditing = ref(false);
 const editingRow = ref(null);
@@ -55,10 +23,8 @@ const baseUnits = computed(() => {
     return units.value.filter(u => !u.base_unit_id);
 });
 
-
 const resetForm = () => {
     customUnit.value = "";
-    commonUnits.value = [];
     formErrors.value = {};
     unitType.value = 'base';
     selectedBaseUnit.value = null;
@@ -75,40 +41,10 @@ const filteredUnits = computed(() => {
         : units.value;
 });
 
-const selectAll = () => (commonUnits.value = availableOptions.value.map(o => o.value));
-
-
-const onFilter = (event) => {
-    filterText.value = event.value;
-};
-
-const addCustom = () => {
-    const name = (filterText.value || "").trim();
-    if (!name) return;
-    if (
-        !options.value.some((o) => o.label.toLowerCase() === name.toLowerCase())
-    ) {
-        options.value.push({ label: name, value: name });
-    }
-    if (!commonUnits.value.includes(name))
-        commonUnits.value = [...commonUnits.value, name];
-    filterText.value = "";
-};
-
 const openAdd = () => {
     isEditing.value = false;
-    commonUnits.value = [];
-    filterText.value = "";
+    customUnit.value = "";
 };
-
-const availableOptions = computed(() => {
-    return options.value.filter(
-        (option) =>
-            !units.value.some(
-                (unit) => unit.name.toLowerCase() === option.value.toLowerCase()
-            )
-    );
-});
 
 const openEdit = (row) => {
     isEditing.value = true;
@@ -145,20 +81,19 @@ const deleteUnit = async (row) => {
     }
 };
 
-
 const isSubmitting = ref(false);
 const onSubmit = async () => {
     if (isSubmitting.value) return;
 
-    if (isEditing.value) {
-        if (!customUnit.value.trim()) {
-            toast.error("Please fill out the field can't save an empty field.");
-            formErrors.value = {
-                name: ["Please fill out the field can't save an empty field"],
-            };
-            return;
-        }
+    if (!customUnit.value.trim()) {
+        toast.error("Please fill out the field can't save an empty field.");
+        formErrors.value = {
+            name: ["Please fill out the field can't save an empty field"],
+        };
+        return;
+    }
 
+    if (isEditing.value) {
         // Validation for derived units in edit mode
         if (unitType.value === 'derived') {
             if (!selectedBaseUnit.value) {
@@ -215,25 +150,19 @@ const onSubmit = async () => {
     } else {
         // CREATE MODE
 
-        // For derived units, we need a single unit name
+        // Check if unit name already exists
+        const nameExists = units.value.some(
+            u => u.name.toLowerCase() === customUnit.value.trim().toLowerCase()
+        );
+
+        if (nameExists) {
+            toast.error(`Unit "${customUnit.value.trim()}" already exists. Please use a different name or edit the existing unit.`);
+            formErrors.value = { name: [`Unit "${customUnit.value.trim()}" already exists`] };
+            return;
+        }
+
+        // For derived units
         if (unitType.value === 'derived') {
-            if (!customUnit.value.trim()) {
-                toast.error("Please enter a unit name for derived unit");
-                formErrors.value = { name: ["Unit name is required"] };
-                return;
-            }
-
-            // Check if unit name already exists
-            const nameExists = units.value.some(
-                u => u.name.toLowerCase() === customUnit.value.trim().toLowerCase()
-            );
-
-            if (nameExists) {
-                toast.error(`Unit "${customUnit.value.trim()}" already exists. Please use a different name or edit the existing unit.`);
-                formErrors.value = { name: [`Unit "${customUnit.value.trim()}" already exists`] };
-                return;
-            }
-
             if (!selectedBaseUnit.value) {
                 toast.error("Please select a base unit");
                 formErrors.value = { base_unit_id: ["Base unit is required"] };
@@ -271,7 +200,6 @@ const onSubmit = async () => {
                     Object.entries(e.response.data.errors).forEach(
                         ([field, msgs]) => {
                             msgs.forEach((m) => toast.error(m));
-                            // Map backend field names like "units.0.name" to "name"
                             const fieldName = field.includes('.name') ? 'name' :
                                 field.includes('.base_unit_id') ? 'base_unit_id' :
                                     field.includes('.conversion_factor') ? 'conversion_factor' : field;
@@ -286,39 +214,16 @@ const onSubmit = async () => {
                 isSubmitting.value = false;
             }
         } else {
-            // BASE UNITS - multiple selection
-            if (commonUnits.value.length === 0) {
-                formErrors.value = { units: ["Please select at least one Unit"] };
-                toast.error("Please select at least one Unit", {
-                    autoClose: 3000,
-                });
-                return;
-            }
-
-            const newUnits = commonUnits.value
-                .filter((v) => !units.value.some((t) => t.name === v))
-                .map((v) => ({
-                    name: v,
-                    base_unit_id: null,
-                    conversion_factor: null,
-                }));
-
-            const existingUnits = commonUnits.value.filter((v) =>
-                units.value.some((t) => t.name === v)
-            );
-
-            if (newUnits.length === 0) {
-                const msg = `Unit${existingUnits.length > 1 ? "s" : ""
-                    } already exist: ${existingUnits.join(", ")}`;
-
-                toast.error(msg);
-                formErrors.value = { units: [msg] };
-                return;
-            }
+            // BASE UNIT - single unit
+            const newUnit = {
+                name: customUnit.value.trim(),
+                base_unit_id: null,
+                conversion_factor: null,
+            };
 
             try {
                 isSubmitting.value = true;
-                const response = await axios.post("/units", { units: newUnits });
+                const response = await axios.post("/units", { units: [newUnit] });
 
                 const createdUnits = response.data?.units ?? response.data;
 
@@ -326,7 +231,7 @@ const onSubmit = async () => {
                     units.value = [...units.value, ...createdUnits];
                 }
 
-                toast.success("Unit(s) added successfully");
+                toast.success("Unit added successfully");
                 resetForm();
                 closeModal("modalUnitForm");
                 await fetchUnits();
@@ -345,6 +250,7 @@ const onSubmit = async () => {
         }
     }
 };
+
 // Function to properly hide modal and clean up backdrop
 const closeModal = (id) => {
     const el = document.getElementById(id);
@@ -563,14 +469,8 @@ onMounted(async () => {
 });
 
 watch(customUnit, (newVal) => {
-    if (newVal && formErrors.value.customUnit) {
-        delete formErrors.value.customUnit;
-    }
-});
-
-watch(commonUnits, (newVal) => {
-    if (newVal.length > 0 && formErrors.value.units) {
-        delete formErrors.value.units;
+    if (newVal && formErrors.value.name) {
+        delete formErrors.value.name;
     }
 });
 
@@ -631,7 +531,7 @@ const handleImport = (data) => {
                     " class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Unit
                     </button>
-                    <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+
                     <ImportFile label="Import" :sampleHeaders="['Name']" :sampleData="[
                         ['Example Unit 1'],
                         ['Example Unit 2']
@@ -743,38 +643,8 @@ const handleImport = (data) => {
                         </label>
                     </div>
 
-                    <!-- If adding multiple base units -->
-                    <div v-if="!isEditing && unitType === 'base'">
-                        <label class="form-label">Choose or Add Units</label>
-                        <MultiSelect v-model="commonUnits" :options="availableOptions" optionLabel="label"
-                            optionValue="value" :multiple="true" showClear :filter="true" display="chip"
-                            placeholder="Choose common units or add new one" class="w-100" appendTo="self"
-                            @filter="onFilter" :invalid="formErrors.units?.length">
-                            <template #header>
-                                <div class="w-100 header d-flex justify-content-end">
-                                    <button type="button" class="btn btn-sm btn-link text-primary"
-                                        @click.stop="selectAll">
-                                        Select All
-                                    </button>
-                                </div>
-                            </template>
-                            <template #footer>
-                                <div v-if="filterText?.trim()"
-                                    class="p-2 border-top d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">Not found in the list? Add it as a custom unit</small>
-                                    <button type="button" class="btn btn-sm btn-primary rounded-pill"
-                                        @click="addCustom">
-                                        Add "{{ filterText.trim() }}"
-                                    </button>
-                                </div>
-                            </template>
-                        </MultiSelect>
-
-                        <div class="text-danger mt-1" v-if="formErrors.units">{{ formErrors.units[0] }}</div>
-                    </div>
-
-                    <!-- If adding or editing single unit (either base single or derived single) -->
-                    <div v-else>
+                    <!-- Unit Name Input (for both base and derived) -->
+                    <div>
                         <label class="form-label">Unit Name</label>
                         <input v-model="customUnit" class="form-control" placeholder="e.g., Millilitre (ml)"
                             :class="{ 'is-invalid': formErrors.name }" />
@@ -816,8 +686,9 @@ const handleImport = (data) => {
                                 formErrors.conversion_factor[0] }}</div>
                         </div>
                     </div>
-                    <div class="col-md-12 mt-4">
-                        <button class="btn btn-primary rounded-pill py-2 btn-sm px-4" :disabled="isSubmitting"
+
+                    <div class="col-md-2 mt-4">
+                        <button class="btn btn-primary rounded-pill py-2 btn-sm w-100" :disabled="isSubmitting"
                             @click="onSubmit">
                             <template v-if="isSubmitting">
                                 <span class="spinner-border spinner-border-sm me-2"></span>Saving...
@@ -848,14 +719,14 @@ const handleImport = (data) => {
     width: clamp(220px, 28vw, 360px);
 }
 
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
+.side-link {
+    border-radius: 55%;
+    background-color: #fff !important;
 }
 
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
+.dark .side-link {
+    border-radius: 55%;
+    background-color: #181818 !important;
 }
 
 .search-wrap .bi-search {
@@ -866,27 +737,16 @@ const handleImport = (data) => {
     color: #6b7280;
 }
 
-.dark .p-multiselect{
-    background-color: #212121 !important;
-}
-
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
 }
-
-.p-multiselect {
-    background-color: white !important;
-    color: black !important;
-}
-
 
 .dropdown-menu {
     position: absolute !important;
     z-index: 1050 !important;
 }
 
-/* Ensure the table container doesn't clip the dropdown */
 .table-container {
     overflow: visible !important;
 }
@@ -902,247 +762,16 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-.dark .header {
-    background-color: #121212;
-}
-
-.dark .p-inputtext {
-    background-color: #121212 !important;
-    color: #fff !important;
-}
-
-.dark .border-top {
-    background-color: #121212 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-multiselect-header) {
-    background-color: #181818 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-multiselect-label) {
-    color: #fff !important;
-}
-
 .dark .form-select:focus {
     background-color: #212121 !important;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
-:deep(.p-multiselect-panel),
-:deep(.p-select-panel),
-:deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
+.text-danger {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
 }
 
-
-/* ========================  MultiSelect Styling   ============================= */
-:deep(.p-multiselect-header) {
-    background-color: white !important;
-    color: black !important;
-
-}
-
-:deep(.p-multiselect-label) {
-    color: #000 !important;
-}
-
-:deep(.p-select .p-component .p-inputwrapper) {
-    background: #fff !important;
-    color: #000 !important;
-    border-bottom: 1px solid #ddd;
-}
-
-/* Options list container */
-:deep(.p-multiselect-list) {
-    background: #fff !important;
-}
-
-/* Each option */
-:deep(.p-multiselect-option) {
-    background: #fff !important;
-    color: #000 !important;
-}
-
-/* Hover/selected option */
-:deep(.p-multiselect-option.p-highlight) {
-    background: #f0f0f0 !important;
-    color: #000 !important;
-}
-
-:deep(.p-multiselect),
-:deep(.p-multiselect-panel),
-:deep(.p-multiselect-token) {
-    background: #fff !important;
-    color: #000 !important;
-    border-color: #a4a7aa;
-}
-
-/* Checkbox box in dropdown */
-:deep(.p-multiselect-overlay .p-checkbox-box) {
-    background: #fff !important;
-    border: 1px solid #ccc !important;
-}
-
-/* Search filter input */
-:deep(.p-multiselect-filter) {
-    background: #fff !important;
-    color: #000 !important;
-    border: 1px solid #ccc !important;
-}
-
-/* Optional: adjust filter container */
-:deep(.p-multiselect-filter-container) {
-    background: #fff !important;
-}
-
-/* Selected chip inside the multiselect */
-:deep(.p-multiselect-chip) {
-    background: #e9ecef !important;
-    color: #000 !important;
-    border-radius: 12px !important;
-    border: 1px solid #ccc !important;
-    padding: 0.25rem 0.5rem !important;
-}
-
-/* Chip remove (x) icon */
-:deep(.p-multiselect-chip .p-chip-remove-icon) {
-    color: #555 !important;
-}
-
-:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+.dark .text-danger {
     color: #dc3545 !important;
-    /* red on hover */
-}
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
-:deep(.p-multiselect-panel),
-:deep(.p-select-panel),
-:deep(.p-dropdown-panel) {
-    z-index: 2000 !important;
-}
-
-:deep(.p-multiselect-overlay) {
-    background-color: #fff !important;
-    color: #000 !important;
-}
-
-/* ==================== Dark Mode Deep classes ================================== */
-/* ======================== Dark Mode MultiSelect ============================= */
-:global(.dark .p-multiselect-header) {
-    background-color: #212121 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-multiselect-label) {
-    color: #fff !important;
-}
-
-:global(.dark .p-select .p-component .p-inputwrapper) {
-    background: #000 !important;
-    color: #fff !important;
-    border-bottom: 1px solid #555 !important;
-}
-
-/* Options list container */
-:global(.dark .p-multiselect-list) {
-    background: #212121 !important;
-}
-
-/* Each option */
-:global(.dark .p-multiselect-option) {
-    background: #212121 !important;
-    color: #fff !important;
-}
-
-/* Hover/selected option */
-:global(.dark .p-multiselect-option.p-highlight),
-:global(.dark .p-multiselect-option:hover) {
-    background: #222 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-multiselect),
-:global(.dark .p-multiselect-panel),
-:global(.dark .p-multiselect-token) {
-    background: #000 !important;
-    color: #fff !important;
-    border-color: #555 !important;
-}
-
-/* Checkbox box in dropdown */
-:global(.dark .p-multiselect-overlay .p-checkbox-box) {
-    background: #212121 !important;
-    border: 1px solid #555 !important;
-}
-
-/* Search filter input */
-:global(.dark .p-multiselect-filter) {
-    background: #212121 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-}
-
-/* Optional: adjust filter container */
-:global(.dark .p-multiselect-filter-container) {
-    background: #000 !important;
-}
-
-/* Selected chip inside the multiselect */
-:global(.dark .p-multiselect-chip) {
-    background: #111 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    border-radius: 12px !important;
-    padding: 0.25rem 0.5rem !important;
-}
-
-/* Chip remove (x) icon */
-:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
-    color: #ccc !important;
-}
-
-:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
-    color: #f87171 !important;
-    /* lighter red */
-}
-
-/* ==================== Dark Mode Select Styling ====================== */
-:global(.dark .p-select) {
-    background-color: #000 !important;
-    color: #fff !important;
-    border-color: #555 !important;
-}
-
-/* Options container */
-:global(.dark .p-select-list-container) {
-    background-color: #000 !important;
-    color: #fff !important;
-}
-
-/* Each option */
-:global(.dark .p-select-option) {
-    background-color: transparent !important;
-    color: #fff !important;
-}
-
-/* Hovered option */
-:global(.dark .p-select-option:hover),
-:global(.dark .p-select-option.p-focus) {
-    background-color: #222 !important;
-    color: #fff !important;
-}
-
-:global(.dark .p-select-label) {
-    color: #fff !important;
-}
-
-:global(.dark .p-placeholder) {
-    color: #aaa !important;
-}
-
-.dark .header {
-    background-color: #212121 !important;
 }
 </style>
