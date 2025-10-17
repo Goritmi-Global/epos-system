@@ -10,6 +10,7 @@ import {
     Pencil,
     Plus,
 } from "lucide-vue-next";
+import * as lucideIcons from "lucide-vue-next";
 
 import { toast } from "vue3-toastify";
 import { jsPDF } from "jspdf";
@@ -881,7 +882,7 @@ const handleImport = (data) => {
         .filter(cat => cat.category) // Only check parent categories
         .map(cat => cat.category.trim().toLowerCase());
     const duplicatesInCSV = categoryNames.filter((name, index) => categoryNames.indexOf(name) !== index);
-    
+
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate category names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
         return; // Stop execution
@@ -892,7 +893,7 @@ const handleImport = (data) => {
     const duplicatesInTable = categoriesToImport
         .filter(cat => cat.category) // Only check parent categories
         .filter(importCat => existingCategoryNames.includes(importCat.category.trim().toLowerCase()));
-    
+
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(cat => cat.category).join(", ");
         toast.error(`Categories already exist in the table: ${duplicateNamesList}`);
@@ -1015,7 +1016,7 @@ const handleImport = (data) => {
                                     <th>S.#</th>
                                     <th>Category</th>
                                     <th>Sub Category</th>
-                                    <th>Image</th>
+                                    <th>Icon</th>
                                     <th>Total value</th>
                                     <th>Total Item</th>
                                     <th>Out of Stock</th>
@@ -1054,6 +1055,14 @@ const handleImport = (data) => {
                                         <span v-else>–</span>
                                     </td>
 
+                                    <!-- <td>
+                                        <div
+                                            class="rounded d-inline-flex align-items-center justify-content-center img-chip">
+                                            <component v-if="row.icon" :is="lucideIcons[row.icon]"
+                                                class="w-6 h-6 text-white" />
+                                            <span v-else class="fs-5 text-white">📦</span>
+                                        </div>
+                                    </td> -->
                                     <td>
                                         <div
                                             class="rounded d-inline-flex align-items-center justify-content-center img-chip">
@@ -1062,6 +1071,7 @@ const handleImport = (data) => {
                                                 }}</span>
                                         </div>
                                     </td>
+
                                     <td>{{ formatCurrencySymbol(row.total_value) }}</td>
                                     <td>{{ row.primary_inventory_items_count }}</td>
                                     <td>{{ row.out_of_stock }}</td>
@@ -1465,14 +1475,14 @@ const handleImport = (data) => {
     color: #000000;
 }
 
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
+.side-link {
+    border-radius: 55%;
+    background-color: #fff !important;
 }
 
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
+.dark .side-link {
+    border-radius: 55%;
+    background-color: #181818 !important;
 }
 
 .dark .p-3 {
@@ -1522,7 +1532,8 @@ const handleImport = (data) => {
 .img-chip {
     width: 40px;
     height: 40px;
-    background: #f1f5f9;
+    /* background: #f1f5f9; */
+    color: #000 !important;
 }
 
 /* Chips */
