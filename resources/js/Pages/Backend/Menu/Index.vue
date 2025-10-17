@@ -1828,7 +1828,7 @@ ing, idx
                                                         {{ it.category.name }}
                                                     </div>
                                                     <div class="text-muted small">
-                                                        Unit: {{ it.unit }}
+                                                        Unit: {{ it.unit_name }}
                                                     </div>
                                                     <div class="small mt-2 text-muted">
                                                         Calories:
