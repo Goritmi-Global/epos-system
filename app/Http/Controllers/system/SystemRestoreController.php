@@ -36,7 +36,7 @@ class SystemRestoreController extends Controller
         Artisan::call('db:seed', ['--class' => 'TimezonesTableSeeder']);
         Artisan::call('db:seed', ['--class' => 'PermissionsTableSeeder']);
         Artisan::call('db:seed', ['--class' => 'RolesTableSeeder']);
-        Artisan::call('db:seed', ['--class' => 'SupplierSeeder']);
+        // Artisan::call('db:seed', ['--class' => 'SupplierSeeder']);
         Artisan::call('db:seed', ['--class' => 'AllergySeeder']);
         Artisan::call('db:seed', ['--class' => 'UnitSeeder']);
         Artisan::call('db:seed', ['--class' => 'TagSeeder']);
