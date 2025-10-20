@@ -17,7 +17,7 @@ class InventoryCategory extends Model
 
     protected $fillable = [
         'name',
-        'icon',
+        'upload_id',
         'active',
         'parent_id',
         'total_value',
@@ -93,9 +93,12 @@ class InventoryCategory extends Model
     }
 
     public function primaryInventoryItems()
-{
-    return $this->hasMany(\App\Models\InventoryItem::class, 'category_id');
-}
+    {
+        return $this->hasMany(\App\Models\InventoryItem::class, 'category_id');
+    }
 
-    
+    public function upload(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Upload::class, 'upload_id');
+    }
 }

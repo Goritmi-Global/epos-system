@@ -18,7 +18,7 @@ class UpdateMenuCategoryRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'color' => 'nullable|string|max:7', 
-            'icon' => 'nullable|string|max:10',
+            'icon' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
             'active' => 'boolean',
             'parent_id' => 'nullable|exists:menu_categories,id',
             'subcategories' => 'nullable|array',
@@ -33,6 +33,9 @@ class UpdateMenuCategoryRequest extends FormRequest
         return [
             'name.required' => 'Category name is required.',
             'name.max' => 'Category name cannot exceed 255 characters.',
+            'icon.image' => 'The icon must be an image file.',
+            'icon.mimes' => 'The icon must be a file of type: jpeg, jpg, png, webp, gif.',
+            'icon.max' => 'The icon size must not exceed 2MB.',
             'parent_id.exists' => 'The selected parent category does not exist.',
             'subcategories.*.name.required' => 'Each subcategory must have a name.',
         ];

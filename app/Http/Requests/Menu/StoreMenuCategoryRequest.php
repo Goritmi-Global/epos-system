@@ -21,7 +21,8 @@ class StoreMenuCategoryRequest extends FormRequest
             // Categories array validation
             'categories' => 'required|array|min:1',
             'categories.*.name' => 'required|string|max:255',
-            'categories.*.icon' => 'sometimes|string|max:10',
+            'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'categories.*.upload_id' => 'nullable',
             'categories.*.active' => 'sometimes|boolean',
             'categories.*.parent_id' => 'nullable|integer|exists:menu_categories,id',
         ];
@@ -33,6 +34,10 @@ class StoreMenuCategoryRequest extends FormRequest
             'categories.*.parent_id.exists' => 'The selected parent category does not exist.',
             'categories.required' => 'At least one category must be provided.',
             'categories.*.name.required' => 'Each category must have a name.',
+
+            'icon.image' => 'The icon must be an image file.',
+            'icon.mimes' => 'The icon must be a file of type: jpeg, jpg, png, webp, gif.',
+            'icon.max' => 'The icon size must not exceed 2MB.',
         ];
     }
 

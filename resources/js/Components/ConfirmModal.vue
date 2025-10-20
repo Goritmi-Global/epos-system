@@ -116,7 +116,6 @@ const handleConfirm = () => {
 
 const userPermissions = computed(() => page.props.current_user?.permissions ?? []);
 const userRoles = computed(() => page.props.current_user?.roles ?? []);
-console.log("userPermissions", userPermissions.value);
 // helper
 const hasPermission = (perm) => {
     if (!perm) return true; // sections or headers without route

@@ -16,9 +16,9 @@ class UpdateCategoryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'icon' => 'nullable|string|max:10',
+            'icon' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048', // ✅ Changed to accept image files
             'active' => 'boolean',
-            'parent_id' => 'nullable|exists:categories,id',
+            'parent_id' => 'nullable|exists:inventory_categories,id', // ✅ Fixed table name
             'subcategories' => 'nullable|array',
             'subcategories.*.id' => 'nullable|exists:inventory_categories,id',
             'subcategories.*.name' => 'required|string|max:255',
@@ -31,9 +31,29 @@ class UpdateCategoryRequest extends FormRequest
         return [
             'name.required' => 'Category name is required.',
             'name.max' => 'Category name cannot exceed 255 characters.',
+            'icon.image' => 'The icon must be an image file.',
+            'icon.mimes' => 'The icon must be a file of type: jpeg, jpg, png, webp, gif.',
+            'icon.max' => 'The icon size must not exceed 2MB.',
             'parent_id.exists' => 'The selected parent category does not exist.',
             'subcategories.*.name.required' => 'Each subcategory must have a name.',
         ];
+    }
+
+    protected function prepareForValidation()
+    {
+        // Parse subcategories if it's a JSON string (from FormData)
+        if ($this->has('subcategories') && is_string($this->subcategories)) {
+            $this->merge([
+                'subcategories' => json_decode($this->subcategories, true)
+            ]);
+        }
+
+        // Convert string booleans to actual booleans
+        if ($this->has('active')) {
+            $this->merge([
+                'active' => filter_var($this->active, FILTER_VALIDATE_BOOLEAN)
+            ]);
+        }
     }
 
     protected function failedValidation(Validator $validator)
@@ -50,7 +70,7 @@ class UpdateCategoryRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $categoryId = $this->route('id'); // Get the category ID from route
+            $categoryId = $this->route('category') ?? $this->route('id'); // Try both route parameters
             $categoryName = trim($this->input('name', ''));
             $parentId = $this->input('parent_id');
             $subcategories = $this->input('subcategories', []);
@@ -72,7 +92,7 @@ class UpdateCategoryRequest extends FormRequest
             }
 
             //  CHECK SUBCATEGORIES FOR DUPLICATES
-            if (!empty($subcategories)) {
+            if (!empty($subcategories) && is_array($subcategories)) {
                 $subcategoryNames = [];
                 
                 foreach ($subcategories as $index => $subcategory) {

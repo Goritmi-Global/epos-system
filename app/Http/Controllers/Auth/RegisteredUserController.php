@@ -75,6 +75,10 @@ class RegisteredUserController extends Controller
         // Send verification email
         Mail::to($user->email)->send(new VerifyAccountMail($user, $rawPassword, $rawPin, $otp));
 
+        if ($user->is_first_super_admin) {
+            $this->runInitialSetupSeeders();
+        }
+
         throw ValidationException::withMessages([
             'unverified' => 'Account not verified. A new OTP has been sent to your email.',
             'email_address' => $user->email,
@@ -102,5 +106,27 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         return response()->json(['message' => 'Verified successfully']);
+    }
+
+
+    private function runInitialSetupSeeders()
+    {
+        $seeders = [
+            \Database\Seeders\CountriesTableSeeder::class,
+            \Database\Seeders\TimezonesTableSeeder::class,
+            \Database\Seeders\PermissionsTableSeeder::class,
+            \Database\Seeders\RolesTableSeeder::class,
+            \Database\Seeders\AllergySeeder::class,
+            \Database\Seeders\UnitSeeder::class,
+            \Database\Seeders\TagSeeder::class,
+            \Database\Seeders\SupplierSeeder::class,
+            \Database\Seeders\InventoryCategorySeeder::class,
+            \Database\Seeders\MenuCategorySeeder::class,
+        ];
+
+        foreach ($seeders as $seederClass) {
+            $seeder = new $seederClass;
+            $seeder->run();
+        }
     }
 }

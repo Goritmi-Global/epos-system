@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::table('menu_categories', function (Blueprint $table) {
             $table->string('name')->after('id'); 
-            $table->string('icon', 10)->default('🧰')->after('name');
-            $table->boolean('active')->default(true)->after('icon');
+           $table->foreignId('upload_id')->nullable()->constrained('uploads')->nullOnDelete();
+            $table->boolean('active')->default(true)->after('upload_id');
             $table->unsignedBigInteger('parent_id')->nullable()->after('active');
             $table->decimal('total_value', 15, 2)->default(0)->after('parent_id');
             $table->integer('total_items')->default(0)->after('total_value');

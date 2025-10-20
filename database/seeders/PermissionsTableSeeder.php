@@ -26,6 +26,8 @@ class PermissionsTableSeeder extends Seeder
                 ['description' => $humanName]
             );
         }
+
+        // $this->command->info("✅ Created or updated {$count} permissions successfully.");
     }
 
     protected function humanize($routeName)
