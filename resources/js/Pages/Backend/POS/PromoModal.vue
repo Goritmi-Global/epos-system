@@ -6,7 +6,7 @@
           <h5 class="modal-title fw-bold">Select a Promo</h5>
 
           <button
-            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition transform hover:scale-110"
+            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-100 transition transform hover:scale-110"
             @click="$emit('close')"
             data-bs-dismiss="modal"
             aria-label="Close"
@@ -57,7 +57,7 @@
 
                 <div class="promo-discount d-flex justify-content-between align-items-center mt-2">
                   <span class="fw-semibold">Discount Amount:</span>
-                  <span class="fw-bold fs-5 text-success">-${{ calculateDiscount(promo) }}</span>
+                  <span class="fw-bold fs-5 text-danger">{{ formatCurrencySymbol(calculateDiscount(promo)) }}</span>
                 </div>
               </div>
             </div>
@@ -81,6 +81,9 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useFormatters } from '@/composables/useFormatters'
+
+const { formatMoney, formatCurrencySymbol, dateFmt } = useFormatters()
 
 const props = defineProps({
   show: Boolean,
@@ -167,6 +170,10 @@ const calculateDiscount = (promo) => {
 
 .modal-dialog {
   z-index: 1050;
+}
+
+.dark .text-danger{
+  color: red !important;
 }
 
 .promo-grid {

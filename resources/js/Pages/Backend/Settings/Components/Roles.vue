@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
 import { Pencil, Plus } from "lucide-vue-next";
-
+import { nextTick } from "vue";
 const show = ref(false);
 const editingId = ref(null);
 
@@ -14,6 +14,10 @@ const selectedPermissions = ref([]);
 const selectAll = ref(false);
 const formErrors = ref({});
 const saving = ref(false);
+
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
 
 const baseUrl = "/roles";
 const listPermissionsUrl = "/permissions-list";
@@ -190,6 +194,21 @@ async function save() {
 }
 
 onMounted(async () => {
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill that happened
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+            q.value = '';
+        }
+    }, 100);
+
     initAxios();
     await Promise.all([fetchAllRoles(), loadAllPermissions()]);
 });
@@ -278,8 +297,14 @@ watch(selectedPermissions, (newVal) => {
                     <div class="mb-2 d-flex justify-content-between align-items-center">
                         <label class="form-label mb-0">Permissions</label>
                         <div class="input-group" style="max-width: 260px">
-                            <input v-model.trim="permSearch" type="text" class="form-control rounded-pill shadow-sm"
-                                placeholder="Search permissions…" />
+                            <input type="email" name="email" autocomplete="email"
+                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                            aria-hidden="true" />
+
+                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                            class="form-control search-input" placeholder="Search" type="search"
+                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
                         </div>
                     </div>
 
@@ -294,7 +319,7 @@ watch(selectedPermissions, (newVal) => {
 
                     <!-- single-column: permission label on the left, checkbox on the right -->
                     <div v-for="(permissions, category) in groupedPermissions" :key="category" class="mb-3">
-                        <h6 class="fw-bold text-primary border-bottom pb-1 mb-2">
+                        <h6 style="color: #1B2850;" class="fw-bold border-bottom pb-1 mb-2">
                             {{ formatCategory(category) }}
                         </h6>
 
