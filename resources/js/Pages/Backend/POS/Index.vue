@@ -635,8 +635,8 @@ function printReceipt(order) {
     } else {
         payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
     }
-      const businessName = page.props.business_info.business_name || "Business Name";
-  const businessLogo = page.props.business_info.image_url|| "";
+    const businessName = page.props.business_info.business_name || "Business Name";
+    const businessLogo = page.props.business_info.image_url || "";
 
     const html = `
     <html>
@@ -1480,38 +1480,37 @@ const decrementCardQty = (product) => {
                             </div> -->
 
 
-                            <div class="row g-3">
+                            <!-- <div class="row g-3">
                                 <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
                                     :key="p.title">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
 
-                                        <!-- Left Side (Image + Price + Badge + Quantity Controls) -->
+                                       
                                         <div class="p-2 d-flex flex-column align-items-center justify-content-between position-relative bg-light"
                                             style="flex: 0 0 40%; max-width: 40%; position: relative;">
 
-                                            <!-- Image -->
                                             <div
                                                 class="d-flex align-items-center justify-content-center w-100 flex-grow-1">
                                                 <img :src="p.img" alt="" class="img-fluid rounded-3"
                                                     style="max-height: 150px; object-fit: contain;" />
                                             </div>
 
-                                            <!-- Price Badge -->
+                                          
                                             <span
                                                 class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small"
                                                 :style="{ background: p.label_color || '#1B1670' }">
                                                 {{ formatCurrencySymbol(p.price) }}
                                             </span>
 
-                                            <!-- OUT OF STOCK Badge -->
+                                           
                                             <span v-if="(p.stock ?? 0) <= 0"
                                                 class="position-absolute bottom-0 start-0 m-2 badge bg-danger">
                                                 OUT OF STOCK
                                             </span>
 
-                                            <!-- Quantity Controls at Bottom -->
+                                          
                                             <div v-if="(p.stock ?? 0) > 0"
                                                 class="qty-group d-flex align-items-center justify-content-center gap-2 mt-2 w-100"
                                                 @click.stop style="padding: 0.5rem;">
@@ -1527,7 +1526,7 @@ const decrementCardQty = (product) => {
                                             </div>
                                         </div>
 
-                                        <!-- Right Side (Details) -->
+                                     
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0;">
 
@@ -1540,9 +1539,9 @@ const decrementCardQty = (product) => {
                                                     {{ p.family }}
                                                 </div>
 
-                                                <!-- Chips Section -->
+                                              
                                                 <div class="chips small">
-                                                    <!-- Nutrition -->
+                                                  
                                                     <div v-if="p.nutrition" class="mb-3">
                                                         <strong class="d-block mb-1">Nutrition:</strong>
                                                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -1561,7 +1560,7 @@ const decrementCardQty = (product) => {
                                                         </div>
                                                     </div>
 
-                                                    <!-- Allergies -->
+                                                   
                                                     <div v-if="p.allergies?.length" class="mb-3">
                                                         <strong class="d-block mb-1">Allergies:</strong>
                                                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -1572,7 +1571,7 @@ const decrementCardQty = (product) => {
                                                         </div>
                                                     </div>
 
-                                                    <!-- Tags -->
+                                                   
                                                     <div v-if="p.tags?.length">
                                                         <strong class="d-block mb-1">Tags:</strong>
                                                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -1587,10 +1586,127 @@ const decrementCardQty = (product) => {
                                         </div>
                                     </div>
                                 </div>
+                            </div> -->
+
+
+                            <div class="row g-3">
+                                <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
+                                    :key="p.title">
+                                    <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
+                                        :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
+                                        :style="{ borderColor: p.label_color || '#1B1670' }">
+
+                                        <!-- Left Side (Image + Price Badge) - 40% -->
+                                        <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
+
+                                            <!-- Image fills entire area -->
+                                            <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
+
+                                            <!-- Price Badge -->
+                                            <span
+                                                class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
+                                                :style="{ background: p.label_color || '#1B1670' }">
+                                                {{ formatCurrencySymbol(p.price) }}
+                                            </span>
+
+                                            <!-- OUT OF STOCK Badge -->
+                                            <span v-if="(p.stock ?? 0) <= 0"
+                                                class="position-absolute bottom-0 start-0 end-0 m-2 badge bg-danger py-2">
+                                                OUT OF STOCK
+                                            </span>
+                                        </div>
+
+                                        <!-- Right Side (Details + Quantity Controls) - 60% -->
+                                        <div class="p-3 d-flex flex-column justify-content-between"
+                                            style="flex: 1 1 60%; min-width: 0;">
+
+                                            <!-- Title and Family -->
+                                            <div>
+                                                <div class="h5 fw-bold mb-1"
+                                                    :style="{ color: p.label_color || '#1B1670' }">
+                                                    {{ p.title }}
+                                                </div>
+                                                <div class="text-muted mb-3 small">
+                                                    {{ p.family }}
+                                                </div>
+
+                                                <!-- Chips Section -->
+                                                <div class="chips small">
+                                                    <!-- Nutrition -->
+                                                    <div v-if="p.nutrition" class="mb-2">
+                                                        <strong class="d-block mb-1">Nutrition:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-if="p.nutrition.calories" class="chip chip-orange">
+                                                                Cal: {{ p.nutrition.calories }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.carbs" class="chip chip-green">
+                                                                Carbs: {{ p.nutrition.carbs }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.fat" class="chip chip-purple">
+                                                                Fat: {{ p.nutrition.fat }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.protein" class="chip chip-blue">
+                                                                Protein: {{ p.nutrition.protein }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Allergies -->
+                                                    <div v-if="p.allergies?.length" class="mb-2">
+                                                        <strong class="d-block mb-1">Allergies:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-for="(a, i) in p.allergies" :key="'a-' + i"
+                                                                class="chip chip-red">
+                                                                {{ a.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Tags -->
+                                                    <div v-if="p.tags?.length" class="mb-2">
+                                                        <strong class="d-block mb-1">Tags:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-for="(t, i) in p.tags" :key="'t-' + i"
+                                                                class="chip chip-teal">
+                                                                {{ t.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Quantity Controls at Bottom Right -->
+                                            <div v-if="(p.stock ?? 0) > 0"
+                                                class="mt-3 d-flex align-items-center justify-content-start gap-2"
+                                                @click.stop>
+                                                <button
+                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-4"
+                                                    style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"
+                                                    @click.stop="decrementCardQty(p)" :disabled="getCardQty(p) <= 0">
+                                                    <strong>−</strong>
+                                                </button>
+                                                <div class="qty-box border rounded-pill px-4 py-2 text-center fw-semibold"
+                                                    style="min-width: 50px;">
+                                                    {{ getCardQty(p) }}
+                                                </div>
+                                                <button
+                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-4"
+                                                    style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"
+                                                    @click.stop="incrementCardQty(p)" :disabled="!canAddMore(p)">
+                                                    <strong>+</strong>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- No Items Found -->
+                                <div v-if="filteredProducts.length === 0" class="col-12">
+                                    <div class="alert alert-light border text-center rounded-4">
+                                        No items found
+                                    </div>
+                                </div>
                             </div>
-
-
-
 
                         </div>
                     </div>
