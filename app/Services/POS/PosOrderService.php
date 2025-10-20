@@ -238,10 +238,11 @@ class PosOrderService
         }
 
         return $query->get()->map(function ($cat) {
+            $cat->image_url = UploadHelper::url($cat->upload_id);
             return [
                 'id'    => $cat->id,
                 'name'  => $cat->name,
-                'icon'  => $cat->icon,
+                'image_url' => $cat->image_url,
                 'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
                 'menu_items_count' => $cat->menu_items_count,
                 'children' => $cat->children,
