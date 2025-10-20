@@ -38,7 +38,7 @@ class PermissionsTableSeeder extends Seeder
             $count++;
         }
 
-        $this->command->info("✅ Created or updated {$count} permissions successfully.");
+        // $this->command->info("✅ Created or updated {$count} permissions successfully.");
     }
 
     private function generateMeaningfulDescription(string $routeName): string

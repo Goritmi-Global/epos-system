@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('inventory_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->text('icon')->nullable();
+            $table->foreignId('upload_id')->nullable()->constrained('uploads')->nullOnDelete();
             $table->boolean('active')->default(true);
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->decimal('total_value', 15, 2)->default(0);
