@@ -238,32 +238,34 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4");
-        doc.setFontSize(20);
+        const doc = new jsPDF("p", "mm", "a4"); // portrait mode, mm units, A4 size
+
+        // 🧾 Header section
         doc.setFont("helvetica", "bold");
-        doc.text("Allergies Report", 14, 20);
-        doc.setFontSize(10);
+        doc.setFontSize(18);
+        doc.text("Allergies Report", 70, 20);
+
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 14, 28);
-        doc.text(`Total Allergies: ${data.length}`, 14, 34);
+        doc.text(`Generated on: ${currentDate}`, 14, 30);
+        doc.text(`Total Allergies: ${data.length}`, 14, 36);
 
-        const tableColumns = ["Name", "Created At", "Updated At"];
-        const tableRows = data.map((s) => [
-            s.name || "",
-            s.created_at || "",
-            s.updated_at || "",
-        ]);
+        // 🧱 Table header (same as CSV)
+        const headers = ["Name"];
+        const rows = data.map((s) => [s.name || ""]);
 
+        // 📊 Styled table
         autoTable(doc, {
-            head: [tableColumns],
-            body: tableRows,
-            startY: 40,
+            head: [headers],
+            body: rows,
+            startY: 45,
             styles: {
-                fontSize: 8,
-                cellPadding: 2,
+                fontSize: 10,
+                cellPadding: 3,
                 halign: "left",
-                lineColor: [0, 0, 0],
+                valign: "middle",
+                lineColor: [220, 220, 220],
                 lineWidth: 0.1,
             },
             headStyles: {
@@ -271,7 +273,7 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (tableData) => {
                 const pageCount = doc.internal.getNumberOfPages();
@@ -279,14 +281,16 @@ const downloadPDF = (data) => {
                 doc.setFontSize(8);
                 doc.text(
                     `Page ${tableData.pageNumber} of ${pageCount}`,
-                    tableData.settings.margin.left,
+                    14,
                     pageHeight - 10
                 );
             },
         });
 
-        const fileName = `Allergies_${new Date().toISOString().split("T")[0]}.pdf`;
+        // 💾 Save file
+        const fileName = `allergies_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
+
         toast.success("PDF downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
@@ -296,23 +300,29 @@ const downloadPDF = (data) => {
     }
 };
 
+
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
+        // 🧱 Prepare worksheet data (same as CSV)
         const worksheetData = data.map((allergy) => ({
             Name: allergy.name || "",
         }));
 
+        // 📘 Create workbook & worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        const colWidths = [{ wch: 20 }];
-        worksheet["!cols"] = colWidths;
 
+        // ✨ Set column widths
+        worksheet["!cols"] = [{ wch: 25 }]; // Name column width
+
+        // Add worksheet
         XLSX.utils.book_append_sheet(workbook, worksheet, "Allergies");
 
+        // 📄 Metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -321,12 +331,11 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        const fileName = `Allergies_${new Date().toISOString().split("T")[0]}.xlsx`;
+        // 💾 Save the file
+        const fileName = `allergies_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", {
-            autoClose: 2500,
-        });
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, {
@@ -334,6 +343,7 @@ const downloadExcel = (data) => {
         });
     }
 };
+
 
 onMounted(async () => {
     await fetchAllergies();

@@ -1205,45 +1205,42 @@ const downloadPDF = (data) => {
         const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
 
         // 🌟 Title
-        doc.setFontSize(20);
+        doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
-        doc.text("Category Report", 70, 20);
+        doc.text("Menu Categories Report", 60, 20);
 
         // 🗓️ Metadata
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 70, 28);
-        doc.text(`Total Units: ${data.length}`, 70, 34);
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Categories: ${data.length}`, 14, 34);
 
-        // 📋 Table Data
-        const tableColumns = [
-            "Category",
-            "SubCategory",
-            "Total Value",
-            "Total Items",
-            "Out of Stock",
-            "Low Stock",
-            "In Stock",
-        ];
-        const tableRows = data.map((s) => [
-            s.name || "",
-            s.parent_id || "",
-            s.total_value || "",
-            s.total_items || "",
-            s.out_of_stock || "",
-            s.low_stock || "",
-            s.in_stock || "",
-        ]);
+        // 📋 Table Columns
+        const tableColumns = ["Category", "Subcategories", "Active"];
 
-        // 📑 Styled table
+        // 📊 Table Rows
+        const tableRows = data.map((category) => {
+            const subcategoryNames =
+                category.subcategories && category.subcategories.length > 0
+                    ? category.subcategories.map((sub) => sub.name).join(", ")
+                    : "";
+
+            return [
+                category.name || "",
+                subcategoryNames,
+                category.active ? "1" : "0",
+            ];
+        });
+
+        // 📑 Generate Table
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
             startY: 40,
             styles: {
-                fontSize: 8,
-                cellPadding: 2,
+                fontSize: 9,
+                cellPadding: 3,
                 halign: "left",
                 lineColor: [0, 0, 0],
                 lineWidth: 0.1,
@@ -1253,10 +1250,9 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (tableData) => {
-                // Footer with page numbers
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
@@ -1268,9 +1264,8 @@ const downloadPDF = (data) => {
             },
         });
 
-        // 💾 Save file
-        const fileName = `Categories_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        // 💾 Save PDF
+        const fileName = `Categories_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
         toast.success("PDF downloaded successfully");
@@ -1282,58 +1277,57 @@ const downloadPDF = (data) => {
     }
 };
 
+
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // Prepare worksheet data
-        const worksheetData = data.map((category) => ({
-            Category: category.name || "",
-            SubCategory: category.parent_id || "",
-            "Total Value": category.total_value || "",
-            "Total Item": category.total_items || "",
-            "Out of Stock": category.out_of_stock || "",
-            "Low Stock": category.low_stock || "",
-            "In Stock": category.in_stock || "",
-        }));
+        // Prepare data to match CSV format
+        const worksheetData = data.map((category) => {
+            const subcategoryNames =
+                category.subcategories && category.subcategories.length > 0
+                    ? category.subcategories.map((sub) => sub.name).join(", ")
+                    : "";
 
-        // Create workbook and worksheet
+            return {
+                Category: category.name || "",
+                Subcategory: subcategoryNames,
+                Active: category.active ? "1" : "0",
+            }
+        });
+
+        // Create workbook & worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // Set column widths
-        const colWidths = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
-            { wch: 10 }, // ID
+        // Column widths
+        worksheet["!cols"] = [
+            { wch: 25 }, // Category
+            { wch: 40 }, // Subcategory
+            { wch: 10 }, // Active
         ];
-        worksheet["!cols"] = colWidths;
 
-        // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
+        // Append worksheet
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Categories");
 
-        // Add metadata sheet
+        // Metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
-            { Info: "Total Records", Value: data.length },
-            { Info: "Exported By", Value: "Units Management System" },
+            { Info: "Total Categories", Value: data.length },
+            { Info: "Exported By", Value: "Menu Categories Management" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
-        const fileName = `Units_${new Date().toISOString().split("T")[0]}.xlsx`;
+        // File name
+        const fileName = `Categories_${new Date().toISOString().split("T")[0]}.xlsx`;
 
-        // Save the file
+        // Save Excel
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", {
+        toast.success("Excel downloaded successfully", {
             autoClose: 2500,
         });
     } catch (error) {

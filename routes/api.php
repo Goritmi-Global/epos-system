@@ -85,7 +85,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('menu-categories')->name('api.menu-categories.')->group(function () {
         Route::get('/parents/list', [MenuCategoryController::class, 'getParents'])->name('parents');
         Route::get('/statistics/summary', [MenuCategoryController::class, 'statistics'])->name('stats');
-        Route::patch('/{id}/toggle-status', [MenuCategoryController::class, 'toggleStatus'])->name('toggle');
         Route::post('/import', [MenuCategoryController::class, 'import'])->name('import');
     });
 
@@ -95,7 +94,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/parents/list', [CategoryController::class, 'getParents'])->name('parents');
         Route::get('/statistics/summary', [CategoryController::class, 'statistics'])->name('stats');
-        Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('toggle');
         Route::post('/import', [CategoryController::class, 'import'])->name('import');
     });
 

@@ -164,7 +164,7 @@ async function bulkSubmit() {
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content rounded-4">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-semibold">Bulk Orders</h5>
+                    <h5 class="modal-title fw-semibold">Bulk Purchase</h5>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                         data-bs-dismiss="modal" aria-label="Close" title="Close">

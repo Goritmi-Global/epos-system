@@ -991,73 +991,60 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4");
-        doc.setFontSize(20);
+        const doc = new jsPDF("l", "mm", "a4"); // landscape mode for many columns
+
+        // 🏷️ Title & Metadata
+        doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
-        doc.text("Inventory Item Report", 70, 20);
+        doc.text("Inventory Items Report", 14, 15);
+
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 70, 28);
-        doc.text(`Total Inventory Items: ${data.length}`, 70, 34);
+        doc.text(`Generated on: ${currentDate}`, 14, 22);
+        doc.text(`Total Items: ${data.length}`, 14, 28);
 
+        // 🧾 Table Columns (match CSV)
         const tableColumns = [
-            "Item Name",
+            "Name",
+            "SKU",
             "Category",
             "Min Alert",
             "Unit",
-            "Supplier",
-            "SKU",
-            "Description",
-            "Nutrition",
+            "Preferred Supplier",
+            "Min Stock Alert",
+            "Available Stock",
+            "Calories",
+            "Fat",
+            "Protein",
+            "Carbs",
             "Allergies",
             "Tags",
         ];
 
-        const formatNutrition = (nutri) => {
-            if (!nutri) return "";
-            if (typeof nutri === "string") {
-                try {
-                    nutri = JSON.parse(nutri);
-                } catch {
-                    return nutri;
-                }
-            }
-            if (Array.isArray(nutri)) return nutri.join(", ");
-            if (typeof nutri === "object") {
-                return Object.entries(nutri)
-                    .map(
-                        ([k, v]) =>
-                            `${k
-                                .replace(/[_-]/g, " ")
-                                .replace(/\b\w/g, (c) =>
-                                    c.toUpperCase()
-                                )}: ${v}`
-                    )
-                    .join(", ");
-            }
-            return String(nutri ?? "");
-        };
-
+        // 🧮 Table Rows
         const tableRows = data.map((s) => [
             s.name || "",
-            s.category.name || "",
-            s.minAlert ?? "",
-            s.unit || "",
-            s.supplier || "",
             s.sku || "",
-            s.description || "",
-            s.nutrition_text || formatNutrition(s.nutrition),
-            Array.isArray(s.allergies)
-                ? s.allergies.join(", ")
-                : s.allergies || "",
+            s.category?.name || "",
+            s.minAlert || "",
+            s.unit_name || "",
+            s.supplier_name || "",
+            s.minAlert || "",
+            s.availableStock || "",
+            s.nutrition?.calories || "",
+            s.nutrition?.fat || "",
+            s.nutrition?.protein || "",
+            s.nutrition?.carbs || "",
+            Array.isArray(s.allergies) ? s.allergies.join(", ") : s.allergies || "",
             Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
         ]);
 
+        // 🪶 Table Styling
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
-            startY: 40,
+            startY: 35,
             styles: {
                 fontSize: 8,
                 cellPadding: 2,
@@ -1070,7 +1057,7 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (td) => {
                 const pageCount = doc.internal.getNumberOfPages();
@@ -1084,67 +1071,65 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `Inventory_items_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        // 💾 Save PDF
+        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
-        toast.success("PDF downloaded successfully ", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`, {
-            autoClose: 5000,
-        });
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
 
 const downloadExcel = (data) => {
     try {
-        if (typeof XLSX === "undefined")
-            throw new Error("XLSX library is not loaded");
-        const worksheetData = data.map((s) => {
-            let nutritionStr = "";
-            if (s.nutrition && typeof s.nutrition === "object") {
-                nutritionStr = Object.entries(s.nutrition)
-                    .map(([k, v]) => `${k}: ${v}`)
-                    .join("; ");
-            } else if (typeof s.nutrition === "string") {
-                nutritionStr = s.nutrition;
-            }
-            return {
-                "Item Name": s.name || "",
-                Category: s.category || "",
-                "Min Alert": s.minAlert || "",
-                Unit: s.unit || "",
-                Supplier: s.supplier || "",
-                Sku: s.sku || "",
-                Description: s.description || "",
-                Nutrition: nutritionStr,
-                Allergies: Array.isArray(s.allergies)
-                    ? s.allergies.join(", ")
-                    : s.allergies || "",
-                Tags: Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
-                "Created At": s.created_at || "",
-                "Updated At": s.updated_at || "",
-            };
-        });
+        if (typeof XLSX === "undefined") throw new Error("XLSX library is not loaded");
 
+        // 🧾 Format data to match CSV columns
+        const worksheetData = data.map((s) => ({
+            Name: s.name || "",
+            SKU: s.sku || "",
+            Category: s.category?.name || "",
+            Min_Alert: s.minAlert || "",
+            Unit: s.unit_name || "",
+            Preferred_Supplier: s.supplier_name || "",
+            Min_Stock_Alert: s.minAlert || "",
+            Available_Stock: s.availableStock || "",
+            Calories: s.nutrition?.calories || "",
+            Fat: s.nutrition?.fat || "",
+            Protein: s.nutrition?.protein || "",
+            Carbs: s.nutrition?.carbs || "",
+            Allergies: Array.isArray(s.allergies)
+                ? s.allergies.join(", ")
+                : s.allergies || "",
+            Tags: Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
+        }));
+
+        // 📘 Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // 📏 Column widths for readability
         worksheet["!cols"] = [
-            { wch: 20 },
-            { wch: 15 },
-            { wch: 10 },
-            { wch: 12 },
-            { wch: 20 },
-            { wch: 15 },
-            { wch: 30 },
-            { wch: 40 },
-            { wch: 25 },
-            { wch: 25 },
-            { wch: 20 },
-            { wch: 20 },
+            { wch: 25 }, // Name
+            { wch: 15 }, // SKU
+            { wch: 20 }, // Category
+            { wch: 12 }, // Min Alert
+            { wch: 15 }, // Unit
+            { wch: 25 }, // Supplier
+            { wch: 15 }, // Min Stock Alert
+            { wch: 18 }, // Available Stock
+            { wch: 10 }, // Calories
+            { wch: 10 }, // Fat
+            { wch: 10 }, // Protein
+            { wch: 10 }, // Carbs
+            { wch: 25 }, // Allergies
+            { wch: 25 }, // Tags
         ];
+
         XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Items");
 
+        // 🗂️ Metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -1153,19 +1138,17 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]
-            }.xlsx`;
+        // 💾 Save Excel file
+        const fileName = `inventory_items_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
-        toast.success("Excel file downloaded successfully ", {
-            autoClose: 2500,
-        });
+
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
-        toast.error(`Excel generation failed: ${error.message}`, {
-            autoClose: 5000,
-        });
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
+
 
 // ===================== Image/Cropper stubs (design unchanged) =====================
 const showCropper = ref(false);
@@ -1290,8 +1273,8 @@ const handleImport = (data) => {
             protein: parseFloat(row[9]) || 0,      // protein (was at index 9 in download)
             fat: parseFloat(row[10]) || 0,         // fat (was at index 10 in download)
             carbs: parseFloat(row[11]) || 0,       // carbs
-            allergies: row[12] ? row[12].trim() : "",  // allergies
-            tags: row[13] ? row[13].trim() : "",       // tags
+            allergies: row[12] || "",
+            tags: row[13] || "",       // tags
             purchase_price: 0,                     // Not in CSV, default to 0
             sale_price: 0,                         // Not in CSV, default to 0
         };
@@ -1512,7 +1495,7 @@ const handleImport = (data) => {
                                     <th class="text-center">Action</th>
                                 </tr>
                             </thead>
-
+                            
                             <!-- Loading row -->
                             <tbody v-if="loading">
                                 <tr>

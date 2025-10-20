@@ -149,7 +149,7 @@ onMounted(fetchAll);
         <h5 class="mb-0">Users</h5>
         <small class="text-muted">View and manage Users</small>
       </div>
-      <button class="btn btn-primary rounded-pill" @click="openCreate">
+      <button class="btn btn-primary rounded-pill px-3 py-2" @click="openCreate">
         <i class="bi bi-plus-lg me-1"></i> Add User
       </button>
     </div>

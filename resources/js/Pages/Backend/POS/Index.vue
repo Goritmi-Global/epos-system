@@ -623,21 +623,31 @@ function printReceipt(order) {
     const cash = Number(plainOrder.cashReceived ?? plainOrder.cash_received ?? 0);
     const card = Number(plainOrder.cardAmount ?? plainOrder.cardPayment ?? 0);
     const change = Number(plainOrder.changeAmount ?? plainOrder.change ?? 0);
+
     console.log("Printing receipt for order:", plainOrder);
     const type = (plainOrder?.payment_type || "").toLowerCase();
     let payLine = "";
 
     if (type === "split") {
-        const cardAmount = (Number(plainOrder.total_amount || plainOrder.sub_total || 0) - cash) || 0;
-        payLine = `Payment Type: Split (Cash: £${cash.toFixed(2)}, Card: £${cardAmount.toFixed(2)})`;
+        const cardAmount =
+            Number(plainOrder.total_amount || plainOrder.sub_total || 0) - cash || 0;
+        payLine = `Split (Cash: £${cash.toFixed(2)}, Card: £${cardAmount.toFixed(
+            2
+        )})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
+        payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
+            }${plainOrder?.card_brand ? ")" : ""}`;
     } else {
-        payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
+        payLine = plainOrder?.payment_method || "Cash";
     }
-      const businessName = page.props.business_info.business_name || "Business Name";
-  const businessLogo = page.props.business_info.image_url|| "";
 
+
+    const businessName =
+        page.props.business_info.business_name || "Business Name";
+    const businessPhone = page.props.business_info.phone || "+4477221122";
+    const businessAddress = page.props.business_info.address || "XYZ";
+
+    const businessLogo = page.props.business_info.image_url || "";
     const html = `
     <html>
     <head>
@@ -645,9 +655,9 @@ function printReceipt(order) {
       <style>
         @page { size: 80mm auto; margin: 0; }
         html, body {
-          width: 78mm; /* ✅ reduce slightly for print margins */
+          width: 78mm;
           margin: 0;
-          padding: 8px 10px 8px 8px; /* ✅ added right padding */
+          padding: 8px 10px 8px 8px;
           font-family: monospace, Arial, sans-serif;
           font-size: 12px;
           line-height: 1.4;
@@ -655,11 +665,18 @@ function printReceipt(order) {
         }
         .header { text-align: center; margin-bottom: 10px; }
         .order-info { margin: 10px 0; word-break: break-word; }
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin: 2px 0;
+        }
+        .label { text-align: left; }
+        .value { text-align: right; }
         table {
           width: 100%;
           border-collapse: collapse;
           margin: 10px 0;
-          table-layout: fixed; /* ✅ prevents overflow */
+          table-layout: fixed;
         }
         th, td {
           padding: 4px 2px;
@@ -671,7 +688,7 @@ function printReceipt(order) {
         }
         td:last-child, th:last-child {
           text-align: right;
-          padding-right: 4px; /* ✅ extra space from right edge */
+          padding-right: 4px;
         }
         .totals {
           margin-top: 10px;
@@ -683,44 +700,48 @@ function printReceipt(order) {
           margin-top: 10px;
           font-size: 11px;
         }
-
-         .totals > div {
+        .totals > div {
           display: flex;
           justify-content: space-between;
           margin: 3px 0;
         }
-
-.header {
-        text-align: center;
-      }
-      .header img {
-        max-width: 60px;
-        max-height: 60px;
-        object-fit: contain;
-        margin-bottom: 5px;
-      }
-
-  .business-name {
-        font-size: 14px;
-        font-weight: bold;
-        text-transform: uppercase;
-      }
+        .header img {
+          max-width: 60px;
+          max-height: 60px;
+          object-fit: contain;
+          margin-bottom: 5px;
+          border-radius: 50%;
+        }
+        .business-name {
+          font-size: 14px;
+          font-weight: bold;
+          text-transform: uppercase;
+        }
       </style>
     </head>
     <body>
       <div class="header">
         ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
-      <div class="business-name">${businessName}</div>
+        <div class="business-name">${businessName}</div>
+        <div class="business-phone">${businessPhone}</div>
         <h2>Customer Receipt</h2>
       </div>
 
+      <!-- 🔧 Updated section -->
       <div class="order-info">
-        <div><strong>Date:</strong> ${plainOrder.order_date || new Date().toLocaleDateString()}</div>
-        <div><strong>Time:</strong> ${plainOrder.order_time || new Date().toLocaleTimeString()}</div>
-        <div><strong>Customer:</strong> ${plainOrder.customer_name || "Walk-in"}</div>
-        <div><strong>Order Type:</strong> ${plainOrder.order_type || "In-Store"}</div>
-        ${plainOrder.note ? `<div><strong>Note:</strong> ${plainOrder.note}</div>` : ""}
-        <div>${payLine}</div>
+        <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()
+        }</span></div>
+        <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()
+        }</span></div>
+        <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"
+        }</span></div>
+        <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"
+        }</span></div>
+        ${plainOrder.note
+            ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>`
+            : ""
+        }
+        <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
       </div>
 
       <table>
@@ -739,40 +760,51 @@ function printReceipt(order) {
                 const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
                 const total = price * qty;
                 return `
-                  <tr>
-                    <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
-                    <td style="font-size: 12px;">${qty}</td>
-                    <td style="font-size: 12px;">£${price.toFixed(2)}</td>
-                    <td style="font-size: 12px;">£${total.toFixed(2)}</td>
-                  </tr>
-                `;
+                <tr>
+                  <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
+                  <td style="font-size: 12px;">${qty}</td>
+                  <td style="font-size: 12px;">£${price.toFixed(2)}</td>
+                  <td style="font-size: 12px;">£${total.toFixed(2)}</td>
+                </tr>
+              `;
             })
             .join("")}
         </tbody>
       </table>
 
-          <div class="totals">
-            <div style="display: flex; justify-content: space-between;">
-                <span>Subtotal:</span>
-                <span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span>
-            </div>
-            ${plainOrder.promo_discount ? `<div style="display: flex; justify-content: space-between;"><span>Promo Discount:</span><span>-£${Number(plainOrder.promo_discount).toFixed(2)}</span></div>` : ""}
-            <div style="display: flex; justify-content: space-between;">
-                <span><strong>Total:</strong></span>
-                <span><strong>£${Number(plainOrder.total_amount || plainOrder.sub_total || 0).toFixed(2)}</strong></span>
-            </div>
-            
-            ${plainOrder.cash_received ? `<div style="display: flex; justify-content: space-between;"><span>Cash Received:</span><span>£${Number(plainOrder.cash_received).toFixed(2)}</span></div>` : ""}
-            ${plainOrder.change ? `<div style="display: flex; justify-content: space-between;"><span>Change:</span><span>£${Number(plainOrder.change).toFixed(2)}</span></div>` : ""}
-        </div>
-
-
+      <div class="totals">
+        <div><span>Subtotal:</span><span>£${Number(
+                plainOrder.sub_total || 0
+            ).toFixed(2)}</span></div>
+        ${plainOrder.promo_discount
+            ? `<div><span>Promo Discount:</span><span>-£${Number(
+                plainOrder.promo_discount
+            ).toFixed(2)}</span></div>`
+            : ""
+        }
+        <div><span><strong>Total:</strong></span><span><strong>£${Number(
+            plainOrder.total_amount || plainOrder.sub_total || 0
+        ).toFixed(2)}</strong></span></div>
+        ${plainOrder.cash_received
+            ? `<div><span>Cash Received:</span><span>£${Number(
+                plainOrder.cash_received
+            ).toFixed(2)}</span></div>`
+            : ""
+        }
+        ${plainOrder.change
+            ? `<div><span>Change:</span><span>£${Number(
+                plainOrder.change
+            ).toFixed(2)}</span></div>`
+            : ""
+        }
+      </div>
       <div class="footer">
-        Customer Copy - Thank you for your purchase!
+          <div>${businessAddress}</div>
+       <div>Customer Copy - Thank you for your purchase!</div>
       </div>
     </body>
     </html>
-    `;
+  `;
 
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) {
@@ -797,23 +829,21 @@ const changeAmount = ref(0);
 -----------------------------*/
 
 function printKot(order) {
-    // Convert reactive object to plain object
     const plainOrder = JSON.parse(JSON.stringify(order));
 
     const type = (plainOrder?.payment_method || "").toLowerCase();
     let payLine = "";
     if (type === "split") {
-        payLine = `Payment Type: Split 
-        (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, 
-        Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
+        payLine = `Split (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
     } else if (type === "card" || type === "stripe") {
-        payLine = `Payment Type: Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
-            }${plainOrder?.card_brand ? ")" : ""}`;
+        payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
     } else {
-        payLine = `Payment Type: ${plainOrder?.payment_method || "Cash"}`;
+        payLine = plainOrder?.payment_method || "Cash";
     }
 
     const businessName = page.props.business_info.business_name || "Business Name";
+    const businessPhone = page.props.business_info.phone || "+4477221122";
+    const businessAddress = page.props.business_info.address || "XYZ";
     const businessLogo = page.props.business_info.image_url || "";
 
     const html = `
@@ -823,9 +853,9 @@ function printKot(order) {
       <style>
         @page { size: 80mm auto; margin: 0; }
         html, body {
-          width: 78mm; /* ✅ slightly narrower for proper margins */
+          width: 78mm;
           margin: 0;
-          padding: 8px 10px 8px 8px; /* ✅ added padding like receipt */
+          padding: 8px 10px 8px 8px;
           font-family: monospace, Arial, sans-serif;
           font-size: 12px;
           line-height: 1.4;
@@ -833,11 +863,18 @@ function printKot(order) {
         }
         .header { text-align: center; margin-bottom: 10px; }
         .order-info { margin: 10px 0; word-break: break-word; }
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin: 2px 0;
+        }
+        .label { text-align: left; }
+        .value { text-align: right; }
         table {
           width: 100%;
           border-collapse: collapse;
           margin: 10px 0;
-          table-layout: fixed; /* ✅ prevents overflow and aligns text */
+          table-layout: fixed;
         }
         th, td {
           padding: 4px 2px;
@@ -847,64 +884,62 @@ function printKot(order) {
         th {
           border-bottom: 1px solid #000;
         }
-        th:last-child, td:last-child {
+        td:last-child, th:last-child {
           text-align: right;
-          padding-right: 4px; /* ✅ extra right padding for cleaner look */
+          padding-right: 4px;
         }
         .totals {
           margin-top: 10px;
           border-top: 1px dashed #000;
           padding-top: 8px;
         }
-        .totals > div {
-          display: flex;
-          justify-content: space-between;
-          margin: 3px 0;
-        }
         .footer {
           text-align: center;
           margin-top: 10px;
           font-size: 11px;
         }
-           .business-name {
-        font-size: 14px;
-        font-weight: bold;
-        text-transform: uppercase;
-      }
-           .header {
-        text-align: center;
-      }
-      .header img {
-        max-width: 60px;
-        max-height: 60px;
-        object-fit: contain;
-        margin-bottom: 5px;
-      }
+        .totals > div {
+          display: flex;
+          justify-content: space-between;
+          margin: 3px 0;
+        }
+        .header img {
+          max-width: 60px;
+          max-height: 60px;
+          object-fit: contain;
+          margin-bottom: 5px;
+          border-radius: 50%;
+        }
+        .business-name {
+          font-size: 14px;
+          font-weight: bold;
+          text-transform: uppercase;
+        }
       </style>
     </head>
     <body>
       <div class="header">
         ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
-      <div class="business-name">${businessName}</div>
+        <div class="business-name">${businessName}</div>
+        <div class="business-phone">${businessPhone}</div>
         <h2>KITCHEN ORDER TICKET</h2>
       </div>
-      
+
+      <!-- Same design as Customer Receipt -->
       <div class="order-info">
-        <div><strong>Date:</strong> ${plainOrder.order_date || new Date().toLocaleDateString()}</div>
-        <div><strong>Time:</strong> ${plainOrder.order_time || new Date().toLocaleTimeString()}</div>
-        <div><strong>Customer:</strong> ${plainOrder.customer_name || "Walk-in"}</div>
-        <div><strong>Order Type:</strong> ${plainOrder.order_type || "In-Store"}</div>
-        ${plainOrder.note
-            ? `<div><strong>Note:</strong> ${plainOrder.note}</div>`
-            : ""
-        }
+        <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()}</span></div>
+        <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()}</span></div>
+        <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"}</span></div>
+        <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"}</span></div>
+        ${plainOrder.note ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>` : ""}
+        <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
       </div>
 
       <table>
         <thead>
           <tr>
             <th style="width: 30%;">Item</th>
-            <th style="width: 15%;">Qty</th>
+            <th style="width: 25%;">Qty</th>
             <th style="width: 25%;">Price</th>
             <th style="width: 30%;">Total</th>
           </tr>
@@ -912,17 +947,17 @@ function printKot(order) {
         <tbody>
           ${(plainOrder.items || [])
             .map((item) => {
-                const qty = Number(item.quantity) || 0;
+                const qty = Number(item.quantity) || Number(item.qty) || 0;
                 const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
-                const total = qty * price;
+                const total = price * qty;
                 return `
-                  <tr>
-                    <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
-                    <td style="font-size: 12px;">${qty}</td>
-                    <td style="font-size: 12px;">£${price.toFixed(2)}</td>
-                    <td style="font-size: 12px;">£${total.toFixed(2)}</td>
-                  </tr>
-                `;
+                <tr>
+                  <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
+                  <td style="font-size: 12px;">${qty}</td>
+                  <td style="font-size: 12px;">£${price.toFixed(2)}</td>
+                  <td style="font-size: 12px;">£${total.toFixed(2)}</td>
+                </tr>
+              `;
             })
             .join("")}
         </tbody>
@@ -930,23 +965,12 @@ function printKot(order) {
 
       <div class="totals">
         <div><span>Subtotal:</span><span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span></div>
-        
-        <div><strong>Total:</strong><strong>£${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></div>
-        <div><span>${payLine.split(':')[0]}:</span><span>${payLine.split(':')[1]?.trim() || ''}</span></div>
-        ${plainOrder.cash_received
-            ? `<div><span>Cash Received:</span><span>£${Number(
-                plainOrder.cash_received
-            ).toFixed(2)}</span></div>`
-            : ""
-        }
-        ${plainOrder.change
-            ? `<div><span>Change:</span><span>£${Number(plainOrder.change).toFixed(2)}</span></div>`
-            : ""
-        }
+        <div><span><strong>Total:</strong></span><span><strong>£${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></span></div>
       </div>
 
       <div class="footer">
-        Kitchen Copy - Thank you!
+        <div>${businessAddress}</div>
+        <div>Kitchen Copy - Thank you!</div>
       </div>
     </body>
     </html>
@@ -965,6 +989,8 @@ function printKot(order) {
         w.close();
     };
 }
+
+
 /* ----------------------------
    Confirm Order
 -----------------------------*/
@@ -1358,7 +1384,7 @@ const decrementCardQty = (product) => {
     }
 };
 
-
+console.log("props data", page.props);
 </script>
 
 <template>
@@ -1480,38 +1506,37 @@ const decrementCardQty = (product) => {
                             </div> -->
 
 
-                            <div class="row g-3">
+                            <!-- <div class="row g-3">
                                 <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
                                     :key="p.title">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
 
-                                        <!-- Left Side (Image + Price + Badge + Quantity Controls) -->
+                                       
                                         <div class="p-2 d-flex flex-column align-items-center justify-content-between position-relative bg-light"
                                             style="flex: 0 0 40%; max-width: 40%; position: relative;">
 
-                                            <!-- Image -->
                                             <div
                                                 class="d-flex align-items-center justify-content-center w-100 flex-grow-1">
                                                 <img :src="p.img" alt="" class="img-fluid rounded-3"
                                                     style="max-height: 150px; object-fit: contain;" />
                                             </div>
 
-                                            <!-- Price Badge -->
+                                          
                                             <span
                                                 class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small"
                                                 :style="{ background: p.label_color || '#1B1670' }">
                                                 {{ formatCurrencySymbol(p.price) }}
                                             </span>
 
-                                            <!-- OUT OF STOCK Badge -->
+                                           
                                             <span v-if="(p.stock ?? 0) <= 0"
                                                 class="position-absolute bottom-0 start-0 m-2 badge bg-danger">
                                                 OUT OF STOCK
                                             </span>
 
-                                            <!-- Quantity Controls at Bottom -->
+                                          
                                             <div v-if="(p.stock ?? 0) > 0"
                                                 class="qty-group d-flex align-items-center justify-content-center gap-2 mt-2 w-100"
                                                 @click.stop style="padding: 0.5rem;">
@@ -1527,7 +1552,7 @@ const decrementCardQty = (product) => {
                                             </div>
                                         </div>
 
-                                        <!-- Right Side (Details) -->
+                                     
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0;">
 
@@ -1540,9 +1565,9 @@ const decrementCardQty = (product) => {
                                                     {{ p.family }}
                                                 </div>
 
-                                                <!-- Chips Section -->
+                                              
                                                 <div class="chips small">
-                                                    <!-- Nutrition -->
+                                                  
                                                     <div v-if="p.nutrition" class="mb-3">
                                                         <strong class="d-block mb-1">Nutrition:</strong>
                                                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -1561,7 +1586,7 @@ const decrementCardQty = (product) => {
                                                         </div>
                                                     </div>
 
-                                                    <!-- Allergies -->
+                                                   
                                                     <div v-if="p.allergies?.length" class="mb-3">
                                                         <strong class="d-block mb-1">Allergies:</strong>
                                                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -1572,7 +1597,7 @@ const decrementCardQty = (product) => {
                                                         </div>
                                                     </div>
 
-                                                    <!-- Tags -->
+                                                   
                                                     <div v-if="p.tags?.length">
                                                         <strong class="d-block mb-1">Tags:</strong>
                                                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -1587,10 +1612,125 @@ const decrementCardQty = (product) => {
                                         </div>
                                     </div>
                                 </div>
+                            </div> -->
+
+
+                            <div class="row g-3">
+                                <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
+                                    :key="p.title">
+                                    <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
+                                        :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
+                                        :style="{ borderColor: p.label_color || '#1B1670' }">
+
+                                        <!-- Left Side (Image + Price Badge) - 40% -->
+                                        <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
+
+                                            <!-- Image fills entire area -->
+                                            <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
+
+                                            <!-- Price Badge -->
+                                            <span
+                                                class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
+                                                :style="{ background: p.label_color || '#1B1670' }">
+                                                {{ formatCurrencySymbol(p.price) }}
+                                            </span>
+
+                                            <!-- OUT OF STOCK Badge -->
+                                            <span v-if="(p.stock ?? 0) <= 0"
+                                                class="position-absolute bottom-0 start-0 end-0 m-2 badge bg-danger py-2">
+                                                OUT OF STOCK
+                                            </span>
+                                        </div>
+
+                                        <!-- Right Side (Details + Quantity Controls) - 60% -->
+                                        <div class="p-3 d-flex flex-column justify-content-between"
+                                            style="flex: 1 1 60%; min-width: 0;">
+
+                                            <!-- Title and Family -->
+                                            <div>
+                                                <div class="h5 fw-bold mb-1"
+                                                    :style="{ color: p.label_color || '#1B1670' }">
+                                                    {{ p.title }}
+                                                </div>
+                                                <div class="text-muted mb-3 small">
+                                                    {{ p.family }}
+                                                </div>
+
+                                                <!-- Chips Section -->
+                                                <div class="chips small">
+                                                    <!-- Nutrition -->
+                                                    <div v-if="p.nutrition" class="mb-2">
+                                                        <strong class="d-block mb-1">Nutrition:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-if="p.nutrition.calories" class="chip chip-orange">
+                                                                Cal: {{ p.nutrition.calories }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.carbs" class="chip chip-green">
+                                                                Carbs: {{ p.nutrition.carbs }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.fat" class="chip chip-purple">
+                                                                Fat: {{ p.nutrition.fat }}
+                                                            </span>
+                                                            <span v-if="p.nutrition.protein" class="chip chip-blue">
+                                                                Protein: {{ p.nutrition.protein }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Allergies -->
+                                                    <div v-if="p.allergies?.length" class="mb-2">
+                                                        <strong class="d-block mb-1">Allergies:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-for="(a, i) in p.allergies" :key="'a-' + i"
+                                                                class="chip chip-red">
+                                                                {{ a.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Tags -->
+                                                    <div v-if="p.tags?.length" class="mb-2">
+                                                        <strong class="d-block mb-1">Tags:</strong>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                                            <span v-for="(t, i) in p.tags" :key="'t-' + i"
+                                                                class="chip chip-teal">
+                                                                {{ t.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Quantity Controls at Bottom Right -->
+                                            <div v-if="(p.stock ?? 0) > 0"
+                                                class="mt-3 d-flex align-items-center justify-content-start gap-2"
+                                                @click.stop>
+                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4"
+                                                    style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"
+                                                    @click.stop="decrementCardQty(p)" :disabled="getCardQty(p) <= 0">
+                                                    <strong>−</strong>
+                                                </button>
+                                                <div class="qty-box border rounded-pill px-4 py-2 text-center fw-semibold"
+                                                    style="min-width: 50px;">
+                                                    {{ getCardQty(p) }}
+                                                </div>
+                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4"
+                                                    style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"
+                                                    @click.stop="incrementCardQty(p)" :disabled="!canAddMore(p)">
+                                                    <strong>+</strong>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- No Items Found -->
+                                <div v-if="filteredProducts.length === 0" class="col-12">
+                                    <div class="alert alert-light border text-center rounded-4">
+                                        No items found
+                                    </div>
+                                </div>
                             </div>
-
-
-
 
                         </div>
                     </div>
@@ -1640,11 +1780,8 @@ const decrementCardQty = (product) => {
                                     <div v-if="orderType === 'Dine_in'" class="row g-2">
                                         <div class="col-6">
                                             <label class="form-label small">Table</label>
-                                            <select v-model="selectedTable" class="form-select form-select-sm"
-                                                placeholder="Select Table" :class="{
-                                                    'is-invalid':
-                                                        formErrors.table_number,
-                                                }">
+                                            <select v-model="selectedTable" class="form-select form-select-sm">
+                                                <option :value="null">Select Table</option>
                                                 <option v-for="(table, idx) in profileTables.table_details" :key="idx"
                                                     :value="table">
                                                     {{ table.name }}

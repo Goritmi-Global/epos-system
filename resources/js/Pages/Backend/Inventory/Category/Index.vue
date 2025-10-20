@@ -937,9 +937,8 @@ const downloadCSV = (data) => {
         // Define headers
         const headers = ["category", "subcategory", "active"];
 
-        // Build CSV rows - one row per parent category with subcategories joined
         const rows = data.map((category) => {
-            // Get all subcategory names and join them
+        
             const subcategoryNames = category.subcategories && category.subcategories.length > 0
                 ? category.subcategories.map(sub => sub.name).join(", ")
                 : "";
@@ -951,7 +950,7 @@ const downloadCSV = (data) => {
             ];
         });
 
-        // Combine into CSV string
+      
         const csvContent = [
             headers.join(","), // header row
             ...rows.map((r) => r.join(",")), // data rows
@@ -984,47 +983,43 @@ const downloadCSV = (data) => {
 };
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
+        const doc = new jsPDF("p", "mm", "a4"); // Portrait, millimeters, A4 size
 
-        // 🌟 Title
-        doc.setFontSize(20);
+        // 🏷️ Title
+        doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
-        doc.text("Category Report", 70, 20);
+        doc.text("Inventory Categories Report", 14, 20);
 
-        // 🗓️ Metadata
+        // 🕒 Metadata
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 70, 28);
-        doc.text(`Total Units: ${data.length}`, 70, 34);
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Categories: ${data.length}`, 14, 34);
 
-        // 📋 Table Data
-        const tableColumns = [
-            "Category",
-            "SubCategory",
-            "Total Value",
-            "Total Items",
-            "Out of Stock",
-            "Low Stock",
-            "In Stock",
-        ];
-        const tableRows = data.map((s) => [
-            s.name || "",
-            s.parent_id || "",
-            s.total_value || "",
-            s.total_items || "",
-            s.out_of_stock || "",
-            s.low_stock || "",
-            s.in_stock || "",
-        ]);
+        // 🧾 Table Columns (Match CSV)
+        const tableColumns = ["Category", "Subcategory", "Active"];
 
-        // 📑 Styled table
+        // 🧮 Table Rows
+        const tableRows = data.map((category) => {
+            const subcategoryNames =
+                category.subcategories && category.subcategories.length > 0
+                    ? category.subcategories.map((sub) => sub.name).join(", ")
+                    : "";
+            return [
+                category.name || "",
+                subcategoryNames,
+                category.active ? "1" : "0",
+            ];
+        });
+
+        // 🪶 Create Styled Table
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
             startY: 40,
             styles: {
-                fontSize: 8,
+                fontSize: 9,
                 cellPadding: 2,
                 halign: "left",
                 lineColor: [0, 0, 0],
@@ -1035,10 +1030,9 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (tableData) => {
-                // Footer with page numbers
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
@@ -1050,81 +1044,71 @@ const downloadPDF = (data) => {
             },
         });
 
-        // 💾 Save file
-        const fileName = `Categories_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        // 💾 Save File
+        const fileName = `Categories_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
         toast.success("PDF downloaded successfully");
     } catch (error) {
         console.error("PDF generation error:", error);
-        toast.error(`PDF generation failed: ${error.message}`, {
-            autoClose: 5000,
-        });
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
 
+
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // Prepare worksheet data
-        const worksheetData = data.map((category) => ({
-            Category: category.name || "",
-            SubCategory: category.parent_id || "",
-            "Total Value": category.total_value || "",
-            "Total Item": category.total_items || "",
-            "Out of Stock": category.out_of_stock || "",
-            "Low Stock": category.low_stock || "",
-            "In Stock": category.in_stock || "",
-        }));
+        // 🧾 Prepare data matching CSV fields
+        const worksheetData = data.map((category) => {
+            const subcategoryNames =
+                category.subcategories && category.subcategories.length > 0
+                    ? category.subcategories.map((sub) => sub.name).join(", ")
+                    : "";
 
-        // Create workbook and worksheet
+            return {
+                Category: category.name || "",
+                Subcategory: subcategoryNames,
+                Active: category.active ? 1 : 0,
+            };
+        });
+
+        // 📘 Create workbook & worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // Set column widths
-        const colWidths = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
-            { wch: 10 }, // ID
+        // 📏 Adjust column widths for readability
+        worksheet["!cols"] = [
+            { wch: 25 }, // Category
+            { wch: 40 }, // Subcategory
+            { wch: 10 }, // Active
         ];
-        worksheet["!cols"] = colWidths;
 
-        // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Categories");
 
-        // Add metadata sheet
+        // 🗂️ Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
-            { Info: "Exported By", Value: "Units Management System" },
+            { Info: "Exported By", Value: "Inventory Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
-        const fileName = `Units_${new Date().toISOString().split("T")[0]}.xlsx`;
-
-        // Save the file
+        // 💾 Save the Excel file
+        const fileName = `Categories_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", {
-            autoClose: 2500,
-        });
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
-        toast.error(`Excel generation failed: ${error.message}`, {
-            autoClose: 5000,
-        });
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
+
 
 // handle import function for categories
 const handleImport = (data) => {
