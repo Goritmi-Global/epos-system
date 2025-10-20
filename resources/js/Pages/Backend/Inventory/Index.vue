@@ -1290,8 +1290,8 @@ const handleImport = (data) => {
             protein: parseFloat(row[9]) || 0,      // protein (was at index 9 in download)
             fat: parseFloat(row[10]) || 0,         // fat (was at index 10 in download)
             carbs: parseFloat(row[11]) || 0,       // carbs
-            allergies: row[12] ? row[12].trim() : "",  // allergies
-            tags: row[13] ? row[13].trim() : "",       // tags
+            allergies: row[12] || "",
+            tags: row[13] || "",       // tags
             purchase_price: 0,                     // Not in CSV, default to 0
             sale_price: 0,                         // Not in CSV, default to 0
         };
