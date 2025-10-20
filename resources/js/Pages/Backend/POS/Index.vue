@@ -1412,10 +1412,14 @@ console.log("props data", page.props);
 
                             <!-- Categories List -->
                             <template v-else>
-                                <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-3">
+                                <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-4">
                                     <div class="cat-card" @click="openCategory(c)">
                                         <div class="cat-icon-wrap">
-                                            <span class="cat-icon">{{ c.icon || "🍵" }}</span>
+                                            <span class="cat-icon">
+                                                <img v-if="c.image_url" :src="c.image_url" alt="Category Image"
+                                                    class="cat-image" />
+                                                <span v-else>🍵</span>
+                                            </span>
                                         </div>
                                         <div class="cat-name">{{ c.name }}</div>
                                         <div class="cat-pill">
@@ -1423,6 +1427,7 @@ console.log("props data", page.props);
                                         </div>
                                     </div>
                                 </div>
+
 
                                 <!-- No Categories Found -->
                                 <div v-if="!menuCategoriesLoading && menuCategories.length === 0" class="col-12">
@@ -2052,6 +2057,71 @@ console.log("props data", page.props);
     background-color: #181818;
     color: #fff;
 }
+/* Add this CSS to make the cart fixed on scroll */
+
+/* Make the cart column fixed */
+.col-lg-4:has(.cart) {
+    position: fixed;
+    right: 0;
+    top: 85px;
+    width: 28%; /* lg-4 column width */
+    padding-right: 15px;
+    padding-left: 15px;
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
+    z-index: 100;
+}
+
+/* Add padding to the left column to prevent overlap */
+.col-lg-8:not(:has(+ .col-lg-4:has(.cart))) {
+    margin-right: 0;
+}
+
+.row:has(.col-lg-4:has(.cart)) .col-lg-8 {
+    padding-right: 15px;
+}
+
+/* Make the cart itself scrollable if content is too long */
+.cart {
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Make cart body scrollable */
+.cart-body {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Ensure cart header and footer stay fixed within the card */
+.cart-header {
+    flex-shrink: 0;
+}
+
+.cart-footer {
+    flex-shrink: 0;
+}
+
+/* Custom scrollbar for cart body (optional) */
+.cart-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cart-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.cart-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.cart-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
 
 .dark .cart-body {
     background-color: #181818;
@@ -2151,8 +2221,8 @@ console.log("props data", page.props);
 
 /* circular gray icon holder */
 .cat-icon-wrap {
-    width: 56px;
-    height: 56px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     background: #eee;
     /* light gray like the screen */
