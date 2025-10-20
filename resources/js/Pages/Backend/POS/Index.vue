@@ -1368,6 +1368,8 @@ const incrementCardQty = (product) => {
     }
 };
 
+
+
 // Decrement quantity directly from card
 const decrementCardQty = (product) => {
     const existingIndex = orderItems.value.findIndex(item => item.id === product.id);

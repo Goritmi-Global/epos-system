@@ -420,7 +420,8 @@ export function useFormatters() {
     };
 
     const formatCurrencySymbol = (amount: number | string) => {
-    const num = String(amount); // Keep the number as-is, no formatting
+    // Convert to float and ensure two decimals
+    const num = parseFloat(String(amount) || "0").toFixed(2);
 
     switch (currencyPos.value) {
         case "after":
@@ -436,6 +437,7 @@ export function useFormatters() {
             return `${currencyStr.value} ${num}`.trim();
     }
 };
+
 
     // NUMBER: preserve original decimals; decimal symbol/grouping based on numberPattern
     const formatNumber = (n: number) =>
