@@ -254,7 +254,7 @@ class PosOrderService
     {
         return MenuItem::with([
             'category',
-            'ingredients.inventoryItem', // load inventory items + their stock
+            'ingredients.inventoryItem',
             'nutrition',
             'allergies',
             'tags',

@@ -356,30 +356,29 @@ const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
 
+        // Title
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
         doc.text("Units Report", 14, 20);
 
+        // Meta Info
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Units: ${data.length}`, 14, 34);
 
-        const tableColumns = ["Name", "Created At", "Created By"];
-        const tableRows = data.map((s) => [
-            s.name || "",
-            s.created_at || "",
-            s.updated_at || "",
-        ]);
+        // Table setup — only "Name" column
+        const tableColumns = ["Name"];
+        const tableRows = data.map((s) => [s.name || ""]);
 
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
             startY: 40,
             styles: {
-                fontSize: 8,
-                cellPadding: 2,
+                fontSize: 10,
+                cellPadding: 3,
                 halign: "left",
                 lineColor: [0, 0, 0],
                 lineWidth: 0.1,
@@ -403,7 +402,8 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `Units_${new Date().toISOString().split("T")[0]}.pdf`;
+        // Save file
+        const fileName = `units_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
         toast.success("PDF downloaded successfully");
@@ -415,12 +415,14 @@ const downloadPDF = (data) => {
     }
 };
 
+
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
+        // Only include Name field, consistent with CSV
         const worksheetData = data.map((unit) => ({
             Name: unit.name || "",
         }));
@@ -428,28 +430,22 @@ const downloadExcel = (data) => {
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        const colWidths = [
-            { wch: 20 },
-            { wch: 25 },
-            { wch: 15 },
-            { wch: 30 },
-            { wch: 25 },
-            { wch: 10 },
-        ];
-        worksheet["!cols"] = colWidths;
+        // Adjust column width for readability
+        worksheet["!cols"] = [{ wch: 25 }];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
 
+        // Metadata sheet (like CSV header info)
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
-            { Info: "Total Records", Value: data.length },
+            { Info: "Total Units", Value: data.length },
             { Info: "Exported By", Value: "Units Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        const fileName = `Units_${new Date().toISOString().split("T")[0]}.xlsx`;
-
+        // Save file
+        const fileName = `units_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
         toast.success("Excel file downloaded successfully", {
@@ -462,6 +458,7 @@ const downloadExcel = (data) => {
         });
     }
 };
+
 
 onMounted(async () => {
     await fetchUnits();

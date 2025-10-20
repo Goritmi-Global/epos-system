@@ -404,34 +404,36 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4");
+        const doc = new jsPDF("p", "mm", "a4"); // Portrait A4 layout
 
-        doc.setFontSize(20);
+        // 🧾 Title & Metadata
         doc.setFont("helvetica", "bold");
-        doc.text("Tags Report", 14, 20);
+        doc.setFontSize(18);
+        doc.text("Tags Report", 80, 20);
 
-        doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 14, 28);
-        doc.text(`Total Tags: ${data.length}`, 14, 34);
+        doc.text(`Generated on: ${currentDate}`, 14, 30);
+        doc.text(`Total Tags: ${data.length}`, 14, 36);
 
-        const tableColumns = ["Name", "Created At", "Created By"];
-        const tableRows = data.map((s) => [
-            s.name || "",
-            s.created_at || "",
-            s.updated_at || "",
-        ]);
+        // 🧱 Table Header (same as CSV)
+        const headers = ["Name"];
 
+        // 🧱 Table Data
+        const rows = data.map((tag) => [tag.name || ""]);
+
+        // 📊 Styled Table
         autoTable(doc, {
-            head: [tableColumns],
-            body: tableRows,
-            startY: 40,
+            head: [headers],
+            body: rows,
+            startY: 45,
             styles: {
-                fontSize: 8,
-                cellPadding: 2,
+                fontSize: 10,
+                cellPadding: 3,
                 halign: "left",
-                lineColor: [0, 0, 0],
+                valign: "middle",
+                lineColor: [200, 200, 200],
                 lineWidth: 0.1,
             },
             headStyles: {
@@ -439,7 +441,7 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (tableData) => {
                 const pageCount = doc.internal.getNumberOfPages();
@@ -447,14 +449,14 @@ const downloadPDF = (data) => {
                 doc.setFontSize(8);
                 doc.text(
                     `Page ${tableData.pageNumber} of ${pageCount}`,
-                    tableData.settings.margin.left,
+                    14,
                     pageHeight - 10
                 );
             },
         });
 
-        // 💾 Save file
-        const fileName = `Tags_${new Date().toISOString().split("T")[0]}.pdf`;
+        // 💾 Save File
+        const fileName = `tags_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
         toast.success("PDF downloaded successfully", { autoClose: 2500 });
@@ -466,37 +468,29 @@ const downloadPDF = (data) => {
     }
 };
 
+
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // Prepare worksheet data
+        // 🧱 Prepare worksheet data (same as CSV)
         const worksheetData = data.map((tag) => ({
             Name: tag.name || "",
         }));
 
-        // Create workbook and worksheet
+        // 📘 Create workbook & worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // Set column widths
-        const colWidths = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 15 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
-            { wch: 10 }, // ID
-        ];
-        worksheet["!cols"] = colWidths;
+        // ✨ Set appropriate column width
+        worksheet["!cols"] = [{ wch: 25 }]; // Only Name column
 
-        // Add worksheet to workbook
+        // Add main worksheet
         XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
 
-        // Add metadata sheet
+        // 📄 Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -505,15 +499,11 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
-        const fileName = `Tags_${new Date().toISOString().split("T")[0]}.xlsx`;
-
-        // Save the file
+        // 💾 Save file
+        const fileName = `tags_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", {
-            autoClose: 2500,
-        });
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, {
@@ -521,6 +511,7 @@ const downloadExcel = (data) => {
         });
     }
 };
+
 
 onMounted(async () => {
     await fetchTags();
@@ -544,20 +535,17 @@ watch(commonTags, (newVal) => {
 
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
-        toast.error("The file is empty", {
-            autoClose: 3000,
-        });
+        toast.error("The file is empty", { autoClose: 3000 });
         return;
     }
 
     const headers = data[0];
     const rows = data.slice(1);
 
-    const tagsToImport = rows.map((row) => {
-        return {
-            Name: row[0] || "",
-        };
-    });
+    // ✅ Use lowercase key "name" to match backend validation
+    const tagsToImport = rows.map((row) => ({
+        name: row[0]?.trim() || "",
+    }));
 
     axios
         .post("/api/tags/import", { tags: tagsToImport })
@@ -568,12 +556,15 @@ const handleImport = (data) => {
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
-                toast.error("There may be some duplication in data", {
+                toast.error("Validation failed — check for duplicates or missing data", {
                     autoClose: 3000,
                 });
+            } else {
+                toast.error("Import failed. Please try again.", { autoClose: 3000 });
             }
         });
 };
+
 
 
 </script>

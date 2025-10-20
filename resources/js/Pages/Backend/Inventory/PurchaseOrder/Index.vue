@@ -354,6 +354,168 @@ const updateSearch = (value) => {
     p_search.value = value;
 };
 
+
+
+const onDownload = (type) => {
+    switch (type) {
+        case "pdf":
+            downloadPDF(orderData.value);
+            break;
+        case "excel":
+            downloadExcel(orderData.value);
+            break;
+        case "csv":
+            downloadCSV(orderData.value);
+            break;
+        default:
+            toast.error("Invalid export type");
+    }
+};
+
+const downloadCSV = (data) => {
+    try {
+        const headers = ["S.No", "Supplier Name", "Purchase Date", "Status", "Total Value"];
+
+        const rows = data.map((s, index) => [
+            index + 1,
+            `"${s.supplier || ""}"`,
+            `"${fmtDateTime(s.purchasedAt) || ""}"`,
+            `"${s.status || ""}"`,
+            `"${round2(s.total) || 0}"`,
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `purchase_orders_${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+/* ========================= PDF Export ========================= */
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("p", "mm", "a4");
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Purchase Orders Report", 60, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Records: ${data.length}`, 14, 33);
+
+        const tableColumns = [
+            "S.No",
+            "Supplier Name",
+            "Purchase Date",
+            "Status",
+            "Total Value",
+        ];
+
+        const tableRows = data.map((s, index) => [
+            index + 1,
+            s.supplier || "",
+            fmtDateTime(s.purchasedAt) || "",
+            s.status || "",
+            round2(s.total) || 0,
+        ]);
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 9,
+                cellPadding: 2,
+                lineWidth: 0.1,
+                halign: "left",
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [240, 240, 240] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (td) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${td.pageNumber} of ${pageCount}`,
+                    td.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `purchase_orders_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+/* ========================= EXCEL Export ========================= */
+const downloadExcel = (data) => {
+    try {
+        const worksheetData = data.map((s, index) => ({
+            "S.No": index + 1,
+            "Supplier Name": s.supplier || "",
+            "Purchase Date": fmtDateTime(s.purchasedAt) || "",
+            Status: s.status || "",
+            "Total Value": round2(s.total) || 0,
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        worksheet["!cols"] = [
+            { wch: 8 },
+            { wch: 25 },
+            { wch: 25 },
+            { wch: 15 },
+            { wch: 15 },
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Purchase Orders");
+
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Purchase Order System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        const fileName = `purchase_orders_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
+
 /* =============== Lifecycle =============== */
 onMounted(() => {
     fetchPurchaseOrders(1); // initial load
@@ -420,7 +582,7 @@ onUpdated(() => window.feather?.replace?.());
                             <PurchaseComponent :suppliers="supplierOptions" :items="p_filteredInv"
                                 @refresh-data="fetchPurchaseOrders" @update:search="p_search = $event" />
 
-                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
+                            <button class="btn btn-primary btn-sm py-2 rounded-pill px-4 py-2" data-bs-toggle="modal"
                                 data-bs-target="#addOrderModal">
                                 Order
                             </button>

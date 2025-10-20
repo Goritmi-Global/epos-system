@@ -180,43 +180,40 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4"); // portrait, millimeters, A4
-
-        doc.setFontSize(20);
+        const doc = new jsPDF("p", "mm", "a4"); // Portrait mode, A4 size
         doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
         doc.text("Suppliers Report", 70, 20);
 
-        doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 70, 28);
-        doc.text(`Total Suppliers: ${data.length}`, 70, 34);
-
-        const tableColumns = [
+        doc.text(`Generated on: ${currentDate}`, 14, 30);
+        doc.text(`Total Suppliers: ${data.length}`, 14, 36);
+        const headers = [
             "Name",
             "Email",
             "Phone",
             "Address",
             "Preferred Items",
         ];
-        const tableRows = data.map((s) => [
+        const rows = data.map((s) => [
             s.name || "",
             s.email || "",
             s.contact || "",
             s.address || "",
             s.preferred_items || "",
         ]);
-
-        // 📑 Styled table
         autoTable(doc, {
-            head: [tableColumns],
-            body: tableRows,
-            startY: 40,
+            head: [headers],
+            body: rows,
+            startY: 45,
             styles: {
-                fontSize: 8,
-                cellPadding: 2,
+                fontSize: 9,
+                cellPadding: 3,
                 halign: "left",
-                lineColor: [0, 0, 0],
+                valign: "middle",
+                lineColor: [200, 200, 200],
                 lineWidth: 0.1,
             },
             headStyles: {
@@ -224,27 +221,24 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
-            didDrawPage: (tableData) => {
-                // Footer with page numbers
+            didDrawPage: (data) => {
+                // Footer
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
                 doc.text(
-                    `Page ${tableData.pageNumber} of ${pageCount}`,
-                    tableData.settings.margin.left,
+                    `Page ${data.pageNumber} of ${pageCount}`,
+                    14,
                     pageHeight - 10
                 );
             },
         });
-
-        // 💾 Save file
-        const fileName = `suppliers_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        const fileName = `suppliers_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully .", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully.", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -253,35 +247,35 @@ const downloadPDF = (data) => {
     }
 };
 
+
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
-        const worksheetData = data.map((supplier) => ({
-            Name: supplier.name || "",
-            Email: supplier.email || "",
-            Phone: supplier.phone || supplier.contact || "",
-            Address: supplier.address || "",
-            "Preferred Items": supplier.preferred_items || "",
-            ID: supplier.id || "",
+
+        const worksheetData = data.map((s) => ({
+            Name: s.name || "",
+            Email: s.email || "",
+            Phone: s.contact || "",
+            Address: s.address || "",
+            "Preferred Items": s.preferred_items || "",
         }));
+
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        const colWidths = [
-            { wch: 20 }, // Name heading de
-            { wch: 25 }, // Email de
-            { wch: 15 },
-            { wch: 30 },
-            { wch: 25 },
-            { wch: 10 },
-        ];
-        worksheet["!cols"] = colWidths;
 
-        // Add worksheet to workbook
+        worksheet["!cols"] = [
+            { wch: 20 }, // Name
+            { wch: 25 }, // Email
+            { wch: 18 }, // Phone
+            { wch: 30 }, // Address
+            { wch: 25 }, // Preferred Items
+        ];
+
         XLSX.utils.book_append_sheet(workbook, worksheet, "Suppliers");
 
-        // Add metadata sheet
+
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -290,16 +284,11 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
-        const fileName = `suppliers_${new Date().toISOString().split("T")[0]
-            }.xlsx`;
 
-        // Save the file
+        const fileName = `suppliers_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully .", {
-            autoClose: 2500,
-        });
+        toast.success("Excel file downloaded successfully.", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, {
