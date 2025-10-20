@@ -238,108 +238,160 @@ const isSub = ref(false);
 const manualName = ref("");
 const manualActive = ref(true);
 const selectedParentId = ref(null); // Changed to null instead of empty string
-const manualIcon = ref({ label: "Produce (Veg/Fruit)", value: "🥬" });
+// const manualIcon = ref({ label: "Produce (Veg/Fruit)", value: "🥬" });
+
+const manualIcon = ref({
+    label: "Produce (Veg/Fruit)",
+    value: "https://wallpaperaccess.com/full/5502204.jpg",
+    file: null
+});
 
 const iconOptions = [
-    { label: "Produce (Veg/Fruit)", value: "🥬" },
-    { label: "Dairy", value: "🧀" },
-    { label: "Grains & Rice", value: "🌾" },
-    { label: "Spices & Herbs", value: "🧂" },
-    { label: "Oils & Fats", value: "🫒" },
-    { label: "Sauces & Condiments", value: "🍶" },
-    { label: "Nuts & Seeds", value: "🥜" },
-    { label: "Other", value: "🧰" },
-];
-
-const commonChips = ref([
     {
         label: "Hot Drinks",
         value: "Hot Drinks",
-        icon: "☕",
-        selected: false,
+        icon: "/assets/img/coffee.png",
     },
     {
         label: "Cold Drinks",
         value: "Cold Drinks",
-        icon: "🥤",
-        selected: false,
+        icon: "/assets/img/soda.png",
     },
     {
         label: "Breakfast",
         value: "Breakfast",
-        icon: "🍳",
-        selected: false,
+        icon: "/assets/img/english-breakfast.png",
     },
     {
         label: "Street Snacks",
         value: "Street Snacks",
-        icon: "🌯",
-        selected: false,
+        icon: "/assets/img/food.png",
     },
     {
         label: "Wala Wraps",
         value: "Wala Wraps",
-        icon: "🌮",
-        selected: false,
+        icon: "/assets/img/burrito.png",
     },
     {
         label: "Bombay Toasties",
         value: "Bombay Toasties",
-        icon: "🥪",
-        selected: false,
+        icon: "/assets/img/food (1).png",
     },
     {
         label: "Salads",
         value: "Salads",
-        icon: "🥗",
-        selected: false,
+        icon: "/assets/img/salad.png",
     },
     {
         label: "Bombay Bowls",
         value: "Bombay Bowls",
-        icon: "🍛",
-        selected: false,
+        icon: "/assets/img/porridge.png",
     },
     {
         label: "Bakery",
         value: "Bakery",
-        icon: "🥐",
-        selected: false,
+        icon: "/assets/img/cake.png",
     },
     {
         label: "Soup",
         value: "Soup",
-        icon: "🥣",
-        selected: false,
+        icon: "/assets/img/bowl.png",
     },
     {
         label: "Desserts",
         value: "Desserts",
-        icon: "🍰",
-        selected: false,
+        icon: "/assets/img/cupcake.png",
     },
     {
         label: "Ice Cream",
         value: "Ice Cream",
-        icon: "🍦",
-        selected: false,
+        icon: "/assets/img/ice-cream.png",
     },
-]);
+];
 
 
-const resetModal = () => {
-    isSub.value = false;
-    manualCategories.value = [];
-    manualActive.value = true;
-    selectedParentId.value = null;
-    manualName.value = "";
-    manualIcon.value = iconOptions[0];
-    commonChips.value = commonChips.value.map((c) => ({
-        ...c,
-        selected: false,
-    }));
-    editingCategory.value = null;
-};
+const commonChips = [
+    {
+        label: "Hot Drinks",
+        value: "Hot Drinks",
+        icon: "/assets/img/coffee.png",
+    },
+    {
+        label: "Cold Drinks",
+        value: "Cold Drinks",
+        icon: "/assets/img/soda.png",
+    },
+    {
+        label: "Breakfast",
+        value: "Breakfast",
+        icon: "/assets/img/english-breakfast.png",
+    },
+    {
+        label: "Street Snacks",
+        value: "Street Snacks",
+        icon: "/assets/img/food.png",
+    },
+    {
+        label: "Wala Wraps",
+        value: "Wala Wraps",
+        icon: "/assets/img/wrap.png",
+    },
+    {
+        label: "Bombay Toasties",
+        value: "Bombay Toasties",
+        icon: "/assets/img/bombay-toasties.png",
+    },
+    {
+        label: "Salads",
+        value: "Salads",
+        icon: "/assets/img/salad.png",
+    },
+    {
+        label: "Bombay Bowls",
+        value: "Bombay Bowls",
+        icon: "/assets/img/porridge.png",
+    },
+    {
+        label: "Bakery",
+        value: "Bakery",
+        icon: "/assets/img/cake.png",
+    },
+    {
+        label: "Soup",
+        value: "Soup",
+        icon: "/assets/img/bowl.png",
+    },
+    {
+        label: "Desserts",
+        value: "Desserts",
+        icon: "/assets/img/cupcake.png",
+    },
+    {
+        label: "Ice Cream",
+        value: "Ice Cream",
+        icon: "/assets/img/ice-cream.png",
+    },
+];
+
+
+
+
+
+// const resetModal = () => {
+//     isSub.value = false;
+//     manualCategories.value = [];
+//     manualActive.value = true;
+//     selectedParentId.value = null;
+//     manualName.value = "";
+//     manualIcon.value = iconOptions[0];
+//     commonChips.value = commonChips.value.map((c) => ({
+//         ...c,
+//         selected: false,
+//     }));
+//     editingCategory.value = null;
+// };
+
+
 
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
@@ -363,10 +415,234 @@ const resetFields = () => {
     manualSubcategoriesInput.value = "";
     editingCategory.value = null;
 };
+// const submitCategory = async () => {
+//     if (isSub.value && !selectedParentId.value) {
+//         catFormErrors.value.parent_id = ["Please select a parent category"];
+//         toast.error("Please filled all the required fields");
+//         submitting.value = false;
+//         return;
+//     }
+
+//     resetErrors();
+//     submitting.value = true;
+
+//     try {
+//         if (editingCategory.value) {
+//             // UPDATE MODE
+//             const updatePayload = {
+//                 name: isSub.value
+//                     ? manualName.value?.trim()
+//                     : manualCategories.value[0]?.label?.trim(),
+//                 icon: manualIcon.value.value,
+//                 active: manualActive.value,
+//                 parent_id: selectedParentId.value || null,
+
+//             };
+
+//             //  Handle subcategories only if it's a MAIN CATEGORY
+//             if (!updatePayload.parent_id) {
+//                 if (manualSubcategoriesInput.value) {
+//                     updatePayload.subcategories = manualSubcategoriesInput.value
+//                         .split(",")
+//                         .map((s) => s.trim())
+//                         .filter((s) => s.length > 0)
+//                         .map((name) => {
+//                             // try to match existing subcategories by name
+//                             const existingSub =
+//                                 editingCategory.value.subcategories?.find(
+//                                     (sub) =>
+//                                         sub.name.toLowerCase() ===
+//                                         name.toLowerCase()
+//                                 );
+//                             return {
+//                                 id: existingSub ? existingSub.id : null,
+//                                 name,
+//                                 active: existingSub ? existingSub.active : true,
+//                             };
+//                         });
+//                 } else {
+//                     updatePayload.subcategories = [];
+//                 }
+//             }
+
+//             if (!updatePayload.name) {
+//                 catFormErrors.value.name = ["Category name cannot be empty"];
+//                 toast.error("Please filled all the required fields");
+//                 submitting.value = false;
+//                 return;
+//             }
+
+//             console.log("Update payload:", updatePayload);
+
+//             await axios.put(
+//                 `/menu-categories/${editingCategory.value.id}`,
+//                 updatePayload
+//             );
+//             toast.success("Category updated successfully");
+
+//             // 👇 Close modal after successful update
+//             const m = bootstrap.Modal.getInstance(
+//                 document.getElementById("addCatModal")
+//             );
+//             m?.hide();
+
+//             // 👇 Now reset state AFTER closing
+//             resetModal();
+//             editingCategory.value = null;
+//             await fetchCategories();
+//         } else {
+//             // CREATE MODE - Use the existing structure
+//             let categoriesPayload = [];
+
+//             if (isSub.value) {
+//                 if (isSub.value && manualSubcategories.value.length === 0) {
+//                     catFormErrors.value.subcategories = [
+//                         "Please add at least one subcategory",
+//                     ];
+//                     toast.error("Please filled all the required fields");
+//                     submitting.value = false;
+//                     return;
+//                 }
+
+//                 categoriesPayload = manualSubcategories.value.map((cat) => ({
+//                     id: undefined,
+//                     name: typeof cat === "string" ? cat : cat.label,
+//                     icon: manualIcon.value.value,
+//                     active: manualActive.value,
+//                     parent_id: selectedParentId.value,
+//                 }));
+//             } else {
+//                 if (!isSub.value && manualCategories.value.length === 0) {
+//                     catFormErrors.value.name = [
+//                         "Please add at least one category",
+//                     ];
+//                     toast.error("Please filled all the required fields");
+//                     submitting.value = false;
+//                     return;
+//                 }
+
+//                 categoriesPayload = manualCategories.value.map((cat) => ({
+//                     id: undefined,
+//                     name: typeof cat === "string" ? cat : cat.label,
+//                     icon: manualIcon.value.value,
+//                     active: manualActive.value,
+//                     parent_id: null,
+
+//                 }));
+//             }
+
+//             const createPayload = {
+//                 isSubCategory: isSub.value,
+//                 categories: categoriesPayload,
+
+//             };
+
+//             console.log("Creating categories with payload:", createPayload);
+//             await axios.post("/menu-categories", createPayload);
+//             submitting.value = false;
+
+//             const m = bootstrap.Modal.getInstance(
+//                 document.getElementById("addCatModal")
+//             );
+//             m?.hide();
+//             toast.success("Category created successfully");
+//         }
+
+//         resetModal();
+//         editingCategory.value = null;
+//         await fetchCategories();
+//     } catch (err) {
+//         console.error("❌ Error:", err.response?.data || err.message);
+
+//         if (err.response?.status === 422 && err.response?.data?.errors) {
+//             const errors = err.response.data.errors;
+//             let errorMessages = [];
+//             catFormErrors.value = {};
+
+//             Object.keys(errors).forEach((key) => {
+//                 let normalizedKey = key.replace(/^categories\.\d+\./, "");
+//                 catFormErrors.value[normalizedKey] = errors[key];
+
+//                 if (Array.isArray(errors[key])) {
+//                     errors[key].forEach((message) => {
+//                         errorMessages.push(message);
+//                     });
+//                 }
+//             });
+
+//             if (errorMessages.length > 0) {
+//                 toast.error(errorMessages.join("\n"));
+//             } else {
+//                 toast.error("Validation failed. Please check your input.");
+//             }
+//         } else {
+//             const errorMessage =
+//                 err.response?.data?.message || "Failed to save category";
+//             toast.error(errorMessage + " ❌");
+//         }
+//     } finally {
+//         submitting.value = false;
+//     }
+// };
+
+// ============= Helper function to convert URL to File =============
+const urlToFile = async (url, filename) => {
+    try {
+        console.log('🔄 Converting URL to File:', url);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            console.error('❌ Fetch failed:', response.status);
+            return null;
+        }
+
+        const blob = await response.blob();
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+
+        console.log('✅ File created:', {
+            name: file.name,
+            size: file.size,
+            type: file.type
+        });
+
+        return file;
+    } catch (error) {
+        console.error("❌ Error converting URL to File:", error);
+        return null;
+    }
+};
+
+// ============= Icon Selection Handler =============
+const selectIcon = async (opt) => {
+    console.log('🎨 Icon selected:', opt.label);
+
+    // Set the icon immediately (for UI display)
+    manualIcon.value = {
+        label: opt.label,
+        value: opt.value,
+        icon: opt.icon,
+        file: null
+    };
+
+    // Convert URL to File in background
+    const filename = opt.label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '.jpg';
+    const file = await urlToFile(opt.icon, filename);
+
+    if (file) {
+        manualIcon.value.file = file;
+        console.log('✅ Icon file ready:', file.name);
+    } else {
+        console.error('❌ Failed to convert icon to file');
+        toast.error('Failed to load icon. Please try again.');
+    }
+};
+
+// ============= Updated Submit Function =============
 const submitCategory = async () => {
+    // Validation for subcategory mode
     if (isSub.value && !selectedParentId.value) {
         catFormErrors.value.parent_id = ["Please select a parent category"];
-        toast.error("Please filled all the required fields");
+        toast.error(catFormErrors.value.parent_id[0]);
         submitting.value = false;
         return;
     }
@@ -375,133 +651,207 @@ const submitCategory = async () => {
     submitting.value = true;
 
     try {
+        // 🔥 ENSURE ICON FILE IS READY
+        if (manualIcon.value.icon && !manualIcon.value.file) {
+            console.log('⏳ Icon file not ready, converting now...');
+            const filename = manualIcon.value.label
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "-") + ".jpg";
+            const file = await urlToFile(manualIcon.value.icon, filename);
+            
+            if (file) {
+                manualIcon.value.file = file;
+                console.log('✅ Icon converted just in time');
+            } else {
+                console.warn('⚠️ Could not convert icon to file');
+            }
+        }
+
+        // ==================== UPDATE MODE ====================
         if (editingCategory.value) {
-            // UPDATE MODE
-            const updatePayload = {
-                name: isSub.value
-                    ? manualName.value?.trim()
-                    : manualCategories.value[0]?.label?.trim(),
-                icon: manualIcon.value.value,
-                active: manualActive.value,
-                parent_id: selectedParentId.value || null,
+            const formData = new FormData();
 
-            };
-
-            //  Handle subcategories only if it's a MAIN CATEGORY
-            if (!updatePayload.parent_id) {
-                if (manualSubcategoriesInput.value) {
-                    updatePayload.subcategories = manualSubcategoriesInput.value
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s.length > 0)
-                        .map((name) => {
-                            // try to match existing subcategories by name
-                            const existingSub =
-                                editingCategory.value.subcategories?.find(
-                                    (sub) =>
-                                        sub.name.toLowerCase() ===
-                                        name.toLowerCase()
-                                );
-                            return {
-                                id: existingSub ? existingSub.id : null,
-                                name,
-                                active: existingSub ? existingSub.active : true,
-                            };
-                        });
-                } else {
-                    updatePayload.subcategories = [];
-                }
+            // Determine name
+            let categoryName = "";
+            if (isSub.value) {
+                categoryName = manualName.value?.trim();
+            } else {
+                categoryName =
+                    manualCategories.value[0]?.label?.trim() ||
+                    manualCategories.value[0]?.name?.trim() ||
+                    (typeof manualCategories.value[0] === "string"
+                        ? manualCategories.value[0].trim()
+                        : "");
             }
 
-            if (!updatePayload.name) {
+            if (!categoryName) {
                 catFormErrors.value.name = ["Category name cannot be empty"];
-                toast.error("Please filled all the required fields");
+                toast.error("Category name cannot be empty");
                 submitting.value = false;
                 return;
             }
 
-            console.log("Update payload:", updatePayload);
+            formData.append("name", categoryName);
+            formData.append("active", manualActive.value ? "1" : "0");
+            formData.append("parent_id", selectedParentId.value || "");
+            formData.append("_method", "PUT");
 
-            await axios.put(
+            // 🔥 Attach icon file if available
+            if (manualIcon.value.file && manualIcon.value.file instanceof File) {
+                formData.append("icon", manualIcon.value.file);
+                console.log('📎 Icon attached to FormData:', {
+                    name: manualIcon.value.file.name,
+                    size: manualIcon.value.file.size,
+                    type: manualIcon.value.file.type
+                });
+            } else {
+                console.warn('⚠️ No icon file to attach');
+            }
+
+            // Handle subcategories if not a subcategory itself
+            if (!selectedParentId.value && manualSubcategoriesInput.value) {
+                const subcategoryNames = manualSubcategoriesInput.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0);
+
+                subcategoryNames.forEach((name, index) => {
+                    const existingSub =
+                        editingCategory.value.subcategories?.find(
+                            (sub) =>
+                                sub.name.toLowerCase() === name.toLowerCase()
+                        );
+
+                    formData.append(`subcategories[${index}][name]`, name);
+                    if (existingSub) {
+                        formData.append(`subcategories[${index}][id]`, existingSub.id);
+                        formData.append(
+                            `subcategories[${index}][active]`,
+                            existingSub.active ? "1" : "0"
+                        );
+                    } else {
+                        formData.append(`subcategories[${index}][active]`, "1");
+                    }
+                });
+            }
+
+            // 🔍 Debug: Log all FormData entries
+            console.log('📦 FormData contents (UPDATE):');
+            for (let pair of formData.entries()) {
+                if (pair[1] instanceof File) {
+                    console.log(`  ${pair[0]}: [FILE] ${pair[1].name} (${pair[1].size} bytes)`);
+                } else {
+                    console.log(`  ${pair[0]}: ${pair[1]}`);
+                }
+            }
+
+            await axios.post(
                 `/menu-categories/${editingCategory.value.id}`,
-                updatePayload
+                formData,
+                { 
+                    headers: { 
+                        "Content-Type": "multipart/form-data" 
+                    } 
+                }
             );
+
             toast.success("Category updated successfully");
-
-            // 👇 Close modal after successful update
-            const m = bootstrap.Modal.getInstance(
-                document.getElementById("addCatModal")
-            );
-            m?.hide();
-
-            // 👇 Now reset state AFTER closing
-            resetModal();
-            editingCategory.value = null;
-            await fetchCategories();
-        } else {
-            // CREATE MODE - Use the existing structure
+        }
+        // ==================== CREATE MODE ====================
+        else {
+            const formData = new FormData();
             let categoriesPayload = [];
 
             if (isSub.value) {
-                if (isSub.value && manualSubcategories.value.length === 0) {
+                if (manualSubcategories.value.length === 0) {
                     catFormErrors.value.subcategories = [
                         "Please add at least one subcategory",
                     ];
-                    toast.error("Please filled all the required fields");
+                    toast.error("Please add at least one subcategory");
                     submitting.value = false;
                     return;
                 }
 
                 categoriesPayload = manualSubcategories.value.map((cat) => ({
-                    id: undefined,
                     name: typeof cat === "string" ? cat : cat.label,
-                    icon: manualIcon.value.value,
                     active: manualActive.value,
                     parent_id: selectedParentId.value,
                 }));
             } else {
-                if (!isSub.value && manualCategories.value.length === 0) {
+                if (manualCategories.value.length === 0) {
                     catFormErrors.value.name = [
                         "Please add at least one category",
                     ];
-                    toast.error("Please filled all the required fields");
+                    toast.error("Please add at least one category");
                     submitting.value = false;
                     return;
                 }
 
                 categoriesPayload = manualCategories.value.map((cat) => ({
-                    id: undefined,
                     name: typeof cat === "string" ? cat : cat.label,
-                    icon: manualIcon.value.value,
                     active: manualActive.value,
                     parent_id: null,
-
                 }));
             }
 
-            const createPayload = {
-                isSubCategory: isSub.value,
-                categories: categoriesPayload,
+            formData.append("isSubCategory", isSub.value ? "1" : "0");
 
-            };
+            categoriesPayload.forEach((cat, index) => {
+                formData.append(`categories[${index}][name]`, cat.name);
+                formData.append(
+                    `categories[${index}][active]`,
+                    cat.active ? "1" : "0"
+                );
+                if (cat.parent_id) {
+                    formData.append(
+                        `categories[${index}][parent_id]`,
+                        cat.parent_id
+                    );
+                }
+            });
 
-            console.log("Creating categories with payload:", createPayload);
-            await axios.post("/menu-categories", createPayload);
-            submitting.value = false;
+            // 🔥 Attach icon file
+            if (manualIcon.value.file && manualIcon.value.file instanceof File) {
+                formData.append("icon", manualIcon.value.file);
+                console.log('📎 Icon attached to FormData:', {
+                    name: manualIcon.value.file.name,
+                    size: manualIcon.value.file.size,
+                    type: manualIcon.value.file.type
+                });
+            } else {
+                console.warn('⚠️ No icon file to attach');
+            }
 
-            const m = bootstrap.Modal.getInstance(
-                document.getElementById("addCatModal")
-            );
-            m?.hide();
+            // 🔍 Debug: Log all FormData entries
+            console.log('📦 FormData contents (CREATE):');
+            for (let pair of formData.entries()) {
+                if (pair[1] instanceof File) {
+                    console.log(`  ${pair[0]}: [FILE] ${pair[1].name} (${pair[1].size} bytes)`);
+                } else {
+                    console.log(`  ${pair[0]}: ${pair[1]}`);
+                }
+            }
+
+            await axios.post("/menu-categories", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+
             toast.success("Category created successfully");
         }
+
+        // Close modal and reset
+        const m = bootstrap.Modal.getInstance(
+            document.getElementById("addCatModal")
+        );
+        m?.hide();
 
         resetModal();
         editingCategory.value = null;
         await fetchCategories();
+        
     } catch (err) {
-        console.error("❌ Error:", err.response?.data || err.message);
-
+        console.error("❌ Submit error:", err);
+        
         if (err.response?.status === 422 && err.response?.data?.errors) {
             const errors = err.response.data.errors;
             let errorMessages = [];
@@ -531,6 +881,23 @@ const submitCategory = async () => {
     } finally {
         submitting.value = false;
     }
+};
+
+// ============= Updated Reset Modal =============
+const resetModal = () => {
+    isSub.value = false;
+    manualCategories.value = [];
+    manualActive.value = true;
+    selectedParentId.value = null;
+    manualName.value = "";
+    manualIcon.value = {
+        label: iconOptions[0].label,
+        value: iconOptions[0].value,
+        icon: iconOptions[0].icon,
+        file: null
+    };
+    editingCategory.value = null;
+    manualSubcategoriesInput.value = "";
 };
 
 const resetErrors = () => {
@@ -1115,11 +1482,11 @@ const handleImport = (data) => {
                             </button>
 
                             <ImportFile label="Import" :sampleHeaders="[
-                             'category', 'subcategory', 'active'
+                                'category', 'subcategory', 'active'
                             ]" :sampleData="[
-                              ['Dairy', 'TestSubCat', 1],
-                                    ['Bakery', 'Bread', 1],
-                                    ['Beverages', 'Juices', 0]
+                                ['Dairy', 'TestSubCat', 1],
+                                ['Bakery', 'Bread', 1],
+                                ['Beverages', 'Juices', 0]
                             ]" @on-import="handleImport" />
 
                             <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
@@ -1201,9 +1568,9 @@ const handleImport = (data) => {
                                     <td>
                                         <div
                                             class="rounded d-inline-flex align-items-center justify-content-center img-chip">
-                                            <span class="fs-5">{{
-                                                row.icon || "📦"
-                                                }}</span>
+                                            <img v-if="row.image_url" :src="row.image_url" :alt="row.name"
+                                                class="rounded" style="width: 32px; height: 32px; object-fit: cover;" />
+                                            <span v-else class="fs-5">📦</span>
                                         </div>
                                     </td>
                                     <td>{{ formatCurrencySymbol(row.total_value) }}</td>
@@ -1336,29 +1703,30 @@ const handleImport = (data) => {
                                     <div class="dropdown w-100">
                                         <button
                                             class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
-                                            data-bs-toggle="dropdown">
-                                            <span>
-                                                <span class="me-2">{{
-                                                    manualIcon.value
-                                                    }}</span>
-                                                {{ manualIcon.label }}
-                                            </span>
+                                            data-bs-toggle="dropdown" type="button">
+                                            <div class="d-flex align-items-center">
+                                                <img :src="manualIcon.icon" alt="icon" class="me-2 rounded" width="30"
+                                                    height="30" />
+                                                <span>{{ manualIcon.label }}</span>
+                                            </div>
                                             <i class="bi bi-caret-down-fill"></i>
                                         </button>
+
                                         <ul class="dropdown-menu w-100 shadow rounded-3">
                                             <li v-for="opt in iconOptions" :key="opt.label">
-                                                <a class="dropdown-item" href="javascript:void(0)" @click="
-                                                    manualIcon = opt
-                                                    ">
-                                                    <span class="me-2">{{
-                                                        opt.value
-                                                        }}</span>
-                                                    {{ opt.label }}
+                                                <a class="dropdown-item d-flex align-items-center"
+                                                    href="javascript:void(0)" @click="selectIcon(opt)">
+                                                    <img :src="opt.icon" alt="icon" class="me-2 rounded" width="30"
+                                                        height="30" />
+                                                    <span>{{ opt.label }}</span>
                                                 </a>
                                             </li>
                                         </ul>
                                     </div>
+                                    <!-- Loading indicator removed -->
                                 </div>
+
+
 
                                 <!-- Category Name -->
                                 <div class="col-12" v-if="!isSub || editingCategory">
@@ -1549,14 +1917,14 @@ const handleImport = (data) => {
     color: white;
 }
 
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
+.side-link {
+    border-radius: 55%;
+    background-color: #fff !important;
 }
 
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
+.dark .side-link {
+    border-radius: 55%;
+    background-color: #181818 !important;
 }
 
 .dark .card {

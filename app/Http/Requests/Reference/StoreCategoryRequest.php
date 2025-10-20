@@ -17,10 +17,13 @@ class StoreCategoryRequest extends FormRequest
         return [
             'isSubCategory' => 'required|boolean',
             
+            // Icon validation - ADD THIS
+            'icon' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048', // 2MB max
+            
             // Categories array validation
             'categories' => 'required|array|min:1',
             'categories.*.name' => 'required|string|max:255',
-            'categories.*.icon' => 'sometimes|string|max:10',
+            'categories.*.upload_id' => 'nullable',
             'categories.*.active' => 'sometimes|boolean',
             'categories.*.parent_id' => 'nullable|integer|exists:inventory_categories,id',
         ];
@@ -32,6 +35,11 @@ class StoreCategoryRequest extends FormRequest
             'categories.*.parent_id.exists' => 'The selected parent category does not exist.',
             'categories.required' => 'At least one category must be provided.',
             'categories.*.name.required' => 'Each category must have a name.',
+            
+            // Icon validation messages - ADD THIS
+            'icon.image' => 'The icon must be an image file.',
+            'icon.mimes' => 'The icon must be a file of type: jpeg, jpg, png, webp, gif.',
+            'icon.max' => 'The icon size must not exceed 2MB.',
         ];
     }
 
@@ -40,7 +48,7 @@ class StoreCategoryRequest extends FormRequest
         return [
             'isSubCategory' => 'subcategory flag',
             'categories.*.name' => 'category name',
-            'categories.*.icon' => 'category icon',
+            'icon' => 'category icon', // ADD THIS
             'categories.*.parent_id' => 'parent category',
         ];
     }

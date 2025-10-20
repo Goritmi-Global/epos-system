@@ -656,7 +656,7 @@ const suppliersCount = computed(() => {
                   <tbody>
                     <tr v-if="!props.recentItems.length">
                       <td colspan="5" class="text-center text-muted py-3">
-                        No recent products found
+                        No recent items found
                       </td>
                     </tr>
 

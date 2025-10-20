@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Timezone extends Model
 {
-    protected $fillable = ['name', 'gmt_offset', 'is_default'];
+    protected $fillable = ['name', 'gmt_offset', 'is_default', 'country_id'];
 
     public function countries()
     {
