@@ -218,7 +218,7 @@ watch(selectedPermissions, (newVal) => {
                 <h5 class="mb-0">List of Roles</h5>
                 <small class="text-muted">These are all the roles that this system uses.</small>
             </div>
-            <button class="btn btn-primary btn-sm rounded-pill" @click="openCreate">
+            <button class="btn btn-primary btn-sm rounded-pill px-3 py-2" @click="openCreate">
                 <i class="bi bi-plus-lg me-1"></i>Add Role
             </button>
         </div>

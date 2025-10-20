@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Add -->
-                <button class="btn btn-primary btn-sm rounded-pill w-100" @click="openCreate">
+                <button class="btn btn-primary btn-sm rounded-pill w-100 px-3 py-2" @click="openCreate">
                     <i class="bi bi-plus-lg me-1"></i> Add Permission
                 </button>
             </div>

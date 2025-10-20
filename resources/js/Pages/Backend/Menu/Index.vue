@@ -1000,25 +1000,30 @@ const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
 
-        doc.setFontSize(20);
+        // 🌟 Title
+        doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
-        doc.text("Menu Item Report", 70, 20);
+        doc.text("Menu Items Report", 65, 20);
 
+        // 🗓️ Metadata
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
-        doc.text(`Generated on: ${currentDate}`, 70, 28);
-        doc.text(`Total Menu Items: ${data.length}`, 70, 34);
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Menu Items: ${data.length}`, 14, 34);
 
+        // 📋 Table Columns
         const tableColumns = [
             "Item Name",
             "Category",
             "Description",
+            "Price",
             "Nutrition",
             "Allergies",
             "Tags",
         ];
 
+        // 🧠 Helper function for nutrition formatting
         const formatNutrition = (nutri) => {
             if (!nutri) return "";
             if (typeof nutri === "string") {
@@ -1028,38 +1033,47 @@ const downloadPDF = (data) => {
                     return nutri;
                 }
             }
-            if (Array.isArray(nutri)) return nutri.join(", ");
             if (typeof nutri === "object") {
-                //  Only keep required fields
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
                 return wantedKeys
                     .map((key) =>
-                        nutri[key] !== undefined
-                            ? `${key}: ${nutri[key]}`
-                            : null
+                        nutri[key] !== undefined ? `${key}: ${nutri[key]}` : null
                     )
                     .filter(Boolean)
-                    .join(", ");
+                    .join("; ");
             }
             return String(nutri ?? "");
         };
 
-        const tableRows = data.map((s) => [
-            s.name || "",
-            s.category.name || "",
-            s.description || "",
-            s.nutrition_text || formatNutrition(s.nutrition),
-            // Allergies
-            Array.isArray(s.allergies)
+        // 📊 Build table rows
+        const tableRows = data.map((s) => {
+            const category =
+                typeof s.category === "object"
+                    ? s.category?.name || ""
+                    : s.category || "";
+
+            const allergies = Array.isArray(s.allergies)
                 ? s.allergies.map((a) => a.name || a).join(", ")
-                : s.allergies || "",
+                : s.allergies || "";
 
-            // Tags
-            Array.isArray(s.tags)
+            const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
-                : s.tags || "",
-        ]);
+                : s.tags || "";
 
+            const nutritionStr = formatNutrition(s.nutrition);
+
+            return [
+                s.name || "",
+                category,
+                s.description || "",
+                s.price || "",
+                nutritionStr,
+                allergies,
+                tags,
+            ];
+        });
+
+        // 📑 Render Table
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
@@ -1076,7 +1090,7 @@ const downloadPDF = (data) => {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            alternateRowStyles: { fillColor: [240, 240, 240] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (td) => {
                 const pageCount = doc.internal.getNumberOfPages();
@@ -1090,10 +1104,12 @@ const downloadPDF = (data) => {
             },
         });
 
-        const fileName = `menu_items_${new Date().toISOString().split("T")[0]
-            }.pdf`;
+        // 💾 Save File
+        const fileName = `menu_items_${new Date()
+            .toISOString()
+            .split("T")[0]}.pdf`;
         doc.save(fileName);
-        toast.success("PDF downloaded successfully ", { autoClose: 2500 });
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -1113,14 +1129,12 @@ function safeParse(value) {
 
 const downloadExcel = (data) => {
     try {
-        // Check if XLSX is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // Prepare worksheet data
+        // 🧠 Format data same as CSV
         const worksheetData = data.map((s) => {
-            //  Format Nutrition (only calories, protein, fat, carbs)
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
@@ -1136,18 +1150,15 @@ const downloadExcel = (data) => {
                 nutritionStr = s.nutrition;
             }
 
-            //  Handle Category (object or string)
             const category =
                 typeof s.category === "object"
                     ? s.category?.name || ""
                     : s.category || "";
 
-            //  Handle Allergies (array of objects or strings)
             const allergies = Array.isArray(s.allergies)
                 ? s.allergies.map((a) => a.name || a).join(", ")
                 : s.allergies || "";
 
-            //  Handle Tags (array of objects or strings)
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
                 : s.tags || "";
@@ -1156,54 +1167,47 @@ const downloadExcel = (data) => {
                 "Item Name": s.name || "",
                 Category: category,
                 Description: s.description || "",
+                Price: s.price || "",
                 Nutrition: nutritionStr,
                 Allergies: allergies,
                 Tags: tags,
             };
         });
 
-        // Create workbook and worksheet
+        // 📘 Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // Set column widths
+        // 📏 Set column widths
         worksheet["!cols"] = [
             { wch: 20 }, // Item Name
-            { wch: 15 }, // Category
-            { wch: 10 }, // Min Alert
-            { wch: 12 }, // Unit
-            { wch: 20 }, // Supplier
-            { wch: 15 }, // Sku
+            { wch: 20 }, // Category
             { wch: 30 }, // Description
-            { wch: 40 }, // Nutrition
+            { wch: 10 }, // Price
+            { wch: 30 }, // Nutrition
             { wch: 25 }, // Allergies
             { wch: 25 }, // Tags
-            { wch: 20 }, // Created At
-            { wch: 20 }, // Updated At
         ];
 
         // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Items");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Items");
 
-        // Add metadata sheet
+        // 🗂️ Metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
-            { Info: "Total Records", Value: data.length },
-            { Info: "Exported By", Value: "Inventory Management System" },
+            { Info: "Total Menu Items", Value: data.length },
+            { Info: "Exported By", Value: "Menu Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // Generate file name
-        const fileName = `menu_items_${new Date().toISOString().split("T")[0]
-            }.xlsx`;
-
-        // Save the file
+        // 💾 Save Excel File
+        const fileName = `menu_items_${new Date()
+            .toISOString()
+            .split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully ", {
-            autoClose: 2500,
-        });
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, {

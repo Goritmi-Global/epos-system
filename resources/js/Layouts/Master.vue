@@ -413,12 +413,12 @@ onMounted(fetchNotifications);
             </div>
 
             <ul class="nav user-menu">
-                <a class="btn btn-primary rounded-pill py-2 px-2" href="/pos/order">
+                <a class="btn btn-primary rounded-pill py-2 px-3" href="/pos/order">
                     Quick Order
                 </a>
 
-                <Link :href="route('logout')" method="post" as="button" class="btn btn-danger rounded-pill py-2 px-2">
-                Quick Logout
+                <Link :href="route('logout')" method="post" as="button" class="btn btn-danger rounded-pill py-2 px-3">
+                 Logout
                 </Link>
 
 
@@ -1166,10 +1166,6 @@ html.dark .side-link {
     background-color: #121212 !important;
 }
 
-/* .dark .btn-secondary {
-    background-color: #212121 !important;
-} */
-
 
 .dark .text-muted {
     color: #fff !important;
@@ -1432,7 +1428,7 @@ html.dark .main {
     text-decoration: none;
     /* color: var(--brand); */
     border-radius: 10px;
-    transition: background 0.15s ease, color 0.15s ease;
+    /* transition: background 0.15s ease, color 0.15s ease; */
 }
 
 .side-link:hover {
