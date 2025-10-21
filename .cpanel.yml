@@ -1,0 +1,44 @@
+---
+deployment:
+  tasks:
+    # ---- 1. Define paths ----
+    - export APP_PATH="$HOME/tenxglobal"                 # Laravel project root
+    - export PUBLIC_HTML="$HOME/public_html"             # Your live domain root
+    - export PHP="/opt/cpanel/ea-php82/root/usr/bin/php" # Adjust if your PHP version differs
+
+    # ---- 2. Sync Git repo to APP_PATH (outside web root) ----
+    - mkdir -p $APP_PATH
+    - /bin/rsync -a --delete --exclude=".git" --exclude="node_modules" $DEPLOYPATH/ $APP_PATH/
+
+    # ---- 3. Composer install (production mode) ----
+    - cd $APP_PATH
+    - if command -v composer >/dev/null 2>&1; then
+        composer install --no-dev --optimize-autoloader;
+      else
+        echo "Composer not found — skipped";
+      fi
+
+    # ---- 4. Build Vite assets (if Node.js available) ----
+    - if command -v npm >/dev/null 2>&1; then
+        rm -rf public/build;
+        npm ci;
+        npm run build;
+      else
+        echo "Node not available — skipping npm build";
+      fi
+
+    # ---- 5. Publish ONLY public folder to public_html ----
+    - /bin/rsync -a --delete $APP_PATH/public/ $PUBLIC_HTML/
+
+    # ---- 6. Create correct storage symlink ----
+    - rm -f $PUBLIC_HTML/storage
+    - ln -s $APP_PATH/storage/app/public $PUBLIC_HTML/storage
+
+    # ---- 7. Laravel optimize commands ----
+    #- $PHP artisan migrate --force || true
+    - $PHP artisan storage:link || true
+    - $PHP artisan optimize:clear
+    - $PHP artisan optimize
+
+    # ---- 8. Done ----
+    - echo "✅ Deployment completed successfully!"
