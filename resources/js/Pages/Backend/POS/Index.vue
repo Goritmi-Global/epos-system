@@ -42,7 +42,6 @@ const fetchMenuItems = async () => {
     try {
         const response = await axios.get("/api/pos/fetch-menu-items");
         menuItems.value = response.data;
-        console.log("Fetched menu items:", menuItems.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -74,6 +73,20 @@ const productsByCat = computed(() => {
     });
     return grouped;
 });
+
+
+
+// Functions
+const openDetailsModal = (item) => {
+    selectedItem.value = item;
+    modalQty.value = 0; // reset quantity if you want
+
+    // Use Bootstrap's modal API
+    const modal = new bootstrap.Modal(document.getElementById("chooseItem"));
+    modal.show();
+};
+
+
 
 // calculate menu stock
 const calculateMenuStock = (item) => {
@@ -292,7 +305,7 @@ const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
    Item modal
 -----------------------------*/
 const selectedItem = ref(null);
-const modalQty = ref(1);
+const modalQty = ref(0);
 const modalNote = ref("");
 let chooseItemModal = null;
 
@@ -354,7 +367,10 @@ const menuStockForSelected = computed(() =>
 
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
-
+    if (modalQty.value <= 0) {
+    toast.error("Please add at least one item.");
+    return;
+  }
     const ingredientStock = {}; // Track remaining stock per ingredient
 
     // 1️⃣ Initialize stock from current cart
@@ -389,8 +405,9 @@ const confirmAdd = async () => {
         // 3️⃣ If enough stock, add to cart
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
 
-        // 4️⃣ Close modal
-        if (chooseItemModal) chooseItemModal.hide();
+        // your add-to-cart logic
+        const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
+        modal.hide();
     } catch (err) {
         alert(
             "Failed to add item: " + (err.response?.data?.message || err.message)
@@ -626,7 +643,6 @@ function printReceipt(order) {
     const card = Number(plainOrder.cardAmount ?? plainOrder.cardPayment ?? 0);
     const change = Number(plainOrder.changeAmount ?? plainOrder.change ?? 0);
 
-    console.log("Printing receipt for order:", plainOrder);
     const type = (plainOrder?.payment_type || "").toLowerCase();
     let payLine = "";
 
@@ -1147,7 +1163,6 @@ watch(
 
 
 const handleKotStatusUpdated = ({ id, status, message }) => {
-    console.log("KOT updated:", id, status, message);
 
     kotData.value = kotData.value.map((kot) =>
         kot.id === id ? { ...kot, status } : kot
@@ -1212,7 +1227,6 @@ const selectedPromo = ref(null);
 
 // Update handleApplyPromo function
 const handleApplyPromo = (promo) => {
-    console.log("Applying promo:", promo);
     selectedPromo.value = promo;
 
     // Check if cart meets minimum purchase requirement
@@ -1395,7 +1409,6 @@ const decrementCardQty = (product) => {
     }
 };
 
-console.log("props data", page.props);
 </script>
 
 <template>
@@ -1632,7 +1645,7 @@ console.log("props data", page.props);
 
 
                             <div class="row g-3">
-                                <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
+                                <div class="col-12 col-md-6 col-xl-6 d-flex" v-for="p in filteredProducts"
                                     :key="p.title">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
@@ -1658,85 +1671,45 @@ console.log("props data", page.props);
                                             </span>
                                         </div>
 
-                                        <!-- Right Side (Details + Quantity Controls) - 60% -->
+                                      
+                                        <!-- Right Side (Details + Quantity Controls) -->
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0;">
-
-                                            <!-- Title and Family -->
                                             <div>
                                                 <div class="h5 fw-bold mb-1"
                                                     :style="{ color: p.label_color || '#1B1670' }">
                                                     {{ p.title }}
                                                 </div>
-                                                <div class="text-muted mb-3 small">
-                                                    {{ p.family }}
-                                                </div>
+                                                <div class="text-muted mb-3 small">{{ p.family }}</div>
 
-                                                <!-- Chips Section -->
-                                                <div class="chips small">
-                                                    <!-- Nutrition -->
-                                                    <div v-if="p.nutrition" class="mb-2">
-                                                        <strong class="d-block mb-1">Nutrition:</strong>
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            <span v-if="p.nutrition.calories" class="chip chip-orange">
-                                                                Cal: {{ p.nutrition.calories }}
-                                                            </span>
-                                                            <span v-if="p.nutrition.carbs" class="chip chip-green">
-                                                                Carbs: {{ p.nutrition.carbs }}
-                                                            </span>
-                                                            <span v-if="p.nutrition.fat" class="chip chip-purple">
-                                                                Fat: {{ p.nutrition.fat }}
-                                                            </span>
-                                                            <span v-if="p.nutrition.protein" class="chip chip-blue">
-                                                                Protein: {{ p.nutrition.protein }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                                <!-- View Details Button -->
+                                                <button class="btn btn-primary mb-2" @click="openDetailsModal(p)">
+                                                    View Details
+                                                </button>
 
-                                                    <!-- Allergies -->
-                                                    <div v-if="p.allergies?.length" class="mb-2">
-                                                        <strong class="d-block mb-1">Allergies:</strong>
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            <span v-for="(a, i) in p.allergies" :key="'a-' + i"
-                                                                class="chip chip-red">
-                                                                {{ a.name }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Tags -->
-                                                    <div v-if="p.tags?.length" class="mb-2">
-                                                        <strong class="d-block mb-1">Tags:</strong>
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            <span v-for="(t, i) in p.tags" :key="'t-' + i"
-                                                                class="chip chip-teal">
-                                                                {{ t.name }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </div>
 
-                                            <!-- Quantity Controls at Bottom Right -->
+                                            <!-- Quantity Controls -->
                                             <div v-if="(p.stock ?? 0) > 0"
                                                 class="mt-3 d-flex align-items-center justify-content-start gap-2"
                                                 @click.stop>
-                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4"
-                                                    style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"
-                                                    @click.stop="decrementCardQty(p)" :disabled="getCardQty(p) <= 0">
+                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
+                                                    style="width: 55px; height: 36px;" @click.stop="decrementCardQty(p)"
+                                                    :disabled="getCardQty(p) <= 0">
                                                     <strong>−</strong>
                                                 </button>
                                                 <div class="qty-box border rounded-pill px-4 py-2 text-center fw-semibold"
-                                                    style="min-width: 50px;">
+                                                    style="min-width: 55px;">
                                                     {{ getCardQty(p) }}
                                                 </div>
-                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4"
-                                                    style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"
-                                                    @click.stop="incrementCardQty(p)" :disabled="!canAddMore(p)">
+                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
+                                                    style="width: 55px; height: 36px;" @click.stop="incrementCardQty(p)"
+                                                    :disabled="!canAddMore(p)">
                                                     <strong>+</strong>
                                                 </button>
                                             </div>
                                         </div>
+
                                     </div>
                                 </div>
 
@@ -1935,7 +1908,7 @@ console.log("props data", page.props);
             </div>
 
             <!-- Choose Item Modal (unchanged content/ids) -->
-            <!-- <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
+            <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow">
                         <div class="modal-header border-0">
@@ -2036,7 +2009,7 @@ console.log("props data", page.props);
                         </div>
                     </div>
                 </div>
-            </div> -->
+            </div>
 
             <KotModal :show="showKotModal" :kot="kotData" :loading="kotLoading" @close="showKotModal = false"
                 @status-updated="handleKotStatusUpdated" />
@@ -2095,6 +2068,22 @@ console.log("props data", page.props);
     max-height: calc(100vh - 40px);
     overflow: hidden;
     z-index: 100;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+
+
+.dark .fw-bold {
+    color: #fff !important;
 }
 
 /* Add padding to the left column to prevent overlap */
@@ -2195,7 +2184,7 @@ console.log("props data", page.props);
 }
 
 .dark .modal-footer {
-    background-color: #181818;
+    background-color: #121212 !important;
 }
 
 .dark .alert {

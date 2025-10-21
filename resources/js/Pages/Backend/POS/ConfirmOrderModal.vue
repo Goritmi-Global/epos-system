@@ -33,7 +33,6 @@ const props = defineProps({
     promoType: { type: [String, null], default: null },
     promoDiscountAmount: { type: Number, default: 0 },
 });
-console.log(props.orderItems);
 const autoPrintKot = ref(false);
 const formErrors = ref({});
 
