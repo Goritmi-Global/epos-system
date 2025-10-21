@@ -12,7 +12,9 @@ import { useDark, useToggle, } from "@vueuse/core";
 import { Moon, Sun } from "lucide-vue-next";
 import { usePage } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
+import { router } from "@inertiajs/vue3";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
+import LogoutModal from "@/Components/LogoutModal.vue";
 /* =========================
    Sidebar structure (array)
    ========================= */
@@ -25,6 +27,14 @@ const handleSidebarAction = (action) => {
         showConfirmRestore.value = true;
         console.log('showConfirmRestore set to:', showConfirmRestore.value);
     }
+};
+
+
+const showLogoutModal = ref(false);
+
+const handleLogout = () => {
+    showLogoutModal.value = false;
+    router.post(route("logout"));
 };
 
 const handleSystemRestore = async () => {
@@ -136,7 +146,7 @@ const sidebarMenus = ref([
                         icon: "layers",
                         route: "menu-categories.index",
                     },
-                    { label: "Items", icon: "box", route: "menu.index" },
+                    { label: "Menus", icon: "box", route: "menu.index" },
                 ],
             },
             { label: "Sale", icon: "shopping-bag", route: "pos.order" },
@@ -163,12 +173,12 @@ const sidebarMenus = ref([
         children: [
             { label: "Settings", icon: "settings", route: "settings.index" },
             { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
-            {
-                label: "Log Out",
-                icon: "log-out",
-                route: "logout",
-                method: "post",
-            },
+            // {
+            //     label: "Log Out",
+            //     icon: "log-out",
+            //     route: "logout",
+            //     method: "post",
+            // },
         ],
     },
 ]);
@@ -416,10 +426,20 @@ onMounted(fetchNotifications);
                 <a class="btn btn-primary rounded-pill py-2 px-3" href="/pos/order">
                     Quick Order
                 </a>
+                <button class="btn btn-danger rounded-pill py-2 px-3 d-flex align-items-center"
+                    @click="showLogoutModal = true">
+                    Logout
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="feather feather-log-out ms-2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
 
-                <Link :href="route('logout')" method="post" as="button" class="btn btn-danger rounded-pill py-2 px-3">
-                 Logout
-                </Link>
+                <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" @confirm="handleLogout"
+                    @cancel="showLogoutModal = false" />
 
 
                 <li class="nav-item">
@@ -570,97 +590,89 @@ onMounted(fetchNotifications);
         <!-- =================== SIDEBAR =================== -->
         <!-- Replace your sidebar section in the template with this updated version -->
 
-<aside class="sidebar" id="sidebar" aria-label="Primary">
-    <div class="sidebar-inner">
-        <div id="sidebar-menu" class="sidebar-menu px-2">
-            <ul class="mb-3">
-                <template v-for="block in sidebarMenus" :key="block.label || block.section">
-                    <!-- Simple top item -->
-                    <li v-if="!block.section && hasPermission(block.route)"
-                        :class="{ active: isActive(block.route) }">
-                        <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                            <i :data-feather="block.icon" class="me-2 icons"></i>
-                            <span class="truncate-when-mini">{{ block.label }}</span>
-                        </Link>
-                    </li>
-
-                    <!-- Section -->
-                    <template v-else>
-                        <li class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini"
-                            v-if="block.section && block.children.some(child => hasPermission(child.route))">
-                            {{ block.section }}
-                        </li>
-
-                        <template v-for="item in block.children" :key="item.label">
-                            <!-- Dropdown group with PROPER HOVER STRUCTURE -->
-                            <li v-if="item.children && item.children.length && item.children.some(child => hasPermission(child.route))"
-                                class="dropdown-parent">
-                                <button 
-                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                                    :class="{ active: openGroups.has(item.label) || isAnyChildActive(item.children) }"
-                                    @click="toggleGroup(item.label)" 
-                                    type="button"
-                                    :title="item.label">
-                                    <i :data-feather="item.icon" class="me-2"></i>
-                                    <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label }}</span>
-                                    <i class="chevron-icon"
-                                        :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
-                                </button>
-
-                                <!-- SUBMENU - This will show on hover when collapsed -->
-                                <ul class="list-unstyled my-1 submenu-dropdown"
-                                    :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
-                                    <li v-for="child in item.children" :key="child.label"
-                                        v-if="hasPermission(child?.route)"
-                                        :class="{ active: isActive(child.route) }">
-                                        <Link :href="route(child.route)" :method="child.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2">
-                                            <i :data-feather="child.icon" class="me-2"></i>
-                                            <span>{{ child.label }}</span>
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li>
-
-                            <!-- Flat item -->
-                            <li v-else-if="item.route && hasPermission(item.route)"
-                                :class="{ active: item.route ? isActive(item.route) : false }"
-                                class="side-link">
-                                <Link :href="route(item.route)" :method="item.method || 'get'"
-                                    class="d-flex align-items-center side-link px-3 py-2"
-                                    :title="item.label">
-                                    <i :data-feather="item.icon" class="me-2"></i>
-                                    <span class="truncate-when-mini">{{ item.label }}</span>
+        <aside class="sidebar" id="sidebar" aria-label="Primary">
+            <div class="sidebar-inner">
+                <div id="sidebar-menu" class="sidebar-menu px-2">
+                    <ul class="mb-3">
+                        <template v-for="block in sidebarMenus" :key="block.label || block.section">
+                            <!-- Simple top item -->
+                            <li v-if="!block.section && hasPermission(block.route)"
+                                :class="{ active: isActive(block.route) }">
+                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
+                                <i :data-feather="block.icon" class="me-2 icons"></i>
+                                <span class="truncate-when-mini">{{ block.label }}</span>
                                 </Link>
                             </li>
 
-                            <!-- Action item (like System Restore) -->
-                            <li v-else-if="item.action" class="side-link">
-                                <button 
-                                    @click="handleSidebarAction(item.action)"
-                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
-                                    :title="item.label">
-                                    <i :data-feather="item.icon" class="me-2"></i>
-                                    <span class="truncate-when-mini">{{ item.label }}</span>
-                                </button>
-                            </li>
-                        </template>
-                    </template>
-                </template>
-            </ul>
-        </div>
-    </div>
-</aside>
+                            <!-- Section -->
+                            <template v-else>
+                                <li class="mt-3 mb-1 px-3 text-muted text-uppercase small section-title truncate-when-mini"
+                                    v-if="block.section && block.children.some(child => hasPermission(child.route))">
+                                    {{ block.section }}
+                                </li>
 
-<!-- Confirm Modal (keep outside sidebar) -->
-<ConfirmModal 
-    v-if="showConfirmRestore"
-    :title="'Confirm Restore'"
-    :message="`Are you sure you want to restore the system? This action cannot be undone.`"
-    :showConfirmRestore="showConfirmRestore" 
-    @confirm="handleSystemRestore"
-    @cancel="showConfirmRestore = false" 
-/>
+                                <template v-for="item in block.children" :key="item.label">
+                                    <!-- Dropdown group with PROPER HOVER STRUCTURE -->
+                                    <li v-if="item.children && item.children.length && item.children.some(child => hasPermission(child.route))"
+                                        class="dropdown-parent">
+                                        <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                            :class="{ active: openGroups.has(item.label) || isAnyChildActive(item.children) }"
+                                            @click="toggleGroup(item.label)" type="button" :title="item.label">
+                                            <i :data-feather="item.icon" class="me-2"></i>
+                                            <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
+                                            }}</span>
+                                            <i class="chevron-icon"
+                                                :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+                                        </button>
+
+                                        <!-- SUBMENU - This will show on hover when collapsed -->
+                                        <ul class="list-unstyled my-1 submenu-dropdown"
+                                            :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
+                                            <li v-for="child in item.children" :key="child.label"
+                                                v-if="hasPermission(child?.route)"
+                                                :class="{ active: isActive(child.route) }">
+                                                <Link :href="route(child.route)" :method="child.method || 'get'"
+                                                    class="d-flex align-items-center side-link px-3 py-2">
+                                                <i :data-feather="child.icon" class="me-2"></i>
+                                                <span>{{ child.label }}</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+
+                                    <!-- Flat item -->
+                                    <li v-else-if="item.route && hasPermission(item.route)"
+                                        :class="{ active: item.route ? isActive(item.route) : false }"
+                                        class="side-link">
+                                        <Link :href="route(item.route)" :method="item.method || 'get'"
+                                            class="d-flex align-items-center side-link px-3 py-2" :title="item.label">
+                                        <i :data-feather="item.icon" class="me-2"></i>
+                                        <span class="truncate-when-mini">{{ item.label }}</span>
+                                        </Link>
+                                    </li>
+
+                                    <!-- Action item (like System Restore) -->
+                                    <li v-else-if="item.action" class="side-link">
+                                        <button @click="handleSidebarAction(item.action)"
+                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
+                                            :title="item.label">
+                                            <i :data-feather="item.icon" class="me-2"></i>
+                                            <span class="truncate-when-mini">{{ item.label }}</span>
+                                        </button>
+                                    </li>
+                                </template>
+                            </template>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Confirm Modal (keep outside sidebar) -->
+        <ConfirmModal v-if="showConfirmRestore" :title="'Confirm Restore'"
+            :message="`Are you sure you want to restore the system? This action cannot be undone.`"
+            :showConfirmRestore="showConfirmRestore" @confirm="handleSystemRestore"
+            @cancel="showConfirmRestore = false" />
 
         <!-- Mobile overlay backdrop -->
         <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
@@ -763,37 +775,38 @@ onMounted(fetchNotifications);
 
 /* Show submenu on hover when sidebar is collapsed */
 .sidebar-collapsed .dropdown-parent:hover .submenu-dropdown {
-  display: block !important;
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(100%);
-  transition: all 0.2s ease;
+    display: block !important;
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(100%);
+    transition: all 0.2s ease;
 }
 
 /* Adjust submenu positioning */
 .sidebar-collapsed .submenu-dropdown {
-  position: absolute;
-  top: 0;
-  left: 100%;
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  min-width: 200px;
-  display: none;
-  opacity: 0;
-  visibility: hidden;
-  z-index: 1000;
+    position: absolute;
+    top: 0;
+    left: 100%;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    min-width: 200px;
+    display: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 1000;
 }
 
 /* Style links inside submenu */
 .sidebar-collapsed .submenu-dropdown a {
-  padding: 8px 15px;
-  display: block;
-  color: #333;
-  text-decoration: none;
+    padding: 8px 15px;
+    display: block;
+    color: #333;
+    text-decoration: none;
 }
+
 .sidebar-collapsed .submenu-dropdown a:hover {
-  background-color: #f5f5f5;
+    background-color: #f5f5f5;
 }
 
 
