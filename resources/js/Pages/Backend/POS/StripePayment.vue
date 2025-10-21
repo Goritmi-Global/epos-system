@@ -45,6 +45,7 @@ const props = defineProps({
   serviceCharges: Number,
   deliveryCharges: Number,
   note: [String, null],
+  kitchenNote: [String, null],
   orderDate: String,
   orderTime: String,
   paymentMethod: String,
@@ -233,6 +234,7 @@ async function pay() {
     delivery_charges: String(props.deliveryCharges ?? 0),
 
     note: props.note ?? "",
+    kitchen_note: props.kitchenNote ?? "",
     order_date: props.orderDate ?? new Date().toISOString().split("T")[0],
     order_time: props.orderTime ?? new Date().toTimeString().split(" ")[0],
     order_type:
@@ -256,6 +258,7 @@ async function pay() {
         quantity: it.qty,
         price: it.price,
         note: it.note ?? null,
+        kitchen_note: it.kitchenNote ?? null,
       }))
     ),
   });

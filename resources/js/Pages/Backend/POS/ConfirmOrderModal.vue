@@ -22,6 +22,7 @@ const props = defineProps({
     serviceCharges: Number,
     deliveryCharges: Number,
     note: [String, null],
+    kitchenNote: [String, null],
     orderDate: String,
     orderTime: String,
     paymentMethod: String,
@@ -241,6 +242,14 @@ function handleCardConfirm(payload) {
                                                                         item.note
                                                                     }}
                                                                 </div>
+                                                                <div v-if="
+                                                                    item.kitchen_note
+                                                                " class="small text-muted">
+                                                                    Kitchen Note:
+                                                                    {{
+                                                                        item.kitchen_note
+                                                                    }}
+                                                                </div>
                                                             </td>
                                                             <td class="text-center">
                                                                 {{ item.qty }}
@@ -396,7 +405,8 @@ function handleCardConfirm(payload) {
                                             :tax="tax ?? 0"
                                             :serviceCharges="serviceCharges ?? 0" 
                                             :deliveryCharges="deliveryCharges ?? 0" 
-                                            :note="note" 
+                                            :note="note"
+                                            :kitchen-note="kitchenNote"
                                             :orderDate="orderDate ?? new Date().toISOString().split('T')[0]" 
                                             :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
                                             :paymentMethod="paymentMethod" 
@@ -458,6 +468,7 @@ function handleCardConfirm(payload) {
                                             :serviceCharges="serviceCharges ?? 0" 
                                             :deliveryCharges="deliveryCharges ?? 0"
                                             :note="note" 
+                                            :kitchen-note="kitchenNote"
                                             :orderDate="orderDate ?? new Date().toISOString().split('T')[0]" 
                                             :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
                                             :paymentMethod="paymentMethod" 

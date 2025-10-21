@@ -22,6 +22,7 @@ const props = defineProps({
   serviceCharges: Number,
   deliveryCharges: Number,
   note: [String, null],
+  kitchenNote: [String, null],
   orderDate: String,
   orderTime: String,
   paymentMethod: String,        
@@ -224,6 +225,7 @@ function confirmSplit() {
         :serviceCharges="serviceCharges ?? 0"
         :deliveryCharges="deliveryCharges ?? 0"
         :note="note"
+        :kitchen-note="kitchenNote"
         :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
         :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
 

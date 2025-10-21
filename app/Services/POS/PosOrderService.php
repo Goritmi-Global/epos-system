@@ -44,6 +44,7 @@ class PosOrderService
                 'delivery_charges' => $data['delivery_charges'] ?? null,
                 'status' => $data['status'] ?? 'paid',
                 'note' => $data['note'] ?? null,
+                'kitchen_note' => $data['kitchen_note'] ?? null,
                 'order_date' => $data['order_date'] ?? now()->toDateString(),
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
@@ -64,6 +65,7 @@ class PosOrderService
                     'quantity'     => $item['quantity'],
                     'price'        => $item['price'],
                     'note'         => $item['note'] ?? null,
+                    'kitchen_note' => $item['kitchen_note'] ?? null,
                 ]);
 
 
@@ -106,6 +108,7 @@ class PosOrderService
                 'order_time'        => now()->toTimeString(),
                 'order_date'        => now()->toDateString(),
                 'note'              => $data['note'] ?? null,
+                'kitchen_note'      => $data['kitchen_note'] ?? null,
             ]);
 
             foreach ($order->items as $orderItem) {

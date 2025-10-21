@@ -22,6 +22,7 @@ class StorePosOrderRequest extends FormRequest
             'delivery_charges' => 'nullable|numeric|min:0',
             'status'           => 'nullable|string|in:paid,unpaid,pending,cancelled',
             'note'             => 'nullable|string',
+            'kitchen_note'     => 'nullable|string',
             'order_date'       => 'nullable|date',
             'order_time'       => 'nullable',
 
@@ -41,6 +42,7 @@ class StorePosOrderRequest extends FormRequest
             'items.*.quantity'  => 'required|numeric|min:1',
             'items.*.price'     => 'required|numeric|min:0',
             'items.*.note'      => 'nullable|string',
+            'items.*.kitchen_note' => 'nullable|string',
             
             // KOT validations
             'auto_print_kot' => 'nullable|boolean',
