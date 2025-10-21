@@ -161,6 +161,11 @@ async function finish() {
 async function goNext(stepData) {
   formErrors.value = {}
 
+  // prevent double-clicks
+  if (isSaving.value) return;
+
+  isSaving.value = true;
+
   try {
     let payload;
 
@@ -168,8 +173,6 @@ async function goNext(stepData) {
     if ((current.value === 2 && stepData.logo_file) ||
       (current.value === 6 && stepData.receipt_logo_file)) {
       payload = new FormData();
-
-      // Append all fields
       Object.keys(stepData).forEach(key => {
         if (stepData[key] !== null && stepData[key] !== undefined) {
           payload.append(key, stepData[key]);
@@ -182,7 +185,6 @@ async function goNext(stepData) {
     const { data } = await axios.post(
       `/onboarding/step/${current.value}`,
       payload,
-      // Send as multipart/form-data if we have files
       ((current.value === 2 && stepData.logo_file) ||
         (current.value === 6 && stepData.receipt_logo_file)) ? {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -206,6 +208,8 @@ async function goNext(stepData) {
       toast.error("An unexpected error occurred.")
       console.error(err)
     }
+  } finally {
+    isSaving.value = false; // ✅ always re-enable button
   }
 }
 
@@ -232,7 +236,7 @@ async function goNext(stepData) {
           </div>
         </div>
         <small class="fw-semibold">{{ current }}/{{ steps.length }}</small>
-           <button style="border-radius: 50%; " class="btn btn-sm btn-outline-secondary py-2" @click="toggleDark()">
+        <button style="border-radius: 50%; " class="btn btn-sm btn-outline-secondary py-2" @click="toggleDark()">
           <Moon v-if="isDark" :size="20" />
           <Sun v-else :size="20" />
         </button>
@@ -266,19 +270,27 @@ async function goNext(stepData) {
           </div>
 
           <div class="wizard-footer footer d-flex justify-content-end gap-2 p-3">
-            <button class="btn btn-secondary py-2 px-4" :disabled="current === 1"
-              @click="current--">Back</button>
+            <button class="btn btn-secondary py-2 px-4" :disabled="current === 1" @click="current--">Back</button>
 
-            <button v-if="current < steps.length" class="btn btn-primary rounded-pill px-4 py-2" @click="goNext(profile)">
+            <button v-if="current < steps.length" class="btn btn-primary rounded-pill px-4 py-2"
+              @click="goNext(profile)">
               Next
             </button>
 
 
 
-            <button v-else class="btn btn-success rounded-pill px-4" @click="finish" :disabled="isSaving">
-              <span v-if="isSaving">Saving...</span>
+            <button v-else
+              class="btn btn-success rounded-pill px-4 d-flex align-items-center justify-content-center gap-2"
+              @click="finish" :disabled="isSaving">
+              <span v-if="isSaving" class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm text-light me-2" role="status"
+                  style="width: 1rem; height: 1rem;"></div>
+                Saving...
+              </span>
+
               <span v-else>Finish & Save</span>
             </button>
+
 
           </div>
         </div>
@@ -292,58 +304,58 @@ async function goNext(stepData) {
   --brand: #1C0D82;
 }
 
-.dark .steps-nav{
-   background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+.dark .steps-nav {
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 .dark .icons {
   color: #fff;
 }
 
-.btn{
-      border-radius: 10px !important;
-    height: 42px !important;
-    font-size: 16px !important;
+.btn {
+  border-radius: 10px !important;
+  height: 42px !important;
+  font-size: 16px !important;
 }
 
-.dark .onboarding-wrapper{
-   background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+.dark .onboarding-wrapper {
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 /* style for daek mode  */
 .dark .modal-body {
-    background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 .dark .modal-header {
-    background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 
 .dark input {
-    background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 .dark textarea {
-    background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 .dark .select {
-    background-color: #181818 !important;
-    /* gray-800 */
-    color: #f9fafb !important;
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #f9fafb !important;
 }
 
 .dark h4 {
@@ -359,39 +371,39 @@ async function goNext(stepData) {
 }
 
 .dark .card {
-    background-color: #181818 !important;
-    /* gray-800 */
-    color: #ffffff !important;
-    /* gray-50 */
+  background-color: #181818 !important;
+  /* gray-800 */
+  color: #ffffff !important;
+  /* gray-50 */
 }
 
 .dark .table {
-    background-color: #181818 !important;
-    /* gray-900 */
-    color: #f9fafb !important;
+  background-color: #181818 !important;
+  /* gray-900 */
+  color: #f9fafb !important;
 }
 
 .dark .table thead {
-    background-color: #181818;
-    color: #f9fafb;
+  background-color: #181818;
+  color: #f9fafb;
 }
 
 .dark .table thead th {
-    background-color: #181818;
-    color: #f9fafb;
+  background-color: #181818;
+  color: #f9fafb;
 }
 
 .dark .table tbody td {
-    background-color: #181818;
-    color: #f9fafb;
+  background-color: #181818;
+  color: #f9fafb;
 }
 
 html.dark {
-    --brand: #ffffff;
-    --bg-muted: #212121;
-    --border: #212121;
-    background: #181818;
-    color: #f9fafb;
+  --brand: #ffffff;
+  --bg-muted: #212121;
+  --border: #212121;
+  background: #181818;
+  color: #f9fafb;
 }
 
 html.dark .page-wrapper {
@@ -426,21 +438,21 @@ html.dark .main {
 }
 
 .dark .dash-widget {
-    background-color: #181818 !important;
-    ;
-    color: #ffffff;
+  background-color: #181818 !important;
+  ;
+  color: #ffffff;
 }
 
 .dark .dash-widgetcontent h5 {
-    background-color: #181818 !important;
-    ;
-    color: #ffffff;
+  background-color: #181818 !important;
+  ;
+  color: #ffffff;
 }
 
 .dark .dash-widgetcontent h6 {
-    background-color: #181818 !important;
-    ;
-    color: #ffffff;
+  background-color: #181818 !important;
+  ;
+  color: #ffffff;
 }
 
 .onboarding-wrapper {
@@ -532,10 +544,10 @@ html.dark .main {
   border-bottom-right-radius: 1rem;
 }
 
-.dark .wizard-footer{
- 
-   flex: 0 0 auto;
-  background:  #181818;
+.dark .wizard-footer {
+
+  flex: 0 0 auto;
+  background: #181818;
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
 
