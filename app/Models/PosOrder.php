@@ -17,6 +17,7 @@ class PosOrder extends Model
         'delivery_charges',
         'status',
         'note',
+        'kitchen_note',
         'order_date',
         'order_time',
     ];

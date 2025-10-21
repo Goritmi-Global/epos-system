@@ -164,6 +164,7 @@ class PosOrderController extends Controller
             'delivery_charges' => (float) $request->query('delivery_charges', 0),
             'status'           => 'paid',
             'note'             => $request->query('note'),
+            'kitchen_note'     => $request->query('kitchen_note'),
             'order_date'       => $request->query('order_date', now()->toDateString()),
             'order_time'       => $request->query('order_time', now()->toTimeString()),
             'order_type'       => $request->query('order_type'),
