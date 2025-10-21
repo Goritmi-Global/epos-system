@@ -1,6 +1,6 @@
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref, onMounted, watch, nextTick } from "vue";
+import { ref, onMounted, watch, nextTick, onUnmounted } from "vue";
 import { toast } from "vue3-toastify";
 import { usePage } from "@inertiajs/vue3";
 import VerifyOtpModal from "@/Components/VerifyOtpModal.vue";
@@ -60,6 +60,36 @@ watch(() => form.pin, (val) => {
     }
 });
 
+
+// Keyboard support for PIN keypad
+onMounted(() => {
+    window.addEventListener("keydown", handleKeyPress);
+});
+
+onUnmounted(() => {
+    window.removeEventListener("keydown", handleKeyPress);
+});
+
+function handleKeyPress(e) {
+    const key = e.key;
+
+    // ✅ Allow numeric keys
+    if (/^[0-9]$/.test(key)) {
+        addDigit(key);
+    }
+
+    // ✅ Handle Backspace and Delete keys
+    if (key === "Backspace" || key === "Delete") {
+        removeDigit();
+    }
+
+    // ✅ Handle 'R' key for reset/clear
+    if (key.toLowerCase() === "r") {
+        clearPin();
+    }
+}
+
+
 const submit = () => {
     form.post(route("login"), {
         preserveScroll: true,
@@ -75,7 +105,7 @@ const submit = () => {
             form.errors.email = errors.email;
             form.errors.password = errors.password;
             form.errors.pin = errors.pin;
-            
+
             // Clear PIN on error
             if (errors.pin && loginMethod.value === 'pin') {
                 clearPin();
@@ -138,6 +168,7 @@ const switchToPin = () => {
 </script>
 
 <template>
+
     <Head title="Login" />
     <div class="account-page">
         <div class="main-wrapper">
@@ -145,15 +176,17 @@ const switchToPin = () => {
                 <div class="login-wrapper">
                     <div class="login-content">
                         <div class="login-userset">
-                            <div class="login-logo d-flex justify-content-center mb-4">
-                                <img src="/assets/img/10x Global.png" alt="img" class="logo-img" />
+                            <div class="login-logo-wrapper">
+                                <div class="login-logo">
+                                    <img src="/assets/img/10x Global.png" alt="img" class="logo-img" />
+                                </div>
                             </div>
 
                             <!-- PIN Login Method -->
                             <div v-if="loginMethod === 'pin'" class="pin-login-container">
                                 <div class="login-userheading text-center">
                                     <h3>Quick PIN Login</h3>
-                                    <p class="text-muted mb-4">Enter your 4-digit PIN</p>
+                                    <p class="text-muted">Enter your 4-digit PIN</p>
                                 </div>
 
                                 <!-- PIN Display -->
@@ -285,10 +318,10 @@ const switchToPin = () => {
             </div>
 
             <!-- Global Loading Spinner -->
-<div v-if="form.processing" class="loading-overlay">
-  <div class="spinner"></div>
-  <p class="loading-text">Logging you in...</p>
-</div>
+            <div v-if="form.processing" class="loading-overlay">
+                <div class="spinner"></div>
+                <p class="loading-text">Logging you in...</p>
+            </div>
 
         </div>
     </div>
@@ -302,16 +335,26 @@ const switchToPin = () => {
 </template>
 
 <style scoped>
-/* Logo Styles */
+
+
+/* Logo Styles - CENTERED */
+.login-logo-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* margin-bottom: 8px !important; */
+}
+
 .login-logo {
-    margin-bottom: 2rem;
+    text-align: center;
 }
 
 .logo-img {
-    max-width: 200px;
+    max-width: 80px;
     height: auto;
-    width: 100%;
-    margin-left: 550px;
+    margin: 0 auto;
+    display: block;
 }
 
 @media (max-width: 768px) {
@@ -319,55 +362,56 @@ const switchToPin = () => {
         max-width: 160px;
     }
 }
+
 .loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.8);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  backdrop-filter: blur(2px);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(2px);
 }
 
 .dark .loading-overlay {
-  background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.7);
 }
 
 .spinner {
-  width: 60px;
-  height: 60px;
-  border: 6px solid #ddd;
-  border-top-color: #0d6efd;
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
+    width: 60px;
+    height: 60px;
+    border: 6px solid #ddd;
+    border-top-color: #0d6efd;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
 }
 
 .loading-text {
-  margin-top: 1rem;
-  font-weight: 500;
-  color: #333;
+    margin-top: 1rem;
+    font-weight: 500;
+    color: #333;
 }
 
 .dark .loading-text {
-  color: #fff;
+    color: #fff;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 
 /* PIN Login Styles */
-.pin-login-container {
+/* .pin-login-container {
     padding: 20px 0;
-}
+} */
 
 .pin-display-container {
     margin: 30px 0;
@@ -376,7 +420,7 @@ const switchToPin = () => {
 .pin-dots {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 10px;
     margin-bottom: 10px;
 }
 
@@ -424,8 +468,8 @@ const switchToPin = () => {
 }
 
 .keypad-btn {
-    width: 70px;
-    height: 70px;
+    width: 60px;
+    height: 60px;
     border: none;
     border-radius: 50%;
     background: #f8f9fa;
@@ -711,4 +755,6 @@ const switchToPin = () => {
         font-size: 1rem;
     }
 }
+
+
 </style>
