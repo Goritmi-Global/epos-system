@@ -502,7 +502,7 @@ const suppliersCount = computed(() => {
           </button>
         </div>
 
-        
+
       </div>
       <div class="row">
         <!-- Dashboard cards (keeping your existing structure) -->
@@ -732,13 +732,14 @@ const suppliersCount = computed(() => {
         </div>
 
         <!-- Reminder Picker (shown when user clicks remind me) -->
-        <div v-if="showReminderPicker" class="bg-gray-100 border-2 border-green-300 rounded-xl p-5 m-4">
-          <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+        <div v-if="showReminderPicker" class="bg-gray-100 border-2 border-green-300 rounded-xl p-4 m-4">
+          <h3 class="text-lg font-bold mb-3 flex items-center justify-center gap-2 text-center">
             <i class="bi bi-alarm-fill" style="color: #1C0D82 !important;"></i>
             Set Reminder
           </h3>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+          <div class="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
               <VueDatePicker v-model="reminderDate" :format="dateFmt" :min-date="new Date()" teleport="body"
@@ -881,7 +882,9 @@ const suppliersCount = computed(() => {
         </div>
 
         <!-- Footer -->
-        <div v-if="!showReminderPicker" class="flex justify-between border-t border-gray-100 bg-gray-50 px-6 py-3">
+        <div v-if="!showReminderPicker"
+          class="flex justify-between border-t border-gray-100 bg-gray-50 px-6 py-3 mt-auto"
+          :class="{ 'justify-end': !hasAnyAlerts }">
           <button @click="openReminderPicker"
             class="btn btn-primary text-white px-4 py-1 rounded-pill hover:bg-indigo-800 transition">
             Remind Me
@@ -895,6 +898,7 @@ const suppliersCount = computed(() => {
             Dismiss
           </button>
         </div>
+
       </div>
     </div>
 
@@ -925,11 +929,12 @@ const suppliersCount = computed(() => {
 }
 
 
-.dark .btn-white{
+.dark .btn-white {
   background-color: #181818 !important;
   border: 1px solid #fff !important;
   color: #fff !important;
 }
+
 .dark .text-gray-500 {
   color: #fff !important;
 }
