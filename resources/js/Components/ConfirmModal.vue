@@ -77,7 +77,7 @@
                             Yes, I'm sure
                         </button>
                         <button @click="handleCancel"
-                            class="btn btn-secondary d-flex align-items-center gap-1  px-2 py-2 rounded-pill btn btn-secondary text-white">
+                            class="btn btn-secondary d-flex align-items-center gap-1  px-3 py-2 rounded-pill btn btn-secondary text-white">
                             Cancel
                         </button>
                     </div>
@@ -156,6 +156,7 @@ const handleCancel = () => {
 .dark .bg-white {
     background-color: #212121 !important;
     color: #fff !important;
+    border: 1px solid #fff !important;
 
 }
 

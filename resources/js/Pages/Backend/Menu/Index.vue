@@ -271,13 +271,13 @@ const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
 const defaultMenuFilters = {
-  sortBy: "",
-  category: "",
-  status: "",
-  priceMin: null,
-  priceMax: null,
-  dateFrom: "",
-  dateTo: "",
+    sortBy: "",
+    category: "",
+    status: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: "",
+    dateTo: "",
 };
 
 const filters = ref({ ...defaultMenuFilters });
@@ -380,7 +380,7 @@ const handleFilterApply = (appliedFilters) => {
 };
 
 const handleFilterClear = () => {
-   filters.value = { ...defaultMenuFilters };
+    filters.value = { ...defaultMenuFilters };
 };
 
 /* ===================== KPIs ===================== */
@@ -1494,15 +1494,26 @@ const handleImport = (data) => {
     class="text-lg"
   ></i> -->
                                             <!-- </button> -->
+                                            <ConfirmModal :title="'Confirm Status Change'"
+                                                :message="`Are you sure you want to ${item.status === 1 ? 'deactivate' : 'activate'} this item?`"
+                                                :showStatusButton="true"
+                                                :status="item.status === 1 ? 'active' : 'inactive'"
+                                                @confirm="() => toggleStatus(item)">
+                                                <template #trigger>
+                                                    <!-- Toggle Switch (same design as Promos) -->
+                                                    <button
+                                                        class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
+                                                        :class="item.status === 1 ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500'"
+                                                        :title="item.status === 1 ? 'Set Inactive' : 'Set Active'">
+                                                        <!-- Circle -->
+                                                        <span
+                                                            class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
+                                                            :class="item.status === 1 ? 'translate-x-4' : 'translate-x-0'"></span>
+                                                    </button>
+                                                </template>
+                                            </ConfirmModal>
 
-                                            <ConfirmModal :title="'Confirm Status'" :message="`Are you sure you want to change status to ${item.status === 1
-                                                ? 'Inactive'
-                                                : 'Active'
-                                                }?`" :showDeleteButton="true" @confirm="
-                                                    () => {
-                                                        toggleStatus(item);
-                                                    }
-                                                " @cancel="() => { }" />
+
                                         </div>
                                     </td>
                                 </tr>
@@ -2025,6 +2036,10 @@ ing, idx
 
 :global(.dark .p-multiselect-empty-message) {
     color: #fff !important;
+}
+
+.dark .bg-white{
+    border: 1px solid #fff !important;
 }
 
 .dark .table {
