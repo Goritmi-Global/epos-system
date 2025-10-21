@@ -269,15 +269,18 @@ const q = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
-const filters = ref({
-    sortBy: "",
-    category: "",
-    status: "",
-    priceMin: null,
-    priceMax: null,
-    dateFrom: "",
-    dateTo: "",
-});
+
+const defaultMenuFilters = {
+  sortBy: "",
+  category: "",
+  status: "",
+  priceMin: null,
+  priceMax: null,
+  dateFrom: "",
+  dateTo: "",
+};
+
+const filters = ref({ ...defaultMenuFilters });
 
 //  Use menuItems here
 const filteredItems = computed(() => {
@@ -377,8 +380,7 @@ const handleFilterApply = (appliedFilters) => {
 };
 
 const handleFilterClear = () => {
-    console.log("Filters cleared");
-    // Additional logic if needed
+   filters.value = { ...defaultMenuFilters };
 };
 
 /* ===================== KPIs ===================== */

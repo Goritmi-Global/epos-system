@@ -29,14 +29,16 @@ const categories = ref([]);
 const editingCategory = ref(null);
 const manualSubcategories = ref([]);
 
-const filters = ref({
+const defaultCategoryFilters = {
     sortBy: "",
     status: "",
     hasSubcategories: "",
     stockStatus: "",
     valueMin: null,
     valueMax: null,
-});
+};
+
+const filters = ref({ ...defaultCategoryFilters });
 
 const fetchCategories = async () => {
     try {
@@ -222,8 +224,7 @@ const handleFilterApply = (appliedFilters) => {
 };
 
 const handleFilterClear = () => {
-    console.log("Filters cleared");
-    // Additional logic if needed
+    filters.value = { ...defaultCategoryFilters };
 };
 
 /* ---------------- Helpers ---------------- */

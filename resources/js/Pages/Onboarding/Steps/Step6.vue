@@ -19,6 +19,7 @@ const form = reactive({
   tax_breakdown: props.model?.tax_breakdown ?? true,
   store_phone: props.model?.phone ?? "",
   store_name: props.model?.receipt_header ?? "Enter store name",
+  address: props.model?.address ?? "xyz",
   customer_printer: props.model?.customer_printer ?? "",
   kot_printer: props.model?.kot_printer ?? "",
 });
@@ -204,14 +205,19 @@ onMounted(fetchPrinters);
           <div class="text-center">
             <!-- <div class="text-center small"> {{ form.receipt_header }} </div> -->
             <div v-if="form.receipt_logo" class="mb-2 logo-container">
-              <img :src="form.receipt_logo" alt class="logo-preview" />
+              <img :src="form.receipt_logo" alt class="logo-preview rounded-circle" />
             </div>
 
             <h6 class="mb-1">{{ form.receipt_header }}</h6>
-            <div class="text-muted small"> {{ new Date().toLocaleString() }} </div>
-            <div class="text-center my-2">
-              <div class="badge-pill">{{ form.store_phone }}</div>
+             <div class="text-center my-2">
+              <!-- class="badge-pill" -->
+              <div >{{ form.store_phone }}</div>
             </div>
+             <div class="text-center my-2">
+              <div >{{ form.address }}</div>
+            </div>
+            <div class="text-muted small"> {{ new Date().toLocaleString() }} </div>
+           
           </div>
           <hr class="my-2" />
           <div class="small">

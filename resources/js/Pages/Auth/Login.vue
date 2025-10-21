@@ -283,6 +283,13 @@ const switchToPin = () => {
                     </div>
                 </div>
             </div>
+
+            <!-- Global Loading Spinner -->
+<div v-if="form.processing" class="loading-overlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Logging you in...</p>
+</div>
+
         </div>
     </div>
 
@@ -312,6 +319,50 @@ const switchToPin = () => {
         max-width: 160px;
     }
 }
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+.dark .loading-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid #ddd;
+  border-top-color: #0d6efd;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+.loading-text {
+  margin-top: 1rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.dark .loading-text {
+  color: #fff;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 
 /* PIN Login Styles */
 .pin-login-container {

@@ -222,7 +222,7 @@
               </button>
               <button
                 type="button"
-                class="btn btn-secondary rounded-pill px-4 ms-2"
+                class="btn btn-secondary rounded-pill px-2 py-2"
                 @click="clearAllFilters"
               >
                 <i class="fas fa-undo me-2"></i>Clear
@@ -466,6 +466,7 @@ onMounted(() => {
   font-size: 0.75rem;
   font-weight: 500;
 }
+
 
 .form-label {
   margin-bottom: 0.5rem;
