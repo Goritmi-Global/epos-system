@@ -527,12 +527,14 @@ const resetCart = () => {
     selectedTable.value = null;
     orderType.value = orderTypes.value[0] || "dine_in";
     note.value = "";
+    kitchenNote.value = "";
     deliveryPercent.value = 0;
     selectedPromo.value = null; // Clear promo
 };
 watch(orderType, () => (formErrors.value = {}));
 
 const note = ref("");
+const kitchenNote = ref("");
 const showReceiptModal = ref(false);
 const lastOrder = ref(null);
 const showConfirmModal = ref(false);
@@ -741,6 +743,7 @@ function printReceipt(order) {
             ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>`
             : ""
         }
+        
         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
       </div>
 
@@ -815,8 +818,9 @@ function printReceipt(order) {
     w.document.write(html);
     w.document.close();
     w.onload = () => {
+        w.focus();
         w.print();
-        w.close();
+        w.onafterprint = () => w.close();
     };
 }
 
@@ -932,6 +936,8 @@ function printKot(order) {
         <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"}</span></div>
         <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"}</span></div>
         ${plainOrder.note ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>` : ""}
+        ${plainOrder.kitchen_note
+            ? `<div class="row"><span class="label">Kitchen Note:</span><span class="value">${plainOrder.kitchen_note}</span></div>` : ""}
         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
       </div>
 
@@ -985,8 +991,9 @@ function printKot(order) {
     w.document.write(html);
     w.document.close();
     w.onload = () => {
+        w.focus();
         w.print();
-        w.close();
+        w.onafterprint = () => w.close();
     };
 }
 
@@ -1018,6 +1025,7 @@ const confirmOrder = async ({
             service_charges: 0,
             delivery_charges: deliveryCharges.value,
             note: note.value,
+            kitchen_note: kitchenNote.value,
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
             order_type:
@@ -1049,6 +1057,7 @@ const confirmOrder = async ({
                 quantity: it.qty,
                 price: it.price,
                 note: it.note ?? "",
+                kitchen_note: kitchenNote.value ?? "",
                 unit_price: it.unit_price,
             })),
         };
@@ -1073,7 +1082,7 @@ const confirmOrder = async ({
         if (autoPrintKot) {
             kotData.value = await openPosOrdersModal();
             printKot(JSON.parse(JSON.stringify(lastOrder.value)));
-            showKotModal.value = true;
+            // showKotModal.value = true;
         }
 
         // Print receipt immediately
@@ -1896,8 +1905,20 @@ console.log("props data", page.props);
                                 <!-- <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
                                     placeholder="Note"></textarea> -->
 
-                                <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
-                                    placeholder="Note"></textarea>
+                                <div class="mb-3">
+                                    <label for="frontNote" class="form-label small fw-semibold">Front Note</label>
+                                    <textarea id="frontNote" v-model="note" rows="3"
+                                        class="form-control form-control-sm rounded-3"
+                                        placeholder="Enter front note..."></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="kitchenNote" class="form-label small fw-semibold">Kitchen Note</label>
+                                    <textarea id="kitchenNote" v-model="kitchenNote" rows="3"
+                                        class="form-control form-control-sm rounded-3"
+                                        placeholder="Enter kitchen note..."></textarea>
+                                </div>
+
                             </div>
 
                             <div class="cart-footer">
@@ -2039,7 +2060,7 @@ console.log("props data", page.props);
                 :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="deliveryCharges"
                 :promo-discount="promoDiscount" :promo-id="selectedPromo?.id" :promo-name="selectedPromo?.name"
                 :promo-type="selectedPromo?.type" :promo-discount-amount="promoDiscount" :note="note"
-                :order-date="new Date().toISOString().split('T')[0]"
+                :kitchen-note="kitchenNote" :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
                 :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
 
@@ -2059,6 +2080,7 @@ console.log("props data", page.props);
     background-color: #181818;
     color: #fff;
 }
+
 /* Add this CSS to make the cart fixed on scroll */
 
 /* Make the cart column fixed */
@@ -2066,7 +2088,8 @@ console.log("props data", page.props);
     position: fixed;
     right: 0;
     top: 85px;
-    width: 28%; /* lg-4 column width */
+    width: 28%;
+    /* lg-4 column width */
     padding-right: 15px;
     padding-left: 15px;
     max-height: calc(100vh - 40px);

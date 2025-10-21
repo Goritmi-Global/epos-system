@@ -25,6 +25,7 @@ return new class extends Migration
 
             $table->string('status')->default('paid');
             $table->text('note')->nullable();
+            $table->text('kitchen_note')->nullable();
 
             $table->date('order_date')->nullable();
             $table->time('order_time')->nullable();

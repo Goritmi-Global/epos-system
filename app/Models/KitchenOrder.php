@@ -15,6 +15,7 @@ class KitchenOrder extends Model
         'order_time',
         'order_date',
         'note',
+        'kitchen_note',
     ];
 
     const STATUS_WAITING   = 'Waiting';

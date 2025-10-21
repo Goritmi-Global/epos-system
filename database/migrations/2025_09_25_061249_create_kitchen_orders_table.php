@@ -17,6 +17,7 @@ return new class extends Migration
             $table->time('order_time');
             $table->date('order_date');
             $table->text('note')->nullable();
+            $table->text('kitchen_note')->nullable();
             $table->timestamps();
         });
     }
