@@ -199,6 +199,8 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::get('/{menu}', [MenuController::class, 'show'])->name('show');
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
+      Route::patch('/{menu}/status', [MenuController::class, 'toggleStatus'])->name('toggleStatus');
+
     });
 
     /* -------- Menu Categories -------- */
