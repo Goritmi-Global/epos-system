@@ -123,7 +123,7 @@ const types = [
   { key: 'dine_in', label: 'Dine-in', variant: 'default' },
   { key: 'takeaway', label: 'Takeaway', variant: 'primary' },
   { key: 'delivery', label: 'Delivery', variant: 'success' },
-  { key: 'collection', label: 'Collection', variant: 'warning' }
+  // { key: 'collection', label: 'Collection', variant: 'warning' }
 ]
 
 const hasTableDetailsError = computed(() => {
