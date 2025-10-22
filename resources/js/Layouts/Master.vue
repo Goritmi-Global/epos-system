@@ -34,6 +34,25 @@ const handleSidebarAction = (action) => {
 const showLogoutModal = ref(false);
 const showRestoreModal = ref(false);
 
+const isFullscreen = ref(false);
+
+const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        isFullscreen.value = true;
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+            isFullscreen.value = false;
+        }
+    }
+};
+
+// Optional: Listen to ESC or manual exit
+document.addEventListener("fullscreenchange", () => {
+    isFullscreen.value = !!document.fullscreenElement;
+});
+
 const handleLogout = () => {
     showLogoutModal.value = false;
     router.post(route("logout"));
@@ -440,7 +459,14 @@ onMounted(fetchNotifications);
                     </svg>
                 </button>
 
-             
+
+                <li class="nav-item">
+                    <button class="icon-btn" @click="toggleFullscreen" title="Toggle Fullscreen">
+                        <i :data-feather="isFullscreen ? 'minimize' : 'maximize'"></i>
+                    </button>
+                </li>
+
+
 
                 <li class="nav-item">
                     <button class="icon-btn" @click="toggleDark()">
@@ -669,17 +695,12 @@ onMounted(fetchNotifications);
         </aside>
 
         <!-- Confirm Modal (keep outside sidebar) -->
-          <RestoreSystemModal 
-            v-if="showRestoreModal" 
-            :show="showRestoreModal"
-            title="Confirm System Restore"
+        <RestoreSystemModal v-if="showRestoreModal" :show="showRestoreModal" title="Confirm System Restore"
             message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
-            @confirm="handleSystemRestore"
-            @cancel="showRestoreModal = false" 
-        />
+            @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
 
-               <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" @confirm="handleLogout"
-                    @cancel="showLogoutModal = false" />
+        <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" @confirm="handleLogout"
+            @cancel="showLogoutModal = false" />
 
 
         <!-- Mobile overlay backdrop -->
