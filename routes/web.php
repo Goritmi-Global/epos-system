@@ -47,13 +47,6 @@ use Illuminate\Support\Facades\Storage;
 // health/test helper
 Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
 
-
-Route::get('/storage/{path}', function (string $path) {
-    if (!Storage::disk('public')->exists($path)) abort(404);
-    return Storage::disk('public')->response($path);
-})->where('path', '.*');
-
-
 // root -> login screen (Inertia)
 Route::get('/login', fn () => Inertia::render('Auth/Login'));
 
