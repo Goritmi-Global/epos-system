@@ -38,6 +38,7 @@ use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 /* =========================================================
 |  Public / Guest
@@ -45,6 +46,13 @@ use Inertia\Inertia;
 
 // health/test helper
 Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+
+
+Route::get('/storage/{path}', function (string $path) {
+    if (!Storage::disk('public')->exists($path)) abort(404);
+    return Storage::disk('public')->response($path);
+})->where('path', '.*');
+
 
 // root -> login screen (Inertia)
 Route::get('/login', fn () => Inertia::render('Auth/Login'));
