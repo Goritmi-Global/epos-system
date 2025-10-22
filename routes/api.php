@@ -126,5 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Get Printers
     Route::get('/printers', [PrinterController::class, 'index']);
+    Route::post('/customer/print-receipt', [PrinterController::class, 'printReceipt']);
+    Route::post('/kot/print-receipt', [PrinterController::class, 'printKot']);
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
 });

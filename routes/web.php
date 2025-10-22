@@ -40,6 +40,9 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 
+use Mike42\Escpos\Printer;
+use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
+
 /* =========================================================
 |  Public / Guest
 |========================================================= */
@@ -291,10 +294,36 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
 
 Route::middleware(['auth', 'role:Super Admin'])->group(function() {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
+    
+
 });
 
 /* ---------- Public settings/locations page (if intended public) ---------- */
 Route::get('/settings/locations', [IndexController::class, 'index'])->name('locations.index');
+
+
+Route::get('/test-print', function () {
+    try {
+        $connector = new WindowsPrintConnector("BlackCopper 80mm Series"); // 🔁 Change to your printer name
+        $printer = new Printer($connector);
+
+        $printer->setJustification(Printer::JUSTIFY_CENTER);
+        $printer->text("=== Test Receipt ===\n");
+        $printer->text("Hello from Laravel POS!\n");
+        $printer->text("-----------------------------\n");
+        $printer->text("Item 1   £10.00\n");
+        $printer->text("Item 2   £5.00\n");
+        $printer->text("-----------------------------\n");
+        $printer->text("Total:   £15.00\n");
+        $printer->feed(3);
+        $printer->cut();
+        $printer->close();
+
+        return "✅ Printed successfully!";
+    } catch (Exception $e) {
+        return "❌ Print failed: " . $e->getMessage();
+    }
+});
 
 /* ---------- Breeze/Jetstream auth routes ---------- */
 require __DIR__.'/auth.php';

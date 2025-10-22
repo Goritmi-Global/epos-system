@@ -712,213 +712,227 @@ const openConfirmModal = () => {
 
 
 
-
 /* ----------------------------
    Print Receipt 
 -----------------------------*/
-function printReceipt(order) {
-    const plainOrder = JSON.parse(JSON.stringify(order));
+// function printReceipt(order) {
+//     const plainOrder = JSON.parse(JSON.stringify(order));
 
-    // Normalize the payment fields so it works for all cases
-    const cash = Number(plainOrder.cashReceived ?? plainOrder.cash_received ?? 0);
-    const card = Number(plainOrder.cardAmount ?? plainOrder.cardPayment ?? 0);
-    const change = Number(plainOrder.changeAmount ?? plainOrder.change ?? 0);
+//     // Normalize the payment fields so it works for all cases
+//     const cash = Number(plainOrder.cashReceived ?? plainOrder.cash_received ?? 0);
+//     const card = Number(plainOrder.cardAmount ?? plainOrder.cardPayment ?? 0);
+//     const change = Number(plainOrder.changeAmount ?? plainOrder.change ?? 0);
 
-    const type = (plainOrder?.payment_type || "").toLowerCase();
-    let payLine = "";
+//     const type = (plainOrder?.payment_type || "").toLowerCase();
+//     let payLine = "";
 
-    if (type === "split") {
-        const cardAmount =
-            Number(plainOrder.total_amount || plainOrder.sub_total || 0) - cash || 0;
-        payLine = `Split (Cash: £${cash.toFixed(2)}, Card: £${cardAmount.toFixed(
-            2
-        )})`;
-    } else if (type === "card" || type === "stripe") {
-        payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
-            }${plainOrder?.card_brand ? ")" : ""}`;
-    } else {
-        payLine = plainOrder?.payment_method || "Cash";
-    }
+//     if (type === "split") {
+//         const cardAmount =
+//             Number(plainOrder.total_amount || plainOrder.sub_total || 0) - cash || 0;
+//         payLine = `Split (Cash: £${cash.toFixed(2)}, Card: £${cardAmount.toFixed(
+//             2
+//         )})`;
+//     } else if (type === "card" || type === "stripe") {
+//         payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
+//             }${plainOrder?.card_brand ? ")" : ""}`;
+//     } else {
+//         payLine = plainOrder?.payment_method || "Cash";
+//     }
 
 
-    const businessName =
-        page.props.business_info.business_name || "Business Name";
-    const businessPhone = page.props.business_info.phone || "+4477221122";
-    const businessAddress = page.props.business_info.address || "XYZ";
+//     const businessName =
+//         page.props.business_info.business_name || "Business Name";
+//     const businessPhone = page.props.business_info.phone || "+4477221122";
+//     const businessAddress = page.props.business_info.address || "XYZ";
 
-    const businessLogo = page.props.business_info.image_url || "";
-    const html = `
-    <html>
-    <head>
-      <title>Customer Receipt</title>
-      <style>
-        @page { size: 80mm auto; margin: 0; }
-        html, body {
-          width: 78mm;
-          margin: 0;
-          padding: 8px 10px 8px 8px;
-          font-family: monospace, Arial, sans-serif;
-          font-size: 12px;
-          line-height: 1.4;
-          box-sizing: border-box;
-        }
-        .header { text-align: center; margin-bottom: 10px; }
-        .order-info { margin: 10px 0; word-break: break-word; }
-        .row {
-          display: flex;
-          justify-content: space-between;
-          margin: 2px 0;
-        }
-        .label { text-align: left; }
-        .value { text-align: right; }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 10px 0;
-          table-layout: fixed;
-        }
-        th, td {
-          padding: 4px 2px;
-          text-align: left;
-          word-wrap: break-word;
-        }
-        th {
-          border-bottom: 1px solid #000;
-        }
-        td:last-child, th:last-child {
-          text-align: right;
-          padding-right: 4px;
-        }
-        .totals {
-          margin-top: 10px;
-          border-top: 1px dashed #000;
-          padding-top: 8px;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 10px;
-          font-size: 11px;
-        }
-        .totals > div {
-          display: flex;
-          justify-content: space-between;
-          margin: 3px 0;
-        }
-        .header img {
-          max-width: 60px;
-          max-height: 60px;
-          object-fit: contain;
-          margin-bottom: 5px;
-          border-radius: 50%;
-        }
-        .business-name {
-          font-size: 14px;
-          font-weight: bold;
-          text-transform: uppercase;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
-        <div class="business-name">${businessName}</div>
-        <div class="business-phone">${businessPhone}</div>
-        <h2>Customer Receipt</h2>
-      </div>
+//     const businessLogo = page.props.business_info.image_url || "";
+//     const html = `
+//     <html>
+//     <head>
+//       <title>Customer Receipt</title>
+//       <style>
+//         @page { size: 80mm auto; margin: 0; }
+//         html, body {
+//           width: 78mm;
+//           margin: 0;
+//           padding: 8px 10px 8px 8px;
+//           font-family: monospace, Arial, sans-serif;
+//           font-size: 12px;
+//           line-height: 1.4;
+//           box-sizing: border-box;
+//         }
+//         .header { text-align: center; margin-bottom: 10px; }
+//         .order-info { margin: 10px 0; word-break: break-word; }
+//         .row {
+//           display: flex;
+//           justify-content: space-between;
+//           margin: 2px 0;
+//         }
+//         .label { text-align: left; }
+//         .value { text-align: right; }
+//         table {
+//           width: 100%;
+//           border-collapse: collapse;
+//           margin: 10px 0;
+//           table-layout: fixed;
+//         }
+//         th, td {
+//           padding: 4px 2px;
+//           text-align: left;
+//           word-wrap: break-word;
+//         }
+//         th {
+//           border-bottom: 1px solid #000;
+//         }
+//         td:last-child, th:last-child {
+//           text-align: right;
+//           padding-right: 4px;
+//         }
+//         .totals {
+//           margin-top: 10px;
+//           border-top: 1px dashed #000;
+//           padding-top: 8px;
+//         }
+//         .footer {
+//           text-align: center;
+//           margin-top: 10px;
+//           font-size: 11px;
+//         }
+//         .totals > div {
+//           display: flex;
+//           justify-content: space-between;
+//           margin: 3px 0;
+//         }
+//         .header img {
+//           max-width: 60px;
+//           max-height: 60px;
+//           object-fit: contain;
+//           margin-bottom: 5px;
+//           border-radius: 50%;
+//         }
+//         .business-name {
+//           font-size: 14px;
+//           font-weight: bold;
+//           text-transform: uppercase;
+//         }
+//       </style>
+//     </head>
+//     <body>
+//       <div class="header">
+//         ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
+//         <div class="business-name">${businessName}</div>
+//         <div class="business-phone">${businessPhone}</div>
+//         <h2>Customer Receipt</h2>
+//       </div>
 
-      <!-- 🔧 Updated section -->
-      <div class="order-info">
-        <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()
-        }</span></div>
-        <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()
-        }</span></div>
-        <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"
-        }</span></div>
-        <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"
-        }</span></div>
-        ${plainOrder.note
-            ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>`
-            : ""
-        }
+//       <!-- 🔧 Updated section -->
+//       <div class="order-info">
+//         <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()
+//         }</span></div>
+//         <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()
+//         }</span></div>
+//         <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"
+//         }</span></div>
+//         <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"
+//         }</span></div>
+//         ${plainOrder.note
+//             ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>`
+//             : ""
+//         }
         
-        <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
-      </div>
+//         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
+//       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 30%;">Item</th>
-            <th style="width: 25%;">Qty</th>
-            <th style="width: 25%;">Price</th>
-            <th style="width: 30%;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${(plainOrder.items || [])
-            .map((item) => {
-                const qty = Number(item.quantity) || Number(item.qty) || 0;
-                const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
-                const total = price * qty;
-                return `
-                <tr>
-                  <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
-                  <td style="font-size: 12px;">${qty}</td>
-                  <td style="font-size: 12px;">£${price.toFixed(2)}</td>
-                  <td style="font-size: 12px;">£${total.toFixed(2)}</td>
-                </tr>
-              `;
-            })
-            .join("")}
-        </tbody>
-      </table>
+//       <table>
+//         <thead>
+//           <tr>
+//             <th style="width: 30%;">Item</th>
+//             <th style="width: 25%;">Qty</th>
+//             <th style="width: 25%;">Price</th>
+//             <th style="width: 30%;">Total</th>
+//           </tr>
+//         </thead>
+//         <tbody>
+//           ${(plainOrder.items || [])
+//             .map((item) => {
+//                 const qty = Number(item.quantity) || Number(item.qty) || 0;
+//                 const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
+//                 const total = price * qty;
+//                 return `
+//                 <tr>
+//                   <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
+//                   <td style="font-size: 12px;">${qty}</td>
+//                   <td style="font-size: 12px;">£${price.toFixed(2)}</td>
+//                   <td style="font-size: 12px;">£${total.toFixed(2)}</td>
+//                 </tr>
+//               `;
+//             })
+//             .join("")}
+//         </tbody>
+//       </table>
 
-      <div class="totals">
-        <div><span>Subtotal:</span><span>£${Number(
-                plainOrder.sub_total || 0
-            ).toFixed(2)}</span></div>
-        ${plainOrder.promo_discount
-            ? `<div><span>Promo Discount:</span><span>-£${Number(
-                plainOrder.promo_discount
-            ).toFixed(2)}</span></div>`
-            : ""
-        }
-        <div><span><strong>Total:</strong></span><span><strong>£${Number(
-            plainOrder.total_amount || plainOrder.sub_total || 0
-        ).toFixed(2)}</strong></span></div>
-        ${plainOrder.cash_received
-            ? `<div><span>Cash Received:</span><span>£${Number(
-                plainOrder.cash_received
-            ).toFixed(2)}</span></div>`
-            : ""
-        }
-        ${plainOrder.change
-            ? `<div><span>Change:</span><span>£${Number(
-                plainOrder.change
-            ).toFixed(2)}</span></div>`
-            : ""
-        }
-      </div>
-      <div class="footer">
-          <div>${businessAddress}</div>
-       <div>Customer Copy - Thank you for your purchase!</div>
-      </div>
-    </body>
-    </html>
-  `;
+//       <div class="totals">
+//         <div><span>Subtotal:</span><span>£${Number(
+//                 plainOrder.sub_total || 0
+//             ).toFixed(2)}</span></div>
+//         ${plainOrder.promo_discount
+//             ? `<div><span>Promo Discount:</span><span>-£${Number(
+//                 plainOrder.promo_discount
+//             ).toFixed(2)}</span></div>`
+//             : ""
+//         }
+//         <div><span><strong>Total:</strong></span><span><strong>£${Number(
+//             plainOrder.total_amount || plainOrder.sub_total || 0
+//         ).toFixed(2)}</strong></span></div>
+//         ${plainOrder.cash_received
+//             ? `<div><span>Cash Received:</span><span>£${Number(
+//                 plainOrder.cash_received
+//             ).toFixed(2)}</span></div>`
+//             : ""
+//         }
+//         ${plainOrder.change
+//             ? `<div><span>Change:</span><span>£${Number(
+//                 plainOrder.change
+//             ).toFixed(2)}</span></div>`
+//             : ""
+//         }
+//       </div>
+//       <div class="footer">
+//           <div>${businessAddress}</div>
+//        <div>Customer Copy - Thank you for your purchase!</div>
+//       </div>
+//     </body>
+//     </html>
+//   `;
 
-    const w = window.open("", "_blank", "width=400,height=600");
-    if (!w) {
-        alert("Please allow popups for this site to print receipts");
-        return;
+//     const w = window.open("", "_blank", "width=400,height=600");
+//     if (!w) {
+//         alert("Please allow popups for this site to print receipts");
+//         return;
+//     }
+//     w.document.open();
+//     w.document.write(html);
+//     w.document.close();
+//     w.onload = () => {
+//         w.focus();
+//         w.print();
+//         w.onafterprint = () => w.close();
+//     };
+// }
+
+
+
+async function printReceipt(order) {
+  try {
+    const response = await axios.post("/api/customer/print-receipt", { order });
+    if (response.data.success) {
+    } else {
+      toast.error(response.data.message || "Print failed");
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.onload = () => {
-        w.focus();
-        w.print();
-        w.onafterprint = () => w.close();
-    };
+  } catch (error) {
+    console.error("Print failed:", error);
+    toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
+  }
 }
 
 
@@ -929,170 +943,185 @@ const changeAmount = ref(0);
    Print KOT - FIXED
 -----------------------------*/
 
-function printKot(order) {
-    const plainOrder = JSON.parse(JSON.stringify(order));
+// function printKot(order) {
+//     const plainOrder = JSON.parse(JSON.stringify(order));
 
-    const type = (plainOrder?.payment_method || "").toLowerCase();
-    let payLine = "";
-    if (type === "split") {
-        payLine = `Split (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
-    } else if (type === "card" || type === "stripe") {
-        payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
+//     const type = (plainOrder?.payment_method || "").toLowerCase();
+//     let payLine = "";
+//     if (type === "split") {
+//         payLine = `Split (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
+//     } else if (type === "card" || type === "stripe") {
+//         payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
+//     } else {
+//         payLine = plainOrder?.payment_method || "Cash";
+//     }
+
+//     const businessName = page.props.business_info.business_name || "Business Name";
+//     const businessPhone = page.props.business_info.phone || "+4477221122";
+//     const businessAddress = page.props.business_info.address || "XYZ";
+//     const businessLogo = page.props.business_info.image_url || "";
+
+//     const html = `
+//     <html>
+//     <head>
+//       <title>Kitchen Order Ticket</title>
+//       <style>
+//         @page { size: 80mm auto; margin: 0; }
+//         html, body {
+//           width: 78mm;
+//           margin: 0;
+//           padding: 8px 10px 8px 8px;
+//           font-family: monospace, Arial, sans-serif;
+//           font-size: 12px;
+//           line-height: 1.4;
+//           box-sizing: border-box;
+//         }
+//         .header { text-align: center; margin-bottom: 10px; }
+//         .order-info { margin: 10px 0; word-break: break-word; }
+//         .row {
+//           display: flex;
+//           justify-content: space-between;
+//           margin: 2px 0;
+//         }
+//         .label { text-align: left; }
+//         .value { text-align: right; }
+//         table {
+//           width: 100%;
+//           border-collapse: collapse;
+//           margin: 10px 0;
+//           table-layout: fixed;
+//         }
+//         th, td {
+//           padding: 4px 2px;
+//           text-align: left;
+//           word-wrap: break-word;
+//         }
+//         th {
+//           border-bottom: 1px solid #000;
+//         }
+//         td:last-child, th:last-child {
+//           text-align: right;
+//           padding-right: 4px;
+//         }
+//         .totals {
+//           margin-top: 10px;
+//           border-top: 1px dashed #000;
+//           padding-top: 8px;
+//         }
+//         .footer {
+//           text-align: center;
+//           margin-top: 10px;
+//           font-size: 11px;
+//         }
+//         .totals > div {
+//           display: flex;
+//           justify-content: space-between;
+//           margin: 3px 0;
+//         }
+//         .header img {
+//           max-width: 60px;
+//           max-height: 60px;
+//           object-fit: contain;
+//           margin-bottom: 5px;
+//           border-radius: 50%;
+//         }
+//         .business-name {
+//           font-size: 14px;
+//           font-weight: bold;
+//           text-transform: uppercase;
+//         }
+//       </style>
+//     </head>
+//     <body>
+//       <div class="header">
+//         ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
+//         <div class="business-name">${businessName}</div>
+//         <div class="business-phone">${businessPhone}</div>
+//         <h2>KITCHEN ORDER TICKET</h2>
+//       </div>
+
+//       <!-- Same design as Customer Receipt -->
+//       <div class="order-info">
+//         <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()}</span></div>
+//         <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()}</span></div>
+//         <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"}</span></div>
+//         <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"}</span></div>
+//         ${plainOrder.note ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>` : ""}
+//         ${plainOrder.kitchen_note
+//             ? `<div class="row"><span class="label">Kitchen Note:</span><span class="value">${plainOrder.kitchen_note}</span></div>` : ""}
+//         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
+//       </div>
+
+//       <table>
+//         <thead>
+//           <tr>
+//             <th style="width: 30%;">Item</th>
+//             <th style="width: 25%;">Qty</th>
+//             <th style="width: 25%;">Price</th>
+//             <th style="width: 30%;">Total</th>
+//           </tr>
+//         </thead>
+//         <tbody>
+//           ${(plainOrder.items || [])
+//             .map((item) => {
+//                 const qty = Number(item.quantity) || Number(item.qty) || 0;
+//                 const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
+//                 const total = price * qty;
+//                 return `
+//                 <tr>
+//                   <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
+//                   <td style="font-size: 12px;">${qty}</td>
+//                   <td style="font-size: 12px;">£${price.toFixed(2)}</td>
+//                   <td style="font-size: 12px;">£${total.toFixed(2)}</td>
+//                 </tr>
+//               `;
+//             })
+//             .join("")}
+//         </tbody>
+//       </table>
+
+//       <div class="totals">
+//         <div><span>Subtotal:</span><span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span></div>
+//         <div><span><strong>Total:</strong></span><span><strong>£${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></span></div>
+//       </div>
+
+//       <div class="footer">
+//         <div>${businessAddress}</div>
+//         <div>Kitchen Copy - Thank you!</div>
+//       </div>
+//     </body>
+//     </html>
+//   `;
+
+//     const w = window.open("", "_blank", "width=400,height=600");
+//     if (!w) {
+//         alert("Please allow popups for this site to print KOT");
+//         return;
+//     }
+//     w.document.open();
+//     w.document.write(html);
+//     w.document.close();
+//     w.onload = () => {
+//         w.focus();
+//         w.print();
+//         w.onafterprint = () => w.close();
+//     };
+// }
+
+
+async function printKot(order) {
+  try {
+    const response = await axios.post("/api/kot/print-receipt", { order });
+    if (response.data.success) {
     } else {
-        payLine = plainOrder?.payment_method || "Cash";
+      toast.error(response.data.message || "KOT print failed");
     }
-
-    const businessName = page.props.business_info.business_name || "Business Name";
-    const businessPhone = page.props.business_info.phone || "+4477221122";
-    const businessAddress = page.props.business_info.address || "XYZ";
-    const businessLogo = page.props.business_info.image_url || "";
-
-    const html = `
-    <html>
-    <head>
-      <title>Kitchen Order Ticket</title>
-      <style>
-        @page { size: 80mm auto; margin: 0; }
-        html, body {
-          width: 78mm;
-          margin: 0;
-          padding: 8px 10px 8px 8px;
-          font-family: monospace, Arial, sans-serif;
-          font-size: 12px;
-          line-height: 1.4;
-          box-sizing: border-box;
-        }
-        .header { text-align: center; margin-bottom: 10px; }
-        .order-info { margin: 10px 0; word-break: break-word; }
-        .row {
-          display: flex;
-          justify-content: space-between;
-          margin: 2px 0;
-        }
-        .label { text-align: left; }
-        .value { text-align: right; }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 10px 0;
-          table-layout: fixed;
-        }
-        th, td {
-          padding: 4px 2px;
-          text-align: left;
-          word-wrap: break-word;
-        }
-        th {
-          border-bottom: 1px solid #000;
-        }
-        td:last-child, th:last-child {
-          text-align: right;
-          padding-right: 4px;
-        }
-        .totals {
-          margin-top: 10px;
-          border-top: 1px dashed #000;
-          padding-top: 8px;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 10px;
-          font-size: 11px;
-        }
-        .totals > div {
-          display: flex;
-          justify-content: space-between;
-          margin: 3px 0;
-        }
-        .header img {
-          max-width: 60px;
-          max-height: 60px;
-          object-fit: contain;
-          margin-bottom: 5px;
-          border-radius: 50%;
-        }
-        .business-name {
-          font-size: 14px;
-          font-weight: bold;
-          text-transform: uppercase;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
-        <div class="business-name">${businessName}</div>
-        <div class="business-phone">${businessPhone}</div>
-        <h2>KITCHEN ORDER TICKET</h2>
-      </div>
-
-      <!-- Same design as Customer Receipt -->
-      <div class="order-info">
-        <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()}</span></div>
-        <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()}</span></div>
-        <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"}</span></div>
-        <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"}</span></div>
-        ${plainOrder.note ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>` : ""}
-        ${plainOrder.kitchen_note
-            ? `<div class="row"><span class="label">Kitchen Note:</span><span class="value">${plainOrder.kitchen_note}</span></div>` : ""}
-        <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 30%;">Item</th>
-            <th style="width: 25%;">Qty</th>
-            <th style="width: 25%;">Price</th>
-            <th style="width: 30%;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${(plainOrder.items || [])
-            .map((item) => {
-                const qty = Number(item.quantity) || Number(item.qty) || 0;
-                const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
-                const total = price * qty;
-                return `
-                <tr>
-                  <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
-                  <td style="font-size: 12px;">${qty}</td>
-                  <td style="font-size: 12px;">£${price.toFixed(2)}</td>
-                  <td style="font-size: 12px;">£${total.toFixed(2)}</td>
-                </tr>
-              `;
-            })
-            .join("")}
-        </tbody>
-      </table>
-
-      <div class="totals">
-        <div><span>Subtotal:</span><span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span></div>
-        <div><span><strong>Total:</strong></span><span><strong>£${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></span></div>
-      </div>
-
-      <div class="footer">
-        <div>${businessAddress}</div>
-        <div>Kitchen Copy - Thank you!</div>
-      </div>
-    </body>
-    </html>
-  `;
-
-    const w = window.open("", "_blank", "width=400,height=600");
-    if (!w) {
-        alert("Please allow popups for this site to print KOT");
-        return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.onload = () => {
-        w.focus();
-        w.print();
-        w.onafterprint = () => w.close();
-    };
+  } catch (error) {
+    console.error("KOT print failed:", error);
+    toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
+  }
 }
+
 
 
 /* ----------------------------
