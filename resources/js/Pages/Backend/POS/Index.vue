@@ -10,6 +10,8 @@ import KotModal from "./KotModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import PosOrdersModal from "./PosOrdersModal.vue";
 import { Package, ShoppingCart } from "lucide-vue-next";
+import FilterModal from "@/Components/FilterModal.vue";
+
 
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters();
@@ -153,19 +155,98 @@ const visibleProducts = computed(
     () => productsByCat.value[activeCat.value] ?? []
 );
 
-const filteredProducts = computed(() => {
-    const q = searchQuery.value.trim().toLowerCase();
-    if (!q) return visibleProducts.value;
-    return visibleProducts.value.filter(
-        (p) =>
-            p.title.toLowerCase().includes(q) ||
-            (p.family || "").toLowerCase().includes(q) ||
-            (p.description || "").toLowerCase().includes(q) ||
-            (
-                p.tags?.map((t) => t.name.toLowerCase()).join(", ") || ""
-            ).includes(q)
-    );
+// const filteredProducts = computed(() => {
+//     const q = searchQuery.value.trim().toLowerCase();
+//     if (!q) return visibleProducts.value;
+//     return visibleProducts.value.filter(
+//         (p) =>
+//             p.title.toLowerCase().includes(q) ||
+//             (p.family || "").toLowerCase().includes(q) ||
+//             (p.description || "").toLowerCase().includes(q) ||
+//             (
+//                 p.tags?.map((t) => t.name.toLowerCase()).join(", ") || ""
+//             ).includes(q)
+//     );
+// });
+
+const filters = ref({
+    sortBy: '',
+    priceMin: null,
+    priceMax: null,
 });
+
+/* ----------------------------
+   Filtered and Sorted Products
+-----------------------------*/
+const filteredProducts = computed(() => {
+    let products = visibleProducts.value;
+    const q = searchQuery.value.trim().toLowerCase();
+
+    // 1. Search filter (existing logic)
+    if (q) {
+        products = products.filter(
+            (p) =>
+                p.title.toLowerCase().includes(q) ||
+                (p.family || "").toLowerCase().includes(q) ||
+                (p.description || "").toLowerCase().includes(q) ||
+                (
+                    p.tags?.map((t) => t.name.toLowerCase()).join(", ") || ""
+                ).includes(q)
+        );
+    }
+
+    // 2. Price range filter
+    if (filters.value.priceMin !== null && filters.value.priceMin !== '') {
+        products = products.filter(p => p.price >= filters.value.priceMin);
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== '') {
+        products = products.filter(p => p.price <= filters.value.priceMax);
+    }
+
+    // 3. Sorting
+    if (filters.value.sortBy) {
+        products = [...products]; // Create a copy to avoid mutating original
+
+        switch (filters.value.sortBy) {
+            case 'name_asc':
+                products.sort((a, b) => a.title.localeCompare(b.title));
+                break;
+            case 'name_desc':
+                products.sort((a, b) => b.title.localeCompare(a.title));
+                break;
+            case 'price_asc':
+                products.sort((a, b) => a.price - b.price);
+                break;
+            case 'price_desc':
+                products.sort((a, b) => b.price - a.price);
+                break;
+            case 'stock_asc':
+                products.sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0));
+                break;
+            case 'stock_desc':
+                products.sort((a, b) => (b.stock ?? 0) - (a.stock ?? 0));
+                break;
+        }
+    }
+
+    return products;
+});
+
+/* ----------------------------
+   Filter Handlers
+-----------------------------*/
+const handleApplyFilters = (appliedFilters) => {
+    filters.value = { ...appliedFilters };
+};
+
+const handleClearFilters = () => {
+    filters.value = {
+        sortBy: '',
+        priceMin: null,
+        priceMax: null,
+    };
+};
+
 
 /* ----------------------------
    Order cart
@@ -368,9 +449,9 @@ const menuStockForSelected = computed(() =>
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
     if (modalQty.value <= 0) {
-    toast.error("Please add at least one item.");
-    return;
-  }
+        toast.error("Please add at least one item.");
+        return;
+    }
     const ingredientStock = {}; // Track remaining stock per ingredient
 
     // 1️⃣ Initialize stock from current cart
@@ -1469,19 +1550,35 @@ const decrementCardQty = (product) => {
                                 <button class="btn btn-primary rounded-pill shadow-sm px-3" @click="backToCategories">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
+
                                 <h5 class="fw-bold mb-0">
                                     {{
                                         menuCategories.find(
                                             (c) => c.id === activeCat
-                                        )?.name || "Items"
+                                    )?.name || "Items"
                                     }}
                                 </h5>
 
-                                <!-- Search -->
-                                <div class="search-wrap ms-auto">
-                                    <i class="bi bi-search"></i>
-                                    <input v-model="searchQuery" class="form-control search-input" type="text"
-                                        placeholder="Search items..." />
+                                <!-- Search & Filter Section -->
+                                <div class="d-flex gap-2 ms-auto align-items-center">
+                                    <!-- Filter Button -->
+                                    <FilterModal v-model="filters" title="Menu Items" modal-id="menuFilterModal"
+                                        :sort-options="[
+                                            { value: 'name_asc', label: 'Name: A to Z' },
+                                            { value: 'name_desc', label: 'Name: Z to A' },
+                                            { value: 'price_asc', label: 'Price: Low to High' },
+                                            { value: 'price_desc', label: 'Price: High to Low' },
+                                        ]" :show-price-range="true" :show-category="false" :show-stock-status="false" :show-date-range="false"
+                                        :categories="[]" :suppliers="[]" @apply="handleApplyFilters"
+                                        @clear="handleClearFilters" />
+
+                                    <!-- Search Input -->
+                                    <div class="search-wrap position-relative">
+                                        <i class="bi bi-search position-absolute"
+                                            style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
+                                        <input v-model="searchQuery" class="form-control search-input ps-5" type="text"
+                                            placeholder="Search items..." style="min-width: 250px;" />
+                                    </div>
                                 </div>
                             </div>
 
@@ -1671,7 +1768,7 @@ const decrementCardQty = (product) => {
                                             </span>
                                         </div>
 
-                                      
+
                                         <!-- Right Side (Details + Quantity Controls) -->
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0;">
@@ -1693,7 +1790,8 @@ const decrementCardQty = (product) => {
                                             <div v-if="(p.stock ?? 0) > 0"
                                                 class="mt-3 d-flex align-items-center justify-content-start gap-2"
                                                 @click.stop>
-                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
+                                                <button
+                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
                                                     style="width: 55px; height: 36px;" @click.stop="decrementCardQty(p)"
                                                     :disabled="getCardQty(p) <= 0">
                                                     <strong>−</strong>
@@ -1702,7 +1800,8 @@ const decrementCardQty = (product) => {
                                                     style="min-width: 55px;">
                                                     {{ getCardQty(p) }}
                                                 </div>
-                                                <button class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
+                                                <button
+                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
                                                     style="width: 55px; height: 36px;" @click.stop="incrementCardQty(p)"
                                                     :disabled="!canAddMore(p)">
                                                     <strong>+</strong>
@@ -1729,19 +1828,19 @@ const decrementCardQty = (product) => {
                     <div class="col-lg-4" v-if="!showCategories">
                         <div class="col-lg-4 d-flex align-items-center gap-2 mb-2">
                             <!-- KOT Orders button -->
-                            <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
+                            <!-- <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
                                 @click="openOrderModal">
                                 <Package class="lucide-icon" width="16" height="16" />
                                 KOT
-                            </button>
+                            </button> -->
 
                             <!-- POS Orders button -->
-                            <button class="btn btn-success rounded-pill d-flex align-items-center gap-2 px-3"
+                            <!-- <button class="btn btn-success rounded-pill d-flex align-items-center gap-2 px-3"
                                 @click="openPosOrdersModal">
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
-                            </button>
-                            <button class="btn btn-warning rounded-pill" @click="openPromoModal">
+                            </button> -->
+                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
                                 Promos
                             </button>
 

@@ -1305,7 +1305,8 @@ const handleImport = (data) => {
 
 <template>
     <Master>
-          <Head title="Menus" />
+
+        <Head title="Menus" />
         <div class="page-wrapper">
             <!-- Title -->
             <h4 class="mb-3">Menus</h4>
@@ -1361,12 +1362,9 @@ const handleImport = (data) => {
                                     modal-size="modal-lg" :categories="filterOptions.categories"
                                     :sort-options="filterOptions.sortOptions"
                                     :status-options="filterOptions.statusOptions" :show-price-range="true"
-                                    :show-date-range="true" @apply="handleFilterApply" @clear="handleFilterClear">
-                                    <!-- Custom filters slot (optional) -->
-                                    <template #customFilters="{ filters }">
-                                        <!-- Add any custom filter controls here if needed -->
-                                    </template>
-                                </FilterModal>
+                                    :show-date-range="true" :show-category="false" :show-stock-status="false"
+                                    @apply="handleFilterApply" @clear="handleFilterClear" />
+
                             </div>
 
                             <!-- Add Item -->
@@ -2040,7 +2038,7 @@ ing, idx
     color: #fff !important;
 }
 
-.dark .bg-white{
+.dark .bg-white {
     border: 1px solid #fff !important;
 }
 
