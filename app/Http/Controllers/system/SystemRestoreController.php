@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\system;
+namespace App\Http\Controllers\System;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Artisan;
+
+
 
 class SystemRestoreController extends Controller
 {
@@ -13,7 +14,7 @@ class SystemRestoreController extends Controller
     {
         // Optional: double-check the user
         $user = $request->user();
-        if (! $user->hasRole('Super Admin')) {
+        if (!$user->hasRole('Super Admin')) {
             abort(403, 'Unauthorized');
         }
 
@@ -31,20 +32,13 @@ class SystemRestoreController extends Controller
 
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
-        // Artisan::call('db:seed'); // Runs DatabaseSeeder
-        // Artisan::call('db:seed', ['--class' => 'CountriesTableSeeder']);
-        // Artisan::call('db:seed', ['--class' => 'TimezonesTableSeeder']);
-        // Artisan::call('db:seed', ['--class' => 'PermissionsTableSeeder']);
-        // Artisan::call('db:seed', ['--class' => 'RolesTableSeeder']);
-        // // Artisan::call('db:seed', ['--class' => 'SupplierSeeder']);
-        // Artisan::call('db:seed', ['--class' => 'AllergySeeder']);
-        // Artisan::call('db:seed', ['--class' => 'UnitSeeder']);
-        // Artisan::call('db:seed', ['--class' => 'TagSeeder']);
-
         return response()->json([
             'success' => true,
             'message' => 'System restored. All tables truncated.',
             'redirect' => route('front-page')
         ]);
     }
+
+
+    
 }

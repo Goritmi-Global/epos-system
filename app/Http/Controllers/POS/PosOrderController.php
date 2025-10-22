@@ -215,9 +215,12 @@ class PosOrderController extends Controller
             'promo_type'     => $data['promo_type'] ?? null,
 
             // ✅ Split payment amounts for receipt
-        'cash_amount'    => $data['cash_amount'] ?? null,
-        'card_amount'    => $data['card_amount'] ?? null,
-        'cash_received'  => $data['cash_received'] ?? 0,
+            'cash_amount'    => $data['cash_amount'] ?? null,
+            'card_amount'    => $data['card_amount'] ?? null,
+            'cash_received'  => $data['cash_received'] ?? 0,
+
+            'note'           => $data['note'] ?? null,
+            'kitchen_note'   => $data['kitchen_note'] ?? null,
         ];
 
 
