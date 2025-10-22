@@ -1,16 +1,11 @@
 ---
 deployment:
   tasks:
-    # ---------- 1) Paths (edit if needed) ----------
-    - export APP_PATH="$HOME/tenxglobal"                 # Laravel project root (artisan lives here)
-    - export PUBLIC_HTML="$HOME/public_html"             # Your live web root
-    - export PHP="/opt/cpanel/ea-php82/root/usr/bin/php" # Adjust if your server uses a different PHP
+    # -------- Paths --------
+    - export APP_PATH="$HOME/public_html"                 # Repo lives directly in public_html
+    - export PHP="/opt/cpanel/ea-php82/root/usr/bin/php"  # Adjust if your PHP path differs
 
-    # ---------- 2) Sync repo to APP_PATH (outside web root) ----------
-    - mkdir -p "$APP_PATH"
-    - /bin/rsync -a --delete --exclude=".git" --exclude="node_modules" "$DEPLOYPATH/" "$APP_PATH/"
-
-    # ---------- 3) Composer (production) ----------
+    # -------- Composer (production) --------
     - cd "$APP_PATH"
     - if command -v composer >/dev/null 2>&1; then
         composer install --no-dev --optimize-autoloader;
@@ -18,7 +13,7 @@ deployment:
         echo "Composer not found — skipping composer install";
       fi
 
-    # ---------- 4) Vite build (only if Node is available) ----------
+    # -------- Vite build (if Node is available) --------
     - if command -v npm >/dev/null 2>&1; then
         rm -rf public/build;
         npm ci;
@@ -27,19 +22,42 @@ deployment:
         echo "Node not found — skipping asset build (ensure public/build is committed if needed)";
       fi
 
-    # ---------- 5) Publish ONLY public/ to public_html ----------
-    - /bin/rsync -a --delete "$APP_PATH/public/" "$PUBLIC_HTML/"
+    # -------- Storage: COPY files into /public/storage (no symlink) --------
+    - rm -rf "$APP_PATH/public/storage"
+    - mkdir -p "$APP_PATH/public/storage"
+    - /bin/rsync -a "$APP_PATH/storage/app/public/" "$APP_PATH/public/storage/"
+    - find "$APP_PATH/public/storage" -type d -exec chmod 755 {} \;
+    - find "$APP_PATH/public/storage" -type f -exec chmod 644 {} \;
 
-    # ---------- 6) COPY storage files instead of using a symlink (fixes 403) ----------
-    - rm -rf "$PUBLIC_HTML/storage"
-    - mkdir -p "$PUBLIC_HTML/storage"
-    - /bin/rsync -a "$APP_PATH/storage/app/public/" "$PUBLIC_HTML/storage/"
+    # -------- Root index.php: forward to /public/index.php --------
+    - printf "%s\n" "<?php" "require __DIR__ . '/public/index.php';" > "$APP_PATH/index.php"
 
-    # Make sure storage files are readable
-    - find "$PUBLIC_HTML/storage" -type d -exec chmod 755 {} \;
-    - find "$PUBLIC_HTML/storage" -type f -exec chmod 644 {} \;
+    # -------- Root .htaccess: map /build & /storage to /public, protect app files --------
+    - |-
+      cat > "$APP_PATH/.htaccess" <<'HTACCESS'
+      # Map asset paths at web root to the /public folder
+      RewriteEngine On
 
-    # ---------- 7) Optimize caches (heavy clear only if .env changed) ----------
+      # Send /build/* and /storage/* to /public/*
+      RewriteRule ^build/(.*)$ public/build/$1 [L]
+      RewriteRule ^storage/(.*)$ public/storage/$1 [L]
+
+      # Serve existing files/dirs directly
+      RewriteCond %{REQUEST_FILENAME} -f [OR]
+      RewriteCond %{REQUEST_FILENAME} -d
+      RewriteRule ^ - [L]
+
+      # Protect sensitive Laravel paths/files
+      RedirectMatch 404 ^/(?:app|bootstrap|config|database|resources|routes|tests|vendor)(/.*)?$
+      RedirectMatch 404 ^/composer\.(json|lock)$
+      RedirectMatch 404 ^/artisan$
+      RedirectMatch 404 ^/\.env
+
+      # Otherwise route to Laravel
+      RewriteRule ^ public/index.php [L]
+      HTACCESS
+
+    # -------- Optimize caches (heavy clear only if .env changed) --------
     - export ENV_MD5_FILE="$APP_PATH/storage/framework/.env.md5"
     - export CURRENT_ENV_MD5="$(/usr/bin/md5sum "$APP_PATH/.env" 2>/dev/null | awk '{print $1}')"
     - export SAVED_ENV_MD5="$(cat "$ENV_MD5_FILE" 2>/dev/null || echo '')"
@@ -47,14 +65,16 @@ deployment:
         echo ".env changed → optimize:clear + optimize";
         $PHP artisan optimize:clear || true;
         $PHP artisan optimize || true;
+        $php artisan storage:link || true;
         echo "$CURRENT_ENV_MD5" > "$ENV_MD5_FILE";
       else
         echo ".env unchanged → light optimize";
         $PHP artisan optimize || true;
+        $php artisan storage:link || true;
       fi
 
-    # ---------- 8) (Optional) Migrate database ----------
+    # -------- (Optional) DB migrations --------
     # - $PHP artisan migrate --force || true
+      
 
-    # ---------- 9) Done ----------
-    - echo "✅ Deployment completed successfully"
+    - echo "✅ Deployment completed (public_html is the repo root)"
