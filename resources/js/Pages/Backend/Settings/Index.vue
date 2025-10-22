@@ -5,6 +5,7 @@ import SoftwareSetting from "./Components/SoftwareSetting.vue";
 import Users from "./Components/Users.vue";
 import Permissions from "./Components/Permissions.vue";
 import Roles from "./Components/Roles.vue";
+import { Head } from "@inertiajs/vue3";
 
 const props = defineProps({
     profile: { type: Object, default: () => ({}) },
@@ -50,6 +51,7 @@ const current = computed(
 
 <template>
     <Master>
+          <Head title="Settings" />
         <div class="page-wrapper">
             <div class="settings-tabs-wrapper">
                 <!-- TAB BAR -->

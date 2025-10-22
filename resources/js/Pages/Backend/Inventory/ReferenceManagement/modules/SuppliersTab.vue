@@ -10,7 +10,7 @@ import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
-import { usePage } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 const pageProps = usePage();
 
 const onboarding = computed(() => pageProps.props.onboarding.language_and_location?.country_id ?? "PK");
@@ -557,6 +557,7 @@ const handleImport = (data) => {
 </script>
 
 <template>
+      <Head title="Supplier" />
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">

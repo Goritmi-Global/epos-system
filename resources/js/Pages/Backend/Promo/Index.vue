@@ -9,6 +9,7 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 // import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
+import { Head } from "@inertiajs/vue3";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -237,6 +238,7 @@ onUpdated(() => window.feather?.replace());
 
 <template>
     <Master>
+          <Head title="Promo" />
         <div class="page-wrapper">
 
             <h4 class="fw-semibold mb-3">Promo Management</h4>
