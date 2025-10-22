@@ -1,10 +1,7 @@
 <template>
   <div>
     <!-- Filter Button -->
-    <button
-      class="btn btn-outline-secondary rounded-pill px-4"
-      @click="openModal"
-    >
+    <button class="btn btn-outline-secondary rounded-pill px-4" @click="openModal">
       <i class="fas fa-filter me-2"></i>
       Filter
       <span v-if="hasActiveFilters" class="ms-1 badge bg-primary rounded-pill">
@@ -13,13 +10,7 @@
     </button>
 
     <!-- Filter Modal -->
-    <div
-      :id="modalId"
-      class="modal fade"
-      tabindex="-1"
-      aria-labelledby="filterModalLabel"
-      aria-hidden="true"
-    >
+    <div :id="modalId" class="modal fade" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered" :class="modalSize">
         <div class="modal-content rounded-4">
           <div class="modal-header border-0 pb-2">
@@ -27,28 +18,14 @@
               <i class="fas fa-filter text-primary me-2"></i>
               Filter {{ title }}
             </h5>
-           <button
-                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                        @click="clearAllFilters"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
+            <button
+              class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+              data-bs-dismiss="modal" aria-label="Close" title="Close" @click="clearAllFilters">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
           <div class="modal-body pt-4">
@@ -59,23 +36,11 @@
                   <i class="fas fa-sort me-2 text-muted"></i>Sort By
                 </label>
                 <div class="row g-2">
-                  <div
-                    v-for="option in sortOptions"
-                    :key="option.value"
-                    class="col-6"
-                  >
+                  <div v-for="option in sortOptions" :key="option.value" class="col-6">
                     <div class="form-check">
-                      <input
-                        :id="`sort-${option.value}`"
-                        v-model="localFilters.sortBy"
-                        class="form-check-input"
-                        type="radio"
-                        :value="option.value"
-                      />
-                      <label
-                        :for="`sort-${option.value}`"
-                        class="form-check-label small"
-                      >
+                      <input :id="`sort-${option.value}`" v-model="localFilters.sortBy" class="form-check-input"
+                        type="radio" :value="option.value" />
+                      <label :for="`sort-${option.value}`" class="form-check-label small">
                         {{ option.label }}
                       </label>
                     </div>
@@ -84,34 +49,27 @@
               </div>
 
               <!-- Category Filter -->
-              <div v-if="categories?.length" class="col-md-6">
+              <div v-if="showCategory && categories?.length" class="col-md-6">
                 <label class="form-label fw-semibold text-dark">
                   <i class="fas fa-tags me-2 text-muted"></i>Category
                 </label>
                 <select v-model="localFilters.category" class="form-select">
                   <option value="">All Categories</option>
-                  <option
-                    v-for="category in categories"
-                    :key="category.id || category.value"
-                    :value="category.id || category.value"
-                  >
+                  <option v-for="category in categories" :key="category.id || category.value"
+                    :value="category.id || category.value">
                     {{ category.name || category.label }}
                   </option>
                 </select>
               </div>
 
               <!-- Stock Status Filter -->
-              <div v-if="stockStatusOptions?.length" class="col-md-6">
+              <div v-if="showStockStatus && stockStatusOptions?.length" class="col-md-6">
                 <label class="form-label fw-semibold text-dark">
                   <i class="fas fa-boxes me-2 text-muted"></i>Stock Status
                 </label>
                 <select v-model="localFilters.stockStatus" class="form-select">
                   <option value="">All Status</option>
-                  <option
-                    v-for="status in stockStatusOptions"
-                    :key="status.value"
-                    :value="status.value"
-                  >
+                  <option v-for="status in stockStatusOptions" :key="status.value" :value="status.value">
                     {{ status.label }}
                   </option>
                 </select>
@@ -124,11 +82,8 @@
                 </label>
                 <select v-model="localFilters.supplier" class="form-select">
                   <option value="">All Suppliers</option>
-                  <option
-                    v-for="supplier in suppliers"
-                    :key="supplier.id || supplier.value"
-                    :value="supplier.id || supplier.value"
-                  >
+                  <option v-for="supplier in suppliers" :key="supplier.id || supplier.value"
+                    :value="supplier.id || supplier.value">
                     {{ supplier.name || supplier.label }}
                   </option>
                 </select>
@@ -141,24 +96,12 @@
                 </label>
                 <div class="row g-2">
                   <div class="col-6">
-                    <input
-                      v-model.number="localFilters.priceMin"
-                      type="number"
-                      class="form-control"
-                      placeholder="Min"
-                      min="0"
-                      step="0.01"
-                    />
+                    <input v-model.number="localFilters.priceMin" type="number" class="form-control" placeholder="Min"
+                      min="0" step="0.01" />
                   </div>
                   <div class="col-6">
-                    <input
-                      v-model.number="localFilters.priceMax"
-                      type="number"
-                      class="form-control"
-                      placeholder="Max"
-                      min="0"
-                      step="0.01"
-                    />
+                    <input v-model.number="localFilters.priceMax" type="number" class="form-control" placeholder="Max"
+                      min="0" step="0.01" />
                   </div>
                 </div>
               </div>
@@ -170,18 +113,10 @@
                 </label>
                 <div class="row g-2">
                   <div class="col-md-6">
-                    <input
-                      v-model="localFilters.dateFrom"
-                      type="date"
-                      class="form-control"
-                    />
+                    <input v-model="localFilters.dateFrom" type="date" class="form-control" />
                   </div>
                   <div class="col-md-6">
-                    <input
-                      v-model="localFilters.dateTo"
-                      type="date"
-                      class="form-control"
-                    />
+                    <input v-model="localFilters.dateTo" type="date" class="form-control" />
                   </div>
                 </div>
               </div>
@@ -196,16 +131,10 @@
             <div v-if="hasActiveFilters" class="mt-3">
               <small class="text-muted d-block mb-2">Active Filters:</small>
               <div class="d-flex flex-wrap gap-1">
-                <span
-                  v-for="filter in activeFiltersDisplay"
-                  :key="filter.key"
-                  class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill"
-                >
+                <span v-for="filter in activeFiltersDisplay" :key="filter.key"
+                  class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill">
                   {{ filter.label }}: {{ filter.value }}
-                  <i
-                    class="fas fa-times ms-1 cursor-pointer"
-                    @click="clearSingleFilter(filter.key)"
-                  ></i>
+                  <i class="fas fa-times ms-1 cursor-pointer" @click="clearSingleFilter(filter.key)"></i>
                 </span>
               </div>
             </div>
@@ -213,21 +142,14 @@
 
           <div class="modal-footer border-0 pt-0">
             <div class="w-100 d-flex gap-2">
-               <button
-                type="button"
-                class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
-                @click="applyFilters"
-              >
+              <button type="button" class="px-4 py-2 rounded-pill btn btn-primary text-white text-center"
+                @click="applyFilters">
                 <i class="fas fa-check me-2"></i>Apply
               </button>
-              <button
-                type="button"
-                class="btn btn-secondary rounded-pill px-2 py-2"
-                @click="clearAllFilters"
-              >
+              <button type="button" class="btn btn-secondary rounded-pill px-2 py-2" @click="clearAllFilters">
                 <i class="fas fa-undo me-2"></i>Clear
               </button>
-             
+
             </div>
           </div>
         </div>
@@ -292,7 +214,16 @@ const props = defineProps({
   showDateRange: {
     type: Boolean,
     default: false
-  }
+  },
+  showCategory: {
+    type: Boolean,
+    default: true
+  },
+  showStockStatus: {
+    type: Boolean,
+    default: true
+  },
+
 })
 
 // Emits
@@ -318,20 +249,20 @@ watch(() => props.modelValue, (newValue) => {
 
 // Computed properties
 const hasActiveFilters = computed(() => {
-  return Object.values(localFilters.value).some(value => 
+  return Object.values(localFilters.value).some(value =>
     value !== '' && value !== null && value !== undefined
   )
 })
 
 const activeFilterCount = computed(() => {
-  return Object.values(localFilters.value).filter(value => 
+  return Object.values(localFilters.value).filter(value =>
     value !== '' && value !== null && value !== undefined
   ).length
 })
 
 const activeFiltersDisplay = computed(() => {
   const filters = []
-  
+
   if (localFilters.value.sortBy) {
     const sortOption = props.sortOptions.find(opt => opt.value === localFilters.value.sortBy)
     filters.push({
@@ -340,9 +271,9 @@ const activeFiltersDisplay = computed(() => {
       value: sortOption?.label || localFilters.value.sortBy
     })
   }
-  
+
   if (localFilters.value.category) {
-    const category = props.categories.find(cat => 
+    const category = props.categories.find(cat =>
       (cat.id || cat.value) === localFilters.value.category
     )
     filters.push({
@@ -351,9 +282,9 @@ const activeFiltersDisplay = computed(() => {
       value: category?.name || category?.label || localFilters.value.category
     })
   }
-  
+
   if (localFilters.value.supplier) {
-    const supplier = props.suppliers.find(sup => 
+    const supplier = props.suppliers.find(sup =>
       (sup.id || sup.value) === localFilters.value.supplier
     )
     filters.push({
@@ -362,9 +293,9 @@ const activeFiltersDisplay = computed(() => {
       value: supplier?.name || supplier?.label || localFilters.value.supplier
     })
   }
-  
+
   if (localFilters.value.stockStatus) {
-    const status = props.stockStatusOptions.find(opt => 
+    const status = props.stockStatusOptions.find(opt =>
       opt.value === localFilters.value.stockStatus
     )
     filters.push({
@@ -373,7 +304,7 @@ const activeFiltersDisplay = computed(() => {
       value: status?.label || localFilters.value.stockStatus
     })
   }
-  
+
   if (localFilters.value.priceMin || localFilters.value.priceMax) {
     filters.push({
       key: 'priceRange',
@@ -381,7 +312,7 @@ const activeFiltersDisplay = computed(() => {
       value: `${localFilters.value.priceMin || 0} - ${localFilters.value.priceMax || '∞'}`
     })
   }
-  
+
   if (localFilters.value.dateFrom || localFilters.value.dateTo) {
     filters.push({
       key: 'dateRange',
@@ -389,7 +320,7 @@ const activeFiltersDisplay = computed(() => {
       value: `${localFilters.value.dateFrom || '...'} - ${localFilters.value.dateTo || '...'}`
     })
   }
-  
+
   return filters
 })
 
@@ -405,7 +336,7 @@ const openModal = () => {
 const applyFilters = () => {
   emit('update:modelValue', { ...localFilters.value })
   emit('apply', { ...localFilters.value })
-  
+
   const modalElement = document.getElementById(props.modalId)
   if (modalElement) {
     const modal = bootstrap.Modal.getInstance(modalElement)
@@ -492,20 +423,20 @@ onMounted(() => {
   box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
 }
 
-.dark .form-label{
+.dark .form-label {
   color: #fff !important;
 }
 
-.dark input{
+.dark input {
   background-color: #212121 !important;
 }
 
-.dark .form-select{
+.dark .form-select {
   background-color: #212121 !important;
   color: #fff !important;
 }
 
-.dark .form-check-input{
+.dark .form-check-input {
   outline: 1px solid #fff !important;
 }
 </style>

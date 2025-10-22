@@ -546,6 +546,7 @@ import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import StockOutConfirmationModal from "@/Components/StockOutConfirmationModal.vue";
+import { Head } from "@inertiajs/vue3";
 
 
 const editItem = (item) => {
@@ -1316,6 +1317,7 @@ const handleImport = (data) => {
 
 <template>
     <Master>
+          <Head title="inventory Item" />
         <div class="page-wrapper">
             <!-- Title -->
             <h4 class="mb-3">Overall Inventory</h4>

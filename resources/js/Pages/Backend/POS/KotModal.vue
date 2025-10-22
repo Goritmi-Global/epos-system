@@ -108,7 +108,7 @@
 
                 <!-- Footer -->
                 <div class="modal-footer">
-                    <button class="btn btn-primary rounded-pill py-2" @click="$emit('close')">Close</button>
+                    <button class="btn btn-secondary rounded-pill py-2" @click="$emit('close')">Close</button>
                 </div>
 
             </div>

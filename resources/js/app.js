@@ -82,7 +82,7 @@ import ImageCropperAppCanvas from "@/Components/ImageCropperAppCanvas.vue";
 const appName = import.meta.env.VITE_APP_NAME || "Laravel";
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+   title: (title) => `${appName} - ${title}`,
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.vue`,
@@ -130,5 +130,10 @@ createInertiaApp({
     },
     progress: {
         color: "#4B5563",
+    },
+      onError: (error) => {
+        if (error.response?.status === 401) {
+            window.location.href = route('login'); // redirect to login
+        }
     },
 });

@@ -15,6 +15,7 @@ import { toast } from "vue3-toastify";
 import { router } from "@inertiajs/vue3";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import LogoutModal from "@/Components/LogoutModal.vue";
+import RestoreSystemModal from "@/Components/RestoreSystemModal.vue";
 /* =========================
    Sidebar structure (array)
    ========================= */
@@ -24,13 +25,33 @@ const showConfirmRestore = ref(false);
 const handleSidebarAction = (action) => {
     console.log('Sidebar action triggered:', action);
     if (action === "systemRestore") {
-        showConfirmRestore.value = true;
+        showRestoreModal.value = true; // Use the new modal
         console.log('showConfirmRestore set to:', showConfirmRestore.value);
     }
 };
 
 
 const showLogoutModal = ref(false);
+const showRestoreModal = ref(false);
+
+const isFullscreen = ref(false);
+
+const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        isFullscreen.value = true;
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+            isFullscreen.value = false;
+        }
+    }
+};
+
+// Optional: Listen to ESC or manual exit
+document.addEventListener("fullscreenchange", () => {
+    isFullscreen.value = !!document.fullscreenElement;
+});
 
 const handleLogout = () => {
     showLogoutModal.value = false;
@@ -438,8 +459,13 @@ onMounted(fetchNotifications);
                     </svg>
                 </button>
 
-                <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" @confirm="handleLogout"
-                    @cancel="showLogoutModal = false" />
+
+                <li class="nav-item">
+                    <button class="icon-btn" @click="toggleFullscreen" title="Toggle Fullscreen">
+                        <i :data-feather="isFullscreen ? 'minimize' : 'maximize'"></i>
+                    </button>
+                </li>
+
 
 
                 <li class="nav-item">
@@ -669,10 +695,13 @@ onMounted(fetchNotifications);
         </aside>
 
         <!-- Confirm Modal (keep outside sidebar) -->
-        <ConfirmModal v-if="showConfirmRestore" :title="'Confirm Restore'"
-            :message="`Are you sure you want to restore the system? This action cannot be undone.`"
-            :showConfirmRestore="showConfirmRestore" @confirm="handleSystemRestore"
-            @cancel="showConfirmRestore = false" />
+        <RestoreSystemModal v-if="showRestoreModal" :show="showRestoreModal" title="Confirm System Restore"
+            message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
+            @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
+
+        <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" @confirm="handleLogout"
+            @cancel="showLogoutModal = false" />
+
 
         <!-- Mobile overlay backdrop -->
         <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>

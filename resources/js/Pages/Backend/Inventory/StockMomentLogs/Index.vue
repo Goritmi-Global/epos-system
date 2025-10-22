@@ -10,6 +10,7 @@ import { nextTick } from "vue";
 
 import StockInLogs from "./components/StockInLogs.vue";
 import StockOutLogs from "./components/StockOutLogs.vue";
+import { Head } from "@inertiajs/vue3";
 
 const logs = ref([]);
 const q = ref("");
@@ -270,6 +271,7 @@ const downloadExcel = (data) => {
 
 <template>
     <Master>
+          <Head title="Stock Logs" />
         <div class="page-wrapper">
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body p-4">

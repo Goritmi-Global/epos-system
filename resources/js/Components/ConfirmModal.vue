@@ -1,26 +1,16 @@
 <template>
     <div class="side-link">
         <!-- Delete / Custom Trigger Button -->
-        <button v-if="showDeleteButton || showConfirmRestore && hasPermission('system.restore')" @click="show = true" :class="[
-            'inline-flex items-center justify-center p-2.5 rounded-full',
-            showConfirmRestore ? 'sidebar-btn py-2 side-link' : 'text-red-600 hover:bg-red-100'
-        ]" :title="showConfirmRestore ? 'Restore System' : 'Delete'">
-            <template v-if="showConfirmRestore">
-                <!-- Custom icon + text for Restore -->
-                <RefreshCcw class="w-6 h-6" />
-                <span v-if="!isCollapsed" class="ml-2">Restore System</span>
-
-            </template>
-            <template v-else>
-                <!-- Default Delete Icon -->
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
-                </svg>
-            </template>
+        <button v-if="showDeleteButton" @click="show = true" 
+            class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
+            title="Delete">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
+            </svg>
         </button>
 
-        <!-- Status Change Trigger Button -->
+    
         <!-- Toggle Status Button -->
         <div v-if="showStatusButton" @click="show = true" class="cursor-pointer">
             <slot name="trigger">
@@ -101,7 +91,6 @@ const props = defineProps({
     message: String,
     showDeleteButton: Boolean,
     showStatusButton: { type: Boolean, default: false },
-    showConfirmRestore: { type: Boolean, default: false },
     isCollapsed: { type: Boolean, default: false }, // 👈 new prop
 });
 

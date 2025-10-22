@@ -320,6 +320,7 @@ const submitting = ref(false);
 const catFormErrors = ref({});
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
+import { Head } from "@inertiajs/vue3";
 
 // const submitCategory = async () => {
 //     if (isSub.value && !selectedParentId.value) {
@@ -1166,6 +1167,7 @@ const handleImport = (data) => {
 
 <template>
     <Master>
+          <Head title="Inventory Category" />
         <div class="page-wrapper">
             <h4 class="mb-3">Inventory Categories</h4>
 

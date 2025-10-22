@@ -38,6 +38,7 @@ use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 use Mike42\Escpos\Printer;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
