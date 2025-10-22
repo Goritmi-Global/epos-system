@@ -2225,7 +2225,7 @@ const decrementCardQty = (product) => {
 
 /* Make the cart itself scrollable if content is too long */
 .cart {
-    max-height: calc(100vh - 40px);
+    max-height: calc(70vh);
     display: flex;
     flex-direction: column;
 }
