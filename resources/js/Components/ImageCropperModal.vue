@@ -40,6 +40,7 @@ const emit = defineEmits(["close", "cropped", "open"]);
 const cropper = ref(null);
 const fileInput = ref(null);
 const uploadedImage = ref(props.image || null);
+const cropperKey = ref(0);
 const scaleX = ref(-1);
 const scaleY = ref(-1);
 const hasImage = computed(() => !!uploadedImage.value);
@@ -95,12 +96,20 @@ watch(
 // choose file
 function handleFileUpload(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+        // Reset for next time even if cancelled
+        if (fileInput.value) fileInput.value.value = "";
+        return;
+    }
     const reader = new FileReader();
-    reader.onload = () => (uploadedImage.value = String(reader.result || ""));
+    reader.onload = () => {
+        uploadedImage.value = String(reader.result || "");
+        cropperKey.value++; // Force cropper to re-render with new image
+        // Reset input after successful load for next selection
+        if (fileInput.value) fileInput.value.value = "";
+    };
     reader.readAsDataURL(file);
 }
-
 // crop → emit File
 function cropImage() {
     const canvas = cropper.value?.getCroppedCanvas?.({
@@ -221,6 +230,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
                             <VueCropper
                                 v-if="uploadedImage"
                                 ref="cropper"
+                                 :key="cropperKey"
                                 :src="uploadedImage"
                                 :aspect-ratio="aspectRatio"
                                 :view-mode="1"
