@@ -131,4 +131,9 @@ createInertiaApp({
     progress: {
         color: "#4B5563",
     },
+      onError: (error) => {
+        if (error.response?.status === 401) {
+            window.location.href = route('login'); // redirect to login
+        }
+    },
 });
