@@ -400,6 +400,7 @@ const catFormErrors = ref({});
 
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
+import { Head } from "@inertiajs/vue3";
 
 const resetFields = () => {
     isSub.value = false;
@@ -1398,6 +1399,7 @@ const handleImport = (data) => {
 
 <template>
     <Master>
+          <Head title="Menu Category" />
         <div class="page-wrapper">
 
             <h4 class="mb-3">Categories</h4>

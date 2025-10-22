@@ -15,6 +15,7 @@ import { useDateFormat } from "@vueuse/core";
 import { useFormatters } from '@/composables/useFormatters'
 import BulkOrderComponent from "./BulkOrderComponent.vue";
 import { nextTick } from "vue";
+import { Head } from "@inertiajs/vue3";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -525,6 +526,7 @@ onUpdated(() => window.feather?.replace?.());
 
 <template>
     <Master>
+          <Head title="Purchase Order" />
         <div class="page-wrapper">
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body p-4">

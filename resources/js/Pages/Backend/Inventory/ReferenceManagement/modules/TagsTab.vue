@@ -9,6 +9,7 @@ import axios from "axios";
 import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
+import { Head } from "@inertiajs/vue3";
 
 
 const options = ref([
@@ -570,6 +571,7 @@ const handleImport = (data) => {
 </script>
 
 <template>
+      <Head title="Tag" />
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">

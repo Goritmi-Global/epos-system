@@ -71,6 +71,7 @@ const fetchInventory = async () => {
 import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
+import { Head } from "@inertiajs/vue3";
 
 // filter inventory for ingredients
 const i_filteredInv = computed(() => {
@@ -1304,6 +1305,7 @@ const handleImport = (data) => {
 
 <template>
     <Master>
+          <Head title="Menus" />
         <div class="page-wrapper">
             <!-- Title -->
             <h4 class="mb-3">Menus</h4>

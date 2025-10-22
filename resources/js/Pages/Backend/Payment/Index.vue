@@ -254,6 +254,7 @@ onUpdated(() => window.feather?.replace());
 
 <template>
     <Master>
+          <Head title="Payment" />
         <div class="page-wrapper">
             <!-- Title -->
             <h4 class="fw-semibold mb-3">Overall Payments</h4>

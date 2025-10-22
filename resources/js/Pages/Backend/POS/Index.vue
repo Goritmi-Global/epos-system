@@ -1413,7 +1413,7 @@ const decrementCardQty = (product) => {
 
 <template>
 
-    <Head title="POS Order" />
+    <Head title="Sale" />
 
     <Master>
         <div class="page-wrapper">
