@@ -37,7 +37,7 @@ public function __construct(User $user, $password = null, $pin = null, $otp)
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.verify-account',
+            markdown: 'Emails.verify-account',
         );
     }
 

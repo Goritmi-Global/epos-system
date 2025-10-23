@@ -689,7 +689,7 @@ onMounted(fetchNotifications);
                                     </li>
 
                                     <!-- Action item (like System Restore) -->
-                                    <li v-else-if="item.action" class="side-link">
+                                    <li v-else-if="item.action && hasPermission(item.action)" class="side-link">
                                         <button @click="handleSidebarAction(item.action)"
                                             class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
                                             :title="item.label">
