@@ -1970,49 +1970,66 @@ ing, idx
             <div class="modal fade" id="allergyModal" tabindex="-1" :class="{ show: showAllergyModal }"
                 :style="{ display: showAllergyModal ? 'block' : 'none' }" v-if="showAllergyModal" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content rounded-4">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Select Allergies</h5>
+                    <div class="modal-content rounded-4 shadow-lg border border-secondary">
+                        <div class="modal-header bg-light border-bottom">
+                            <h5 class="modal-title fw-bold">Select Allergies</h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                @click="cancelAllergySelection" aria-label="Close" title="Close">
+                                @click="cancelAllergySelection" data-bs-dismiss="modal" aria-label="Close"
+                                title="Close">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
-                        <div class="modal-body">
-                            <table class="table table-bordered align-middle text-center">
-                                <thead>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4" style="
+                    border: 2px solid #dee2e6;
+                    border-radius: 10px;
+                    background-color: #f8f9fa;
+                ">
+                            <table class="table table-bordered text-center align-middle mb-0"
+                                style="border: 1px solid #dee2e6;">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>Allergy</th>
-                                        <th>Contain</th>
-                                        <th>Trace</th>
+                                        <th class="fw-semibold">Allergy</th>
+                                        <th class="fw-semibold">Contain</th>
+                                        <th class="fw-semibold">Trace</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="allergy in allergies" :key="allergy.id">
-                                        <td>{{ allergy.name }}</td>
+                                        <td class="text-start ps-4">{{ allergy.name }}</td>
                                         <td>
                                             <input type="radio" :name="'allergy-' + allergy.id" value="Contain"
-                                                v-model="selectedTypes[allergy.id]" />
+                                                v-model="selectedTypes[allergy.id]" class="form-check-input"
+                                                style="width: 20px; height: 20px;" />
                                         </td>
                                         <td>
                                             <input type="radio" :name="'allergy-' + allergy.id" value="Trace"
-                                                v-model="selectedTypes[allergy.id]" />
+                                                v-model="selectedTypes[allergy.id]" class="form-check-input"
+                                                style="width: 20px; height: 20px;" />
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-secondary" @click="cancelAllergySelection">Cancel</button>
-                            <button class="btn btn-primary" @click="saveSelectedAllergies">Save</button>
+
+                        <!-- Modal Footer -->
+                        <div class="modal-footer bg-light border-top">
+                            <button class="btn btn-secondary px-3" @click="cancelAllergySelection">
+                                Cancel
+                            </button>
+                            <button class="btn btn-primary px-3" @click="saveSelectedAllergies">
+                                Save
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
+
 
             <!-- Add backdrop -->
             <div v-if="showAllergyModal" class="modal-backdrop fade show"></div>
