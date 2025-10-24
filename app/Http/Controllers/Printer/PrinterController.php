@@ -58,18 +58,22 @@ class PrinterController extends Controller
                         $isUsb = false;
                         $isConnected = false;
 
-                        if (stripos($printer['PortName'] ?? '', 'USB') !== false ||
+                        if (
+                            stripos($printer['PortName'] ?? '', 'USB') !== false ||
                             stripos($printer['DriverName'] ?? '', 'BlackCopper') !== false ||
                             stripos($printer['Name'] ?? '', 'BlackCopper') !== false ||
                             stripos($printer['DriverName'] ?? '', 'Thermal') !== false ||
-                            stripos($printer['DriverName'] ?? '', 'POS') !== false) {
+                            stripos($printer['DriverName'] ?? '', 'POS') !== false
+                        ) {
                             $isUsb = true;
                         }
 
                         if ($isUsb && $usbDevices) {
                             foreach ($usbDevices as $usb) {
-                                if (stripos($usb['FriendlyName'] ?? '', 'Print') !== false ||
-                                    stripos($usb['FriendlyName'] ?? '', 'BlackCopper') !== false) {
+                                if (
+                                    stripos($usb['FriendlyName'] ?? '', 'Print') !== false ||
+                                    stripos($usb['FriendlyName'] ?? '', 'BlackCopper') !== false
+                                ) {
                                     $isConnected = ($usb['Status'] ?? '') === 'OK';
                                     break;
                                 }
@@ -287,7 +291,10 @@ class PrinterController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'No printer is connected for customer receipt.',
+            ]);
         }
     }
 
@@ -406,7 +413,10 @@ class PrinterController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'No printer is connected for Kitchen receipt.',
+            ]);
         }
     }
 
