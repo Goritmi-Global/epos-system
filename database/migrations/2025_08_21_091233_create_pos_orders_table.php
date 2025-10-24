@@ -27,6 +27,8 @@ return new class extends Migration
             $table->text('note')->nullable();
             $table->text('kitchen_note')->nullable();
 
+            $table->foreignId('shift_id')->nullable()->constrained('shifts')->onDelete('set null');
+
             $table->date('order_date')->nullable();
             $table->time('order_time')->nullable();
             $table->timestamps();

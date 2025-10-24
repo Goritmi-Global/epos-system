@@ -13,6 +13,7 @@ use App\Models\KitchenOrder;
 use App\Models\KitchenOrderItem;
 use App\Models\Payment;
 use App\Models\PosOrderType;
+use App\Models\Shift;
 use App\Models\StockEntry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -33,9 +34,21 @@ class PosOrderService
     public function create(array $data): PosOrder
     {
         return DB::transaction(function () use ($data) {
+            // Get the currently active shift for this user
+            $activeShift = Shift::where('status', 'open')
+                ->where('started_by', Auth::id())
+                ->latest()
+                ->first();
+
+            if (!$activeShift) {
+                throw new \Exception('No active shift found. Please start a shift before creating an order.');
+            }
+
+
             //  Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
+                'shift_id'       => $activeShift?->id,
                 'customer_name' => $data['customer_name'] ?? null,
                 'sub_total' => $data['sub_total'],
                 'total_amount' => $data['total_amount'],

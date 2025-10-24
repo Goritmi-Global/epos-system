@@ -9,6 +9,7 @@ class PosOrder extends Model
 {
     protected $fillable = [
         'user_id',
+        'shift_id',
         'customer_name',
         'sub_total',
         'total_amount',
