@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shifts;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
+use App\Models\PosOrder;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Shift;
 use App\Models\ShiftDetail;
@@ -122,13 +123,19 @@ class ShiftManagementController extends Controller
 
     public function closeShift(Request $request, Shift $shift)
     {
+        $totalSales = PosOrder::where('shift_id', $shift->id)
+        ->where('status', 'paid')
+        ->sum('total_amount');
+
+        $closingCash = $shift->opening_cash + $totalSales;
+
         // Step 1: Update shift fields
         $shift->update([
             'status'       => 'closed',
             'end_time'     => now(),
             'ended_by'     => Auth::id(),
-            'closing_cash' => 0,
-            'sales_total'  => 0,
+            'closing_cash' => $closingCash,
+            'sales_total'  => $totalSales,
         ]);
 
         // Step 2: Create end inventory snapshot
