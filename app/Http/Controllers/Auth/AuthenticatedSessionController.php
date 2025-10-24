@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Shift;
+use App\Models\ShiftDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,24 +42,45 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-        session()->flash('show_inventory_popup', true);
-
         $request->session()->regenerate();
 
         $user = auth()->user();
         $role = $user->getRoleNames()->first();
+        $activeShift = Shift::where('status', 'open')->first();
 
-        // ✅ Force redirect if Cashier
-        if ($role === 'Cashier') {
-            return redirect()->route('pos.order');
+        if ($role === 'Super Admin') {
+            if ($activeShift) {
+                session(['current_shift_id' => $activeShift->id]);
+                return redirect()->route('dashboard'); // already active shift → go to dashboard
+            } else {
+                // Show start shift modal
+                session()->flash('show_shift_modal', true);
+                return redirect()->route('shift.manage'); // no shift → show modal
+            }
+        } else {
+            if ($activeShift) {
+                // Join active shift
+                ShiftDetail::firstOrCreate(
+                    ['shift_id' => $activeShift->id, 'user_id' => $user->id],
+                    ['role' => $role, 'joined_at' => now()]
+                );
+                session(['current_shift_id' => $activeShift->id]);
+                // redirect based on role
+                if ($role === 'Cashier') {
+                    return redirect()->route('pos.order');
+                }
+                return redirect()->route('dashboard');
+            } else {
+                // No active shift → show modal
+                session()->flash('show_no_shift_modal', true);
+                return redirect()->route('shift.manage');
+            }
         }
-
-        // ✅ Default for other roles
-        return redirect()->route('dashboard');
     }
 
 
-   
+
+
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
