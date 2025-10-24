@@ -2,10 +2,10 @@
 
 namespace App\Services\POS;
 
+use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\MenuItem;
 use Illuminate\Http\Request;
-use App\Helpers\UploadHelper;
 
 class MenuService
 {
@@ -14,8 +14,7 @@ class MenuService
         return MenuItem::query()
             ->when(
                 $filters['q'] ?? null,
-                fn($q, $v) =>
-                $q->where('name', 'like', "%$v%")
+                fn ($q, $v) => $q->where('name', 'like', "%$v%")
             )
             ->orderByDesc('id')
             ->paginate(20)
@@ -26,43 +25,55 @@ class MenuService
     {
         // handle image upload
         if (isset($data['image']) && $data['image']) {
-            $upload      = UploadHelper::store($data['image'], 'uploads', 'public');
+            $upload = UploadHelper::store($data['image'], 'uploads', 'public');
             $data['upload_id'] = $upload->id;
         }
 
         unset($data['image']);
 
         $menu = MenuItem::create([
-            'name'          => $data['name'],
-            'price'         => $data['price'],
-            'category_id'   => $data['category_id'],
+            'name' => $data['name'],
+            'price' => $data['price'],
+            'category_id' => $data['category_id'],
             'subcategory_id' => $data['subcategory_id'] ?? null,
-            'description'   => $data['description'] ?? null,
-            'label_color'   => $data['label_color'] ?? null,
-            'upload_id'      => $data['upload_id'] ?? null,
+            'description' => $data['description'] ?? null,
+            'label_color' => $data['label_color'] ?? null,
+            'upload_id' => $data['upload_id'] ?? null,
         ]);
 
         // Nutrition
         $menu->nutrition()->create($data['nutrition'] ?? []);
 
-        // Allergies + Tags
-        if (!empty($data['allergies'])) {
-            $menu->allergies()->sync($data['allergies']);
+        // Allergies + Tags - FIXED HERE
+        if (! empty($data['allergies'])) {
+            $syncData = [];
+
+            foreach ($data['allergies'] as $index => $allergyId) {
+                // Get the type from the parallel array
+                $type = isset($data['allergy_types'][$index])
+                    ? ((bool) $data['allergy_types'][$index] ? 1 : 0)
+                    : 1; // default
+
+                $syncData[$allergyId] = ['type' => $type];
+            }
+
+            $menu->allergies()->sync($syncData);
         }
-        if (!empty($data['tags'])) {
+
+        if (! empty($data['tags'])) {
             $menu->tags()->sync($data['tags']);
         }
 
         // Ingredients
-        if (!empty($data['ingredients'])) {
+        if (! empty($data['ingredients'])) {
             foreach ($data['ingredients'] as $ing) {
                 $inventory = InventoryItem::find($ing['inventory_item_id']);
 
                 $menu->ingredients()->create([
                     'inventory_item_id' => $ing['inventory_item_id'],
-                    'product_name'      => $inventory?->name ?? 'Unknown',
-                    'quantity'          => $ing['qty'],
-                    'cost'              => $ing['cost'] ?? 0,
+                    'product_name' => $inventory?->name ?? 'Unknown',
+                    'quantity' => $ing['qty'],
+                    'cost' => $ing['cost'] ?? 0,
                 ]);
             }
         }
@@ -70,35 +81,34 @@ class MenuService
         return $menu;
     }
 
-
-
     public function update(MenuItem $menu, array $data): MenuItem
     {
+
         // -------------------------------
         // 1. Replace/upload image if provided
         // -------------------------------
-        if (!empty($data['image'])) {
+        if (! empty($data['image'])) {
             $newUpload = UploadHelper::replace($menu->upload_id, $data['image'], 'uploads', 'public');
             $data['upload_id'] = $newUpload->id;
         }
-        unset($data['image']); 
+        unset($data['image']);
 
         // -------------------------------
-        // 1. Update base menu info
+        // 2. Update base menu info
         // -------------------------------
         $menu->update([
-            'name'        => $data['name'],
-            'price'       => $data['price'],
+            'name' => $data['name'],
+            'price' => $data['price'],
             'category_id' => $data['category_id'],
             'description' => $data['description'] ?? null,
             'label_color' => $data['label_color'] ?? null,
-            'upload_id'   => $data['upload_id'] ?? $menu->upload_id,
+            'upload_id' => $data['upload_id'] ?? $menu->upload_id,
         ]);
 
         // -------------------------------
-        // 2. Update Nutrition (totals only)
+        // 3. Update Nutrition (totals only)
         // -------------------------------
-        if (!empty($data['nutrition'])) {
+        if (! empty($data['nutrition'])) {
             $menu->nutrition()->updateOrCreate(
                 ['menu_item_id' => $menu->id],
                 $data['nutrition']
@@ -106,47 +116,61 @@ class MenuService
         }
 
         // -------------------------------
-        // 3. Allergies & Tags (sync pivot)
+        // 4. Allergies & Tags (sync pivot)
         // -------------------------------
-        $menu->allergies()->sync($data['allergies'] ?? []);
+        if (! empty($data['allergies'])) {
+            $syncData = [];
+
+            foreach ($data['allergies'] as $index => $allergyId) {
+                $type = isset($data['allergy_types'][$index])
+                    ? ((int) $data['allergy_types'][$index] === 1 ? 1 : 0)
+                    : 1; // default to Contain
+
+                $syncData[$allergyId] = ['type' => $type];
+            }
+
+            $menu->allergies()->sync($syncData);
+        } else {
+            $menu->allergies()->detach();
+        }
+
         $menu->tags()->sync($data['tags'] ?? []);
 
         // -------------------------------
-        // 4. Ingredients (smart update)
+        // 5. Ingredients (smart update)
         // -------------------------------
-        $ingredientIds = collect($data['ingredients'])->pluck('inventory_item_id');
+        if (! empty($data['ingredients'])) {
+            $ingredientIds = collect($data['ingredients'])->pluck('inventory_item_id');
 
-        // Remove old ones not in request
-        $menu->ingredients()
-            ->whereNotIn('inventory_item_id', $ingredientIds)
-            ->delete();
+            // Remove old ones not in request
+            $menu->ingredients()
+                ->whereNotIn('inventory_item_id', $ingredientIds)
+                ->delete();
 
-        // Preload names once
-        $itemNames = InventoryItem::whereIn('id', $ingredientIds)
-            ->pluck('name', 'id');
+            // Preload names once
+            $itemNames = InventoryItem::whereIn('id', $ingredientIds)
+                ->pluck('name', 'id');
 
-        foreach ($data['ingredients'] as $ing) {
-            $menu->ingredients()->updateOrCreate(
-                [
-                    'menu_item_id'       => $menu->id,
-                    'inventory_item_id'  => $ing['inventory_item_id'],
-                ],
-                [
-                    'product_name' => $itemNames[$ing['inventory_item_id']] ?? 'Unknown',
-                    'quantity'     => $ing['qty'],
-                    'cost'         => $ing['cost'],
-                ]
-            );
+            foreach ($data['ingredients'] as $ing) {
+                $menu->ingredients()->updateOrCreate(
+                    [
+                        'menu_item_id' => $menu->id,
+                        'inventory_item_id' => $ing['inventory_item_id'],
+                    ],
+                    [
+                        'product_name' => $itemNames[$ing['inventory_item_id']] ?? 'Unknown',
+                        'quantity' => $ing['qty'],
+                        'cost' => $ing['cost'],
+                    ]
+                );
+            }
         }
 
-
         // -------------------------------
-        // 5. Return with relations loaded
+        // 6. Return with relations loaded
         // -------------------------------
         return $menu->load(['nutrition', 'ingredients', 'allergies', 'tags']);
     }
-
-
 
     public function delete(MenuItem $menu): void
     {

@@ -557,7 +557,7 @@ const switchToPin = () => {
 }
 
 .dark .form-label {
-    color: #fff;
+    color: #fff !important;
 }
 
 .form-addons {
