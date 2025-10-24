@@ -15,6 +15,8 @@ return new class extends Migration
         $table->id();
         $table->unsignedBigInteger('menu_item_id');
         $table->unsignedBigInteger('allergy_id');
+        $table->boolean('type')->default(0)->comment('1 = Contain, 0 = Trace');
+
         $table->timestamps();
 
         $table->foreign('menu_item_id')->references('id')->on('menu_items')->onDelete('cascade');

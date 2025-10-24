@@ -40,7 +40,9 @@ class MenuItem extends Model
     // Allergies (Many-to-Many via pivot)
     public function allergies()
     {
-        return $this->belongsToMany(Allergy::class, 'menu_allergies')->withTimestamps();
+        return $this->belongsToMany(Allergy::class, 'menu_allergies')
+        ->withPivot('type')
+        ->withTimestamps();
     }
 
     // Tags (Many-to-Many via pivot)

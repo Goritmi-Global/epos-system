@@ -15,40 +15,43 @@ class UpdateMenuRequest extends FormRequest
     public function rules(): array
     {
         $menuId = $this->route('menu');
+
         return [
-            'name'          => ['required', 'string', 'max:255'],
-            'slug'          => [
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => [
                 'nullable',
                 'string',
                 'max:255',
                 Rule::unique('menu_items', 'slug')->ignore($menuId),
             ],
-            'category_id'   => ['required', 'numeric', 'exists:menu_categories,id'],
+            'category_id' => ['required', 'numeric', 'exists:menu_categories,id'],
             'subcategory_id' => ['nullable', 'numeric', 'exists:menu_categories,id'],
-            'description'   => ['nullable', 'string'],
-            'label_color'   => ['required', 'string'],
-            'price'         => ['required', 'numeric', 'gt:0'],
+            'description' => ['nullable', 'string'],
+            'label_color' => ['required', 'string'],
+            'price' => ['required', 'numeric', 'gt:0'],
 
             // nutrition
-            'nutrition'              => ['array'],
-            'nutrition.calories'     => ['nullable', 'numeric', 'min:0'],
-            'nutrition.protein'      => ['nullable', 'numeric', 'min:0'],
-            'nutrition.fat'          => ['nullable', 'numeric', 'min:0'],
-            'nutrition.carbs'        => ['nullable', 'numeric', 'min:0'],
+            'nutrition' => ['array'],
+            'nutrition.calories' => ['nullable', 'numeric', 'min:0'],
+            'nutrition.protein' => ['nullable', 'numeric', 'min:0'],
+            'nutrition.fat' => ['nullable', 'numeric', 'min:0'],
+            'nutrition.carbs' => ['nullable', 'numeric', 'min:0'],
 
             // allergies + tags (now optional)
-            'allergies'   => ['nullable', 'array'],
+            'allergies' => ['nullable', 'array'],
             'allergies.*' => ['numeric', 'exists:allergies,id'],
-            'tags'        => ['nullable', 'array'],
-            'tags.*'      => ['numeric', 'exists:tags,id'],
+            'allergy_types' => ['nullable', 'array'],
+            'allergy_types.*' => ['boolean'],
 
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['numeric', 'exists:tags,id'],
 
             // ingredients
-            'ingredients'                     => ['required', 'array', 'min:1'],
+            'ingredients' => ['required', 'array', 'min:1'],
             'ingredients.*.inventory_item_id' => ['required', 'numeric', 'exists:inventory_items,id'],
-            'ingredients.*.qty'               => ['required', 'numeric', 'min:0'],
-            'ingredients.*.unit_price'        => ['required', 'numeric', 'min:0'],
-            'ingredients.*.cost'              => ['required', 'numeric', 'min:0'],
+            'ingredients.*.qty' => ['required', 'numeric', 'min:0'],
+            'ingredients.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'ingredients.*.cost' => ['required', 'numeric', 'min:0'],
 
             // image
             'image' => ['nullable', 'image', 'max:2048'],

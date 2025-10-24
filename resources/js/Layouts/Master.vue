@@ -30,10 +30,8 @@ const handleSidebarAction = (action) => {
     }
 };
 
-
 const showLogoutModal = ref(false);
 const showRestoreModal = ref(false);
-
 const isFullscreen = ref(false);
 
 const toggleFullscreen = () => {
@@ -52,12 +50,25 @@ const toggleFullscreen = () => {
 document.addEventListener("fullscreenchange", () => {
     isFullscreen.value = !!document.fullscreenElement;
 });
+const isLoggingOut = ref(false);
 
-const handleLogout = () => {
+const handleLogout = async () => {
+    // Step 1: Close the modal instantly
     showLogoutModal.value = false;
-    router.post(route("logout"));
-};
 
+    // Step 2: Show the fullscreen spinner
+    isLoggingOut.value = true;
+
+    // Optional short delay for a smoother effect
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Step 3: Perform the logout request
+    try {
+        await router.post(route("logout"));
+    } finally {
+        isLoggingOut.value = false;
+    }
+};
 const handleSystemRestore = async () => {
     try {
         const response = await axios.post(route('system.restore'));
@@ -649,7 +660,7 @@ onMounted(fetchNotifications);
                                             @click="toggleGroup(item.label)" type="button" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                            }}</span>
+                                                }}</span>
                                             <i class="chevron-icon"
                                                 :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                                         </button>
@@ -681,7 +692,7 @@ onMounted(fetchNotifications);
                                     </li>
 
                                     <!-- Action item (like System Restore) -->
-                                    <li v-else-if="item.action" class="side-link">
+                                    <li v-else-if="item.action && hasPermission(item.action)" class="side-link">
                                         <button @click="handleSidebarAction(item.action)"
                                             class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
                                             :title="item.label">
@@ -702,10 +713,18 @@ onMounted(fetchNotifications);
             message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
             @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
 
-        <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" @confirm="handleLogout"
+        <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" :loading="isLoggingOut" @confirm="handleLogout"
             @cancel="showLogoutModal = false" />
 
+        <!-- Full Page Centered Spinner -->
+        <div v-if="isLoggingOut"
+            class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50"
+            style="z-index: 9999;">
+            <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;"></div>
+        </div>
 
+         
+            
         <!-- Mobile overlay backdrop -->
         <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
         <!-- =================== /SIDEBAR =================== -->
@@ -716,6 +735,29 @@ onMounted(fetchNotifications);
             <slot />
         </main>
     </div>
+
+     <footer class="footer bg-white dark:bg-gray-800 border-top">
+        <div class="container-fluid">
+            <div class="row align-items-center py-3">
+                <!-- Left: Empty or additional content -->
+                <div class="col-md-4"></div>
+                
+                <!-- Center: Powered by -->
+                <div class="col-md-4 text-center">
+                    <span class="text-muted">
+                        Powered by <strong class="text-primary">10XGLOBAL</strong>
+                    </span>
+                </div>
+                
+                <!-- Right: Contact Link -->
+                <div class="col-md-4 text-end">
+                    <a href="#" class="text-decoration-none hover:text-primary-dark">
+                        Need Help? <strong class="text-primary">Contact Us</strong>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <!-- user data update modal -->
     <div class="modal fade" id="userProfileModal" tabindex="-1" aria-hidden="true">

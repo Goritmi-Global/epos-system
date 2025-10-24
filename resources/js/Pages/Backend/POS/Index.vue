@@ -1534,7 +1534,8 @@ const decrementCardQty = (product) => {
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3">
                             <div class="col-12 mb-3">
-                                <h5 class="fw-bold text-primary mb-0">Menu Categories</h5>
+                                <!-- <h5 class="fw-bold  mb-0"></h5> -->
+                                  <h4 class="mb-3">Menu Categories</h4>
                                 <hr class="mt-2 mb-3">
                             </div>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
@@ -1806,10 +1807,10 @@ const decrementCardQty = (product) => {
                                                     :style="{ color: p.label_color || '#1B1670' }">
                                                     {{ p.title }}
                                                 </div>
-                                                <div class="text-muted mb-3 small">{{ p.family }}</div>
+                                                <!-- <div class="text-muted mb-3 small">{{ p.family }}</div> -->
 
                                                 <!-- View Details Button -->
-                                                <button class="btn btn-primary mb-2" @click="openDetailsModal(p)">
+                                                <button class="btn btn-primary mb-2 mt-1" @click="openDetailsModal(p)">
                                                     View Details
                                                 </button>
 
@@ -1817,20 +1818,20 @@ const decrementCardQty = (product) => {
 
                                             <!-- Quantity Controls -->
                                             <div v-if="(p.stock ?? 0) > 0"
-                                                class="mt-3 d-flex align-items-center justify-content-start gap-2"
+                                                class="mt-2 d-flex align-items-center justify-content-start gap-2"
                                                 @click.stop>
                                                 <button
-                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
+                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-2 py-2"
                                                     style="width: 55px; height: 36px;" @click.stop="decrementCardQty(p)"
                                                     :disabled="getCardQty(p) <= 0">
                                                     <strong>−</strong>
                                                 </button>
-                                                <div class="qty-box border rounded-pill px-4 py-2 text-center fw-semibold"
+                                                <div class="qty-box border rounded-pill px-2 py-2 text-center fw-semibold"
                                                     style="min-width: 55px;">
                                                     {{ getCardQty(p) }}
                                                 </div>
                                                 <button
-                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-4 py-1"
+                                                    class="qty-btn btn btn-outline-secondary rounded-circle px-2 py-2"
                                                     style="width: 55px; height: 36px;" @click.stop="incrementCardQty(p)"
                                                     :disabled="!canAddMore(p)">
                                                     <strong>+</strong>
@@ -2198,6 +2199,8 @@ const decrementCardQty = (product) => {
     z-index: 100;
 }
 
+
+
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.3s ease;
@@ -2225,7 +2228,7 @@ const decrementCardQty = (product) => {
 
 /* Make the cart itself scrollable if content is too long */
 .cart {
-    max-height: calc(100vh - 40px);
+    max-height: calc(70vh);
     display: flex;
     flex-direction: column;
 }
