@@ -27,6 +27,7 @@ use App\Http\Controllers\{
 use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Notifications\NotificationController;
 use App\Http\Controllers\Printer\PrinterController;
+use App\Http\Controllers\Shifts\ShiftManagementController;
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
@@ -122,6 +123,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::post('/mark-as-read/{id}', [NotificationController::class, 'markRead'])->name('markRead');
         Route::post('/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('markAllRead');
+    });
+
+    Route::prefix('shift')->name('api.shift.')->group(function () {
+        Route::get('/all', [ShiftManagementController::class, 'getAllShifts'])->name('all');
+         Route::patch('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
+
     });
 
     // Get Printers

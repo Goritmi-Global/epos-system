@@ -94,7 +94,6 @@ const handleSystemRestore = async () => {
 
 const userPermissions = computed(() => page.props.current_user?.permissions ?? []);
 const userRoles = computed(() => page.props.current_user?.roles ?? []);
-console.log("userPermissions", userPermissions.value);
 // helper
 const hasPermission = (perm) => {
     if (!perm) return true; // sections or headers without route
@@ -109,7 +108,6 @@ const hasPermission = (perm) => {
 
 const formErrors = ref({});
 const logedIUser = computed(() => page.props.current_user ?? {});
-console.log("logedIUser", logedIUser.value);
 const businessInfo = computed(() => page.props.business_info ?? {});
 
 const isDark = useDark({
@@ -184,6 +182,11 @@ const sidebarMenus = ref([
                 label: "Promo",
                 icon: "tag",
                 route: "promos.index",
+            },
+            {
+                label: "Shift Management",
+                icon: "users",
+                route: "shift.index",
             },
 
         ],
