@@ -34,6 +34,7 @@ use App\Http\Controllers\Reference\ReferenceManagementController;
 use App\Http\Controllers\Reference\SupplierController;
 use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
+use App\Http\Controllers\Shifts\ShiftManagementController;
 use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
@@ -290,13 +291,22 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::delete('/{user}', [UsersController::class, 'destroy'])->name('destroy');
     });
 
+    // shift management 
+    Route::prefix('shift')->name('shift.')->group(function () {
+    Route::get('/', [ShiftManagementController::class, 'index'])->name('index');
+    Route::get('/manage', [ShiftManagementController::class, 'showShiftModal'])->name('manage');
+    Route::post('/start', [ShiftManagementController::class, 'startShift'])->name('start');
+    Route::post('/check-active-shift', [ShiftManagementController::class, 'checkActiveShift'])->name('check');
+    });
+
 });
 
 Route::middleware(['auth', 'role:Super Admin'])->group(function() {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
-    
 
 });
+
+
 
 /* ---------- Public settings/locations page (if intended public) ---------- */
 Route::get('/settings/locations', [IndexController::class, 'index'])->name('locations.index');
