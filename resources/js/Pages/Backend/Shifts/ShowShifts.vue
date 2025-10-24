@@ -26,32 +26,47 @@
                 </div>
 
                 <!-- Footer -->
-                <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-3">
-                    <button @click="startShift"
-                        class="btn btn-primary py-1 px-4 rounded-pill hover:bg-indigo-800 transition">Start
-                        Shift</button>
-                </div>
+                <!-- Footer -->
+<div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-3">
+    <button
+        @click="startShift"
+        :disabled="loadingStart"
+        class="btn btn-primary py-1 px-4 rounded-pill flex items-center justify-center gap-2 transition"
+    >
+        <span v-if="loadingStart" class="spinner-border spinner-border-sm"></span>
+        <span>{{ loadingStart ? "Starting..." : "Start Shift" }}</span>
+    </button>
+</div>
+
 
             </div>
         </div>
 
         <!-- No Active Shift modal for other users -->
          
-        <div v-if="showNoShiftModal"
-            class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center">
+       <!-- No Active Shift Modal for other users -->
+<div
+    v-if="showNoShiftModal"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center">
+        <h2 class="text-xl font-semibold mb-2 text-gray-800">No active shift</h2>
+        <p class="text-sm text-gray-600 mb-4 text-center">
+            There is no currently active shift available.
+            Please ask manager or admin to start session or try again later.
+        </p>
 
-                <h2 class="text-xl font-semibold mb-2 text-gray-800">No active shift</h2>
-                <p class="text-sm text-gray-600 mb-4 text-center">
-                    There is no currently active shift available.
-                    Please ask manager or admin to start session or try again later.
-                </p>
-                <button @click="retryCheck"
-                    class="btn btn-primary py-2 px-4 w-100 rounded-pill hover:bg-indigo-800 transition">
-                    Retry
-                </button>
-            </div>
-        </div>
+        <button
+            @click="retryCheck"
+            :disabled="loadingRetry"
+            class="btn btn-primary py-2 px-4 w-100 rounded-pill flex items-center justify-center gap-2 transition"
+        >
+            <span v-if="loadingRetry" class="spinner-border spinner-border-sm"></span>
+            <span>{{ loadingRetry ? "Checking..." : "Retry" }}</span>
+        </button>
+    </div>
+</div>
+
 
 
     </Master>
@@ -71,9 +86,13 @@ const showNoShiftModal = ref(page.props.showNoShiftModal || false);
 
 const openingCash = ref('');
 const notes = ref('');
+const loadingStart = ref(false);
+const loadingRetry = ref(false);
+
 
 const startShift = async () => {
     try {
+        loadingStart.value = true;
         const response = await axios.post('/shift/start', {
             opening_cash: openingCash.value,
             notes: notes.value
@@ -86,12 +105,15 @@ const startShift = async () => {
     } catch (error) {
         console.error(error);
         alert('Failed to start shift');
+    }finally {
+        loadingStart.value = false;
     }
 };
 
 // Retry check for other users
 const retryCheck = async () => {
     try {
+        loadingRetry.value = true;
         const res = await axios.post('/shift/check-active-shift');
 
         if (res.data.active) {
@@ -103,6 +125,8 @@ const retryCheck = async () => {
     } catch (error) {
         console.error(error);
         alert('Failed to check shift status');
+    }finally {
+        loadingRetry.value = false;
     }
 };
 

@@ -31,4 +31,9 @@ class Shift extends Model
     {
         return $this->belongsTo(User::class, 'ended_by');
     }
+    public function details()
+{
+    return $this->hasMany(\App\Models\ShiftDetail::class, 'shift_id');
+}
+
 }

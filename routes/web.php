@@ -298,6 +298,8 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     Route::post('/start', [ShiftManagementController::class, 'startShift'])->name('start');
     Route::post('/check-active-shift', [ShiftManagementController::class, 'checkActiveShift'])->name('check');
     });
+    Route::get('/api/shift/{id}/details', [ShiftManagementController::class, 'details']);
+
 
 });
 

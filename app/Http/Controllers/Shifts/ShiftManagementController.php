@@ -172,4 +172,21 @@ class ShiftManagementController extends Controller
             'data' => $shifts,
         ]);
     }
+
+    public function details($id)
+{
+    $shift = \App\Models\Shift::with('details')->findOrFail($id);
+
+    return response()->json([
+        'success' => true,
+        'data' => $shift->details->map(function ($detail) {
+            return [
+                'role' => $detail->role,
+                'joined_at' => $detail->joined_at,
+                'sales_amount' => $detail->sales_amount,
+            ];
+        }),
+    ]);
+}
+
 }
