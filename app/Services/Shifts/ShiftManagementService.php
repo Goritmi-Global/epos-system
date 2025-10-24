@@ -11,7 +11,7 @@ class ShiftManagementService
      */
     public function getAllShifts()
     {
-        return \App\Models\Shift::with(['starter', 'ender'])
+        return \App\Models\Shift::with(['starter', 'ender', 'details'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($shift) {
@@ -24,6 +24,7 @@ class ShiftManagementService
                     'closing_cash' => $shift->closing_cash,
                     'sales_total' => $shift->sales_total ?? 0,
                     'status' => $shift->status,
+                    'roles' => $shift->details->pluck('role')->unique()->values(),
                 ];
             });
     }
