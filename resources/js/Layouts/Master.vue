@@ -733,6 +733,29 @@ onMounted(fetchNotifications);
         </main>
     </div>
 
+     <footer class="footer bg-white dark:bg-gray-800 border-top">
+        <div class="container-fluid">
+            <div class="row align-items-center py-3">
+                <!-- Left: Empty or additional content -->
+                <div class="col-md-4"></div>
+                
+                <!-- Center: Powered by -->
+                <div class="col-md-4 text-center">
+                    <span class="text-muted">
+                        Powered by <strong class="text-primary">10XGLOBAL</strong>
+                    </span>
+                </div>
+                
+                <!-- Right: Contact Link -->
+                <div class="col-md-4 text-end">
+                    <a href="#" class="text-decoration-none hover:text-primary-dark">
+                        Need Help? <strong class="text-primary">Contact Us</strong>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <!-- user data update modal -->
     <div class="modal fade" id="userProfileModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">

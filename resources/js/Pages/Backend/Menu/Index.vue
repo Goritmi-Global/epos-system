@@ -10,6 +10,10 @@ import * as XLSX from "xlsx";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
+import ImageZoomModal from "@/Components/ImageZoomModal.vue";
+import ImportFile from "@/Components/importFile.vue";
+import ImageCropperModal from "@/Components/ImageCropperModal.vue";
+import { Head } from "@inertiajs/vue3";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
@@ -55,6 +59,9 @@ const labelColors = [
 const inventoryItems = ref([]);
 const showStatusModal = ref(false);
 const statusTargetItem = ref(null);
+const showAllergyModal = ref(false);
+const selectedTypes = ref({});
+const selectedAllergies = ref([]);
 // ================== Ingredients =====================
 const i_search = ref("");
 const i_cart = ref([]);
@@ -68,11 +75,44 @@ const fetchInventory = async () => {
     }
 };
 
-import ImageZoomModal from "@/Components/ImageZoomModal.vue";
-import ImportFile from "@/Components/importFile.vue";
-import ImageCropperModal from "@/Components/ImageCropperModal.vue";
-import { Head } from "@inertiajs/vue3";
+function saveSelectedAllergies() {
+    // Build selectedAllergies with full objects for display
+    selectedAllergies.value = Object.keys(selectedTypes.value)
+        .filter((key) => selectedTypes.value[key]) // filter selected only
+        .map((key) => ({
+            id: parseInt(key),
+            name: props.allergies.find((a) => a.id == key)?.name,
+            type: selectedTypes.value[key],
+        }));
 
+    // Store ONLY the allergy objects in form for FormData building
+    // Don't convert to IDs here - let submitProduct handle it
+    form.value.allergies = [...selectedAllergies.value];
+
+    // Close allergy modal
+    showAllergyModal.value = false;
+
+    // Reopen the menu modal after a small delay
+    setTimeout(() => {
+        const menuModal = new bootstrap.Modal(
+            document.getElementById("addItemModal")
+        );
+        menuModal.show();
+    }, 300);
+}
+
+// Handle cancel button
+const cancelAllergySelection = () => {
+    showAllergyModal.value = false;
+
+    // Reopen the menu modal
+    setTimeout(() => {
+        const menuModal = new bootstrap.Modal(
+            document.getElementById("addItemModal")
+        );
+        menuModal.show();
+    }, 300);
+};
 // filter inventory for ingredients
 const i_filteredInv = computed(() => {
     const t = i_search.value.trim().toLowerCase();
@@ -84,6 +124,20 @@ const i_filteredInv = computed(() => {
             .includes(t)
     );
 });
+
+const openAllergyModal = () => {
+    // Hide the menu modal
+    const menuModal = bootstrap.Modal.getInstance(
+        document.getElementById("addItemModal")
+    );
+    if (menuModal) {
+        menuModal.hide();
+    }
+
+    // Show allergy modal
+    showAllergyModal.value = true;
+};
+
 
 function round2(x) {
     return Math.round(x * 100) / 100;
@@ -539,9 +593,10 @@ const submitProduct = async () => {
     formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
 
     // allergies + tags
-    form.value.allergies.forEach((id, i) =>
-        formData.append(`allergies[${i}]`, id)
-    );
+    form.value.allergies.forEach((a, i) => {
+        formData.append(`allergies[${i}]`, a.id);
+        formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
+    });
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // ingredients cart
@@ -680,6 +735,29 @@ const editItem = (item) => {
         fat: parseFloat(itemData.nutrition?.fat || 0),
     };
 
+    // Load existing allergies with their types
+    if (itemData.allergies && itemData.allergies.length > 0) {
+        selectedAllergies.value = itemData.allergies.map(a => {
+            const rawType = a.pivot?.type ?? a.type ?? 1; // fallback to 1 if missing
+            return {
+                id: a.id,
+                name: a.name,
+                type: Number(rawType) === 1 ? 'Contain' : 'Trace', // convert numeric → text
+            };
+        });
+
+
+        // Populate selectedTypes for the radio buttons
+        selectedTypes.value = {};
+        selectedAllergies.value.forEach(a => {
+            selectedTypes.value[a.id] = a.type;
+        });
+    } else {
+        // Reset if no allergies
+        selectedAllergies.value = [];
+        selectedTypes.value = {};
+    }
+
     // Build i_cart with enriched inventory details
     i_cart.value = (itemData.ingredients || []).map((ing) => {
         const quantity = parseFloat(ing.quantity || ing.qty || 0);
@@ -715,6 +793,8 @@ const editItem = (item) => {
     });
 
     console.log("Hydrated cart with details:", i_cart.value);
+    console.log("Loaded allergies:", selectedAllergies.value);
+    console.log("Selected types:", selectedTypes.value);
 
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
@@ -757,9 +837,13 @@ const submitEdit = async () => {
         formData.append("nutrition[carbs]", totalNutrition.carbs);
 
         // Allergies and tags
-        form.value.allergies.forEach((id, i) =>
-            formData.append(`allergies[${i}]`, id)
-        );
+        // Allergies & allergy types
+        selectedAllergies.value.forEach((a, i) => {
+            formData.append(`allergies[${i}]`, a.id); // numeric id
+            const typeValue = a.type === 'Contain' ? 1 : 0; // convert back to numeric
+            formData.append(`allergy_types[${i}]`, typeValue);
+        });
+
         form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
         // Ingredients from cart
@@ -865,6 +949,9 @@ function resetForm() {
     formErrors.value = {};
     isEditMode.value = null;
 
+    selectedAllergies.value = [];
+    selectedTypes.value = {};
+
     //  reset ingredients + totals
     i_cart.value = [];
     i_total.value = 0;
@@ -948,7 +1035,21 @@ const downloadCSV = (data) => {
 
             //  Handle Allergies (array of objects or strings)
             const allergies = Array.isArray(s.allergies)
-                ? s.allergies.map((a) => a.name || a).join(", ")
+                ? s.allergies
+                    .map((a) => {
+                        const name = a.name || a;
+                        const type = a.pivot?.type ?? a.type ?? null;
+
+                        if (type !== null && type !== undefined) {
+                            const typeLabel =
+                                String(type) === "1" || type === 1
+                                    ? "Contain"
+                                    : "Trace";
+                            return `${name} (${typeLabel})`;
+                        }
+                        return name;
+                    })
+                    .join(", ")
                 : s.allergies || "";
 
             //  Handle Tags (array of objects or strings)
@@ -1056,8 +1157,24 @@ const downloadPDF = (data) => {
                     : s.category || "";
 
             const allergies = Array.isArray(s.allergies)
-                ? s.allergies.map((a) => a.name || a).join(", ")
+                ? s.allergies
+                    .map((a) => {
+                        const name = a.name || a;
+                        const type = a.pivot?.type ?? a.type ?? null;
+
+                        // handle type display: 1 = Contain, 0 = Trace
+                        if (type !== null && type !== undefined) {
+                            const typeLabel =
+                                String(type) === "1" || type === 1
+                                    ? "Contain"
+                                    : "Trace";
+                            return `${name} (${typeLabel})`;
+                        }
+                        return name;
+                    })
+                    .join(", ")
                 : s.allergies || "";
+
 
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
@@ -1159,8 +1276,23 @@ const downloadExcel = (data) => {
                     : s.category || "";
 
             const allergies = Array.isArray(s.allergies)
-                ? s.allergies.map((a) => a.name || a).join(", ")
+                ? s.allergies
+                    .map((a) => {
+                        const name = a.name || a;
+                        const type = a.pivot?.type ?? a.type ?? null;
+
+                        if (type !== null && type !== undefined) {
+                            const typeLabel =
+                                String(type) === "1" || type === 1
+                                    ? "Contain"
+                                    : "Trace";
+                            return `${name} (${typeLabel})`;
+                        }
+                        return name;
+                    })
+                    .join(", ")
                 : s.allergies || "";
+
 
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
@@ -1637,16 +1769,30 @@ const handleImport = (data) => {
                                 <!-- Allergies -->
                                 <div class="col-md-6">
                                     <label class="form-label d-block">Allergies</label>
-                                    <MultiSelect v-model="form.allergies" :options="allergies" optionLabel="name"
-                                        optionValue="id" filter placeholder="Select Allergies"
-                                        class="select w-full md:w-80" appendTo="self" :class="{
-                                            'is-invalid': formErrors.allergies,
-                                        }" />
-                                    <br />
-                                    <small v-if="formErrors.allergies" class="text-danger">
-                                        {{ formErrors.allergies[0] }}
-                                    </small>
+                                    <div @click="openAllergyModal" class="form-control py-2 px-3"
+                                        style="cursor:pointer;">
+                                        <span v-if="selectedAllergies.length === 0" class="text-muted">
+                                            Select Allergies
+                                        </span>
+
+                                        <span v-else>
+                                            <span v-for="(item, index) in selectedAllergies" :key="index"
+                                                class="badge  text-dark mx-1 d-inline-flex align-items-center">
+                                                {{ item.name }}
+                                                <span v-if="item.type === 'Contain'" class="ms-1"
+                                                    style="color: #22c55e; font-weight: bold;">
+                                                    (✔️)
+                                                </span>
+                                                <span v-else class="ms-1" style="color: #f97316; font-weight: bold;">
+                                                    (*)
+                                                </span>
+                                            </span>
+                                        </span>
+                                    </div>
+
                                 </div>
+
+
 
                                 <!-- Tags -->
                                 <div class="col-md-6">
@@ -1819,6 +1965,58 @@ ing, idx
                 </div>
             </div>
             <!-- /modal -->
+
+
+            <div class="modal fade" id="allergyModal" tabindex="-1" :class="{ show: showAllergyModal }"
+                :style="{ display: showAllergyModal ? 'block' : 'none' }" v-if="showAllergyModal" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Select Allergies</h5>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                @click="cancelAllergySelection" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <table class="table table-bordered align-middle text-center">
+                                <thead>
+                                    <tr>
+                                        <th>Allergy</th>
+                                        <th>Contain</th>
+                                        <th>Trace</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="allergy in allergies" :key="allergy.id">
+                                        <td>{{ allergy.name }}</td>
+                                        <td>
+                                            <input type="radio" :name="'allergy-' + allergy.id" value="Contain"
+                                                v-model="selectedTypes[allergy.id]" />
+                                        </td>
+                                        <td>
+                                            <input type="radio" :name="'allergy-' + allergy.id" value="Trace"
+                                                v-model="selectedTypes[allergy.id]" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" @click="cancelAllergySelection">Cancel</button>
+                            <button class="btn btn-primary" @click="saveSelectedAllergies">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add backdrop -->
+            <div v-if="showAllergyModal" class="modal-backdrop fade show"></div>
+
 
             <!-- Add Ingredient Modal -->
             <div class="modal fade" id="addIngredientModal" tabindex="-1" aria-hidden="true">
@@ -2162,6 +2360,11 @@ ing, idx
 }
 
 .dark .form-label.text-muted {
+    color: #fff !important;
+}
+
+.dark .form-control {
+    background-color: #212121 !important;
     color: #fff !important;
 }
 
