@@ -88,14 +88,6 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    /* -------- Onboarding -------- */
-    // Route::prefix('onboarding')->name('onboarding.')->group(function () {
-    //     Route::get('/', [OnboardingController::class, 'index'])->name('index');
-    //     Route::get('/data', [OnboardingController::class, 'show'])->name('show');
-    //     Route::post('/step/{step}', [OnboardingController::class, 'saveStep'])->name('saveStep');
-    //     Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
-    // });
-
     /* -------- Inventory -------- */
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('index');
