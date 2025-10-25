@@ -35,10 +35,24 @@ class PosOrderService
     {
         return DB::transaction(function () use ($data) {
             // Get the currently active shift for this user
-            $activeShift = Shift::where('status', 'open')
-                ->where('started_by', Auth::id())
-                ->latest()
-                ->first();
+            // $activeShift = Shift::where('status', 'open')
+            //     ->when(!Auth::user()->hasRole('Super Admin'), function ($query) {
+            //         // If user is NOT Super Admin, look for either:
+            //         // (a) their own open shift OR (b) any open shift started by Super Admin
+            //         $query->where(function ($subQuery) {
+            //             $subQuery->where('started_by', Auth::id())
+            //                 ->orWhereHas('user', function ($q) {
+            //                     $q->whereHas('roles', function ($r) {
+            //                         $r->where('name', 'Super Admin');
+            //                     });
+            //                 });
+            //         });
+            //     })
+            //     ->latest()
+            //     ->first();
+
+            $activeShift = Shift::where('status', 'open')->latest()->first();
+
 
             if (!$activeShift) {
                 throw new \Exception('No active shift found. Please start a shift before creating an order.');
