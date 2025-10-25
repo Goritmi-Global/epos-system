@@ -3,16 +3,12 @@
 use App\Http\Controllers\Auth\CustomPasswordResetController;
 use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
-/* ---------- Auth scaffolding ---------- */
 use App\Http\Controllers\Auth\RoleController;
-/* ---------- General ---------- */
 use App\Http\Controllers\Auth\UsersController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\OnboardingController;
-// (not used below, but kept for later)
 use App\Http\Controllers\POS\AnalyticsController;
-/* ---------- POS & Inventory ---------- */
 use App\Http\Controllers\POS\InventoryCategoryController;
 use App\Http\Controllers\POS\InventoryController;
 use App\Http\Controllers\POS\KotController;
@@ -27,7 +23,6 @@ use App\Http\Controllers\POS\StockEntryController;
 use App\Http\Controllers\POS\StockLogController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromoController;
-/* ---------- References ---------- */
 use App\Http\Controllers\Reference\AllergyController;
 use App\Http\Controllers\Reference\CategoryController;
 use App\Http\Controllers\Reference\ReferenceManagementController;
@@ -39,7 +34,6 @@ use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
 
 use Mike42\Escpos\Printer;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
@@ -48,27 +42,45 @@ use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 |  Public / Guest
 |========================================================= */
 
-// health/test helper
 Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
-
-// root -> login screen (Inertia)
-Route::get('/login', fn () => Inertia::render('Auth/Login'));
-
+Route::get('/login', fn () => Inertia::render('Auth/Login'))->name('login');
 Route::get('/', [ProfileController::class, 'frontPage'])->name('front-page');
-
-// email verification links & OTP verify
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
 Route::post('/forgot-password', [CustomPasswordResetController::class, 'requestReset'])
     ->name('password.custom-request');
 
-
 /* =========================================================
-|  Authenticated (auth + verified where needed)
+|  Shift Management Routes (NO shift check - must be accessible)
 |========================================================= */
 
-// Main dashboard
-Route::middleware(['auth', 'verified'])->middleware('permissions')->group(function () {
+Route::middleware(['auth'])->group(function () {
+    Route::prefix('shift')->name('shift.')->group(function () {
+        Route::get('/', [ShiftManagementController::class, 'index'])->name('index');
+        Route::get('/manage', [ShiftManagementController::class, 'showShiftModal'])->name('manage');
+        Route::post('/start', [ShiftManagementController::class, 'startShift'])->name('start');
+        Route::post('/check-active-shift', [ShiftManagementController::class, 'checkActiveShift'])->name('check');
+        Route::post('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
+        Route::get('/all', [ShiftManagementController::class, 'getAllShifts'])->name('getAllShifts');
+    });
+    Route::get('/api/shift/{id}/details', [ShiftManagementController::class, 'details'])->name('shift.details');
+
+    // ✅ Add onboarding routes HERE (no shift check)
+    Route::prefix('onboarding')->name('onboarding.')->group(function () {
+        Route::get('/', [OnboardingController::class, 'index'])->name('index');
+        Route::get('/data', [OnboardingController::class, 'show'])->name('show');
+        Route::post('/step/{step}', [OnboardingController::class, 'saveStep'])->name('saveStep');
+        Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
+    });
+
+});
+
+/* =========================================================
+|  All Other Authenticated Routes (WITH shift check)
+|========================================================= */
+
+// ✅ Apply check.shift.global to EVERYTHING except shift management
+Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     /* -------- Profile -------- */
@@ -76,13 +88,13 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    /* -------- Onboarding (must be reachable after login) -------- */
-    Route::prefix('onboarding')->name('onboarding.')->group(function () {
-        Route::get('/', [OnboardingController::class, 'index'])->name('index');
-        Route::get('/data', [OnboardingController::class, 'show'])->name('show');
-        Route::post('/step/{step}', [OnboardingController::class, 'saveStep'])->name('saveStep');
-        Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
-    });
+    /* -------- Onboarding -------- */
+    // Route::prefix('onboarding')->name('onboarding.')->group(function () {
+    //     Route::get('/', [OnboardingController::class, 'index'])->name('index');
+    //     Route::get('/data', [OnboardingController::class, 'show'])->name('show');
+    //     Route::post('/step/{step}', [OnboardingController::class, 'saveStep'])->name('saveStep');
+    //     Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
+    // });
 
     /* -------- Inventory -------- */
     Route::prefix('inventory')->name('inventory.')->group(function () {
@@ -101,15 +113,11 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::get('/', [StockEntryController::class, 'index'])->name('index');
         Route::post('/', [StockEntryController::class, 'store'])->name('store');
         Route::get('/by-item/{inventory}', [StockEntryController::class, 'byItem'])->name('byItem');
-
-        // Fixed routes before parameterized
         Route::get('/stock-logs', [StockEntryController::class, 'stockLogs'])->name('stock.logs');
         Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
         Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
         Route::get('/stock-logs/{id}/allocations', [StockEntryController::class, 'allocations'])->name('stock.logs.allocations');
-
-        // Parameterized
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
@@ -124,7 +132,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::delete('/{id}', [InventoryCategoryController::class, 'destroy'])->name('destroy');
     });
 
-    /* -------- Stock Logs (separate index if needed) -------- */
+    /* -------- Stock Logs -------- */
     Route::prefix('stock-logs')->name('stock.logs.')->group(function () {
         Route::get('/', [StockLogController::class, 'index'])->name('index');
         Route::post('/', [StockLogController::class, 'store'])->name('store');
@@ -134,7 +142,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     /* -------- Purchase Orders -------- */
     Route::prefix('purchase-orders')->name('purchase.orders.')->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
-
         Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
         Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
@@ -157,7 +164,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/', [SupplierController::class, 'store'])->name('store');
         Route::post('/update', [SupplierController::class, 'update'])->name('update');
         Route::delete('/{supplier}', [SupplierController::class, 'destroy'])->name('destroy');
-
     });
 
     /* -------- Tags -------- */
@@ -175,8 +181,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::get('/{id}', [CategoryController::class, 'show'])->name('show');
         Route::put('/{id}', [CategoryController::class, 'update'])->name('update');
         Route::delete('/{id}', [CategoryController::class, 'destroy'])->name('destroy');
-
-        // Route::patch('/{id}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('toggle');
     });
 
     /* -------- Units -------- */
@@ -204,8 +208,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::get('/{menu}', [MenuController::class, 'show'])->name('show');
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
-      Route::patch('/{menu}/status', [MenuController::class, 'toggleStatus'])->name('toggleStatus');
-
+        Route::patch('/{menu}/status', [MenuController::class, 'toggleStatus'])->name('toggleStatus');
     });
 
     /* -------- Menu Categories -------- */
@@ -220,11 +223,9 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     });
 
     /* -------- POS Live Screen -------- */
-    Route::prefix('pos')->middleware(['auth', 'check.shift'])->name('pos.')->group(function () {
+    Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
-
-        // Stripe redirect/callback (creates order after successful payment
         Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
             ->name('place-stripe-order');
     });
@@ -254,7 +255,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/', [PromoController::class, 'store'])->name('store');
         Route::post('/{id}', [PromoController::class, 'update'])->name('update');
         Route::get('/{id}', [PromoController::class, 'show'])->name('show');
-
     });
 
     /* -------- Settings -------- */
@@ -263,7 +263,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/update/{step}', [SettingsController::class, 'updateStep']);
     });
 
-    /* -------- Settings -------- */
+    /* -------- KOTs -------- */
     Route::prefix('kots')->name('kots.')->group(function () {
         Route::get('/', [KotController::class, 'index'])->name('index');
     });
@@ -273,7 +273,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::post('/', [PermissionController::class, 'store'])->name('store');
         Route::put('/{permission}', [PermissionController::class, 'update'])->name('update');
     });
-    // Roles
+
     Route::prefix('roles')->name('roles.')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->name('index');
         Route::get('/{role}', [RoleController::class, 'show'])->name('show');
@@ -281,7 +281,6 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::put('/{role}', [RoleController::class, 'update'])->name('update');
     });
 
-    // If you don't already have a "list all permissions" route, expose one:
     Route::get('/permissions-list', [RoleController::class, 'allPermissions'])->name('permissions.list');
 
     Route::prefix('users')->group(function () {
@@ -290,52 +289,14 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
         Route::put('/{user}', [UsersController::class, 'update'])->name('update');
         Route::delete('/{user}', [UsersController::class, 'destroy'])->name('destroy');
     });
-
-    // shift management 
-    Route::prefix('shift')->name('shift.')->group(function () {
-    Route::get('/', [ShiftManagementController::class, 'index'])->name('index');
-    Route::get('/manage', [ShiftManagementController::class, 'showShiftModal'])->name('manage');
-    Route::post('/start', [ShiftManagementController::class, 'startShift'])->name('start');
-    Route::post('/check-active-shift', [ShiftManagementController::class, 'checkActiveShift'])->name('check');
-    });
-    Route::get('/api/shift/{id}/details', [ShiftManagementController::class, 'details']);
-
-
 });
 
+/* -------- Super Admin Only -------- */
 Route::middleware(['auth', 'role:Super Admin'])->group(function() {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
-
 });
 
-
-
-/* ---------- Public settings/locations page (if intended public) ---------- */
+/* ---------- Public Routes ---------- */
 Route::get('/settings/locations', [IndexController::class, 'index'])->name('locations.index');
 
-
-Route::get('/test-print', function () {
-    try {
-        $connector = new WindowsPrintConnector("BlackCopper 80mm Series"); // 🔁 Change to your printer name
-        $printer = new Printer($connector);
-
-        $printer->setJustification(Printer::JUSTIFY_CENTER);
-        $printer->text("=== Test Receipt ===\n");
-        $printer->text("Hello from Laravel POS!\n");
-        $printer->text("-----------------------------\n");
-        $printer->text("Item 1   £10.00\n");
-        $printer->text("Item 2   £5.00\n");
-        $printer->text("-----------------------------\n");
-        $printer->text("Total:   £15.00\n");
-        $printer->feed(3);
-        $printer->cut();
-        $printer->close();
-
-        return "✅ Printed successfully!";
-    } catch (Exception $e) {
-        return "❌ Print failed: " . $e->getMessage();
-    }
-});
-
-/* ---------- Breeze/Jetstream auth routes ---------- */
 require __DIR__.'/auth.php';
