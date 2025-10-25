@@ -61,6 +61,7 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3'; 
+import { toast } from "vue3-toastify";
 const page = usePage();
 
 // const showShiftModal = ref(true);
@@ -98,7 +99,7 @@ const retryCheck = async () => {
             // The user is already joined in the backend
             window.location.href = res.data.redirect_url;
         } else {
-            alert('Shift is still not active. Please try again later.');
+            toast.error("Shift is still not active. Please try again later.");
         }
     } catch (error) {
         console.error(error);

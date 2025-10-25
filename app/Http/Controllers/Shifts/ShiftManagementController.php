@@ -12,6 +12,7 @@ use App\Models\ShiftDetail;
 use App\Models\ShiftInventorySnapshot;
 use App\Models\ShiftInventorySnapshotDetail;
 use App\Services\Shifts\ShiftManagementService;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ShiftManagementController extends Controller
@@ -121,15 +122,17 @@ class ShiftManagementController extends Controller
     }
 
 
-    public function closeShift(Request $request, Shift $shift)
-    {
+    
+
+public function closeShift(Request $request, Shift $shift)
+{
+    DB::transaction(function () use ($shift) {
         $totalSales = PosOrder::where('shift_id', $shift->id)
-        ->where('status', 'paid')
-        ->sum('total_amount');
+            ->where('status', 'paid')
+            ->sum('total_amount');
 
         $closingCash = $shift->opening_cash + $totalSales;
 
-        // Step 1: Update shift fields
         $shift->update([
             'status'       => 'closed',
             'end_time'     => now(),
@@ -138,7 +141,24 @@ class ShiftManagementController extends Controller
             'sales_total'  => $totalSales,
         ]);
 
-        // Step 2: Create end inventory snapshot
+        // Update all ShiftDetails
+        $shiftDetails = \App\Models\ShiftDetail::where('shift_id', $shift->id)
+            ->whereNull('left_at')
+            ->get();
+
+        foreach ($shiftDetails as $detail) {
+            $userSales = \App\Models\PosOrder::where('shift_id', $shift->id)
+                ->where('user_id', $detail->user_id)
+                ->where('status', 'paid')
+                ->sum('total_amount');
+
+            $detail->update([
+                'left_at' => now(),
+                'sales_amount' => $userSales,
+            ]);
+        }
+
+        // Create snapshot
         $snapshot = ShiftInventorySnapshot::create([
             'shift_id'   => $shift->id,
             'type'       => 'ended',
@@ -146,28 +166,25 @@ class ShiftManagementController extends Controller
             'created_at' => now(),
         ]);
 
-        // Step 3: Take snapshot of all current inventory items
-        $inventoryItems = InventoryItem::all();
-
-        foreach ($inventoryItems as $item) {
+        foreach (InventoryItem::all() as $item) {
             ShiftInventorySnapshotDetail::create([
                 'snap_id'        => $snapshot->id,
                 'item_id'        => $item->id,
                 'stock_quantity' => $item->stock,
             ]);
         }
-        // 🟢 Step 4: Set session flag to show "Start Shift" modal next time
-        session()->forget('current_shift_id');
-        session()->flash('show_shift_modal', true);
+    });
 
+    session()->forget('current_shift_id');
+    session()->flash('show_shift_modal', true);
 
-        // Step 4: Return response (or redirect)
-        return response()->json([
-            'success' => true,
-            'message' => 'Shift closed successfully!',
-            'redirect' => route('shift.manage'),
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'message' => 'Shift closed successfully!',
+        'redirect' => route('shift.manage'),
+    ]);
+}
+
 
     // Fetch All shifts
     public function getAllShifts()
