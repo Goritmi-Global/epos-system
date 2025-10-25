@@ -220,7 +220,7 @@ Route::middleware(['auth', 'verified'])->middleware('permissions')->group(functi
     });
 
     /* -------- POS Live Screen -------- */
-    Route::prefix('pos')->name('pos.')->group(function () {
+    Route::prefix('pos')->middleware(['auth', 'check.shift'])->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
 
