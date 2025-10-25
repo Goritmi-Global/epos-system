@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'permissions' => \App\Http\Middleware\PermissionsMiddleware::class,
             'check.shift' => \App\Http\Middleware\CheckShiftActive::class,
+            'check.shift.global' => \App\Http\Middleware\CheckShiftActiveGlobal::class,
         ]);
         
         // Add session middleware to API routes

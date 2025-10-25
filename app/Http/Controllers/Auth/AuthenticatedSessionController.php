@@ -39,44 +39,77 @@ class AuthenticatedSessionController extends Controller
     //     return redirect()->intended(route('dashboard', absolute: false));
     // }
 
+    // public function store(LoginRequest $request): RedirectResponse
+    // {
+    //     $request->authenticate();
+    //     $request->session()->regenerate();
+
+    //     $user = auth()->user();
+    //     $role = $user->getRoleNames()->first();
+    //     $activeShift = Shift::where('status', 'open')->first();
+
+    //     if ($role === 'Super Admin') {
+    //         if ($activeShift) {
+    //             session(['current_shift_id' => $activeShift->id]);
+    //             return redirect()->route('dashboard'); // already active shift → go to dashboard
+    //         } else {
+    //             // Show start shift modal
+    //             session()->flash('show_shift_modal', true);
+    //             return redirect()->route('shift.manage'); // no shift → show modal
+    //         }
+    //     } else {
+    //         if ($activeShift) {
+    //             // Join active shift
+    //             ShiftDetail::firstOrCreate(
+    //                 ['shift_id' => $activeShift->id, 'user_id' => $user->id],
+    //                 ['role' => $role, 'joined_at' => now()]
+    //             );
+    //             session(['current_shift_id' => $activeShift->id]);
+    //             // redirect based on role
+    //             if ($role === 'Cashier') {
+    //                 return redirect()->route('pos.order');
+    //             }
+    //             return redirect()->route('dashboard');
+    //         } else {
+    //             // No active shift → show modal
+    //             session()->flash('show_no_shift_modal', true);
+    //             return redirect()->route('shift.manage');
+    //         }
+    //     }
+    // }
+
     public function store(LoginRequest $request): RedirectResponse
-    {
-        $request->authenticate();
-        $request->session()->regenerate();
+{
+    $request->authenticate();
+    $request->session()->regenerate();
 
-        $user = auth()->user();
-        $role = $user->getRoleNames()->first();
-        $activeShift = Shift::where('status', 'open')->first();
+    $user = auth()->user();
+    $role = $user->getRoleNames()->first();
+    $activeShift = Shift::where('status', 'open')->first();
 
-        if ($role === 'Super Admin') {
-            if ($activeShift) {
-                session(['current_shift_id' => $activeShift->id]);
-                return redirect()->route('dashboard'); // already active shift → go to dashboard
-            } else {
-                // Show start shift modal
-                session()->flash('show_shift_modal', true);
-                return redirect()->route('shift.manage'); // no shift → show modal
-            }
+    if ($role === 'Super Admin') {
+        if ($activeShift) {
+            session(['current_shift_id' => $activeShift->id]);
+            return redirect()->route('dashboard');
         } else {
-            if ($activeShift) {
-                // Join active shift
-                ShiftDetail::firstOrCreate(
-                    ['shift_id' => $activeShift->id, 'user_id' => $user->id],
-                    ['role' => $role, 'joined_at' => now()]
-                );
-                session(['current_shift_id' => $activeShift->id]);
-                // redirect based on role
-                if ($role === 'Cashier') {
-                    return redirect()->route('pos.order');
-                }
-                return redirect()->route('dashboard');
-            } else {
-                // No active shift → show modal
-                session()->flash('show_no_shift_modal', true);
-                return redirect()->route('shift.manage');
+            session()->flash('show_shift_modal', true);
+            return redirect()->route('shift.manage');
+        }
+    } else {
+        if ($activeShift) {
+            // ShiftDetail will be created by middleware
+            session(['current_shift_id' => $activeShift->id]);
+            
+            if ($role === 'Cashier') {
+                return redirect()->route('pos.order');
             }
+            return redirect()->route('dashboard');
+        } else {
+            session()->flash('show_no_shift_modal', true);
+            return redirect()->route('shift.manage');
         }
     }
+}
 
 
 

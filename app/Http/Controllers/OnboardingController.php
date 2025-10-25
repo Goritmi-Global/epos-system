@@ -48,32 +48,32 @@ class OnboardingController extends Controller
     // }
 
     public function index(Request $request)
-    {
-        $user = $request->user();
-        if (! $user) {
-            return redirect()->route('login');
-        }
-
-        // Only first super admin should see onboarding
-        if ($user->is_first_super_admin) {
-            $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
-                && ProfileStep2::where('user_id', $user->id)->exists()
-                && ProfileStep3::where('user_id', $user->id)->exists()
-                && ProfileStep4::where('user_id', $user->id)->exists()
-                && ProfileStep5::where('user_id', $user->id)->exists()
-                && ProfileStep6::where('user_id', $user->id)->exists()
-                && ProfileStep7::where('user_id', $user->id)->exists()
-                && ProfileStep8::where('user_id', $user->id)->exists()
-                && ProfileStep9::where('user_id', $user->id)->exists();
-
-            if (! $stepsCompleted) {
-                return Inertia::render('Onboarding/Index');
-            }
-        }
-
-        // If not first super admin or steps completed, go to dashboard
-        return redirect()->route('dashboard');
+{
+    $user = $request->user();
+    if (!$user) {
+        return redirect()->route('login');
     }
+
+    // Only first super admin sees onboarding
+    if ($user->is_first_super_admin) {
+        $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+            && ProfileStep2::where('user_id', $user->id)->exists()
+            && ProfileStep3::where('user_id', $user->id)->exists()
+            && ProfileStep4::where('user_id', $user->id)->exists()
+            && ProfileStep5::where('user_id', $user->id)->exists()
+            && ProfileStep6::where('user_id', $user->id)->exists()
+            && ProfileStep7::where('user_id', $user->id)->exists()
+            && ProfileStep8::where('user_id', $user->id)->exists()
+            && ProfileStep9::where('user_id', $user->id)->exists();
+
+        if (!$stepsCompleted) {
+            return Inertia::render('Onboarding/Index');
+        }
+    }
+
+    // ✅ After onboarding completed, middleware will check shift for Super Admin
+    return redirect()->route('shift.manage');
+}
 
 
 
@@ -548,7 +548,9 @@ class OnboardingController extends Controller
         // Clear session
         session()->forget('onboarding_data');
 
-        return redirect('/dashboard')->with('success', 'Onboarding completed successfully!');
+        // return redirect('/dashboard')->with('success', 'Onboarding completed successfully!');
+        return redirect()->route('shift.manage')
+        ->with('success', 'Onboarding completed! Please start your first shift.');
     }
 
     /**
