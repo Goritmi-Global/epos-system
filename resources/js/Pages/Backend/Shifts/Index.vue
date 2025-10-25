@@ -13,6 +13,9 @@ const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatte
 
 /* ---------------- Data ---------------- */
 const shifts = ref([]);
+const showShiftDetailsModal = ref(false);
+const selectedShiftDetails = ref([]);
+const selectedShiftId = ref(null);
 /* ---------------- Fetch shifts ---------------- */
 const fetchShifts = async () => {
     try {
@@ -22,6 +25,24 @@ const fetchShifts = async () => {
         console.error("Failed to fetch shifts:", err);
         toast.error("Failed to load shifts");
     }
+};
+
+const viewShift = async (shift) => {
+    selectedShiftId.value = shift.id;
+    showShiftDetailsModal.value = true;
+
+    try {
+        const res = await axios.get(`/api/shift/${shift.id}/details`);
+        selectedShiftDetails.value = res.data.data || [];
+    } catch (error) {
+        console.error("Failed to fetch shift details:", error);
+        toast.error("Failed to load shift details");
+    }
+};
+
+const closeShiftDetailsModal = () => {
+    showShiftDetailsModal.value = false;
+    selectedShiftDetails.value = [];
 };
 
 onMounted(async () => {
@@ -274,6 +295,93 @@ const toggleShiftStatus = async (shift) => {
                     </div>
                 </div>
             </div>
+
+         <!-- Shift Details Modal -->
+<div v-if="showShiftDetailsModal"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="relative bg-white rounded-4 shadow-lg border-0 w-full max-w-2xl overflow-hidden">
+        <!-- Header -->
+        <div class="modal-header align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary rounded-circle p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <div class="d-flex flex-column">
+                    <h5 class="modal-title mb-0">Shift Details</h5>
+                    <small class="text-muted">ID: {{ selectedShiftId }}</small>
+                </div>
+            </div>
+            <button @click="closeShiftDetailsModal"
+                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                aria-label="Close" title="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body p-4 bg-light">
+            <div class="row g-4">
+                <div class="col-lg-12">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Shift Information</h6>
+                            
+                            <div v-if="selectedShiftDetails.length" class="table-responsive">
+                                <table class="table table-hover align-middle text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="fw-semibold">Shift ID</th>
+                                            <th class="fw-semibold">Role</th>
+                                            <th class="fw-semibold">Start Date</th>
+                                            <th class="fw-semibold">Sales Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(detail, index) in selectedShiftDetails" :key="index">
+                                            <td>{{ selectedShiftId }}</td>
+                                            <td>
+                                                <span class="badge bg-primary rounded-pill">
+                                                    {{ detail.role || 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td>{{ new Date(detail.joined_at).toLocaleString() }}</td>
+                                            <td class="fw-semibold">
+                                                {{ formatCurrencySymbol(detail.sales_amount || 0) }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div v-else class="text-center py-5">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="text-muted mx-auto mb-3">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                                <p class="text-muted mb-0">No details available for this shift.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer border-top-0 px-4 pb-4">
+            <button class="btn btn-secondary px-4 rounded-pill" @click="closeShiftDetailsModal">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
 
         </div>
     </Master>
