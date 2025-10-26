@@ -12,7 +12,7 @@
                 </div>
 
                 <!-- Body -->
-                <div class="px-6 py-4 flex flex-col gap-4">
+                <div class="px-6 py-4 flex flex-col gap-4 body">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Opening Cash</label>
                         <input type="number" v-model="openingCash" step="0.01" class="form-control w-full"
@@ -27,45 +27,37 @@
 
                 <!-- Footer -->
                 <!-- Footer -->
-<div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-3">
-    <button
-        @click="startShift"
-        :disabled="loadingStart"
-        class="btn btn-primary py-1 px-4 rounded-pill flex items-center justify-center gap-2 transition"
-    >
-        <span v-if="loadingStart" class="spinner-border spinner-border-sm"></span>
-        <span>{{ loadingStart ? "Starting..." : "Start Shift" }}</span>
-    </button>
-</div>
+                <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-3">
+                    <button @click="startShift" :disabled="loadingStart"
+                        class="btn btn-primary py-1 px-4 rounded-pill flex items-center justify-center gap-2 transition">
+                        <span v-if="loadingStart" class="spinner-border spinner-border-sm"></span>
+                        <span>{{ loadingStart ? "Starting..." : "Start Shift" }}</span>
+                    </button>
+                </div>
 
 
             </div>
         </div>
 
         <!-- No Active Shift modal for other users -->
-         
-       <!-- No Active Shift Modal for other users -->
-<div
-    v-if="showNoShiftModal"
-    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
->
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center">
-        <h2 class="text-xl font-semibold mb-2 text-gray-800">No active shift</h2>
-        <p class="text-sm text-gray-600 mb-4 text-center">
-            There is no currently active shift available.
-            Please ask manager or admin to start session or try again later.
-        </p>
 
-        <button
-            @click="retryCheck"
-            :disabled="loadingRetry"
-            class="btn btn-primary py-2 px-4 w-100 rounded-pill flex items-center justify-center gap-2 transition"
-        >
-            <span v-if="loadingRetry" class="spinner-border spinner-border-sm"></span>
-            <span>{{ loadingRetry ? "Checking..." : "Retry" }}</span>
-        </button>
-    </div>
-</div>
+        <!-- No Active Shift Modal for other users -->
+        <div v-if="showNoShiftModal"
+            class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center">
+                <h2 class="text-xl font-semibold mb-2 text-gray-800">No active shift</h2>
+                <p class="text-sm text-gray-600 mb-4 text-center">
+                    There is no currently active shift available.
+                    Please ask manager or admin to start session or try again later.
+                </p>
+
+                <button @click="retryCheck" :disabled="loadingRetry"
+                    class="btn btn-primary py-2 px-4 w-100 rounded-pill flex items-center justify-center gap-2 transition">
+                    <span v-if="loadingRetry" class="spinner-border spinner-border-sm"></span>
+                    <span>{{ loadingRetry ? "Checking..." : "Retry" }}</span>
+                </button>
+            </div>
+        </div>
 
 
 
@@ -75,7 +67,7 @@
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
-import { usePage } from '@inertiajs/vue3'; 
+import { usePage } from '@inertiajs/vue3';
 import { toast } from "vue3-toastify";
 const page = usePage();
 
@@ -106,7 +98,7 @@ const startShift = async () => {
     } catch (error) {
         console.error(error);
         alert('Failed to start shift');
-    }finally {
+    } finally {
         loadingStart.value = false;
     }
 };
@@ -126,9 +118,58 @@ const retryCheck = async () => {
     } catch (error) {
         console.error(error);
         alert('Failed to check shift status');
-    }finally {
+    } finally {
         loadingRetry.value = false;
     }
 };
 
 </script>
+
+
+<style scoped>
+
+
+.btn {
+    border-radius: 10px !important;
+    height: 42px !important;
+    font-size: 16px !important;
+}
+
+.fixed{
+    background-color: #181818 !important;
+}
+
+ .border-gray-100{
+    background-color: #212121 !important;
+}
+
+.body{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+h2{
+    color: #fff !important;
+}
+p{
+    color: #fff !important;
+}
+
+.text-gray-700{
+    color: #fff !important;
+}
+
+input{
+    background: #212121 !important;
+    color: #fff !important;
+}
+
+textarea{
+    background: #212121 !important;
+    color: #fff !important;
+}
+.bg-white{
+    border: 1px solid #fff !important;
+}
+
+</style>
+ 
