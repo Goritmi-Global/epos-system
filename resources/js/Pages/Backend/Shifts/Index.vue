@@ -145,27 +145,29 @@ onUpdated(() => window.feather?.replace());
 // Open or closed shift 
 
 const toggleShiftStatus = async (shift) => {
-    if (shift.status !== "open") {
-        toast.error("Only open shifts can be closed.")
-        return;
-    }
+    const newStatus = shift.status === "open" ? "closed" : "open";
+    const url = newStatus === "closed"
+        ? `/api/shift/${shift.id}/close`
+        : `/api/shift/${shift.id}/reopen`; // assuming you have reopen endpoint
 
     try {
-        const response = await axios.patch(`/api/shift/${shift.id}/close`, {
-            status: "closed",
-        });
+        const response = await axios.patch(url, { status: newStatus });
 
         if (response.data.success) {
-            toast.success(response.data.message);
-            shift.status = "closed";
-            window.location.href = response.data.redirect;
+            toast.success(response.data.message || `Shift ${newStatus} successfully.`);
+            shift.status = newStatus;
+            if (response.data.redirect) {
+                window.location.href = response.data.redirect;
+            }
         } else {
-            console.error("Unexpected response:", response.data);
+            toast.error("Unexpected response from server.");
         }
     } catch (error) {
-        console.error("Failed to close shift:", error);
+        console.error("Failed to change shift status:", error);
+        toast.error("Failed to change shift status.");
     }
 };
+
 
 
 </script>
@@ -269,17 +271,31 @@ const toggleShiftStatus = async (shift) => {
                                             </button>
 
                                             <!-- Toggle Shift Status -->
-                                            <button @click="toggleShiftStatus(shift)"
-                                                class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
-                                                :class="shift.status === 'open'
-                                                    ? 'bg-green-500 hover:bg-green-600'
-                                                    : 'bg-red-400 hover:bg-red-500'"
-                                                :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
-                                                <!-- Circle inside switch -->
-                                                <span
-                                                    class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
-                                                    :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
-                                            </button>
+                                           <ConfirmModal
+    :title="'Confirm Shift Status Change'"
+    :message="`Are you sure you want to ${shift.status === 'open' ? 'close' : 'reopen'} this shift (#${shift.id})?`"
+    :showStatusButton="true"
+    :status="shift.status"
+    confirmText="Yes, Change"
+    cancelText="Cancel"
+    @confirm="toggleShiftStatus(shift)"
+>
+    <template #trigger>
+        <!-- Toggle Switch -->
+        <button
+            class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
+            :class="shift.status === 'open'
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-red-400 hover:bg-red-500'"
+            :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'"
+        >
+            <span
+                class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
+                :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
+        </button>
+    </template>
+</ConfirmModal>
+
                                         </div>
                                     </td>
 
