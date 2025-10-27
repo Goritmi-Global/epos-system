@@ -15,24 +15,26 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->decimal('price', 10, 2);
+            $table->boolean('is_taxable')->default(false);
+            $table->decimal('tax_percentage', 5, 2)->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
             $table->text('description')->nullable();
             $table->boolean('status')->default(1);
 
             // merged new fields
             $table->foreignId('upload_id')
-                  ->nullable()
-                  ->constrained('uploads')
-                  ->nullOnDelete();
+                ->nullable()
+                ->constrained('uploads')
+                ->nullOnDelete();
 
             $table->string('label_color', 255)->nullable();
 
             $table->timestamps();
 
             $table->foreign('category_id')
-                  ->references('id')
-                  ->on('menu_categories')
-                  ->onDelete('set null');
+                ->references('id')
+                ->on('menu_categories')
+                ->onDelete('set null');
         });
     }
 
@@ -45,5 +47,4 @@ return new class extends Migration
         Schema::dropIfExists('menu_items');
         Schema::enableForeignKeyConstraints();
     }
-
 };

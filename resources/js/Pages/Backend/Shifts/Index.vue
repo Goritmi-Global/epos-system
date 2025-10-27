@@ -8,6 +8,9 @@ import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
 import { Head } from "@inertiajs/vue3";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -168,7 +171,263 @@ const toggleShiftStatus = async (shift) => {
     }
 };
 
+const onDownload = (type) => {
+    if (!shifts.value || shifts.value.length === 0) {
+        toast.error("No Shifts data to download");
+        return;
+    }
 
+    // Use filtered data if there's a search query, otherwise use all shifts
+    const dataToExport = q.value.trim() ? filtered.value : shifts.value;
+
+    if (dataToExport.length === 0) {
+        toast.error("No Shifts found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+const downloadCSV = (data) => {
+    console.log("Shifts", data);
+    try {
+        // Define headers
+        const headers = [
+            "Shift ID",
+            "Started By",
+            "Ended By",
+            "Status",
+            "Start Time",
+            "End Time",
+            "Sales Total",
+        ];
+
+        // Build CSV rows
+        const rows = data.map((s) => {
+            // Format start time
+            const startTime = s.start_time 
+                ? new Date(s.start_time).toLocaleString("en-GB")
+                : "N/A";
+
+            // Format end time
+            const endTime = s.end_time 
+                ? new Date(s.end_time).toLocaleString("en-GB")
+                : "N/A";
+
+            // Format sales total
+            const salesTotal = s.sales_total 
+                ? formatMoney(s.sales_total)
+                : "0.00";
+
+            return [
+                `"${s.id || ""}"`,
+                `"${s.started_by || ""}"`,
+                `"${s.ended_by || ""}"`,
+                `"${s.status || ""}"`,
+                `"${startTime}"`,
+                `"${endTime}"`,
+                `"${salesTotal}"`,
+            ];
+        });
+
+        // Combine into CSV string
+        const csvContent = [
+            headers.join(","), // header row
+            ...rows.map((r) => r.join(",")), // data rows
+        ].join("\n");
+
+        // Create blob
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `shifts_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("p", "mm", "a4");
+
+        // 🌟 Title
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Shifts Report", 75, 20);
+
+        // 🗓️ Metadata
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Shifts: ${data.length}`, 14, 34);
+
+        // 📋 Table Columns
+        const tableColumns = [
+            "Shift ID",
+            "Started By",
+            "Ended By",
+            "Status",
+            "Start Time",
+            "End Time",
+            "Sales Total",
+        ];
+
+        // 📊 Build table rows
+        const tableRows = data.map((s) => {
+            // Format start time
+            const startTime = s.start_time 
+                ? new Date(s.start_time).toLocaleString("en-GB")
+                : "N/A";
+
+            // Format end time
+            const endTime = s.end_time 
+                ? new Date(s.end_time).toLocaleString("en-GB")
+                : "N/A";
+
+            // Format sales total
+            const salesTotal = s.sales_total 
+                ? formatMoney(s.sales_total)
+                : "0.00";
+
+            return [
+                s.id || "",
+                s.started_by || "",
+                s.ended_by || "",
+                s.status || "",
+                startTime,
+                endTime,
+                salesTotal,
+            ];
+        });
+
+        // 📑 Render Table
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (td) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${td.pageNumber} of ${pageCount}`,
+                    td.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        // 💾 Save File
+        const fileName = `shifts_${new Date()
+            .toISOString()
+            .split("T")[0]}.pdf`;
+        doc.save(fileName);
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+const downloadExcel = (data) => {
+    try {
+        // Prepare data for Excel
+        const excelData = data.map((s) => {
+            // Format start time
+            const startTime = s.start_time 
+                ? new Date(s.start_time).toLocaleString("en-GB")
+                : "N/A";
+
+            // Format end time
+            const endTime = s.end_time 
+                ? new Date(s.end_time).toLocaleString("en-GB")
+                : "N/A";
+
+            // Format sales total
+            const salesTotal = s.sales_total 
+                ? formatMoney(s.sales_total)
+                : "0.00";
+
+            return {
+                "Shift ID": s.id || "",
+                "Started By": s.started_by || "",
+                "Ended By": s.ended_by || "",
+                "Status": s.status || "",
+                "Start Time": startTime,
+                "End Time": endTime,
+                "Sales Total": salesTotal,
+            };
+        });
+
+        // Create worksheet
+        const ws = XLSX.utils.json_to_sheet(excelData);
+
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Shifts");
+
+        // Generate file name
+        const fileName = `shifts_${new Date()
+            .toISOString()
+            .split("T")[0]}.xlsx`;
+
+        // Save file
+        XLSX.writeFile(wb, fileName);
+
+        toast.success("Excel downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
 
 </script>
 
@@ -219,6 +478,28 @@ const toggleShiftStatus = async (shift) => {
                                     @focus="handleFocus" />
                                 <input v-else class="form-control search-input" placeholder="Search" disabled
                                     type="text" />
+                            </div>
+
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Export
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Export as PDF</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Export as Excel</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -271,30 +552,24 @@ const toggleShiftStatus = async (shift) => {
                                             </button>
 
                                             <!-- Toggle Shift Status -->
-                                           <ConfirmModal
-    :title="'Confirm Shift Status Change'"
-    :message="`Are you sure you want to ${shift.status === 'open' ? 'close' : 'reopen'} this shift (#${shift.id})?`"
-    :showStatusButton="true"
-    :status="shift.status"
-    confirmText="Yes, Change"
-    cancelText="Cancel"
-    @confirm="toggleShiftStatus(shift)"
->
-    <template #trigger>
-        <!-- Toggle Switch -->
-        <button
-            class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
-            :class="shift.status === 'open'
-                ? 'bg-green-500 hover:bg-green-600'
-                : 'bg-red-400 hover:bg-red-500'"
-            :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'"
-        >
-            <span
-                class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
-                :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
-        </button>
-    </template>
-</ConfirmModal>
+                                            <ConfirmModal :title="'Confirm Shift Status Change'"
+                                                :message="`Are you sure you want to ${shift.status === 'open' ? 'close' : 'reopen'} this shift (#${shift.id})?`"
+                                                :showStatusButton="true" :status="shift.status"
+                                                confirmText="Yes, Change" cancelText="Cancel"
+                                                @confirm="toggleShiftStatus(shift)">
+                                                <template #trigger>
+                                                    <!-- Toggle Switch -->
+                                                    <button
+                                                        class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
+                                                        :class="shift.status === 'open'
+                                                            ? 'bg-green-500 hover:bg-green-600'
+                                                            : 'bg-red-400 hover:bg-red-500'" :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
+                                                        <span
+                                                            class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
+                                                            :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
+                                                    </button>
+                                                </template>
+                                            </ConfirmModal>
 
                                         </div>
                                     </td>
@@ -312,92 +587,93 @@ const toggleShiftStatus = async (shift) => {
                 </div>
             </div>
 
-         <!-- Shift Details Modal -->
-<div v-if="showShiftDetailsModal"
-    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div class="relative bg-white rounded-4 shadow-lg border-0 w-full max-w-2xl overflow-hidden">
-        <!-- Header -->
-        <div class="modal-header align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary rounded-circle p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </span>
-                <div class="d-flex flex-column">
-                    <h5 class="modal-title mb-0">Shift Details</h5>
-                    <small class="text-muted">ID: {{ selectedShiftId }}</small>
-                </div>
-            </div>
-            <button @click="closeShiftDetailsModal"
-                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                aria-label="Close" title="Close">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-
-        <!-- Body -->
-        <div class="modal-body p-4 bg-light">
-            <div class="row g-4">
-                <div class="col-lg-12">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Shift Information</h6>
-                            
-                            <div v-if="selectedShiftDetails.length" class="table-responsive">
-                                <table class="table table-hover align-middle text-center mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th class="fw-semibold">Shift ID</th>
-                                            <th class="fw-semibold">Role</th>
-                                            <th class="fw-semibold">Start Date</th>
-                                            <th class="fw-semibold">Sales Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(detail, index) in selectedShiftDetails" :key="index">
-                                            <td>{{ selectedShiftId }}</td>
-                                            <td>
-                                                <span class="badge bg-primary rounded-pill">
-                                                    {{ detail.role || 'N/A' }}
-                                                </span>
-                                            </td>
-                                            <td>{{ new Date(detail.joined_at).toLocaleString() }}</td>
-                                            <td class="fw-semibold">
-                                                {{ formatCurrencySymbol(detail.sales_amount || 0) }}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div v-else class="text-center py-5">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="text-muted mx-auto mb-3">
+            <!-- Shift Details Modal -->
+            <div v-if="showShiftDetailsModal"
+                class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div class="relative bg-white rounded-4 shadow-lg border-0 w-full max-w-2xl overflow-hidden">
+                    <!-- Header -->
+                    <div class="modal-header align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary rounded-circle p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <p class="text-muted mb-0">No details available for this shift.</p>
+                            </span>
+                            <div class="d-flex flex-column">
+                                <h5 class="modal-title mb-0">Shift Details</h5>
+                                <small class="text-muted">ID: {{ selectedShiftId }}</small>
+                            </div>
+                        </div>
+                        <button @click="closeShiftDetailsModal"
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body p-4 bg-light">
+                        <div class="row g-4">
+                            <div class="col-lg-12">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Shift Information</h6>
+
+                                        <div v-if="selectedShiftDetails.length" class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-semibold">Shift ID</th>
+                                                        <th class="fw-semibold">Role</th>
+                                                        <th class="fw-semibold">Start Date</th>
+                                                        <th class="fw-semibold">Sales Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(detail, index) in selectedShiftDetails" :key="index">
+                                                        <td>{{ selectedShiftId }}</td>
+                                                        <td>
+                                                            <span class="badge bg-primary rounded-pill">
+                                                                {{ detail.role || 'N/A' }}
+                                                            </span>
+                                                        </td>
+                                                        <td>{{ new Date(detail.joined_at).toLocaleString() }}</td>
+                                                        <td class="fw-semibold">
+                                                            {{ formatCurrencySymbol(detail.sales_amount || 0) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div v-else class="text-center py-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
+                                                class="text-muted mx-auto mb-3">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                            </svg>
+                                            <p class="text-muted mb-0">No details available for this shift.</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer border-top-0 px-4 pb-4">
+                        <button class="btn btn-secondary px-4 rounded-pill" @click="closeShiftDetailsModal">
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="modal-footer border-top-0 px-4 pb-4">
-            <button class="btn btn-secondary px-4 rounded-pill" @click="closeShiftDetailsModal">
-                Close
-            </button>
-        </div>
-    </div>
-</div>
 
         </div>
     </Master>

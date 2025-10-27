@@ -2,21 +2,20 @@
 
 namespace App\Services\POS;
 
-use App\Models\MenuCategory;
-use App\Models\MenuItem;
-use App\Models\PosOrder;
-use App\Models\RestaurantProfile;
-use Illuminate\Support\Str;
 use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\KitchenOrder;
 use App\Models\KitchenOrderItem;
+use App\Models\MenuCategory;
+use App\Models\MenuItem;
 use App\Models\Payment;
+use App\Models\PosOrder;
 use App\Models\PosOrderType;
+use App\Models\RestaurantProfile;
 use App\Models\Shift;
-use App\Models\StockEntry;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PosOrderService
 {
@@ -25,7 +24,7 @@ class PosOrderService
     public function list(array $filters = [])
     {
         return PosOrder::query()
-            ->when($filters['status'] ?? null, fn($q, $v) => $q->where('status', $v))
+            ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
@@ -53,16 +52,14 @@ class PosOrderService
 
             $activeShift = Shift::where('status', 'open')->latest()->first();
 
-
-            if (!$activeShift) {
+            if (! $activeShift) {
                 throw new \Exception('No active shift found. Please start a shift before creating an order.');
             }
-
 
             //  Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
-                'shift_id'       => $activeShift?->id,
+                'shift_id' => $activeShift?->id,
                 'customer_name' => $data['customer_name'] ?? null,
                 'sub_total' => $data['sub_total'],
                 'total_amount' => $data['total_amount'],
@@ -79,7 +76,7 @@ class PosOrderService
             //  Create order type
             $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
-                'order_type'   => $data['order_type'],
+                'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
@@ -88,13 +85,12 @@ class PosOrderService
                 // Save order item
                 $order->items()->create([
                     'menu_item_id' => $item['product_id'],
-                    'title'        => $item['title'],
-                    'quantity'     => $item['quantity'],
-                    'price'        => $item['price'],
-                    'note'         => $item['note'] ?? null,
+                    'title' => $item['title'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'note' => $item['note'] ?? null,
                     'kitchen_note' => $item['kitchen_note'] ?? null,
                 ]);
-
 
                 // Fetch the MenuItem with its ingredients
                 $menuItem = MenuItem::with('ingredients')->find($item['product_id']);
@@ -108,16 +104,16 @@ class PosOrderService
                             $requiredQty = $ingredient->quantity * $item['quantity'];
 
                             $this->stockEntryService->create([
-                                'product_id'     => $inventoryItem->id,
-                                'name'           => $inventoryItem->name,
-                                'category_id'    => $inventoryItem->category_id,
-                                'supplier_id'    => $inventoryItem->supplier_id,
-                                'quantity'       => $requiredQty,
-                                'value'          => 0,
+                                'product_id' => $inventoryItem->id,
+                                'name' => $inventoryItem->name,
+                                'category_id' => $inventoryItem->category_id,
+                                'supplier_id' => $inventoryItem->supplier_id,
+                                'quantity' => $requiredQty,
+                                'value' => 0,
                                 'operation_type' => 'pos_stockout',
-                                'stock_type'     => 'stockout',
-                                'description'    => "Auto stockout from POS Order #{$order->id}",
-                                'user_id'        => Auth::id(),
+                                'stock_type' => 'stockout',
+                                'description' => "Auto stockout from POS Order #{$order->id}",
+                                'user_id' => Auth::id(),
                             ]);
                         }
                     }
@@ -129,13 +125,12 @@ class PosOrderService
 
             // 2. Handle KOT (after items exist)
 
-
             $kot = KitchenOrder::create([
                 'pos_order_type_id' => $orderType->id,
-                'order_time'        => now()->toTimeString(),
-                'order_date'        => now()->toDateString(),
-                'note'              => $data['note'] ?? null,
-                'kitchen_note'      => $data['kitchen_note'] ?? null,
+                'order_time' => now()->toTimeString(),
+                'order_date' => now()->toDateString(),
+                'note' => $data['note'] ?? null,
+                'kitchen_note' => $data['kitchen_note'] ?? null,
             ]);
 
             foreach ($order->items as $orderItem) {
@@ -149,15 +144,14 @@ class PosOrderService
                 }
 
                 $kot->items()->create([
-                    'item_name'    => $orderItem->title,
-                    'quantity'     => $orderItem->quantity,
+                    'item_name' => $orderItem->title,
+                    'quantity' => $orderItem->quantity,
                     'variant_name' => $orderItem->variant_name ?? null,
-                    'ingredients'  => $ingredientsArray,
-                    'status'       => KitchenOrderItem::STATUS_WAITING,
+                    'ingredients' => $ingredientsArray,
+                    'status' => KitchenOrderItem::STATUS_WAITING,
                 ]);
             }
             $kot->load('items');
-
 
             $cashAmount = null;
             $cardAmount = null;
@@ -179,40 +173,39 @@ class PosOrderService
 
             // Payment model data saving
             Payment::create([
-                'order_id'                 => $order->id,
-                'user_id'                  => Auth::id(),
-                'amount_received'          =>  $data['total_amount'],
-                'payment_type'             =>  $payedUsing,
-                'payment_date'             => now(),
+                'order_id' => $order->id,
+                'user_id' => Auth::id(),
+                'amount_received' => $data['total_amount'],
+                'payment_type' => $payedUsing,
+                'payment_date' => now(),
 
                 // Split fields (clean values)
-                'cash_amount'              => $cashAmount,
-                'card_amount'              => $cardAmount,
+                'cash_amount' => $cashAmount,
+                'card_amount' => $cardAmount,
 
-
-                'payment_status'           => $data['payment_status'] ?? null,
-                'code'                     => $data['order_code'] ?? ($data['code'] ?? null),
+                'payment_status' => $data['payment_status'] ?? null,
+                'code' => $data['order_code'] ?? ($data['code'] ?? null),
                 'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
-                'last_digits'              => $data['last_digits'] ?? null,
-                'brand'                    => $data['brand'] ?? null,
-                'currency_code'            => $data['currency_code'] ?? null,
-                'exp_month'                => $data['exp_month'] ?? null,
-                'exp_year'                 => $data['exp_year'] ?? null,
+                'last_digits' => $data['last_digits'] ?? null,
+                'brand' => $data['brand'] ?? null,
+                'currency_code' => $data['currency_code'] ?? null,
+                'exp_month' => $data['exp_month'] ?? null,
+                'exp_year' => $data['exp_year'] ?? null,
             ]);
 
             // Store promo details if promo was applied
-            if (!empty($data['promo_id']) && !empty($data['promo_discount'])) {
+            if (! empty($data['promo_id']) && ! empty($data['promo_discount'])) {
                 \App\Models\OrderPromo::create([
-                    'order_id'        => $order->id,
-                    'promo_id'        => $data['promo_id'],
-                    'promo_name'      => $data['promo_name'] ?? null,
-                    'promo_type'      => $data['promo_type'] ?? 'flat',
+                    'order_id' => $order->id,
+                    'promo_id' => $data['promo_id'],
+                    'promo_name' => $data['promo_name'] ?? null,
+                    'promo_type' => $data['promo_type'] ?? 'flat',
                     'discount_amount' => $data['promo_discount'],
                 ]);
             }
 
-
             $order->load(['items', 'kot.items']);
+
             // dd("Service class Done ",$data);
             return $order;
         });
@@ -221,22 +214,22 @@ class PosOrderService
     public function startOrder(array $payload = []): PosOrder
     {
         return PosOrder::create([
-            'order_no'     => $payload['order_no'] ?? Str::upper(Str::random(8)),
+            'order_no' => $payload['order_no'] ?? Str::upper(Str::random(8)),
             'customer_name' => $payload['customer_name'] ?? null,
             'service_type' => $payload['service_type'] ?? 'dine_in', // dine_in | takeaway | delivery
-            'table_no'     => $payload['table_no'] ?? null,
-            'status'       => 'draft',
-            'total'        => 0,
-            'paid'         => 0,
-            'change'       => 0,
+            'table_no' => $payload['table_no'] ?? null,
+            'status' => 'draft',
+            'total' => 0,
+            'paid' => 0,
+            'change' => 0,
         ]);
     }
 
     public function updateTotals(PosOrder $order, float $total, float $paid = 0): PosOrder
     {
         $order->fill([
-            'total'  => $total,
-            'paid'   => $paid,
+            'total' => $total,
+            'paid' => $paid,
             'change' => max(0, $paid - $total),
         ])->save();
 
@@ -247,6 +240,7 @@ class PosOrderService
     {
         $order->status = 'completed';
         $order->save();
+
         return $order;
     }
 
@@ -269,9 +263,10 @@ class PosOrderService
 
         return $query->get()->map(function ($cat) {
             $cat->image_url = UploadHelper::url($cat->upload_id);
+
             return [
-                'id'    => $cat->id,
-                'name'  => $cat->name,
+                'id' => $cat->id,
+                'name' => $cat->name,
                 'image_url' => $cat->image_url,
                 'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
                 'menu_items_count' => $cat->menu_items_count,
@@ -279,7 +274,6 @@ class PosOrderService
             ];
         });
     }
-
 
     public function getAllMenus()
     {
@@ -304,11 +298,13 @@ class PosOrderService
                         'cost' => $ingredient->cost,
                         'inventory_stock' => $ingredient->inventoryItem?->stock ?? 0, // 👈 actual inventory stock
                         'inventory_item_id' => $ingredient->inventory_item_id,
-                        'category_id'     => $ingredient->inventoryItem?->category_id,
-                        'supplier_id'     => $ingredient->inventoryItem?->supplier_id,
-                        'user_id'     => $ingredient->inventoryItem?->user_id,
+                        'category_id' => $ingredient->inventoryItem?->category_id,
+                        'supplier_id' => $ingredient->inventoryItem?->supplier_id,
+                        'user_id' => $ingredient->inventoryItem?->user_id,
                     ];
                 });
+                $item->is_taxable = $item->is_taxable ?? 0;
+                $item->tax_percentage = $item->tax_percentage ?? 0;
 
                 return $item;
             });
@@ -326,7 +322,7 @@ class PosOrderService
         return KitchenOrder::with([
             'items',
             'posOrderType.order.payment',
-            'posOrderType.order.items' // PosOrderItems with prices
+            'posOrderType.order.items', // PosOrderItems with prices
         ])->whereDate('order_date', $today)->get();
     }
 }

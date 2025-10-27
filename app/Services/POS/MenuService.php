@@ -5,6 +5,7 @@ namespace App\Services\POS;
 use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\MenuItem;
+use App\Models\ProfileStep4;
 use Illuminate\Http\Request;
 
 class MenuService
@@ -31,6 +32,20 @@ class MenuService
 
         unset($data['image']);
 
+        $taxRate = null;
+
+        // Get tax info from onboarding step 4
+        $profileStep4 = ProfileStep4::where('user_id', auth()->id())->first();
+      
+        // if ($profileStep4 && $profileStep4->is_tax_registered == 1) {
+        //     $taxRate = $profileStep4->tax_rate;
+        // }
+
+        if ($profileStep4 && $profileStep4->tax_rate > 0) {
+            $taxRate = $profileStep4->tax_rate;
+          
+        }
+
         $menu = MenuItem::create([
             'name' => $data['name'],
             'price' => $data['price'],
@@ -39,6 +54,9 @@ class MenuService
             'description' => $data['description'] ?? null,
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? null,
+            'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
+            'tax_percentage' => ! empty($data['is_taxable']) ? $taxRate : null,
+         
         ]);
 
         // Nutrition
@@ -93,6 +111,15 @@ class MenuService
         }
         unset($data['image']);
 
+        $taxRate = null;
+
+        // Get tax info from onboarding step 4
+        $profileStep4 = ProfileStep4::where('user_id', auth()->id())->first();
+
+        if ($profileStep4 && $profileStep4->is_tax_registered == 1) {
+            $taxRate = $profileStep4->tax_rate;
+        }
+
         // -------------------------------
         // 2. Update base menu info
         // -------------------------------
@@ -103,6 +130,8 @@ class MenuService
             'description' => $data['description'] ?? null,
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? $menu->upload_id,
+            'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
+            'tax_percentage' => ! empty($data['is_taxable']) ? $taxRate : null,
         ]);
 
         // -------------------------------
