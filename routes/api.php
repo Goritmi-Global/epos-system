@@ -1,33 +1,28 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\POS\{
-    AnalyticsController,
-    InventoryController,
-    KotController,
-    MenuCategoryController,
-    MenuController,
-    OrdersController,
-    PosOrderController,
-    PurchaseOrderController
-};
-use App\Http\Controllers\Reference\{
-    AllergyController,
-    CategoryController,
-    SupplierController,
-    TagController,
-    UnitController
-};
-use App\Http\Controllers\{
-    GeoController,
-    IndexController,
-    ProfileController,
-    PromoController
-};
-use App\Http\Controllers\Auth\PermissionController;
+use App\Http\Controllers\AddonController;
+use App\Http\Controllers\AddonGroupController;
+use App\Http\Controllers\GeoController;
+use App\Http\Controllers\IndexController;
 use App\Http\Controllers\Notifications\NotificationController;
+use App\Http\Controllers\POS\AnalyticsController;
+use App\Http\Controllers\POS\InventoryController;
+use App\Http\Controllers\POS\KotController;
+use App\Http\Controllers\POS\MenuCategoryController;
+use App\Http\Controllers\POS\MenuController;
+use App\Http\Controllers\POS\OrdersController;
+use App\Http\Controllers\POS\PosOrderController;
+use App\Http\Controllers\POS\PurchaseOrderController;
 use App\Http\Controllers\Printer\PrinterController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PromoController;
+use App\Http\Controllers\Reference\AllergyController;
+use App\Http\Controllers\Reference\CategoryController;
+use App\Http\Controllers\Reference\SupplierController;
+use App\Http\Controllers\Reference\TagController;
+use App\Http\Controllers\Reference\UnitController;
 use App\Http\Controllers\Shifts\ShiftManagementController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
@@ -45,7 +40,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/import', [AllergyController::class, 'import'])->name('import');
     });
 
-    // Units 
+    // Units
     Route::prefix('units')->name('api.units.')->group(function () {
         Route::post('/import', [UnitController::class, 'import'])->name('import');
     });
@@ -61,7 +56,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/pluck', [SupplierController::class, 'pluck'])->name('pluck'); // special
     });
 
-    // Orders 
+    // Orders
     Route::prefix('orders')->name('api.orders.')->group(function () {
         Route::get('/all', [OrdersController::class, 'fetchAllOrders'])->name('fetchAll');
     });
@@ -127,7 +122,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('shift')->name('api.shift.')->group(function () {
         Route::get('/all', [ShiftManagementController::class, 'getAllShifts'])->name('all');
-         Route::patch('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
+        Route::patch('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
 
     });
 
@@ -136,4 +131,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/customer/print-receipt', [PrinterController::class, 'printReceipt']);
     Route::post('/kot/print-receipt', [PrinterController::class, 'printKot']);
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
+
+    Route::prefix('addon-groups')->group(function () {
+        // Get all addon groups with their addon counts
+        Route::get('/all', [AddonGroupController::class, 'all']);
+
+        // Get statistics for KPI cards
+        Route::get('/statistics', [AddonGroupController::class, 'statistics']);
+
+        // Get only active groups (for dropdowns)
+        Route::get('/active', [AddonGroupController::class, 'active']);
+
+        // CRUD operations
+        Route::get('/{id}', [AddonGroupController::class, 'show']);
+        Route::post('/', [AddonGroupController::class, 'store']);
+        Route::post('/{id}', [AddonGroupController::class, 'update']);
+        Route::delete('/{id}', [AddonGroupController::class, 'destroy']);
+
+        // Toggle status (active/inactive)
+        Route::patch('/{id}/toggle-status', [AddonGroupController::class, 'toggleStatus']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Addon Routes
+    |--------------------------------------------------------------------------
+    | These routes handle individual addon items
+    */
+
+    Route::prefix('addons')->group(function () {
+        // Get all addons with their group information
+        Route::get('/all', [AddonController::class, 'all']);
+
+        // Get statistics for KPI cards
+        Route::get('/statistics', [AddonController::class, 'statistics']);
+
+        // Get addons by specific group
+        Route::get('/group/{groupId}', [AddonController::class, 'byGroup']);
+
+        // CRUD operations
+        Route::get('/{id}', [AddonController::class, 'show']);
+        Route::post('/', [AddonController::class, 'store']);
+        Route::post('/{id}', [AddonController::class, 'update']);
+        Route::delete('/{id}', [AddonController::class, 'destroy']);
+
+        // Toggle status (active/inactive)
+        Route::patch('/{id}/toggle-status', [AddonController::class, 'toggleStatus']);
+
+        // Update sort order (drag & drop functionality)
+        Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
+    });
 });

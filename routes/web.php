@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AddonController;
+use App\Http\Controllers\AddonGroupController;
 use App\Http\Controllers\Auth\CustomPasswordResetController;
 use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -290,5 +292,13 @@ Route::middleware(['auth', 'role:Super Admin'])->group(function() {
 
 /* ---------- Public Routes ---------- */
 Route::get('/settings/locations', [IndexController::class, 'index'])->name('locations.index');
+
+// Addon Groups page
+Route::get('/addon-groups', [AddonGroupController::class, 'index'])
+    ->name('addon-groups.index');
+
+// Addons page
+Route::get('/addons', [AddonController::class, 'index'])
+    ->name('addons.index');
 
 require __DIR__.'/auth.php';
