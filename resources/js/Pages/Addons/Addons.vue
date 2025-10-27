@@ -1,0 +1,830 @@
+<script setup>
+import Master from "@/Layouts/Master.vue";
+import { ref, computed, onMounted, nextTick } from "vue";
+import { Package, CheckCircle, XCircle, DollarSign, Pencil, Plus, Filter } from "lucide-vue-next";
+import { toast } from "vue3-toastify";
+import axios from "axios";
+import Select from "primevue/select";
+import ConfirmModal from "@/Components/ConfirmModal.vue";
+import { useFormatters } from "@/composables/useFormatters";
+import { Head } from "@inertiajs/vue3";
+
+const { formatCurrencySymbol } = useFormatters();
+
+/* ============================================
+   DATA & STATE MANAGEMENT
+============================================ */
+
+// Main data stores
+const addons = ref([]);
+const addonGroups = ref([]);
+
+// Form state for create/edit modal
+const addonForm = ref({
+    name: "",
+    addon_group_id: null,
+    price: 0,
+    description: "",
+    status: "active",
+    sort_order: 0,
+});
+
+// Track if we're editing (null = create mode, object = edit mode)
+const editingAddon = ref(null);
+
+// Loading states
+const submitting = ref(false);
+const loading = ref(false);
+
+// Validation errors from backend
+const formErrors = ref({});
+
+// Status options for dropdown
+const statusOptions = [
+    { label: "Active", value: "active" },
+    { label: "Inactive", value: "inactive" },
+];
+
+// Filter by addon group (for the filter buttons)
+const selectedGroupFilter = ref("all");
+
+/* ============================================
+   FETCH DATA FROM API
+============================================ */
+
+/**
+ * Fetch all addons from the backend
+ * Called on component mount and after create/update/delete operations
+ */
+const fetchAddons = async () => {
+    loading.value = true;
+    try {
+        const res = await axios.get("/api/addons/all");
+        addons.value = res.data.data;
+    } catch (err) {
+        console.error("Failed to fetch addons:", err);
+        toast.error("Failed to load addons");
+    } finally {
+        loading.value = false;
+    }
+};
+
+/**
+ * Fetch all active addon groups for dropdown
+ * Used in the modal to select which group the addon belongs to
+ */
+const fetchAddonGroups = async () => {
+    try {
+        const res = await axios.get("/api/addon-groups/active");
+        addonGroups.value = res.data.data;
+    } catch (err) {
+        console.error("Failed to fetch addon groups:", err);
+        toast.error("Failed to load addon groups");
+    }
+};
+
+/* ============================================
+   LIFECYCLE HOOKS
+============================================ */
+
+onMounted(async () => {
+    // Reset search on mount
+    q.value = "";
+    searchKey.value = Date.now();
+    await nextTick();
+
+    // Delay to prevent browser autofill
+    setTimeout(() => {
+        isReady.value = true;
+
+        // Force clear any autofill
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = "";
+            q.value = "";
+        }
+    }, 100);
+
+    // Fetch initial data
+    await Promise.all([fetchAddons(), fetchAddonGroups()]);
+});
+
+/* ============================================
+   KPI STATISTICS CARDS
+============================================ */
+
+/**
+ * Computed statistics for dashboard cards
+ * Updates automatically when addons changes
+ */
+const addonStats = computed(() => {
+    // Calculate average price of all addons
+    const avgPrice =
+        addons.value.length > 0
+            ? addons.value.reduce((sum, a) => sum + parseFloat(a.price), 0) / addons.value.length
+            : 0;
+
+    return [
+        {
+            label: "Total Addons",
+            value: addons.value.length,
+            icon: Package,
+            iconBg: "bg-light-primary",
+            iconColor: "text-primary",
+        },
+        {
+            label: "Active Addons",
+            value: addons.value.filter((a) => a.status === "active").length,
+            icon: CheckCircle,
+            iconBg: "bg-light-success",
+            iconColor: "text-success",
+        },
+        {
+            label: "Inactive Addons",
+            value: addons.value.filter((a) => a.status === "inactive").length,
+            icon: XCircle,
+            iconBg: "bg-light-danger",
+            iconColor: "text-danger",
+        },
+        {
+            label: "Average Price",
+            value: formatCurrencySymbol(avgPrice),
+            icon: DollarSign,
+            iconBg: "bg-light-warning",
+            iconColor: "text-warning",
+        },
+    ];
+});
+
+/* ============================================
+   SEARCH & FILTER FUNCTIONALITY
+============================================ */
+
+// Search query
+const q = ref("");
+
+// Unique key for search input (prevents autofill issues)
+const searchKey = ref(Date.now());
+const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
+const isReady = ref(false);
+
+/**
+ * Get unique group names for filter buttons
+ * Returns "All" + all unique addon group names
+ */
+const uniqueGroups = computed(() => {
+    const groups = ["All"];
+    const groupNames = [...new Set(addons.value.map((a) => a.addon_group?.name).filter(Boolean))];
+    return [...groups, ...groupNames];
+});
+
+/**
+ * Filter addons based on search query and selected group
+ * Searches in: name, addon group name
+ */
+const filteredAddons = computed(() => {
+    let filtered = addons.value;
+
+    // Filter by addon group
+    if (selectedGroupFilter.value !== "all") {
+        filtered = filtered.filter(
+            (addon) =>
+                addon.addon_group?.name.toLowerCase() === selectedGroupFilter.value.toLowerCase()
+        );
+    }
+
+    // Filter by search query
+    const searchTerm = q.value.trim().toLowerCase();
+    if (searchTerm) {
+        filtered = filtered.filter(
+            (addon) =>
+                addon.name.toLowerCase().includes(searchTerm) ||
+                addon.addon_group?.name.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    return filtered;
+});
+
+/**
+ * Set the group filter
+ */
+const setGroupFilter = (group) => {
+    selectedGroupFilter.value = group === "All" ? "all" : group;
+};
+
+/**
+ * Handle focus on search input (prevents autofill)
+ */
+const handleFocus = (event) => {
+    event.target.setAttribute("autocomplete", "off");
+};
+
+/* ============================================
+   MODAL MANAGEMENT
+============================================ */
+
+/**
+ * Reset modal form to initial state
+ * Called when opening modal for create or after closing
+ */
+const resetModal = () => {
+    addonForm.value = {
+        name: "",
+        addon_group_id: null,
+        price: 0,
+        description: "",
+        status: "active",
+        sort_order: 0,
+    };
+    editingAddon.value = null;
+    formErrors.value = {};
+};
+
+/**
+ * Open modal in edit mode with existing addon data
+ */
+const editRow = (row) => {
+    editingAddon.value = row;
+
+    // Populate form with existing data
+    addonForm.value = {
+        name: row.name,
+        addon_group_id: row.addon_group_id,
+        price: parseFloat(row.price),
+        description: row.description || "",
+        status: row.status,
+        sort_order: row.sort_order || 0,
+    };
+
+    // Open Bootstrap modal
+    const modalEl = document.getElementById("addonModal");
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+};
+
+/* ============================================
+   CREATE / UPDATE OPERATIONS
+============================================ */
+
+/**
+ * Submit form (handles both create and update)
+ * Validates required fields on frontend before sending
+ */
+const submitAddon = async () => {
+    // Frontend validation
+    if (!addonForm.value.name.trim()) {
+        toast.error("Addon name is required");
+        return;
+    }
+
+    if (!addonForm.value.addon_group_id) {
+        toast.error("Please select an addon group");
+        return;
+    }
+
+    if (addonForm.value.price < 0) {
+        toast.error("Price cannot be negative");
+        return;
+    }
+
+    submitting.value = true;
+    formErrors.value = {};
+
+    try {
+        if (editingAddon.value) {
+            // UPDATE existing addon
+            await axios.post(`/api/addons/${editingAddon.value.id}`, addonForm.value);
+            toast.success("Addon updated successfully");
+        } else {
+            // CREATE new addon
+            await axios.post("/api/addons", addonForm.value);
+            toast.success("Addon created successfully");
+        }
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById("addonModal"));
+        modal?.hide();
+
+        // Reset form and refresh data
+        resetModal();
+        await fetchAddons();
+    } catch (err) {
+        console.error("❌ Error:", err.response?.data || err.message);
+
+        // Handle validation errors (422)
+        if (err.response?.status === 422 && err.response?.data?.errors) {
+            formErrors.value = err.response.data.errors;
+
+            // Show all error messages
+            const errorMessages = Object.values(err.response.data.errors).flat();
+            toast.error(errorMessages.join("\n"));
+        } else {
+            // Handle other errors
+            const errorMessage = err.response?.data?.message || "Failed to save addon";
+            toast.error(errorMessage);
+        }
+    } finally {
+        submitting.value = false;
+    }
+};
+
+/* ============================================
+   TOGGLE STATUS (ACTIVE/INACTIVE)
+============================================ */
+
+/**
+ * Toggle addon status between active and inactive
+ * Updates immediately on success (optimistic UI update)
+ */
+const toggleStatus = async (row) => {
+    const newStatus = row.status === "active" ? "inactive" : "active";
+
+    try {
+        await axios.patch(`/api/addons/${row.id}/toggle-status`, {
+            status: newStatus,
+        });
+
+        // Update local state immediately
+        row.status = newStatus;
+        toast.success(`Status changed to ${newStatus}`);
+    } catch (error) {
+        console.error("Failed to update status:", error);
+        toast.error("Failed to update status");
+    }
+};
+
+/* ============================================
+   DELETE OPERATION
+============================================ */
+
+/**
+ * Delete addon
+ * Shows confirmation modal before deletion
+ */
+const deleteAddon = async (row) => {
+    if (!row?.id) return;
+
+    try {
+        await axios.delete(`/api/addons/${row.id}`);
+        toast.success("Addon deleted successfully");
+        await fetchAddons();
+    } catch (err) {
+        console.error("❌ Delete error:", err.response?.data || err.message);
+
+        // Show specific error message from backend
+        const errorMessage = err.response?.data?.message || "Failed to delete addon";
+        toast.error(errorMessage);
+    }
+};
+
+/* ============================================
+   COMPUTED PROPERTIES FOR DROPDOWN
+============================================ */
+
+/**
+ * Format addon groups for PrimeVue Select dropdown
+ */
+const addonGroupOptions = computed(() => {
+    return addonGroups.value.map((group) => ({
+        label: `${group.name} (Min: ${group.min_select}, Max: ${group.max_select})`,
+        value: group.id,
+    }));
+});
+</script>
+
+<template>
+    <Master>
+        <Head title="Addons" />
+
+        <div class="page-wrapper">
+            <!-- Page Header -->
+            <h4 class="fw-semibold mb-3">Addons Management</h4>
+
+            <!-- KPI Statistics Cards -->
+            <div class="row g-3 mb-4">
+                <div v-for="stat in addonStats" :key="stat.label" class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center">
+                            <!-- Icon -->
+                            <div
+                                :class="[stat.iconBg, stat.iconColor]"
+                                class="rounded-circle p-3 d-flex align-items-center justify-content-center me-3"
+                                style="width: 56px; height: 56px"
+                            >
+                                <component :is="stat.icon" class="w-6 h-6" />
+                            </div>
+
+                            <!-- Value & Label -->
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ stat.value }}</h3>
+                                <p class="text-muted mb-0 small">{{ stat.label }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Table Card -->
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-body">
+                    <!-- Toolbar: Filter, Search & Add Button -->
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 fw-semibold">Addons</h5>
+
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <!-- Search Input -->
+                            <div class="search-wrap">
+                                <i class="bi bi-search"></i>
+
+                                <!-- Hidden email input to prevent autofill -->
+                                <input
+                                    type="email"
+                                    name="email"
+                                    autocomplete="email"
+                                    style="
+                                        position: absolute;
+                                        left: -9999px;
+                                        width: 1px;
+                                        height: 1px;
+                                    "
+                                    tabindex="-1"
+                                    aria-hidden="true"
+                                />
+
+                                <!-- Actual search input -->
+                                <input
+                                    v-if="isReady"
+                                    :id="inputId"
+                                    v-model="q"
+                                    :key="searchKey"
+                                    class="form-control search-input"
+                                    placeholder="Search addons..."
+                                    type="search"
+                                    autocomplete="new-password"
+                                    :name="inputId"
+                                    role="presentation"
+                                    @focus="handleFocus"
+                                />
+                                <input
+                                    v-else
+                                    class="form-control search-input"
+                                    placeholder="Search addons..."
+                                    disabled
+                                    type="text"
+                                />
+                            </div>
+
+                            <!-- Add Addon Button -->
+                            <button
+                                data-bs-toggle="modal"
+                                data-bs-target="#addonModal"
+                                @click="resetModal"
+                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
+                            >
+                                <Plus class="w-4 h-4" /> Add Addon
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Group Filter Buttons -->
+                    <div class="mb-3 d-flex flex-wrap gap-2">
+                        <button
+                            v-for="group in uniqueGroups"
+                            :key="group"
+                            @click="setGroupFilter(group)"
+                            class="btn rounded-pill"
+                            :class="
+                                selectedGroupFilter === (group === 'All' ? 'all' : group)
+                                    ? 'btn-primary'
+                                    : 'btn-outline-primary'
+                            "
+                        >
+                            {{ group }}
+                        </button>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="border-top small text-muted">
+                                <tr>
+                                    <th>S.#</th>
+                                    <th>Name</th>
+                                    <th>Addon Group</th>
+                                    <th>Price</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loading State -->
+                                <tr v-if="loading">
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Data Rows -->
+                                <tr v-else v-for="(row, i) in filteredAddons" :key="row.id">
+                                    <!-- Serial Number -->
+                                    <td>{{ i + 1 }}</td>
+
+                                    <!-- Addon Name -->
+                                    <td class="fw-semibold">{{ row.name }}</td>
+
+                                    <!-- Addon Group -->
+                                    <td>
+                                        <span class="badge bg-info px-3 py-2 rounded-pill">
+                                            {{ row.addon_group?.name || "N/A" }}
+                                        </span>
+                                    </td>
+
+                                    <!-- Price -->
+                                    <td class="fw-semibold text-success">
+                                        {{ formatCurrencySymbol(row.price) }}
+                                    </td>
+
+                                    <!-- Status Badge -->
+                                    <td class="text-center">
+                                        <span
+                                            :class="
+                                                row.status === 'active'
+                                                    ? 'badge bg-success px-4 py-2 rounded-pill'
+                                                    : 'badge bg-danger px-4 py-2 rounded-pill'
+                                            "
+                                        >
+                                            {{ row.status === "active" ? "Active" : "Inactive" }}
+                                        </span>
+                                    </td>
+
+                                    <!-- Action Buttons -->
+                                    <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-3">
+                                            <!-- Edit Button -->
+                                            <button
+                                                @click="editRow(row)"
+                                                title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                            >
+                                                <Pencil class="w-4 h-4" />
+                                            </button>
+
+                                            <!-- Toggle Status Switch -->
+                                            <ConfirmModal
+                                                :title="'Confirm Status Change'"
+                                                :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
+                                                :showStatusButton="true"
+                                                confirmText="Yes, Change"
+                                                cancelText="Cancel"
+                                                :status="row.status"
+                                                @confirm="toggleStatus(row)"
+                                            >
+                                                <template #trigger>
+                                                    <button
+                                                        class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
+                                                        :class="
+                                                            row.status === 'active'
+                                                                ? 'bg-green-500 hover:bg-green-600'
+                                                                : 'bg-red-400 hover:bg-red-500'
+                                                        "
+                                                        :title="
+                                                            row.status === 'active'
+                                                                ? 'Set Inactive'
+                                                                : 'Set Active'
+                                                        "
+                                                    >
+                                                        <span
+                                                            class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
+                                                            :class="
+                                                                row.status === 'active'
+                                                                    ? 'translate-x-4'
+                                                                    : 'translate-x-0'
+                                                            "
+                                                        ></span>
+                                                    </button>
+                                                </template>
+                                            </ConfirmModal>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Empty State -->
+                                <tr v-if="!loading && filteredAddons.length === 0">
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        No addons found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================== Add/Edit Modal ================== -->
+            <div class="modal fade" id="addonModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <!-- Modal Header -->
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-semibold">
+                                {{ editingAddon ? "Edit Addon" : "Add New Addon" }}
+                            </h5>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                @click="resetModal"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"
+                                title="Close"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6 text-red-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <!-- Addon Name -->
+                                <div class="col-12">
+                                    <label class="form-label">Addon Name *</label>
+                                    <input
+                                        v-model="addonForm.name"
+                                        type="text"
+                                        class="form-control"
+                                        :class="{ 'is-invalid': formErrors.name }"
+                                        placeholder="e.g., Extra Cheese, Pepperoni, BBQ Sauce"
+                                    />
+                                    <small v-if="formErrors.name" class="text-danger">
+                                        {{ formErrors.name[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Addon Group -->
+                                <div class="col-12">
+                                    <label class="form-label">Addon Group *</label>
+                                    <Select
+                                        v-model="addonForm.addon_group_id"
+                                        :options="addonGroupOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="Select addon group"
+                                        class="form-select"
+                                        appendTo="self"
+                                        :autoZIndex="true"
+                                        :baseZIndex="2000"
+                                        :class="{ 'is-invalid': formErrors.addon_group_id }"
+                                    />
+                                    <small v-if="formErrors.addon_group_id" class="text-danger">
+                                        {{ formErrors.addon_group_id[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Price -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Price *</label>
+                                    <input
+                                        v-model.number="addonForm.price"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        class="form-control"
+                                        :class="{ 'is-invalid': formErrors.price }"
+                                        placeholder="0.00"
+                                    />
+                                    <small class="text-muted"> Additional price for this addon </small>
+                                    <small v-if="formErrors.price" class="text-danger d-block">
+                                        {{ formErrors.price[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Status -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Status *</label>
+                                    <Select
+                                        v-model="addonForm.status"
+                                        :options="statusOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        class="form-select"
+                                        appendTo="self"
+                                        :autoZIndex="true"
+                                        :baseZIndex="2000"
+                                        :class="{ 'is-invalid': formErrors.status }"
+                                    />
+                                    <small v-if="formErrors.status" class="text-danger">
+                                        {{ formErrors.status[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Sort Order (Hidden in UI, auto-calculated) -->
+                                <!-- <div class="col-12">
+                                    <label class="form-label">Sort Order</label>
+                                    <input
+                                        v-model.number="addonForm.sort_order"
+                                        type="number"
+                                        min="0"
+                                        class="form-control"
+                                        :class="{ 'is-invalid': formErrors.sort_order }"
+                                        placeholder="0"
+                                    />
+                                    <small class="text-muted">
+                                        Lower numbers appear first in the list
+                                    </small>
+                                    <small v-if="formErrors.sort_order" class="text-danger d-block">
+                                        {{ formErrors.sort_order[0] }}
+                                    </small>
+                                </div> -->
+
+                                <!-- Description -->
+                                <div class="col-12">
+                                    <label class="form-label">Description (Optional)</label>
+                                    <textarea
+                                        v-model="addonForm.description"
+                                        class="form-control"
+                                        rows="3"
+                                        :class="{ 'is-invalid': formErrors.description }"
+                                        placeholder="Enter addon description..."
+                                    ></textarea>
+                                    <small v-if="formErrors.description" class="text-danger">
+                                        {{ formErrors.description[0] }}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <hr class="my-4" />
+
+                            <!-- Modal Actions -->
+                            <div class="mt-4">
+                                <button
+                                    class="btn btn-primary rounded-pill px-4"
+                                    :disabled="submitting"
+                                    @click="submitAddon"
+                                >
+                                    <template v-if="submitting">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        Saving...
+                                    </template>
+                                    <template v-else>
+                                        {{ editingAddon ? "Save" : "Save" }}
+                                    </template>
+                                </button>
+
+                                <button
+                                    class="btn btn-secondary rounded-pill px-4 ms-2"
+                                    data-bs-dismiss="modal"
+                                    @click="resetModal"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /modal -->
+        </div>
+    </Master>
+</template>
+
+<style scoped>
+/* Custom styles for search input */
+.search-wrap {
+    position: relative;
+}
+
+.search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+.search-input {
+    padding-left: 40px;
+    min-width: 250px;
+}
+
+/* Hover effects for action buttons */
+.p-2:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-radius: 50%;
+}
+
+
+</style>

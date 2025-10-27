@@ -200,6 +200,23 @@ const sidebarMenus = ref([
                 route: "shift.index",
             },
 
+             {
+                label: "Addons",
+                icon: "plus-square", // or "puzzle" or "package"
+                children: [
+                    {
+                        label: "Addon Groups",
+                        icon: "layers",
+                        route: "addon-groups.index",
+                    },
+                    {
+                        label: "Addons",
+                        icon: "plus-circle",
+                        route: "addons.index",
+                    },
+                ],
+            },
+
         ],
     },
 
