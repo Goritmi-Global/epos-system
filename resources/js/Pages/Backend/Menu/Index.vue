@@ -15,6 +15,8 @@ import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { Head } from "@inertiajs/vue3";
 
+
+
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
     Package,
@@ -46,6 +48,11 @@ const components = {
     FilterModal,
     // ... your other components
 };
+
+const taxableOptions = ref([
+    { label: "Yes", value: 1 },
+    { label: "No", value: 0 },
+]);
 
 
 const labelColors = [
@@ -545,6 +552,7 @@ const form = ref({
     tags: [],
     imageFile: null,
     imageUrl: null,
+    is_taxable: null,
 });
 
 const showCropper = ref(false);
@@ -567,6 +575,8 @@ const submitProduct = async () => {
     submitting.value = true;
     formErrors.value = {};
 
+    console.log('is_taxable value:', form.value.is_taxable, typeof form.value.is_taxable);
+
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
     if (form.value.price !== "" && form.value.price !== null) {
@@ -584,6 +594,7 @@ const submitProduct = async () => {
         formData.append("subcategory_id", form.value.subcategory_id);
     }
     formData.append("description", form.value.description || "");
+    formData.append("is_taxable", String(form.value.is_taxable ?? 0));
 
     // nutrition
     // nutrition from computed total
@@ -606,7 +617,6 @@ const submitProduct = async () => {
         formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
         formData.append(`ingredients[${i}][cost]`, ing.cost);
     });
-
     // image
     if (form.value.imageFile) {
         formData.append("image", form.value.imageFile);
@@ -721,6 +731,7 @@ const editItem = (item) => {
         category_id: itemData.category?.id || null,
         description: itemData.description,
         label_color: itemData.label_color,
+        is_taxable: itemData.is_taxable ?? 0,
         ingredients: itemData.ingredients || [],
         allergies: itemData.allergies?.map((a) => a.id) || [],
         tags: itemData.tags?.map((t) => t.id) || [],
@@ -830,6 +841,7 @@ const submitEdit = async () => {
         formData.append("description", form.value.description || "");
         formData.append("label_color", form.value.label_color || "");
 
+         formData.append("is_taxable", form.value.is_taxable ?? 0);
         // Nutrition data
         formData.append("nutrition[calories]", totalNutrition.calories);
         formData.append("nutrition[fat]", totalNutrition.fat);
@@ -935,6 +947,7 @@ function resetForm() {
         sku: "",
         description: "",
         label_color: "",
+        is_taxable: 0,
         nutrition: { calories: "", fat: "", protein: "", carbs: "" },
         allergies: [],
         tags: [],
@@ -1707,6 +1720,16 @@ const handleImport = (data) => {
                                 </div>
 
                                 <div class="col-md-6">
+                                    <label class="form-label">Is this Taxable Menu?</label>
+                                    <Select v-model="form.is_taxable" :options="taxableOptions" optionLabel="label"
+                                        optionValue="value" placeholder="Select Option" class="w-100" appendTo="self"
+                                        :autoZIndex="true" :baseZIndex="2000"
+                                        :class="{ 'is-invalid': formErrors.is_taxable }" />
+                                    <small v-if="formErrors.is_taxable" class="text-danger">
+                                        {{ formErrors.is_taxable[0] }}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label d-block"> Label Color </label>
 
 
@@ -2019,10 +2042,10 @@ ing, idx
 
                         <!-- Modal Footer -->
                         <div class="modal-footer bg-light border-top">
-                            <button class="btn btn-secondary px-3" @click="cancelAllergySelection">
+                            <button class="btn btn-secondary px-2 py-2" @click="cancelAllergySelection">
                                 Cancel
                             </button>
-                            <button class="btn btn-primary px-3" @click="saveSelectedAllergies">
+                            <button class="btn btn-primary px-2 py-2" @click="saveSelectedAllergies">
                                 Save
                             </button>
                         </div>

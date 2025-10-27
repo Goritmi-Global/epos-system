@@ -31,6 +31,8 @@ class StoreMenuRequest extends FormRequest
             'label_color' => ['required', 'string'],
             'price' => ['required', 'numeric', 'gt:0'],
 
+            'is_taxable' => ['nullable', 'boolean'],
+
             // nutrition
             'nutrition' => ['array'],
             'nutrition.calories' => ['nullable', 'numeric', 'min:0'],
@@ -45,13 +47,13 @@ class StoreMenuRequest extends FormRequest
             // 'allergies.*.type' => ['required', 'boolean'],
             // 'tags' => ['nullable', 'array'],
             // 'tags.*' => ['numeric', 'exists:tags,id'],
-// allergies + tags (now nullable)
-'allergies' => ['nullable', 'array'],
-'allergies.*' => ['numeric', 'exists:allergies,id'],
-'allergy_types' => ['nullable', 'array'],
-'allergy_types.*' => ['boolean'],
-'tags' => ['nullable', 'array'],
-'tags.*' => ['numeric', 'exists:tags,id'],
+            // allergies + tags (now nullable)
+            'allergies' => ['nullable', 'array'],
+            'allergies.*' => ['numeric', 'exists:allergies,id'],
+            'allergy_types' => ['nullable', 'array'],
+            'allergy_types.*' => ['boolean'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['numeric', 'exists:tags,id'],
 
             // ingredients
             'ingredients' => ['required', 'array', 'min:1'],

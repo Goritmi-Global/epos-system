@@ -15,9 +15,8 @@ const props = defineProps({
     grandTotal: Number,
     money: Function,
     cashReceived: Number,
-
     order_code: String,
-
+    subTotal: Number,
     tax: Number,
     serviceCharges: Number,
     deliveryCharges: Number,

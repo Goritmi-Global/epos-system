@@ -375,10 +375,10 @@ const deliveryCharges = computed(() =>
         ? (subTotal.value * deliveryPercent.value) / 100
         : 0
 );
-const grandTotal = computed(() => {
-    const total = subTotal.value + deliveryCharges.value - promoDiscount.value;
-    return Math.max(0, total);
-});
+// const grandTotal = computed(() => {
+//     const total = subTotal.value + deliveryCharges.value - promoDiscount.value;
+//     return Math.max(0, total);
+// });
 
 const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
 
@@ -839,7 +839,7 @@ const openConfirmModal = () => {
 //             ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>`
 //             : ""
 //         }
-        
+
 //         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
 //       </div>
 
@@ -923,16 +923,16 @@ const openConfirmModal = () => {
 
 
 async function printReceipt(order) {
-  try {
-    const response = await axios.post("/api/customer/print-receipt", { order });
-    if (response.data.success) {
-    } else {
-      toast.error(response.data.message || "Print failed");
+    try {
+        const response = await axios.post("/api/customer/print-receipt", { order });
+        if (response.data.success) {
+        } else {
+            toast.error(response.data.message || "Print failed");
+        }
+    } catch (error) {
+        console.error("Print failed:", error);
+        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
     }
-  } catch (error) {
-    console.error("Print failed:", error);
-    toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
-  }
 }
 
 
@@ -1110,16 +1110,16 @@ const changeAmount = ref(0);
 
 
 async function printKot(order) {
-  try {
-    const response = await axios.post("/api/kot/print-receipt", { order });
-    if (response.data.success) {
-    } else {
-      toast.error(response.data.message || "KOT print failed");
+    try {
+        const response = await axios.post("/api/kot/print-receipt", { order });
+        if (response.data.success) {
+        } else {
+            toast.error(response.data.message || "KOT print failed");
+        }
+    } catch (error) {
+        console.error("KOT print failed:", error);
+        toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
     }
-  } catch (error) {
-    console.error("KOT print failed:", error);
-    toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
-  }
 }
 
 
@@ -1141,6 +1141,8 @@ const confirmOrder = async ({
         const payload = {
             customer_name: customer.value,
             sub_total: subTotal.value,
+
+             tax: totalTax.value,
             // Promo Details
             promo_discount: promoDiscount.value,
             promo_id: selectedPromo.value?.id || null,
@@ -1185,6 +1187,9 @@ const confirmOrder = async ({
                 note: it.note ?? "",
                 kitchen_note: kitchenNote.value ?? "",
                 unit_price: it.unit_price,
+
+                   tax_percentage: getItemTaxPercentage(it),
+                tax_amount: getItemTax(it),
             })),
         };
 
@@ -1417,6 +1422,48 @@ const promoDiscount = computed(() => {
     return 0;
 });
 
+/* ----------------------------
+   Tax Calculation
+-----------------------------*/
+const totalTax = computed(() => {
+    let tax = 0;
+    orderItems.value.forEach((item) => {
+        // Find the original menu item to get tax_percentage
+        const menuItem = menuItems.value.find(m => m.id === item.id);
+
+        if (menuItem && menuItem.is_taxable && menuItem.tax_percentage) {
+            const itemSubtotal = item.unit_price * item.qty;
+            const itemTax = (itemSubtotal * parseFloat(menuItem.tax_percentage)) / 100;
+            tax += itemTax;
+        }
+    });
+    return tax;
+});
+
+// Update grandTotal to include tax
+const grandTotal = computed(() => {
+    const total = subTotal.value + totalTax.value + deliveryCharges.value - promoDiscount.value;
+    return Math.max(0, total);
+});
+
+// Helper function to get tax amount for a specific item
+const getItemTax = (item) => {
+    const menuItem = menuItems.value.find(m => m.id === item.id);
+    if (menuItem && menuItem.is_taxable && menuItem.tax_percentage) {
+        const itemSubtotal = item.unit_price * item.qty;
+        return (itemSubtotal * parseFloat(menuItem.tax_percentage)) / 100;
+    }
+    return 0;
+};
+
+// Helper function to get tax percentage for display
+const getItemTaxPercentage = (item) => {
+    const menuItem = menuItems.value.find(m => m.id === item.id);
+    return (menuItem && menuItem.is_taxable && menuItem.tax_percentage)
+        ? parseFloat(menuItem.tax_percentage)
+        : 0;
+};
+
 
 // ========================================
 // // Get quantity for a product in the cart
@@ -1535,7 +1582,7 @@ const decrementCardQty = (product) => {
                         <div v-if="showCategories" class="row g-3">
                             <div class="col-12 mb-3">
                                 <!-- <h5 class="fw-bold  mb-0"></h5> -->
-                                  <h4 class="mb-3">Menu Categories</h4>
+                                <h4 class="mb-3">Menu Categories</h4>
                                 <hr class="mt-2 mb-3">
                             </div>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
@@ -1585,7 +1632,7 @@ const decrementCardQty = (product) => {
                                     {{
                                         menuCategories.find(
                                             (c) => c.id === activeCat
-                                    )?.name || "Items"
+                                        )?.name || "Items"
                                     }}
                                 </h5>
 
@@ -1598,9 +1645,9 @@ const decrementCardQty = (product) => {
                                             { value: 'name_desc', label: 'Name: Z to A' },
                                             { value: 'price_asc', label: 'Price: Low to High' },
                                             { value: 'price_desc', label: 'Price: High to Low' },
-                                        ]" :show-price-range="true" :show-category="false" :show-stock-status="false" :show-date-range="false"
-                                        :categories="[]" :suppliers="[]" @apply="handleApplyFilters"
-                                        @clear="handleClearFilters" />
+                                        ]" :show-price-range="true" :show-category="false" :show-stock-status="false"
+                                        :show-date-range="false" :categories="[]" :suppliers="[]"
+                                        @apply="handleApplyFilters" @clear="handleClearFilters" />
 
                                     <!-- Search Input -->
                                     <div class="search-wrap position-relative">
@@ -1976,10 +2023,20 @@ const decrementCardQty = (product) => {
 
                                 <!-- Totals -->
                                 <!-- Totals -->
+                                <!-- Replace your existing totals section with this -->
                                 <div class="totals">
                                     <div class="trow">
                                         <span>Sub Total</span>
                                         <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
+                                    </div>
+
+                                    <!-- Tax Row -->
+                                    <div class="trow" v-if="totalTax > 0">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-receipt text-info"></i>
+                                            Tax
+                                        </span>
+                                        <b class="text-info">{{ formatCurrencySymbol(totalTax) }}</b>
                                     </div>
 
                                     <!-- Delivery Charges -->

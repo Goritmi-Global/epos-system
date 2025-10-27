@@ -16,7 +16,9 @@ class MenuItem extends Model
         'description',
         'status',
         'upload_id',
-        'label_color'
+        'label_color',
+        'is_taxable',
+         'tax_percentage'
     ];
 
     // Category
