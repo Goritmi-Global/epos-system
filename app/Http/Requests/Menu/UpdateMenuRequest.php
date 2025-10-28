@@ -25,6 +25,8 @@ class UpdateMenuRequest extends FormRequest
                 Rule::unique('menu_items', 'slug')->ignore($menuId),
             ],
             'category_id' => ['required', 'numeric', 'exists:menu_categories,id'],
+            'meals' => ['nullable', 'array'], // Add this
+            'meals.*' => ['numeric', 'exists:meals,id'], // Add this
             'subcategory_id' => ['nullable', 'numeric', 'exists:menu_categories,id'],
             'description' => ['nullable', 'string'],
             'label_color' => ['required', 'string'],

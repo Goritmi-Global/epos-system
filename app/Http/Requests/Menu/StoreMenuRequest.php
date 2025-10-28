@@ -26,6 +26,8 @@ class StoreMenuRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:menu_items,slug'],
             'category_id' => ['required', 'numeric', 'exists:menu_categories,id'],
+            'meals' => ['nullable', 'array'], // Add this
+            'meals.*' => ['numeric', 'exists:meals,id'], // Add this
             'subcategory_id' => ['nullable', 'numeric', 'exists:menu_categories,id'],
             'description' => ['nullable', 'string'],
             'label_color' => ['required', 'string'],

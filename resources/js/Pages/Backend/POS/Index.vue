@@ -1142,14 +1142,14 @@ const confirmOrder = async ({
             customer_name: customer.value,
             sub_total: subTotal.value,
 
-             tax: totalTax.value,
+            tax: totalTax.value,
             // Promo Details
             promo_discount: promoDiscount.value,
             promo_id: selectedPromo.value?.id || null,
             promo_name: selectedPromo.value?.name || null,
             promo_type: selectedPromo.value?.type || null,
             total_amount: grandTotal.value,
-            tax: 0,
+            // tax: 0,
             service_charges: 0,
             delivery_charges: deliveryCharges.value,
             note: note.value,
@@ -1422,18 +1422,20 @@ const promoDiscount = computed(() => {
     return 0;
 });
 
+console.log("page.props",page.props.onboarding.tax_and_vat.tax_rate);
 /* ----------------------------
    Tax Calculation
 -----------------------------*/
 const totalTax = computed(() => {
     let tax = 0;
+    const onboardingTaxRate = parseFloat(page.props.onboarding.tax_and_vat.tax_rate) || 0;
     orderItems.value.forEach((item) => {
         // Find the original menu item to get tax_percentage
         const menuItem = menuItems.value.find(m => m.id === item.id);
 
-        if (menuItem && menuItem.is_taxable && menuItem.tax_percentage) {
+        if (menuItem && menuItem.is_taxable) {
             const itemSubtotal = item.unit_price * item.qty;
-            const itemTax = (itemSubtotal * parseFloat(menuItem.tax_percentage)) / 100;
+            const itemTax = (itemSubtotal * onboardingTaxRate) / 100;
             tax += itemTax;
         }
     });

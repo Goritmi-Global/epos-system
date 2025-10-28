@@ -42,6 +42,9 @@ const props = defineProps({
     categories: {
         type: Array,
     },
+    meals: { // Add this
+        type: Array,
+    },
 });
 
 const components = {
@@ -540,6 +543,7 @@ function resetErrors() {
 const form = ref({
     name: "",
     category_id: null,
+    meals: [],
     label_color: null,
     subcategory: "",
     unit: [],
@@ -608,6 +612,10 @@ const submitProduct = async () => {
         formData.append(`allergies[${i}]`, a.id);
         formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
     });
+    form.value.meals.forEach((mealId, i) => {
+        formData.append(`meals[${i}]`, mealId);
+    });
+
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
     // ingredients cart
@@ -716,19 +724,21 @@ const i_displayInv = computed(() => {
 });
 
 const editItem = (item) => {
+  
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
 
     isEditMode.value = true;
     const itemData = toRaw(item);
-    console.log(itemData);
+    console.log("Item data", itemData);
 
     form.value = {
         id: itemData.id,
         name: itemData.name,
         price: itemData.price,
         category_id: itemData.category?.id || null,
+        meals: itemData.meals?.map((m) => m.id) || [],
         description: itemData.description,
         label_color: itemData.label_color,
         is_taxable: itemData.is_taxable ?? 0,
@@ -841,7 +851,7 @@ const submitEdit = async () => {
         formData.append("description", form.value.description || "");
         formData.append("label_color", form.value.label_color || "");
 
-         formData.append("is_taxable", form.value.is_taxable ?? 0);
+        formData.append("is_taxable", form.value.is_taxable ?? 0);
         // Nutrition data
         formData.append("nutrition[calories]", totalNutrition.calories);
         formData.append("nutrition[fat]", totalNutrition.fat);
@@ -857,6 +867,9 @@ const submitEdit = async () => {
         });
 
         form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
+        form.value.meals.forEach((mealId, i) => {
+            formData.append(`meals[${i}]`, mealId);
+        });
 
         // Ingredients from cart
         i_cart.value.forEach((ing, i) => {
@@ -940,6 +953,7 @@ function resetForm() {
     form.value = {
         name: "",
         category: "Poultry",
+        meals: [],
         subcategory: "",
         unit: "gram (g)",
         minAlert: "",
@@ -1757,6 +1771,17 @@ const handleImport = (data) => {
                                             }" />
                                     <small v-if="formErrors.category_id" class="text-danger">
                                         {{ formErrors.category_id[0] }}
+                                    </small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label d-block">Meals</label>
+                                    <MultiSelect v-model="form.meals" :options="meals" optionLabel="name"
+                                        optionValue="id" filter placeholder="Select Meals" class="w-full md:w-80"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                        :class="{ 'is-invalid': formErrors.meals }" />
+                                    <small v-if="formErrors.meals" class="text-danger">
+                                        {{ formErrors.meals[0] }}
                                     </small>
                                 </div>
 
