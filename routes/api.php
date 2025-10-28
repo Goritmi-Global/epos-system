@@ -23,6 +23,8 @@ use App\Http\Controllers\Reference\SupplierController;
 use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
 use App\Http\Controllers\Shifts\ShiftManagementController;
+use App\Http\Controllers\VariantController;
+use App\Http\Controllers\VariantGroupController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/countries', [IndexController::class, 'countries']);
@@ -131,6 +133,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/all', [MealController::class, 'fetchAllMeals'])->name('all');
         Route::get('/active', [MealController::class, 'getActiveMeals']);
     });
+
+    Route::prefix('variants')->name('api.variants.')->group(function () {
+        Route::get('/all', [VariantController::class, 'all']);
+        Route::get('/by-group/{groupId}', [VariantController::class, 'byGroup']);
+        Route::get('/statistics', [VariantController::class, 'statistics']);
+        Route::post('/', [VariantController::class, 'store']);
+        Route::get('/{id}', [VariantController::class, 'show']);
+        Route::post('/{id}', [VariantController::class, 'update']);
+        Route::delete('/{id}', [VariantController::class, 'destroy']);
+        Route::patch('/{id}/toggle-status', [VariantController::class, 'toggleStatus']);
+        Route::post('/update-sort-order', [VariantController::class, 'updateSortOrder']);
+        Route::post('/validate-selection', [VariantController::class, 'validateSelection']);
+        Route::post('/calculate-price-modifier', [VariantController::class, 'calculatePriceModifier']);
+    });
+    
+    Route::prefix('variant-groups')->name('api.variant-groups.')->group(function () {
+        Route::get('/all', [VariantGroupController::class, 'all']);
+        Route::get('/statistics', [VariantGroupController::class, 'statistics']);
+        Route::get('/active', [VariantGroupController::class, 'active']);
+        Route::post('/', [VariantGroupController::class, 'store']);
+        Route::get('/{id}', [VariantGroupController::class, 'show']);
+        Route::post('/{id}', [VariantGroupController::class, 'update']);
+        Route::delete('/{id}', [VariantGroupController::class, 'destroy']);
+        Route::patch('/{id}/toggle-status', [VariantGroupController::class, 'toggleStatus']);
+        Route::post('/update-sort-order', [VariantGroupController::class, 'updateSortOrder']);
+    });
+
+    
 
     // Get Printers
     Route::get('/printers', [PrinterController::class, 'index']);
