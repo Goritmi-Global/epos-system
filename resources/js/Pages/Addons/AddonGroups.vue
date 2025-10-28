@@ -370,7 +370,7 @@ const deleteGroup = async (row) => {
                                     :id="inputId"
                                     v-model="q"
                                     :key="searchKey"
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search groups..."
                                     type="search"
                                     autocomplete="new-password"
@@ -380,7 +380,7 @@ const deleteGroup = async (row) => {
                                 />
                                 <input
                                     v-else
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search groups..."
                                     disabled
                                     type="text"
@@ -433,21 +433,21 @@ const deleteGroup = async (row) => {
 
                                     <!-- Min Select -->
                                     <td>
-                                        <span class="badge bg-info px-3 py-2 rounded-pill">
+                                        
                                             {{ row.min_select }}
-                                        </span>
+                                      
                                     </td>
 
                                     <!-- Max Select -->
                                     <td>
-                                        <span class="badge bg-info px-3 py-2 rounded-pill">
+                                     
                                             {{ row.max_select }}
-                                        </span>
+                                       
                                     </td>
 
                                     <!-- Addons Count -->
                                     <td>
-                                        <span class="badge bg-secondary px-3 py-2 rounded-pill">
+                                        <span class="badge bg-primary px-3 py-2 rounded-pill">
                                             {{ row.addons_count || 0 }} addons
                                         </span>
                                     </td>

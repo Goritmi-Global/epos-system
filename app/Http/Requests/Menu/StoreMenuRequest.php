@@ -66,6 +66,11 @@ class StoreMenuRequest extends FormRequest
 
             // image
             'image' => ['required', 'image', 'max:2048'],
+
+            'variant_group_id' => ['nullable', 'numeric', 'exists:variant_groups,id'],
+            'variant_prices' => ['nullable', 'array'],
+            'variant_prices.*' => ['nullable', 'numeric', 'min:0'],
+
         ];
     }
 

@@ -194,18 +194,30 @@ const sidebarMenus = ref([
                 icon: "tag",
                 route: "promos.index",
             },
-             {
+            {
                 label: "Meals",
                 icon: "tag",
                 route: "meals.index",
             },
+
             {
-                label: "Shift Management",
-                icon: "users",
-                route: "shift.index",
+                label: "Variants",
+                icon: "sliders", // or "settings" or "toggle-right"
+                children: [
+                    {
+                        label: "Variant Groups",
+                        icon: "layers",
+                        route: "variant-groups.index",
+                    },
+                    {
+                        label: "Variants",
+                        icon: "list",
+                        route: "variants.index",
+                    },
+                ],
             },
 
-             {
+            {
                 label: "Addons",
                 icon: "plus-square", // or "puzzle" or "package"
                 children: [
@@ -220,6 +232,11 @@ const sidebarMenus = ref([
                         route: "addons.index",
                     },
                 ],
+            },
+            {
+                label: "Shift Management",
+                icon: "users",
+                route: "shift.index",
             },
 
         ],
@@ -682,7 +699,7 @@ onMounted(fetchNotifications);
                                             @click="toggleGroup(item.label)" type="button" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
+                                            }}</span>
                                             <i class="chevron-icon"
                                                 :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                                         </button>
@@ -745,8 +762,8 @@ onMounted(fetchNotifications);
             <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;"></div>
         </div>
 
-         
-            
+
+
         <!-- Mobile overlay backdrop -->
         <div v-if="isMobile && overlayOpen" class="overlay-backdrop" aria-hidden="true" @click="toggleSidebar"></div>
         <!-- =================== /SIDEBAR =================== -->
@@ -758,19 +775,19 @@ onMounted(fetchNotifications);
         </main>
     </div>
 
-     <footer class="footer bg-white dark:bg-gray-800 border-top">
+    <footer class="footer bg-white dark:bg-gray-800 border-top">
         <div class="container-fluid">
             <div class="row align-items-center py-3">
                 <!-- Left: Empty or additional content -->
                 <div class="col-md-4"></div>
-                
+
                 <!-- Center: Powered by -->
                 <div class="col-md-4 text-center">
                     <span class="text-muted">
                         Powered by <strong class="text-primary">10XGLOBAL</strong>
                     </span>
                 </div>
-                
+
                 <!-- Right: Contact Link -->
                 <div class="col-md-4 text-end">
                     <a href="#" class="text-decoration-none hover:text-primary-dark">

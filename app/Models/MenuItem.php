@@ -70,4 +70,8 @@ class MenuItem extends Model
         return $this->belongsToMany(PromoScope::class, 'promo_scope_menu_item', 'menu_item_id', 'promo_scope_id');
     }
 
+    public function variantPrices()
+    {
+        return $this->hasMany(MenuItemVariantPrice::class);
+    }
 }
