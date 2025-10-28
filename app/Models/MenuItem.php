@@ -64,4 +64,9 @@ class MenuItem extends Model
         return $this->belongsToMany(Meal::class, 'menu_item_meal', 'menu_item_id', 'meal_id')
             ->withTimestamps();
     }
+
+    public function variantPrices()
+    {
+        return $this->hasMany(MenuItemVariantPrice::class);
+    }
 }

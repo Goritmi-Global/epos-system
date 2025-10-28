@@ -390,7 +390,7 @@ const deleteGroup = async (row) => {
                                     :id="inputId"
                                     v-model="q"
                                     :key="searchKey"
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search groups..."
                                     type="search"
                                     autocomplete="new-password"
@@ -400,7 +400,7 @@ const deleteGroup = async (row) => {
                                 />
                                 <input
                                     v-else
-                                    class="form-control search-input"
+                                    class="form-control search-input rounded-pill"
                                     placeholder="Search groups..."
                                     disabled
                                     type="text"
@@ -635,7 +635,7 @@ const deleteGroup = async (row) => {
                                         Saving...
                                     </template>
                                     <template v-else>
-                                        {{ editingGroup ? "Save Changes" : "Create Group" }}
+                                        {{ editingGroup ? "Save" : "Save" }}
                                     </template>
                                 </button>
 

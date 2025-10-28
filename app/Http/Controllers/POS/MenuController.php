@@ -6,11 +6,13 @@ use App\Helpers\UploadHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Menu\StoreMenuRequest;
 use App\Http\Requests\Menu\UpdateMenuRequest;
+use App\Models\AddonGroup;
 use App\Models\Allergy;
 use App\Models\Meal;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Tag;
+use App\Models\VariantGroup;
 use App\Services\POS\MenuService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,12 +32,18 @@ class MenuController extends Controller
         $allergies = Allergy::all(['id', 'name']);
         $tags = Tag::all(['id', 'name']);
         $meals = Meal::all(['id', 'name', 'start_time', 'end_time']);
+        $variantGroups = VariantGroup::with('variants:id,name,variant_group_id')->get(['id', 'name']);
+        $addonGroups = AddonGroup::select('id', 'name', 'min_select', 'max_select', 'description', 'status')
+            ->where('status', 'active')
+            ->get();
 
         return Inertia::render('Backend/Menu/Index', [
             'categories' => $categories,
             'allergies' => $allergies,
             'tags' => $tags,
             'meals' => $meals,
+            'variantGroups' => $variantGroups,
+            'addonGroups' =>   $addonGroups
         ]);
     }
 
@@ -47,6 +55,18 @@ class MenuController extends Controller
     public function store(StoreMenuRequest $request)
     {
         $menu = $this->service->create($request->validated(), $request);
+        // ✅ Handle variant prices
+        if ($request->has('variant_prices') && is_array($request->variant_prices)) {
+            foreach ($request->variant_prices as $variantId => $price) {
+                if ($price !== null && $price !== '') {
+                    \App\Models\MenuItemVariantPrice::create([
+                        'menu_item_id' => $menu->id,
+                        'variant_id' => $variantId,
+                        'price' => $price,
+                    ]);
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Menu created successfully',

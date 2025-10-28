@@ -423,7 +423,7 @@ const getGroupName = (groupId) => {
                                     :id="inputId"
                                     v-model="q"
                                     :key="searchKey"
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search variants..."
                                     type="search"
                                     autocomplete="new-password"
@@ -433,7 +433,7 @@ const getGroupName = (groupId) => {
                                 />
                                 <input
                                     v-else
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search variants..."
                                     disabled
                                     type="text"
@@ -731,7 +731,7 @@ const getGroupName = (groupId) => {
                                         Saving...
                                     </template>
                                     <template v-else>
-                                        {{ editingVariant ? "Save Changes" : "Create Variant" }}
+                                        {{ editingVariant ? "Save" : "Save" }}
                                     </template>
                                 </button>
 
