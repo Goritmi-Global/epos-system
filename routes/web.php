@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\RoleController;
 use App\Http\Controllers\Auth\UsersController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IndexController;
+use App\Http\Controllers\MealController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\POS\AnalyticsController;
 use App\Http\Controllers\POS\InventoryCategoryController;
@@ -300,5 +301,13 @@ Route::get('/addon-groups', [AddonGroupController::class, 'index'])
 // Addons page
 Route::get('/addons', [AddonController::class, 'index'])
     ->name('addons.index');
+
+    // routes for Meals
+    Route::middleware(['auth'])->group(function () {
+    Route::get('/meals', [MealController::class, 'index'])->name('meals.index');
+    Route::post('/meals', [MealController::class, 'store'])->name('meals.store');
+    Route::post('/meals/{meal}', [MealController::class, 'update'])->name('meals.update');
+    Route::delete('/meals/{meal}', [MealController::class, 'destroy'])->name('meals.destroy');
+});
 
 require __DIR__.'/auth.php';

@@ -32,20 +32,6 @@ class MenuService
 
         unset($data['image']);
 
-        $taxRate = null;
-
-        // Get tax info from onboarding step 4
-        $profileStep4 = ProfileStep4::where('user_id', auth()->id())->first();
-      
-        // if ($profileStep4 && $profileStep4->is_tax_registered == 1) {
-        //     $taxRate = $profileStep4->tax_rate;
-        // }
-
-        if ($profileStep4 && $profileStep4->tax_rate > 0) {
-            $taxRate = $profileStep4->tax_rate;
-          
-        }
-
         $menu = MenuItem::create([
             'name' => $data['name'],
             'price' => $data['price'],
@@ -55,8 +41,7 @@ class MenuService
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? null,
             'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
-            'tax_percentage' => ! empty($data['is_taxable']) ? $taxRate : null,
-         
+
         ]);
 
         // Nutrition
@@ -80,6 +65,11 @@ class MenuService
 
         if (! empty($data['tags'])) {
             $menu->tags()->sync($data['tags']);
+        }
+
+        // Meals - Add this
+        if (! empty($data['meals'])) {
+            $menu->meals()->sync($data['meals']);
         }
 
         // Ingredients
@@ -164,6 +154,7 @@ class MenuService
         }
 
         $menu->tags()->sync($data['tags'] ?? []);
+        $menu->meals()->sync($data['meals'] ?? []);
 
         // -------------------------------
         // 5. Ingredients (smart update)

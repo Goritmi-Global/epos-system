@@ -13,12 +13,13 @@ class MenuItem extends Model
         'name',
         'price',
         'category_id',
+        'meal_id',
         'description',
         'status',
         'upload_id',
         'label_color',
         'is_taxable',
-         'tax_percentage'
+        'tax_percentage',
     ];
 
     // Category
@@ -43,8 +44,8 @@ class MenuItem extends Model
     public function allergies()
     {
         return $this->belongsToMany(Allergy::class, 'menu_allergies')
-        ->withPivot('type')
-        ->withTimestamps();
+            ->withPivot('type')
+            ->withTimestamps();
     }
 
     // Tags (Many-to-Many via pivot)
@@ -57,5 +58,10 @@ class MenuItem extends Model
     {
         return $this->belongsTo(Upload::class, 'upload_id');
     }
-    
+
+    public function meals()
+    {
+        return $this->belongsToMany(Meal::class, 'menu_item_meal', 'menu_item_id', 'meal_id')
+            ->withTimestamps();
+    }
 }

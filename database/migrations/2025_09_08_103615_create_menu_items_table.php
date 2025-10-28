@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('name');
             $table->decimal('price', 10, 2);
             $table->boolean('is_taxable')->default(false);
-            $table->decimal('tax_percentage', 5, 2)->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
             $table->text('description')->nullable();
             $table->boolean('status')->default(1);

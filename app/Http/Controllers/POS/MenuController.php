@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Menu\StoreMenuRequest;
 use App\Http\Requests\Menu\UpdateMenuRequest;
 use App\Models\Allergy;
+use App\Models\Meal;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Tag;
@@ -28,11 +29,13 @@ class MenuController extends Controller
             ->get(['id', 'name', 'parent_id']);
         $allergies = Allergy::all(['id', 'name']);
         $tags = Tag::all(['id', 'name']);
+        $meals = Meal::all(['id', 'name', 'start_time', 'end_time']);
 
         return Inertia::render('Backend/Menu/Index', [
             'categories' => $categories,
             'allergies' => $allergies,
             'tags' => $tags,
+            'meals' => $meals,
         ]);
     }
 
@@ -72,9 +75,11 @@ class MenuController extends Controller
                     'name' => $item->name,
                     'price' => $item->price,
                     'description' => $item->description,
+                    'is_taxable' => $item->is_taxable,
                     'label_color' => $item->label_color,
                     'status' => $item->status,
                     'category' => $item->category,
+                    'meals' => $item->meals,
                     'ingredients' => $item->ingredients,
                     'nutrition' => $item->nutrition,
                     'allergies' => $item->allergies,

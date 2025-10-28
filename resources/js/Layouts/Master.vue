@@ -194,6 +194,11 @@ const sidebarMenus = ref([
                 icon: "tag",
                 route: "promos.index",
             },
+             {
+                label: "Meals",
+                icon: "tag",
+                route: "meals.index",
+            },
             {
                 label: "Shift Management",
                 icon: "users",

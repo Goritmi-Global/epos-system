@@ -4,6 +4,7 @@ use App\Http\Controllers\AddonController;
 use App\Http\Controllers\AddonGroupController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\IndexController;
+use App\Http\Controllers\MealController;
 use App\Http\Controllers\Notifications\NotificationController;
 use App\Http\Controllers\POS\AnalyticsController;
 use App\Http\Controllers\POS\InventoryController;
@@ -126,6 +127,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     });
 
+    Route::prefix('meals')->name('api.meals.')->group(function () {
+        Route::get('/all', [MealController::class, 'fetchAllMeals'])->name('all');
+        Route::get('/active', [MealController::class, 'getActiveMeals']);
+    });
+
     // Get Printers
     Route::get('/printers', [PrinterController::class, 'index']);
     Route::post('/customer/print-receipt', [PrinterController::class, 'printReceipt']);
@@ -181,4 +187,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Update sort order (drag & drop functionality)
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
+
 });
