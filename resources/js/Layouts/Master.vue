@@ -199,12 +199,7 @@ const sidebarMenus = ref([
                 icon: "tag",
                 route: "meals.index",
             },
-            {
-                label: "Shift Management",
-                icon: "users",
-                route: "shift.index",
-            },
-
+        
              {
                 label: "Addons",
                 icon: "plus-square", // or "puzzle" or "package"
@@ -220,6 +215,11 @@ const sidebarMenus = ref([
                         route: "addons.index",
                     },
                 ],
+            },
+             {
+                label: "Shift Management",
+                icon: "users",
+                route: "shift.index",
             },
 
         ],
