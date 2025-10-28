@@ -7,6 +7,9 @@ use App\Http\Requests\UpdatePromoRequests;
 use App\Services\PromoService;
 use Exception;
 use Inertia\Inertia;
+use App\Models\Meal;
+use App\Models\MenuItem;
+use App\Models\PromoScope;
 
 class PromoController extends Controller
 {
@@ -22,8 +25,10 @@ class PromoController extends Controller
      */
     public function index()
     {
-
-        return Inertia::render('Backend/Promo/Index');
+        $meals = Meal::with('menuItems')->get();
+        return Inertia::render('Backend/Promo/Index', [
+            'meals' => $meals,
+        ]);
     }
 
     public function fetchAllPromos()
@@ -148,4 +153,101 @@ class PromoController extends Controller
             ], 500);
         }
     }
+
+    public function getPromosForItem($itemId)
+{
+    try {
+        $currentTime = now('Asia/Karachi');
+        $currentDate = $currentTime->toDateString();
+        $currentTimeOnly = $currentTime->format('H:i');
+
+        // Find the menu item with its meals
+        $menuItem = MenuItem::with(['meals'])->findOrFail($itemId);
+        // Filter meals that are active at the current time
+        $activeMealIds = $menuItem->meals->filter(function ($meal) use ($currentTimeOnly) {
+            // Check if start_time and end_time exist
+            if (empty($meal->start_time) || empty($meal->end_time)) {
+                \Log::warning('Meal has missing time values', [
+                    'meal_id' => $meal->id,
+                    'start_time' => $meal->start_time,
+                    'end_time' => $meal->end_time
+                ]);
+                return false;
+            }
+
+            // Get start and end times
+            $startTime = trim($meal->start_time);
+            $endTime = trim($meal->end_time);
+
+            // Compare times
+            $isActive = $currentTimeOnly >= $startTime && $currentTimeOnly <= $endTime;
+            
+            \Log::info('Checking meal time', [
+                'meal_id' => $meal->id,
+                'meal_name' => $meal->name,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'current' => $currentTimeOnly,
+                'is_active' => $isActive
+            ]);
+
+            return $isActive;
+        })->pluck('id');
+
+        // If no active meals, return empty with detailed debug info
+        if ($activeMealIds->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'message' => 'No active meals for this item at current time',
+                'current_time' => $currentTimeOnly,
+                'debug_meals' => $menuItem->meals->map(function($meal) {
+                    return [
+                        'id' => $meal->id,
+                        'name' => $meal->name ?? 'N/A',
+                        'start_time' => $meal->start_time,
+                        'end_time' => $meal->end_time
+                    ];
+                })
+            ]);
+        }
+
+        // Get promo scopes
+        $promoScopes = PromoScope::query()
+            ->where(function ($query) use ($itemId, $activeMealIds) {
+                $query->whereHas('menuItems', function ($q) use ($itemId) {
+                    $q->where('menu_item_id', $itemId);
+                })
+                ->orWhereHas('meals', function ($q) use ($activeMealIds) {
+                    $q->whereIn('meal_id', $activeMealIds);
+                });
+            })
+            ->with(['promos' => function ($query) use ($currentDate) {
+                $query->where('status', 'active')
+                    ->where('start_date', '<=', $currentDate)
+                    ->where('end_date', '>=', $currentDate);
+            }])
+            ->get();
+
+        $promos = $promoScopes->pluck('promos')
+            ->flatten()
+            ->unique('id')
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $promos,
+            'active_meals' => $activeMealIds,
+            'current_time' => $currentTimeOnly
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error fetching promos for item: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to fetch promos: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
 }

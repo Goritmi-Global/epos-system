@@ -26,6 +26,7 @@ use App\Http\Controllers\POS\StockEntryController;
 use App\Http\Controllers\POS\StockLogController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromoController;
+use App\Http\Controllers\PromoScopeController;
 use App\Http\Controllers\Reference\AllergyController;
 use App\Http\Controllers\Reference\CategoryController;
 use App\Http\Controllers\Reference\ReferenceManagementController;
@@ -283,6 +284,13 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/', [UsersController::class, 'store'])->name('store');
         Route::put('/{user}', [UsersController::class, 'update'])->name('update');
         Route::delete('/{user}', [UsersController::class, 'destroy'])->name('destroy');
+    });
+    // routes/api.php or routes/web.php
+    Route::prefix('promo-scopes')->group(function () {
+        Route::get('/', [PromoScopeController::class, 'index']);
+        Route::post('/', [PromoScopeController::class, 'store']);
+        Route::put('/{promoScope}', [PromoScopeController::class, 'update']);
+        Route::delete('/{promoScope}', [PromoScopeController::class, 'destroy']);
     });
 });
 

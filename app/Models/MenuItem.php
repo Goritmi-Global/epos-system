@@ -64,4 +64,10 @@ class MenuItem extends Model
         return $this->belongsToMany(Meal::class, 'menu_item_meal', 'menu_item_id', 'meal_id')
             ->withTimestamps();
     }
+
+    public function promoScopes()
+    {
+        return $this->belongsToMany(PromoScope::class, 'promo_scope_menu_item', 'menu_item_id', 'promo_scope_id');
+    }
+
 }
