@@ -485,7 +485,8 @@ const confirmAdd = async () => {
     try {
         // 3️⃣ If enough stock, add to cart
         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
-
+        console.log("selectedItem.value", selectedItem.value);
+        await openPromoModal(selectedItem.value);
         // your add-to-cart logic
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
@@ -1188,7 +1189,7 @@ const confirmOrder = async ({
                 kitchen_note: kitchenNote.value ?? "",
                 unit_price: it.unit_price,
 
-                   tax_percentage: getItemTaxPercentage(it),
+                tax_percentage: getItemTaxPercentage(it),
                 tax_amount: getItemTax(it),
             })),
         };
@@ -1362,14 +1363,37 @@ const handleClearPromo = () => {
 };
 
 
-const openPromoModal = async () => {
+// const openPromoModal = async () => {
+//     loadingPromos.value = true;
+//     try {
+//         // Show the modal immediately (optional)
+//         showPromoModal.value = true;
+
+//         // Fetch promos from API
+//         const response = await axios.get('/api/promos/today');
+//         if (response.data.success) {
+//             promosData.value = response.data.data;
+//         } else {
+//             console.error('Failed to fetch promos', response.data);
+//             promosData.value = [];
+//         }
+//     } catch (error) {
+//         console.error('Error fetching promos', error);
+//         promosData.value = [];
+//     } finally {
+//         loadingPromos.value = false;
+//     }
+// };
+
+const openPromoModal = async (item) => {
+    console.log("OpenPromoModal: item =", item);
     loadingPromos.value = true;
+    selectedItem.value = item;
+
     try {
-        // Show the modal immediately (optional)
         showPromoModal.value = true;
 
-        // Fetch promos from API
-        const response = await axios.get('/api/promos/today');
+        const response = await axios.get(`/api/promos/for-item/${item.id}`);
         if (response.data.success) {
             promosData.value = response.data.data;
         } else {
@@ -1383,6 +1407,7 @@ const openPromoModal = async () => {
         loadingPromos.value = false;
     }
 };
+
 
 const handleViewOrderDetails = (order) => {
     lastOrder.value = order;
@@ -1422,7 +1447,7 @@ const promoDiscount = computed(() => {
     return 0;
 });
 
-console.log("page.props",page.props.onboarding.tax_and_vat.tax_rate);
+console.log("page.props", page.props.onboarding.tax_and_vat.tax_rate);
 /* ----------------------------
    Tax Calculation
 -----------------------------*/
@@ -1919,9 +1944,9 @@ const decrementCardQty = (product) => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             </button> -->
-                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
+                            <!-- <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
                                 Promos
-                            </button>
+                            </button> -->
 
                         </div>
 
@@ -2020,6 +2045,11 @@ const decrementCardQty = (product) => {
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
+
+                                        <button class="btn btn-warning rounded-pill px-3 py-2"
+                                            @click="openPromoModal(it)">
+                                            Promos
+                                        </button>
                                     </div>
                                 </div>
 

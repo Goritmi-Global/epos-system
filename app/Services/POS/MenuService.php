@@ -121,7 +121,6 @@ class MenuService
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? $menu->upload_id,
             'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
-            'tax_percentage' => ! empty($data['is_taxable']) ? $taxRate : null,
         ]);
 
         // -------------------------------

@@ -44,4 +44,8 @@ class Promo extends Model
             && $this->start_date <= now() 
             && $this->end_date >= now();
     }
+    public function promoScopes()
+    {
+        return $this->belongsToMany(PromoScope::class, 'scope_promo', 'promo_id', 'promo_scope_id');
+    }
 }

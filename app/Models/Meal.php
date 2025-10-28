@@ -28,7 +28,16 @@ class Meal extends Model
     public function scopeActive($query)
     {
         $currentTime = now()->format('H:i');
-        return $query->where('start_time', '<=', $currentTime)
-                    ->where('end_time', '>=', $currentTime);
+        return $query->where('start_time', '<=', $currentTime)->where('end_time', '>=', $currentTime);
     }
+    public function menuItems()
+    {
+        return $this->belongsToMany(MenuItem::class, 'menu_item_meal', 'meal_id', 'menu_item_id')->withTimestamps();
+    }
+    public function promoScopes()
+    {
+        return $this->belongsToMany(PromoScope::class, 'promo_scope_meal', 'meal_id', 'promo_scope_id');
+    }
+
+
 }
