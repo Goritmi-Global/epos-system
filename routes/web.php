@@ -34,12 +34,11 @@ use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
 use App\Http\Controllers\Shifts\ShiftManagementController;
 use App\Http\Controllers\system\SystemRestoreController;
+use App\Http\Controllers\VariantController;
+use App\Http\Controllers\VariantGroupController;
 use App\Http\Controllers\VerifyAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
-use Mike42\Escpos\Printer;
-use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 
 /* =========================================================
 |  Public / Guest
@@ -287,7 +286,7 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
 });
 
 /* -------- Super Admin Only -------- */
-Route::middleware(['auth', 'role:Super Admin'])->group(function() {
+Route::middleware(['auth', 'role:Super Admin'])->group(function () {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
 });
 
@@ -302,12 +301,17 @@ Route::get('/addon-groups', [AddonGroupController::class, 'index'])
 Route::get('/addons', [AddonController::class, 'index'])
     ->name('addons.index');
 
-    // routes for Meals
-    Route::middleware(['auth'])->group(function () {
+// routes for Meals
+Route::middleware(['auth'])->group(function () {
     Route::get('/meals', [MealController::class, 'index'])->name('meals.index');
     Route::post('/meals', [MealController::class, 'store'])->name('meals.store');
     Route::post('/meals/{meal}', [MealController::class, 'update'])->name('meals.update');
     Route::delete('/meals/{meal}', [MealController::class, 'destroy'])->name('meals.destroy');
 });
+
+Route::get('/variant-groups', [VariantGroupController::class, 'index'])
+    ->name('variant-groups.index');
+Route::get('/variants', [VariantController::class, 'index'])
+    ->name('variants.index');
 
 require __DIR__.'/auth.php';
