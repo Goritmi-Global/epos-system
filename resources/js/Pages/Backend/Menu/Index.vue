@@ -45,6 +45,14 @@ const props = defineProps({
     meals: { // Add this
         type: Array,
     },
+    variantGroups: {  // Add this
+        type: Array,
+        default: () => []
+    },
+    addonGroups: { // ✅ Add this new prop
+        type: Array,
+        default: () => []
+    }
 });
 
 const components = {
@@ -57,6 +65,43 @@ const taxableOptions = ref([
     { label: "No", value: 0 },
 ]);
 
+
+const variants = ref([])
+const selectedVariants = ref([])
+
+const addons = ref([])
+const selectedAddonGroup = ref(null)
+
+const loadVariants = () => {
+    // Reset variant prices when changing groups
+    form.value.variant_prices = {};
+
+    const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
+    variants.value = group ? group.variants : [];
+
+    // Initialize variant prices object with empty values
+    if (variants.value.length > 0) {
+        variants.value.forEach(variant => {
+            form.value.variant_prices[variant.id] = '';
+        });
+    }
+}
+
+const loadAddons = () => {
+    // Reset addon selections when changing groups
+    form.value.addon_ids = [];
+
+    const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
+    addons.value = group ? group.addons : [];
+
+    // Store min/max constraints for validation
+    if (group) {
+        form.value.addon_group_constraints = {
+            min_select: group.min_select,
+            max_select: group.max_select
+        };
+    }
+}
 
 const labelColors = [
     { name: "Meat", value: "#E74C3C" },
@@ -557,6 +602,11 @@ const form = ref({
     imageFile: null,
     imageUrl: null,
     is_taxable: null,
+    variant_group_id: '',
+    variant_prices: {},
+    addon_group_id: '',
+    addon_ids: [],
+    addon_group_constraints: null,
 });
 
 const showCropper = ref(false);
@@ -629,6 +679,29 @@ const submitProduct = async () => {
     if (form.value.imageFile) {
         formData.append("image", form.value.imageFile);
     }
+
+
+    const variantPrices = ref({});
+    if (form.value.variant_group_id) {
+        formData.append("variant_group_id", form.value.variant_group_id);
+
+        // Loop through form.value.variant_prices (which is bound to your inputs)
+        for (const [variantId, price] of Object.entries(form.value.variant_prices)) {
+            if (price !== null && price !== undefined && price !== '') {
+                formData.append(`variant_prices[${variantId}]`, price);
+            }
+        }
+    }
+
+    if (form.value.addon_group_id) {
+        formData.append("addon_group_id", form.value.addon_group_id);
+
+        // Add selected addon IDs
+        form.value.addon_ids.forEach((addonId, index) => {
+            formData.append(`addon_ids[${index}]`, addonId);
+        });
+    }
+
 
     try {
         if (form.value.id) {
@@ -724,7 +797,7 @@ const i_displayInv = computed(() => {
 });
 
 const editItem = (item) => {
-  
+
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
@@ -747,7 +820,21 @@ const editItem = (item) => {
         tags: itemData.tags?.map((t) => t.id) || [],
         imageFile: null,
         imageUrl: itemData.image_url || null,
+        variant_group_id: itemData.variant_group_id || '',
+        variant_prices: itemData.variant_prices || {},
+        addon_group_id: itemData.addon_group_id || '',
+        addon_ids: itemData.addon_ids || itemData.addons?.map(a => a.id) || [],
+        addon_group_constraints: null,
     };
+
+    if (itemData.variant_group_id) {
+        loadVariants();
+    }
+
+
+    if (itemData.addon_group_id) {
+        loadAddons();
+    }
 
     savedNutrition.value = {
         calories: parseFloat(itemData.nutrition?.calories || 0),
@@ -885,6 +972,25 @@ const submitEdit = async () => {
             formData.append("image", form.value.imageFile);
         }
 
+        if (form.value.variant_group_id) {
+            formData.append("variant_group_id", form.value.variant_group_id);
+
+            // Loop through form.value.variant_prices
+            for (const [variantId, price] of Object.entries(form.value.variant_prices)) {
+                if (price !== null && price !== undefined && price !== '') {
+                    formData.append(`variant_prices[${variantId}]`, price);
+                }
+            }
+        }
+
+        if (form.value.addon_group_id) {
+            formData.append("addon_group_id", form.value.addon_group_id);
+
+            form.value.addon_ids.forEach((addonId, index) => {
+                formData.append(`addon_ids[${index}]`, addonId);
+            });
+        }
+
         // Method spoofing for Laravel PUT request with file upload
         formData.append("_method", "PUT");
 
@@ -967,6 +1073,11 @@ function resetForm() {
         tags: [],
         imageFile: null,
         imageUrl: null,
+        variant_group_id: '',
+        variant_prices: {},
+        addon_group_id: '',
+        addon_ids: [],
+        addon_group_constraints: null,
     };
 
     // reset UI states
@@ -1842,7 +1953,6 @@ const handleImport = (data) => {
 
 
 
-                                <!-- Tags -->
                                 <div class="col-md-6">
                                     <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
                                     <MultiSelect v-model="form.tags" :options="tags" optionLabel="name" optionValue="id"
@@ -1854,6 +1964,75 @@ const handleImport = (data) => {
                                         {{ formErrors.tags[0] }}
                                     </small>
                                 </div>
+
+                                <!-- Variant Group Dropdown -->
+                                <div class="col-md-3">
+                                    <label class="form-label">Select Variant Group</label>
+                                    <Select v-model="form.variant_group_id" :options="variantGroups" optionLabel="name"
+                                        optionValue="id" placeholder="Select Variant Group" class="w-100"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                        @update:modelValue="loadVariants"
+                                        :class="{ 'is-invalid': formErrors.variant_group_id }" />
+                                    <small v-if="formErrors.variant_group_id" class="text-danger">
+                                        {{ formErrors.variant_group_id[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- Variant Price Inputs - Now on the same row -->
+                                <div v-if="variants.length > 0" class="col-md-9">
+
+                                    <div class="row g-2">
+                                        <div v-for="variant in variants" :key="variant.id" class="col-md-3">
+                                            <label class="form-label small">{{ variant.name }}</label>
+                                            <input v-model="form.variant_prices[variant.id]" type="number" step="0.01"
+                                                class="form-control" placeholder="Enter price" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label class="form-label">Addon Group</label>
+                                    <Select v-model="form.addon_group_id" :options="addonGroups" optionLabel="name"
+                                        optionValue="id" placeholder="Select Addon Group" class="w-100" appendTo="self"
+                                        :autoZIndex="true" :baseZIndex="2000" showClear @update:modelValue="loadAddons"
+                                        :class="{ 'is-invalid': formErrors.addon_group_id }" />
+                                    <small v-if="formErrors.addon_group_id" class="text-danger">
+                                        {{ formErrors.addon_group_id[0] }}
+                                    </small>
+                                </div>
+
+                                <!-- ✅ Show selected addon group info -->
+                                <div v-if="form.addon_group_id" class="col-md-12">
+                                    <div class="alert alert-info d-flex align-items-center">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <span>
+                                            <strong>Selection Rules:</strong>
+                                            Min: {{ form.addon_group_constraints?.min_select || 0 }} |
+                                            Max: {{ form.addon_group_constraints?.max_select || 'Unlimited' }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- ✅ Show addons from selected group (if any) -->
+                                <div v-if="addons.length > 0" class="col-md-12">
+                                    <label class="form-label">Select Addons</label>
+                                    <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
+                                        optionValue="id" filter placeholder="Select Addons" class="w-full"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                        :class="{ 'is-invalid': formErrors.addon_ids }">
+                                        <template #option="slotProps">
+                                            <div class="d-flex justify-content-between align-items-center w-100">
+                                                <span>{{ slotProps.option.name }}</span>
+                                                <span class="badge bg-primary">{{
+                                                    formatCurrencySymbol(slotProps.option.price) }}</span>
+                                            </div>
+                                        </template>
+                                    </MultiSelect>
+                                    <small v-if="formErrors.addon_ids" class="text-danger">
+                                        {{ formErrors.addon_ids[0] }}
+                                    </small>
+                                </div>
+
                             </div>
 
                             <!-- Image -->

@@ -458,7 +458,7 @@ const addonGroupOptions = computed(() => {
                                     :id="inputId"
                                     v-model="q"
                                     :key="searchKey"
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search addons..."
                                     type="search"
                                     autocomplete="new-password"
@@ -468,7 +468,7 @@ const addonGroupOptions = computed(() => {
                                 />
                                 <input
                                     v-else
-                                    class="form-control search-input"
+                                    class="form-control search-input  rounded-pill"
                                     placeholder="Search addons..."
                                     disabled
                                     type="text"
