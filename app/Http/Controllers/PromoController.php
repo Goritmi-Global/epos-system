@@ -161,11 +161,11 @@ class PromoController extends Controller
         $currentDate = $currentTime->toDateString();
         $currentTimeOnly = $currentTime->format('H:i');
 
-        // Find the menu item with its meals
-        $menuItem = MenuItem::with(['meals'])->findOrFail($itemId);
-        
-        $activeMealIds = $menuItem->meals->filter(function ($meal) use ($currentTimeOnly) {
+        // Load item and its linked meals
+        $menuItem = MenuItem::with('meals')->findOrFail($itemId);
 
+        // Determine active meals
+        $activeMealIds = $menuItem->meals->filter(function ($meal) use ($currentTimeOnly) {
             if (empty($meal->start_time) || empty($meal->end_time)) {
                 \Log::warning('Meal has missing time values', [
                     'meal_id' => $meal->id,
@@ -175,64 +175,61 @@ class PromoController extends Controller
                 return false;
             }
 
-            // Get start and end times
-            $startTime = trim($meal->start_time);
-            $endTime = trim($meal->end_time);
+            $isActive = $currentTimeOnly >= trim($meal->start_time)
+                     && $currentTimeOnly <= trim($meal->end_time);
 
-            // Compare times
-            $isActive = $currentTimeOnly >= $startTime && $currentTimeOnly <= $endTime;
-            
             \Log::info('Checking meal time', [
                 'meal_id' => $meal->id,
                 'meal_name' => $meal->name,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'current' => $currentTimeOnly,
+                'start_time' => $meal->start_time,
+                'end_time' => $meal->end_time,
+                'current_time' => $currentTimeOnly,
                 'is_active' => $isActive
             ]);
 
             return $isActive;
         })->pluck('id');
 
-        // If no active meals, return empty with detailed debug info
+        // 🟡 Debug meals
+        \Log::info('MenuItem meals check', [
+            'item_id' => $menuItem->id,
+            'linked_meal_ids' => $menuItem->meals->pluck('id'),
+            'active_meal_ids' => $activeMealIds,
+            'current_time' => $currentTimeOnly,
+        ]);
+
         if ($activeMealIds->isEmpty()) {
             return response()->json([
                 'success' => true,
                 'data' => [],
-                'message' => 'No active meals for this item at current time',
-                'current_time' => $currentTimeOnly,
-                'debug_meals' => $menuItem->meals->map(function($meal) {
-                    return [
-                        'id' => $meal->id,
-                        'name' => $meal->name ?? 'N/A',
-                        'start_time' => $meal->start_time,
-                        'end_time' => $meal->end_time
-                    ];
-                })
+                'message' => 'No active meals for this item at the current time.',
+                'debug_meals' => $menuItem->meals,
             ]);
         }
 
-        // Get promo scopes
-        $promoScopes = PromoScope::query()
-            ->where(function ($query) use ($itemId, $activeMealIds) {
-                $query->whereHas('menuItems', function ($q) use ($itemId) {
-                    $q->where('menu_item_id', $itemId);
-                })
-                ->orWhereHas('meals', function ($q) use ($activeMealIds) {
-                    $q->whereIn('meal_id', $activeMealIds);
-                });
+        // Get promos that are linked to this menu item AND active meal
+        $promoScopes = PromoScope::whereHas('menuItems', function ($q) use ($itemId) {
+                $q->where('menu_item_id', $itemId);
             })
-            ->with(['promos' => function ($query) use ($currentDate) {
-                $query->where('status', 'active')
-                    ->where('start_date', '<=', $currentDate)
-                    ->where('end_date', '>=', $currentDate);
+            ->whereHas('meals', function ($q) use ($activeMealIds) {
+                $q->whereIn('meal_id', $activeMealIds);
+            })
+            ->with(['promos' => function ($q) use ($currentDate) {
+                $q->where('status', 'active')
+                  ->whereDate('start_date', '<=', $currentDate)
+                  ->whereDate('end_date', '>=', $currentDate);
             }])
             ->get();
 
-        $promos = $promoScopes->pluck('promos')
-            ->flatten()
-            ->unique('id')
-            ->values();
+        // Flatten promos and remove duplicates
+        $promos = $promoScopes->pluck('promos')->flatten()->unique('id')->values();
+
+        \Log::info('Final promos fetched', [
+            'item_id' => $itemId,
+            'active_meal_ids' => $activeMealIds,
+            'promo_count' => $promos->count(),
+            'current_time' => $currentTimeOnly
+        ]);
 
         return response()->json([
             'success' => true,
@@ -242,12 +239,17 @@ class PromoController extends Controller
         ]);
 
     } catch (\Exception $e) {
-        \Log::error('Error fetching promos for item: ' . $e->getMessage());
+        \Log::error('Error fetching promos for item: ' . $e->getMessage(), [
+            'item_id' => $itemId,
+            'trace' => $e->getTraceAsString()
+        ]);
+
         return response()->json([
             'success' => false,
             'message' => 'Failed to fetch promos: ' . $e->getMessage()
         ], 500);
     }
 }
+
 
 }
