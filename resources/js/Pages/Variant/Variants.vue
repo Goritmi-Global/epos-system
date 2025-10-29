@@ -623,7 +623,7 @@ const getGroupName = (groupId) => {
                             <div class="row g-3">
                                 <!-- Variant Group Selection -->
                                 <div class="col-12">
-                                    <label class="form-label">Variant Group *</label>
+                                    <label class="form-label">Variant Group </label>
                                     <Select
                                         v-model="variantForm.variant_group_id"
                                         :options="groupOptions"
@@ -647,7 +647,7 @@ const getGroupName = (groupId) => {
 
                                 <!-- Variant Name -->
                                 <div class="col-12">
-                                    <label class="form-label">Variant Name *</label>
+                                    <label class="form-label">Variant Name </label>
                                     <input
                                         v-model="variantForm.name"
                                         type="text"
@@ -663,7 +663,7 @@ const getGroupName = (groupId) => {
 
                                 <!-- Status -->
                                 <div class="col-md-6">
-                                    <label class="form-label">Status *</label>
+                                    <label class="form-label">Status</label>
                                     <Select
                                         v-model="variantForm.status"
                                         :options="statusOptions"
@@ -691,9 +691,7 @@ const getGroupName = (groupId) => {
                                         :class="{ 'is-invalid': formErrors.sort_order }"
                                         placeholder="0"
                                     />
-                                    <small class="text-muted">
-                                        Display order (lower numbers first)
-                                    </small>
+                                    
                                     <small
                                         v-if="formErrors.sort_order"
                                         class="text-danger d-block"
