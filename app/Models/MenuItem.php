@@ -74,4 +74,15 @@ class MenuItem extends Model
     {
         return $this->hasMany(MenuItemVariantPrice::class);
     }
+
+    public function addonGroupRelations()
+    {
+        return $this->hasMany(MenuItemAddonGroup::class);
+    }
+
+    public function addonGroups()
+    {
+        return $this->belongsToMany(AddonGroup::class, 'menu_item_addon_groups')
+            ->withTimestamps();
+    }
 }
