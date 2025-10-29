@@ -43,6 +43,8 @@ class StorePosOrderRequest extends FormRequest
             'items.*.price'     => 'required|numeric|min:0',
             'items.*.note'      => 'nullable|string',
             'items.*.kitchen_note' => 'nullable|string',
+            'items.*.variant_id' => 'nullable|numeric',
+            'items.*.variant_name' => 'nullable|string',
             
             // KOT validations
             'auto_print_kot' => 'nullable|boolean',

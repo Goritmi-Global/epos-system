@@ -44,6 +44,7 @@ const fetchMenuItems = async () => {
     try {
         const response = await axios.get("/api/pos/fetch-menu-items");
         menuItems.value = response.data;
+        console.log("menuItems.value", menuItems.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -71,12 +72,68 @@ const productsByCat = computed(() => {
             tags: item.tags,
             allergies: item.allergies,
             ingredients: item.ingredients ?? [],
+            variants: item.variants ?? [],
         });
     });
     return grouped;
 });
 
+// ✅ Add this ref to track selected variants for each product
+const selectedCardVariant = ref({});
 
+// ✅ Initialize variants when products load
+watch(() => menuItems.value, (items) => {
+    if (items && items.length > 0) {
+        items.forEach(item => {
+            if (item.variants && item.variants.length > 0) {
+                // Set first variant as default for each product
+                if (!selectedCardVariant.value[item.id]) {
+                    selectedCardVariant.value[item.id] = item.variants[0].id;
+                }
+            }
+        });
+    }
+}, { immediate: true, deep: true });
+
+// ✅ Get selected variant price for display
+const getSelectedVariantPrice = (product) => {
+    if (!product.variants || product.variants.length === 0) {
+        return product.price;
+    }
+
+    const selectedVariantId = selectedCardVariant.value[product.id];
+    if (!selectedVariantId) {
+        return product.variants[0]?.price || product.price;
+    }
+
+    const variant = product.variants.find(v => v.id === selectedVariantId);
+    return variant ? parseFloat(variant.price) : product.price;
+};
+
+// ✅ Get selected variant object
+const getSelectedVariant = (product) => {
+    if (!product.variants || product.variants.length === 0) {
+        return null;
+    }
+
+    const selectedVariantId = selectedCardVariant.value[product.id];
+    if (!selectedVariantId) {
+        return product.variants[0];
+    }
+
+    return product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
+};
+
+// ✅ Handle variant change
+const onVariantChange = (product, event) => {
+    const variantId = parseInt(event.target.value);
+    selectedCardVariant.value[product.id] = variantId;
+
+    const variant = product.variants.find(v => v.id === variantId);
+    if (variant) {
+        console.log(`Selected ${variant.name} for ${product.title} - ${formatCurrencySymbol(variant.price)}`);
+    }
+};
 
 // Functions
 const openDetailsModal = (item) => {
@@ -254,36 +311,44 @@ const handleClearFilters = () => {
 const orderItems = ref([]);
 const addToOrder = (baseItem, qty = 1, note = "") => {
     const menuStock = calculateMenuStock(baseItem);
-    const idx = orderItems.value.findIndex((i) => i.title === baseItem.title);
 
+    // ✅ Get selected variant info
+    const variant = getSelectedVariant(baseItem);
+    const variantId = variant ? variant.id : null;
+    const variantName = variant ? variant.name : null;
+    const itemPrice = variant ? parseFloat(variant.price) : baseItem.price;
+
+    // ✅ Find existing item with same product AND variant
+    const idx = orderItems.value.findIndex((i) =>
+        i.id === baseItem.id && i.variant_id === variantId
+    );
 
     if (idx >= 0) {
         const newQty = orderItems.value[idx].qty + qty;
         if (newQty <= orderItems.value[idx].stock) {
             orderItems.value[idx].qty = newQty;
+            orderItems.value[idx].price = orderItems.value[idx].unit_price * newQty;
             if (note) orderItems.value[idx].note = note;
         } else {
-            toast.error(
-                "Not enough Ingredients stock available for this Menu."
-            );
+            toast.error("Not enough Ingredients stock available for this Menu.");
         }
     } else {
         if (qty > menuStock) {
-            toast.error(
-                "Not enough Ingredients stock available for this Menu."
-            );
+            toast.error("Not enough Ingredients stock available for this Menu.");
             return;
         }
         orderItems.value.push({
             id: baseItem.id,
             title: baseItem.title,
             img: baseItem.img,
-            price: baseItem.price * qty || 0,
-            unit_price: Number(baseItem.price) || 0,
+            price: itemPrice * qty,
+            unit_price: Number(itemPrice),
             qty: qty,
             note: note || "",
             stock: menuStock,
             ingredients: baseItem.ingredients ?? [],
+            variant_id: variantId, // ✅ ADD VARIANT ID
+            variant_name: variantName, // ✅ ADD VARIANT NAME
         });
     }
 };
@@ -1191,6 +1256,8 @@ const confirmOrder = async ({
 
                 tax_percentage: getItemTaxPercentage(it),
                 tax_amount: getItemTax(it),
+                variant_id: it.variant_id || null,
+                variant_name: it.variant_name || null,
             })),
         };
 
@@ -1496,8 +1563,14 @@ const getItemTaxPercentage = (item) => {
 // // Get quantity for a product in the cart
 // ========================================
 const getCardQty = (product) => {
-    const cartItem = orderItems.value.find(item => item.id === product.id);
-    return cartItem ? cartItem.qty : 0;
+    const variant = getSelectedVariant(product);
+    const variantId = variant ? variant.id : null;
+
+    const cartItem = orderItems.value.findIndex(item =>
+        item.id === product.id && item.variant_id === variantId
+    );
+
+    return cartItem >= 0 ? orderItems.value[cartItem].qty : 0;
 };
 
 // Check if we can add more of this product
@@ -1545,6 +1618,10 @@ const checkIngredientAvailability = (product, targetQty) => {
 
 // Increment quantity directly from card
 const incrementCardQty = (product) => {
+    const variant = getSelectedVariant(product);
+    const variantPrice = variant ? parseFloat(variant.price) : product.price;
+    const variantId = variant ? variant.id : null;
+
     const currentQty = getCardQty(product);
     const menuStock = calculateMenuStock(product);
 
@@ -1563,7 +1640,9 @@ const incrementCardQty = (product) => {
         return;
     }
 
-    const existingIndex = orderItems.value.findIndex(item => item.id === product.id);
+    const existingIndex = orderItems.value.findIndex(item =>
+        item.id === product.id && item.variant_id === variantId
+    );
 
     if (existingIndex >= 0) {
         orderItems.value[existingIndex].qty++;
@@ -1571,7 +1650,21 @@ const incrementCardQty = (product) => {
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
         orderItems.value[existingIndex].outOfStock = false;
     } else {
-        addToOrder(product, 1, "");
+        // Create new item with variant
+        orderItems.value.push({
+            id: product.id,
+            title: product.title,
+            img: product.img,
+            price: variantPrice,
+            unit_price: variantPrice,
+            qty: 1,
+            note: "",
+            stock: menuStock,
+            ingredients: product.ingredients ?? [],
+            variant_id: variantId,
+            variant_name: variant?.name || null,
+            outOfStock: false,
+        });
     }
 };
 
@@ -1579,20 +1672,24 @@ const incrementCardQty = (product) => {
 
 // Decrement quantity directly from card
 const decrementCardQty = (product) => {
-    const existingIndex = orderItems.value.findIndex(item => item.id === product.id);
+    const variant = getSelectedVariant(product);
+    const variantId = variant ? variant.id : null;
+
+    const existingIndex = orderItems.value.findIndex(item =>
+        item.id === product.id && item.variant_id === variantId
+    );
+
     if (existingIndex < 0) return;
 
     const item = orderItems.value[existingIndex];
     if (item.qty <= 1) {
         orderItems.value.splice(existingIndex, 1);
-
     } else {
         item.qty--;
         item.price = item.unit_price * item.qty;
         item.outOfStock = false;
     }
 };
-
 </script>
 
 <template>
@@ -1846,23 +1943,20 @@ const decrementCardQty = (product) => {
 
 
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 col-xl-6 d-flex" v-for="p in filteredProducts"
-                                    :key="p.title">
+                                <div class="col-12 col-md-6 col-xl-6 d-flex" v-for="p in filteredProducts" :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
 
                                         <!-- Left Side (Image + Price Badge) - 40% -->
                                         <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
-
-                                            <!-- Image fills entire area -->
                                             <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
 
-                                            <!-- Price Badge -->
+                                            <!-- Dynamic Price Badge -->
                                             <span
                                                 class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
                                                 :style="{ background: p.label_color || '#1B1670' }">
-                                                {{ formatCurrencySymbol(p.price) }}
+                                                {{ formatCurrencySymbol(getSelectedVariantPrice(p)) }}
                                             </span>
 
                                             <!-- OUT OF STOCK Badge -->
@@ -1872,22 +1966,37 @@ const decrementCardQty = (product) => {
                                             </span>
                                         </div>
 
-
-                                        <!-- Right Side (Details + Quantity Controls) -->
+                                        <!-- Right Side (Details + Variant Dropdown + Quantity Controls) -->
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0;">
                                             <div>
-                                                <div class="h5 fw-bold mb-1"
+                                                <div class="h5 fw-bold mb-2"
                                                     :style="{ color: p.label_color || '#1B1670' }">
                                                     {{ p.title }}
                                                 </div>
-                                                <!-- <div class="text-muted mb-3 small">{{ p.family }}</div> -->
+
+                                                <!-- ✅ Variant Dropdown -->
+                                                <div v-if="p.variants && p.variants.length > 0" class="mb-3">
+                                                    <label class="form-label small fw-semibold mb-1">
+                                                        <!-- {{ p.variants[0]?.group_name || 'Size' }}: -->
+                                                        Variants:
+                                                    </label>
+                                                    <select v-model="selectedCardVariant[p.id]"
+                                                        class="form-select form-select-sm variant-select"
+                                                        @change="onVariantChange(p, $event)" @click.stop>
+                                                        <option v-for="variant in p.variants" :key="variant.id"
+                                                            :value="variant.id">
+                                                            {{ variant.name }} - {{ formatCurrencySymbol(variant.price)
+                                                            }}
+                                                        </option>
+                                                    </select>
+                                                </div>
 
                                                 <!-- View Details Button -->
-                                                <button class="btn btn-primary mb-2 mt-1" @click="openDetailsModal(p)">
+                                                <button class="btn btn-primary btn-sm mb-2"
+                                                    @click="openDetailsModal(p)">
                                                     View Details
                                                 </button>
-
                                             </div>
 
                                             <!-- Quantity Controls -->
@@ -1912,7 +2021,6 @@ const decrementCardQty = (product) => {
                                                 </button>
                                             </div>
                                         </div>
-
                                     </div>
                                 </div>
 
@@ -2013,6 +2121,11 @@ const decrementCardQty = (product) => {
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
                                                     {{ it.title }}
+                                                    <!-- ✅ Show variant name badge -->
+                                                    <span v-if="it.variant_name" class="badge ms-1"
+                                                        style="font-size: 0.65rem; background: #1B1670; color: white;">
+                                                        {{ it.variant_name }}
+                                                    </span>
                                                 </div>
                                                 <div class="note" v-if="it.note">
                                                     {{ it.note }}
@@ -2990,5 +3103,32 @@ const decrementCardQty = (product) => {
     .search-input {
         width: 100%;
     }
+}
+
+
+/* Variant dropdown styling */
+.variant-select {
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.variant-select:hover {
+    border-color: #1B1670;
+}
+
+.variant-select:focus {
+    border-color: #1B1670;
+    box-shadow: 0 0 0 3px rgba(27, 22, 112, 0.1);
+}
+
+.dark .variant-select {
+    background-color: #212121;
+    color: #fff;
+    border-color: #4b5563;
 }
 </style>

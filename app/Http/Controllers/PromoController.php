@@ -163,9 +163,9 @@ class PromoController extends Controller
 
         // Find the menu item with its meals
         $menuItem = MenuItem::with(['meals'])->findOrFail($itemId);
-        // Filter meals that are active at the current time
+        
         $activeMealIds = $menuItem->meals->filter(function ($meal) use ($currentTimeOnly) {
-            // Check if start_time and end_time exist
+
             if (empty($meal->start_time) || empty($meal->end_time)) {
                 \Log::warning('Meal has missing time values', [
                     'meal_id' => $meal->id,
