@@ -583,10 +583,7 @@ const deleteGroup = async (row) => {
                                     </small>
                                 </div>
 
-                                
-
-                               
-
+                        
                                 <!-- Status -->
                                 <div class="col-12">
                                     <label class="form-label">Status</label>
