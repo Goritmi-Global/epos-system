@@ -87,7 +87,7 @@ class MenuController extends Controller
 
     public function apiIndex()
     {
-        $menus = MenuItem::with(['category', 'ingredients', 'allergies', 'tags', 'nutrition'])
+        $menus = MenuItem::with(['category', 'ingredients', 'allergies', 'tags', 'nutrition', 'addonGroupRelations.addonGroup'])
             ->get()
             ->map(function ($item) {
                 return [
@@ -105,6 +105,7 @@ class MenuController extends Controller
                     'allergies' => $item->allergies,
                     'tags' => $item->tags,
                     'image_url' => UploadHelper::url($item->upload_id),
+                    'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
                 ];
             });
 

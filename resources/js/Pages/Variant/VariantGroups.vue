@@ -570,7 +570,7 @@ const deleteGroup = async (row) => {
                             <div class="row g-3">
                                 <!-- Group Name -->
                                 <div class="col-12">
-                                    <label class="form-label">Group Name *</label>
+                                    <label class="form-label">Group Name</label>
                                     <input
                                         v-model="variantGroupForm.name"
                                         type="text"
@@ -583,13 +583,10 @@ const deleteGroup = async (row) => {
                                     </small>
                                 </div>
 
-                                
-
-                               
-
+                        
                                 <!-- Status -->
                                 <div class="col-12">
-                                    <label class="form-label">Status *</label>
+                                    <label class="form-label">Status</label>
                                     <Select
                                         v-model="variantGroupForm.status"
                                         :options="statusOptions"
@@ -679,5 +676,75 @@ const deleteGroup = async (row) => {
 .p-2:hover {
     background-color: rgba(59, 130, 246, 0.1);
     border-radius: 50%;
+}
+
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    color: black !important;
+}
+
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #000 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+/* Dark Mode Support */
+:global(.dark .p-select) {
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+:global(.dark .p-select-list-container) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
+}
+
+/* Keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-select-panel) {
+    z-index: 2000 !important;
 }
 </style>

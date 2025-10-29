@@ -73,16 +73,13 @@ const addons = ref([])
 const selectedAddonGroup = ref(null)
 
 const loadVariants = () => {
-    // Only reset if we're changing to a different group or clearing
+
     if (form.value.variant_group_id) {
         const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
         variants.value = group ? group.variants : [];
-
-        // Initialize variant prices object with empty values only for new variants
         const newPrices = {};
         if (variants.value.length > 0) {
             variants.value.forEach(variant => {
-                // Preserve existing price if it exists, otherwise empty string
                 newPrices[variant.id] = form.value.variant_prices?.[variant.id] ?? '';
             });
         }
@@ -96,14 +93,11 @@ const loadVariants = () => {
 
 
 const loadAddons = () => {
-    // Only reset if we're changing to a different group or clearing
+
     if (form.value.addon_group_id) {
         const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
-
         if (group) {
             addons.value = group.addons || [];
-
-            // Store min/max constraints for validation
             form.value.addon_group_constraints = {
                 min_select: group.min_select,
                 max_select: group.max_select
@@ -112,13 +106,11 @@ const loadAddons = () => {
             addons.value = [];
             form.value.addon_group_constraints = null;
         }
-
-        // Only reset addon_ids if switching groups, not on initial load
         if (!Array.isArray(form.value.addon_ids)) {
             form.value.addon_ids = [];
         }
     } else {
-        // Clearing the addon group
+
         addons.value = [];
         form.value.addon_ids = [];
         form.value.addon_group_constraints = null;
@@ -851,8 +843,10 @@ const editItem = (item) => {
 
     if (itemData.variant_group_id) {
         loadVariants();
+        nextTick(() => {
+            form.value.variant_prices = itemData.variant_prices || {};
+        });
     }
-
 
     if (itemData.addon_group_id) {
         loadAddons();
@@ -2023,7 +2017,7 @@ const handleImport = (data) => {
                                     </small>
                                 </div>
 
-                               
+
 
                                 <!-- ✅ Show addons from selected group (if any) -->
                                 <div v-if="addons && addons.length > 0" class="col-md-12">

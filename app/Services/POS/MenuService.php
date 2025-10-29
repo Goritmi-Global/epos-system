@@ -5,6 +5,7 @@ namespace App\Services\POS;
 use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\MenuItem;
+use App\Models\MenuItemAddonGroup;
 use App\Models\ProfileStep4;
 use Illuminate\Http\Request;
 
@@ -84,6 +85,13 @@ class MenuService
                     'cost' => $ing['cost'] ?? 0,
                 ]);
             }
+        }
+
+        if (! empty($data['addon_group_id'])) {
+            MenuItemAddonGroup::create([
+                'menu_item_id' => $menu->id,
+                'addon_group_id' => $data['addon_group_id'],
+            ]);
         }
 
         return $menu;
@@ -185,10 +193,24 @@ class MenuService
             }
         }
 
+        if (! empty($data['addon_group_id'])) {
+            // Delete old addon group relationship
+            MenuItemAddonGroup::where('menu_item_id', $menu->id)->delete();
+
+            // Create new relationship
+            MenuItemAddonGroup::create([
+                'menu_item_id' => $menu->id,
+                'addon_group_id' => $data['addon_group_id'],
+            ]);
+        } else {
+            // Remove addon group if cleared
+            MenuItemAddonGroup::where('menu_item_id', $menu->id)->delete();
+        }
+
         // -------------------------------
         // 6. Return with relations loaded
         // -------------------------------
-        return $menu->load(['nutrition', 'ingredients', 'allergies', 'tags']);
+        return $menu->load(['nutrition', 'ingredients', 'allergies', 'tags', 'addonGroupRelations']);
     }
 
     public function delete(MenuItem $menu): void

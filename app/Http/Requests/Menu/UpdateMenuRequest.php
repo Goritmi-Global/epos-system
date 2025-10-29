@@ -57,6 +57,10 @@ class UpdateMenuRequest extends FormRequest
 
             // image
             'image' => ['nullable', 'image', 'max:2048'],
+            'variant_group_id' => ['nullable', 'numeric', 'exists:variant_groups,id'],
+            'variant_prices' => ['nullable', 'array'],
+            'variant_prices.*' => ['nullable', 'numeric', 'min:0'],
+            'addon_group_id' => ['nullable', 'numeric', 'exists:addon_groups,id'],
         ];
     }
 
