@@ -7,11 +7,7 @@
 
           <button
             class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-100 transition transform hover:scale-110"
-            @click="$emit('close')"
-            data-bs-dismiss="modal"
-            aria-label="Close"
-            title="Close"
-          >
+            @click="$emit('close')" data-bs-dismiss="modal" aria-label="Close" title="Close">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24"
               stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -28,18 +24,14 @@
           </div>
 
           <div v-else>
-            <div v-if="promos.length === 0" class="alert alert-light text-center dark:bg-gray-800 dark:text-white border-0">
+            <div v-if="validPromos.length === 0"
+              class="alert alert-light text-center dark:bg-gray-800 dark:text-white border-0">
               No promotions available today
             </div>
 
             <div class="promo-grid" v-else>
-              <div
-                v-for="promo in promos"
-                :key="promo.id"
-                class="promo-card"
-                :class="{ 'selected': selectedPromo?.id === promo.id }"
-                @click="selectPromo(promo)"
-              >
+              <div v-for="promo in validPromos" :key="promo.id" class="promo-card"
+                :class="{ 'selected': selectedPromo?.id === promo.id }" @click="selectPromo(promo)">
                 <div class="promo-header d-flex align-items-center justify-content-between">
                   <span class="fw-bold fs-6">{{ promo.name }}</span>
                   <span class="badge bg-primary text-white small">{{ promo.type.toUpperCase() }}</span>
@@ -52,7 +44,8 @@
                 </div>
 
                 <div class="promo-info small">
-                  Min: ${{ formatNumber(promo.min_purchase) }} | Max: ${{ promo.max_discount ? formatNumber(promo.max_discount) : '—' }}
+                  Min: ${{ formatNumber(promo.min_purchase) }} | Max: ${{ promo.max_discount ?
+                    formatNumber(promo.max_discount) : '—' }}
                 </div>
 
                 <div class="promo-discount d-flex justify-content-between align-items-center mt-2">
@@ -80,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useFormatters } from '@/composables/useFormatters'
 
 const { formatMoney, formatCurrencySymbol, dateFmt } = useFormatters()
@@ -126,7 +119,7 @@ const formatNumber = (n) => {
   return num.toFixed(2);
 };
 
-// Get cart subtotal
+// ✅ Get cart subtotal
 const getCartSubtotal = () => {
   return props.orderItems.reduce((total, item) => {
     const unit = parseFloat(item.unit_price ?? item.price ?? 0) || 0;
@@ -135,7 +128,7 @@ const getCartSubtotal = () => {
   }, 0);
 };
 
-// Calculate discount
+// ✅ Calculate discount for each promo
 const calculateDiscount = (promo) => {
   const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
   const subtotal = getCartSubtotal();
@@ -155,6 +148,12 @@ const calculateDiscount = (promo) => {
 
   return formatNumber(0);
 };
+
+// ✅ Computed: Only show promos with discount > 0
+const validPromos = computed(() => {
+  return props.promos.filter(promo => parseFloat(calculateDiscount(promo)) > 0);
+});
+
 </script>
 
 <style scoped>
@@ -172,7 +171,7 @@ const calculateDiscount = (promo) => {
   z-index: 1050;
 }
 
-.dark .text-danger{
+.dark .text-danger {
   color: red !important;
 }
 
@@ -230,7 +229,7 @@ const calculateDiscount = (promo) => {
   border: none;
 }
 
-.modal .modal-footer .btn{
+.modal .modal-footer .btn {
   padding: 0px !important;
 }
 </style>

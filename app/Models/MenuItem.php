@@ -85,4 +85,9 @@ class MenuItem extends Model
         return $this->belongsToMany(AddonGroup::class, 'menu_item_addon_groups')
             ->withTimestamps();
     }
+    public function addonPrices()
+    {
+        return $this->hasMany(MenuItemAddonGroup::class, 'menu_item_id');
+    }
+
 }

@@ -31,24 +31,29 @@ const mealsData = computed(() => props.meals || []);
 
 // Flatten all menu items for the menu items MultiSelect
 const menuItemsData = computed(() => {
-    if (!props.meals || !Array.isArray(props.meals)) {
-        console.warn('Meals prop is not an array:', props.meals);
-        return [];
+    if (!props.meals || !Array.isArray(props.meals)) return [];
+
+    const items = props.meals.flatMap(meal =>
+        (meal.menu_items || []).map(item => ({
+            ...item,
+            meal_name: meal.name
+        }))
+    );
+
+    // Remove duplicates based on item.id
+    const uniqueItems = [];
+    const seenIds = new Set();
+
+    for (const item of items) {
+        if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            uniqueItems.push(item);
+        }
     }
 
-    const items = props.meals.flatMap(meal => {
-        if (meal.menu_items && Array.isArray(meal.menu_items)) {
-            return meal.menu_items.map(item => ({
-                ...item,
-                meal_name: meal.name // Add meal name for reference
-            }));
-        }
-        return [];
-    });
-
-    console.log('Flattened menu items:', items);
-    return items;
+    return uniqueItems;
 });
+
 
 /* ---------------- Data ---------------- */
 const promos = ref([]);
@@ -767,8 +772,17 @@ onUpdated(() => window.feather?.replace());
                                             <h5 class="modal-title fw-semibold">
                                                 {{ editingPromoScope ? "Edit Promo Scope" : "Add New Promo Scope" }}
                                             </h5>
-                                            <button class="btn-close" @click="resetPromoScopeModal"
-                                                data-bs-dismiss="modal" aria-label="Close">
+
+                                            <button
+                                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                                data-bs-dismiss="modal" aria-label="Close" title="Close"
+                                                @click="resetPromoScopeModal">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
                                             </button>
                                         </div>
 

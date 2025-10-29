@@ -144,12 +144,6 @@ class PosOrderService
                         $ingredientsArray[] = $ingredient->product_name;
                     }
                 }
-                // ✅ Add debug logging
-    \Log::info('Creating KOT item:', [
-        'item_name' => $orderItem->title,
-        'variant_name' => $orderItem->variant_name,
-        'from_order_item' => $orderItem->toArray()
-    ]);
                 $kot->items()->create([
                     'item_name' => $orderItem->title,
                     'quantity' => $orderItem->quantity,
@@ -292,6 +286,7 @@ class PosOrderService
             'tags',
             'upload',
             'variantPrices.variant.variantGroup', 
+            'addonGroupRelations.addonGroup.addons',
         ])
             ->get()
             ->map(function ($item) {
@@ -324,6 +319,37 @@ class PosOrderService
                 })->filter(function ($variant) {
                     return $variant['status'] === 'active';
                 })->values();
+
+                // ✅ ADD ADDONS MAPPING
+           $addonsGrouped = [];
+
+        foreach ($item->addonGroupRelations ?? [] as $relation) {
+            $group = $relation->addonGroup;
+            if (!$group || $group->status !== 'active') continue;
+
+            $groupId = $group->id;
+            if (!isset($addonsGrouped[$groupId])) {
+                $addonsGrouped[$groupId] = [
+                    'group_id' => $group->id,
+                    'group_name' => $group->name,
+                    'min_select' => $group->min_select,
+                    'max_select' => $group->max_select,
+                    'addons' => [],
+                ];
+            }
+
+            foreach ($group->addons as $addon) {
+                if ($addon->status !== 'active') continue;
+                $addonsGrouped[$groupId]['addons'][] = [
+                    'id' => $addon->id,
+                    'name' => $addon->name,
+                    'price' => $addon->price,
+                    'description' => $addon->description,
+                ];
+            }
+        }
+
+        $item->addon_groups = array_values($addonsGrouped);
 
                 $item->is_taxable = $item->is_taxable ?? 0;
                 $item->tax_percentage = $item->tax_percentage ?? 0;

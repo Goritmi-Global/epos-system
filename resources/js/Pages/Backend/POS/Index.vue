@@ -11,6 +11,7 @@ import { useFormatters } from "@/composables/useFormatters";
 import PosOrdersModal from "./PosOrdersModal.vue";
 import { Package, ShoppingCart } from "lucide-vue-next";
 import FilterModal from "@/Components/FilterModal.vue";
+import MultiSelect from 'primevue/multiselect';
 
 
 
@@ -73,6 +74,7 @@ const productsByCat = computed(() => {
             allergies: item.allergies,
             ingredients: item.ingredients ?? [],
             variants: item.variants ?? [],
+            addon_groups: item.addon_groups ?? [],
         });
     });
     return grouped;
@@ -135,6 +137,77 @@ const onVariantChange = (product, event) => {
     }
 };
 
+
+// ================ addons =========================
+// ================ addons =========================
+// ✅ Add ref to track selected addons for each product
+const selectedCardAddons = ref({});
+
+// ✅ Handle addon selection change from MultiSelect
+const handleAddonChange = (product, addonGroupId, selectedAddons) => {
+    const productKey = product.id;
+
+    if (!selectedCardAddons.value[productKey]) {
+        selectedCardAddons.value[productKey] = {};
+    }
+
+    const addonGroup = product.addon_groups.find(g => g.group_id === addonGroupId);
+
+    // Check max_select limit
+    if (addonGroup && addonGroup.max_select > 0 && selectedAddons.length > addonGroup.max_select) {
+        toast.warning(`You can only select up to ${addonGroup.max_select} ${addonGroup.group_name}`);
+        // Revert to previous selection
+        const previous = selectedCardAddons.value[productKey][addonGroupId] || [];
+        selectedCardAddons.value[productKey][addonGroupId] = previous.slice(0, addonGroup.max_select);
+        return;
+    }
+
+    // Store the selected addons directly (PrimeVue already gives us the objects)
+    selectedCardAddons.value[productKey][addonGroupId] = selectedAddons;
+};
+
+// ✅ Get total addon price for a product
+const getAddonsPrice = (product) => {
+    const productKey = product.id;
+    if (!selectedCardAddons.value[productKey]) return 0;
+
+    let total = 0;
+    Object.values(selectedCardAddons.value[productKey]).forEach(addons => {
+        addons.forEach(addon => {
+            total += parseFloat(addon.price || 0);
+        });
+    });
+
+    return total;
+};
+
+// ✅ Get selected addons for a product (format for backend)
+const getSelectedAddons = (product) => {
+    const productKey = product.id;
+    if (!selectedCardAddons.value[productKey]) return [];
+
+    const allAddons = [];
+    Object.values(selectedCardAddons.value[productKey]).forEach(addons => {
+        addons.forEach(addon => {
+            allAddons.push({
+                id: addon.id,
+                name: addon.name,
+                price: parseFloat(addon.price),
+                group_id: addon.group_id || addon.pivot?.addon_group_id,
+            });
+        });
+    });
+
+    return allAddons;
+};
+
+// ✅ Get total price (variant + addons)
+const getTotalPrice = (product) => {
+    const variantPrice = getSelectedVariantPrice(product);
+    const addonsPrice = getAddonsPrice(product);
+    return variantPrice + addonsPrice;
+};
+// ================================================
 // Functions
 const openDetailsModal = (item) => {
     selectedItem.value = item;
@@ -310,18 +383,32 @@ const handleClearFilters = () => {
 -----------------------------*/
 const orderItems = ref([]);
 const addToOrder = (baseItem, qty = 1, note = "") => {
+    console.log(baseItem);
     const menuStock = calculateMenuStock(baseItem);
 
-    // ✅ Get selected variant info
+    // Get selected variant info
     const variant = getSelectedVariant(baseItem);
     const variantId = variant ? variant.id : null;
     const variantName = variant ? variant.name : null;
-    const itemPrice = variant ? parseFloat(variant.price) : baseItem.price;
+    const variantPrice = variant ? parseFloat(variant.price) : baseItem.price;
 
-    // ✅ Find existing item with same product AND variant
-    const idx = orderItems.value.findIndex((i) =>
-        i.id === baseItem.id && i.variant_id === variantId
-    );
+    // ✅ Get selected addons
+    const selectedAddons = getSelectedAddons(baseItem);
+    const addonsPrice = getAddonsPrice(baseItem);
+    const totalItemPrice = variantPrice + addonsPrice;
+
+    console.log("selectedAddons", selectedAddons);
+
+    // ✅ Create unique key including variant AND addons
+    const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+    const uniqueKey = `${baseItem.id}-${variantId || 'no-variant'}-${addonIds || 'no-addons'}`;
+
+    const idx = orderItems.value.findIndex((i) => {
+        const itemAddonIds = (i.addons || []).map(a => a.id).sort().join('-');
+        return i.id === baseItem.id &&
+            i.variant_id === variantId &&
+            itemAddonIds === addonIds;
+    });
 
     if (idx >= 0) {
         const newQty = orderItems.value[idx].qty + qty;
@@ -337,21 +424,24 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             toast.error("Not enough Ingredients stock available for this Menu.");
             return;
         }
+
         orderItems.value.push({
             id: baseItem.id,
             title: baseItem.title,
             img: baseItem.img,
-            price: itemPrice * qty,
-            unit_price: Number(itemPrice),
+            price: totalItemPrice * qty,
+            unit_price: Number(totalItemPrice),
             qty: qty,
             note: note || "",
             stock: menuStock,
             ingredients: baseItem.ingredients ?? [],
-            variant_id: variantId, // ✅ ADD VARIANT ID
-            variant_name: variantName, // ✅ ADD VARIANT NAME
+            variant_id: variantId,
+            variant_name: variantName,
+            addons: selectedAddons, // ✅ INCLUDE ADDONS
         });
     }
 };
+
 
 // const incCart = async (i) => {
 //     const it = orderItems.value[i];
@@ -1188,8 +1278,6 @@ async function printKot(order) {
     }
 }
 
-
-
 /* ----------------------------
    Confirm Order
 -----------------------------*/
@@ -1258,6 +1346,7 @@ const confirmOrder = async ({
                 tax_amount: getItemTax(it),
                 variant_id: it.variant_id || null,
                 variant_name: it.variant_name || null,
+                addons: it.addons || [],
             })),
         };
 
@@ -1393,6 +1482,7 @@ const openPosOrdersModal = async () => {
     try {
         const res = await axios.get(`/api/pos/orders/today`);
         posOrdersData.value = res.data.orders;
+        console.log("posOrdersData.value", posOrdersData.value);
     } catch (err) {
         console.error("Failed to fetch POS orders:", err);
         toast.error(
@@ -1562,15 +1652,23 @@ const getItemTaxPercentage = (item) => {
 // ========================================
 // // Get quantity for a product in the cart
 // ========================================
+// Get quantity for a product in the cart
 const getCardQty = (product) => {
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
 
-    const cartItem = orderItems.value.findIndex(item =>
-        item.id === product.id && item.variant_id === variantId
-    );
+    // ✅ Get selected addons to match the exact cart item
+    const selectedAddons = getSelectedAddons(product);
+    const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
-    return cartItem >= 0 ? orderItems.value[cartItem].qty : 0;
+    const cartItem = orderItems.value.find(item => {
+        const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
+        return item.id === product.id &&
+            item.variant_id === variantId &&
+            itemAddonIds === addonIds;
+    });
+
+    return cartItem ? cartItem.qty : 0;
 };
 
 // Check if we can add more of this product
@@ -1617,10 +1715,17 @@ const checkIngredientAvailability = (product, targetQty) => {
 };
 
 // Increment quantity directly from card
+// Increment quantity directly from card
 const incrementCardQty = (product) => {
     const variant = getSelectedVariant(product);
     const variantPrice = variant ? parseFloat(variant.price) : product.price;
     const variantId = variant ? variant.id : null;
+    const variantName = variant ? variant.name : null;
+
+    // ✅ Get selected addons
+    const selectedAddons = getSelectedAddons(product);
+    const addonsPrice = getAddonsPrice(product);
+    const totalItemPrice = variantPrice + addonsPrice;
 
     const currentQty = getCardQty(product);
     const menuStock = calculateMenuStock(product);
@@ -1640,9 +1745,15 @@ const incrementCardQty = (product) => {
         return;
     }
 
-    const existingIndex = orderItems.value.findIndex(item =>
-        item.id === product.id && item.variant_id === variantId
-    );
+    // ✅ Create unique key including variant AND addons
+    const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+
+    const existingIndex = orderItems.value.findIndex(item => {
+        const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
+        return item.id === product.id &&
+            item.variant_id === variantId &&
+            itemAddonIds === addonIds;
+    });
 
     if (existingIndex >= 0) {
         orderItems.value[existingIndex].qty++;
@@ -1650,19 +1761,20 @@ const incrementCardQty = (product) => {
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
         orderItems.value[existingIndex].outOfStock = false;
     } else {
-        // Create new item with variant
+        // Create new item with variant AND addons
         orderItems.value.push({
             id: product.id,
             title: product.title,
             img: product.img,
-            price: variantPrice,
-            unit_price: variantPrice,
+            price: totalItemPrice,
+            unit_price: Number(totalItemPrice),
             qty: 1,
             note: "",
             stock: menuStock,
             ingredients: product.ingredients ?? [],
             variant_id: variantId,
-            variant_name: variant?.name || null,
+            variant_name: variantName,
+            addons: selectedAddons, // ✅ INCLUDE ADDONS
             outOfStock: false,
         });
     }
@@ -1675,9 +1787,16 @@ const decrementCardQty = (product) => {
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
 
-    const existingIndex = orderItems.value.findIndex(item =>
-        item.id === product.id && item.variant_id === variantId
-    );
+    // ✅ Get selected addons to find the right cart item
+    const selectedAddons = getSelectedAddons(product);
+    const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+
+    const existingIndex = orderItems.value.findIndex(item => {
+        const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
+        return item.id === product.id &&
+            item.variant_id === variantId &&
+            itemAddonIds === addonIds;
+    });
 
     if (existingIndex < 0) return;
 
@@ -1952,11 +2071,11 @@ const decrementCardQty = (product) => {
                                         <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                             <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
 
-                                            <!-- Dynamic Price Badge -->
+                                            <!-- Dynamic Price Badge including addons -->
                                             <span
                                                 class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
                                                 :style="{ background: p.label_color || '#1B1670' }">
-                                                {{ formatCurrencySymbol(getSelectedVariantPrice(p)) }}
+                                                {{ formatCurrencySymbol(getTotalPrice(p)) }}
                                             </span>
 
                                             <!-- OUT OF STOCK Badge -->
@@ -1966,7 +2085,7 @@ const decrementCardQty = (product) => {
                                             </span>
                                         </div>
 
-                                        <!-- Right Side (Details + Variant Dropdown + Quantity Controls) -->
+                                        <!-- Right Side (Details + Variant + Addons + Quantity Controls) -->
                                         <div class="p-3 d-flex flex-column justify-content-between"
                                             style="flex: 1 1 60%; min-width: 0;">
                                             <div>
@@ -1975,10 +2094,9 @@ const decrementCardQty = (product) => {
                                                     {{ p.title }}
                                                 </div>
 
-                                                <!-- ✅ Variant Dropdown -->
+                                                <!-- Variant Dropdown -->
                                                 <div v-if="p.variants && p.variants.length > 0" class="mb-3">
                                                     <label class="form-label small fw-semibold mb-1">
-                                                        <!-- {{ p.variants[0]?.group_name || 'Size' }}: -->
                                                         Variants:
                                                     </label>
                                                     <select v-model="selectedCardVariant[p.id]"
@@ -1990,6 +2108,51 @@ const decrementCardQty = (product) => {
                                                             }}
                                                         </option>
                                                     </select>
+                                                </div>
+
+                                                <!-- ✅ Addons Selection -->
+                                                <!-- ✅ Addons Selection with MultiSelect -->
+                                                <div v-if="p.addon_groups && p.addon_groups.length > 0">
+                                                    <div v-for="group in p.addon_groups" :key="group.group_id"
+                                                        class="mb-3">
+                                                        <label class="form-label small fw-semibold mb-2">
+                                                            {{ group.group_name }}
+                                                            <span v-if="group.max_select > 0" class="text-muted"
+                                                                style="font-size: 0.75rem;">
+                                                                (Max {{ group.max_select }})
+                                                            </span>
+                                                        </label>
+                                                        <MultiSelect
+                                                            :modelValue="selectedCardAddons[p.id]?.[group.group_id] || []"
+                                                            @update:modelValue="(val) => handleAddonChange(p, group.group_id, val)"
+                                                            :options="group.addons" optionLabel="name" dataKey="id"
+                                                            placeholder="Select addons" :maxSelectedLabels="3"
+                                                            class="w-100 addon-multiselect">
+                                                            <template #value="slotProps">
+                                                                <div v-if="slotProps.value && slotProps.value.length > 0"
+                                                                    class="d-flex flex-wrap gap-1">
+                                                                    <span v-for="addon in slotProps.value"
+                                                                        :key="addon.id" class="badge bg-primary">
+                                                                        {{ addon.name }} +{{
+                                                                            formatCurrencySymbol(addon.price) }}
+                                                                    </span>
+                                                                </div>
+                                                                <span v-else>
+                                                                    {{ slotProps.placeholder }}
+                                                                </span>
+                                                            </template>
+                                                            <template #option="slotProps">
+                                                                <div
+                                                                    class="d-flex justify-content-between align-items-center w-100">
+                                                                    <span>{{ slotProps.option.name }}</span>
+                                                                    <span class="fw-semibold text-success">
+                                                                        +{{ formatCurrencySymbol(slotProps.option.price)
+                                                                        }}
+                                                                    </span>
+                                                                </div>
+                                                            </template>
+                                                        </MultiSelect>
+                                                    </div>
                                                 </div>
 
                                                 <!-- View Details Button -->
@@ -2021,13 +2184,6 @@ const decrementCardQty = (product) => {
                                                 </button>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <!-- No Items Found -->
-                                <div v-if="filteredProducts.length === 0" class="col-12">
-                                    <div class="alert alert-light border text-center rounded-4">
-                                        No items found
                                     </div>
                                 </div>
                             </div>
@@ -2127,6 +2283,15 @@ const decrementCardQty = (product) => {
                                                         {{ it.variant_name }}
                                                     </span>
                                                 </div>
+                                                <!-- <div v-if="it.addons && it.addons.length > 0" class="addons-list mt-1">
+                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                                        <i class="bi bi-plus-circle me-1"></i>
+                                                        <span v-for="(addon, idx) in it.addons" :key="addon.id">
+                                                            {{ addon.name }} (+{{ formatCurrencySymbol(addon.price) }})
+                                                            <span v-if="idx < it.addons.length - 1">, </span>
+                                                        </span>
+                                                    </small>
+                                                </div> -->
                                                 <div class="note" v-if="it.note">
                                                     {{ it.note }}
                                                 </div>
@@ -3130,5 +3295,90 @@ const decrementCardQty = (product) => {
     background-color: #212121;
     color: #fff;
     border-color: #4b5563;
+}
+
+
+
+
+/* ========== PrimeVue MultiSelect Styling ========== */
+.addon-multiselect {
+    font-size: 0.875rem;
+}
+
+.addon-multiselect :deep(.p-multiselect) {
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.addon-multiselect :deep(.p-multiselect:hover) {
+    border-color: #1B1670;
+}
+
+.addon-multiselect :deep(.p-multiselect.p-focus) {
+    border-color: #1B1670;
+    box-shadow: 0 0 0 3px rgba(27, 22, 112, 0.1);
+}
+
+.addon-multiselect :deep(.p-multiselect-label) {
+    padding: 0.5rem 0.75rem;
+}
+
+.addon-multiselect :deep(.p-multiselect-panel) {
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.addon-multiselect :deep(.p-multiselect-item) {
+    padding: 0.5rem 0.75rem;
+    transition: background-color 0.2s ease;
+}
+
+.addon-multiselect :deep(.p-multiselect-item:hover) {
+    background-color: #f3f4f6;
+}
+
+.addon-multiselect :deep(.p-multiselect-item.p-highlight) {
+    background-color: #1B1670;
+    color: white;
+}
+
+/* Dark mode for MultiSelect */
+.dark .addon-multiselect :deep(.p-multiselect) {
+    background-color: #212121;
+    border-color: #4b5563;
+    color: #fff;
+}
+
+.dark .addon-multiselect :deep(.p-multiselect-panel) {
+    background-color: #212121;
+    border-color: #4b5563;
+}
+
+.dark .addon-multiselect :deep(.p-multiselect-item) {
+    color: #fff;
+}
+
+.dark .addon-multiselect :deep(.p-multiselect-item:hover) {
+    background-color: #374151;
+}
+
+.dark .addon-multiselect :deep(.p-multiselect-item.p-highlight) {
+    background-color: #1B1670;
+    color: white;
+}
+
+/* Addon badges in cart */
+.addons-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.addons-list .badge {
+    font-weight: 500;
+    padding: 0.2rem 0.4rem;
+    line-height: 1.2;
 }
 </style>
