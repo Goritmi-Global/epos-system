@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('menu_item_id')->constrained('menu_items')->onDelete('cascade'); 
             $table->string('title');
             $table->integer('quantity');
+            $table->string('variant_name')->nullable();
             $table->decimal('price', 10, 2);
             $table->text('note')->nullable();
             $table->text('kitchen_note')->nullable();

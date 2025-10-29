@@ -318,27 +318,27 @@ const getStatusBadge = (status) => {
 
 // ✅ STEP 2: Update function to modify the item status in orders.value
 const updateKotStatus = async (item, status) => {
-  try {
-    console.log(`Updating KOT item ID ${item.id} -> ${status}`);
-    const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
+    try {
+        console.log(`Updating KOT item ID ${item.id} -> ${status}`);
+        const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
 
-    // ✅ Find the order in orders.value and update the item's status
-    const order = orders.value.find(o => o.id === item.order.id);
-    if (order && order.items) {
-      const kotItem = order.items.find(i => i.id === item.id);
-      if (kotItem) {
-        kotItem.status = response.data.status || status;
-        
-        // Force reactivity by creating a new items array
-        order.items = [...order.items];
-      }
+        // ✅ Find the order in orders.value and update the item's status
+        const order = orders.value.find(o => o.id === item.order.id);
+        if (order && order.items) {
+            const kotItem = order.items.find(i => i.id === item.id);
+            if (kotItem) {
+                kotItem.status = response.data.status || status;
+
+                // Force reactivity by creating a new items array
+                order.items = [...order.items];
+            }
+        }
+
+        toast.success(`"${item.item_name}" marked as ${status}`);
+    } catch (err) {
+        console.error("Failed to update KOT item status:", err);
+        toast.error(err.response?.data?.message || 'Failed to update status');
     }
-
-    toast.success(`"${item.item_name}" marked as ${status}`);
-  } catch (err) {
-    console.error("Failed to update KOT item status:", err);
-    toast.error(err.response?.data?.message || 'Failed to update status');
-  }
 };
 
 
@@ -692,6 +692,7 @@ onMounted(fetchPrinters);
                                     <th>#</th>
                                     <th>Order ID</th>
                                     <th>Item Name</th>
+                                    <th>Variant</th>
                                     <th>Order Type</th>
                                     <th>Ingredients</th>
                                     <th>Status</th>
@@ -703,6 +704,7 @@ onMounted(fetchPrinters);
                                     <td>{{ index + 1 }}</td>
                                     <td>{{ item.order?.id }}</td>
                                     <td>{{ item.item_name }}</td>
+                                    <td>{{ item.variant_name }}</td>
                                     <td>{{ item.order?.type?.order_type || '-' }}</td>
                                     <td>{{ item.ingredients?.join(', ') || '-' }}</td>
                                     <td>

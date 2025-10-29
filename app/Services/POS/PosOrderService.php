@@ -33,6 +33,7 @@ class PosOrderService
     public function create(array $data): PosOrder
     {
         return DB::transaction(function () use ($data) {
+            // dd($data);
             // Get the currently active shift for this user
             // $activeShift = Shift::where('status', 'open')
             //     ->when(!Auth::user()->hasRole('Super Admin'), function ($query) {
@@ -89,6 +90,7 @@ class PosOrderService
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                     'note' => $item['note'] ?? null,
+                    'variant_name' => $item['variant_name'] ?? null,
                     'kitchen_note' => $item['kitchen_note'] ?? null,
                 ]);
 
@@ -142,7 +144,12 @@ class PosOrderService
                         $ingredientsArray[] = $ingredient->product_name;
                     }
                 }
-
+                // ✅ Add debug logging
+    \Log::info('Creating KOT item:', [
+        'item_name' => $orderItem->title,
+        'variant_name' => $orderItem->variant_name,
+        'from_order_item' => $orderItem->toArray()
+    ]);
                 $kot->items()->create([
                     'item_name' => $orderItem->title,
                     'quantity' => $orderItem->quantity,
@@ -284,25 +291,40 @@ class PosOrderService
             'allergies',
             'tags',
             'upload',
+            'variantPrices.variant.variantGroup', 
         ])
             ->get()
             ->map(function ($item) {
                 $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
 
-                // map ingredients to include stock
+                // Map ingredients
                 $item->ingredients->transform(function ($ingredient) {
                     return [
                         'id' => $ingredient->id,
                         'product_name' => $ingredient->product_name,
                         'quantity' => $ingredient->quantity,
                         'cost' => $ingredient->cost,
-                        'inventory_stock' => $ingredient->inventoryItem?->stock ?? 0, // 👈 actual inventory stock
+                        'inventory_stock' => $ingredient->inventoryItem?->stock ?? 0,
                         'inventory_item_id' => $ingredient->inventory_item_id,
                         'category_id' => $ingredient->inventoryItem?->category_id,
                         'supplier_id' => $ingredient->inventoryItem?->supplier_id,
                         'user_id' => $ingredient->inventoryItem?->user_id,
                     ];
                 });
+
+                // Add variants mapping
+                $item->variants = $item->variantPrices->map(function ($variantPrice) {
+                    return [
+                        'id' => $variantPrice->variant_id,
+                        'name' => $variantPrice->variant->name,
+                        'group_name' => $variantPrice->variant->variantGroup->name,
+                        'price' => $variantPrice->price,
+                        'status' => $variantPrice->variant->status,
+                    ];
+                })->filter(function ($variant) {
+                    return $variant['status'] === 'active';
+                })->values();
+
                 $item->is_taxable = $item->is_taxable ?? 0;
                 $item->tax_percentage = $item->tax_percentage ?? 0;
 
