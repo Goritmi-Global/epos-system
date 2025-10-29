@@ -73,33 +73,55 @@ const addons = ref([])
 const selectedAddonGroup = ref(null)
 
 const loadVariants = () => {
-    // Reset variant prices when changing groups
-    form.value.variant_prices = {};
+    // Only reset if we're changing to a different group or clearing
+    if (form.value.variant_group_id) {
+        const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
+        variants.value = group ? group.variants : [];
 
-    const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
-    variants.value = group ? group.variants : [];
-
-    // Initialize variant prices object with empty values
-    if (variants.value.length > 0) {
-        variants.value.forEach(variant => {
-            form.value.variant_prices[variant.id] = '';
-        });
+        // Initialize variant prices object with empty values only for new variants
+        const newPrices = {};
+        if (variants.value.length > 0) {
+            variants.value.forEach(variant => {
+                // Preserve existing price if it exists, otherwise empty string
+                newPrices[variant.id] = form.value.variant_prices?.[variant.id] ?? '';
+            });
+        }
+        form.value.variant_prices = newPrices;
+    } else {
+        // Clearing the variant group
+        variants.value = [];
+        form.value.variant_prices = {};
     }
 }
 
+
 const loadAddons = () => {
-    // Reset addon selections when changing groups
-    form.value.addon_ids = [];
+    // Only reset if we're changing to a different group or clearing
+    if (form.value.addon_group_id) {
+        const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
 
-    const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
-    addons.value = group ? group.addons : [];
+        if (group) {
+            addons.value = group.addons || [];
 
-    // Store min/max constraints for validation
-    if (group) {
-        form.value.addon_group_constraints = {
-            min_select: group.min_select,
-            max_select: group.max_select
-        };
+            // Store min/max constraints for validation
+            form.value.addon_group_constraints = {
+                min_select: group.min_select,
+                max_select: group.max_select
+            };
+        } else {
+            addons.value = [];
+            form.value.addon_group_constraints = null;
+        }
+
+        // Only reset addon_ids if switching groups, not on initial load
+        if (!Array.isArray(form.value.addon_ids)) {
+            form.value.addon_ids = [];
+        }
+    } else {
+        // Clearing the addon group
+        addons.value = [];
+        form.value.addon_ids = [];
+        form.value.addon_group_constraints = null;
     }
 }
 
@@ -1979,7 +2001,7 @@ const handleImport = (data) => {
                                 </div>
 
                                 <!-- Variant Price Inputs - Now on the same row -->
-                                <div v-if="variants.length > 0" class="col-md-9">
+                                <div v-if="variants && variants.length > 0" class="col-md-9">
 
                                     <div class="row g-2">
                                         <div v-for="variant in variants" :key="variant.id" class="col-md-3">
@@ -2001,20 +2023,10 @@ const handleImport = (data) => {
                                     </small>
                                 </div>
 
-                                <!-- ✅ Show selected addon group info -->
-                                <div v-if="form.addon_group_id" class="col-md-12">
-                                    <div class="alert alert-info d-flex align-items-center">
-                                        <i class="bi bi-info-circle me-2"></i>
-                                        <span>
-                                            <strong>Selection Rules:</strong>
-                                            Min: {{ form.addon_group_constraints?.min_select || 0 }} |
-                                            Max: {{ form.addon_group_constraints?.max_select || 'Unlimited' }}
-                                        </span>
-                                    </div>
-                                </div>
+                               
 
                                 <!-- ✅ Show addons from selected group (if any) -->
-                                <div v-if="addons.length > 0" class="col-md-12">
+                                <div v-if="addons && addons.length > 0" class="col-md-12">
                                     <label class="form-label">Select Addons</label>
                                     <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
                                         optionValue="id" filter placeholder="Select Addons" class="w-full"
