@@ -15,8 +15,6 @@ import ImportFile from "@/Components/importFile.vue";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
 import { Head } from "@inertiajs/vue3";
 
-
-
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 import {
     Package,
@@ -42,14 +40,14 @@ const props = defineProps({
     categories: {
         type: Array,
     },
-    meals: { // Add this
+    meals: {
         type: Array,
     },
-    variantGroups: {  // Add this
+    variantGroups: {
         type: Array,
         default: () => []
     },
-    addonGroups: { // ✅ Add this new prop
+    addonGroups: {
         type: Array,
         default: () => []
     }
@@ -57,7 +55,6 @@ const props = defineProps({
 
 const components = {
     FilterModal,
-    // ... your other components
 };
 
 const taxableOptions = ref([
@@ -65,15 +62,21 @@ const taxableOptions = ref([
     { label: "No", value: 0 },
 ]);
 
-
 const variants = ref([])
 const selectedVariants = ref([])
 
 const addons = ref([])
 const selectedAddonGroup = ref(null)
 
-const loadVariants = () => {
+// ==================== NEW: Tab Management ====================
+const activeTab = ref('simple'); // 'simple' or 'variant'
+const isVariantMode = ref(false);
 
+// Variant-specific ingredient management
+const selectedVariantForIngredients = ref(null);
+const variantIngredients = ref({}); // { variantId: [ingredients] }
+
+const loadVariants = () => {
     if (form.value.variant_group_id) {
         const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
         variants.value = group ? group.variants : [];
@@ -91,9 +94,7 @@ const loadVariants = () => {
     }
 }
 
-
 const loadAddons = () => {
-
     if (form.value.addon_group_id) {
         const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
         if (group) {
@@ -110,7 +111,6 @@ const loadAddons = () => {
             form.value.addon_ids = [];
         }
     } else {
-
         addons.value = [];
         form.value.addon_ids = [];
         form.value.addon_group_constraints = null;
@@ -131,6 +131,7 @@ const statusTargetItem = ref(null);
 const showAllergyModal = ref(false);
 const selectedTypes = ref({});
 const selectedAllergies = ref([]);
+
 // ================== Ingredients =====================
 const i_search = ref("");
 const i_cart = ref([]);
@@ -145,23 +146,17 @@ const fetchInventory = async () => {
 };
 
 function saveSelectedAllergies() {
-    // Build selectedAllergies with full objects for display
     selectedAllergies.value = Object.keys(selectedTypes.value)
-        .filter((key) => selectedTypes.value[key]) // filter selected only
+        .filter((key) => selectedTypes.value[key])
         .map((key) => ({
             id: parseInt(key),
             name: props.allergies.find((a) => a.id == key)?.name,
             type: selectedTypes.value[key],
         }));
 
-    // Store ONLY the allergy objects in form for FormData building
-    // Don't convert to IDs here - let submitProduct handle it
     form.value.allergies = [...selectedAllergies.value];
-
-    // Close allergy modal
     showAllergyModal.value = false;
 
-    // Reopen the menu modal after a small delay
     setTimeout(() => {
         const menuModal = new bootstrap.Modal(
             document.getElementById("addItemModal")
@@ -170,11 +165,9 @@ function saveSelectedAllergies() {
     }, 300);
 }
 
-// Handle cancel button
 const cancelAllergySelection = () => {
     showAllergyModal.value = false;
 
-    // Reopen the menu modal
     setTimeout(() => {
         const menuModal = new bootstrap.Modal(
             document.getElementById("addItemModal")
@@ -182,7 +175,7 @@ const cancelAllergySelection = () => {
         menuModal.show();
     }, 300);
 };
-// filter inventory for ingredients
+
 const i_filteredInv = computed(() => {
     const t = i_search.value.trim().toLowerCase();
     if (!t) return inventoryItems.value;
@@ -195,7 +188,6 @@ const i_filteredInv = computed(() => {
 });
 
 const openAllergyModal = () => {
-    // Hide the menu modal
     const menuModal = bootstrap.Modal.getInstance(
         document.getElementById("addItemModal")
     );
@@ -203,20 +195,17 @@ const openAllergyModal = () => {
         menuModal.hide();
     }
 
-    // Show allergy modal
     showAllergyModal.value = true;
 };
-
 
 function round2(x) {
     return Math.round(x * 100) / 100;
 }
-// total cost of all ingredients
+
 const i_total = computed(() =>
     round2(i_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
 );
 
-// add ingredient
 function addIngredient(item) {
     const qty = Number(item.qty || 0);
     const price =
@@ -224,14 +213,11 @@ function addIngredient(item) {
             ? Number(item.unitPrice)
             : Number(item.defaultPrice || 0);
 
-    // clear only this item's errors
     formErrors.value[item.id] = {};
 
-    // validation for this item only
     if (!qty || qty <= 0) formErrors.value[item.id].qty = "Enter a valid quantity.";
     if (!price || price <= 0) formErrors.value[item.id].unitPrice = "Enter a valid unit price.";
 
-    // if validation errors exist for this item
     if (Object.keys(formErrors.value[item.id]).length > 0) {
         const messages = Object.values(formErrors.value[item.id]).join("\n");
         toast.error(messages, { style: { whiteSpace: "pre-line" } });
@@ -271,10 +257,8 @@ function removeIngredient(idx) {
     const ing = i_cart.value[idx];
     if (!ing) return;
 
-    // remove from right table (cart)
     i_cart.value.splice(idx, 1);
 
-    // reset fields on left side card
     const found = i_displayInv.value.find((i) => i.id === ing.id);
     if (found) {
         found.qty = null;
@@ -283,7 +267,6 @@ function removeIngredient(idx) {
     }
 }
 
-// calulate Ingredient when qty or price changes
 const i_totalNutrition = computed(() => {
     return i_cart.value.reduce(
         (totals, ing) => {
@@ -300,23 +283,7 @@ const i_totalNutrition = computed(() => {
     );
 });
 
-// Save ingredients to main form
-function saveIngredients() {
-    resetErrors();
-    form.ingredients = [...i_cart.value];
 
-    // close ingredient modal
-    const ingModal = bootstrap.Modal.getInstance(
-        document.getElementById("addIngredientModal")
-    );
-    ingModal.hide();
-
-    // reopen parent menu modal
-    const menuModal = new bootstrap.Modal(
-        document.getElementById("addItemModal")
-    );
-    menuModal.show();
-}
 
 const showMenuModal = () => {
     const menuModal = new bootstrap.Modal(
@@ -330,11 +297,9 @@ onMounted(async () => {
     searchKey.value = Date.now();
     await nextTick();
 
-    // Delay to prevent autofill
     setTimeout(() => {
         isReady.value = true;
 
-        // Force clear any autofill that happened
         const input = document.getElementById(inputId);
         if (input) {
             input.value = '';
@@ -374,6 +339,7 @@ const fetchInventories = async () => {
         console.error(err);
     }
 };
+
 const menuItems = ref([]);
 const fetchMenus = async () => {
     try {
@@ -388,6 +354,7 @@ onMounted(() => {
     fetchInventories();
     fetchMenus();
 });
+
 /* ===================== Toolbar: Search + Filter ===================== */
 const q = ref("");
 const searchKey = ref(Date.now());
@@ -406,12 +373,10 @@ const defaultMenuFilters = {
 
 const filters = ref({ ...defaultMenuFilters });
 
-//  Use menuItems here
 const filteredItems = computed(() => {
     let filtered = [...menuItems.value];
     const term = q.value.trim().toLowerCase();
 
-    // Text search
     if (term) {
         filtered = filtered.filter((i) =>
             [i.name, i.category?.name, i.description]
@@ -419,7 +384,6 @@ const filteredItems = computed(() => {
         );
     }
 
-    // Category filter
     if (filters.value.category) {
         filtered = filtered.filter((item) => {
             const categoryId = typeof item.category === "object"
@@ -429,14 +393,12 @@ const filteredItems = computed(() => {
         });
     }
 
-    // Status filter
     if (filters.value.status !== "") {
         filtered = filtered.filter((item) => {
             return item.status == filters.value.status;
         });
     }
 
-    // Price range filter
     if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
         filtered = filtered.filter((item) => {
             const price = item.price || 0;
@@ -446,7 +408,6 @@ const filteredItems = computed(() => {
         });
     }
 
-    // Date range filter (if you want to filter by created_at or updated_at)
     if (filters.value.dateFrom) {
         filtered = filtered.filter((item) => {
             const itemDate = new Date(item.created_at);
@@ -500,7 +461,6 @@ const filterOptions = computed(() => ({
 
 const handleFilterApply = (appliedFilters) => {
     console.log("Filters applied:", appliedFilters);
-    // Additional logic if needed
 };
 
 const handleFilterClear = () => {
@@ -523,7 +483,7 @@ const deactiveMenuItems = computed(
 const lowStockCount = computed(
     () =>
         items.value.filter(
-            (i) => i.availableStock > 0 && i.availableStock < (i.minAlert || 5) // fallback to 5 if minAlert missing
+            (i) => i.availableStock > 0 && i.availableStock < (i.minAlert || 5)
         ).length
 );
 const outOfStockCount = computed(
@@ -551,20 +511,6 @@ const kpis = computed(() => [
         iconBg: "bg-soft-warning",
         iconColor: "text-danger",
     },
-    // {
-    //     label: "Expired Stock",
-    //     value: expiredCount.value ?? 0,
-    //     icon: CalendarX2,
-    //     iconBg: "bg-soft-danger",
-    //     iconColor: "text-danger",
-    // },
-    // {
-    //     label: "Near Expire Stock",
-    //     value: nearExpireCount.value ?? 0,
-    //     icon: CalendarClock,
-    //     iconBg: "bg-soft-info",
-    //     iconColor: "text-info",
-    // },
 ]);
 
 onMounted(() => window.feather?.replace());
@@ -581,7 +527,6 @@ const subcatMap = ref({
     Produce: ["Tomatoes", "Onions", "Potatoes"],
     Grains: ["Rice", "Wheat", "Oats"],
     Grocery: ["Oil", "Spices", "Sugar"],
-    // Dairy: ["Cheese", "Milk", "Butter"],
     Meat: ["Beef", "Mutton", "Veal"],
 });
 
@@ -639,6 +584,8 @@ function onCropped({ file }) {
 }
 
 const submitting = ref(false);
+
+// ==================== UPDATED: Submit Product ====================
 const submitProduct = async () => {
     submitting.value = true;
     formErrors.value = {};
@@ -647,6 +594,7 @@ const submitProduct = async () => {
 
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
+
     if (form.value.price !== "" && form.value.price !== null) {
         formData.append("price", form.value.price);
     }
@@ -658,73 +606,102 @@ const submitProduct = async () => {
     if (form.value.label_color) {
         formData.append("label_color", form.value.label_color);
     }
+
     if (form.value.subcategory_id) {
         formData.append("subcategory_id", form.value.subcategory_id);
     }
+
     formData.append("description", form.value.description || "");
     formData.append("is_taxable", String(form.value.is_taxable ?? 0));
 
-    // nutrition
-    // nutrition from computed total
-    formData.append("nutrition[calories]", i_totalNutrition.value.calories);
-    formData.append("nutrition[fat]", i_totalNutrition.value.fat);
-    formData.append("nutrition[protein]", i_totalNutrition.value.protein);
-    formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
+    // Check if we're in variant mode
+    if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
+        // Use variant-specific nutrition calculation
+        const totalNutrition = Object.values(variantIngredients.value)
+            .flat()
+            .reduce(
+                (acc, ing) => {
+                    const qty = Number(ing.qty || 0);
+                    acc.calories += Number(ing.nutrition?.calories || 0) * qty;
+                    acc.protein += Number(ing.nutrition?.protein || 0) * qty;
+                    acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+                    acc.fat += Number(ing.nutrition?.fat || 0) * qty;
+                    return acc;
+                },
+                { calories: 0, protein: 0, carbs: 0, fat: 0 }
+            );
+
+        formData.append("nutrition[calories]", totalNutrition.calories);
+        formData.append("nutrition[fat]", totalNutrition.fat);
+        formData.append("nutrition[protein]", totalNutrition.protein);
+        formData.append("nutrition[carbs]", totalNutrition.carbs);
+
+        // ✅ FIX: Send variant_metadata in the format backend expects
+        let metadataIndex = 0;
+        Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
+            formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
+            formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
+
+            // Add ingredients for this variant using the same index
+            const ingredients = variantIngredients.value[variantId] || [];
+            ingredients.forEach((ing, ingIndex) => {
+                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][inventory_item_id]`, ing.id);
+                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][qty]`, ing.qty);
+                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][unit_price]`, ing.unitPrice);
+                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][cost]`, ing.cost);
+            });
+
+            metadataIndex++;
+        });
+    } else {
+        // Simple menu: use i_totalNutrition and i_cart
+        formData.append("nutrition[calories]", i_totalNutrition.value.calories);
+        formData.append("nutrition[fat]", i_totalNutrition.value.fat);
+        formData.append("nutrition[protein]", i_totalNutrition.value.protein);
+        formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
+
+        // ingredients cart
+        i_cart.value.forEach((ing, i) => {
+            formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
+            formData.append(`ingredients[${i}][qty]`, ing.qty);
+            formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
+            formData.append(`ingredients[${i}][cost]`, ing.cost);
+        });
+    }
 
     // allergies + tags
     form.value.allergies.forEach((a, i) => {
         formData.append(`allergies[${i}]`, a.id);
         formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
     });
+
     form.value.meals.forEach((mealId, i) => {
         formData.append(`meals[${i}]`, mealId);
     });
 
     form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
 
-    // ingredients cart
-    i_cart.value.forEach((ing, i) => {
-        formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
-        formData.append(`ingredients[${i}][qty]`, ing.qty);
-        formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
-        formData.append(`ingredients[${i}][cost]`, ing.cost);
-    });
     // image
     if (form.value.imageFile) {
         formData.append("image", form.value.imageFile);
     }
 
-
-    const variantPrices = ref({});
-    if (form.value.variant_group_id) {
-        formData.append("variant_group_id", form.value.variant_group_id);
-
-        // Loop through form.value.variant_prices (which is bound to your inputs)
-        for (const [variantId, price] of Object.entries(form.value.variant_prices)) {
-            if (price !== null && price !== undefined && price !== '') {
-                formData.append(`variant_prices[${variantId}]`, price);
-            }
-        }
-    }
-
     if (form.value.addon_group_id) {
         formData.append("addon_group_id", form.value.addon_group_id);
 
-        // Add selected addon IDs
         form.value.addon_ids.forEach((addonId, index) => {
             formData.append(`addon_ids[${index}]`, addonId);
         });
     }
 
-
     try {
         if (form.value.id) {
-
             await axios.post(`/menu/${form.value.id}?_method=PUT`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             toast.success("Menu updated successfully");
         } else {
+            console.log('➡️ Final formData:', [...formData.entries()]);
             await axios.post("/menu", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
@@ -739,14 +716,6 @@ const submitProduct = async () => {
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
-
-            // Collect all error messages in one array
-            const allMessages = Object.values(err.response.data.errors)
-                .flat()
-                .join("\n");
-
-            // Show all messages in one toast
-            // toast.error(allMessages);
             toast.error("Please filled all the required fields");
         } else {
             console.error(
@@ -760,13 +729,11 @@ const submitProduct = async () => {
     }
 };
 
-//  One deep watcher for the entire form
 watch(
     form,
     (newVal) => {
         Object.keys(formErrors.value).forEach((key) => {
             if (key.includes(".")) {
-                // handle nested keys e.g. "nutrition.calories"
                 const [parent, child] = key.split(".");
                 if (newVal[parent] && newVal[parent][child] !== "") {
                     delete formErrors.value[key];
@@ -811,7 +778,7 @@ const i_displayInv = computed(() => {
 });
 
 const editItem = (item) => {
-
+    console.log("Checking item which one is this", item);
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
@@ -819,6 +786,17 @@ const editItem = (item) => {
     isEditMode.value = true;
     const itemData = toRaw(item);
     console.log("Item data", itemData);
+
+    // ✅ FIX: Better detection for variant menu
+    const hasVariants = itemData.variants &&
+        Array.isArray(itemData.variants) &&
+        itemData.variants.length > 0;
+
+    // Set the active tab based on menu type
+    activeTab.value = hasVariants ? 'variant' : 'simple';
+
+    console.log("Has variants:", hasVariants);
+    console.log("Variants data:", itemData.variants);
 
     form.value = {
         id: itemData.id,
@@ -834,18 +812,65 @@ const editItem = (item) => {
         tags: itemData.tags?.map((t) => t.id) || [],
         imageFile: null,
         imageUrl: itemData.image_url || null,
-        variant_group_id: itemData.variant_group_id || '',
-        variant_prices: itemData.variant_prices || {},
         addon_group_id: itemData.addon_group_id || '',
         addon_ids: itemData.addon_ids || itemData.addons?.map(a => a.id) || [],
-        addon_group_constraints: null,
     };
 
-    if (itemData.variant_group_id) {
-        loadVariants();
-        nextTick(() => {
-            form.value.variant_prices = itemData.variant_prices || {};
+    // ✅ Load variant data if this is a variant menu
+    if (hasVariants) {
+        variantIngredients.value = {};
+        variantMetadata.value = {};
+
+        // Find the highest variant ID to continue counter from there
+        let maxVariantId = 0;
+
+        itemData.variants.forEach(variant => {
+            const variantId = variant.id;
+            maxVariantId = Math.max(maxVariantId, variantId);
+
+            // Store variant metadata (name and price)
+            variantMetadata.value[variantId] = {
+                name: variant.name,
+                price: parseFloat(variant.price || 0)
+            };
+
+            // Store variant ingredients
+            if (variant.ingredients && Array.isArray(variant.ingredients)) {
+                variantIngredients.value[variantId] = variant.ingredients.map(ing => {
+                    const quantity = parseFloat(ing.quantity || ing.qty || 0);
+                    const cost = parseFloat(ing.cost || 0);
+                    const unitPrice = quantity > 0 ? cost / quantity : 0;
+
+                    const inv = inventoryItems.value.find(
+                        item => item.id === (ing.inventory_item_id || ing.id)
+                    );
+
+                    return {
+                        id: ing.inventory_item_id || ing.id,
+                        name: ing.product_name || ing.name || inv?.name || "—",
+                        category: inv?.category || ing.category || { name: "" },
+                        qty: quantity,
+                        unitPrice: unitPrice,
+                        cost: cost,
+                        nutrition: ing.nutrition || inv?.nutrition || {
+                            calories: 0,
+                            protein: 0,
+                            carbs: 0,
+                            fat: 0,
+                        },
+                    };
+                });
+            } else {
+                variantIngredients.value[variantId] = [];
+            }
         });
+
+        // Set variant counter to continue from max ID + 1
+        variantIdCounter.value = maxVariantId + 1;
+
+        console.log("Loaded variant metadata:", variantMetadata.value);
+        console.log("Loaded variant ingredients:", variantIngredients.value);
+        console.log("Variant counter set to:", variantIdCounter.value);
     }
 
     if (itemData.addon_group_id) {
@@ -859,158 +884,178 @@ const editItem = (item) => {
         fat: parseFloat(itemData.nutrition?.fat || 0),
     };
 
-    // Load existing allergies with their types
+    // Load allergies
     if (itemData.allergies && itemData.allergies.length > 0) {
         selectedAllergies.value = itemData.allergies.map(a => {
-            const rawType = a.pivot?.type ?? a.type ?? 1; // fallback to 1 if missing
+            const rawType = a.pivot?.type ?? a.type ?? 1;
             return {
                 id: a.id,
                 name: a.name,
-                type: Number(rawType) === 1 ? 'Contain' : 'Trace', // convert numeric → text
+                type: Number(rawType) === 1 ? 'Contain' : 'Trace',
             };
         });
 
-
-        // Populate selectedTypes for the radio buttons
         selectedTypes.value = {};
         selectedAllergies.value.forEach(a => {
             selectedTypes.value[a.id] = a.type;
         });
     } else {
-        // Reset if no allergies
         selectedAllergies.value = [];
         selectedTypes.value = {};
     }
 
-    // Build i_cart with enriched inventory details
-    i_cart.value = (itemData.ingredients || []).map((ing) => {
-        const quantity = parseFloat(ing.quantity || ing.qty || 0);
-        const cost = parseFloat(ing.cost || 0);
-        const unitPrice = quantity > 0 ? cost / quantity : 0;
+    // Build i_cart only for simple menus
+    if (!hasVariants) {
+        i_cart.value = (itemData.ingredients || []).map((ing) => {
+            const quantity = parseFloat(ing.quantity || ing.qty || 0);
+            const cost = parseFloat(ing.cost || 0);
+            const unitPrice = quantity > 0 ? cost / quantity : 0;
 
-        // find the matching inventory item (for category, unit, nutrition, etc.)
-        const inv = i_filteredInv.value.find(
-            (inv) =>
-                inv.id === (ing.inventory_item_id || ing.id || ing.product_id)
-        );
+            const inv = inventoryItems.value.find(
+                (inv) => inv.id === (ing.inventory_item_id || ing.id)
+            );
 
-        return {
-            id: ing.inventory_item_id || ing.id || ing.product_id,
-            image_url: inv?.image_url || "—",
-            name: ing.product_name || ing.name || inv?.name || "—",
-            category: inv?.category || ing.category || { name: "" },
-            unit: inv?.unit || ing.unit || "",
-            qty: quantity,
-            unitPrice: unitPrice,
-            cost: cost,
-            nutrition: ing.nutrition
-                ? typeof ing.nutrition === "string"
-                    ? JSON.parse(ing.nutrition)
-                    : ing.nutrition
-                : inv?.nutrition || {
-                    calories: 0,
-                    protein: 0,
-                    carbs: 0,
-                    fat: 0,
-                },
-        };
-    });
+            return {
+                id: ing.inventory_item_id || ing.id,
+                name: ing.product_name || ing.name || inv?.name || "—",
+                category: inv?.category || ing.category || { name: "" },
+                qty: quantity,
+                unitPrice: unitPrice,
+                cost: cost,
+                nutrition: ing.nutrition
+                    ? typeof ing.nutrition === "string"
+                        ? JSON.parse(ing.nutrition)
+                        : ing.nutrition
+                    : inv?.nutrition || {
+                        calories: 0,
+                        protein: 0,
+                        carbs: 0,
+                        fat: 0,
+                    },
+            };
+        });
+    } else {
+        i_cart.value = [];
+    }
 
-    console.log("Hydrated cart with details:", i_cart.value);
-    console.log("Loaded allergies:", selectedAllergies.value);
-    console.log("Selected types:", selectedTypes.value);
+    console.log("Edit mode - Active tab:", activeTab.value);
+    console.log("Edit mode - Has variants:", hasVariants);
 
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
 };
 
+// ✅ UPDATE submitEdit to handle variant metadata properly
 const submitEdit = async () => {
     submitting.value = true;
     formErrors.value = {};
 
     try {
-        // Recalculate nutrition totals
-        const totalNutrition = i_cart.value.reduce(
-            (acc, ing) => {
-                const qty = Number(ing.qty || 0);
-                acc.calories += Number(ing.nutrition?.calories || 0) * qty;
-                acc.protein += Number(ing.nutrition?.protein || 0) * qty;
-                acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
-                acc.fat += Number(ing.nutrition?.fat || 0) * qty;
-                return acc;
-            },
-            { calories: 0, protein: 0, carbs: 0, fat: 0 }
-        );
-
-        // Use FormData for proper file upload handling
         const formData = new FormData();
 
-        // Basic fields
         formData.append("name", form.value.name.trim());
-        formData.append("price", form.value.price || 0);
+
         if (form.value.category_id) {
             formData.append("category_id", form.value.category_id);
         }
+
         formData.append("description", form.value.description || "");
         formData.append("label_color", form.value.label_color || "");
+        formData.append("is_taxable", String(form.value.is_taxable ?? 0));
 
-        formData.append("is_taxable", form.value.is_taxable ?? 0);
-        // Nutrition data
-        formData.append("nutrition[calories]", totalNutrition.calories);
-        formData.append("nutrition[fat]", totalNutrition.fat);
-        formData.append("nutrition[protein]", totalNutrition.protein);
-        formData.append("nutrition[carbs]", totalNutrition.carbs);
+        // Handle nutrition and ingredients based on active tab
+        if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
+            // Variant menu: calculate total nutrition from all variants
+            const totalNutrition = Object.values(variantIngredients.value)
+                .flat()
+                .reduce(
+                    (acc, ing) => {
+                        const qty = Number(ing.qty || 0);
+                        acc.calories += Number(ing.nutrition?.calories || 0) * qty;
+                        acc.protein += Number(ing.nutrition?.protein || 0) * qty;
+                        acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+                        acc.fat += Number(ing.nutrition?.fat || 0) * qty;
+                        return acc;
+                    },
+                    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+                );
 
-        // Allergies and tags
-        // Allergies & allergy types
+            formData.append("nutrition[calories]", totalNutrition.calories);
+            formData.append("nutrition[fat]", totalNutrition.fat);
+            formData.append("nutrition[protein]", totalNutrition.protein);
+            formData.append("nutrition[carbs]", totalNutrition.carbs);
+
+            // ✅ Send variant_metadata in correct format
+            let metadataIndex = 0;
+            Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
+                formData.append(`variant_metadata[${metadataIndex}][id]`, variantId); // Include ID for updates
+                formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
+                formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
+
+                // Add ingredients for this variant using the same index
+                const ingredients = variantIngredients.value[variantId] || [];
+                ingredients.forEach((ing, ingIndex) => {
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][inventory_item_id]`, ing.id);
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][qty]`, ing.qty);
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][unit_price]`, ing.unitPrice);
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][cost]`, ing.cost);
+                });
+
+                metadataIndex++;
+            });
+
+            // Don't send base price for variant menus
+            formData.append("price", 0);
+        } else {
+            // Simple menu: use i_cart and i_totalNutrition
+            formData.append("price", form.value.price || 0);
+
+            formData.append("nutrition[calories]", i_totalNutrition.value.calories);
+            formData.append("nutrition[fat]", i_totalNutrition.value.fat);
+            formData.append("nutrition[protein]", i_totalNutrition.value.protein);
+            formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
+
+            // Simple ingredients
+            i_cart.value.forEach((ing, i) => {
+                formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
+                formData.append(`ingredients[${i}][qty]`, ing.qty);
+                formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
+                formData.append(`ingredients[${i}][cost]`, ing.cost);
+            });
+        }
+
+        // Allergies
         selectedAllergies.value.forEach((a, i) => {
-            formData.append(`allergies[${i}]`, a.id); // numeric id
-            const typeValue = a.type === 'Contain' ? 1 : 0; // convert back to numeric
+            formData.append(`allergies[${i}]`, a.id);
+            const typeValue = a.type === 'Contain' ? 1 : 0;
             formData.append(`allergy_types[${i}]`, typeValue);
         });
 
+        // Tags
         form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
+
+        // Meals
         form.value.meals.forEach((mealId, i) => {
             formData.append(`meals[${i}]`, mealId);
         });
 
-        // Ingredients from cart
-        i_cart.value.forEach((ing, i) => {
-            formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
-            formData.append(`ingredients[${i}][qty]`, ing.qty);
-            formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
-            formData.append(`ingredients[${i}][cost]`, ing.cost);
-        });
-
-        // Image handling
+        // Image
         if (form.value.imageFile) {
-            // New image selected
             formData.append("image", form.value.imageFile);
         }
 
-        if (form.value.variant_group_id) {
-            formData.append("variant_group_id", form.value.variant_group_id);
-
-            // Loop through form.value.variant_prices
-            for (const [variantId, price] of Object.entries(form.value.variant_prices)) {
-                if (price !== null && price !== undefined && price !== '') {
-                    formData.append(`variant_prices[${variantId}]`, price);
-                }
-            }
-        }
-
+        // Addons
         if (form.value.addon_group_id) {
             formData.append("addon_group_id", form.value.addon_group_id);
-
             form.value.addon_ids.forEach((addonId, index) => {
                 formData.append(`addon_ids[${index}]`, addonId);
             });
         }
 
-        // Method spoofing for Laravel PUT request with file upload
         formData.append("_method", "PUT");
 
-        // Make the API call
+        console.log('Update formData:', [...formData.entries()]);
+
         await axios.post(`/menu/${form.value.id}`, formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
@@ -1018,8 +1063,6 @@ const submitEdit = async () => {
         });
 
         toast.success("Menu updated successfully");
-
-        // Reset form and close modal
         resetForm();
         await fetchMenus();
 
@@ -1030,18 +1073,12 @@ const submitEdit = async () => {
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
-
-            // Collect all error messages in one array
             const allMessages = Object.values(err.response.data.errors)
                 .flat()
                 .join("\n");
-
             toast.error(allMessages);
         } else {
-            console.error(
-                "❌ Update failed:",
-                err.response?.data || err.message
-            );
+            console.error("❌ Update failed:", err.response?.data || err.message);
             toast.error("Failed to update menu item");
         }
     } finally {
@@ -1063,32 +1100,29 @@ const toggleStatus = async (item) => {
     }
 };
 
-// ============================= reset form =========================
-
+// ==================== UPDATED: Reset Form ====================
 function resetForm() {
-    // revoke blob URL if exists
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
 
-    // reset form fields
     form.value = {
         name: "",
-        category: "Poultry",
+        category_id: null,
         meals: [],
+        label_color: null,
         subcategory: "",
-        unit: "gram (g)",
-        minAlert: "",
-        supplier: "Noor",
+        unit: [],
+        price: "",
+        supplier: [],
         sku: "",
         description: "",
-        label_color: "",
-        is_taxable: 0,
         nutrition: { calories: "", fat: "", protein: "", carbs: "" },
         allergies: [],
         tags: [],
         imageFile: null,
         imageUrl: null,
+        is_taxable: null,
         variant_group_id: '',
         variant_prices: {},
         addon_group_id: '',
@@ -1096,27 +1130,32 @@ function resetForm() {
         addon_group_constraints: null,
     };
 
-    // reset UI states
     showCropper.value = false;
     showImageModal.value = false;
     previewImage.value = null;
     formErrors.value = {};
-    isEditMode.value = null;
+    isEditMode.value = false;
 
     selectedAllergies.value = [];
     selectedTypes.value = {};
 
-    //  reset ingredients + totals
     i_cart.value = [];
-    i_total.value = 0;
-    i_totalNutrition.value = {
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fat: 0,
-    };
-}
 
+    // Reset variant-specific data
+    activeTab.value = 'simple';
+    isVariantMode.value = false;
+    selectedVariantForIngredients.value = null;
+    variantIngredients.value = {};
+    variantMetadata.value = {};
+    variantForm.value = { name: '', price: null };
+    variants.value = [];
+    addons.value = [];
+}
+// ⭐ Also add this function to be called when "Add Menu" button is clicked
+const openAddMenuModal = () => {
+    resetForm(); // This will set activeTab to 'simple'
+    resetErrors();
+};
 // code fo download files like  PDF, Excel and CSV
 
 const onDownload = (type) => {
@@ -1392,15 +1431,6 @@ const downloadPDF = (data) => {
     }
 };
 
-// Helper function for safe JSON parsing
-function safeParse(value) {
-    try {
-        return typeof value === "string" ? JSON.parse(value) : value;
-    } catch (e) {
-        return value;
-    }
-}
-
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
@@ -1587,6 +1617,204 @@ const handleImport = (data) => {
             toast.error("Import failed");
         });
 };
+
+
+
+
+// ============================================
+// COMPLETE VARIANT MANAGEMENT CODE - REPLACE YOUR EXISTING CODE
+// ============================================
+
+// 1. Add these refs at the top (after other refs)
+const variantForm = ref({
+    name: '',
+    price: null
+});
+const variantMetadata = ref({});
+const variantIdCounter = ref(1); // ✅ NEW: Counter for unique variant IDs
+
+// 2. REPLACE saveIngredients function
+function saveIngredients() {
+    resetErrors();
+
+    if (isVariantMode.value) {
+        // Validate variant form
+        if (!variantForm.value.name || !variantForm.value.name.trim()) {
+            toast.error("Please enter a variant name");
+            return;
+        }
+        if (variantForm.value.price === null || variantForm.value.price === '' || variantForm.value.price < 0) {
+            toast.error("Please enter a valid variant price");
+            return;
+        }
+        if (i_cart.value.length === 0) {
+            toast.error("Please add at least one ingredient");
+            return;
+        }
+
+        // ✅ FIX: Generate unique ID for new variants, or use existing ID for edits
+        let variantId;
+        if (selectedVariantForIngredients.value !== null) {
+            // Editing existing variant
+            variantId = selectedVariantForIngredients.value;
+        } else {
+            // Creating new variant - use counter and increment
+            variantId = variantIdCounter.value++;
+        }
+
+        // Save ingredients
+        variantIngredients.value[variantId] = [...i_cart.value];
+
+        // Store variant metadata
+        if (!variantMetadata.value) {
+            variantMetadata.value = {};
+        }
+        variantMetadata.value[variantId] = {
+            name: variantForm.value.name,
+            price: variantForm.value.price
+        };
+
+        toast.success(`Variant "${variantForm.value.name}" ingredients saved!`);
+
+        // Clear cart and form
+        i_cart.value = [];
+        variantForm.value = { name: '', price: null };
+        selectedVariantForIngredients.value = null;
+    } else {
+        // Save to regular form ingredients
+        form.value.ingredients = [...i_cart.value];
+    }
+
+    // Close ingredient modal
+    const ingModal = bootstrap.Modal.getInstance(
+        document.getElementById("addIngredientModal")
+    );
+    ingModal.hide();
+
+    // Reopen parent menu modal
+    setTimeout(() => {
+        const menuModal = new bootstrap.Modal(document.getElementById("addItemModal"));
+        menuModal.show();
+    }, 300);
+}
+
+// 3. REPLACE openIngredientModal function
+const openIngredientModal = (variantMode = false) => {
+    isVariantMode.value = variantMode;
+
+    if (variantMode) {
+        // Only reset if not editing existing variant
+        if (!selectedVariantForIngredients.value) {
+            variantForm.value = {
+                name: '',
+                price: null
+            };
+            i_cart.value = [];
+        }
+        // If editing, data is already loaded by editVariantIngredients
+    } else {
+        // For simple menu mode
+        i_cart.value = [...(form.value.ingredients || [])];
+    }
+
+    // Close menu modal
+    const menuModal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
+    if (menuModal) menuModal.hide();
+
+    // Open ingredient modal
+    setTimeout(() => {
+        const ingModal = new bootstrap.Modal(document.getElementById("addIngredientModal"));
+        ingModal.show();
+    }, 300);
+};
+
+// 4. REPLACE editVariantIngredients function
+const editVariantIngredients = (variantId) => {
+    // Set the variant ID being edited
+    selectedVariantForIngredients.value = variantId;
+
+    // Load existing ingredients
+    if (variantIngredients.value[variantId]) {
+        i_cart.value = [...variantIngredients.value[variantId]];
+    } else {
+        i_cart.value = [];
+    }
+
+    // Load variant metadata
+    if (variantMetadata.value[variantId]) {
+        variantForm.value = {
+            name: variantMetadata.value[variantId].name || '',
+            price: variantMetadata.value[variantId].price || null
+        };
+    } else {
+        // Fallback for non-custom variants
+        variantForm.value = {
+            name: getVariantName(variantId),
+            price: getVariantPrice(variantId)
+        };
+    }
+
+    // Set variant mode
+    isVariantMode.value = true;
+
+    // Close menu modal
+    const menuModal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
+    if (menuModal) menuModal.hide();
+
+    // Open ingredient modal with data loaded
+    setTimeout(() => {
+        const ingModal = new bootstrap.Modal(document.getElementById("addIngredientModal"));
+        ingModal.show();
+    }, 300);
+};
+
+// 5. REPLACE getVariantName function
+const getVariantName = (variantId) => {
+    // First check in variantMetadata
+    if (variantMetadata.value[variantId]) {
+        return variantMetadata.value[variantId].name;
+    }
+
+    // Then check if it's in the variants array
+    const variant = variants.value.find(v => v.id === variantId);
+    if (variant) {
+        return variant.name;
+    }
+
+    return 'Unknown Variant';
+};
+
+// 6. REPLACE getVariantPrice function
+const getVariantPrice = (variantId) => {
+    // First check in variantMetadata
+    if (variantMetadata.value[variantId]) {
+        return variantMetadata.value[variantId].price || 0;
+    }
+
+    // Then check in form variant prices
+    if (form.value.variant_prices && form.value.variant_prices[variantId]) {
+        return form.value.variant_prices[variantId];
+    }
+
+    return 0;
+};
+
+// 7. REPLACE deleteVariantIngredients function
+const deleteVariantIngredients = (variantId) => {
+    const variantName = getVariantName(variantId);
+
+    if (confirm(`Are you sure you want to delete ingredients for "${variantName}"?`)) {
+        // Delete from variantIngredients
+        delete variantIngredients.value[variantId];
+
+        // Delete from variantMetadata
+        if (variantMetadata.value[variantId]) {
+            delete variantMetadata.value[variantId];
+        }
+
+        toast.success("Variant ingredients deleted");
+    }
+};
 </script>
 
 <template>
@@ -1643,22 +1871,20 @@ const handleImport = (data) => {
 
                             <!-- Filter By -->
                             <div class="dropdown">
-                                <!-- Filter By -->
                                 <FilterModal v-model="filters" title="Menu Items" modal-id="menuFilterModal"
                                     modal-size="modal-lg" :categories="filterOptions.categories"
                                     :sort-options="filterOptions.sortOptions"
                                     :status-options="filterOptions.statusOptions" :show-price-range="true"
                                     :show-date-range="true" :show-category="false" :show-stock-status="false"
                                     @apply="handleFilterApply" @clear="handleFilterClear" />
-
                             </div>
 
                             <!-- Add Item -->
-                            <button data-bs-toggle="modal" @click="resetErrors" data-bs-target="#addItemModal"
+                            <button data-bs-toggle="modal" @click="openAddMenuModal" data-bs-target="#addItemModal"
                                 class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Menu
                             </button>
-                            <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+
                             <ImportFile label="Import" :sampleHeaders="[
                                 'Item Name',
                                 'Category',
@@ -1729,82 +1955,52 @@ const handleImport = (data) => {
                             </thead>
                             <tbody>
                                 <tr v-for="(item, idx) in sortedItems" :key="item.id">
-                                    <!-- S.# -->
                                     <td>{{ idx + 1 }}</td>
-
                                     <td>
                                         <ImageZoomModal v-if="item.image_url" :file="item.image_url" :alt="item.name"
                                             :width="50" :height="50" :custom_class="'cursor-pointer'" />
                                     </td>
-
-                                    <!-- Menu Name -->
                                     <td class="fw-semibold">
                                         {{ item.name }}
                                     </td>
-
-                                    <!-- Category -->
                                     <td class="text-truncate" style="max-width: 260px">
                                         {{ item.category?.name || "—" }}
                                     </td>
-
-                                    <!-- Price -->
                                     <td>
                                         {{ formatCurrencySymbol(item.price || 0, "GBP") }}
                                     </td>
-
-                                    <!-- Status -->
                                     <td>
                                         <span v-if="item.status === 0"
                                             class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">Inactive</span>
                                         <span v-else
                                             class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">Active</span>
                                     </td>
-
-                                    <!-- Actions -->
                                     <td class="text-center">
                                         <div class="d-inline-flex align-items-center gap-3">
                                             <button @click="editItem(item)" data-bs-toggle="modal" title="Edit"
                                                 class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Pencil class="w-4 h-4" />
                                             </button>
-                                            <!-- <button
-  @click="() => { statusTargetItem.value = item; showStatusModal.value = true; }"
-  class="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200"
-  :class="item.status === 1
-      ? 'bg-green-50 text-green-600 hover:bg-green-100'
-      : 'bg-red-50 text-red-600 hover:bg-red-100'"
-  :title="item.status === 1 ? 'Deactivate' : 'Activate'"
->
-  <i
-    :class="item.status === 1 ? 'bi bi-check-circle' : 'bi bi-x-circle'"
-    class="text-lg"
-  ></i> -->
-                                            <!-- </button> -->
                                             <ConfirmModal :title="'Confirm Status Change'"
                                                 :message="`Are you sure you want to ${item.status === 1 ? 'deactivate' : 'activate'} this item?`"
                                                 :showStatusButton="true"
                                                 :status="item.status === 1 ? 'active' : 'inactive'"
                                                 @confirm="() => toggleStatus(item)">
                                                 <template #trigger>
-                                                    <!-- Toggle Switch (same design as Promos) -->
                                                     <button
                                                         class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
                                                         :class="item.status === 1 ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500'"
                                                         :title="item.status === 1 ? 'Set Inactive' : 'Set Active'">
-                                                        <!-- Circle -->
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
                                                             :class="item.status === 1 ? 'translate-x-4' : 'translate-x-0'"></span>
                                                     </button>
                                                 </template>
                                             </ConfirmModal>
-
-
                                         </div>
                                     </td>
                                 </tr>
 
-                                <!-- Empty state -->
                                 <tr v-if="sortedItems.length === 0">
                                     <td colspan="7" class="text-center text-muted py-4">
                                         No Menu items found.
@@ -1822,11 +2018,7 @@ const handleImport = (data) => {
                     <div class="modal-content rounded-4">
                         <div class="modal-header">
                             <h5 class="modal-title fw-semibold">
-                                {{
-                                    isEditMode == true
-                                        ? "Edit Menu"
-                                        : "Add Menu"
-                                }}
+                                {{ isEditMode == true ? "Edit Menu" : "Add Menu" }}
                             </h5>
                             <button @click="resetForm"
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
@@ -1839,352 +2031,611 @@ const handleImport = (data) => {
                         </div>
 
                         <div class="modal-body">
-                            <!-- top row -->
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Menu Name</label>
-                                    <input v-model="form.name" type="text" class="form-control" :class="{
-                                        'is-invalid': formErrors.name,
-                                    }" placeholder="e.g., Chicken Breast" />
-                                    <small v-if="formErrors.name" class="text-danger">
-                                        {{ formErrors.name[0] }}
-                                    </small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label d-block">Base Price</label>
-                                    <input v-model="form.price" type="number" min="0" class="form-control" :class="{
-                                        'is-invalid': formErrors.price,
-                                    }" placeholder="e.g., 0.00" />
-                                    <small v-if="formErrors.price" class="text-danger">
-                                        {{ formErrors.price[0] }}
-                                    </small>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label">Is this Taxable Menu?</label>
-                                    <Select v-model="form.is_taxable" :options="taxableOptions" optionLabel="label"
-                                        optionValue="value" placeholder="Select Option" class="w-100" appendTo="self"
-                                        :autoZIndex="true" :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.is_taxable }" />
-                                    <small v-if="formErrors.is_taxable" class="text-danger">
-                                        {{ formErrors.is_taxable[0] }}
-                                    </small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label d-block"> Label Color </label>
-
-
-                                    <Select v-model="form.label_color" :options="labelColors" optionLabel="name"
-                                        optionValue="value" placeholder="Select Label Color" class="w-100"
-                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.label_color }" />
-
-
-                                    <br />
-                                    <small v-if="formErrors.label_color" class="text-danger">
-                                        {{ formErrors.label_color[0] }}
-                                    </small>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label">Category</label>
-                                    <Select v-model="form.category_id" :options="categories" optionLabel="name"
-                                        optionValue="id" placeholder="Select Category" class="w-100" appendTo="self"
-                                        :autoZIndex="true" :baseZIndex="2000" @update:modelValue="
-                                            form.subcategory = ''
-                                            " :class="{
-                                                'is-invalid':
-                                                    formErrors.category_id,
-                                            }" />
-                                    <small v-if="formErrors.category_id" class="text-danger">
-                                        {{ formErrors.category_id[0] }}
-                                    </small>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label d-block">Meals</label>
-                                    <MultiSelect v-model="form.meals" :options="meals" optionLabel="name"
-                                        optionValue="id" filter placeholder="Select Meals" class="w-full md:w-80"
-                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.meals }" />
-                                    <small v-if="formErrors.meals" class="text-danger">
-                                        {{ formErrors.meals[0] }}
-                                    </small>
-                                </div>
-
-                                <!-- Subcategory -->
-                                <div class="col-md-6" v-if="subcatOptions.length">
-                                    <label class="form-label">Subcategory</label>
-                                    <Select v-model="form.subcategory" :options="subcatOptions" optionLabel="name"
-                                        optionValue="value" placeholder="Select Subcategory" class="w-100"
-                                        :appendTo="body" :autoZIndex="true" :baseZIndex="2000" :class="{
-                                            'is-invalid':
-                                                formErrors.subcategory,
-                                        }" />
-                                    <small v-if="formErrors.subcategory" class="text-danger">
-                                        {{ formErrors.subcategory[0] }}
-                                    </small>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label">Description</label>
-                                    <textarea v-model="form.description" rows="4" class="form-control" :class="{
-                                        'is-invalid':
-                                            formErrors.description,
-                                    }" placeholder="Notes about this product"></textarea>
-                                    <small v-if="formErrors.description" class="text-danger">
-                                        {{ formErrors.description[0] }}
-                                    </small>
-                                </div>
-                            </div>
-
-                            <!-- <hr class="my-4" /> -->
-
-                            <div class="row g-4 mt-1">
-                                <!-- Allergies -->
-                                <div class="col-md-6">
-                                    <label class="form-label d-block">Allergies</label>
-                                    <div @click="openAllergyModal" class="form-control py-2 px-3"
-                                        style="cursor:pointer;">
-                                        <span v-if="selectedAllergies.length === 0" class="text-muted">
-                                            Select Allergies
-                                        </span>
-
-                                        <span v-else>
-                                            <span v-for="(item, index) in selectedAllergies" :key="index"
-                                                class="badge  text-dark mx-1 d-inline-flex align-items-center">
-                                                {{ item.name }}
-                                                <span v-if="item.type === 'Contain'" class="ms-1"
-                                                    style="color: #22c55e; font-weight: bold;">
-                                                    (✔️)
-                                                </span>
-                                                <span v-else class="ms-1" style="color: #f97316; font-weight: bold;">
-                                                    (*)
-                                                </span>
-                                            </span>
-                                        </span>
-                                    </div>
-
-                                </div>
-
-
-
-                                <div class="col-md-6">
-                                    <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
-                                    <MultiSelect v-model="form.tags" :options="tags" optionLabel="name" optionValue="id"
-                                        filter placeholder="Select Tags" class="w-full md:w-80" appendTo="self" :class="{
-                                            'is-invalid': formErrors.tags,
-                                        }" />
-                                    <br />
-                                    <small v-if="formErrors.tags" class="text-danger">
-                                        {{ formErrors.tags[0] }}
-                                    </small>
-                                </div>
-
-                                <!-- Variant Group Dropdown -->
-                                <div class="col-md-3">
-                                    <label class="form-label">Select Variant Group</label>
-                                    <Select v-model="form.variant_group_id" :options="variantGroups" optionLabel="name"
-                                        optionValue="id" placeholder="Select Variant Group" class="w-100"
-                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                        @update:modelValue="loadVariants"
-                                        :class="{ 'is-invalid': formErrors.variant_group_id }" />
-                                    <small v-if="formErrors.variant_group_id" class="text-danger">
-                                        {{ formErrors.variant_group_id[0] }}
-                                    </small>
-                                </div>
-
-                                <!-- Variant Price Inputs - Now on the same row -->
-                                <div v-if="variants && variants.length > 0" class="col-md-9">
-
-                                    <div class="row g-2">
-                                        <div v-for="variant in variants" :key="variant.id" class="col-md-3">
-                                            <label class="form-label small">{{ variant.name }}</label>
-                                            <input v-model="form.variant_prices[variant.id]" type="number" step="0.01"
-                                                class="form-control" placeholder="Enter price" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-12">
-                                    <label class="form-label">Addon Group</label>
-                                    <Select v-model="form.addon_group_id" :options="addonGroups" optionLabel="name"
-                                        optionValue="id" placeholder="Select Addon Group" class="w-100" appendTo="self"
-                                        :autoZIndex="true" :baseZIndex="2000" showClear @update:modelValue="loadAddons"
-                                        :class="{ 'is-invalid': formErrors.addon_group_id }" />
-                                    <small v-if="formErrors.addon_group_id" class="text-danger">
-                                        {{ formErrors.addon_group_id[0] }}
-                                    </small>
-                                </div>
-
-
-
-                                <!-- ✅ Show addons from selected group (if any) -->
-                                <div v-if="addons && addons.length > 0" class="col-md-12">
-                                    <label class="form-label">Select Addons</label>
-                                    <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
-                                        optionValue="id" filter placeholder="Select Addons" class="w-full"
-                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.addon_ids }">
-                                        <template #option="slotProps">
-                                            <div class="d-flex justify-content-between align-items-center w-100">
-                                                <span>{{ slotProps.option.name }}</span>
-                                                <span class="badge bg-primary">{{
-                                                    formatCurrencySymbol(slotProps.option.price) }}</span>
-                                            </div>
-                                        </template>
-                                    </MultiSelect>
-                                    <small v-if="formErrors.addon_ids" class="text-danger">
-                                        {{ formErrors.addon_ids[0] }}
-                                    </small>
-                                </div>
-
-                            </div>
-
-                            <!-- Image -->
-                            <div class="row g-3 mt-2 align-items-center">
-                                <div class="col-md-4">
-                                    <div class="logo-card" :class="{
-                                        'is-invalid': formErrors.image,
-                                    }">
-                                        <div class="logo-frame" @click="
-                                            form.imageUrl
-                                                ? openImageModal()
-                                                : (showCropper = true)
-                                            ">
-                                            <img v-if="form.imageUrl" :src="form.imageUrl" alt="Menu Item Image" />
-                                            <div v-else class="placeholder">
-                                                <i class="bi bi-image"></i>
-                                            </div>
-                                        </div>
-
-                                        <small class="text-muted mt-2 d-block">Upload Image</small>
-
-                                        <!-- Image Cropper Modal -->
-                                        <ImageCropperModal :show="showCropper" @close="showCropper = false"
-                                            @cropped="onCropped" />
-
-                                        <!-- Image Preview/Zoom Modal (Optional) -->
-                                        <ImageZoomModal v-if="showImageModal" :show="showImageModal"
-                                            :image="previewImage" @close="showImageModal = false" />
-                                    </div>
-                                </div>
-
-                                <div class="mt-4 col-sm-6 col-md-8">
-                                    <button class="btn btn-primary rounded-pill px-4" :class="{
-                                        'is-invalid':
-                                            formErrors.ingredients,
-                                    }" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
-                                        {{
-                                            isEditMode == true
-                                                ? "Ingredients"
-                                                : "+ Add Ingredients"
-                                        }}
+                            <!-- Tabs Navigation -->
+                            <ul class="nav nav-tabs mb-4" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" :class="{ active: activeTab === 'simple' }"
+                                        @click="activeTab = 'simple'" type="button">
+                                        Simple Menu
                                     </button>
-                                    <small v-if="formErrors.ingredients" class="text-danger d-block mt-1">
-                                        {{ formErrors.ingredients[0] }}
-                                    </small>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" :class="{ active: activeTab === 'variant' }"
+                                        @click="activeTab = 'variant'" type="button">
+                                        Variant Menu
+                                    </button>
+                                </li>
+                            </ul>
 
-                                    <div v-if="i_cart.length > 0" class="mt-3">
-                                        <!-- Nutrition Card -->
-                                        <div class="card border rounded-4 mb-3">
-                                            <div class="p-3 fw-semibold">
-                                                <div class="mb-2">
-                                                    Total Nutrition (Menu)
-                                                </div>
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    <span class="badge bg-primary px-3 py-2 rounded-pill">
-                                                        Calories:
-                                                        {{
-                                                            i_totalNutrition.calories
-                                                        }}
+                            <!-- Tab Content -->
+                            <div class="tab-content">
+                                <!-- ==================== SIMPLE MENU TAB ==================== -->
+                                <div v-show="activeTab === 'simple'">
+                                    <!-- top row -->
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Menu Name</label>
+                                            <input v-model="form.name" type="text" class="form-control" :class="{
+                                                'is-invalid': formErrors.name,
+                                            }" placeholder="e.g., Chicken Breast" />
+                                            <small v-if="formErrors.name" class="text-danger">
+                                                {{ formErrors.name[0] }}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Base Price</label>
+                                            <input v-model="form.price" type="number" min="0" class="form-control"
+                                                :class="{
+                                                    'is-invalid': formErrors.price,
+                                                }" placeholder="e.g., 0.00" />
+                                            <small v-if="formErrors.price" class="text-danger">
+                                                {{ formErrors.price[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Is this Taxable Menu?</label>
+                                            <Select v-model="form.is_taxable" :options="taxableOptions"
+                                                optionLabel="label" optionValue="value" placeholder="Select Option"
+                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.is_taxable }" />
+                                            <small v-if="formErrors.is_taxable" class="text-danger">
+                                                {{ formErrors.is_taxable[0] }}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block"> Label Color </label>
+                                            <Select v-model="form.label_color" :options="labelColors" optionLabel="name"
+                                                optionValue="value" placeholder="Select Label Color" class="w-100"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.label_color }" />
+                                            <br />
+                                            <small v-if="formErrors.label_color" class="text-danger">
+                                                {{ formErrors.label_color[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Category</label>
+                                            <Select v-model="form.category_id" :options="categories" optionLabel="name"
+                                                optionValue="id" placeholder="Select Category" class="w-100"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                @update:modelValue="
+                                                    form.subcategory = ''
+                                                    " :class="{
+                                                        'is-invalid':
+                                                            formErrors.category_id,
+                                                    }" />
+                                            <small v-if="formErrors.category_id" class="text-danger">
+                                                {{ formErrors.category_id[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Meals</label>
+                                            <MultiSelect v-model="form.meals" :options="meals" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Meals"
+                                                class="w-full md:w-80" appendTo="self" :autoZIndex="true"
+                                                :baseZIndex="2000" :class="{ 'is-invalid': formErrors.meals }" />
+                                            <small v-if="formErrors.meals" class="text-danger">
+                                                {{ formErrors.meals[0] }}
+                                            </small>
+                                        </div>
+
+                                        <!-- Subcategory -->
+                                        <div class="col-md-6" v-if="subcatOptions.length">
+                                            <label class="form-label">Subcategory</label>
+                                            <Select v-model="form.subcategory" :options="subcatOptions"
+                                                optionLabel="name" optionValue="value" placeholder="Select Subcategory"
+                                                class="w-100" :appendTo="body" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{
+                                                    'is-invalid':
+                                                        formErrors.subcategory,
+                                                }" />
+                                            <small v-if="formErrors.subcategory" class="text-danger">
+                                                {{ formErrors.subcategory[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label">Description</label>
+                                            <textarea v-model="form.description" rows="4" class="form-control" :class="{
+                                                'is-invalid':
+                                                    formErrors.description,
+                                            }" placeholder="Notes about this product"></textarea>
+                                            <small v-if="formErrors.description" class="text-danger">
+                                                {{ formErrors.description[0] }}
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-4 mt-1">
+                                        <!-- Allergies -->
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Allergies</label>
+                                            <div @click="openAllergyModal" class="form-control py-2 px-3"
+                                                style="cursor:pointer;">
+                                                <span v-if="selectedAllergies.length === 0" class="text-muted">
+                                                    Select Allergies
+                                                </span>
+                                                <span v-else>
+                                                    <span v-for="(item, index) in selectedAllergies" :key="index"
+                                                        class="badge  text-dark mx-1 d-inline-flex align-items-center">
+                                                        {{ item.name }}
+                                                        <span v-if="item.type === 'Contain'" class="ms-1"
+                                                            style="color: #22c55e; font-weight: bold;">
+                                                            (✔️)
+                                                        </span>
+                                                        <span v-else class="ms-1"
+                                                            style="color: #f97316; font-weight: bold;">
+                                                            (*)
+                                                        </span>
                                                     </span>
-                                                    <span class="badge bg-success px-3 py-2 rounded-pill">
-                                                        Protein:
-                                                        {{
-                                                            i_totalNutrition.protein
-                                                        }}
-                                                        g
-                                                    </span>
-                                                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                                        Carbs:
-                                                        {{
-                                                            i_totalNutrition.carbs
-                                                        }}
-                                                        g
-                                                    </span>
-                                                    <span class="badge bg-danger px-3 py-2 rounded-pill">
-                                                        Fat:
-                                                        {{
-                                                            i_totalNutrition.fat
-                                                        }}
-                                                        g
-                                                    </span>
-                                                </div>
+                                                </span>
                                             </div>
                                         </div>
 
-                                        <!-- Ingredients Table -->
-                                        <div class="card border rounded-4">
-                                            <div class="table-responsive">
-                                                <table class="table align-middle mb-0">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Qty</th>
-                                                            <th>Unit Price</th>
-                                                            <th>Cost</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr v-for="(
-ing, idx
-                                                            ) in i_cart" :key="idx">
-                                                            <td>
-                                                                {{ ing.name }}
-                                                            </td>
-                                                            <td>
-                                                                {{ ing.qty }}
-                                                            </td>
-                                                            <td>
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                            <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                                appendTo="self" :class="{
+                                                    'is-invalid': formErrors.tags,
+                                                }" />
+                                            <br />
+                                            <small v-if="formErrors.tags" class="text-danger">
+                                                {{ formErrors.tags[0] }}
+                                            </small>
+                                        </div>
 
-                                                                {{ formatCurrencySymbol(ing.unitPrice) }}
+                                        <div class="col-md-12">
+                                            <label class="form-label">Addon Group</label>
+                                            <Select v-model="form.addon_group_id" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
+                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                showClear @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
+                                            <small v-if="formErrors.addon_group_id" class="text-danger">
+                                                {{ formErrors.addon_group_id[0] }}
+                                            </small>
+                                        </div>
 
-                                                            </td>
-                                                            <td>
-                                                                {{ formatCurrencySymbol(ing.cost) }}
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                        <!-- Show addons from selected group -->
+                                        <div v-if="addons && addons.length > 0" class="col-md-12">
+                                            <label class="form-label">Select Addons</label>
+                                            <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Addons" class="w-full"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.addon_ids }">
+                                                <template #option="slotProps">
+                                                    <div
+                                                        class="d-flex justify-content-between align-items-center w-100">
+                                                        <span>{{ slotProps.option.name }}</span>
+                                                        <span class="badge bg-primary">{{
+                                                            formatCurrencySymbol(slotProps.option.price) }}</span>
+                                                    </div>
+                                                </template>
+                                            </MultiSelect>
+                                            <small v-if="formErrors.addon_ids" class="text-danger">
+                                                {{ formErrors.addon_ids[0] }}
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Image -->
+                                    <div class="row g-3 mt-2 align-items-center">
+                                        <div class="col-md-4">
+                                            <div class="logo-card" :class="{
+                                                'is-invalid': formErrors.image,
+                                            }">
+                                                <div class="logo-frame" @click="
+                                                    form.imageUrl
+                                                        ? openImageModal()
+                                                        : (showCropper = true)
+                                                    ">
+                                                    <img v-if="form.imageUrl" :src="form.imageUrl"
+                                                        alt="Menu Item Image" />
+                                                    <div v-else class="placeholder">
+                                                        <i class="bi bi-image"></i>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted mt-2 d-block">Upload Image</small>
+                                                <ImageCropperModal :show="showCropper" @close="showCropper = false"
+                                                    @cropped="onCropped" />
+                                                <ImageZoomModal v-if="showImageModal" :show="showImageModal"
+                                                    :image="previewImage" @close="showImageModal = false" />
                                             </div>
-                                            <div class="p-3 fw-semibold text-end">
-                                                Total Cost: {{ formatCurrencySymbol(i_total) }}
+                                        </div>
+
+                                        <div class="mt-4 col-sm-6 col-md-8">
+                                            <button class="btn btn-primary rounded-pill px-4" :class="{
+                                                'is-invalid':
+                                                    formErrors.ingredients,
+                                            }" @click="openIngredientModal(false)">
+                                                {{ isEditMode == true ? "Ingredients" : "+ Add Ingredients" }}
+                                            </button>
+                                            <small v-if="formErrors.ingredients" class="text-danger d-block mt-1">
+                                                {{ formErrors.ingredients[0] }}
+                                            </small>
+
+                                            <div v-if="i_cart.length > 0" class="mt-3">
+                                                <!-- Nutrition Card -->
+                                                <div class="card border rounded-4 mb-3">
+                                                    <div class="p-3 fw-semibold">
+                                                        <div class="mb-2">
+                                                            Total Nutrition (Menu)
+                                                        </div>
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            <span class="badge bg-primary px-3 py-2 rounded-pill">
+                                                                Calories: {{ i_totalNutrition.calories }}
+                                                            </span>
+                                                            <span class="badge bg-success px-3 py-2 rounded-pill">
+                                                                Protein: {{ i_totalNutrition.protein }} g
+                                                            </span>
+                                                            <span
+                                                                class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                                                                Carbs: {{ i_totalNutrition.carbs }} g
+                                                            </span>
+                                                            <span class="badge bg-danger px-3 py-2 rounded-pill">
+                                                                Fat: {{ i_totalNutrition.fat }} g
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Ingredients Table -->
+                                                <div class="card border rounded-4">
+                                                    <div class="table-responsive">
+                                                        <table class="table align-middle mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Name</th>
+                                                                    <th>Qty</th>
+                                                                    <th>Unit Price</th>
+                                                                    <th>Cost</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr v-for="(ing, idx) in i_cart" :key="idx">
+                                                                    <td>{{ ing.name }}</td>
+                                                                    <td>{{ ing.qty }}</td>
+                                                                    <td>{{ formatCurrencySymbol(ing.unitPrice) }}</td>
+                                                                    <td>{{ formatCurrencySymbol(ing.cost) }}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <div class="p-3 fw-semibold text-end">
+                                                        Total Cost: {{ formatCurrencySymbol(i_total) }}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                                <!-- END SIMPLE MENU TAB -->
+
+                                <!-- ======================================================== -->
+                                <!--                       VARIANT MENU TAB                                           -->
+                                <!-- ======================================================== -->
+                                <div v-show="activeTab === 'variant'">
+                                    <!-- Same form fields as Simple Menu -->
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Menu Name</label>
+                                            <input v-model="form.name" type="text" class="form-control" :class="{
+                                                'is-invalid': formErrors.name,
+                                            }" placeholder="e.g., Chicken Breast" />
+                                            <small v-if="formErrors.name" class="text-danger">
+                                                {{ formErrors.name[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Is this Taxable Menu?</label>
+                                            <Select v-model="form.is_taxable" :options="taxableOptions"
+                                                optionLabel="label" optionValue="value" placeholder="Select Option"
+                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.is_taxable }" />
+                                            <small v-if="formErrors.is_taxable" class="text-danger">
+                                                {{ formErrors.is_taxable[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Label Color</label>
+                                            <Select v-model="form.label_color" :options="labelColors" optionLabel="name"
+                                                optionValue="value" placeholder="Select Label Color" class="w-100"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.label_color }" />
+                                            <small v-if="formErrors.label_color" class="text-danger">
+                                                {{ formErrors.label_color[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Category</label>
+                                            <Select v-model="form.category_id" :options="categories" optionLabel="name"
+                                                optionValue="id" placeholder="Select Category" class="w-100"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000" :class="{
+                                                    'is-invalid': formErrors.category_id,
+                                                }" />
+                                            <small v-if="formErrors.category_id" class="text-danger">
+                                                {{ formErrors.category_id[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Meals</label>
+                                            <MultiSelect v-model="form.meals" :options="meals" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Meals"
+                                                class="w-full md:w-80" appendTo="self" :autoZIndex="true"
+                                                :baseZIndex="2000" :class="{ 'is-invalid': formErrors.meals }" />
+                                            <small v-if="formErrors.meals" class="text-danger">
+                                                {{ formErrors.meals[0] }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label">Description</label>
+                                            <textarea v-model="form.description" rows="4" class="form-control"
+                                                placeholder="Notes about this product"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <!-- Second Row: Allergies, Tags, Addons -->
+                                    <div class="row g-4 mt-1">
+                                        <!-- Allergies -->
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Allergies</label>
+                                            <div @click="openAllergyModal" class="form-control py-2 px-3"
+                                                style="cursor:pointer;">
+                                                <span v-if="selectedAllergies.length === 0" class="text-muted">
+                                                    Select Allergies
+                                                </span>
+                                                <span v-else>
+                                                    <span v-for="(item, index) in selectedAllergies" :key="index"
+                                                        class="badge text-dark mx-1 d-inline-flex align-items-center">
+                                                        {{ item.name }}
+                                                        <span v-if="item.type === 'Contain'" class="ms-1"
+                                                            style="color: #22c55e; font-weight: bold;">
+                                                            (✔️)
+                                                        </span>
+                                                        <span v-else class="ms-1"
+                                                            style="color: #f97316; font-weight: bold;">
+                                                            (*)
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label d-block">Tags (Halal, Haram, etc.)</label>
+                                            <MultiSelect v-model="form.tags" :options="tags" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Tags" class="w-full md:w-80"
+                                                appendTo="self" :class="{
+                                                    'is-invalid': formErrors.tags,
+                                                }" />
+                                            <small v-if="formErrors.tags" class="text-danger">
+                                                {{ formErrors.tags[0] }}
+                                            </small>
+                                        </div>
+
+                                        <!-- Addon Group -->
+                                        <div class="col-md-12">
+                                            <label class="form-label">Addon Group</label>
+                                            <Select v-model="form.addon_group_id" :options="addonGroups"
+                                                optionLabel="name" optionValue="id" placeholder="Select Addon Group"
+                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                showClear @update:modelValue="loadAddons"
+                                                :class="{ 'is-invalid': formErrors.addon_group_id }" />
+                                            <small v-if="formErrors.addon_group_id" class="text-danger">
+                                                {{ formErrors.addon_group_id[0] }}
+                                            </small>
+                                        </div>
+
+                                        <!-- Show addons from selected group -->
+                                        <div v-if="addons && addons.length > 0" class="col-md-12">
+                                            <label class="form-label">Select Addons</label>
+                                            <MultiSelect v-model="form.addon_ids" :options="addons" optionLabel="name"
+                                                optionValue="id" filter placeholder="Select Addons" class="w-full"
+                                                appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.addon_ids }">
+                                                <template #option="slotProps">
+                                                    <div
+                                                        class="d-flex justify-content-between align-items-center w-100">
+                                                        <span>{{ slotProps.option.name }}</span>
+                                                        <span class="badge bg-primary">{{
+                                                            formatCurrencySymbol(slotProps.option.price) }}</span>
+                                                    </div>
+                                                </template>
+                                            </MultiSelect>
+                                            <small v-if="formErrors.addon_ids" class="text-danger">
+                                                {{ formErrors.addon_ids[0] }}
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Variant-specific Ingredients Section -->
+                                    <div class="mt-4">
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-12">
+                                                <button @click="openIngredientModal(true)"
+                                                    class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
+                                                    <Plus class="w-4 h-4 me-1" /> Add Variant Ingredients
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Display Variant Ingredients Cards -->
+                                        <div v-if="Object.keys(variantIngredients).length > 0">
+                                            <h6 class="fw-semibold mb-3">
+                                                <i class="bi bi-card-list me-2"></i>Saved Variant Ingredients
+                                            </h6>
+
+                                            <div class="row g-3">
+                                                <div v-for="(ingredients, variantId) in variantIngredients"
+                                                    :key="variantId" class="col-lg-6 col-md-12">
+                                                    <div class="card border rounded-4 shadow-sm h-100">
+                                                        <div class="card-header custom-card-header bg-light">
+                                                            <div
+                                                                class="d-flex justify-content-between align-items-center">
+                                                                <div class="d-flex gap-4">
+                                                                    <h6 class="mb-0 fw-semibold">
+                                                                        <i class="bi bi-tag me-2"></i>
+                                                                        {{ getVariantName(variantId) }}
+                                                                    </h6>
+                                                                    <small class="text-muted">
+                                                                        Price: {{
+                                                                            formatCurrencySymbol(getVariantPrice(variantId))
+                                                                        }}
+                                                                    </small>
+                                                                </div>
+                                                                <div class="d-flex gap-2">
+                                                                    <button @click="editVariantIngredients(variantId)"
+                                                                        class="btn btn-sm btn-outline-primary"
+                                                                        style="height: 32px !important;"
+                                                                        title="Edit ingredients">
+                                                                        <Pencil class="w-4 h-4" />
+                                                                    </button>
+                                                                    <button @click="deleteVariantIngredients(variantId)"
+                                                                        class="btn btn-sm btn-outline-danger"
+                                                                        style="height: 32px !important;"
+                                                                        title="Delete variant">
+                                                                        <XCircle class="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-body custom-card-body">
+                                                            <!-- Nutrition Summary -->
+                                                            <div class="mb-3">
+                                                                <div class="d-flex flex-wrap gap-2">
+                                                                    <span
+                                                                        class="badge bg-primary px-1 py-1 rounded-pill small">
+                                                                        Calories: {{
+                                                                            ingredients.reduce(
+                                                                                (sum, ing) =>
+                                                                                    sum + (Number(ing.nutrition?.calories || 0) *
+                                                                                        Number(ing.qty || 0)),
+                                                                                0
+                                                                            ).toFixed(2)
+                                                                        }}
+                                                                    </span>
+                                                                    <span
+                                                                        class="badge bg-success px-1 py-1 rounded-pill small">
+                                                                        Protein: {{
+                                                                            ingredients.reduce(
+                                                                                (sum, ing) =>
+                                                                                    sum + (Number(ing.nutrition?.protein || 0) *
+                                                                                        Number(ing.qty || 0)),
+                                                                                0
+                                                                            ).toFixed(2)
+                                                                        }} g
+                                                                    </span>
+                                                                    <span
+                                                                        class="badge bg-warning text-dark px-1 py-1 rounded-pill small">
+                                                                        Carbs: {{
+                                                                            ingredients.reduce(
+                                                                                (sum, ing) =>
+                                                                                    sum + (Number(ing.nutrition?.carbs || 0) *
+                                                                                        Number(ing.qty || 0)),
+                                                                                0
+                                                                            ).toFixed(2)
+                                                                        }} g
+                                                                    </span>
+                                                                    <span
+                                                                        class="badge bg-danger px-1 py-1 rounded-pill small">
+                                                                        Fat: {{
+                                                                            ingredients.reduce(
+                                                                                (sum, ing) =>
+                                                                                    sum + (Number(ing.nutrition?.fat || 0) *
+                                                                                        Number(ing.qty || 0)),
+                                                                                0
+                                                                            ).toFixed(2)
+                                                                        }} g
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- Ingredients Table -->
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm align-middle mb-0">
+                                                                    <thead class="table-light">
+                                                                        <tr>
+                                                                            <th class="small">Name</th>
+                                                                            <th class="small">Qty</th>
+                                                                            <th class="small">Price</th>
+                                                                            <th class="small">Cost</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr v-for="(ing, idx) in ingredients"
+                                                                            :key="idx">
+                                                                            <td class="small">{{ ing.name }}</td>
+                                                                            <td class="small">{{ ing.qty }}</td>
+                                                                            <td class="small">{{
+                                                                                formatCurrencySymbol(ing.unitPrice) }}
+                                                                            </td>
+                                                                            <td class="small">{{
+                                                                                formatCurrencySymbol(ing.cost) }}</td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-footer bg-light custom-card-cost">
+                                                            <div class="fw-semibold text-end">
+                                                                Total Cost: {{
+                                                                    formatCurrencySymbol(
+                                                                        ingredients.reduce((sum, ing) => sum + Number(ing.cost
+                                                                            || 0), 0)
+                                                                    )
+                                                                }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Image Upload for Variant Menu -->
+                                    <div class="row g-3 mt-3 align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Menu Image</label>
+                                            <div class="logo-card" :class="{ 'is-invalid': formErrors.image }">
+                                                <div class="logo-frame"
+                                                    @click="form.imageUrl ? openImageModal() : (showCropper = true)">
+                                                    <img v-if="form.imageUrl" :src="form.imageUrl"
+                                                        alt="Menu Item Image" />
+                                                    <div v-else class="placeholder">
+                                                        <i class="bi bi-image"></i>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted mt-2 d-block">Upload Image</small>
+                                                <ImageCropperModal :show="showCropper" @close="showCropper = false"
+                                                    @cropped="onCropped" />
+                                                <ImageZoomModal v-if="showImageModal" :show="showImageModal"
+                                                    :image="previewImage" @close="showImageModal = false" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- END VARIANT MENU TAB -->
                             </div>
+                            <!-- End Tab Content -->
 
                             <div class="mt-4">
                                 <button class="btn btn-primary rounded-pill btn-sm px-5 py-2" :disabled="submitting"
-                                    @click="
-                                        form.id ? submitEdit() : submitProduct()
-                                        ">
+                                    @click="form.id ? submitEdit() : submitProduct()">
                                     <template v-if="submitting">
                                         <span class="spinner-border spinner-border-sm me-2"></span>
-                                        {{
-                                            form.id
-                                                ? "Saving..."
-                                                : "saving..."
-                                        }}
+                                        {{ form.id ? "Saving..." : "saving..." }}
                                     </template>
                                     <template v-else>
-                                        {{
-                                            form.id
-                                                ? "Save"
-                                                : "Save"
-                                        }}
+                                        {{ form.id ? "Save" : "Save" }}
                                     </template>
                                 </button>
 
@@ -2199,7 +2650,7 @@ ing, idx
             </div>
             <!-- /modal -->
 
-
+            <!-- Allergy Modal -->
             <div class="modal fade" id="allergyModal" tabindex="-1" :class="{ show: showAllergyModal }"
                 :style="{ display: showAllergyModal ? 'block' : 'none' }" v-if="showAllergyModal" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -2217,12 +2668,8 @@ ing, idx
                             </button>
                         </div>
 
-                        <!-- Modal Body -->
-                        <div class="modal-body p-4" style="
-                    border: 2px solid #dee2e6;
-                    border-radius: 10px;
-                    background-color: #f8f9fa;
-                ">
+                        <div class="modal-body p-4"
+                            style="border: 2px solid #dee2e6; border-radius: 10px; background-color: #f8f9fa;">
                             <table class="table table-bordered text-center align-middle mb-0"
                                 style="border: 1px solid #dee2e6;">
                                 <thead class="table-light">
@@ -2250,7 +2697,6 @@ ing, idx
                             </table>
                         </div>
 
-                        <!-- Modal Footer -->
                         <div class="modal-footer bg-light border-top">
                             <button class="btn btn-secondary px-2 py-2" @click="cancelAllergySelection">
                                 Cancel
@@ -2263,10 +2709,8 @@ ing, idx
                 </div>
             </div>
 
-
             <!-- Add backdrop -->
             <div v-if="showAllergyModal" class="modal-backdrop fade show"></div>
-
 
             <!-- Add Ingredient Modal -->
             <div class="modal fade" id="addIngredientModal" tabindex="-1" aria-hidden="true">
@@ -2274,11 +2718,11 @@ ing, idx
                     <div class="modal-content rounded-4">
                         <div class="modal-header">
                             <h5 class="modal-title fw-semibold">
-                                {{
-                                    isEditMode == true
-                                        ? "Edit Ingredients"
-                                        : "Add Ingredients"
-                                }}
+                                {{ isEditMode == true ? "Edit Ingredients" : "Add Ingredients" }}
+                                <span v-if="isVariantMode && selectedVariantForIngredients"
+                                    class="badge bg-primary ms-2">
+                                    {{ getVariantName(selectedVariantForIngredients) }}
+                                </span>
                             </h5>
 
                             <button
@@ -2293,6 +2737,21 @@ ing, idx
 
                         <div class="modal-body">
                             <div class="row g-4">
+                                <div v-if="isVariantMode" class=" rounded-4 mb-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Variant Name</label>
+                                            <input v-model="variantForm.name" type="text" class="form-control"
+                                                placeholder="Enter custom variant name" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Variant Price</label>
+                                            <input v-model.number="variantForm.price" type="number" min="0" step="0.01"
+                                                class="form-control" placeholder="Enter variant price" />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Left side -->
                                 <div class="col-lg-5">
                                     <div class="search-wrap mb-2">
@@ -2304,57 +2763,24 @@ ing, idx
                                         class="card shadow-sm border-0 rounded-4 mb-3">
                                         <div class="card-body">
                                             <div class="d-flex align-items-start gap-3">
-                                                <img :src="it.image_url
-                                                    ? `${it.image_url}`
-                                                    : '/default.png'
-                                                    " class="rounded" style="
-                                                        width: 56px;
-                                                        height: 56px;
-                                                        object-fit: cover;
-                                                    " />
+                                                <img :src="it.image_url ? `${it.image_url}` : '/default.png'"
+                                                    class="rounded"
+                                                    style="width: 56px; height: 56px; object-fit: cover;" />
                                                 <div class="flex-grow-1">
-                                                    <div class="fw-semibold">
-                                                        {{ it.name }}
-                                                    </div>
-                                                    <div class="text-muted small">
-                                                        Category:
-                                                        {{ it.category.name }}
-                                                    </div>
-                                                    <div class="text-muted small">
-                                                        Unit: {{ it.unit_name }}
-                                                    </div>
+                                                    <div class="fw-semibold">{{ it.name }}</div>
+                                                    <div class="text-muted small">Category: {{ it.category.name }}</div>
+                                                    <div class="text-muted small">Unit: {{ it.unit_name }}</div>
                                                     <div class="small mt-2 text-muted">
-                                                        Calories:
-                                                        {{
-                                                            it.nutrition
-                                                                ?.calories || 0
-                                                        }}, Protein:
-                                                        {{
-                                                            it.nutrition
-                                                                ?.protein || 0
-                                                        }}, Carbs:
-                                                        {{
-                                                            it.nutrition
-                                                                ?.carbs || 0
-                                                        }}
-                                                        , Fat:
-                                                        {{
-                                                            it.nutrition?.fat ||
-                                                            0
-                                                        }}
+                                                        Calories: {{ it.nutrition?.calories || 0 }},
+                                                        Protein: {{ it.nutrition?.protein || 0 }},
+                                                        Carbs: {{ it.nutrition?.carbs || 0 }},
+                                                        Fat: {{ it.nutrition?.fat || 0 }}
                                                     </div>
                                                 </div>
 
                                                 <button class="btn btn-primary btn-sm py-2 px-4 rounded-pill"
                                                     @click="addIngredient(it)">
-                                                    {{
-                                                        i_cart.some(
-                                                            (c) =>
-                                                                c.id === it.id
-                                                        )
-                                                            ? "Update"
-                                                            : "Add"
-                                                    }}
+                                                    {{i_cart.some((c) => c.id === it.id) ? "Update" : "Add"}}
                                                 </button>
                                             </div>
 
@@ -2369,8 +2795,8 @@ ing, idx
                                                 </div>
                                                 <div class="col-4">
                                                     <label class="small text-muted">Unit Price</label>
-                                                    <input v-model.number="it.unitPrice
-                                                        " type="number" min="0" class="form-control form-control-sm" />
+                                                    <input v-model.number="it.unitPrice" type="number" min="0"
+                                                        class="form-control form-control-sm" />
                                                     <small v-if="formErrors[it.id]?.unitPrice" class="text-danger">
                                                         {{ formErrors[it.id].unitPrice }}
                                                     </small>
@@ -2384,23 +2810,11 @@ ing, idx
                                 <div class="col-lg-7">
                                     <div class="card border rounded-4 mb-3">
                                         <div class="p-3 fw-semibold">
-                                            <div>Total Nutrition (Menu)</div>
-                                            <div>
-                                                Calories:
-                                                {{ i_totalNutrition.calories }}
-                                            </div>
-                                            <div>
-                                                Protein:
-                                                {{ i_totalNutrition.protein }} g
-                                            </div>
-                                            <div>
-                                                Carbs:
-                                                {{ i_totalNutrition.carbs }} g
-                                            </div>
-                                            <div>
-                                                Fat:
-                                                {{ i_totalNutrition.fat }} g
-                                            </div>
+                                            <div>Total Nutrition ({{ isVariantMode ? 'Variant' : 'Menu' }})</div>
+                                            <div>Calories: {{ i_totalNutrition.calories }}</div>
+                                            <div>Protein: {{ i_totalNutrition.protein }} g</div>
+                                            <div>Carbs: {{ i_totalNutrition.carbs }} g</div>
+                                            <div>Fat: {{ i_totalNutrition.fat }} g</div>
                                         </div>
                                     </div>
 
@@ -2413,37 +2827,25 @@ ing, idx
                                                         <th>Qty</th>
                                                         <th>Unit Price</th>
                                                         <th>Cost</th>
-                                                        <th class="text-end">
-                                                            Action
-                                                        </th>
+                                                        <th class="text-end">Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr v-for="(
-ing, idx
-                                                        ) in i_cart" :key="idx">
+                                                    <tr v-for="(ing, idx) in i_cart" :key="idx">
                                                         <td>{{ ing.name }}</td>
                                                         <td>{{ ing.qty }}</td>
-                                                        <td>
-                                                            {{ ing.unitPrice }}
-                                                        </td>
+                                                        <td>{{ ing.unitPrice }}</td>
                                                         <td>{{ ing.cost }}</td>
                                                         <td class="text-end">
-                                                            <button class="btn btn-sm btn-danger" @click="
-                                                                removeIngredient(
-                                                                    idx
-                                                                )
-                                                                ">
+                                                            <button class="btn btn-sm btn-danger"
+                                                                @click="removeIngredient(idx)">
                                                                 Remove
                                                             </button>
                                                         </td>
                                                     </tr>
-                                                    <tr v-if="
-                                                        i_cart.length === 0
-                                                    ">
+                                                    <tr v-if="i_cart.length === 0">
                                                         <td colspan="6" class="text-center text-muted py-3">
-                                                            No ingredients
-                                                            added.
+                                                            No ingredients added.
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -2473,6 +2875,18 @@ ing, idx
 <style scoped>
 .dark h4 {
     color: white;
+}
+
+.custom-card-header {
+    padding: 5px 20px !important;
+}
+
+.custom-card-body {
+    padding: 7px 8px !important;
+}
+
+.custom-card-cost {
+    padding: 8px 10px !important;
 }
 
 .dark .card {
@@ -2599,7 +3013,7 @@ ing, idx
 }
 
 .badge {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     padding: 0.4em 0.6em;
 }
 

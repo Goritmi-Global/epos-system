@@ -54,66 +54,93 @@ class MenuController extends Controller
 
     public function store(StoreMenuRequest $request)
     {
-        $menu = $this->service->create($request->validated(), $request);
-        // ✅ Handle variant prices
-        if ($request->has('variant_prices') && is_array($request->variant_prices)) {
-            foreach ($request->variant_prices as $variantId => $price) {
-                if ($price !== null && $price !== '') {
-                    \App\Models\MenuItemVariantPrice::create([
-                        'menu_item_id' => $menu->id,
-                        'variant_id' => $variantId,
-                        'price' => $price,
-                    ]);
-                }
-            }
-        }
+        try {
+            $menu = $this->service->create($request->validated(), $request);
 
-        return response()->json([
-            'message' => 'Menu created successfully',
-            'data' => $menu,
-        ], 201);
+            return response()->json([
+                'message' => 'Menu created successfully',
+                'data' => $menu,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create menu',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    public function update(UpdateMenuRequest $request, MenuItem $menu)
+      public function update(UpdateMenuRequest $request, MenuItem $menu)
     {
-        $data = $request->all();
-        $menu = $this->service->update($menu, $data);
+        try {
+            $updatedMenu = $this->service->update($menu, $request->validated(), $request);
 
-        return response()->json([
-            'message' => 'Menu updated successfully',
-            'data' => $menu,
-        ]);
+            return response()->json([
+                'message' => 'Menu updated successfully',
+                'data' => $updatedMenu,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update menu',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function apiIndex()
     {
-        $menus = MenuItem::with(['category', 'ingredients', 'allergies', 'tags', 'nutrition', 'addonGroupRelations.addonGroup'])
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'price' => $item->price,
-                    'description' => $item->description,
-                    'is_taxable' => $item->is_taxable,
-                    'label_color' => $item->label_color,
-                    'status' => $item->status,
-                    'category' => $item->category,
-                    'meals' => $item->meals,
-                    'ingredients' => $item->ingredients,
-                    'nutrition' => $item->nutrition,
-                    'allergies' => $item->allergies,
-                    'tags' => $item->tags,
-                    'image_url' => UploadHelper::url($item->upload_id),
-                    'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
-                ];
-            });
+        $menus = MenuItem::with([
+            'category',
+            'ingredients',
+            'variants.ingredients', // ✅ Include variant ingredients
+            'allergies',
+            'tags',
+            'nutrition',
+            'addonGroupRelations.addonGroup'
+        ])
+        ->get()
+        ->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'price' => $item->price,
+                'description' => $item->description,
+                'is_taxable' => $item->is_taxable,
+                'label_color' => $item->label_color,
+                'status' => $item->status,
+                'category' => $item->category,
+                'meals' => $item->meals,
+                'ingredients' => $item->ingredients,
+                'nutrition' => $item->nutrition,
+                'allergies' => $item->allergies,
+                'tags' => $item->tags,
+                'image_url' => UploadHelper::url($item->upload_id),
+                'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
+
+                // ✅ Include variant info with ingredients and prices
+                'variants' => $item->variants->map(function ($variant) {
+                    return [
+                        'id' => $variant->id,
+                        'name' => $variant->name,
+                        'price' => $variant->price,
+                        'ingredients' => $variant->ingredients->map(function ($ing) {
+                            return [
+                                'inventory_item_id' => $ing->inventory_item_id,
+                                'product_name' => $ing->product_name,
+                                'quantity' => $ing->quantity,
+                                'cost' => $ing->cost,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+        });
 
         return response()->json([
             'message' => 'Menu items fetched successfully',
             'data' => $menus,
         ]);
     }
+
 
     public function toggleStatus(Request $request, $id)
     {

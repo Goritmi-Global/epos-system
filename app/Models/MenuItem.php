@@ -34,6 +34,11 @@ class MenuItem extends Model
         return $this->hasMany(MenuIngredient::class);
     }
 
+    public function variantIngredients()
+    {
+        return $this->hasMany(MenuVariantIngredient::class);
+    }
+
     // Nutrition
     public function nutrition()
     {
@@ -89,5 +94,48 @@ class MenuItem extends Model
     {
         return $this->hasMany(MenuItemAddonGroup::class, 'menu_item_id');
     }
+
+    /**
+     * Check if this is a variant menu
+     */
+    public function isVariantMenu(): bool
+    {
+        return $this->variantPrices()->exists() || $this->variantIngredients()->exists();
+    }
+
+    /**
+     * Get variant ingredients grouped by variant_id
+     */
+    public function getVariantIngredientsGroupedAttribute()
+    {
+        $grouped = [];
+        
+        foreach ($this->variantIngredients as $ingredient) {
+            $variantId = $ingredient->variant_id;
+            
+            if (!isset($grouped[$variantId])) {
+                $grouped[$variantId] = [];
+            }
+            
+            $grouped[$variantId][] = [
+                'id' => $ingredient->inventory_item_id,
+                'inventory_item_id' => $ingredient->inventory_item_id,
+                'product_name' => $ingredient->product_name,
+                'name' => $ingredient->product_name,
+                'quantity' => $ingredient->quantity,
+                'qty' => $ingredient->quantity,
+                'cost' => $ingredient->cost,
+                'nutrition' => $ingredient->inventoryItem?->nutrition ?? null,
+            ];
+        }
+        
+        return $grouped;
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(MenuVariant::class, 'menu_item_id');
+    }
+
 
 }
