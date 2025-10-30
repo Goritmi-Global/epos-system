@@ -34,6 +34,12 @@ const showLogoutModal = ref(false);
 const showRestoreModal = ref(false);
 const isFullscreen = ref(false);
 
+
+const isCashier = computed(() => {
+    const roles = logedIUser.value.roles || [];
+    return roles.includes('Cashier');
+});
+
 const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
@@ -42,6 +48,49 @@ const toggleFullscreen = () => {
         if (document.exitFullscreen) {
             document.exitFullscreen();
             isFullscreen.value = false;
+        }
+    }
+};
+
+const handleFullscreenChange = () => {
+    isFullscreen.value = !!document.fullscreenElement;
+
+    // If Cashier exits fullscreen (via ESC or other means), force them back in
+    if (isCashier.value && !document.fullscreenElement) {
+        // Small delay to prevent infinite loop
+        setTimeout(() => {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.warn('Could not re-enter fullscreen:', err);
+            });
+        }, 100);
+    }
+};
+
+const handleKeyDown = (event) => {
+    // Check if ESC key is pressed AND user is Cashier AND in fullscreen
+    if (event.key === 'Escape' && isCashier.value && document.fullscreenElement) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    }
+};
+
+const initializeFullscreen = async () => {
+    if (isCashier.value) {
+        try {
+            // Wait a bit for the page to fully load
+            await nextTick();
+
+            // Small delay to ensure smooth transition
+            setTimeout(async () => {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                    isFullscreen.value = true;
+                }
+            }, 500);
+        } catch (error) {
+            console.error('Failed to enter fullscreen:', error);
+            toast.warning('Please allow fullscreen mode for better experience');
         }
     }
 };
@@ -348,13 +397,24 @@ const evaluateMobile = () => {
 };
 
 onMounted(() => {
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    // Initialize fullscreen for Cashier
+    initializeFullscreen();
     evaluateBreakpoint();
     window.addEventListener("resize", evaluateBreakpoint, { passive: true });
     // feather icons setup and open active groups (same as before)
     window.feather?.replace();
     openActiveGroups();
 });
-onBeforeUnmount(() => window.removeEventListener("resize", evaluateBreakpoint));
+onBeforeUnmount(() => {
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('keydown', handleKeyDown, true);
+    window.removeEventListener('resize', evaluateBreakpoint);
+});
 onUpdated(() => window.feather?.replace());
 
 // const toggleSidebar = () => {
@@ -497,9 +557,10 @@ onMounted(fetchNotifications);
             </div>
 
             <ul class="nav user-menu">
-                <a class="btn btn-primary rounded-pill py-2 px-3" href="/pos/order">
+                <button class="btn btn-primary rounded-pill py-2 px-3" @click="router.visit('/pos/order')">
                     Quick Order
-                </a>
+                </button>
+
                 <button class="btn btn-danger rounded-pill py-2 px-3 d-flex align-items-center"
                     @click="showLogoutModal = true">
                     Logout
@@ -513,7 +574,7 @@ onMounted(fetchNotifications);
                 </button>
 
 
-                <li class="nav-item">
+                <li class="nav-item" v-if="!isCashier">
                     <button class="icon-btn" @click="toggleFullscreen" title="Toggle Fullscreen">
                         <i :data-feather="isFullscreen ? 'minimize' : 'maximize'"></i>
                     </button>
@@ -677,10 +738,13 @@ onMounted(fetchNotifications);
                             <!-- Simple top item -->
                             <li v-if="!block.section && hasPermission(block.route)"
                                 :class="{ active: isActive(block.route) }">
-                                <Link :href="route(block.route)" class="d-flex align-items-center side-link px-3 py-2">
-                                <i :data-feather="block.icon" class="me-2 icons"></i>
-                                <span class="truncate-when-mini">{{ block.label }}</span>
-                                </Link>
+                                <button
+                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                    @click="router.visit(route(block.route))">
+                                    <i :data-feather="block.icon" class="me-2 icons"></i>
+                                    <span class="truncate-when-mini">{{ block.label }}</span>
+                                </button>
+
                             </li>
 
                             <!-- Section -->
@@ -710,11 +774,13 @@ onMounted(fetchNotifications);
                                             <li v-for="child in item.children" :key="child.label"
                                                 v-if="hasPermission(child?.route)"
                                                 :class="{ active: isActive(child.route) }">
-                                                <Link :href="route(child.route)" :method="child.method || 'get'"
-                                                    class="d-flex align-items-center side-link px-3 py-2">
-                                                <i :data-feather="child.icon" class="me-2"></i>
-                                                <span>{{ child.label }}</span>
-                                                </Link>
+                                                <button
+                                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                                    @click="router.visit(route(child.route))">
+                                                    <i :data-feather="child.icon" class="me-2"></i>
+                                                    <span>{{ child.label }}</span>
+                                                </button>
+
                                             </li>
                                         </ul>
                                     </li>
@@ -723,11 +789,12 @@ onMounted(fetchNotifications);
                                     <li v-else-if="item.route && hasPermission(item.route)"
                                         :class="{ active: item.route ? isActive(item.route) : false }"
                                         class="side-link">
-                                        <Link :href="route(item.route)" :method="item.method || 'get'"
-                                            class="d-flex align-items-center side-link px-3 py-2" :title="item.label">
-                                        <i :data-feather="item.icon" class="me-2"></i>
-                                        <span class="truncate-when-mini">{{ item.label }}</span>
-                                        </Link>
+                                        <button
+                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                            @click="router.visit(route(item.route))" :title="item.label">
+                                            <i :data-feather="item.icon" class="me-2"></i>
+                                            <span class="truncate-when-mini">{{ item.label }}</span>
+                                        </button>
                                     </li>
 
                                     <!-- Action item (like System Restore) -->
