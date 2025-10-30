@@ -1134,12 +1134,15 @@ const onDownload = (type) => {
     }
 
     try {
+
         if (type === "pdf") {
             downloadPDF(dataToExport);
         } else if (type === "excel") {
             downloadExcel(dataToExport);
         } else if (type === "csv") {
             downloadCSV(dataToExport);
+        } else if (type === "allergens") {
+            downloadAllergen(dataToExport);
         } else {
             toast.error("Invalid download type");
         }
@@ -1392,7 +1395,311 @@ const downloadPDF = (data) => {
     }
 };
 
+
 // Helper function for safe JSON parsing
+const downloadAllergen = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4"); // Landscape orientation
+
+        // 🌟 Title
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text("allergen", 14, 15);
+        doc.setFontSize(16);
+        doc.text("information", 14, 22);
+
+        // 🔷 Logo - 10XGLOBAL in blue (same row as "information", with space)
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 102, 204); // Blue color
+        doc.text("10XGLOBAL", 65, 22); // Positioned after "information" with spacing
+        doc.setTextColor(0, 0, 0); // Reset to black
+
+        // 🗓️ Metadata (top right) - Fixed alignment
+        const pageWidth = doc.internal.pageSize.width;
+
+        // Legend box - with background
+        const legendX = pageWidth - 125;
+        const legendY = 8;
+
+        doc.setFillColor(240, 240, 240);
+        doc.rect(legendX - 2, legendY, 45, 18, 'F');
+
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.text("SYMBOL", legendX, legendY + 4);
+        doc.text("MEANING", legendX + 12, legendY + 4);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        const checkX = legendX + 1;
+        const checkY = legendY + 7;
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(0, 0, 0);
+        doc.line(checkX, checkY, checkX + 1, checkY + 1.5);
+        doc.line(checkX + 1, checkY + 1.5, checkX + 3, checkY - 1);
+
+        doc.text("contains allergen", legendX + 12, legendY + 9);
+
+        doc.setFontSize(9);
+        doc.text("*", legendX + 1, legendY + 14);
+        doc.setFontSize(6);
+        doc.text("may contain traces of allergen", legendX + 12, legendY + 14);
+
+        const infoX = legendX + 48;
+        doc.setFontSize(6);
+        doc.text("• Always speak to a member of staff if you have any allergies", infoX, legendY + 3);
+        doc.text("• Items are prepared in the same kitchen,", infoX, legendY + 7);
+        doc.text("  therefore we cannot guarantee that products are", infoX, legendY + 10);
+        doc.text("  free from allergen and cross-contamination", infoX, legendY + 13);
+
+        // Group data by category
+        const groupedData = {};
+        data.forEach(item => {
+            const category = typeof item.category === "object"
+                ? item.category?.name || "Other"
+                : item.category || "Other";
+
+            if (!groupedData[category]) {
+                groupedData[category] = [];
+            }
+            groupedData[category].push(item);
+        });
+
+        // Get all unique allergens
+        const allergenSet = new Set();
+        data.forEach(item => {
+            if (Array.isArray(item.allergies)) {
+                item.allergies.forEach(a => {
+                    const name = a.name || a;
+                    allergenSet.add(name);
+                });
+            }
+        });
+        const allAllergens = Array.from(allergenSet).sort();
+
+        const marginLeft = 14;
+        const marginRight = 14;
+        const availableWidth = pageWidth - marginLeft - marginRight;
+
+        const categoryColWidth = 30;
+        const itemNameColWidth = 45;
+        const fixedColumnsWidth = categoryColWidth + itemNameColWidth;
+
+        // Calculate remaining width for allergen columns
+        const allergenColumnsWidth = availableWidth - fixedColumnsWidth;
+        const allergenColWidth = allergenColumnsWidth / allAllergens.length;
+
+        // Set minimum and maximum widths for allergen columns
+        const minAllergenColWidth = 6; // Minimum width to keep readable
+        const maxAllergenColWidth = 12; // Maximum width to prevent too wide columns
+        const finalAllergenColWidth = Math.max(minAllergenColWidth, Math.min(allergenColWidth, maxAllergenColWidth));
+
+        // Adjust font size based on column width
+        const allergenFontSize = finalAllergenColWidth < 8 ? 6 : 7;
+        const headerFontSize = finalAllergenColWidth < 8 ? 5 : 6;
+
+        // 📋 Build table structure with CATEGORY COLUMN
+        const tableData = [];
+
+        Object.keys(groupedData).sort().forEach((category, categoryIndex) => {
+            const items = groupedData[category];
+
+            // Add each item with category in first column
+            items.forEach((item, itemIndex) => {
+                const row = [];
+
+                // First item shows category name, others get empty string
+                if (itemIndex === 0) {
+                    row.push({
+                        content: category.toLowerCase(),
+                        rowSpan: items.length,
+                        styles: {
+                            fontStyle: 'bold',
+                            fontSize: 10,
+                            halign: 'left',
+                            valign: 'middle',
+                            fillColor: [255, 255, 255]
+                        }
+                    });
+                }
+
+                // Item name - Now with bold and larger font
+                row.push({
+                    content: item.name || '',
+                    styles: {
+                        fontStyle: 'bold',
+                        fontSize: 9
+                    }
+                });
+
+                // Allergen symbols - Use markers that will be replaced with custom drawings
+                allAllergens.forEach(allergen => {
+                    let symbol = '';
+                    if (Array.isArray(item.allergies)) {
+                        const allergyMatch = item.allergies.find(a => {
+                            const name = a.name || a;
+                            return name === allergen;
+                        });
+
+                        if (allergyMatch) {
+                            const type = allergyMatch.pivot?.type ?? allergyMatch.type ?? null;
+                            if (type !== null && type !== undefined) {
+                                symbol = (String(type) === "1" || type === 1) ? 'TICK' : 'STAR';
+                            } else {
+                                symbol = '';
+                            }
+                        }
+                    }
+                    row.push(symbol);
+                });
+
+                tableData.push(row);
+            });
+        });
+
+        // Create header row: Category | Item Name | Allergens
+        const headerRow = ['', '', ...allAllergens];
+
+        // 📑 Render Table
+        autoTable(doc, {
+            head: [headerRow],
+            body: tableData,
+            startY: 35,
+            styles: {
+                fontSize: allergenFontSize,
+                cellPadding: 1.5,
+                halign: 'center',
+                valign: 'middle',
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            columnStyles: {
+                0: {
+                    halign: 'left',
+                    cellWidth: categoryColWidth,
+                    fontStyle: 'bold',
+                    fontSize: 10
+                },
+                1: {
+                    halign: 'left',
+                    cellWidth: itemNameColWidth,
+                    fontStyle: 'bold', // Made bold
+                    fontSize: 9 // Increased from default
+                },
+                // Dynamically set allergen column widths
+                ...Object.fromEntries(
+                    allAllergens.map((_, index) => [
+                        index + 2, // Column indices start from 2 (after category and item name)
+                        { cellWidth: finalAllergenColWidth }
+                    ])
+                )
+            },
+            headStyles: {
+                fillColor: [255, 255, 255],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+                fontSize: headerFontSize,
+                cellPadding: 1,
+            },
+            alternateRowStyles: {
+                fillColor: [250, 250, 250]
+            },
+            margin: { left: marginLeft, right: marginRight, top: 28 },
+            didParseCell: function (data) {
+                // Rotate allergen headers (starting from column 2)
+                if (data.section === 'head' && data.column.index > 1) {
+                    data.cell.styles.minCellHeight = 45;
+                    // Clear text here to prevent default horizontal rendering
+                    data.cell.text = [];
+                }
+
+                // Hide first two header cells (category and item name columns)
+                if (data.section === 'head' && (data.column.index === 0 || data.column.index === 1)) {
+                    data.cell.text = [];
+                }
+
+                // Clear the text for TICK and STAR markers to prevent text rendering
+                if (data.section === 'body' && (data.cell.raw === 'TICK' || data.cell.raw === 'STAR')) {
+                    data.cell.text = [];
+                }
+            },
+            didDrawCell: function (data) {
+                // Draw custom tick mark
+                if (data.section === 'body' && data.cell.raw === 'TICK') {
+                    const { x, y, width, height } = data.cell;
+                    const centerX = x + width / 2;
+                    const centerY = y + height / 2;
+
+                    // Smaller tick dimensions
+                    const tickX = centerX - 1.5;
+                    const tickY = centerY - 0.5;
+
+                    doc.setDrawColor(0, 0, 0);  // Black color
+                    doc.setLineWidth(0.4);
+
+                    // Draw checkmark (smaller size)
+                    doc.line(tickX, tickY, tickX + 0.8, tickY + 1.2);      // Short line down-right
+                    doc.line(tickX + 0.8, tickY + 1.2, tickX + 2.5, tickY - 1); // Longer line up-right
+                }
+
+                // Draw larger asterisk
+                if (data.section === 'body' && data.cell.raw === 'STAR') {
+                    const { x, y, width, height } = data.cell;
+                    const centerX = x + width / 2;
+                    const centerY = y + height / 2;
+
+                    doc.setFontSize(10); // Larger asterisk
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('*', centerX, centerY + 1, { align: 'center' });
+                }
+
+                // Draw rotated text for allergen headers ONLY ONCE
+                if (data.section === 'head' && data.column.index > 1) {
+                    // Get the original allergen name from headerRow
+                    const allergenName = allAllergens[data.column.index - 2];
+                    if (allergenName) {
+                        const x = data.cell.x + data.cell.width / 2;
+                        const y = data.cell.y + data.cell.height - 3;
+
+                        doc.saveGraphicsState();
+                        doc.setFontSize(allergenFontSize);
+                        doc.setFont("helvetica", "bold");
+                        doc.text(allergenName, x, y, {
+                            angle: 90,
+                            align: 'left'
+                        });
+                        doc.restoreGraphicsState();
+                    }
+                }
+            },
+            didDrawPage: (td) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(7);
+                doc.text(
+                    `Page ${td.pageNumber} of ${pageCount}`,
+                    14,
+                    pageHeight - 8
+                );
+            },
+        });
+
+        // 💾 Save File
+        const fileName = `allergen_information_${new Date()
+            .toISOString()
+            .split("T")[0]}.pdf`;
+        doc.save(fileName);
+        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
 function safeParse(value) {
     try {
         return typeof value === "string" ? JSON.parse(value) : value;
@@ -1695,6 +2002,11 @@ const handleImport = (data) => {
                                     Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('allergens')">Export Allergen</a>
+                                    </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
                                             @click="onDownload('pdf')">Export as PDF</a>
