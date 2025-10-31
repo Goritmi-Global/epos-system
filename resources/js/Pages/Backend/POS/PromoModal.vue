@@ -26,7 +26,8 @@
           <div v-else>
             <div v-if="validPromos.length === 0"
               class="alert alert-light text-center dark:bg-gray-800 dark:text-white border-0">
-              No promotions available today
+              <p class="mb-2">No promotions available for items in your cart</p>
+              <small class="text-muted">Add eligible items to see available promos</small>
             </div>
 
             <div class="promo-grid" v-else>
@@ -39,6 +40,20 @@
 
                 <p class="promo-desc">{{ promo.description }}</p>
 
+                <!-- ✅ Show which cart items this promo applies to -->
+                <div v-if="promo.menu_items && promo.menu_items.length > 0" class="promo-applies-to small mb-2">
+                  <strong>Applies to:</strong>
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <span v-for="item in getMatchingCartItems(promo)" :key="item.id"
+                      class="badge bg-success-subtle text-success" style="font-size: 12px;">
+                      {{ item.title }} (×{{ item.qty }})
+                    </span>
+                  </div>
+                </div>
+                <div v-else class="promo-applies-to small mb-2">
+                  <span class="badge bg-info-subtle text-info">Applies to all items</span>
+                </div>
+
                 <div class="promo-info small">
                   Valid: {{ formatDate(promo.start_date) }} → {{ formatDate(promo.end_date) }}
                 </div>
@@ -49,7 +64,7 @@
                 </div>
 
                 <div class="promo-discount d-flex justify-content-between align-items-center mt-2">
-                  <span class="fw-semibold">Discount Amount:</span>
+                  <span class="fw-semibold">You Save:</span>
                   <span class="fw-bold fs-5 text-danger">{{ formatCurrencySymbol(calculateDiscount(promo)) }}</span>
                 </div>
               </div>
@@ -119,19 +134,47 @@ const formatNumber = (n) => {
   return num.toFixed(2);
 };
 
-// ✅ Get cart subtotal
-const getCartSubtotal = () => {
-  return props.orderItems.reduce((total, item) => {
+// ✅ Get cart item IDs
+const cartItemIds = computed(() => {
+  return props.orderItems.map(item => item.id);
+});
+
+// ✅ Check if promo applies to any cart item
+const promoAppliesToCart = (promo) => {
+  if (!promo.menu_items || promo.menu_items.length === 0) {
+    // If no specific menu items, promo applies to all
+    return true;
+  }
+
+  // Check if any menu item in promo matches cart items
+  const promoMenuIds = promo.menu_items.map(item => item.id);
+  return promoMenuIds.some(id => cartItemIds.value.includes(id));
+};
+
+// ✅ Get matching cart items for a promo
+const getMatchingCartItems = (promo) => {
+  if (!promo.menu_items || promo.menu_items.length === 0) {
+    return props.orderItems;
+  }
+
+  const promoMenuIds = promo.menu_items.map(item => item.id);
+  return props.orderItems.filter(item => promoMenuIds.includes(item.id));
+};
+
+// ✅ Calculate subtotal for specific promo (only matching items)
+const getPromoSubtotal = (promo) => {
+  const matchingItems = getMatchingCartItems(promo);
+  return matchingItems.reduce((total, item) => {
     const unit = parseFloat(item.unit_price ?? item.price ?? 0) || 0;
     const qty = parseFloat(item.qty ?? 0) || 0;
     return total + unit * qty;
   }, 0);
 };
 
-// ✅ Calculate discount for each promo
+// ✅ Calculate discount for each promo (only for matching items)
 const calculateDiscount = (promo) => {
   const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
-  const subtotal = getCartSubtotal();
+  const subtotal = getPromoSubtotal(promo); // Use promo-specific subtotal
 
   if (promo.min_purchase && subtotal < parseFloat(promo.min_purchase)) {
     return formatNumber(0);
@@ -149,9 +192,15 @@ const calculateDiscount = (promo) => {
   return formatNumber(0);
 };
 
-// ✅ Computed: Only show promos with discount > 0
+// ✅ Computed: Only show promos with discount > 0 AND applicable to cart
 const validPromos = computed(() => {
-  return props.promos.filter(promo => parseFloat(calculateDiscount(promo)) > 0);
+  return props.promos.filter(promo => {
+    // Must apply to at least one cart item
+    if (!promoAppliesToCart(promo)) return false;
+
+    // Must have discount > 0
+    return parseFloat(calculateDiscount(promo)) > 0;
+  });
 });
 
 </script>
@@ -204,7 +253,13 @@ const validPromos = computed(() => {
 
 .promo-card.selected .promo-info,
 .promo-card.selected .promo-desc,
-.promo-card.selected .fw-semibold {
+.promo-card.selected .fw-semibold,
+.promo-card.selected .promo-applies-to strong {
+  color: #fff !important;
+}
+
+.promo-card.selected .badge {
+  background: rgba(255, 255, 255, 0.2) !important;
   color: #fff !important;
 }
 
@@ -231,5 +286,33 @@ const validPromos = computed(() => {
 
 .modal .modal-footer .btn {
   padding: 0px !important;
+}
+
+.promo-applies-to {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.dark .promo-applies-to {
+  border-top-color: #333;
+}
+
+.badge.bg-success-subtle {
+  background-color: rgba(25, 135, 84, 0.1) !important;
+  color: #198754 !important;
+  font-weight: 500;
+}
+
+.badge.bg-info-subtle {
+  background-color: rgba(13, 202, 240, 0.1) !important;
+  color: #0dcaf0 !important;
+  font-weight: 500;
+}
+
+.promo-card.selected .badge.bg-success-subtle,
+.promo-card.selected .badge.bg-info-subtle {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #fff !important;
 }
 </style>
