@@ -756,11 +756,47 @@ const subTotal = computed(() =>
     orderItems.value.reduce((s, i) => s + i.price, 0)
 );
 
-const deliveryCharges = computed(() =>
-    orderType.value === "Delivery"
-        ? (subTotal.value * deliveryPercent.value) / 100
-        : 0
-);
+const deliveryCharges = computed(() => {
+    if (orderType.value !== "Delivery") return 0;
+
+    const config = page.props.onboarding.tax_and_vat;
+
+    // Check if delivery charges are enabled
+    if (!config.has_delivery_charges) return 0;
+
+    // Flat rate takes precedence
+    if (config.delivery_charge_flat) {
+        return parseFloat(config.delivery_charge_flat);
+    }
+
+    // Otherwise use percentage
+    if (config.delivery_charge_percentage) {
+        return (subTotal.value * parseFloat(config.delivery_charge_percentage)) / 100;
+    }
+
+    return 0;
+});
+
+
+const serviceCharges = computed(() => {
+    const config = page.props.onboarding.tax_and_vat;
+
+    // Check if service charges are enabled
+    if (!config.has_service_charges) return 0;
+
+    // Flat rate takes precedence
+    if (config.service_charge_flat) {
+        return parseFloat(config.service_charge_flat);
+    }
+
+    // Otherwise use percentage
+    if (config.service_charge_percentage) {
+        return (subTotal.value * parseFloat(config.service_charge_percentage)) / 100;
+    }
+
+    return 0;
+});
+
 // const grandTotal = computed(() => {
 //     const total = subTotal.value + deliveryCharges.value - promoDiscount.value;
 //     return Math.max(0, total);
@@ -1232,6 +1268,10 @@ const confirmOrder = async ({
             sub_total: subTotal.value,
 
             tax: totalTax.value,
+
+            service_charges: serviceCharges.value,
+            delivery_charges: deliveryCharges.value,
+
             // Promo Details
             promo_discount: promoDiscount.value,
             promo_id: selectedPromo.value?.id || null,
@@ -1636,9 +1676,14 @@ const totalTax = computed(() => {
 
 // Update grandTotal to include tax
 const grandTotal = computed(() => {
-    const total = subTotal.value + totalTax.value + deliveryCharges.value - promoDiscount.value;
+    const total = subTotal.value
+        + totalTax.value
+        + deliveryCharges.value
+        + serviceCharges.value
+        - promoDiscount.value;
     return Math.max(0, total);
 });
+
 
 // Helper function to get tax amount for a specific item
 const getItemTax = (item) => {
@@ -2311,11 +2356,17 @@ const canIncCartItem = (cartItem) => {
                                         <b class="text-info">{{ formatCurrencySymbol(totalTax) }}</b>
                                     </div>
 
-                                    <!-- Delivery Charges -->
-                                    <div class="trow" v-if="orderType === 'Delivery'">
-                                        <span>Delivery</span>
-                                        <b>{{ deliveryPercent }}%</b>
+                                    <div v-if="serviceCharges > 0" class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Service Charges:</span>
+                                        <span class="fw-semibold">{{ formatCurrencySymbol(serviceCharges) }}</span>
                                     </div>
+
+                          
+                                    <div v-if="deliveryCharges > 0" class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Delivery Charges:</span>
+                                        <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
+                                    </div>
+
 
                                     <!-- Promo Discount -->
                                     <div class="trow promo-discount" v-if="selectedPromo && promoDiscount > 0">
