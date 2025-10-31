@@ -12,16 +12,28 @@ const form = reactive({
   price_includes_tax: props.model.price_includes_tax ? 1 : 0,
   tax_id: props.model.tax_id ?? null,
   extra_tax_rates: props.model.extra_tax_rates ?? "",
+
+  has_service_charges: props.model.has_service_charges ? 1 : 0,
+  service_charge_flat: props.model.service_charge_flat ?? null,
+  service_charge_percentage: props.model.service_charge_percentage ?? null,
+
+  has_delivery_charges: props.model.has_delivery_charges ? 1 : 0,
+  delivery_charge_flat: props.model.delivery_charge_flat ?? null,
+  delivery_charge_percentage: props.model.delivery_charge_percentage ?? null,
 });
 
-console.log("props.model.tax_registered", props.model.tax_registered);
-console.log("tax_registered", form.tax_registered);
+
+
 watch(form, () => {
   const payload = {
     step: 4,
     data: {
       tax_registered: Number(form.tax_registered),
       price_includes_tax: Number(form.price_includes_tax),
+
+
+      has_service_charges: Number(form.has_service_charges),
+      has_delivery_charges: Number(form.has_delivery_charges),
     },
   }
 
@@ -37,11 +49,24 @@ watch(form, () => {
     payload.data.extra_tax_rates = 0;
   }
 
+  if (Number(form.has_service_charges) === 1) {
+    payload.data.service_charge_flat = form.service_charge_flat || null;
+    payload.data.service_charge_percentage = form.service_charge_percentage || null;
+  } else {
+    payload.data.service_charge_flat = null;
+    payload.data.service_charge_percentage = null;
+  }
+
+  if (Number(form.has_delivery_charges) === 1) {
+    payload.data.delivery_charge_flat = form.delivery_charge_flat || null;
+    payload.data.delivery_charge_percentage = form.delivery_charge_percentage || null;
+  } else {
+    payload.data.delivery_charge_flat = null;
+    payload.data.delivery_charge_percentage = null;
+  }
+
   emit("save", payload);
 }, { deep: true, immediate: true });
-
-
-
 
 // Tax types for Select
 const taxTypeOptions = ref([
@@ -49,16 +74,6 @@ const taxTypeOptions = ref([
   { name: "GST", code: "GST" },
   { name: "Sales Tax", code: "Sales Tax" },
 ]);
-
-// // PrimeVue Select expects object as value
-// const selectedTaxType = ref(
-//   taxTypeOptions.value.find((t) => t.code === form.tax_type) || null
-// );
-
-// // Keep form in sync with Select
-// watch(selectedTaxType, (opt) => {
-//   form.tax_type = opt?.code || "";
-// });
 </script>
 
 <template>
@@ -114,8 +129,6 @@ const taxTypeOptions = ref([
           {{ formErrors.tax_id[0] }}
         </small>
       </div>
-
-
     </div>
 
     <!-- Extra Tax Rates -->
@@ -140,8 +153,114 @@ const taxTypeOptions = ref([
         <label for="price-no" class="segmented__btn" :class="{ 'is-active': form.price_includes_tax === 0 }">NO</label>
       </div>
     </div>
-  </div>
 
+    <!-- ============================================ -->
+    <!-- ADD THIS ENTIRE SECTION BELOW (Service Charges) -->
+    <!-- ============================================ -->
+    <div class="mt-4">
+      <label class="form-label d-block mb-2">Is there any Service Charges?</label>
+      <div class="segmented">
+        <input type="radio" id="service-yes" :value="1" v-model.number="form.has_service_charges" class="segmented__input" />
+        <label for="service-yes" class="segmented__btn" :class="{ 'is-active': form.has_service_charges === 1 }">YES</label>
+
+        <input type="radio" id="service-no" :value="0" v-model.number="form.has_service_charges" class="segmented__input" />
+        <label for="service-no" class="segmented__btn" :class="{ 'is-active': form.has_service_charges === 0 }">NO</label>
+      </div>
+    </div>
+
+    <!-- Service Charges Fields (shown only if Yes) -->
+    <div v-if="form.has_service_charges === 1" class="row g-3 mt-2">
+      <div class="col-md-6">
+        <label class="form-label">Flat Amount (Optional)</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          min="0" 
+          step="0.01"
+          v-model.number="form.service_charge_flat"
+          placeholder="e.g. 50"
+          :class="{ 'is-invalid': formErrors?.service_charge_flat }" 
+        />
+        <small v-if="formErrors?.service_charge_flat" class="text-danger">
+          {{ formErrors.service_charge_flat[0] }}
+        </small>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Percentage (Optional)</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          min="0" 
+          max="100"
+          step="0.01"
+          v-model.number="form.service_charge_percentage"
+          placeholder="e.g. 10%"
+          :class="{ 'is-invalid': formErrors?.service_charge_percentage }" 
+        />
+        <small v-if="formErrors?.service_charge_percentage" class="text-danger">
+          {{ formErrors.service_charge_percentage[0] }}
+        </small>
+      </div>
+      <div class="col-12">
+        <small class="text-muted">* You can enter either flat amount or percentage, not both required.</small>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- ADD THIS ENTIRE SECTION BELOW (Delivery Charges) -->
+    <!-- ============================================ -->
+    <div class="mt-4">
+      <label class="form-label d-block mb-2">Is there any Delivery Charges?</label>
+      <div class="segmented">
+        <input type="radio" id="delivery-yes" :value="1" v-model.number="form.has_delivery_charges" class="segmented__input" />
+        <label for="delivery-yes" class="segmented__btn" :class="{ 'is-active': form.has_delivery_charges === 1 }">YES</label>
+
+        <input type="radio" id="delivery-no" :value="0" v-model.number="form.has_delivery_charges" class="segmented__input" />
+        <label for="delivery-no" class="segmented__btn" :class="{ 'is-active': form.has_delivery_charges === 0 }">NO</label>
+      </div>
+    </div>
+
+    <!-- Delivery Charges Fields (shown only if Yes) -->
+    <div v-if="form.has_delivery_charges === 1" class="row g-3 mt-2">
+      <div class="col-md-6">
+        <label class="form-label">Flat Amount (Optional)</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          min="0" 
+          step="0.01"
+          v-model.number="form.delivery_charge_flat"
+          placeholder="e.g. 100"
+          :class="{ 'is-invalid': formErrors?.delivery_charge_flat }" 
+        />
+        <small v-if="formErrors?.delivery_charge_flat" class="text-danger">
+          {{ formErrors.delivery_charge_flat[0] }}
+        </small>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Percentage (Optional)</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          min="0" 
+          max="100"
+          step="0.01"
+          v-model.number="form.delivery_charge_percentage"
+          placeholder="e.g. 5%"
+          :class="{ 'is-invalid': formErrors?.delivery_charge_percentage }" 
+        />
+        <small v-if="formErrors?.delivery_charge_percentage" class="text-danger">
+          {{ formErrors.delivery_charge_percentage[0] }}
+        </small>
+      </div>
+      <div class="col-12">
+        <small class="text-muted">* You can enter either flat amount or percentage, not both required.</small>
+      </div>
+    </div>
+
+  </div>
 </template>
 
 <style scoped>

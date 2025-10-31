@@ -1408,6 +1408,8 @@ onMounted(() => {
 });
 
 const page = usePage();
+
+console.log("page data", page.props);
 function bumpToasts() {
     const s = page.props.flash?.success;
     const e = page.props.flash?.error;
@@ -3269,6 +3271,8 @@ const decrementCardQty = (product) => {
         width: 100%;
     }
 }
+
+
 
 
 /* Variant dropdown styling */
