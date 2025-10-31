@@ -18,7 +18,6 @@ use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
 use App\Models\RestaurantProfile;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class OnboardingController extends Controller
@@ -48,34 +47,32 @@ class OnboardingController extends Controller
     // }
 
     public function index(Request $request)
-{
-    $user = $request->user();
-    if (!$user) {
-        return redirect()->route('login');
-    }
-
-    // Only first super admin sees onboarding
-    if ($user->is_first_super_admin) {
-        $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
-            && ProfileStep2::where('user_id', $user->id)->exists()
-            && ProfileStep3::where('user_id', $user->id)->exists()
-            && ProfileStep4::where('user_id', $user->id)->exists()
-            && ProfileStep5::where('user_id', $user->id)->exists()
-            && ProfileStep6::where('user_id', $user->id)->exists()
-            && ProfileStep7::where('user_id', $user->id)->exists()
-            && ProfileStep8::where('user_id', $user->id)->exists()
-            && ProfileStep9::where('user_id', $user->id)->exists();
-
-        if (!$stepsCompleted) {
-            return Inertia::render('Onboarding/Index');
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login');
         }
+
+        // Only first super admin sees onboarding
+        if ($user->is_first_super_admin) {
+            $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
+                && ProfileStep2::where('user_id', $user->id)->exists()
+                && ProfileStep3::where('user_id', $user->id)->exists()
+                && ProfileStep4::where('user_id', $user->id)->exists()
+                && ProfileStep5::where('user_id', $user->id)->exists()
+                && ProfileStep6::where('user_id', $user->id)->exists()
+                && ProfileStep7::where('user_id', $user->id)->exists()
+                && ProfileStep8::where('user_id', $user->id)->exists()
+                && ProfileStep9::where('user_id', $user->id)->exists();
+
+            if (! $stepsCompleted) {
+                return Inertia::render('Onboarding/Index');
+            }
+        }
+
+        // ✅ After onboarding completed, middleware will check shift for Super Admin
+        return redirect()->route('shift.manage');
     }
-
-    // ✅ After onboarding completed, middleware will check shift for Super Admin
-    return redirect()->route('shift.manage');
-}
-
-
 
     /**
      * Return merged step data and progress for the frontend
@@ -121,7 +118,7 @@ class OnboardingController extends Controller
         ];
 
         foreach ($aliasMap as $alias => $canonical) {
-            if (array_key_exists($alias, $payload) && !array_key_exists($canonical, $payload)) {
+            if (array_key_exists($alias, $payload) && ! array_key_exists($canonical, $payload)) {
                 $payload[$canonical] = $payload[$alias];
             }
         }
@@ -149,14 +146,14 @@ class OnboardingController extends Controller
         $data = match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone_id'  => 'required|integer|exists:timezones,id',
-                'language'     => 'required|string|max:10',
+                'timezone_id' => 'required|integer|exists:timezones,id',
+                'language' => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
-                'country_code.exists'   => 'Selected country is invalid',
-                'timezone_id.required'  => 'Timezone field is required',
-                'timezone_id.exists'    => 'Selected timezone is invalid',
-                'language.required'     => 'Language field is required',
+                'country_code.exists' => 'Selected country is invalid',
+                'timezone_id.required' => 'Timezone field is required',
+                'timezone_id.exists' => 'Selected timezone is invalid',
+                'language.required' => 'Language field is required',
             ]),
 
             2 => $request->validate(
@@ -164,14 +161,14 @@ class OnboardingController extends Controller
                     'business_name' => 'required|string|max:190',
                     // 'legal_name'    => 'required|string|max:190',
                     'business_type' => 'required',
-                    'phone'         => 'required|string|max:60',
-                    'phone_local'   => 'required|string|max:60',
-                    'email'         => 'required|email|max:190',
-                    'address'       => 'required|string|max:500',
-                    'website'       => 'nullable|max:190',
-                    'logo'          => 'nullable',
+                    'phone' => 'required|string|max:60',
+                    'phone_local' => 'required|string|max:60',
+                    'email' => 'required|email|max:190',
+                    'address' => 'required|string|max:500',
+                    'website' => 'nullable|max:190',
+                    'logo' => 'nullable',
                     // Check if logo was already uploaded
-                    'logo_file'     => (!empty($tempData['upload_id']) || !empty($tempData['logo_url']))
+                    'logo_file' => (! empty($tempData['upload_id']) || ! empty($tempData['logo_url']))
                         ? 'nullable'
                         : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 ],
@@ -188,25 +185,43 @@ class OnboardingController extends Controller
                 'date_format' => 'required|string|max:20',
                 'time_format' => 'required|in:12-hour,24-hour',
             ]),
-
             4 => $request->validate([
-                'tax_registered'    => 'required|boolean',
-                'tax_type'          => 'required_if:tax_registered,1|max:50',
-                'tax_rate'          => 'required_if:tax_registered,1|numeric|min:0|max:100',
-                'tax_id'            => 'required_if:tax_registered,1',
-                'extra_tax_rates'   => 'required_if:tax_registered,1|numeric|min:0|max:100',
+                'tax_registered' => 'required|boolean',
+                'tax_type' => 'required_if:tax_registered,1|max:50',
+                'tax_rate' => 'required_if:tax_registered,1|numeric|min:0|max:100',
+                'tax_id' => 'required_if:tax_registered,1',
+                'extra_tax_rates' => 'required_if:tax_registered,1|numeric|min:0|max:100',
                 'price_includes_tax' => 'required|boolean',
-            ], [
-                'tax_type.required_if'        => 'The Tax Type field is required when Tax Registered is checked Yes.',
-                'tax_rate.required_if'        => 'The Tax Rate field is required when Tax Registered is checked Yes.',
-                'tax_rate.min'                => 'The Tax Rate cannot be less than 0%.',
-                'tax_rate.max'                => 'The Tax Rate cannot exceed 100%.',
-                'extra_tax_rates.min'                => 'The Extra Tax Rate cannot be less than 0%.',
-                'extra_tax_rates.max'                => 'The Extra Tax Rate cannot exceed 100%.',
-                'tax_id.required_if'          => 'The Tax ID field is required when Tax Registered is checked Yes.',
-                'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
-            ]),
 
+                // Service Charges - One of them is required when has_service_charges is 1
+                'has_service_charges' => 'required|boolean',
+                'service_charge_flat' => 'exclude_if:has_service_charges,0|nullable|numeric|min:0|required_without:service_charge_percentage',
+                'service_charge_percentage' => 'exclude_if:has_service_charges,0|nullable|numeric|min:0|max:100|required_without:service_charge_flat',
+
+                // Delivery Charges - One of them is required when has_delivery_charges is 1
+                'has_delivery_charges' => 'required|boolean',
+                'delivery_charge_flat' => 'exclude_if:has_delivery_charges,0|nullable|numeric|min:0|required_without:delivery_charge_percentage',
+                'delivery_charge_percentage' => 'exclude_if:has_delivery_charges,0|nullable|numeric|min:0|max:100|required_without:delivery_charge_flat',
+            ], [
+                'tax_type.required_if' => 'The Tax Type field is required when Tax Registered is checked Yes.',
+                'tax_rate.required_if' => 'The Tax Rate field is required when Tax Registered is checked Yes.',
+                'tax_rate.min' => 'The Tax Rate cannot be less than 0%.',
+                'tax_rate.max' => 'The Tax Rate cannot exceed 100%.',
+                'extra_tax_rates.min' => 'The Extra Tax Rate cannot be less than 0%.',
+                'extra_tax_rates.max' => 'The Extra Tax Rate cannot exceed 100%.',
+                'tax_id.required_if' => 'The Tax ID field is required when Tax Registered is checked Yes.',
+                'extra_tax_rates.required_if' => 'The Extra Tax Rates field is required when Tax Registered is checked Yes.',
+
+                // Service Charges error messages
+                'service_charge_flat.required_without' => 'Please enter either flat amount or percentage for service charges.',
+                'service_charge_percentage.required_without' => 'Please enter either flat amount or percentage for service charges.',
+                'service_charge_percentage.max' => 'Service charge percentage cannot exceed 100%.',
+
+                // Delivery Charges error messages
+                'delivery_charge_flat.required_without' => 'Please enter either flat amount or percentage for delivery charges.',
+                'delivery_charge_percentage.required_without' => 'Please enter either flat amount or percentage for delivery charges.',
+                'delivery_charge_percentage.max' => 'Delivery charge percentage cannot exceed 100%.',
+            ]),
             5 => $request->validate(
                 [
                     'order_types' => 'required|array|min:1',
@@ -225,14 +240,13 @@ class OnboardingController extends Controller
                 ]
             ),
 
-
             6 => $request->validate([
                 'receipt_header' => 'required|string|max:2000',
                 'receipt_footer' => 'required|string|max:2000',
                 'receipt_logo' => 'nullable', // Preview URL from frontend
 
                 // Check for existing upload in nested structure
-                'receipt_logo_file' => (!empty($tempData[6]['upload_id']) || !empty($tempData['receipt_logo_url']))
+                'receipt_logo_file' => (! empty($tempData[6]['upload_id']) || ! empty($tempData['receipt_logo_url']))
                     ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
@@ -274,7 +288,7 @@ class OnboardingController extends Controller
         };
 
         // Handle Step 1: Country lookup
-        if ($step === 1 && !empty($data['country_code'])) {
+        if ($step === 1 && ! empty($data['country_code'])) {
             $country = Country::where('iso2', $data['country_code'])->first();
             $data['country_id'] = $country->id ?? null;
             $data['country_code'] = $country->iso2 ?? null;
@@ -299,7 +313,7 @@ class OnboardingController extends Controller
                     'error' => 'Failed to upload logo. Please try again.',
                 ], 500);
             }
-        } else if ($step === 2 && !empty($tempData['logo_url'])) {
+        } elseif ($step === 2 && ! empty($tempData['logo_url'])) {
             // If no new file uploaded, keep existing upload data
             $data['upload_id'] = $tempData['upload_id'];
             $data['logo_path'] = $tempData['logo_path'];
@@ -326,13 +340,13 @@ class OnboardingController extends Controller
                     'error' => 'Failed to upload receipt logo. Please try again.',
                 ], 500);
             }
-        } else if ($step === 6) {
+        } elseif ($step === 6) {
             // Keep existing receipt logo if no new file
-            if (!empty($tempData[6]['upload_id'])) {
+            if (! empty($tempData[6]['upload_id'])) {
                 $data['upload_id'] = $tempData[6]['upload_id'];
                 $data['receipt_logo_path'] = $tempData[6]['receipt_logo_path'];
                 $data['receipt_logo_url'] = $tempData[6]['receipt_logo_url'];
-            } else if (!empty($tempData['receipt_logo_url'])) {
+            } elseif (! empty($tempData['receipt_logo_url'])) {
                 // Fallback to flat structure
                 $data['upload_id'] = $tempData['upload_id'] ?? null;
                 $data['receipt_logo_path'] = $tempData['receipt_logo_path'] ?? null;
@@ -363,7 +377,7 @@ class OnboardingController extends Controller
             'ok' => true,
             'profile' => $tempData,
             'progress' => $progress,
-            'message' => 'Step ' . $step . ' data saved successfully',
+            'message' => 'Step '.$step.' data saved successfully',
         ]);
     }
 
@@ -385,34 +399,34 @@ class OnboardingController extends Controller
         $stepData = $this->separateDataBySteps($tempData);
         // dd($stepData);
         // Save Step 1
-        if (!empty($stepData[1])) {
+        if (! empty($stepData[1])) {
             ProfileStep1::updateOrCreate(['user_id' => $user->id], $stepData[1]);
         }
 
         // Save Step 2 (logo already uploaded in saveStep)
-        if (!empty($stepData[2])) {
+        if (! empty($stepData[2])) {
 
             // Just save the upload_id that was stored
             ProfileStep2::updateOrCreate(['user_id' => $user->id], $stepData[2]);
         }
 
         // Save Step 3
-        if (!empty($stepData[3])) {
+        if (! empty($stepData[3])) {
             ProfileStep3::updateOrCreate(['user_id' => $user->id], $stepData[3]);
         }
 
         // Save Step 4
-        if (!empty($stepData[4])) {
+        if (! empty($stepData[4])) {
             ProfileStep4::updateOrCreate(['user_id' => $user->id], $stepData[4]);
         }
 
         // Save Step 5
-        if (!empty($stepData[5])) {
+        if (! empty($stepData[5])) {
             $step5 = $stepData[5];
 
             // First, save profile_tables entry
             $profileTable = null;
-            if (!empty($step5['table_details'])) {
+            if (! empty($step5['table_details'])) {
                 $tableCount = $step5['tables'] ?? $step5['number_of_tables'] ?? count($step5['table_details']);
 
                 // Create new ProfileTable (don't try to reuse old one)
@@ -435,17 +449,17 @@ class OnboardingController extends Controller
         }
 
         // Save Step 6
-        if (!empty($stepData[6])) {
+        if (! empty($stepData[6])) {
             ProfileStep6::updateOrCreate(['user_id' => $user->id], $stepData[6]);
         }
 
         // Save Step 7
-        if (!empty($stepData[7])) {
+        if (! empty($stepData[7])) {
             ProfileStep7::updateOrCreate(['user_id' => $user->id], $stepData[7]);
         }
 
         // Save Step 8 (Business Hours)
-        if (!empty($stepData[8])) {
+        if (! empty($stepData[8])) {
             $step8 = $stepData[8];
 
             // Save disable_order_after_hours
@@ -467,7 +481,7 @@ class OnboardingController extends Controller
                 );
 
                 // Save breaks if any
-                if (!empty($day['breaks'])) {
+                if (! empty($day['breaks'])) {
                     foreach ($day['breaks'] as $break) {
                         $bh->break_from = $break['start'];
                         $bh->break_to = $break['end'];
@@ -489,7 +503,7 @@ class OnboardingController extends Controller
         }
 
         // Save Step 9
-        if (!empty($stepData[9])) {
+        if (! empty($stepData[9])) {
             $step9 = $stepData[9];
 
             ProfileStep9::updateOrCreate(
@@ -522,7 +536,9 @@ class OnboardingController extends Controller
         $toSave = [];
         foreach ($tempData as $k => $v) {
             // Skip nested step arrays
-            if (is_numeric($k)) continue;
+            if (is_numeric($k)) {
+                continue;
+            }
 
             $targetKey = $map[$k] ?? $k;
             $toSave[$targetKey] = $v;
@@ -550,7 +566,7 @@ class OnboardingController extends Controller
 
         // return redirect('/dashboard')->with('success', 'Onboarding completed successfully!');
         return redirect()->route('shift.manage')
-        ->with('success', 'Onboarding completed! Please start your first shift.');
+            ->with('success', 'Onboarding completed! Please start your first shift.');
     }
 
     /**
@@ -562,7 +578,7 @@ class OnboardingController extends Controller
             1 => ['country_id', 'timezone_id', 'language', 'languages_supported', 'country_code'],
             2 => ['business_name', 'business_type', 'legal_name', 'phone', 'phone_local', 'email', 'address', 'website', 'upload_id', 'logo_path', 'logo_url'],
             3 => ['currency', 'currency_symbol_position', 'number_format', 'date_format', 'time_format'],
-            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax'],
+            4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax', 'has_service_charges', 'service_charge_flat', 'service_charge_percentage', 'has_delivery_charges', 'delivery_charge_flat', 'delivery_charge_percentage'],
             5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'profile_table_id'],
             6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'upload_id', 'receipt_logo_url', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'customer_printer', 'kot_printer', 'printers'],
             7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
@@ -594,8 +610,6 @@ class OnboardingController extends Controller
 
         return $stepData;
     }
-
-
 
     /**
      * Optional: Clear temporary data if user wants to restart
