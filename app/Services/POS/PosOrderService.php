@@ -33,31 +33,13 @@ class PosOrderService
     public function create(array $data): PosOrder
     {
         return DB::transaction(function () use ($data) {
-            // dd($data);
-            // Get the currently active shift for this user
-            // $activeShift = Shift::where('status', 'open')
-            //     ->when(!Auth::user()->hasRole('Super Admin'), function ($query) {
-            //         // If user is NOT Super Admin, look for either:
-            //         // (a) their own open shift OR (b) any open shift started by Super Admin
-            //         $query->where(function ($subQuery) {
-            //             $subQuery->where('started_by', Auth::id())
-            //                 ->orWhereHas('user', function ($q) {
-            //                     $q->whereHas('roles', function ($r) {
-            //                         $r->where('name', 'Super Admin');
-            //                     });
-            //                 });
-            //         });
-            //     })
-            //     ->latest()
-            //     ->first();
-
             $activeShift = Shift::where('status', 'open')->latest()->first();
 
             if (! $activeShift) {
                 throw new \Exception('No active shift found. Please start a shift before creating an order.');
             }
 
-            //  Create the main order
+            // Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
                 'shift_id' => $activeShift?->id,
@@ -74,14 +56,14 @@ class PosOrderService
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
 
-            //  Create order type
+            // Create order type
             $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-            // Create Order details , where for each order a detailed recods stored of items
+            // Create Order details
             foreach ($data['items'] as $item) {
                 // Save order item
                 $order->items()->create([
@@ -94,12 +76,12 @@ class PosOrderService
                     'kitchen_note' => $item['kitchen_note'] ?? null,
                 ]);
 
-                // Fetch the MenuItem with its ingredients
-                $menuItem = MenuItem::with('ingredients')->find($item['product_id']);
+                // ✅ FIXED: Get ingredients based on variant or base menu item
+                $ingredients = $this->getIngredientsForItem($item);
 
-                if ($menuItem && $menuItem->ingredients->count()) {
-                    foreach ($menuItem->ingredients as $ingredient) {
-                        // Each MenuIngredient row points to an InventoryItem
+                // ✅ Process stockout for the correct ingredients
+                if (! empty($ingredients)) {
+                    foreach ($ingredients as $ingredient) {
                         $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
 
                         if ($inventoryItem) {
@@ -114,7 +96,8 @@ class PosOrderService
                                 'value' => 0,
                                 'operation_type' => 'pos_stockout',
                                 'stock_type' => 'stockout',
-                                'description' => "Auto stockout from POS Order #{$order->id}",
+                                'description' => "Auto stockout from POS Order #{$order->id}".
+                                               ($item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
                                 'user_id' => Auth::id(),
                             ]);
                         }
@@ -123,10 +106,8 @@ class PosOrderService
             }
 
             $order->load('items');
-            $kot = null;
 
-            // 2. Handle KOT (after items exist)
-
+            // Create KOT
             $kot = KitchenOrder::create([
                 'pos_order_type_id' => $orderType->id,
                 'order_time' => now()->toTimeString(),
@@ -136,14 +117,17 @@ class PosOrderService
             ]);
 
             foreach ($order->items as $orderItem) {
-                $menuItem = MenuItem::with('ingredients')->find($orderItem->menu_item_id);
+                // ✅ Get correct ingredients for KOT display
+                $itemData = collect($data['items'])->firstWhere('product_id', $orderItem->menu_item_id);
+                $ingredients = $this->getIngredientsForItem($itemData);
 
                 $ingredientsArray = [];
-                if ($menuItem && $menuItem->ingredients->count()) {
-                    foreach ($menuItem->ingredients as $ingredient) {
+                if (! empty($ingredients)) {
+                    foreach ($ingredients as $ingredient) {
                         $ingredientsArray[] = $ingredient->product_name;
                     }
                 }
+
                 $kot->items()->create([
                     'item_name' => $orderItem->title,
                     'quantity' => $orderItem->quantity,
@@ -154,36 +138,32 @@ class PosOrderService
             }
             $kot->load('items');
 
+            // Payment handling
             $cashAmount = null;
             $cardAmount = null;
 
-            // Payment field adjustment logic
-            if (($data['payment_type'] ?? '') === 'Split') {
-                $cashAmount = $data['cash_received'] ?? 0;
-                $cardAmount = $data['card_payment'] ?? 0;
-                $payedUsing = $data['payment_type'];
+            if (($data['payment_type'] ?? '') === 'split') {
+                $cashAmount = $data['cash_amount'] ?? 0;
+                $cardAmount = $data['card_amount'] ?? 0;
+                $payedUsing = 'Split';
             } elseif (($data['payment_method'] ?? 'Cash') === 'Cash') {
-                $cashAmount = $data['amount_received'] ?? $data['total_amount'];
-                $payedUsing = $data['payment_method'];
+                $cashAmount = $data['cash_received'] ?? $data['total_amount'];
+                $payedUsing = 'Cash';
                 $cardAmount = 0;
-            } elseif (($data['payment_method'] ?? '') === 'Card' || ($data['payment_method'] ?? '') === 'Stripe') {
+            } elseif (in_array($data['payment_method'] ?? '', ['Card', 'Stripe'])) {
                 $cashAmount = 0;
-                $cardAmount = $data['amount_received'] ?? $data['total_amount'];
+                $cardAmount = $data['cash_received'] ?? $data['total_amount'];
                 $payedUsing = 'Card';
             }
 
-            // Payment model data saving
             Payment::create([
                 'order_id' => $order->id,
                 'user_id' => Auth::id(),
                 'amount_received' => $data['total_amount'],
                 'payment_type' => $payedUsing,
                 'payment_date' => now(),
-
-                // Split fields (clean values)
                 'cash_amount' => $cashAmount,
                 'card_amount' => $cardAmount,
-
                 'payment_status' => $data['payment_status'] ?? null,
                 'code' => $data['order_code'] ?? ($data['code'] ?? null),
                 'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? ($data['payment_intent'] ?? null),
@@ -194,7 +174,7 @@ class PosOrderService
                 'exp_year' => $data['exp_year'] ?? null,
             ]);
 
-            // Store promo details if promo was applied
+            // Store promo details
             if (! empty($data['promo_id']) && ! empty($data['promo_discount'])) {
                 \App\Models\OrderPromo::create([
                     'order_id' => $order->id,
@@ -207,9 +187,33 @@ class PosOrderService
 
             $order->load(['items', 'kot.items']);
 
-            // dd("Service class Done ",$data);
             return $order;
         });
+    }
+
+    /**
+     * ✅ NEW METHOD: Get ingredients for a menu item (variant-aware)
+     *
+     * @param  array  $item  The item data from the request
+     * @return \Illuminate\Support\Collection
+     */
+    private function getIngredientsForItem(array $item)
+    {
+        // If variant_id is provided, get variant ingredients
+        if (! empty($item['variant_id'])) {
+            $variant = \App\Models\MenuVariant::with('ingredients.inventoryItem')
+                ->find($item['variant_id']);
+
+            if ($variant && $variant->ingredients->count() > 0) {
+                return $variant->ingredients;
+            }
+        }
+
+        // Fallback to base menu item ingredients
+        $menuItem = MenuItem::with('ingredients.inventoryItem')
+            ->find($item['product_id']);
+
+        return $menuItem ? $menuItem->ingredients : collect();
     }
 
     public function startOrder(array $payload = []): PosOrder
@@ -278,84 +282,121 @@ class PosOrderService
 
     public function getAllMenus()
     {
-        return MenuItem::with([
+        \Log::info('--- Fetching all menus ---');
+
+        $menus = MenuItem::with([
             'category',
             'ingredients.inventoryItem',
+            'variants.ingredients.inventoryItem',
             'nutrition',
             'allergies',
             'tags',
             'upload',
-            'variantPrices.variant.variantGroup', 
             'addonGroupRelations.addonGroup.addons',
-        ])
-            ->get()
-            ->map(function ($item) {
-                $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
+        ])->get();
 
-                // Map ingredients
-                $item->ingredients->transform(function ($ingredient) {
-                    return [
-                        'id' => $ingredient->id,
-                        'product_name' => $ingredient->product_name,
-                        'quantity' => $ingredient->quantity,
-                        'cost' => $ingredient->cost,
-                        'inventory_stock' => $ingredient->inventoryItem?->stock ?? 0,
-                        'inventory_item_id' => $ingredient->inventory_item_id,
-                        'category_id' => $ingredient->inventoryItem?->category_id,
-                        'supplier_id' => $ingredient->inventoryItem?->supplier_id,
-                        'user_id' => $ingredient->inventoryItem?->user_id,
-                    ];
-                });
+        \Log::info('Total MenuItems loaded: '.$menus->count());
 
-                // Add variants mapping
-                $item->variants = $item->variantPrices->map(function ($variantPrice) {
-                    return [
-                        'id' => $variantPrice->variant_id,
-                        'name' => $variantPrice->variant->name,
-                        'group_name' => $variantPrice->variant->variantGroup->name,
-                        'price' => $variantPrice->price,
-                        'status' => $variantPrice->variant->status,
-                    ];
-                })->filter(function ($variant) {
-                    return $variant['status'] === 'active';
-                })->values();
+        return $menus->map(function ($item) {
+            \Log::info("🔸 Processing MenuItem: {$item->name} (ID: {$item->id})");
 
-                // ✅ ADD ADDONS MAPPING
-           $addonsGrouped = [];
+            // Check variant and ingredient relations before mapping
+            \Log::info(' - Variants count: '.$item->variants->count());
+            \Log::info(' - Ingredients count: '.$item->ingredients->count());
 
-        foreach ($item->addonGroupRelations ?? [] as $relation) {
-            $group = $relation->addonGroup;
-            if (!$group || $group->status !== 'active') continue;
+            $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
 
-            $groupId = $group->id;
-            if (!isset($addonsGrouped[$groupId])) {
-                $addonsGrouped[$groupId] = [
-                    'group_id' => $group->id,
-                    'group_name' => $group->name,
-                    'min_select' => $group->min_select,
-                    'max_select' => $group->max_select,
-                    'addons' => [],
+            // --- Map simple ingredients ---
+            $item->ingredients = $item->ingredients->map(function ($ingredient) {
+                return [
+                    'id' => $ingredient->id,
+                    'product_name' => $ingredient->product_name,
+                    'quantity' => $ingredient->quantity,
+                    'cost' => $ingredient->cost,
+                    'inventory_stock' => $ingredient->inventoryItem?->stock ?? 0,
+                    'inventory_item_id' => $ingredient->inventory_item_id,
+                    'category_id' => $ingredient->inventoryItem?->category_id,
+                    'supplier_id' => $ingredient->inventoryItem?->supplier_id,
+                    'user_id' => $ingredient->inventoryItem?->user_id,
                 ];
+            })->values()->toArray();
+
+            // --- Map and log variants ---
+            $item->variants = $item->variants->map(function ($variant) use ($item) {
+                \Log::info("  🧩 Variant found: {$variant->name} (ID: {$variant->id}) for MenuItem: {$item->id}");
+                \Log::info('    - Ingredients count: '.$variant->ingredients->count());
+
+                if ($variant->ingredients->isEmpty()) {
+                    \Log::warning("    ⚠️ No ingredients found for Variant ID: {$variant->id}");
+                } else {
+                    foreach ($variant->ingredients as $ing) {
+                        \Log::info("    ✅ Ingredient: {$ing->product_name} (Inventory ID: {$ing->inventory_item_id}) Quantity: {$ing->quantity}");
+                    }
+                }
+
+                return [
+                    'id' => $variant->id,
+                    'name' => $variant->name,
+                    'price' => (float) $variant->price,
+                    'ingredients' => $variant->ingredients->map(function ($ingredient) {
+                        return [
+                            'id' => $ingredient->id,
+                            'product_name' => $ingredient->product_name,
+                            'quantity' => $ingredient->quantity,
+                            'cost' => $ingredient->cost,
+                            'inventory_stock' => $ingredient->inventoryItem?->stock ?? 0,
+                            'inventory_item_id' => $ingredient->inventory_item_id,
+                        ];
+                    })->values()->toArray(),
+                ];
+            })->values()->toArray();
+
+            // --- Log after variants mapped ---
+            \Log::info("✅ Finished MenuItem: {$item->name} | Variants processed: ".count($item->variants));
+
+            // --- Addons mapping ---
+            $addonsGrouped = [];
+            foreach ($item->addonGroupRelations ?? [] as $relation) {
+                $group = $relation->addonGroup;
+                if (! $group || $group->status !== 'active') {
+                    continue;
+                }
+
+                $groupId = $group->id;
+                if (! isset($addonsGrouped[$groupId])) {
+                    $addonsGrouped[$groupId] = [
+                        'group_id' => $group->id,
+                        'group_name' => $group->name,
+                        'min_select' => $group->min_select,
+                        'max_select' => $group->max_select,
+                        'addons' => [],
+                    ];
+                }
+
+                foreach ($group->addons as $addon) {
+                    if ($addon->status !== 'active') {
+                        continue;
+                    }
+
+                    $addonsGrouped[$groupId]['addons'][] = [
+                        'id' => $addon->id,
+                        'name' => $addon->name,
+                        'price' => (float) $addon->price,
+                        'description' => $addon->description,
+                    ];
+                }
             }
 
-            foreach ($group->addons as $addon) {
-                if ($addon->status !== 'active') continue;
-                $addonsGrouped[$groupId]['addons'][] = [
-                    'id' => $addon->id,
-                    'name' => $addon->name,
-                    'price' => $addon->price,
-                    'description' => $addon->description,
-                ];
-            }
-        }
+            $item->addon_groups = array_values($addonsGrouped);
+            $item->is_taxable = $item->is_taxable ?? 0;
+            $item->tax_percentage = $item->tax_percentage ?? 0;
 
-        $item->addon_groups = array_values($addonsGrouped);
+            unset($item->addonGroupRelations);
 
-                $item->is_taxable = $item->is_taxable ?? 0;
-                $item->tax_percentage = $item->tax_percentage ?? 0;
+            \Log::info("--- Finished processing MenuItem ID: {$item->id} ---");
 
-                return $item;
-            });
+            return $item->toArray();
+        });
     }
 
     public function getProfileTable()

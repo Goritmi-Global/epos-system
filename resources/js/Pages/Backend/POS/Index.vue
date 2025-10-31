@@ -44,12 +44,43 @@ const menuItems = ref([]);
 const fetchMenuItems = async () => {
     try {
         const response = await axios.get("/api/pos/fetch-menu-items");
-        menuItems.value = response.data;
+        menuItems.value = response.data.data;
         console.log("menuItems.value", menuItems.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
 };
+
+// const fetchMenuItems = async () => {
+//     try {
+//         const response = await axios.get("/api/pos/fetch-menu-items");
+
+//         const processedMenus = response.data.data.map(menu => {
+//             // Start with top-level ingredients (for simple menus)
+//             let ingredients = menu.ingredients || [];
+
+//             // If menu has variants, add all variant ingredients
+//             if (menu.variants && menu.variants.length > 0) {
+//                 ingredients = [
+//                     ...ingredients,
+//                     ...menu.variants.flatMap(variant => variant.ingredients || [])
+//                 ];
+//             }
+
+//             return {
+//                 ...menu,
+//                 ingredients // now contains all ingredients for simple + variants
+//             };
+//         });
+
+//         menuItems.value = processedMenus;
+
+//         console.log("Processed menu items:", menuItems.value);
+//     } catch (error) {
+//         console.error("Error fetching menu items:", error);
+//     }
+// };
+
 
 /* ----------------------------
    Products by Category
@@ -60,11 +91,12 @@ const productsByCat = computed(() => {
         const catId = item.category?.id || "uncategorized";
         const catName = item.category?.name || "Uncategorized";
         if (!grouped[catId]) grouped[catId] = [];
-        grouped[catId].push({
+
+        const product = {
             id: item.id,
             title: item.name,
             img: item.image_url || "/assets/img/default.png",
-            stock: calculateMenuStock(item),
+            stock: 0, // Will be calculated reactively
             price: Number(item.price),
             label_color: item.label_color || "#1B1670",
             family: catName,
@@ -75,7 +107,9 @@ const productsByCat = computed(() => {
             ingredients: item.ingredients ?? [],
             variants: item.variants ?? [],
             addon_groups: item.addon_groups ?? [],
-        });
+        };
+
+        grouped[catId].push(product);
     });
     return grouped;
 });
@@ -126,7 +160,10 @@ const getSelectedVariant = (product) => {
     return product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
 };
 
-// ✅ Handle variant change
+
+// ============================================
+//  Handle variant change to revalidate stock
+// ============================================
 const onVariantChange = (product, event) => {
     const variantId = parseInt(event.target.value);
     selectedCardVariant.value[product.id] = variantId;
@@ -137,13 +174,8 @@ const onVariantChange = (product, event) => {
     }
 };
 
-
 // ================ addons =========================
-// ================ addons =========================
-// ✅ Add ref to track selected addons for each product
 const selectedCardAddons = ref({});
-
-// ✅ Handle addon selection change from MultiSelect
 const handleAddonChange = (product, addonGroupId, selectedAddons) => {
     const productKey = product.id;
 
@@ -208,34 +240,244 @@ const getTotalPrice = (product) => {
     return variantPrice + addonsPrice;
 };
 // ================================================
-// Functions
 const openDetailsModal = (item) => {
     selectedItem.value = item;
-    modalQty.value = 0; // reset quantity if you want
+    modalNote.value = "";
+    modalSelectedVariant.value = null;
+    modalSelectedAddons.value = {};
 
-    // Use Bootstrap's modal API
+    // Set default variant if exists
+    if (item.variants && item.variants.length > 0) {
+        modalSelectedVariant.value = item.variants[0].id;
+    }
+
+    // ✅ Always open modal, but set quantity based on available stock
+    const variant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
+    const variantId = variant ? variant.id : null;
+    const variantIngredients = getVariantIngredients(item, variantId);
+
+    // Calculate how many we can still add
+    const availableToAdd = calculateAvailableStock(item, variantId, variantIngredients);
+
+    // Set quantity to 0 if no stock, otherwise 1
+    modalQty.value = availableToAdd > 0 ? 1 : 0;
+
     const modal = new bootstrap.Modal(document.getElementById("chooseItem"));
     modal.show();
 };
 
+// ✅ Calculate how many more items can be added (considering cart)
+const calculateAvailableStock = (product, variantId, variantIngredients) => {
+    if (!variantIngredients || variantIngredients.length === 0) return 999999;
 
+    const ingredientUsage = {};
 
-// calculate menu stock
-const calculateMenuStock = (item) => {
-    if (!item) return 0;
-    if (!item.ingredients || item.ingredients.length === 0) {
-        return Number(item.stock ?? 0);
+    // Track what's already used in the cart
+    for (const item of orderItems.value) {
+        const itemIngredients = getVariantIngredients(item, item.variant_id);
+        itemIngredients.forEach(ing => {
+            const id = ing.inventory_item_id;
+            const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+            if (!ingredientUsage[id]) {
+                ingredientUsage[id] = { totalStock: stock, used: 0 };
+            }
+
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
+            ingredientUsage[id].used += required;
+        });
     }
+
+    // Calculate maximum possible for THIS item
+    let maxPossible = 999999;
+
+    for (const ing of variantIngredients) {
+        const id = ing.inventory_item_id;
+        const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+        const requiredPerItem = Number(ing.quantity ?? ing.qty ?? 1);
+
+        if (!ingredientUsage[id]) {
+            // No other items using this ingredient
+            const possible = Math.floor(stock / requiredPerItem);
+            maxPossible = Math.min(maxPossible, possible);
+        } else {
+            // Some already used by cart
+            const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+            const possible = Math.floor(available / requiredPerItem);
+            maxPossible = Math.min(maxPossible, possible);
+        }
+    }
+
+    return maxPossible;
+};
+
+// ✅ ADD ALL THESE NEW FUNCTIONS
+
+// Handle Modal Variant Change
+const onModalVariantChange = () => {
+    // ✅ Recheck stock when variant changes
+    const variant = getModalSelectedVariant();
+    const variantId = variant ? variant.id : null;
+    const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+
+    const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+    if (availableToAdd <= 0) {
+        toast.error(`No stock available for this variant. Please remove items from cart first.`);
+        modalQty.value = 0;
+        return;
+    }
+
+    // Reset to 1 or keep current qty if still available
+    modalQty.value = Math.min(1, availableToAdd);
+    console.log("Variant changed in modal:", modalSelectedVariant.value, "Available:", availableToAdd);
+};
+
+// Handle Modal Addon Change
+const handleModalAddonChange = (addonGroupId, selectedAddons) => {
+    if (!selectedItem.value) return;
+
+    const addonGroup = selectedItem.value.addon_groups.find(g => g.group_id === addonGroupId);
+
+    if (addonGroup && addonGroup.max_select > 0 && selectedAddons.length > addonGroup.max_select) {
+        toast.warning(`You can only select up to ${addonGroup.max_select} ${addonGroup.group_name}`);
+        modalSelectedAddons.value[addonGroupId] = selectedAddons.slice(0, addonGroup.max_select);
+        return;
+    }
+
+    modalSelectedAddons.value[addonGroupId] = selectedAddons;
+};
+
+// Get Modal Selected Variant Object
+const getModalSelectedVariant = () => {
+    if (!selectedItem.value) return null;
+    if (!selectedItem.value.variants || selectedItem.value.variants.length === 0) return null;
+
+    const variantId = modalSelectedVariant.value;
+    if (!variantId) return selectedItem.value.variants[0];
+
+    return selectedItem.value.variants.find(v => v.id === variantId) || selectedItem.value.variants[0];
+};
+
+// Get Modal Variant Price
+const getModalVariantPrice = () => {
+    if (!selectedItem.value) return 0;
+
+    const variant = getModalSelectedVariant();
+    if (variant) return parseFloat(variant.price);
+
+    return parseFloat(selectedItem.value.price || 0);
+};
+
+// Get Modal Addons Price
+const getModalAddonsPrice = () => {
+    let total = 0;
+    Object.values(modalSelectedAddons.value).forEach(addons => {
+        addons.forEach(addon => {
+            total += parseFloat(addon.price || 0);
+        });
+    });
+    return total;
+};
+
+// Get Modal Total Price
+const getModalTotalPrice = () => {
+    return getModalVariantPrice() + getModalAddonsPrice();
+};
+
+// Get Modal Nutrition
+const getModalNutrition = () => {
+    if (!selectedItem.value) return {};
+
+    const variant = getModalSelectedVariant();
+    if (variant && variant.nutrition) {
+        return variant.nutrition;
+    }
+
+    return selectedItem.value.nutrition || {};
+};
+
+// Get Modal Allergies
+const getModalAllergies = () => {
+    if (!selectedItem.value) return [];
+
+    const variant = getModalSelectedVariant();
+    if (variant && variant.allergies && variant.allergies.length > 0) {
+        return variant.allergies;
+    }
+
+    return selectedItem.value.allergies || [];
+};
+
+// Get Modal Tags
+const getModalTags = () => {
+    if (!selectedItem.value) return [];
+
+    const variant = getModalSelectedVariant();
+    if (variant && variant.tags && variant.tags.length > 0) {
+        return variant.tags;
+    }
+
+    return selectedItem.value.tags || [];
+};
+
+// Get Modal Selected Addons
+const getModalSelectedAddons = () => {
+    const allAddons = [];
+    Object.values(modalSelectedAddons.value).forEach(addons => {
+        addons.forEach(addon => {
+            allAddons.push({
+                id: addon.id,
+                name: addon.name,
+                price: parseFloat(addon.price),
+                group_id: addon.group_id || addon.pivot?.addon_group_id,
+            });
+        });
+    });
+    return allAddons;
+};
+
+// ===================================================================
+const getAllIngredients = (item) => {
+    let allIngredients = item.ingredients ?? [];
+
+    if (item.variants && item.variants.length > 0) {
+        allIngredients = [
+            ...allIngredients,
+            ...item.variants.flatMap(v => v.ingredients ?? [])
+        ];
+    }
+
+    return allIngredients;
+};
+
+
+// ✅ Get stock for a specific product (based on selected variant)
+const getProductStock = (product) => {
+    if (!product) return 0;
+
+    const variant = getSelectedVariant(product);
+    const variantId = variant ? variant.id : null;
+    const ingredients = getVariantIngredients(product, variantId);
+
+    if (!ingredients.length) return 999999; // No ingredients = unlimited
+
     let menuStock = Infinity;
-    item.ingredients.forEach((ing) => {
+
+    ingredients.forEach((ing) => {
         const required = Number(ing.quantity ?? ing.qty ?? 1);
-        const inventoryStock = Number(ing.inventory_stock ?? ing.stock ?? 0);
+        const inventoryStock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
         if (required <= 0) return;
         const possible = Math.floor(inventoryStock / required);
         menuStock = Math.min(menuStock, possible);
     });
-    if (menuStock === Infinity) menuStock = 0;
-    return menuStock;
+
+    return menuStock === Infinity ? 0 : menuStock;
+};
+
+// calculate menu stock
+const calculateMenuStock = (item) => {
+    return getProductStock(item);
 };
 
 /* ----------------------------
@@ -462,41 +704,27 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
 //     }
 // };
 
+// ========================================
+// Fixed: Increment cart item (in cart sidebar)
+// ========================================
 const incCart = async (i) => {
     const it = orderItems.value[i];
     if (!it) return;
 
-    // Build stock map
-    const ingredientStock = {};
-    for (const item of orderItems.value) {
-        if (!item.ingredients?.length) continue;
-        for (const ing of item.ingredients) {
-            const id = ing.inventory_item_id;
-            if (!ingredientStock[id]) ingredientStock[id] = parseFloat(ing.inventory_stock);
-            ingredientStock[id] -= parseFloat(ing.quantity) * item.qty;
-        }
+    if ((it.stock ?? 0) <= 0) {
+        toast.error("Item out of stock.");
+        return;
     }
 
-    // Check ingredient stock
-    if (it.ingredients?.length) {
-        for (const ing of it.ingredients) {
-            const id = ing.inventory_item_id;
-            // restore stock by adding back current item's usage
-            const currentStock = (ingredientStock[id] ?? parseFloat(ing.inventory_stock))
-                + parseFloat(ing.quantity) * it.qty;
-
-            const required = parseFloat(ing.quantity) * (it.qty + 1);
-
-            if (currentStock < required) {
-                it.outOfStock = true;
-                toast.error(`Not enough stock for "${it.title}".`);
-                return;
-            }
-        }
+    // Check if we can increment this specific item
+    if (!canIncCartItem(it)) {
+        const variantText = it.variant_name ? ` (${it.variant_name})` : '';
+        toast.error(`Not enough ingredients for "${it.title}${variantText}".`);
+        it.outOfStock = true;
+        return;
     }
 
-
-    // If stock is okay
+    // If all checks pass, increment
     it.outOfStock = false;
     it.qty++;
     it.price = it.unit_price * it.qty;
@@ -504,20 +732,23 @@ const incCart = async (i) => {
 
 
 
+// ========================================
+// Fixed: Decrement cart item (in cart sidebar)
+// ========================================
 const decCart = async (i) => {
     const it = orderItems.value[i];
     if (!it || it.qty <= 1) {
         toast.error("Cannot reduce below 1.");
         return;
     }
-    try {
-        // await updateStock(it, 1, "stockin");
-        it.qty--;
-        it.price = it.unit_price * it.qty;
-    } catch (err) {
-        toast.error("Failed to remove item. Please try again.");
-    }
+
+    it.qty--;
+    it.price = it.unit_price * it.qty;
+    it.outOfStock = false; // Reset out of stock flag
 };
+
+
+
 
 const removeCart = (i) => orderItems.value.splice(i, 1);
 
@@ -544,6 +775,8 @@ const selectedItem = ref(null);
 const modalQty = ref(0);
 const modalNote = ref("");
 let chooseItemModal = null;
+const modalSelectedVariant = ref(null);
+const modalSelectedAddons = ref({});
 
 const openItem = (p) => {
     selectedItem.value = p;
@@ -603,53 +836,130 @@ const menuStockForSelected = computed(() =>
 
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
+
+    const variant = getModalSelectedVariant();
+    const variantId = variant ? variant.id : null;
+    const variantText = variant ? ` (${variant.name})` : '';
+
+    // ✅ Check if quantity is 0 or less
     if (modalQty.value <= 0) {
-        toast.error("Please add at least one item.");
+        toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
         return;
     }
-    const ingredientStock = {}; // Track remaining stock per ingredient
 
-    // 1️⃣ Initialize stock from current cart
+    const variantName = variant ? variant.name : null;
+    const variantPrice = variant ? parseFloat(variant.price) : selectedItem.value.price;
+    const selectedAddons = getModalSelectedAddons();
+    const addonsPrice = getModalAddonsPrice();
+    const totalItemPrice = variantPrice + addonsPrice;
+
+    const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+
+    // ✅ DOUBLE CHECK available stock before confirming
+    const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+    if (modalQty.value > availableToAdd) {
+        if (availableToAdd <= 0) {
+            toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+        } else {
+            toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
+            modalQty.value = availableToAdd; // Auto-adjust to max available
+        }
+        return;
+    }
+
+    const ingredientStock = {};
+
+    // Check stock from current cart
     for (const item of orderItems.value) {
-        if (!item.ingredients?.length) continue;
-        for (const ing of item.ingredients) {
+        const itemIngredients = getVariantIngredients(item, item.variant_id);
+        itemIngredients.forEach(ing => {
             const ingredientId = ing.inventory_item_id;
             if (!ingredientStock[ingredientId]) {
                 ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
             }
             ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
-        }
+        });
     }
 
-    // 2️⃣ Check stock for selected item against remaining stock
-    if (selectedItem.value.ingredients?.length) {
-        for (const ing of selectedItem.value.ingredients) {
+    // Check stock for selected item
+    if (variantIngredients.length > 0) {
+        for (const ing of variantIngredients) {
             const ingredientId = ing.inventory_item_id;
             const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
             const requiredQty = parseFloat(ing.quantity) * modalQty.value;
 
             if (availableStock < requiredQty) {
-                toast.error(
-                    `Not enough stock for "${selectedItem.value.title}".`
-                );
-                return; // Stop adding to cart
+                toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
+                return;
             }
         }
     }
 
     try {
-        // 3️⃣ If enough stock, add to cart
-        addToOrder(selectedItem.value, modalQty.value, modalNote.value);
-        console.log("selectedItem.value", selectedItem.value);
+        // Add to cart with modal selections
+        const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+        const menuStock = variantIngredients.length > 0
+            ? calculateStockForIngredients(variantIngredients)
+            : 999999;
+
+        const idx = orderItems.value.findIndex((i) => {
+            const itemAddonIds = (i.addons || []).map(a => a.id).sort().join('-');
+            return i.id === selectedItem.value.id &&
+                i.variant_id === variantId &&
+                itemAddonIds === addonIds;
+        });
+
+        if (idx >= 0) {
+            orderItems.value[idx].qty += modalQty.value;
+            orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
+        } else {
+            orderItems.value.push({
+                id: selectedItem.value.id,
+                title: selectedItem.value.title,
+                img: selectedItem.value.img,
+                price: totalItemPrice * modalQty.value,
+                unit_price: Number(totalItemPrice),
+                qty: modalQty.value,
+                note: modalNote.value || "",
+                stock: menuStock,
+                ingredients: variantIngredients,
+                variant_id: variantId,
+                variant_name: variantName,
+                addons: selectedAddons,
+            });
+        }
+
         await openPromoModal(selectedItem.value);
-        // your add-to-cart logic
+
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
+
+        // ✅ Reset modal state after successful add
+        modalQty.value = 0;
+        modalNote.value = "";
+        modalSelectedVariant.value = null;
+        modalSelectedAddons.value = {};
+
     } catch (err) {
-        alert(
-            "Failed to add item: " + (err.response?.data?.message || err.message)
-        );
+        toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
     }
+};
+
+// Helper function
+const calculateStockForIngredients = (ingredients) => {
+    if (!ingredients || ingredients.length === 0) return 999999;
+
+    let menuStock = Infinity;
+    ingredients.forEach((ing) => {
+        const required = Number(ing.quantity ?? ing.qty ?? 1);
+        const inventoryStock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+        if (required <= 0) return;
+        const possible = Math.floor(inventoryStock / required);
+        menuStock = Math.min(menuStock, possible);
+    });
+
+    return menuStock === Infinity ? 0 : menuStock;
 };
 
 
@@ -714,59 +1024,45 @@ const updateStock = async (item, qty, type = "stockout") => {
 //     }
 // };
 
-const incQty = async () => {
-    if (!selectedItem.value || !selectedItem.value.ingredients?.length) return;
+// Check if we can increment modal quantity
+const canIncModalQty = () => {
+    if (!selectedItem.value) return false;
 
-    // 1️⃣ Calculate remaining stock for all ingredients
-    const ingredientStock = {};
+    const variant = getModalSelectedVariant();
+    const variantId = variant ? variant.id : null;
+    const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
 
-    // Include items already in the cart
-    for (const item of orderItems.value) {
-        if (!item.ingredients?.length) continue;
-        for (const ing of item.ingredients) {
-            const ingredientId = ing.inventory_item_id;
-            if (!ingredientStock[ingredientId]) {
-                ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
-            }
-            ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
+    if (!variantIngredients.length) return true;
+
+    // ✅ Check if we can add ONE MORE based on current cart + modal quantity
+    const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+    return (modalQty.value + 1) <= availableToAdd;
+};
+
+const incQty = () => {
+    if (!canIncModalQty()) {
+        const variant = getModalSelectedVariant();
+        const variantText = variant ? ` (${variant.name})` : '';
+
+        // ✅ Check if it's because there's NO stock at all
+        const variantId = variant ? variant.id : null;
+        const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+        const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+        if (availableToAdd <= 0) {
+            toast.error(`No more stock available for "${selectedItem.value?.title}${variantText}". Please remove some from cart first.`);
+        } else {
+            toast.error(`Not enough ingredients for "${selectedItem.value?.title}${variantText}".`);
         }
+        return;
     }
-
-    // 2️⃣ Check if increasing qty will exceed available stock
-    for (const ing of selectedItem.value.ingredients) {
-        const ingredientId = ing.inventory_item_id;
-        const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
-        const requiredQty = parseFloat(ing.quantity) * (modalQty.value + 1); // next quantity
-
-        if (availableStock < requiredQty) {
-            toast.error(
-                `Not enough stock for "${selectedItem.value.title}".`
-            );
-            return; // prevent increasing qty
-        }
-    }
-
-    // 3️⃣ If stock is enough, increment quantity
     modalQty.value++;
 };
 
-const decQty = async () => {
+const decQty = () => {
     if (modalQty.value > 1) {
         modalQty.value--;
-
-        // try {
-        //     await updateStock(selectedItem.value, 1, "stockin");
-        //     modalQty.value--; // Only decrement after successful stock update
-        //     console.log(
-        //         "Stock updated successfully, new modalQty:",
-        //         modalQty.value
-        //     );
-        // } catch (error) {
-        //     console.error("Failed to update stock:", error);
-        //     // Don't decrement modalQty if stock update failed
-        // }
-    } else {
-        console.log("Cannot decrement: minimum quantity is 1");
     }
 };
 
@@ -798,42 +1094,63 @@ const cashReceived = ref(0);
    Helper Function to calculate Stock
 ---------------------------------------*/
 const hasEnoughStockForOrder = () => {
-    const ingredientStock = {}; // tracks remaining stock for each ingredient
+    console.log("=== Checking Stock for Order ===");
+    console.log("Cart items:", orderItems.value);
 
-    // Go through items in the same order as they are in the cart (first added = first served)
+    const ingredientUsage = {};
+
+    // Calculate total usage
     for (const item of orderItems.value) {
-        if (!item.ingredients || item.ingredients.length === 0) continue;
+        // ✅ Use the ingredients that were stored when item was added to cart
+        // These are already variant-specific
+        const itemIngredients = item.ingredients || [];
 
-        for (const ing of item.ingredients) {
+        console.log(`Item: ${item.title} (${item.variant_name || 'no variant'}), Qty: ${item.qty}`);
+        console.log("Item ingredients:", itemIngredients);
+
+        // ✅ If item has no ingredients, skip stock checking for this item
+        if (itemIngredients.length === 0) {
+            console.log(`  - No ingredients to track for ${item.title}`);
+            continue;
+        }
+
+        itemIngredients.forEach(ing => {
             const ingredientId = ing.inventory_item_id;
-            const availableStock = parseFloat(ing.inventory_stock);
-            const requiredQty = parseFloat(ing.quantity) * item.qty;
+            const availableStock = parseFloat(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+            const requiredQty = parseFloat(ing.quantity ?? ing.qty ?? 1) * item.qty;
 
-            // Initialize available stock for this ingredient (if not already)
-            if (!ingredientStock[ingredientId]) {
-                ingredientStock[ingredientId] = {
-                    name: ing.product_name,
-                    remaining: availableStock,
+            console.log(`  - Ingredient: ${ing.product_name}, Required: ${requiredQty}, Available: ${availableStock}`);
+
+            if (!ingredientUsage[ingredientId]) {
+                ingredientUsage[ingredientId] = {
+                    name: ing.product_name || 'Unknown',
+                    totalStock: availableStock,
+                    totalUsed: 0
                 };
             }
 
-            // Deduct required quantity from remaining stock
-            if (ingredientStock[ingredientId].remaining >= requiredQty) {
-                ingredientStock[ingredientId].remaining -= requiredQty;
-            } else {
-                // Not enough stock → toast and stop checking further
-                toast.error(
-                    `Not enough stock for "${item.title}". Please remove it from the cart to proceed.`
-                );
-                return false;
-            }
+            ingredientUsage[ingredientId].totalUsed += requiredQty;
+        });
+    }
+
+    console.log("Ingredient Usage Summary:", ingredientUsage);
+
+    // Check for over-allocation
+    for (const [ingredientId, usage] of Object.entries(ingredientUsage)) {
+        console.log(`Checking ${usage.name}: Used ${usage.totalUsed} / Available ${usage.totalStock}`);
+
+        if (usage.totalUsed > usage.totalStock) {
+            toast.error(
+                `Not enough "${usage.name}". ` +
+                `Need ${usage.totalUsed.toFixed(2)} but only ${usage.totalStock.toFixed(2)} available.`
+            );
+            return false;
         }
     }
 
-    // All items successfully allocated
+    console.log("✅ All stock checks passed!");
     return true;
 };
-
 
 
 
@@ -866,218 +1183,6 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
-
-
-/* ----------------------------
-   Print Receipt 
------------------------------*/
-// function printReceipt(order) {
-//     const plainOrder = JSON.parse(JSON.stringify(order));
-
-//     // Normalize the payment fields so it works for all cases
-//     const cash = Number(plainOrder.cashReceived ?? plainOrder.cash_received ?? 0);
-//     const card = Number(plainOrder.cardAmount ?? plainOrder.cardPayment ?? 0);
-//     const change = Number(plainOrder.changeAmount ?? plainOrder.change ?? 0);
-
-//     const type = (plainOrder?.payment_type || "").toLowerCase();
-//     let payLine = "";
-
-//     if (type === "split") {
-//         const cardAmount =
-//             Number(plainOrder.total_amount || plainOrder.sub_total || 0) - cash || 0;
-//         payLine = `Split (Cash: £${cash.toFixed(2)}, Card: £${cardAmount.toFixed(
-//             2
-//         )})`;
-//     } else if (type === "card" || type === "stripe") {
-//         payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""
-//             }${plainOrder?.card_brand ? ")" : ""}`;
-//     } else {
-//         payLine = plainOrder?.payment_method || "Cash";
-//     }
-
-
-//     const businessName =
-//         page.props.business_info.business_name || "Business Name";
-//     const businessPhone = page.props.business_info.phone || "+4477221122";
-//     const businessAddress = page.props.business_info.address || "XYZ";
-
-//     const businessLogo = page.props.business_info.image_url || "";
-//     const html = `
-//     <html>
-//     <head>
-//       <title>Customer Receipt</title>
-//       <style>
-//         @page { size: 80mm auto; margin: 0; }
-//         html, body {
-//           width: 78mm;
-//           margin: 0;
-//           padding: 8px 10px 8px 8px;
-//           font-family: monospace, Arial, sans-serif;
-//           font-size: 12px;
-//           line-height: 1.4;
-//           box-sizing: border-box;
-//         }
-//         .header { text-align: center; margin-bottom: 10px; }
-//         .order-info { margin: 10px 0; word-break: break-word; }
-//         .row {
-//           display: flex;
-//           justify-content: space-between;
-//           margin: 2px 0;
-//         }
-//         .label { text-align: left; }
-//         .value { text-align: right; }
-//         table {
-//           width: 100%;
-//           border-collapse: collapse;
-//           margin: 10px 0;
-//           table-layout: fixed;
-//         }
-//         th, td {
-//           padding: 4px 2px;
-//           text-align: left;
-//           word-wrap: break-word;
-//         }
-//         th {
-//           border-bottom: 1px solid #000;
-//         }
-//         td:last-child, th:last-child {
-//           text-align: right;
-//           padding-right: 4px;
-//         }
-//         .totals {
-//           margin-top: 10px;
-//           border-top: 1px dashed #000;
-//           padding-top: 8px;
-//         }
-//         .footer {
-//           text-align: center;
-//           margin-top: 10px;
-//           font-size: 11px;
-//         }
-//         .totals > div {
-//           display: flex;
-//           justify-content: space-between;
-//           margin: 3px 0;
-//         }
-//         .header img {
-//           max-width: 60px;
-//           max-height: 60px;
-//           object-fit: contain;
-//           margin-bottom: 5px;
-//           border-radius: 50%;
-//         }
-//         .business-name {
-//           font-size: 14px;
-//           font-weight: bold;
-//           text-transform: uppercase;
-//         }
-//       </style>
-//     </head>
-//     <body>
-//       <div class="header">
-//         ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
-//         <div class="business-name">${businessName}</div>
-//         <div class="business-phone">${businessPhone}</div>
-//         <h2>Customer Receipt</h2>
-//       </div>
-
-//       <!-- 🔧 Updated section -->
-//       <div class="order-info">
-//         <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()
-//         }</span></div>
-//         <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()
-//         }</span></div>
-//         <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"
-//         }</span></div>
-//         <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"
-//         }</span></div>
-//         ${plainOrder.note
-//             ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>`
-//             : ""
-//         }
-
-//         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
-//       </div>
-
-//       <table>
-//         <thead>
-//           <tr>
-//             <th style="width: 30%;">Item</th>
-//             <th style="width: 25%;">Qty</th>
-//             <th style="width: 25%;">Price</th>
-//             <th style="width: 30%;">Total</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           ${(plainOrder.items || [])
-//             .map((item) => {
-//                 const qty = Number(item.quantity) || Number(item.qty) || 0;
-//                 const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
-//                 const total = price * qty;
-//                 return `
-//                 <tr>
-//                   <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
-//                   <td style="font-size: 12px;">${qty}</td>
-//                   <td style="font-size: 12px;">£${price.toFixed(2)}</td>
-//                   <td style="font-size: 12px;">£${total.toFixed(2)}</td>
-//                 </tr>
-//               `;
-//             })
-//             .join("")}
-//         </tbody>
-//       </table>
-
-//       <div class="totals">
-//         <div><span>Subtotal:</span><span>£${Number(
-//                 plainOrder.sub_total || 0
-//             ).toFixed(2)}</span></div>
-//         ${plainOrder.promo_discount
-//             ? `<div><span>Promo Discount:</span><span>-£${Number(
-//                 plainOrder.promo_discount
-//             ).toFixed(2)}</span></div>`
-//             : ""
-//         }
-//         <div><span><strong>Total:</strong></span><span><strong>£${Number(
-//             plainOrder.total_amount || plainOrder.sub_total || 0
-//         ).toFixed(2)}</strong></span></div>
-//         ${plainOrder.cash_received
-//             ? `<div><span>Cash Received:</span><span>£${Number(
-//                 plainOrder.cash_received
-//             ).toFixed(2)}</span></div>`
-//             : ""
-//         }
-//         ${plainOrder.change
-//             ? `<div><span>Change:</span><span>£${Number(
-//                 plainOrder.change
-//             ).toFixed(2)}</span></div>`
-//             : ""
-//         }
-//       </div>
-//       <div class="footer">
-//           <div>${businessAddress}</div>
-//        <div>Customer Copy - Thank you for your purchase!</div>
-//       </div>
-//     </body>
-//     </html>
-//   `;
-
-//     const w = window.open("", "_blank", "width=400,height=600");
-//     if (!w) {
-//         alert("Please allow popups for this site to print receipts");
-//         return;
-//     }
-//     w.document.open();
-//     w.document.write(html);
-//     w.document.close();
-//     w.onload = () => {
-//         w.focus();
-//         w.print();
-//         w.onafterprint = () => w.close();
-//     };
-// }
-
-
-
 async function printReceipt(order) {
     try {
         const response = await axios.post("/api/customer/print-receipt", { order });
@@ -1094,176 +1199,6 @@ async function printReceipt(order) {
 
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
-
-/* ----------------------------
-   Print KOT - FIXED
------------------------------*/
-
-// function printKot(order) {
-//     const plainOrder = JSON.parse(JSON.stringify(order));
-
-//     const type = (plainOrder?.payment_method || "").toLowerCase();
-//     let payLine = "";
-//     if (type === "split") {
-//         payLine = `Split (Cash: £${Number(plainOrder?.cash_amount ?? 0).toFixed(2)}, Card: £${Number(plainOrder?.card_amount ?? 0).toFixed(2)})`;
-//     } else if (type === "card" || type === "stripe") {
-//         payLine = `Card${plainOrder?.card_brand ? ` (${plainOrder.card_brand}` : ""}${plainOrder?.last4 ? ` •••• ${plainOrder.last4}` : ""}${plainOrder?.card_brand ? ")" : ""}`;
-//     } else {
-//         payLine = plainOrder?.payment_method || "Cash";
-//     }
-
-//     const businessName = page.props.business_info.business_name || "Business Name";
-//     const businessPhone = page.props.business_info.phone || "+4477221122";
-//     const businessAddress = page.props.business_info.address || "XYZ";
-//     const businessLogo = page.props.business_info.image_url || "";
-
-//     const html = `
-//     <html>
-//     <head>
-//       <title>Kitchen Order Ticket</title>
-//       <style>
-//         @page { size: 80mm auto; margin: 0; }
-//         html, body {
-//           width: 78mm;
-//           margin: 0;
-//           padding: 8px 10px 8px 8px;
-//           font-family: monospace, Arial, sans-serif;
-//           font-size: 12px;
-//           line-height: 1.4;
-//           box-sizing: border-box;
-//         }
-//         .header { text-align: center; margin-bottom: 10px; }
-//         .order-info { margin: 10px 0; word-break: break-word; }
-//         .row {
-//           display: flex;
-//           justify-content: space-between;
-//           margin: 2px 0;
-//         }
-//         .label { text-align: left; }
-//         .value { text-align: right; }
-//         table {
-//           width: 100%;
-//           border-collapse: collapse;
-//           margin: 10px 0;
-//           table-layout: fixed;
-//         }
-//         th, td {
-//           padding: 4px 2px;
-//           text-align: left;
-//           word-wrap: break-word;
-//         }
-//         th {
-//           border-bottom: 1px solid #000;
-//         }
-//         td:last-child, th:last-child {
-//           text-align: right;
-//           padding-right: 4px;
-//         }
-//         .totals {
-//           margin-top: 10px;
-//           border-top: 1px dashed #000;
-//           padding-top: 8px;
-//         }
-//         .footer {
-//           text-align: center;
-//           margin-top: 10px;
-//           font-size: 11px;
-//         }
-//         .totals > div {
-//           display: flex;
-//           justify-content: space-between;
-//           margin: 3px 0;
-//         }
-//         .header img {
-//           max-width: 60px;
-//           max-height: 60px;
-//           object-fit: contain;
-//           margin-bottom: 5px;
-//           border-radius: 50%;
-//         }
-//         .business-name {
-//           font-size: 14px;
-//           font-weight: bold;
-//           text-transform: uppercase;
-//         }
-//       </style>
-//     </head>
-//     <body>
-//       <div class="header">
-//         ${businessLogo ? `<img src="${businessLogo}" alt="Logo">` : ""}
-//         <div class="business-name">${businessName}</div>
-//         <div class="business-phone">${businessPhone}</div>
-//         <h2>KITCHEN ORDER TICKET</h2>
-//       </div>
-
-//       <!-- Same design as Customer Receipt -->
-//       <div class="order-info">
-//         <div class="row"><span class="label">Date:</span><span class="value">${plainOrder.order_date || new Date().toLocaleDateString()}</span></div>
-//         <div class="row"><span class="label">Time:</span><span class="value">${plainOrder.order_time || new Date().toLocaleTimeString()}</span></div>
-//         <div class="row"><span class="label">Customer:</span><span class="value">${plainOrder.customer_name || "Walk In"}</span></div>
-//         <div class="row"><span class="label">Order Type:</span><span class="value">${plainOrder.order_type || "In-Store"}</span></div>
-//         ${plainOrder.note ? `<div class="row"><span class="label">Note:</span><span class="value">${plainOrder.note}</span></div>` : ""}
-//         ${plainOrder.kitchen_note
-//             ? `<div class="row"><span class="label">Kitchen Note:</span><span class="value">${plainOrder.kitchen_note}</span></div>` : ""}
-//         <div class="row"><span class="label">Payment Type:</span><span class="value">${payLine}</span></div>
-//       </div>
-
-//       <table>
-//         <thead>
-//           <tr>
-//             <th style="width: 30%;">Item</th>
-//             <th style="width: 25%;">Qty</th>
-//             <th style="width: 25%;">Price</th>
-//             <th style="width: 30%;">Total</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           ${(plainOrder.items || [])
-//             .map((item) => {
-//                 const qty = Number(item.quantity) || Number(item.qty) || 0;
-//                 const price = qty > 0 ? (Number(item.price) || 0) / qty : 0;
-//                 const total = price * qty;
-//                 return `
-//                 <tr>
-//                   <td style="font-size: 12px;">${item.title || "Unknown Item"}</td>
-//                   <td style="font-size: 12px;">${qty}</td>
-//                   <td style="font-size: 12px;">£${price.toFixed(2)}</td>
-//                   <td style="font-size: 12px;">£${total.toFixed(2)}</td>
-//                 </tr>
-//               `;
-//             })
-//             .join("")}
-//         </tbody>
-//       </table>
-
-//       <div class="totals">
-//         <div><span>Subtotal:</span><span>£${Number(plainOrder.sub_total || 0).toFixed(2)}</span></div>
-//         <div><span><strong>Total:</strong></span><span><strong>£${Number(plainOrder.total_amount || 0).toFixed(2)}</strong></span></div>
-//       </div>
-
-//       <div class="footer">
-//         <div>${businessAddress}</div>
-//         <div>Kitchen Copy - Thank you!</div>
-//       </div>
-//     </body>
-//     </html>
-//   `;
-
-//     const w = window.open("", "_blank", "width=400,height=600");
-//     if (!w) {
-//         alert("Please allow popups for this site to print KOT");
-//         return;
-//     }
-//     w.document.open();
-//     w.document.write(html);
-//     w.document.close();
-//     w.onload = () => {
-//         w.focus();
-//         w.print();
-//         w.onafterprint = () => w.close();
-//     };
-// }
-
 
 async function printKot(order) {
     try {
@@ -1652,14 +1587,12 @@ const getItemTaxPercentage = (item) => {
 
 
 // ========================================
-// // Get quantity for a product in the cart
+// Fixed: Get quantity for a product in the cart
 // ========================================
-// Get quantity for a product in the cart
 const getCardQty = (product) => {
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
 
-    // ✅ Get selected addons to match the exact cart item
     const selectedAddons = getSelectedAddons(product);
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
@@ -1673,82 +1606,142 @@ const getCardQty = (product) => {
     return cartItem ? cartItem.qty : 0;
 };
 
-// Check if we can add more of this product
+// ========================================
+// Fixed: Check if we can add more (with proper variant check)
+// ========================================
 const canAddMore = (product) => {
+    const variant = getSelectedVariant(product);
+    const variantId = variant ? variant.id : null;
+
+    // Get ingredients for the SELECTED variant
+    const variantIngredients = getVariantIngredients(product, variantId);
+
+    if (!variantIngredients.length) return true; // No ingredients = unlimited
+
     const currentQty = getCardQty(product);
     const menuStock = calculateMenuStock(product);
 
     if (menuStock <= 0) return false;
-    if (currentQty >= menuStock) return false;
 
-    return checkIngredientAvailability(product, currentQty + 1);
-};
+    // Build ingredient usage map from current cart
+    const ingredientUsage = {};
 
-// Check if ingredients are available for a specific quantity
-const checkIngredientAvailability = (product, targetQty) => {
-    if (!product.ingredients?.length) return true;
-
-    const ingredientStock = {};
-
-    // Build current stock map based on items in cart
     for (const item of orderItems.value) {
-        if (!item.ingredients?.length) continue;
-        for (const ing of item.ingredients) {
+        const itemIngredients = getVariantIngredients(item, item.variant_id);
+        itemIngredients.forEach(ing => {
             const id = ing.inventory_item_id;
-            if (!ingredientStock[id]) {
-                ingredientStock[id] = parseFloat(ing.inventory_stock);
+            const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+            if (!ingredientUsage[id]) {
+                ingredientUsage[id] = {
+                    totalStock: stock,
+                    used: 0
+                };
             }
-            ingredientStock[id] -= parseFloat(ing.quantity) * item.qty;
-        }
+
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
+            ingredientUsage[id].used += required;
+        });
     }
 
-    // Check if enough stock for one more unit
-    for (const ing of product.ingredients) {
+    // Check if we can add ONE MORE of this product with selected variant
+    for (const ing of variantIngredients) {
         const id = ing.inventory_item_id;
-        const availableStock = ingredientStock[id] ?? parseFloat(ing.inventory_stock);
-        const requiredQty = parseFloat(ing.quantity);
+        const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+        const required = Number(ing.quantity ?? ing.qty ?? 1) * (currentQty + 1);
 
-        if (availableStock < requiredQty) {
-            return false;
+        if (!ingredientUsage[id]) {
+            // This ingredient isn't used by other cart items yet
+            if (stock < required) return false;
+        } else {
+            // Check if there's enough stock after accounting for other cart items
+            const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+
+            // If this exact item is already in cart, we need to add back its current usage
+            const selectedAddons = getSelectedAddons(product);
+            const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+
+            const existingItem = orderItems.value.find(item => {
+                const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
+                return item.id === product.id &&
+                    item.variant_id === variantId &&
+                    itemAddonIds === addonIds;
+            });
+
+            if (existingItem) {
+                // Add back current usage of this exact item
+                const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingItem.qty;
+                const availableForThisItem = available + currentUsage;
+                if (availableForThisItem < required) return false;
+            } else {
+                // New item, just check available stock
+                if (available < required) return false;
+            }
         }
     }
 
     return true;
 };
 
-// Increment quantity directly from card
-// Increment quantity directly from card
+// Check if ingredients are available for a specific quantity
+const checkIngredientAvailability = (product, targetQty) => {
+    const allIngredients = getAllIngredients(product);
+    if (!allIngredients.length) return true;
+
+    const ingredientStock = {};
+
+    // Reduce stock for items already in cart
+    for (const item of orderItems.value) {
+        const itemIngredients = getAllIngredients(item);
+        itemIngredients.forEach(ing => {
+            const id = ing.inventory_item_id;
+            if (!ingredientStock[id]) ingredientStock[id] = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+            ingredientStock[id] -= Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
+        });
+    }
+
+    // Check if enough stock for targetQty
+    for (const ing of allIngredients) {
+        const id = ing.inventory_item_id;
+        const available = ingredientStock[id] ?? Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+        const required = Number(ing.quantity ?? ing.qty ?? 1) * targetQty;
+        if (available < required) return false;
+    }
+
+    return true;
+};
+
+
+// ========================================
+// Fixed: Increment quantity from card with proper validation
+// ========================================
 const incrementCardQty = (product) => {
+    // ✅ Check stock first (silent check, no toast since button is disabled)
+    if (getProductStock(product) <= 0) {
+        return; // Exit silently, button is already disabled
+    }
+
     const variant = getSelectedVariant(product);
     const variantPrice = variant ? parseFloat(variant.price) : product.price;
     const variantId = variant ? variant.id : null;
     const variantName = variant ? variant.name : null;
 
-    // ✅ Get selected addons
     const selectedAddons = getSelectedAddons(product);
     const addonsPrice = getAddonsPrice(product);
     const totalItemPrice = variantPrice + addonsPrice;
-
-    const currentQty = getCardQty(product);
-    const menuStock = calculateMenuStock(product);
-
-    if ((product.stock ?? 0) <= 0) {
-        toast.error(`${product.title} is out of stock.`);
-        return;
-    }
-
-    if (currentQty >= menuStock) {
-        toast.error(`Not enough stock for "${product.title}".`);
-        return;
-    }
-
-    if (!checkIngredientAvailability(product, currentQty + 1)) {
-        toast.error(`Not enough ingredients for "${product.title}".`);
-        return;
-    }
-
-    // ✅ Create unique key including variant AND addons
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+
+    // Get ingredients for the SELECTED variant
+    const variantIngredients = getVariantIngredients(product, variantId);
+
+    // Check if we can add more (only show toast if there ARE ingredients but not enough)
+    if (!canAddMore(product)) {
+        if (variantIngredients.length > 0) {
+            const variantText = variantName ? ` (${variantName})` : '';
+            toast.error(`Not enough ingredients for "${product.title}${variantText}".`);
+        }
+        return;
+    }
 
     const existingIndex = orderItems.value.findIndex(item => {
         const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
@@ -1763,7 +1756,7 @@ const incrementCardQty = (product) => {
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
         orderItems.value[existingIndex].outOfStock = false;
     } else {
-        // Create new item with variant AND addons
+        const menuStock = calculateMenuStock(product);
         orderItems.value.push({
             id: product.id,
             title: product.title,
@@ -1773,23 +1766,23 @@ const incrementCardQty = (product) => {
             qty: 1,
             note: "",
             stock: menuStock,
-            ingredients: product.ingredients ?? [],
+            ingredients: variantIngredients, // Use variant-specific ingredients
             variant_id: variantId,
             variant_name: variantName,
-            addons: selectedAddons, // ✅ INCLUDE ADDONS
+            addons: selectedAddons,
             outOfStock: false,
         });
     }
 };
 
 
-
-// Decrement quantity directly from card
+// ========================================
+// Fixed: Decrement quantity from card
+// ========================================
 const decrementCardQty = (product) => {
     const variant = getSelectedVariant(product);
     const variantId = variant ? variant.id : null;
 
-    // ✅ Get selected addons to find the right cart item
     const selectedAddons = getSelectedAddons(product);
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
@@ -1811,6 +1804,68 @@ const decrementCardQty = (product) => {
         item.outOfStock = false;
     }
 };
+
+
+// ========================================
+// Helper: Get all ingredients for a specific variant
+// ========================================
+const getVariantIngredients = (product, variantId) => {
+    if (!variantId || !product.variants?.length) {
+        return product.ingredients ?? [];
+    }
+
+    const variant = product.variants.find(v => v.id === variantId);
+    return variant?.ingredients ?? product.ingredients ?? [];
+};
+
+// ========================================
+// Fixed: Check if we can increment a cart item
+// ========================================
+const canIncCartItem = (cartItem) => {
+    if (!cartItem || !cartItem.ingredients?.length) return true;
+
+    // Build ingredient usage map from current cart
+    const ingredientUsage = {};
+
+    for (const item of orderItems.value) {
+        const itemIngredients = item.ingredients ?? [];
+        itemIngredients.forEach(ing => {
+            const id = ing.inventory_item_id;
+            const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+            if (!ingredientUsage[id]) {
+                ingredientUsage[id] = {
+                    totalStock: stock,
+                    used: 0
+                };
+            }
+
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
+            ingredientUsage[id].used += required;
+        });
+    }
+
+    // Check if we can add ONE MORE of this specific cart item
+    for (const ing of cartItem.ingredients) {
+        const id = ing.inventory_item_id;
+        const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+        if (!ingredientUsage[id]) {
+            if (stock < Number(ing.quantity ?? ing.qty ?? 1)) return false;
+        } else {
+            const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+            const currentItemUsage = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
+            const availableForThisItem = available + currentItemUsage;
+            const requiredForNewQty = Number(ing.quantity ?? ing.qty ?? 1) * (cartItem.qty + 1);
+
+            if (availableForThisItem < requiredForNewQty) return false;
+        }
+    }
+
+    return true;
+};
+
+
 </script>
 
 <template>
@@ -1904,169 +1959,9 @@ const decrementCardQty = (product) => {
                                 </div>
                             </div>
 
-                            <!-- <div class="row g-3">
-                                <div class="col-6 col-md-4 col-xl-3 d-flex" v-for="p in filteredProducts"
-                                    :key="p.title">
-                                    <div class="item-card" :class="{
-                                        'out-of-stock': (p.stock ?? 0) <= 0,
-                                    }" :style="{
-                                        border:
-                                            '2px solid ' +
-                                            (p.label_color || '#1B1670'),
-                                    }" @click="
-                                        (p.stock ?? 0) > 0 && openItem(p)
-                                        ">
-                                        <div class="item-img">
-                                            <img :src="p.img" alt="" />
-                                            <span class="item-price rounded-pill" :style="{
-                                                background:
-                                                    p.label_color ||
-                                                    '#1B1670',
-                                            }">
-                                                {{ formatCurrencySymbol(p.price) }}
-                                            </span>
-
-                                            <span v-if="(p.stock ?? 0) <= 0" class="item-badge">OUT OF STOCK</span>
-                                        </div>
-
-                                        <div class="item-body">
-                                            <div class="item-title" :style="{
-                                                color: (p.label_color || '#1B1670'),
-                                            }">
-                                                {{ p.title }}
-                                            </div>
-                                            <div class="item-sub" :style="{
-                                                color: (p.label_color || '#1B1670'),
-                                            }">
-                                                {{ p.family }}
-                                            </div>
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                                
-                                <div v-if="filteredProducts.length === 0" class="col-12">
-                                    <div class="alert alert-light border text-center rounded-4">
-                                        No items found
-                                    </div>
-                                </div>
-                            </div> -->
-
-
-                            <!-- <div class="row g-3">
-                                <div class="col-12 col-md-8 col-xl-8 d-flex" v-for="p in filteredProducts"
-                                    :key="p.title">
-                                    <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
-                                        :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
-                                        :style="{ borderColor: p.label_color || '#1B1670' }">
-
-                                       
-                                        <div class="p-2 d-flex flex-column align-items-center justify-content-between position-relative bg-light"
-                                            style="flex: 0 0 40%; max-width: 40%; position: relative;">
-
-                                            <div
-                                                class="d-flex align-items-center justify-content-center w-100 flex-grow-1">
-                                                <img :src="p.img" alt="" class="img-fluid rounded-3"
-                                                    style="max-height: 150px; object-fit: contain;" />
-                                            </div>
-
-                                          
-                                            <span
-                                                class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small"
-                                                :style="{ background: p.label_color || '#1B1670' }">
-                                                {{ formatCurrencySymbol(p.price) }}
-                                            </span>
-
-                                           
-                                            <span v-if="(p.stock ?? 0) <= 0"
-                                                class="position-absolute bottom-0 start-0 m-2 badge bg-danger">
-                                                OUT OF STOCK
-                                            </span>
-
-                                          
-                                            <div v-if="(p.stock ?? 0) > 0"
-                                                class="qty-group d-flex align-items-center justify-content-center gap-2 mt-2 w-100"
-                                                @click.stop style="padding: 0.5rem;">
-                                                <button class="qty-btn btn px-2 py-2 btn-outline-secondary btn-sm"
-                                                    @click.stop="decrementCardQty(p)"
-                                                    :disabled="getCardQty(p) <= 0">−</button>
-                                                <div class="qty-box border rounded-pill px-2 py-2 text-center small">
-                                                    {{ getCardQty(p) }}
-                                                </div>
-                                                <button class="qty-btn btn btn-outline-secondary btn-sm rounded-circle"
-                                                    @click.stop="incrementCardQty(p)"
-                                                    :disabled="!canAddMore(p)">+</button>
-                                            </div>
-                                        </div>
-
-                                     
-                                        <div class="p-3 d-flex flex-column justify-content-between"
-                                            style="flex: 1 1 60%; min-width: 0;">
-
-                                            <div>
-                                                <div class="h5 fw-bold mb-1">
-                                                    {{ p.title }}
-                                                </div>
-                                                <div class="text-muted mb-2 small"
-                                                    :style="{ color: p.label_color || '#1B1670' }">
-                                                    {{ p.family }}
-                                                </div>
-
-                                              
-                                                <div class="chips small">
-                                                  
-                                                    <div v-if="p.nutrition" class="mb-3">
-                                                        <strong class="d-block mb-1">Nutrition:</strong>
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            <span v-if="p.nutrition.calories" class="chip chip-orange">
-                                                                Cal: {{ p.nutrition.calories }}
-                                                            </span>
-                                                            <span v-if="p.nutrition.carbs" class="chip chip-green">
-                                                                Carbs: {{ p.nutrition.carbs }}
-                                                            </span>
-                                                            <span v-if="p.nutrition.fat" class="chip chip-purple">
-                                                                Fat: {{ p.nutrition.fat }}
-                                                            </span>
-                                                            <span v-if="p.nutrition.protein" class="chip chip-blue">
-                                                                Protein: {{ p.nutrition.protein }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                   
-                                                    <div v-if="p.allergies?.length" class="mb-3">
-                                                        <strong class="d-block mb-1">Allergies:</strong>
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            <span v-for="(a, i) in p.allergies" :key="'a-' + i"
-                                                                class="chip chip-red">
-                                                                {{ a.name }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                   
-                                                    <div v-if="p.tags?.length">
-                                                        <strong class="d-block mb-1">Tags:</strong>
-                                                        <div class="d-flex flex-wrap gap-1 mt-1">
-                                                            <span v-for="(t, i) in p.tags" :key="'t-' + i"
-                                                                class="chip chip-teal">
-                                                                {{ t.name }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> -->
-
-
                             <div class="row g-3">
                                 <div class="col-12 col-md-6 col-xl-6 d-flex" v-for="p in filteredProducts" :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
-                                        :class="{ 'out-of-stock': (p.stock ?? 0) <= 0 }"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
 
                                         <!-- Left Side (Image + Price Badge) - 40% -->
@@ -2080,8 +1975,8 @@ const decrementCardQty = (product) => {
                                                 {{ formatCurrencySymbol(getTotalPrice(p)) }}
                                             </span>
 
-                                            <!-- OUT OF STOCK Badge -->
-                                            <span v-if="(p.stock ?? 0) <= 0"
+                                            <!-- OUT OF STOCK Badge (only if selected variant is out of stock) -->
+                                            <span v-if="getProductStock(p) <= 0"
                                                 class="position-absolute bottom-0 start-0 end-0 m-2 badge bg-danger py-2">
                                                 OUT OF STOCK
                                             </span>
@@ -2112,8 +2007,7 @@ const decrementCardQty = (product) => {
                                                     </select>
                                                 </div>
 
-                                                <!-- ✅ Addons Selection -->
-                                                <!-- ✅ Addons Selection with MultiSelect -->
+                                                <!-- Addons Selection -->
                                                 <div v-if="p.addon_groups && p.addon_groups.length > 0">
                                                     <div v-for="group in p.addon_groups" :key="group.group_id"
                                                         class="mb-3">
@@ -2164,9 +2058,8 @@ const decrementCardQty = (product) => {
                                                 </button>
                                             </div>
 
-                                            <!-- Quantity Controls -->
-                                            <div v-if="(p.stock ?? 0) > 0"
-                                                class="mt-2 d-flex align-items-center justify-content-start gap-2"
+                                            <!-- ✅ Quantity Controls (ALWAYS SHOW, but disable when out of stock) -->
+                                            <div class="mt-2 d-flex align-items-center justify-content-start gap-2"
                                                 @click.stop>
                                                 <button
                                                     class="qty-btn btn btn-outline-secondary rounded-circle px-2 py-2"
@@ -2181,10 +2074,13 @@ const decrementCardQty = (product) => {
                                                 <button
                                                     class="qty-btn btn btn-outline-secondary rounded-circle px-2 py-2"
                                                     style="width: 55px; height: 36px;" @click.stop="incrementCardQty(p)"
-                                                    :disabled="!canAddMore(p)">
+                                                    :disabled="!canAddMore(p) || getProductStock(p) <= 0"
+                                                    :class="{ 'opacity-50': getProductStock(p) <= 0 }">
                                                     <strong>+</strong>
                                                 </button>
                                             </div>
+
+
                                         </div>
                                     </div>
                                 </div>
@@ -2301,20 +2197,14 @@ const decrementCardQty = (product) => {
                                         </div>
 
                                         <div class="line-mid">
-                                            <button class="qty-btn" @click="decCart(i)">
-                                                −
-                                            </button>
+                                            <button class="qty-btn" @click="decCart(i)">−</button>
                                             <div class="qty">{{ it.qty }}</div>
-                                            <button class="qty-btn" :class="[
-                                                (it.outOfStock || it.qty >= (it.stock ?? 0))
-                                                    ? 'bg-secondary text-white cursor-not-allowed opacity-70'
-                                                    : ''
-                                            ]" @click="incCart(i)"
-                                                :disabled="it.outOfStock || it.qty >= (it.stock ?? 0)">
+
+                                            <button class="qty-btn" @click="incCart(i)"
+                                                :disabled="it.outOfStock || !canIncCartItem(it)"
+                                                :class="{ 'bg-secondary text-white cursor-not-allowed opacity-70': it.outOfStock || !canIncCartItem(it) }">
                                                 +
                                             </button>
-
-
                                         </div>
 
                                         <div class="line-right">
@@ -2326,16 +2216,14 @@ const decrementCardQty = (product) => {
                                             </button>
                                         </div>
 
-                                        <button class="btn btn-warning rounded-pill px-3 py-2"
+                                        <!-- <button class="btn btn-warning rounded-pill px-3 py-2"
                                             @click="openPromoModal(it)">
                                             Promos
-                                        </button>
+                                        </button> -->
                                     </div>
                                 </div>
 
                                 <!-- Totals -->
-                                <!-- Totals -->
-                                <!-- Replace your existing totals section with this -->
                                 <div class="totals">
                                     <div class="trow">
                                         <span>Sub Total</span>
@@ -2405,7 +2293,7 @@ const decrementCardQty = (product) => {
                 </div>
             </div>
 
-            <!-- Choose Item Modal (unchanged content/ids) -->
+            <!-- Choose Item Modal -->
             <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow">
@@ -2432,58 +2320,99 @@ const decrementCardQty = (product) => {
                                         " class="img-fluid rounded-3 w-100" alt="" />
                                 </div>
                                 <div class="col-md-7">
-                                    <div class="h4 mb-1">
-                                        {{
-                                            formatCurrencySymbol(
-                                                selectedItem?.price || 0
-                                            )
-                                        }}
+                                    <!-- Dynamic Price (variant + addons) -->
+                                    <div class="h4 mb-3">
+                                        {{ formatCurrencySymbol(getModalTotalPrice()) }}
                                     </div>
 
+                                    <!-- Variant Dropdown -->
+                                    <div v-if="selectedItem?.variants && selectedItem.variants.length > 0" class="mb-3">
+                                        <label class="form-label small fw-semibold mb-1">
+                                            Variants:
+                                        </label>
+                                        <select v-model="modalSelectedVariant" class="form-select form-select-sm"
+                                            @change="onModalVariantChange">
+                                            <option v-for="variant in selectedItem.variants" :key="variant.id"
+                                                :value="variant.id">
+                                                {{ variant.name }} - {{ formatCurrencySymbol(variant.price) }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Addons Selection -->
+                                    <div v-if="selectedItem?.addon_groups && selectedItem.addon_groups.length > 0">
+                                        <div v-for="group in selectedItem.addon_groups" :key="group.group_id"
+                                            class="mb-3">
+                                            <label class="form-label small fw-semibold mb-2">
+                                                {{ group.group_name }}
+                                                <span v-if="group.max_select > 0" class="text-muted"
+                                                    style="font-size: 0.75rem;">
+                                                    (Max {{ group.max_select }})
+                                                </span>
+                                            </label>
+                                            <MultiSelect :modelValue="modalSelectedAddons[group.group_id] || []"
+                                                @update:modelValue="(val) => handleModalAddonChange(group.group_id, val)"
+                                                :options="group.addons" optionLabel="name" dataKey="id"
+                                                placeholder="Select addons" :maxSelectedLabels="3"
+                                                class="w-100 addon-multiselect">
+                                                <template #value="slotProps">
+                                                    <div v-if="slotProps.value && slotProps.value.length > 0"
+                                                        class="d-flex flex-wrap gap-1">
+                                                        <span v-for="addon in slotProps.value" :key="addon.id"
+                                                            class="badge bg-primary">
+                                                            {{ addon.name }} +{{ formatCurrencySymbol(addon.price) }}
+                                                        </span>
+                                                    </div>
+                                                    <span v-else>
+                                                        {{ slotProps.placeholder }}
+                                                    </span>
+                                                </template>
+                                                <template #option="slotProps">
+                                                    <div
+                                                        class="d-flex justify-content-between align-items-center w-100">
+                                                        <span>{{ slotProps.option.name }}</span>
+                                                        <span class="fw-semibold text-success">
+                                                            +{{ formatCurrencySymbol(slotProps.option.price) }}
+                                                        </span>
+                                                    </div>
+                                                </template>
+                                            </MultiSelect>
+                                        </div>
+                                    </div>
+
+                                    <!-- Nutrition, Allergies, Tags (Dynamic based on variant) -->
                                     <div class="chips mb-3">
                                         <div class="mb-1">
                                             <strong>Nutrition:</strong>
                                         </div>
-                                        <span v-if="
-                                            selectedItem?.nutrition
-                                                ?.calories
-                                        " class="chip chip-orange">
-                                            Cal:
-                                            {{
-                                                selectedItem.nutrition.calories
-                                            }}
+                                        <span v-if="getModalNutrition()?.calories" class="chip chip-orange">
+                                            Cal: {{ getModalNutrition().calories }}
                                         </span>
-                                        <span v-if="
-                                            selectedItem?.nutrition?.carbs
-                                        " class="chip chip-green">
-                                            Carbs:
-                                            {{ selectedItem.nutrition.carbs }}
+                                        <span v-if="getModalNutrition()?.carbs" class="chip chip-green">
+                                            Carbs: {{ getModalNutrition().carbs }}
                                         </span>
-                                        <span v-if="selectedItem?.nutrition?.fat" class="chip chip-purple">
-                                            Fat:
-                                            {{ selectedItem.nutrition.fat }}
+                                        <span v-if="getModalNutrition()?.fat" class="chip chip-purple">
+                                            Fat: {{ getModalNutrition().fat }}
                                         </span>
-                                        <span v-if="
-                                            selectedItem?.nutrition?.protein
-                                        " class="chip chip-blue">
-                                            Protein:
-                                            {{ selectedItem.nutrition.protein }}
+                                        <span v-if="getModalNutrition()?.protein" class="chip chip-blue">
+                                            Protein: {{ getModalNutrition().protein }}
                                         </span>
 
                                         <div class="w-100 mt-2">
                                             <strong>Allergies:</strong>
                                         </div>
-                                        <span v-for="(a, i) in selectedItem?.allergies || []" :key="'a-' + i"
-                                            class="chip chip-red">{{ a.name }}</span>
+                                        <span v-for="(a, i) in getModalAllergies()" :key="'a-' + i"
+                                            class="chip chip-red">{{ a.name
+                                            }}</span>
 
                                         <div class="w-100 mt-2">
                                             <strong>Tags:</strong>
                                         </div>
-                                        <span v-for="(t, i) in selectedItem?.tags || []" :key="'t-' + i"
-                                            class="chip chip-teal">{{
-                                                t.name }}</span>
+                                        <span v-for="(t, i) in getModalTags()" :key="'t-' + i" class="chip chip-teal">{{
+                                            t.name }}</span>
                                     </div>
 
+                                    <!-- Quantity Controls -->
                                     <div class="qty-group gap-1">
                                         <button class="qty-btn" @click="decQty">
                                             −
@@ -2491,8 +2420,7 @@ const decrementCardQty = (product) => {
                                         <div class="qty-box rounded-pill">
                                             {{ modalQty }}
                                         </div>
-                                        <button class="qty-btn" @click="incQty" :disabled="modalQty >= menuStockForSelected
-                                            ">
+                                        <button class="qty-btn" @click="incQty" :disabled="!canIncModalQty()">
                                             +
                                         </button>
                                     </div>
