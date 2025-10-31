@@ -1435,18 +1435,63 @@ const loadingPromos = ref(true);
 const promosData = ref([]);
 const selectedPromo = ref(null);
 
-// Update handleApplyPromo function
+// ✅ Update handleApplyPromo to validate cart items
 const handleApplyPromo = (promo) => {
     selectedPromo.value = promo;
 
-    // Check if cart meets minimum purchase requirement
-    if (promo.min_purchase && subTotal.value < parseFloat(promo.min_purchase)) {
-        toast.warning(`Minimum purchase of ${formatCurrencySymbol(promo.min_purchase)} required for this promo.`);
+    // Get matching items
+    const matchingItems = getPromoMatchingItems();
+
+    if (matchingItems.length === 0) {
+        toast.warning("No items in cart match this promo. Please add eligible items first.");
+        selectedPromo.value = null;
+        return;
+    }
+
+    // Calculate subtotal of matching items
+    const promoSubtotal = matchingItems.reduce((total, item) => {
+        return total + (item.unit_price * item.qty);
+    }, 0);
+
+    // Check minimum purchase requirement
+    if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
+        toast.warning(
+            `Minimum purchase of ${formatCurrencySymbol(promo.min_purchase)} required for this promo. ` +
+            `Current eligible items total: ${formatCurrencySymbol(promoSubtotal)}`
+        );
     } else {
-        toast.success(`Promo "${promo.name}" applied! You saved ${formatCurrencySymbol(promoDiscount.value)}`);
+        const itemCount = matchingItems.length;
+        const itemText = itemCount === orderItems.value.length
+            ? ''
+            : `${itemCount} item${itemCount > 1 ? 's' : ''}`;
+
+        toast.success(
+            `Promo "${promo.name}" applied ${itemText}! You saved ${formatCurrencySymbol(promoDiscount.value)}`
+        );
     }
 
     showPromoModal.value = false;
+};
+
+// Add this helper function to get matching cart items for selected promo
+const getPromoMatchingItems = () => {
+    if (!selectedPromo.value) return [];
+
+    if (!selectedPromo.value.menu_items || selectedPromo.value.menu_items.length === 0) {
+        return orderItems.value; // All items
+    }
+
+    const promoMenuIds = selectedPromo.value.menu_items.map(item => item.id);
+    return orderItems.value.filter(item => promoMenuIds.includes(item.id));
+};
+
+const getPromoSubtotal = () => {
+    if (!selectedPromo.value) return 0;
+
+    const matchingItems = getPromoMatchingItems();
+    return matchingItems.reduce((total, item) => {
+        return total + (item.unit_price * item.qty);
+    }, 0);
 };
 
 
@@ -1479,28 +1524,54 @@ const handleClearPromo = () => {
 //     }
 // };
 
-const openPromoModal = async (item) => {
-    console.log("OpenPromoModal: item =", item);
+// const openPromoModal = async (item) => {
+//     console.log("OpenPromoModal: item =", item);
+//     loadingPromos.value = true;
+//     selectedItem.value = item;
+
+//     try {
+//         showPromoModal.value = true;
+
+//         const response = await axios.get(`/api/promos/for-item/${item.id}`);
+//         if (response.data.success) {
+//             promosData.value = response.data.data;
+//         } else {
+//             console.error('Failed to fetch promos', response.data);
+//             promosData.value = [];
+//         }
+//     } catch (error) {
+//         console.error('Error fetching promos', error);
+//         promosData.value = [];
+//     } finally {
+//         loadingPromos.value = false;
+//     }
+// };
+
+const openPromoModal = async () => {
+    console.log("Fetching promos for current meal...");
     loadingPromos.value = true;
-    selectedItem.value = item;
+    showPromoModal.value = true;
 
     try {
-        showPromoModal.value = true;
-
-        const response = await axios.get(`/api/promos/for-item/${item.id}`);
-        if (response.data.success) {
-            promosData.value = response.data.data;
+        const response = await axios.get('/api/promos/current');
+        if (response.data?.success) {
+            promosData.value = response.data.data || [];
+            console.log("Promos for current meal:", promosData.value);
+            console.log("Meal:", response.data.meal);
         } else {
-            console.error('Failed to fetch promos', response.data);
+            console.warn("Failed to fetch promos:", response.data);
             promosData.value = [];
         }
     } catch (error) {
-        console.error('Error fetching promos', error);
+        console.error("Error fetching current meal promos:", error);
         promosData.value = [];
     } finally {
         loadingPromos.value = false;
     }
 };
+
+
+
 
 
 const handleViewOrderDetails = (order) => {
@@ -1517,10 +1588,12 @@ const promoDiscount = computed(() => {
 
     const promo = selectedPromo.value;
     const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
-    const subtotal = subTotal.value;
+
+    // ✅ Use promo-specific subtotal (only matching items)
+    const promoSubtotal = getPromoSubtotal();
 
     // Check minimum purchase requirement
-    if (promo.min_purchase && subtotal < parseFloat(promo.min_purchase)) {
+    if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
         return 0;
     }
 
@@ -1530,7 +1603,7 @@ const promoDiscount = computed(() => {
     }
 
     if (promo.type === 'percent') {
-        const discount = (subtotal * rawDiscount) / 100;
+        const discount = (promoSubtotal * rawDiscount) / 100;
         const maxCap = parseFloat(promo.max_discount ?? 0) || 0;
         if (maxCap > 0 && discount > maxCap) {
             return maxCap;
@@ -2105,11 +2178,10 @@ const canIncCartItem = (cartItem) => {
                                 @click="openPosOrdersModal">
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
-                            </button> -->
-                            <!-- <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
+                            < </button> -->
+                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
                                 Promos
-                            </button> -->
-
+                            </button>
                         </div>
 
                         <div class="cart card border-0 shadow-lg rounded-4">
@@ -2402,7 +2474,8 @@ const canIncCartItem = (cartItem) => {
                                             <strong>Allergies:</strong>
                                         </div>
                                         <span v-for="(a, i) in getModalAllergies()" :key="'a-' + i"
-                                            class="chip chip-red">{{ a.name
+                                            class="chip chip-red">{{
+                                                a.name
                                             }}</span>
 
                                         <div class="w-100 mt-2">
