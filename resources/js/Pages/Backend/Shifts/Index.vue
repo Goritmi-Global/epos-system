@@ -19,6 +19,9 @@ const shifts = ref([]);
 const showShiftDetailsModal = ref(false);
 const selectedShiftDetails = ref([]);
 const selectedShiftId = ref(null);
+const startingInventory = ref([]);
+const endingInventory = ref([]);
+const shiftEmployeeDetails = ref([]);
 /* ---------------- Fetch shifts ---------------- */
 const fetchShifts = async () => {
     try {
@@ -37,6 +40,14 @@ const viewShift = async (shift) => {
     try {
         const res = await axios.get(`/api/shift/${shift.id}/details`);
         selectedShiftDetails.value = res.data.data || [];
+        if (res.data.success) {
+            // Store all data separately
+            shiftEmployeeDetails.value = res.data.data.shift_details || [];
+            startingInventory.value = res.data.data.starting_inventory || [];
+            endingInventory.value = res.data.data.ending_inventory || [];
+        } else {
+            toast.error("Failed to load shift details");
+        }
     } catch (error) {
         console.error("Failed to fetch shift details:", error);
         toast.error("Failed to load shift details");
@@ -46,6 +57,41 @@ const viewShift = async (shift) => {
 const closeShiftDetailsModal = () => {
     showShiftDetailsModal.value = false;
     selectedShiftDetails.value = [];
+    shiftEmployeeDetails.value = [];
+    startingInventory.value = [];
+    endingInventory.value = [];
+};
+
+const calculateVariance = () => {
+    const variance = [];
+
+    // Create a map of ending inventory by item_id for quick lookup
+    const endingMap = {};
+    endingInventory.value.forEach(detail => {
+        endingMap[detail.item_id] = detail;
+    });
+
+    // Compare starting vs ending inventory
+    startingInventory.value.forEach(startDetail => {
+        const endDetail = endingMap[startDetail.item_id];
+        const endingQty = endDetail ? endDetail.stock_quantity : 0;
+        const startingQty = startDetail.stock_quantity;
+        const difference = startingQty - endingQty; // negative = items sold/used
+
+        // Only show items with variance (difference)
+        if (difference !== 0) {
+            variance.push({
+                itemName: startDetail.item_name,
+                itemSku: startDetail.item_sku,
+                itemId: startDetail.item_id,
+                starting: startingQty,
+                ending: endingQty,
+                difference: difference
+            });
+        }
+    });
+
+    return variance;
 };
 
 onMounted(async () => {
@@ -218,17 +264,17 @@ const downloadCSV = (data) => {
         // Build CSV rows
         const rows = data.map((s) => {
             // Format start time
-            const startTime = s.start_time 
+            const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format end time
-            const endTime = s.end_time 
+            const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format sales total
-            const salesTotal = s.sales_total 
+            const salesTotal = s.sales_total
                 ? formatMoney(s.sales_total)
                 : "0.00";
 
@@ -305,17 +351,17 @@ const downloadPDF = (data) => {
         // 📊 Build table rows
         const tableRows = data.map((s) => {
             // Format start time
-            const startTime = s.start_time 
+            const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format end time
-            const endTime = s.end_time 
+            const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format sales total
-            const salesTotal = s.sales_total 
+            const salesTotal = s.sales_total
                 ? formatMoney(s.sales_total)
                 : "0.00";
 
@@ -380,17 +426,17 @@ const downloadExcel = (data) => {
         // Prepare data for Excel
         const excelData = data.map((s) => {
             // Format start time
-            const startTime = s.start_time 
+            const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format end time
-            const endTime = s.end_time 
+            const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format sales total
-            const salesTotal = s.sales_total 
+            const salesTotal = s.sales_total
                 ? formatMoney(s.sales_total)
                 : "0.00";
 
@@ -529,7 +575,11 @@ const downloadExcel = (data) => {
                                     <td>{{ shift.started_by || 'N/A' }}</td>
                                     <td>{{ formatTime(shift.start_time) }}</td>
                                     <td>{{ formatCurrencySymbol(shift.opening_cash) }}</td>
-                                    <td>{{ formatCurrencySymbol(shift.closing_cash) }}</td>
+                                    <td>
+                                        {{
+                                            shift.closing_cash === null ? '-' : formatCurrencySymbol(shift.closing_cash)
+                                        }}
+                                    </td>
                                     <td>{{ formatCurrencySymbol(shift.sales_total) }}</td>
                                     <td>{{ shift.ended_by || 'N/A' }}</td>
 
@@ -563,7 +613,8 @@ const downloadExcel = (data) => {
                                                         class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
                                                         :class="shift.status === 'open'
                                                             ? 'bg-green-500 hover:bg-green-600'
-                                                            : 'bg-red-400 hover:bg-red-500'" :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
+                                                            : 'bg-red-400 hover:bg-red-500'"
+                                                        :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
                                                             :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
@@ -590,8 +641,9 @@ const downloadExcel = (data) => {
             <!-- Shift Details Modal -->
             <div v-if="showShiftDetailsModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div class="relative bg-white rounded-4 shadow-lg border-0 w-full max-w-2xl overflow-hidden">
-                    <!-- Header -->
+                <div class="relative bg-white rounded-4 shadow-lg border-0 w-full max-w-6xl overflow-hidden">
+
+                    <!-- ===== MODAL HEADER ===== -->
                     <div class="modal-header align-items-center">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-primary rounded-circle p-2">
@@ -616,34 +668,36 @@ const downloadExcel = (data) => {
                         </button>
                     </div>
 
-                    <!-- Body -->
-                    <div class="modal-body p-4 bg-light">
+                    <!-- ===== MODAL BODY ===== -->
+                    <div class="modal-body p-4 bg-light overflow-y-auto" style="max-height: 75vh;">
                         <div class="row g-4">
-                            <div class="col-lg-12">
-                                <div class="card border-0 shadow-sm rounded-4 h-100">
-                                    <div class="card-body">
-                                        <h6 class="fw-semibold mb-3">Shift Information</h6>
 
-                                        <div v-if="selectedShiftDetails.length" class="table-responsive">
+                            <!-- ===== TAB 1: EMPLOYEE DETAILS ===== -->
+                            <div class="col-lg-12">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="bi bi-people me-2"></i>Employee Sales Details
+                                        </h6>
+
+                                        <div v-if="shiftEmployeeDetails.length" class="table-responsive">
                                             <table class="table table-hover align-middle text-center mb-0">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th class="fw-semibold">Shift ID</th>
                                                         <th class="fw-semibold">Role</th>
-                                                        <th class="fw-semibold">Start Date</th>
-                                                        <th class="fw-semibold">Sales Amount</th>
+                                                        <th class="fw-semibold">Joined At</th>
+                                                        <th class="fw-semibold">Total Sales</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr v-for="(detail, index) in selectedShiftDetails" :key="index">
-                                                        <td>{{ selectedShiftId }}</td>
+                                                    <tr v-for="(detail, index) in shiftEmployeeDetails" :key="index">
                                                         <td>
                                                             <span class="badge bg-primary rounded-pill">
                                                                 {{ detail.role || 'N/A' }}
                                                             </span>
                                                         </td>
                                                         <td>{{ new Date(detail.joined_at).toLocaleString() }}</td>
-                                                        <td class="fw-semibold">
+                                                        <td class="fw-semibold text-success">
                                                             {{ formatCurrencySymbol(detail.sales_amount || 0) }}
                                                         </td>
                                                     </tr>
@@ -656,17 +710,152 @@ const downloadExcel = (data) => {
                                                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
                                                 class="text-muted mx-auto mb-3">
                                                 <path stroke-linecap="round" stroke-linejoin="round"
-                                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                                    d="M17 20h5v-2a3 3 0 00-5.856-1.487M7 20H2v-2a3 3 0 015.856-1.487M15 7a3 3 0 11-6 0 3 3 0 016 0zM6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
                                             </svg>
-                                            <p class="text-muted mb-0">No details available for this shift.</p>
+                                            <p class="text-muted mb-0">No employee details available</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- ===== TAB 2: STARTING INVENTORY ===== -->
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="bi bi-box-seam me-2"></i>Starting Inventory
+                                        </h6>
+
+                                        <div v-if="startingInventory.length" class="table-responsive">
+                                            <table class="table table-sm table-hover align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-semibold" style="width: 60%;">Item</th>
+                                                        <th class="fw-semibold text-center">Qty</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(detail, index) in startingInventory" :key="index">
+                                                        <td>
+                                                            <small class="d-block fw-500">{{ detail.item_name }}</small>
+                                                            <small class="text-muted">{{ detail.item_sku }}</small>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge bg-info rounded-pill">
+                                                                {{ detail.stock_quantity }}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div v-else class="text-center py-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
+                                                class="text-muted mx-auto mb-2">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                            </svg>
+                                            <p class="text-muted small mb-0">No starting inventory</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ===== TAB 3: ENDING INVENTORY ===== -->
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="bi bi-box-check me-2"></i>Ending Inventory
+                                        </h6>
+
+                                        <div v-if="endingInventory.length" class="table-responsive">
+                                            <table class="table table-sm table-hover align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-semibold" style="width: 60%;">Item</th>
+                                                        <th class="fw-semibold text-center">Qty</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(detail, index) in endingInventory" :key="index">
+                                                        <td>
+                                                            <small class="d-block fw-500">{{ detail.item_name }}</small>
+                                                            <small class="text-muted">{{ detail.item_sku }}</small>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge bg-success rounded-pill">
+                                                                {{ detail.stock_quantity }}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div v-else class="text-center py-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
+                                                class="text-muted mx-auto mb-2">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                            </svg>
+                                            <p class="text-muted small mb-0">No ending inventory</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ===== TAB 4: INVENTORY VARIANCE ===== -->
+                            <div class="col-lg-12"
+                                v-if="startingInventory.length > 0 && endingInventory.length > 0 && calculateVariance().length > 0">
+                                <div class="card border-0 shadow-sm rounded-4 border-start border-warning border-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="bi bi-graph-up me-2"></i>Inventory Variance (Stock Changes)
+                                        </h6>
+                                        <p class="text-muted small mb-3">Items that were sold/used during this shift:
+                                        </p>
+
+                                        <div class="row g-3">
+                                            <div v-for="(variance, index) in calculateVariance()" :key="index"
+                                                class="col-md-6 col-lg-4">
+                                                <div class="p-3 border rounded-3 text-center">
+                                                    <small class="d-block text-muted fw-500">{{ variance.itemName
+                                                    }}</small>
+                                                    <small class="d-block text-muted">{{ variance.itemSku }}</small>
+
+                                                    <div
+                                                        class="d-flex align-items-center justify-content-center gap-2 mt-2">
+                                                        <span class="badge bg-light text-dark">{{ variance.starting
+                                                        }}</span>
+                                                        <i class="bi bi-arrow-right text-muted"></i>
+                                                        <span
+                                                            :class="variance.difference > 0 ? 'badge bg-danger' : 'badge bg-success'">
+                                                            {{ variance.ending }}
+                                                        </span>
+                                                    </div>
+
+                                                    <small
+                                                        :class="variance.difference > 0 ? 'text-danger' : 'text-success'"
+                                                        class="d-block mt-2 fw-semibold">
+                                                        {{ variance.difference > 0 ? '−' : '+' }}{{
+                                                            Math.abs(variance.difference) }}
+                                                        units
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
-                    <!-- Footer -->
+                    <!-- ===== MODAL FOOTER ===== -->
                     <div class="modal-footer border-top-0 px-4 pb-4">
                         <button class="btn btn-secondary px-4 rounded-pill" @click="closeShiftDetailsModal">
                             Close
@@ -968,4 +1157,5 @@ const downloadExcel = (data) => {
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
+
 </style>
