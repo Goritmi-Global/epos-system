@@ -43,7 +43,7 @@ class PromoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: '.$e->getMessage(),
+                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -63,7 +63,7 @@ class PromoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: '.$e->getMessage(),
+                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -80,7 +80,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo created successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->withErrors(['error' => 'Failed to create promo: '.$e->getMessage()])
+                ->withErrors(['error' => 'Failed to create promo: ' . $e->getMessage()])
                 ->withInput();
         }
     }
@@ -113,7 +113,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo updated successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->withErrors(['error' => 'Failed to update promo: '.$e->getMessage()])
+                ->withErrors(['error' => 'Failed to update promo: ' . $e->getMessage()])
                 ->withInput();
         }
     }
@@ -129,7 +129,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo deleted successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to delete promo: '.$e->getMessage());
+                ->with('error', 'Failed to delete promo: ' . $e->getMessage());
         }
     }
 
@@ -149,7 +149,7 @@ class PromoController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update promo status: '.$e->getMessage(),
+                'message' => 'Failed to update promo status: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -206,7 +206,7 @@ class PromoController extends Controller
                     'promo' => $scope->promos->first(),
                     'menu_items' => $scope->menuItems,
                 ];
-            })->filter(fn ($p) => $p['promo']);
+            })->filter(fn($p) => $p['promo']);
 
             \Log::info('Fetched current-time promos', [
                 'item_id' => $itemId,
@@ -222,14 +222,14 @@ class PromoController extends Controller
                 'current_time' => $currentTimeOnly,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching promos for item: '.$e->getMessage(), [
+            \Log::error('Error fetching promos for item: ' . $e->getMessage(), [
                 'item_id' => $itemId,
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: '.$e->getMessage(),
+                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -241,43 +241,58 @@ class PromoController extends Controller
             $currentDate = $currentTime->toDateString();
             $currentTimeOnly = $currentTime->format('H:i');
 
-            // 🕒 Find current active meal
+            // Find current active meal
             $currentMeal = Meal::where('start_time', '<=', $currentTimeOnly)
                 ->where('end_time', '>=', $currentTimeOnly)
                 ->first();
 
-            if (! $currentMeal) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                    'message' => 'No active meal at the current time.',
-                    'current_time' => $currentTimeOnly,
-                ]);
+            // Fetch ALL active promos (not just meal-specific)
+            $promoScopes = PromoScope::with([
+                'promos' => function ($q) use ($currentDate) {
+                    $q->where('status', 'active')
+                        ->whereDate('start_date', '<=', $currentDate)
+                        ->whereDate('end_date', '>=', $currentDate)
+                        ->orderBy('discount_amount', 'desc'); // Show best deals first
+                },
+                'menuItems:id,name',
+                'meals:id,name'
+            ]);
+
+            // If there's a current meal, prioritize meal-specific promos
+            if ($currentMeal) {
+                $promoScopes->where(function ($query) use ($currentMeal) {
+                    $query->whereHas('meals', function ($q) use ($currentMeal) {
+                        $q->where('meal_id', $currentMeal->id);
+                    })->orWhereDoesntHave('meals'); // Include promos without meal restrictions
+                });
             }
 
-            // 🟢 Fetch promos linked to this meal with active date
-            $promoScopes = PromoScope::whereHas('meals', function ($q) use ($currentMeal) {
-                $q->where('meal_id', $currentMeal->id);
-            })
-                ->with([
-                    'promos' => function ($q) use ($currentDate) {
-                        $q->where('status', 'active')
-                            ->whereDate('start_date', '<=', $currentDate)
-                            ->whereDate('end_date', '>=', $currentDate);
-                    },
-                    'menuItems:id,name', // include linked menu items
-                ])
-                ->get();
+            $promoScopes = $promoScopes->get();
 
-            // 🧩 Flatten promos and attach linked menu items
+            // Flatten promos and attach linked menu items
             $promos = $promoScopes->flatMap(function ($scope) {
                 return $scope->promos->map(function ($promo) use ($scope) {
+                    // Build description if not set
+                    $description = $promo->description;
+                    if (!$description) {
+                        if ($promo->type === 'flat') {
+                            $description = "Get $" . number_format($promo->discount_amount, 2) . " off your order";
+                        } else {
+                            $description = "Save " . $promo->discount_amount . "% on eligible items";
+                        }
+
+                        if ($promo->min_purchase > 0) {
+                            $description .= " (min purchase $" . number_format($promo->min_purchase, 2) . ")";
+                        }
+                    }
+
                     return [
                         'id' => $promo->id,
                         'name' => $promo->name,
+                        'description' => $description,
                         'type' => $promo->type,
                         'discount_amount' => $promo->discount_amount,
-                        'min_purchase' => $promo->min_purchase,
+                        'min_purchase' => $promo->min_purchase ?? 0,
                         'max_discount' => $promo->max_discount,
                         'status' => $promo->status,
                         'start_date' => $promo->start_date,
@@ -288,6 +303,12 @@ class PromoController extends Controller
                                 'name' => $item->name,
                             ];
                         })->values(),
+                        'meals' => $scope->meals->map(function ($meal) {
+                            return [
+                                'id' => $meal->id,
+                                'name' => $meal->name,
+                            ];
+                        })->values(),
                     ];
                 });
             })->unique('id')->values();
@@ -295,18 +316,86 @@ class PromoController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $promos,
-                'meal' => $currentMeal->only(['id', 'name', 'start_time', 'end_time']),
+                'meal' => $currentMeal ? $currentMeal->only(['id', 'name', 'start_time', 'end_time']) : null,
                 'current_time' => $currentTimeOnly,
+                'total_promos' => $promos->count(),
             ]);
-
         } catch (\Exception $e) {
-            \Log::error('Error fetching current meal promos: '.$e->getMessage(), [
+            \Log::error('Error fetching current meal promos: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch current meal promos: '.$e->getMessage(),
+                'message' => 'Failed to fetch current meal promos: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Optional: Add endpoint to get ALL promos (not meal-restricted)
+    public function getAllPromos()
+    {
+        try {
+            $currentDate = now('Asia/Karachi')->toDateString();
+
+            $promoScopes = PromoScope::with([
+                'promos' => function ($q) use ($currentDate) {
+                    $q->where('status', 'active')
+                        ->whereDate('start_date', '<=', $currentDate)
+                        ->whereDate('end_date', '>=', $currentDate)
+                        ->orderBy('discount_amount', 'desc');
+                },
+                'menuItems:id,name',
+                'meals:id,name'
+            ])->get();
+
+            $promos = $promoScopes->flatMap(function ($scope) {
+                return $scope->promos->map(function ($promo) use ($scope) {
+                    $description = $promo->description;
+                    if (!$description) {
+                        if ($promo->type === 'flat') {
+                            $description = "Get $" . number_format($promo->discount_amount, 2) . " off your order";
+                        } else {
+                            $description = "Save " . $promo->discount_amount . "% on eligible items";
+                        }
+
+                        if ($promo->min_purchase > 0) {
+                            $description .= " (min purchase $" . number_format($promo->min_purchase, 2) . ")";
+                        }
+                    }
+
+                    return [
+                        'id' => $promo->id,
+                        'name' => $promo->name,
+                        'description' => $description,
+                        'type' => $promo->type,
+                        'discount_amount' => $promo->discount_amount,
+                        'min_purchase' => $promo->min_purchase ?? 0,
+                        'max_discount' => $promo->max_discount,
+                        'status' => $promo->status,
+                        'start_date' => $promo->start_date,
+                        'end_date' => $promo->end_date,
+                        'menu_items' => $scope->menuItems->map(function ($item) {
+                            return ['id' => $item->id, 'name' => $item->name];
+                        })->values(),
+                        'meals' => $scope->meals->map(function ($meal) {
+                            return ['id' => $meal->id, 'name' => $meal->name];
+                        })->values(),
+                    ];
+                });
+            })->unique('id')->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $promos,
+                'total_promos' => $promos->count(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching all promos: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch promos',
             ], 500);
         }
     }

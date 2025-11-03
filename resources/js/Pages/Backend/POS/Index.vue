@@ -641,27 +641,42 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
 
     console.log("selectedAddons", selectedAddons);
 
-    // ✅ Create unique key including variant AND addons
-    const addonIds = selectedAddons.map(a => a.id).sort().join('-');
-    const uniqueKey = `${baseItem.id}-${variantId || 'no-variant'}-${addonIds || 'no-addons'}`;
+    // ✅ Create sorted addon IDs for comparison
+    const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
 
+    // ✅ Find existing item with EXACT same variant AND addons
     const idx = orderItems.value.findIndex((i) => {
-        const itemAddonIds = (i.addons || []).map(a => a.id).sort().join('-');
-        return i.id === baseItem.id &&
-            i.variant_id === variantId &&
-            itemAddonIds === addonIds;
+        // Compare variant
+        if (i.variant_id !== variantId) return false;
+        
+        // Compare addons
+        const itemAddonIds = (i.addons || [])
+            .map(a => a.id)
+            .sort((a, b) => a - b)
+            .join('-');
+        
+        // Must match both product ID, variant, and addons
+        return i.id === baseItem.id && itemAddonIds === addonIds;
     });
 
     if (idx >= 0) {
+        // ✅ Item with same variant and addons exists - increment quantity
         const newQty = orderItems.value[idx].qty + qty;
         if (newQty <= orderItems.value[idx].stock) {
             orderItems.value[idx].qty = newQty;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * newQty;
-            if (note) orderItems.value[idx].note = note;
+            
+            // ✅ Update note if provided
+            if (note && note.trim()) {
+                orderItems.value[idx].note = note;
+            }
+            
+            toast.success(`Quantity updated to ${newQty}`);
         } else {
             toast.error("Not enough Ingredients stock available for this Menu.");
         }
     } else {
+        // ✅ New combination - add as new item
         if (qty > menuStock) {
             toast.error("Not enough Ingredients stock available for this Menu.");
             return;
@@ -681,6 +696,8 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             variant_name: variantName,
             addons: selectedAddons, // ✅ INCLUDE ADDONS
         });
+        
+        toast.success(`${baseItem.title} added to cart`);
     }
 };
 
@@ -747,10 +764,35 @@ const decCart = async (i) => {
     it.outOfStock = false; // Reset out of stock flag
 };
 
+// const removeCart = (i) => orderItems.value.splice(i, 1);
 
+const removeCart = (index) => {
+    const removedItem = orderItems.value[index];
 
+    // 1️⃣ Remove the item from cart
+    orderItems.value.splice(index, 1);
 
-const removeCart = (i) => orderItems.value.splice(i, 1);
+    // 2️⃣ If promos are applied, remove those that no longer apply
+    if (selectedPromos.value.length > 0) {
+        selectedPromos.value = selectedPromos.value.filter((promo) => {
+            // If promo applies to all items (no menu_items), keep it
+            if (!promo.menu_items || promo.menu_items.length === 0) {
+                return true;
+            }
+
+            // Check if any of this promo's menu_items still exist in the updated cart
+            const promoMenuIds = promo.menu_items.map(item => item.id);
+
+            // If none of its menu_items are left, remove this promo
+            const stillApplicable = orderItems.value.some(cartItem =>
+                promoMenuIds.includes(cartItem.id)
+            );
+
+            return stillApplicable;
+        });
+    }
+};
+
 
 const subTotal = computed(() =>
     orderItems.value.reduce((s, i) => s + i.price, 0)
@@ -870,6 +912,119 @@ const menuStockForSelected = computed(() =>
 //     }
 // };
 
+// const confirmAdd = async () => {
+//     if (!selectedItem.value) return;
+
+//     const variant = getModalSelectedVariant();
+//     const variantId = variant ? variant.id : null;
+//     const variantText = variant ? ` (${variant.name})` : '';
+
+//     // ✅ Check if quantity is 0 or less
+//     if (modalQty.value <= 0) {
+//         toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+//         return;
+//     }
+
+//     const variantName = variant ? variant.name : null;
+//     const variantPrice = variant ? parseFloat(variant.price) : selectedItem.value.price;
+//     const selectedAddons = getModalSelectedAddons();
+//     const addonsPrice = getModalAddonsPrice();
+//     const totalItemPrice = variantPrice + addonsPrice;
+
+//     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+
+//     // ✅ DOUBLE CHECK available stock before confirming
+//     const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+//     if (modalQty.value > availableToAdd) {
+//         if (availableToAdd <= 0) {
+//             toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+//         } else {
+//             toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
+//             modalQty.value = availableToAdd; // Auto-adjust to max available
+//         }
+//         return;
+//     }
+
+//     const ingredientStock = {};
+
+//     // Check stock from current cart
+//     for (const item of orderItems.value) {
+//         const itemIngredients = getVariantIngredients(item, item.variant_id);
+//         itemIngredients.forEach(ing => {
+//             const ingredientId = ing.inventory_item_id;
+//             if (!ingredientStock[ingredientId]) {
+//                 ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
+//             }
+//             ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
+//         });
+//     }
+
+//     // Check stock for selected item
+//     if (variantIngredients.length > 0) {
+//         for (const ing of variantIngredients) {
+//             const ingredientId = ing.inventory_item_id;
+//             const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
+//             const requiredQty = parseFloat(ing.quantity) * modalQty.value;
+
+//             if (availableStock < requiredQty) {
+//                 toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
+//                 return;
+//             }
+//         }
+//     }
+
+//     try {
+//         // Add to cart with modal selections
+//         const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+//         const menuStock = variantIngredients.length > 0
+//             ? calculateStockForIngredients(variantIngredients)
+//             : 999999;
+
+//         const idx = orderItems.value.findIndex((i) => {
+//             const itemAddonIds = (i.addons || []).map(a => a.id).sort().join('-');
+//             return i.id === selectedItem.value.id &&
+//                 i.variant_id === variantId &&
+//                 itemAddonIds === addonIds;
+//         });
+
+//         if (idx >= 0) {
+//             orderItems.value[idx].qty += modalQty.value;
+//             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
+//         } else {
+//             orderItems.value.push({
+//                 id: selectedItem.value.id,
+//                 title: selectedItem.value.title,
+//                 img: selectedItem.value.img,
+//                 price: totalItemPrice * modalQty.value,
+//                 unit_price: Number(totalItemPrice),
+//                 qty: modalQty.value,
+//                 note: modalNote.value || "",
+//                 stock: menuStock,
+//                 ingredients: variantIngredients,
+//                 variant_id: variantId,
+//                 variant_name: variantName,
+//                 addons: selectedAddons,
+//             });
+//         }
+
+//         await openPromoModal(selectedItem.value);
+
+//         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
+//         modal.hide();
+
+//         // ✅ Reset modal state after successful add
+//         modalQty.value = 0;
+//         modalNote.value = "";
+//         modalSelectedVariant.value = null;
+//         modalSelectedAddons.value = {};
+
+//     } catch (err) {
+//         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
+//     }
+// };
+
+
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
 
@@ -899,7 +1054,7 @@ const confirmAdd = async () => {
             toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
         } else {
             toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
-            modalQty.value = availableToAdd; // Auto-adjust to max available
+            modalQty.value = availableToAdd;
         }
         return;
     }
@@ -933,23 +1088,38 @@ const confirmAdd = async () => {
     }
 
     try {
-        // Add to cart with modal selections
-        const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+        // ✅ Create sorted addon IDs for comparison
+        const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
+        
         const menuStock = variantIngredients.length > 0
             ? calculateStockForIngredients(variantIngredients)
             : 999999;
 
+        // ✅ Find existing item with EXACT same variant AND addons
         const idx = orderItems.value.findIndex((i) => {
-            const itemAddonIds = (i.addons || []).map(a => a.id).sort().join('-');
-            return i.id === selectedItem.value.id &&
-                i.variant_id === variantId &&
-                itemAddonIds === addonIds;
+            if (i.variant_id !== variantId) return false;
+            
+            const itemAddonIds = (i.addons || [])
+                .map(a => a.id)
+                .sort((a, b) => a - b)
+                .join('-');
+            
+            return i.id === selectedItem.value.id && itemAddonIds === addonIds;
         });
 
         if (idx >= 0) {
+            // ✅ Item exists - increment quantity
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
+            
+            // ✅ Update note if provided
+            if (modalNote.value && modalNote.value.trim()) {
+                orderItems.value[idx].note = modalNote.value;
+            }
+            
+            toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
         } else {
+            // ✅ New combination - add as new item
             orderItems.value.push({
                 id: selectedItem.value.id,
                 title: selectedItem.value.title,
@@ -964,6 +1134,8 @@ const confirmAdd = async () => {
                 variant_name: variantName,
                 addons: selectedAddons,
             });
+            
+            toast.success(`${selectedItem.value.title} added to cart`);
         }
 
         await openPromoModal(selectedItem.value);
@@ -1115,7 +1287,7 @@ const resetCart = () => {
     note.value = "";
     kitchenNote.value = "";
     deliveryPercent.value = 0;
-    selectedPromo.value = null; // Clear promo
+    selectedPromos.value = [];
 };
 watch(orderType, () => (formErrors.value = {}));
 
@@ -1274,9 +1446,13 @@ const confirmOrder = async ({
 
             // Promo Details
             promo_discount: promoDiscount.value,
-            promo_id: selectedPromo.value?.id || null,
-            promo_name: selectedPromo.value?.name || null,
-            promo_type: selectedPromo.value?.type || null,
+            applied_promos: selectedPromos.value.map(promo => ({
+                promo_id: promo.id,
+                promo_name: promo.name,
+                promo_type: promo.type,
+                discount_amount: promo.applied_discount || 0,
+                applied_to_items: promo.applied_to_items || []
+            })),
             total_amount: grandTotal.value,
             // tax: 0,
             service_charges: 0,
@@ -1352,7 +1528,7 @@ const confirmOrder = async ({
         printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
 
         // Clear promo after successful order
-        selectedPromo.value = null;
+        selectedPromos.value = [];
     } catch (err) {
         console.error("Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
@@ -1470,123 +1646,82 @@ const openPosOrdersModal = async () => {
     }
 };
 
+/* ----------------------------
+   Promo Handling
+-----------------------------*/
+
 const showPromoModal = ref(false);
 const loadingPromos = ref(true);
 const promosData = ref([]);
-const selectedPromo = ref(null);
+const selectedPromos = ref([]);
 
-// ✅ Update handleApplyPromo to validate cart items
-const handleApplyPromo = (promo) => {
-    selectedPromo.value = promo;
 
-    // Get matching items
-    const matchingItems = getPromoMatchingItems();
+// 2. Update handleApplyPromo to support multiple promos
+const handleApplyPromo = (promoDataArray) => {
+    selectedPromos.value = promoDataArray;
 
-    if (matchingItems.length === 0) {
-        toast.warning("No items in cart match this promo. Please add eligible items first.");
-        selectedPromo.value = null;
+    if (!promoDataArray || promoDataArray.length === 0) {
+        toast.warning("No promos selected.");
         return;
     }
 
-    // Calculate subtotal of matching items
-    const promoSubtotal = matchingItems.reduce((total, item) => {
-        return total + (item.unit_price * item.qty);
+    const totalDiscount = promoDataArray.reduce((sum, promo) => {
+        return sum + parseFloat(promo.applied_discount || 0);
     }, 0);
 
-    // Check minimum purchase requirement
-    if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
-        toast.warning(
-            `Minimum purchase of ${formatCurrencySymbol(promo.min_purchase)} required for this promo. ` +
-            `Current eligible items total: ${formatCurrencySymbol(promoSubtotal)}`
-        );
-    } else {
-        const itemCount = matchingItems.length;
-        const itemText = itemCount === orderItems.value.length
-            ? ''
-            : `${itemCount} item${itemCount > 1 ? 's' : ''}`;
-
-        toast.success(
-            `Promo "${promo.name}" applied ${itemText}! You saved ${formatCurrencySymbol(promoDiscount.value)}`
-        );
+    if (totalDiscount <= 0) {
+        toast.warning("Selected promos don't provide any discount for current cart items.");
+        selectedPromos.value = [];
+        return;
     }
 
+    const totalItems = new Set(promoDataArray.flatMap(p => p.applied_to_items || [])).size;
+
+    toast.success(
+        `${promoDataArray.length} promo(s) applied! Applied to ${totalItems} item(s). You saved ${formatCurrencySymbol(totalDiscount)}`
+    );
     showPromoModal.value = false;
 };
 
-// Add this helper function to get matching cart items for selected promo
+// 6. Update getPromoMatchingItems (keep existing)
 const getPromoMatchingItems = () => {
-    if (!selectedPromo.value) return [];
+    if (!selectedPromos.value || selectedPromos.value.length === 0) return [];
 
-    if (!selectedPromo.value.menu_items || selectedPromo.value.menu_items.length === 0) {
-        return orderItems.value; // All items
+    const allMatchingItems = new Set();
+
+    selectedPromos.value.forEach(promo => {
+        if (!promo.menu_items || promo.menu_items.length === 0) {
+            orderItems.value.forEach(item => allMatchingItems.add(item));
+        } else {
+            const promoMenuIds = promo.menu_items.map(item => item.id);
+            orderItems.value
+                .filter(item => promoMenuIds.includes(item.id))
+                .forEach(item => allMatchingItems.add(item));
+        }
+    });
+
+    return Array.from(allMatchingItems);
+};
+
+// Helper: Get items this promo applies to from cart
+const getPromoAppliedItems = (promo) => {
+    if (!promo.menu_items || promo.menu_items.length === 0) {
+        return orderItems.value;
     }
 
-    const promoMenuIds = selectedPromo.value.menu_items.map(item => item.id);
+    const promoMenuIds = promo.menu_items.map(item => item.id);
     return orderItems.value.filter(item => promoMenuIds.includes(item.id));
 };
 
-const getPromoSubtotal = () => {
-    if (!selectedPromo.value) return 0;
 
-    const matchingItems = getPromoMatchingItems();
-    return matchingItems.reduce((total, item) => {
-        return total + (item.unit_price * item.qty);
-    }, 0);
-};
-
-
-
+// 3. Update handleClearPromo
 const handleClearPromo = () => {
-    selectedPromo.value = null;
-    toast.info("Promo cleared.");
+    selectedPromos.value = [];
+    toast.info("All promos cleared.");
 };
 
 
-// const openPromoModal = async () => {
-//     loadingPromos.value = true;
-//     try {
-//         // Show the modal immediately (optional)
-//         showPromoModal.value = true;
-
-//         // Fetch promos from API
-//         const response = await axios.get('/api/promos/today');
-//         if (response.data.success) {
-//             promosData.value = response.data.data;
-//         } else {
-//             console.error('Failed to fetch promos', response.data);
-//             promosData.value = [];
-//         }
-//     } catch (error) {
-//         console.error('Error fetching promos', error);
-//         promosData.value = [];
-//     } finally {
-//         loadingPromos.value = false;
-//     }
-// };
-
-// const openPromoModal = async (item) => {
-//     console.log("OpenPromoModal: item =", item);
-//     loadingPromos.value = true;
-//     selectedItem.value = item;
-
-//     try {
-//         showPromoModal.value = true;
-
-//         const response = await axios.get(`/api/promos/for-item/${item.id}`);
-//         if (response.data.success) {
-//             promosData.value = response.data.data;
-//         } else {
-//             console.error('Failed to fetch promos', response.data);
-//             promosData.value = [];
-//         }
-//     } catch (error) {
-//         console.error('Error fetching promos', error);
-//         promosData.value = [];
-//     } finally {
-//         loadingPromos.value = false;
-//     }
-// };
-
+// ✅ REPLACE THIS ENTIRE FUNCTION
 const openPromoModal = async () => {
     console.log("Fetching promos for current meal...");
     loadingPromos.value = true;
@@ -1596,22 +1731,58 @@ const openPromoModal = async () => {
         const response = await axios.get('/api/promos/current');
         if (response.data?.success) {
             promosData.value = response.data.data || [];
-            console.log("Promos for current meal:", promosData.value);
-            console.log("Meal:", response.data.meal);
+            console.log("Promos loaded:", promosData.value.length);
         } else {
             console.warn("Failed to fetch promos:", response.data);
             promosData.value = [];
+            toast.warning("No promos available at the moment");
         }
     } catch (error) {
         console.error("Error fetching current meal promos:", error);
         promosData.value = [];
+        toast.error("Failed to load promotions");
     } finally {
         loadingPromos.value = false;
     }
 };
 
+// 7. Update isItemEligibleForPromo
+const isItemEligibleForPromo = (cartItem) => {
+    if (!selectedPromos.value || selectedPromos.value.length === 0) return false;
 
+    return selectedPromos.value.some(promo => {
+        if (!promo.menu_items || promo.menu_items.length === 0) {
+            return true;
+        }
+        const promoMenuIds = promo.menu_items.map(item => item.id);
+        return promoMenuIds.includes(cartItem.id);
+    });
+};
 
+// 8. Update getPromoBreakdown
+const getPromoBreakdown = computed(() => {
+    if (!selectedPromos.value || selectedPromos.value.length === 0) return null;
+
+    const allMatchingItems = getPromoMatchingItems();
+    const totalDiscount = promoDiscount.value;
+
+    const subtotal = allMatchingItems.reduce((sum, item) => {
+        return sum + (item.unit_price * item.qty);
+    }, 0);
+
+    return {
+        itemCount: allMatchingItems.length,
+        totalItems: orderItems.value.length,
+        subtotal: subtotal,
+        discount: totalDiscount,
+        promoCount: selectedPromos.value.length,
+        items: allMatchingItems.map(item => ({
+            title: item.title,
+            qty: item.qty,
+            price: item.unit_price * item.qty
+        }))
+    };
+});
 
 
 const handleViewOrderDetails = (order) => {
@@ -1620,41 +1791,77 @@ const handleViewOrderDetails = (order) => {
     showPosOrdersModal.value = false;
 };
 
-// =============Promos Discount ======================
-// Add these computed properties after your existing computed properties
 
+
+// 4. Update promoDiscount to calculate total from all promos
 const promoDiscount = computed(() => {
-    if (!selectedPromo.value) return 0;
+    if (!selectedPromos.value || selectedPromos.value.length === 0) return 0;
 
-    const promo = selectedPromo.value;
-    const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
+    return selectedPromos.value.reduce((total, promo) => {
+        const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
 
-    // ✅ Use promo-specific subtotal (only matching items)
-    const promoSubtotal = getPromoSubtotal();
-
-    // Check minimum purchase requirement
-    if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
-        return 0;
-    }
-
-    // Calculate based on promo type
-    if (promo.type === 'flat') {
-        return rawDiscount;
-    }
-
-    if (promo.type === 'percent') {
-        const discount = (promoSubtotal * rawDiscount) / 100;
-        const maxCap = parseFloat(promo.max_discount ?? 0) || 0;
-        if (maxCap > 0 && discount > maxCap) {
-            return maxCap;
+        if (promo.applied_discount !== undefined) {
+            return total + parseFloat(promo.applied_discount);
         }
-        return discount;
-    }
 
-    return 0;
+        const promoSubtotal = getPromoSubtotalForPromo(promo);
+
+        if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
+            return total;
+        }
+
+        if (promo.type === 'flat') {
+            return total + rawDiscount;
+        }
+
+        if (promo.type === 'percent') {
+            const discount = (promoSubtotal * rawDiscount) / 100;
+            const maxCap = parseFloat(promo.max_discount ?? 0) || 0;
+            if (maxCap > 0 && discount > maxCap) {
+                return total + maxCap;
+            }
+            return total + discount;
+        }
+
+        return total;
+    }, 0);
 });
 
-console.log("page.props", page.props.onboarding.tax_and_vat.tax_rate);
+// 5. Helper function for individual promo subtotal
+const getPromoSubtotalForPromo = (promo) => {
+    if (!promo.menu_items || promo.menu_items.length === 0) {
+        return orderItems.value.reduce((total, item) => {
+            return total + (item.unit_price * item.qty);
+        }, 0);
+    }
+
+    const promoMenuIds = promo.menu_items.map(item => item.id);
+    return orderItems.value
+        .filter(item => promoMenuIds.includes(item.id))
+        .reduce((total, item) => {
+            return total + (item.unit_price * item.qty);
+        }, 0);
+};
+
+// NEW: Helper to get applied promos data for payment
+const getAppliedPromosData = computed(() => {
+    if (!selectedPromos.value || selectedPromos.value.length === 0) return [];
+
+    return selectedPromos.value.map(promo => ({
+        promo_id: promo.id,
+        promo_name: promo.name,
+        promo_type: promo.type,
+        discount_amount: promo.applied_discount || 0,
+        applied_to_items: promo.applied_to_items || []
+    }));
+});
+
+
+/* ----------------------------
+   End Prmomo Calculations
+-----------------------------*/
+
+
 /* ----------------------------
    Tax Calculation
 -----------------------------*/
@@ -1984,6 +2191,158 @@ const canIncCartItem = (cartItem) => {
 };
 
 
+
+
+
+
+
+
+
+/* ----------------------------
+   Addon Management Modal
+-----------------------------*/
+const selectedCartItem = ref(null);
+const selectedCartItemIndex = ref(null);
+let addonManagementModal = null;
+
+const openAddonModal = (cartItem, index) => {
+    selectedCartItem.value = JSON.parse(JSON.stringify(cartItem)); // Deep clone
+    selectedCartItemIndex.value = index;
+
+    // ✅ Get the full menu item to access ALL available addons
+    const menuItem = menuItems.value.find(m => m.id === cartItem.id);
+
+    if (menuItem && menuItem.addon_groups && menuItem.addon_groups.length > 0) {
+        // Create a map of currently selected addons for quick lookup
+        const selectedAddonsMap = new Map();
+        if (cartItem.addons) {
+            cartItem.addons.forEach(addon => {
+                selectedAddonsMap.set(addon.id, {
+                    quantity: addon.quantity || 1,
+                    selected: true
+                });
+            });
+        }
+
+        // ✅ Extract ALL addons from all addon groups
+        const allAddons = [];
+        menuItem.addon_groups.forEach(group => {
+            if (group.addons && group.addons.length > 0) {
+                group.addons.forEach(addon => {
+                    const existingAddon = selectedAddonsMap.get(addon.id);
+                    allAddons.push({
+                        id: addon.id,
+                        name: addon.name,
+                        price: parseFloat(addon.price || 0),
+                        group_id: group.group_id,
+                        group_name: group.group_name,
+                        quantity: existingAddon?.quantity || 1,
+                        selected: existingAddon?.selected || false
+                    });
+                });
+            }
+        });
+
+        selectedCartItem.value.addons = allAddons;
+    } else {
+        selectedCartItem.value.addons = [];
+    }
+
+    if (!addonManagementModal) {
+        const modalEl = document.getElementById('addonManagementModal');
+        if (modalEl) {
+            addonManagementModal = new bootstrap.Modal(modalEl);
+        }
+    }
+
+    if (addonManagementModal) {
+        addonManagementModal.show();
+    }
+};
+
+const toggleAddon = (addon) => {
+    addon.selected = !addon.selected;
+    if (!addon.selected) {
+        addon.quantity = 1; // Reset quantity when unchecked
+    }
+};
+
+const incrementAddon = (addon) => {
+    if (addon.selected) {
+        addon.quantity = (addon.quantity || 1) + 1;
+    }
+};
+
+const decrementAddon = (addon) => {
+    if (addon.selected && (addon.quantity || 1) > 1) {
+        addon.quantity -= 1;
+    }
+};
+
+const getCartItemAddonsTotal = (cartItem) => {
+    if (!cartItem.addons) return 0;
+    return cartItem.addons.reduce((total, addon) => {
+        if (addon.selected !== false) {
+            return total + (parseFloat(addon.price) * (addon.quantity || 1));
+        }
+        return total;
+    }, 0);
+};
+
+const calculateUpdatedItemPrice = () => {
+    if (!selectedCartItem.value) return 0;
+
+    const basePrice = selectedCartItem.value.unit_price - getCartItemAddonsTotal(orderItems.value[selectedCartItemIndex.value]);
+    const addonsTotal = getCartItemAddonsTotal(selectedCartItem.value);
+    const unitPrice = basePrice + addonsTotal;
+
+    return unitPrice * selectedCartItem.value.qty;
+};
+
+const saveAddonChanges = () => {
+    if (selectedCartItemIndex.value === null) return;
+
+    // Filter only selected addons
+    const selectedAddons = selectedCartItem.value.addons.filter(addon => addon.selected !== false);
+
+    // Calculate new unit price
+    const variant = selectedCartItem.value.variant_id
+        ? menuItems.value.find(m => m.id === selectedCartItem.value.id)?.variants?.find(v => v.id === selectedCartItem.value.variant_id)
+        : null;
+    const basePrice = variant ? parseFloat(variant.price) : parseFloat(selectedCartItem.value.unit_price);
+
+    const addonsTotal = selectedAddons.reduce((total, addon) => {
+        return total + (parseFloat(addon.price) * (addon.quantity || 1));
+    }, 0);
+
+    const newUnitPrice = basePrice + addonsTotal;
+
+    // Update cart item
+    orderItems.value[selectedCartItemIndex.value].addons = selectedAddons;
+    orderItems.value[selectedCartItemIndex.value].unit_price = newUnitPrice;
+    orderItems.value[selectedCartItemIndex.value].price = newUnitPrice * orderItems.value[selectedCartItemIndex.value].qty;
+
+    toast.success('Addons updated successfully!');
+
+    if (addonManagementModal) {
+        addonManagementModal.hide();
+    }
+
+    // Clear selection
+    selectedCartItem.value = null;
+    selectedCartItemIndex.value = null;
+};
+
+const getAddonTooltip = (cartItem) => {
+    if (!cartItem.addons || cartItem.addons.length === 0) return '';
+    return cartItem.addons.map(a => a.name).join(', ');
+};
+
+const getSelectedAddonsCount = () => {
+    if (!selectedCartItem.value || !selectedCartItem.value.addons) return 0;
+    return selectedCartItem.value.addons.filter(addon => addon.selected !== false).length;
+};
+
 </script>
 
 <template>
@@ -2292,21 +2651,29 @@ const canIncCartItem = (cartItem) => {
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
                                                     {{ it.title }}
+                                                    
+                                                </div>
+                                                <!-- ✅ Addon Icons (clickable) -->
+                                                <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
+                                                    <button class="btn-link p-0 py-0 text-decoration-none"
+                                                        @click="openAddonModal(it, i)" :title="getAddonTooltip(it)">
+                                                        <i class="bi bi-plus-circle-fill text-primary me-1"
+                                                            style="font-size: 0.9rem;"></i>
+                                                        <span class="text-muted small">{{ it.addons.length }}
+                                                            addon(s)</span>
+                                                    </button>
                                                     <!-- ✅ Show variant name badge -->
                                                     <span v-if="it.variant_name" class="badge ms-1"
                                                         style="font-size: 0.65rem; background: #1B1670; color: white;">
                                                         {{ it.variant_name }}
                                                     </span>
+                                                    <!-- ✅ NEW: Show if promo applies to this item -->
+                                                <span v-if="isItemEligibleForPromo(it)" class="badge bg-success ms-1"
+                                                    style="font-size: 0.65rem;">
+                                                    <i class="bi bi-tag-fill"></i>
+                                                </span>
                                                 </div>
-                                                <!-- <div v-if="it.addons && it.addons.length > 0" class="addons-list mt-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">
-                                                        <i class="bi bi-plus-circle me-1"></i>
-                                                        <span v-for="(addon, idx) in it.addons" :key="addon.id">
-                                                            {{ addon.name }} (+{{ formatCurrencySymbol(addon.price) }})
-                                                            <span v-if="idx < it.addons.length - 1">, </span>
-                                                        </span>
-                                                    </small>
-                                                </div> -->
+
                                                 <div class="note" v-if="it.note">
                                                     {{ it.note }}
                                                 </div>
@@ -2332,11 +2699,6 @@ const canIncCartItem = (cartItem) => {
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
-
-                                        <!-- <button class="btn btn-warning rounded-pill px-3 py-2"
-                                            @click="openPromoModal(it)">
-                                            Promos
-                                        </button> -->
                                     </div>
                                 </div>
 
@@ -2361,7 +2723,7 @@ const canIncCartItem = (cartItem) => {
                                         <span class="fw-semibold">{{ formatCurrencySymbol(serviceCharges) }}</span>
                                     </div>
 
-                          
+
                                     <div v-if="deliveryCharges > 0" class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Delivery Charges:</span>
                                         <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
@@ -2369,12 +2731,16 @@ const canIncCartItem = (cartItem) => {
 
 
                                     <!-- Promo Discount -->
-                                    <div class="trow promo-discount" v-if="selectedPromo && promoDiscount > 0">
-                                        <span class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-tag-fill text-success"></i>
-                                            Promo: {{ selectedPromo.name }}
-                                        </span>
-                                        <b class="text-success">-{{ formatCurrencySymbol(promoDiscount) }}</b>
+                                    <div v-if="selectedPromos && selectedPromos.length > 0" class="promos-section mb-3">
+
+                                        <!-- Total Discount Summary -->
+                                        <div class="promo-total mt-2 rounded-3 bg-success-subtle">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class=" text-success">Total Promo Savings:</span>
+                                                <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
+                                                }}</b>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- Total -->
@@ -2561,6 +2927,157 @@ const canIncCartItem = (cartItem) => {
                 </div>
             </div>
 
+            <!-- ✅ Addon Management Modal -->
+            <div class="modal fade" id="addonManagementModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4 border-0 shadow-lg">
+                        <div class="modal-header border-0 pb-2">
+                            <h5 class="modal-title fw-bold">
+                                <i class="bi bi-puzzle-fill text-primary me-2"></i>
+                                Manage Add-ons
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body pt-2" v-if="selectedCartItem">
+                            <!-- Item Info Header -->
+                            <div class="alert alert-light border rounded-3 mb-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <img :src="selectedCartItem.img" alt="" class="rounded"
+                                        style="width: 60px; height: 60px; object-fit: cover;">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold fs-6">{{ selectedCartItem.title }}</div>
+                                        <div class="d-flex gap-3 mt-1">
+                                            <small class="text-muted">
+                                                <i class="bi bi-tag me-1"></i>
+                                                Base Price:
+                                                <span class="fw-semibold">
+                                                    {{ formatCurrencySymbol(
+                                                        selectedCartItem?.unit_price -
+                                                        getCartItemAddonsTotal(orderItems[selectedCartItemIndex] || {
+                                                            addons: []
+                                                        })
+                                                    ) }}
+                                                </span>
+                                            </small>
+
+                                            <small class="text-muted">
+                                                <i class="bi bi-box me-1"></i>
+                                                Quantity: <span class="fw-semibold">{{ selectedCartItem.qty }}</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Addons Table -->
+                            <div v-if="selectedCartItem.addons && selectedCartItem.addons.length > 0"
+                                class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 60px;" class="text-center">Select</th>
+                                            <th>Items</th>
+                                            <th style="width: 120px;" class="text-center">Price</th>
+                                            <th style="width: 200px;" class="text-center">Quantity</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="addon in selectedCartItem.addons" :key="addon.id"
+                                            :class="{ 'table-active': addon.selected !== false }">
+                                            <!-- Checkbox Column -->
+                                            <td class="text-center">
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" class="form-check-input"
+                                                        :checked="addon.selected !== false" @change="toggleAddon(addon)"
+                                                        style="width: 22px; height: 22px; cursor: pointer;">
+                                                </div>
+                                            </td>
+
+                                            <!-- Item Name Column -->
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="addon-status-indicator"
+                                                        :class="addon.selected !== false ? 'bg-success' : 'bg-secondary'">
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-semibold">{{ addon.name }}</div>
+                                                        <small class="text-muted" v-if="addon.group_name">
+                                                            {{ addon.group_name }}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <!-- Price Column -->
+                                            <td class="text-center">
+                                                <span class="badge bg-success-subtle text-success px-3 py-2 fs-6">
+                                                    +{{ formatCurrencySymbol(addon.price) }}
+                                                </span>
+                                            </td>
+
+                                            <!-- Quantity Controls Column -->
+                                            <td>
+                                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                                    <button
+                                                        class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                                        style="width: 36px; height: 36px;"
+                                                        @click="decrementAddon(addon)"
+                                                        :disabled="!addon.selected || (addon.quantity || 1) <= 1">
+                                                        <i class="bi bi-dash-lg"></i>
+                                                    </button>
+                                                    <span class="fw-bold fs-5 px-3"
+                                                        style="min-width: 50px; text-align: center;">
+                                                        {{ addon.quantity || 1 }}
+                                                    </span>
+                                                    <button
+                                                        class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                                        style="width: 36px; height: 36px;"
+                                                        @click="incrementAddon(addon)" :disabled="!addon.selected">
+                                                        <i class="bi bi-plus-lg"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div v-else class="text-center text-muted py-5">
+                                <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                                <p class="mb-0 mt-3 fw-semibold">No add-ons available for this item</p>
+                            </div>
+
+                            <!-- Price Summary Footer -->
+                            <div class="mt-3 p-3 rounded-3">
+
+                                <!-- Selected Add-ons Summary -->
+                                <div v-if="getSelectedAddonsCount() > 0"
+                                    class="mt-3 p-3 rounded-3 border border-success bg-light">
+                                    <small class="text-success fw-semibold">
+                                        <i class="bi bi-check-circle-fill me-1"></i>
+                                        {{ getSelectedAddonsCount() }} add-on(s) selected •
+                                        Add-ons Total: {{ formatCurrencySymbol(getCartItemAddonsTotal(selectedCartItem))
+                                        }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer border-0 pt-0 bg-light">
+                            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Cancel
+                            </button>
+                            <button type="button" class="btn btn-primary px-4" @click="saveAddonChanges">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <KotModal :show="showKotModal" :kot="kotData" :loading="kotLoading" @close="showKotModal = false"
                 @status-updated="handleKotStatusUpdated" />
 
@@ -2581,11 +3098,12 @@ const canIncCartItem = (cartItem) => {
                 :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
                 v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
                 :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="deliveryCharges"
-                :promo-discount="promoDiscount" :promo-id="selectedPromo?.id" :promo-name="selectedPromo?.name"
-                :promo-type="selectedPromo?.type" :promo-discount-amount="promoDiscount" :note="note"
+                :promo-discount="promoDiscount" :promo-id="selectedPromos?.id" :promo-name="selectedPromos?.name"
+                :promo-type="selectedPromos?.type" :promo-discount-amount="promoDiscount" :note="note"
                 :kitchen-note="kitchenNote" :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
-                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" />
+                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder"
+                :appliedPromos="getAppliedPromosData" />
 
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />

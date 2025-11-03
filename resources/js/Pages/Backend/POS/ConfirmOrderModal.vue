@@ -31,6 +31,7 @@ const props = defineProps({
     promoName: { type: [String, null], default: null },
     promoType: { type: [String, null], default: null },
     promoDiscountAmount: { type: Number, default: 0 },
+    appliedPromos: { type: Array, default: () => [] },
 });
 const autoPrintKot = ref(false);
 const formErrors = ref({});
@@ -414,6 +415,7 @@ function handleCardConfirm(payload) {
                                             :promo-name="promoName"
                                             :promo-type="promoType"
                                             :promo-discount-amount="promoDiscountAmount"
+                                            :applied-promos="appliedPromos"
                                             />
 
                                             <div class="mt-2">
@@ -477,6 +479,7 @@ function handleCardConfirm(payload) {
                                             :promo-name="promoName"
                                             :promo-type="promoType"
                                             :promo-discount-amount="promoDiscountAmount"
+                                            :applied-promos="appliedPromos"
                                             />
                                         </div>
 
