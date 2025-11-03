@@ -1475,63 +1475,18 @@ const loadingPromos = ref(true);
 const promosData = ref([]);
 const selectedPromo = ref(null);
 
-// ✅ Update handleApplyPromo to validate cart items
+// Update handleApplyPromo function
 const handleApplyPromo = (promo) => {
     selectedPromo.value = promo;
 
-    // Get matching items
-    const matchingItems = getPromoMatchingItems();
-
-    if (matchingItems.length === 0) {
-        toast.warning("No items in cart match this promo. Please add eligible items first.");
-        selectedPromo.value = null;
-        return;
-    }
-
-    // Calculate subtotal of matching items
-    const promoSubtotal = matchingItems.reduce((total, item) => {
-        return total + (item.unit_price * item.qty);
-    }, 0);
-
-    // Check minimum purchase requirement
-    if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
-        toast.warning(
-            `Minimum purchase of ${formatCurrencySymbol(promo.min_purchase)} required for this promo. ` +
-            `Current eligible items total: ${formatCurrencySymbol(promoSubtotal)}`
-        );
+    // Check if cart meets minimum purchase requirement
+    if (promo.min_purchase && subTotal.value < parseFloat(promo.min_purchase)) {
+        toast.warning(`Minimum purchase of ${formatCurrencySymbol(promo.min_purchase)} required for this promo.`);
     } else {
-        const itemCount = matchingItems.length;
-        const itemText = itemCount === orderItems.value.length
-            ? ''
-            : `${itemCount} item${itemCount > 1 ? 's' : ''}`;
-
-        toast.success(
-            `Promo "${promo.name}" applied ${itemText}! You saved ${formatCurrencySymbol(promoDiscount.value)}`
-        );
+        toast.success(`Promo "${promo.name}" applied! You saved ${formatCurrencySymbol(promoDiscount.value)}`);
     }
 
     showPromoModal.value = false;
-};
-
-// Add this helper function to get matching cart items for selected promo
-const getPromoMatchingItems = () => {
-    if (!selectedPromo.value) return [];
-
-    if (!selectedPromo.value.menu_items || selectedPromo.value.menu_items.length === 0) {
-        return orderItems.value; // All items
-    }
-
-    const promoMenuIds = selectedPromo.value.menu_items.map(item => item.id);
-    return orderItems.value.filter(item => promoMenuIds.includes(item.id));
-};
-
-const getPromoSubtotal = () => {
-    if (!selectedPromo.value) return 0;
-
-    const matchingItems = getPromoMatchingItems();
-    return matchingItems.reduce((total, item) => {
-        return total + (item.unit_price * item.qty);
-    }, 0);
 };
 
 
@@ -1564,54 +1519,28 @@ const handleClearPromo = () => {
 //     }
 // };
 
-// const openPromoModal = async (item) => {
-//     console.log("OpenPromoModal: item =", item);
-//     loadingPromos.value = true;
-//     selectedItem.value = item;
-
-//     try {
-//         showPromoModal.value = true;
-
-//         const response = await axios.get(`/api/promos/for-item/${item.id}`);
-//         if (response.data.success) {
-//             promosData.value = response.data.data;
-//         } else {
-//             console.error('Failed to fetch promos', response.data);
-//             promosData.value = [];
-//         }
-//     } catch (error) {
-//         console.error('Error fetching promos', error);
-//         promosData.value = [];
-//     } finally {
-//         loadingPromos.value = false;
-//     }
-// };
-
-const openPromoModal = async () => {
-    console.log("Fetching promos for current meal...");
+const openPromoModal = async (item) => {
+    console.log("OpenPromoModal: item =", item);
     loadingPromos.value = true;
-    showPromoModal.value = true;
+    selectedItem.value = item;
 
     try {
-        const response = await axios.get('/api/promos/current');
-        if (response.data?.success) {
-            promosData.value = response.data.data || [];
-            console.log("Promos for current meal:", promosData.value);
-            console.log("Meal:", response.data.meal);
+        showPromoModal.value = true;
+
+        const response = await axios.get(`/api/promos/for-item/${item.id}`);
+        if (response.data.success) {
+            promosData.value = response.data.data;
         } else {
-            console.warn("Failed to fetch promos:", response.data);
+            console.error('Failed to fetch promos', response.data);
             promosData.value = [];
         }
     } catch (error) {
-        console.error("Error fetching current meal promos:", error);
+        console.error('Error fetching promos', error);
         promosData.value = [];
     } finally {
         loadingPromos.value = false;
     }
 };
-
-
-
 
 
 const handleViewOrderDetails = (order) => {
@@ -1628,12 +1557,10 @@ const promoDiscount = computed(() => {
 
     const promo = selectedPromo.value;
     const rawDiscount = parseFloat(promo.discount_amount ?? 0) || 0;
-
-    // ✅ Use promo-specific subtotal (only matching items)
-    const promoSubtotal = getPromoSubtotal();
+    const subtotal = subTotal.value;
 
     // Check minimum purchase requirement
-    if (promo.min_purchase && promoSubtotal < parseFloat(promo.min_purchase)) {
+    if (promo.min_purchase && subtotal < parseFloat(promo.min_purchase)) {
         return 0;
     }
 
@@ -1643,7 +1570,7 @@ const promoDiscount = computed(() => {
     }
 
     if (promo.type === 'percent') {
-        const discount = (promoSubtotal * rawDiscount) / 100;
+        const discount = (subtotal * rawDiscount) / 100;
         const maxCap = parseFloat(promo.max_discount ?? 0) || 0;
         if (maxCap > 0 && discount > maxCap) {
             return maxCap;
@@ -2223,10 +2150,11 @@ const canIncCartItem = (cartItem) => {
                                 @click="openPosOrdersModal">
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
-                            < </button> -->
-                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
+                            </button> -->
+                            <!-- <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
                                 Promos
-                            </button>
+                            </button> -->
+
                         </div>
 
                         <div class="cart card border-0 shadow-lg rounded-4">
@@ -2361,7 +2289,7 @@ const canIncCartItem = (cartItem) => {
                                         <span class="fw-semibold">{{ formatCurrencySymbol(serviceCharges) }}</span>
                                     </div>
 
-                          
+
                                     <div v-if="deliveryCharges > 0" class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Delivery Charges:</span>
                                         <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
@@ -2525,8 +2453,7 @@ const canIncCartItem = (cartItem) => {
                                             <strong>Allergies:</strong>
                                         </div>
                                         <span v-for="(a, i) in getModalAllergies()" :key="'a-' + i"
-                                            class="chip chip-red">{{
-                                                a.name
+                                            class="chip chip-red">{{ a.name
                                             }}</span>
 
                                         <div class="w-100 mt-2">
@@ -3292,38 +3219,56 @@ const canIncCartItem = (cartItem) => {
     height: 38px;
 }
 
-/* ========== Responsive ========== */
-@media (max-width: 1199.98px) {
-    .item-title {
-        font-size: 0.92rem;
+@media only screen and (max-width: 1024px){
+    .col-md-6 {
+        width: 70% !important;
+        flex: 0 0 100% !important;
+        max-width: 70% !important;
     }
+
+    .col-lg-4 {
+        margin-top: 60px;
+        width: 44% !important;
+        max-width: 44% !important;
+    }
+
 }
 
-@media (max-width: 991.98px) {
-    .cart-lines {
-        max-height: 260px;
+@media only screen and (max-width: 820px){
+    .col-md-6 {
+        width: 51% !important;
+        flex: 0 0 100% !important;
+        max-width: 51% !important;
     }
 
-    .search-wrap {
-        width: 100%;
-        margin-top: 0.4rem;
+    .header-left{
+        width: 56px !important;
     }
+    .col-lg-4 {
+        margin-top: 45px;
+        width: 47% !important;
+        max-width: 47% !important;
+    }
+
 }
 
-@media (max-width: 575.98px) {
-    .cat-tile {
-        padding: 1.5rem 1rem;
+
+@media only screen and (max-width: 768px){
+    .col-md-6 {
+        width: 51% !important;
+        flex: 0 0 100% !important;
+        max-width: 51% !important;
+    }
+    .header-left{
+        width: 86px !important;
+    }
+    .col-lg-4 {
+        margin-top: 35px;
+        width: 47% !important;
+        max-width: 47% !important;
     }
 
-    .cat-name {
-        font-size: 0.9rem;
-    }
-
-    .search-input {
-        width: 100%;
-    }
 }
-
 
 
 
