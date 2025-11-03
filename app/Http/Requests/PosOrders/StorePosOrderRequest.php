@@ -35,27 +35,34 @@ class StorePosOrderRequest extends FormRequest
             'cash_received'  => 'nullable|numeric|min:0',
             'change'         => 'nullable|numeric|min:0',
 
-            // 👇 Add items validation
-            'items'             => 'required|array|min:1',
-            'items.*.product_id'=> 'required|integer|exists:menu_items,id',
-            'items.*.title'     => 'required|string',
-            'items.*.quantity'  => 'required|numeric|min:1',
-            'items.*.price'     => 'required|numeric|min:0',
-            'items.*.note'      => 'nullable|string',
-            'items.*.kitchen_note' => 'nullable|string',
-            'items.*.variant_id' => 'nullable|numeric',
-            'items.*.variant_name' => 'nullable|string',
-            
+            // Items validation
+            'items'                    => 'required|array|min:1',
+            'items.*.product_id'       => 'required|integer|exists:menu_items,id',
+            'items.*.title'            => 'required|string',
+            'items.*.quantity'         => 'required|numeric|min:1',
+            'items.*.price'            => 'required|numeric|min:0',
+            'items.*.note'             => 'nullable|string',
+            'items.*.kitchen_note'     => 'nullable|string',
+            'items.*.variant_id'       => 'nullable|numeric',
+            'items.*.variant_name'     => 'nullable|string',
+
             // KOT validations
             'auto_print_kot' => 'nullable|boolean',
 
-            // Promo validations
+            // ✅ UPDATED: Multiple Promo validations
+            'promo_discount'                       => 'nullable|numeric|min:0',
+            'applied_promos'                       => 'nullable|array',
+            'applied_promos.*.promo_id'            => 'required|integer|exists:promos,id',
+            'applied_promos.*.promo_name'          => 'required|string|max:255',
+            'applied_promos.*.promo_type'          => 'required|in:flat,percent',
+            'applied_promos.*.discount_amount'     => 'required|numeric|min:0',
+            'applied_promos.*.applied_to_items'    => 'nullable|array',
+            'applied_promos.*.applied_to_items.*'  => 'integer',
+
+            // ✅ Keep old single promo fields for backward compatibility
             'promo_id'       => 'nullable|integer|exists:promos,id',
             'promo_name'     => 'nullable|string|max:255',
-            'promo_discount' => 'nullable|numeric|min:0',
             'promo_type'     => 'nullable|in:flat,percent',
-
         ];
     }
-
 }

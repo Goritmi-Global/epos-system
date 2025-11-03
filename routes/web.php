@@ -34,7 +34,6 @@ use App\Http\Controllers\Reference\SupplierController;
 use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
 use App\Http\Controllers\Shifts\ShiftManagementController;
-use App\Http\Controllers\System\DatabaseBackupController;
 use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
@@ -297,11 +296,6 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
 /* -------- Super Admin Only -------- */
 Route::middleware(['auth', 'role:Super Admin'])->group(function () {
     Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
-});
-
-Route::middleware(['auth', 'role:Super Admin'])->group(function () {
-    Route::post('/system/restore', [SystemRestoreController::class, 'restore'])->name('system.restore');
-    Route::post('/database/backup', [DatabaseBackupController::class, 'backup'])->name('database.backup');
 });
 
 /* ---------- Public Routes ---------- */

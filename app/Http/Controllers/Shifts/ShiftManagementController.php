@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\Shifts;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\PosOrder;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Shift;
 use App\Models\ShiftDetail;
 use App\Models\ShiftInventorySnapshot;
 use App\Models\ShiftInventorySnapshotDetail;
 use App\Services\Shifts\ShiftManagementService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ShiftManagementController extends Controller
@@ -23,12 +23,10 @@ class ShiftManagementController extends Controller
     {
         $this->shiftService = $shiftService;
     }
-
     public function index()
     {
         return Inertia::render('Backend/Shifts/Index');
     }
-
     public function showShiftModal()
     {
         return Inertia::render('Backend/Shifts/ShowShifts', [
@@ -90,7 +88,7 @@ class ShiftManagementController extends Controller
 
         $activeShift = Shift::where('status', 'open')->first();
 
-        if (! $activeShift) {
+        if (!$activeShift) {
             return response()->json(['active' => false]);
         }
 
@@ -123,6 +121,7 @@ class ShiftManagementController extends Controller
         ]);
     }
 
+
     public function closeShift(Request $request, Shift $shift)
     {
         $isSuperAdmin = Auth::user()->hasRole('Super Admin');
@@ -136,11 +135,11 @@ class ShiftManagementController extends Controller
 
         // 2️⃣ Update shift summary
         $shift->update([
-            'status' => 'closed',
-            'end_time' => now(),
-            'ended_by' => Auth::id(),
+            'status'       => 'closed',
+            'end_time'     => now(),
+            'ended_by'     => Auth::id(),
             'closing_cash' => $closingCash,
-            'sales_total' => $totalSales,
+            'sales_total'  => $totalSales,
         ]);
 
         // 3️⃣ Update ShiftDetail records
@@ -154,15 +153,15 @@ class ShiftManagementController extends Controller
 
             $detail->update([
                 'sales_amount' => $userSales,
-                'left_at' => now(),
+                'left_at'      => now(),
             ]);
         }
 
         // 4️⃣ Create end inventory snapshot
         $snapshot = ShiftInventorySnapshot::create([
-            'shift_id' => $shift->id,
-            'type' => 'ended',
-            'user_id' => Auth::id(),
+            'shift_id'   => $shift->id,
+            'type'       => 'ended',
+            'user_id'    => Auth::id(),
             'created_at' => now(),
         ]);
 
@@ -170,8 +169,8 @@ class ShiftManagementController extends Controller
 
         foreach ($inventoryItems as $item) {
             ShiftInventorySnapshotDetail::create([
-                'snap_id' => $snapshot->id,
-                'item_id' => $item->id,
+                'snap_id'        => $snapshot->id,
+                'item_id'        => $item->id,
                 'stock_quantity' => $item->stock,
             ]);
         }
@@ -187,7 +186,7 @@ class ShiftManagementController extends Controller
         session()->forget('current_shift_id');
 
         // 7️⃣ Handle based on user role
-        if (! $isSuperAdmin) {
+        if (!$isSuperAdmin) {
             // Logout current user
             Auth::guard('web')->logout();
             $request->session()->invalidate();
@@ -198,7 +197,7 @@ class ShiftManagementController extends Controller
                 return response()->json([
                     'success' => true,
                     'redirect' => url('/login'),
-                    'message' => 'Shift closed — please log in again.',
+                    'message' => 'Shift closed — please log in again.'
                 ]);
             }
 
@@ -213,12 +212,15 @@ class ShiftManagementController extends Controller
             return response()->json([
                 'success' => true,
                 'redirect' => route('shift.manage'),
-                'message' => 'Shift closed successfully.',
+                'message' => 'Shift closed successfully.'
             ]);
         }
 
         return redirect()->route('shift.manage')->with('success', 'Shift closed successfully.');
     }
+
+
+
 
     // Fetch All shifts
     public function getAllShifts()
@@ -233,68 +235,17 @@ class ShiftManagementController extends Controller
 
     public function details($id)
     {
-        try {
-            $shift = Shift::with('details')->findOrFail($id);
+        $shift = \App\Models\Shift::with('details')->findOrFail($id);
 
-            // Get starting inventory snapshot (type = 'started')
-            $startingSnapshot = ShiftInventorySnapshot::where('shift_id', $id)
-                ->where('type', 'started')
-                ->with(['details' => function ($query) {
-                    $query->with('item');
-                }])
-                ->first();
-
-            // Get ending inventory snapshot (type = 'ended')
-            $endingSnapshot = ShiftInventorySnapshot::where('shift_id', $id)
-                ->where('type', 'ended')
-                ->with(['details' => function ($query) {
-                    $query->with('item');
-                }])
-                ->first();
-
-            // Format starting inventory
-            $startingInventory = $startingSnapshot ? $startingSnapshot->details->map(function ($detail) {
-                return [
-                    'item_id' => $detail->item_id,
-                    'item_name' => $detail->item?->name ?? 'Unknown Item',
-                    'item_sku' => $detail->item?->sku ?? 'N/A',
-                    'stock_quantity' => $detail->stock_quantity,
-                ];
-            })->toArray() : [];
-
-            // Format ending inventory
-            $endingInventory = $endingSnapshot ? $endingSnapshot->details->map(function ($detail) {
-                return [
-                    'item_id' => $detail->item_id,
-                    'item_name' => $detail->item?->name ?? 'Unknown Item',
-                    'item_sku' => $detail->item?->sku ?? 'N/A',
-                    'stock_quantity' => $detail->stock_quantity,
-                ];
-            })->toArray() : [];
-
-            // Format shift details (employee sales info)
-            $shiftDetails = $shift->details->map(function ($detail) {
+        return response()->json([
+            'success' => true,
+            'data' => $shift->details->map(function ($detail) {
                 return [
                     'role' => $detail->role,
                     'joined_at' => $detail->joined_at,
                     'sales_amount' => $detail->sales_amount,
                 ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'shift_details' => $shiftDetails,           // Employee sales info
-                    'starting_inventory' => $startingInventory, // Inventory at shift start
-                    'ending_inventory' => $endingInventory,     // Inventory at shift end
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch shift details: '.$e->getMessage(),
-            ], 500);
-        }
+            }),
+        ]);
     }
 }

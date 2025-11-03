@@ -46,6 +46,6 @@ class PosOrder extends Model
     }
     public function promo()
     {
-        return $this->hasOne(OrderPromo::class, 'order_id');
+        return $this->hasMany(OrderPromo::class, 'order_id');
     }
 }

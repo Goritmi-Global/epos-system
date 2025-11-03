@@ -80,7 +80,7 @@ class PosOrderController extends Controller
     {
         $amount = (float) $request->input('amount', 0);
         $currency = strtolower($request->input('currency', 'usd'));
-        $orderCode = $request->input('order_code') ?: (now()->format('Ymd-His').rand(10, 99));
+        $orderCode = $request->input('order_code') ?: (now()->format('Ymd-His') . rand(10, 99));
 
         //  Convert to cents (integers)
         $amountInCents = (int) round($amount * 100);
@@ -139,10 +139,29 @@ class PosOrderController extends Controller
             try {
                 $items = json_decode($request->query('items'), true) ?? [];
             } catch (\Throwable $e) {
+                \Log::error('Failed to parse items', ['error' => $e->getMessage()]);
             }
         }
 
-        $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'USD'));
+        // ✅ Parse applied_promos JSON
+        $appliedPromos = [];
+        if ($request->filled('applied_promos')) {
+            try {
+                $appliedPromos = json_decode($request->query('applied_promos'), true) ?? [];
+            } catch (\Throwable $e) {
+                \Log::error('Failed to parse applied_promos', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // ✅ Calculate total promo discount from array
+        $totalPromoDiscount = 0;
+        if (!empty($appliedPromos)) {
+            foreach ($appliedPromos as $promo) {
+                $totalPromoDiscount += (float) ($promo['discount_amount'] ?? 0);
+            }
+        }
+
+        $currency = strtoupper($pi->currency ?? $request->query('currency_code', 'GBP'));
 
         // Card details (prefer latest_charge)
         $pm = $pi->payment_method;
@@ -153,7 +172,7 @@ class PosOrderController extends Controller
         $expMonth = $pm->card->exp_month ?? null;
         $expYear = $pm->card->exp_year ?? null;
 
-        $code = $request->query('order_code') ?: (date('Ymd-His').rand(10, 99));
+        $code = $request->query('order_code') ?: (date('Ymd-His') . rand(10, 99));
 
         $data = [
             'customer_name' => $request->query('customer_name'),
@@ -177,6 +196,7 @@ class PosOrderController extends Controller
             'payment_status' => $pi->status ?? 'succeeded',
             'cash_received' => (float) $request->query('cash_received', $request->query('total_amount', 0)),
             'card_payment' => (float) $request->query('card_payment', 0),
+
             // Tracking
             'order_code' => $code,
             'stripe_payment_intent_id' => $paymentIntentId,
@@ -188,13 +208,19 @@ class PosOrderController extends Controller
             'exp_month' => $expMonth,
             'exp_year' => $expYear,
 
-            'promo_id' => $request->query('promo_id') ?: null,
-            'promo_name' => $request->query('promo_name') ?: null,
-            'promo_discount' => (float) $request->query('promo_discount', 0),
-            'promo_type' => $request->query('promo_type') ?: null,
+            // ✅ NEW: Pass the full applied_promos array
+            'applied_promos' => $appliedPromos,
+
+            // ✅ Keep these for backward compatibility (optional)
+            'promo_discount' => $totalPromoDiscount,
         ];
 
         $order = $this->service->create($data);
+
+        // ✅ Build promo names string for receipt
+        $promoNames = !empty($appliedPromos)
+            ? implode(', ', array_column($appliedPromos, 'promo_name'))
+            : null;
 
         // for printing receipt
         $printPayload = [
@@ -206,13 +232,13 @@ class PosOrderController extends Controller
             'last4' => $data['last_digits'] ?? null,
             'sub_total' => $data['sub_total'] ?? 0,
             'total_amount' => $data['total_amount'] ?? 0,
-            'items' => $data['items'] ?? [], // from your query params
-            'payment_type' => $data['payment_type'] ?? [], // from your query params
+            'items' => $data['items'] ?? [],
+            'payment_type' => $data['payment_type'] ?? 'Card',
 
-            // ✅ Add promo to print payload
-            'promo_discount' => $data['promo_discount'] ?? 0,
-            'promo_name' => $data['promo_name'] ?? null,
-            'promo_type' => $data['promo_type'] ?? null,
+            // ✅ Updated promo fields for receipt
+            'promo_discount' => $totalPromoDiscount,
+            'promo_names' => $promoNames,
+            'applied_promos' => $appliedPromos,
 
             // ✅ Split payment amounts for receipt
             'cash_amount' => $data['cash_amount'] ?? null,
@@ -224,13 +250,14 @@ class PosOrderController extends Controller
         ];
 
         // 🔔 Flash for the frontend toast
-        $msg = "Payment successful! Order #{$order->id} placed. Card {$brand} •••• {$last4}.";
+        $promoMsg = $totalPromoDiscount > 0 ? " with £{$totalPromoDiscount} promo discount" : "";
+        $msg = "Payment successful! Order #{$order->id} placed{$promoMsg}. Card {$brand} •••• {$last4}.";
 
         return redirect()
             ->route('pos.order')
             ->with([
                 'success' => $msg,
-                'print_payload' => $printPayload, // 👈 add this
+                'print_payload' => $printPayload,
             ]);
     }
 }
