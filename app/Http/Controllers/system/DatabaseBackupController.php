@@ -32,16 +32,41 @@ class DatabaseBackupController extends Controller
 
             $fullPath = $backupPath . '/' . $filename;
 
+            // Detect OS-specific mysqldump command
+            $mysqldump = 'mysqldump'; // default for Linux/macOS/Windows (if in PATH)
+
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                // On Windows, check if mysqldump exists in PATH
+                $check = shell_exec('where mysqldump');
+                if (!$check) {
+                    throw new \Exception(
+                        'mysqldump is not found in system PATH. Please ensure MySQL is installed and added to environment variables.'
+                    );
+                }
+            } else {
+                // For Linux/Mac check command existence
+                $check = shell_exec('which mysqldump');
+                if (!$check) {
+                    throw new \Exception(
+                        'mysqldump command not found. Please install mysql-client or add it to PATH.'
+                    );
+                }
+            }
+
+            // Build the command
+            // (Avoid exposing password if empty)
             $command = sprintf(
-                'mysqldump --user=%s --password=%s --host=%s --port=%s %s > %s',
+                '%s --user=%s %s --host=%s --port=%s %s > "%s"',
+                $mysqldump,
                 escapeshellarg($username),
-                escapeshellarg($password),
+                $password ? '--password=' . escapeshellarg($password) : '',
                 escapeshellarg($host),
                 escapeshellarg($port),
                 escapeshellarg($database),
-                escapeshellarg($fullPath)
+                $fullPath
             );
 
+            // Execute process
             $process = Process::fromShellCommandline($command);
             $process->setTimeout(300);
             $process->run();
@@ -60,10 +85,10 @@ class DatabaseBackupController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Database backup failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create database backup: ' . $e->getMessage()
+                'message' => 'Failed to create database backup: ' . $e->getMessage(),
             ], 500);
         }
     }
