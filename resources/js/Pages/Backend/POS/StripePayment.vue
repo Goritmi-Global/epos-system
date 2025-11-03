@@ -60,6 +60,8 @@ const props = defineProps({
   promoName: { type: [String, null], default: null },
   promoType: { type: [String, null], default: null },
   promoDiscountAmount: { type: Number, default: 0 },
+
+  appliedPromos: { type: Array, default: () => [] },
 });
 
 
@@ -224,6 +226,8 @@ async function pay() {
     promo_id: String(props.promoId ?? ''),
     promo_name: String(props.promoName ?? ''),
     promo_type: String(props.promoType ?? ''),
+
+    applied_promos: JSON.stringify(props.appliedPromos || []),
 
     // for split payment
     cardCharge: String(props.cardCharge ?? 0),

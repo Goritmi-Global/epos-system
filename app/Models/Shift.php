@@ -31,26 +31,9 @@ class Shift extends Model
     {
         return $this->belongsTo(User::class, 'ended_by');
     }
-
     public function details()
-    {
-        return $this->hasMany(\App\Models\ShiftDetail::class, 'shift_id');
-    }
+{
+    return $this->hasMany(\App\Models\ShiftDetail::class, 'shift_id');
+}
 
-    public function startingInventorySnapshot()
-    {
-        return $this->hasOne(ShiftInventorySnapshot::class, 'shift_id')
-            ->where('type', 'started');
-    }
-
-    public function endingInventorySnapshot()
-    {
-        return $this->hasOne(ShiftInventorySnapshot::class, 'shift_id')
-            ->where('type', 'ended');
-    }
-
-    public function inventorySnapshots()
-    {
-        return $this->hasMany(ShiftInventorySnapshot::class, 'shift_id');
-    }
 }

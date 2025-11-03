@@ -1173,7 +1173,7 @@ const handleImport = (data) => {
 
             <!-- KPI -->
             <div class="row g-3">
-                <div v-for="c in CategoriesDetails" :key="c.label" class="col-md-6 col-xl-3">
+                <div v-for="c in CategoriesDetails" :key="c.label" class="col">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <!-- Text -->
@@ -1190,7 +1190,7 @@ const handleImport = (data) => {
                                 'p-3 rounded-3 d-flex align-items-center justify-content-center',
                                 c.iconBg,
                             ]">
-                                <component :is="c.icon" :class="c.iconColor" size="26" />
+                                <component :is="c.icon" :class="c.iconColor" size="28" />
                             </div>
                         </div>
                     </div>
@@ -2039,80 +2039,16 @@ const handleImport = (data) => {
     color: #aaa !important;
 }
 
-
-@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
-
-    .page-wrapper {
-        padding: 12px !important;
-    }
-
-    .card {
-        border-radius: 16px !important;
-    }
-
-    .d-flex.align-items-center.justify-content-between {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 10px;
-    }
-
-    .d-flex.gap-2.align-items-center {
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: flex-start;
+/* Mobile */
+@media (max-width: 575.98px) {
+    .kpi-value {
+        font-size: 1.45rem;
     }
 
     .search-wrap {
-        width: 30% !important;
-        margin-bottom: 10px;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    table.table th,
-    table.table td {
-        font-size: 14px;
-        white-space: nowrap;
+        width: 100%;
     }
 }
 
-/* 🎯 iPad Pro 12.9" Landscape (1366 x 1024) */
-@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
-
-    .page-wrapper {
-        padding: 16px !important;
-    }
-
-    .card-body {
-        padding: 20px !important;
-    }
-
-    .d-flex.align-items-center.justify-content-between {
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-
-    .d-flex.gap-2.align-items-center {
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .search-wrap {
-        min-width: 250px;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    table.table th,
-    table.table td {
-        font-size: 15px;
-    }
-}
 
 </style>

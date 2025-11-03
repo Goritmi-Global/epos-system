@@ -24,7 +24,7 @@ class PosOrderService
     public function list(array $filters = [])
     {
         return PosOrder::query()
-            ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
+            ->when($filters['status'] ?? null, fn($q, $v) => $q->where('status', $v))
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
@@ -76,10 +76,10 @@ class PosOrderService
                     'kitchen_note' => $item['kitchen_note'] ?? null,
                 ]);
 
-                // ✅ FIXED: Get ingredients based on variant or base menu item
+                // Get ingredients based on variant or base menu item
                 $ingredients = $this->getIngredientsForItem($item);
 
-                // ✅ Process stockout for the correct ingredients
+                // Process stockout for the correct ingredients
                 if (! empty($ingredients)) {
                     foreach ($ingredients as $ingredient) {
                         $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
@@ -96,8 +96,8 @@ class PosOrderService
                                 'value' => 0,
                                 'operation_type' => 'pos_stockout',
                                 'stock_type' => 'stockout',
-                                'description' => "Auto stockout from POS Order #{$order->id}".
-                                               ($item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
+                                'description' => "Auto stockout from POS Order #{$order->id}" .
+                                    ($item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
                                 'user_id' => Auth::id(),
                             ]);
                         }
@@ -117,7 +117,6 @@ class PosOrderService
             ]);
 
             foreach ($order->items as $orderItem) {
-                // ✅ Get correct ingredients for KOT display
                 $itemData = collect($data['items'])->firstWhere('product_id', $orderItem->menu_item_id);
                 $ingredients = $this->getIngredientsForItem($itemData);
 
@@ -174,8 +173,20 @@ class PosOrderService
                 'exp_year' => $data['exp_year'] ?? null,
             ]);
 
-            // Store promo details
-            if (! empty($data['promo_id']) && ! empty($data['promo_discount'])) {
+            // ✅ UPDATED: Store multiple promo details
+            if (!empty($data['applied_promos']) && is_array($data['applied_promos'])) {
+                foreach ($data['applied_promos'] as $promoData) {
+                    \App\Models\OrderPromo::create([
+                        'order_id' => $order->id,
+                        'promo_id' => $promoData['promo_id'],
+                        'promo_name' => $promoData['promo_name'] ?? null,
+                        'promo_type' => $promoData['promo_type'] ?? 'flat',
+                        'discount_amount' => $promoData['discount_amount'] ?? 0,
+                    ]);
+                }
+            }
+            // ✅ Fallback: Handle old single promo format (backward compatibility)
+            elseif (!empty($data['promo_id']) && !empty($data['promo_discount'])) {
                 \App\Models\OrderPromo::create([
                     'order_id' => $order->id,
                     'promo_id' => $data['promo_id'],
@@ -185,7 +196,7 @@ class PosOrderService
                 ]);
             }
 
-            $order->load(['items', 'kot.items']);
+            $order->load(['items', 'kot.items', 'promo']);
 
             return $order;
         });
@@ -295,14 +306,14 @@ class PosOrderService
             'addonGroupRelations.addonGroup.addons',
         ])->get();
 
-        \Log::info('Total MenuItems loaded: '.$menus->count());
+        \Log::info('Total MenuItems loaded: ' . $menus->count());
 
         return $menus->map(function ($item) {
             \Log::info("🔸 Processing MenuItem: {$item->name} (ID: {$item->id})");
 
             // Check variant and ingredient relations before mapping
-            \Log::info(' - Variants count: '.$item->variants->count());
-            \Log::info(' - Ingredients count: '.$item->ingredients->count());
+            \Log::info(' - Variants count: ' . $item->variants->count());
+            \Log::info(' - Ingredients count: ' . $item->ingredients->count());
 
             $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
 
@@ -324,7 +335,7 @@ class PosOrderService
             // --- Map and log variants ---
             $item->variants = $item->variants->map(function ($variant) use ($item) {
                 \Log::info("  🧩 Variant found: {$variant->name} (ID: {$variant->id}) for MenuItem: {$item->id}");
-                \Log::info('    - Ingredients count: '.$variant->ingredients->count());
+                \Log::info('    - Ingredients count: ' . $variant->ingredients->count());
 
                 if ($variant->ingredients->isEmpty()) {
                     \Log::warning("    ⚠️ No ingredients found for Variant ID: {$variant->id}");
@@ -352,7 +363,7 @@ class PosOrderService
             })->values()->toArray();
 
             // --- Log after variants mapped ---
-            \Log::info("✅ Finished MenuItem: {$item->name} | Variants processed: ".count($item->variants));
+            \Log::info("✅ Finished MenuItem: {$item->name} | Variants processed: " . count($item->variants));
 
             // --- Addons mapping ---
             $addonsGrouped = [];

@@ -15,6 +15,7 @@ use App\Models\ProfileStep7;
 use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
 use App\Models\RestaurantProfile;
+use App\Models\Upload;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -60,6 +61,7 @@ class SettingsController extends Controller
         ]);
     }
 
+
     /**
      * Update a specific step/section
      */
@@ -69,7 +71,7 @@ class SettingsController extends Controller
 
         // Check if profile exists
         $profile = RestaurantProfile::where('user_id', $user->id)->first();
-        if (! $profile) {
+        if (!$profile) {
             return response()->json(['error' => 'Profile not found'], 404);
         }
 
@@ -87,7 +89,7 @@ class SettingsController extends Controller
         ];
 
         foreach ($aliasMap as $alias => $canonical) {
-            if (array_key_exists($alias, $payload) && ! array_key_exists($canonical, $payload)) {
+            if (array_key_exists($alias, $payload) && !array_key_exists($canonical, $payload)) {
                 $payload[$canonical] = $payload[$alias];
             }
         }
@@ -100,9 +102,6 @@ class SettingsController extends Controller
             'show_qr_on_receipt',
             'tax_breakdown_on_receipt',
             'price_includes_tax',
-            'logout_after_order',
-            'logout_after_time',
-            'logout_manual_only',
         ];
         foreach ($boolKeys as $k) {
             if (isset($payload[$k]) && is_string($payload[$k])) {
@@ -110,6 +109,7 @@ class SettingsController extends Controller
                 $payload[$k] = in_array($lower, ['1', 'true', 'yes', 'on']) ? true : (in_array($lower, ['0', 'false', 'no', 'off']) ? false : $payload[$k]);
             }
         }
+
 
         $request->replace($payload);
         $existingStepData = $this->getExistingStepData($user->id, $step);
@@ -131,6 +131,7 @@ class SettingsController extends Controller
                 ]
             );
         }
+
 
         //  Step 2
         // Step 2: only save upload_id in ProfileStep2, not RestaurantProfile
@@ -164,7 +165,7 @@ class SettingsController extends Controller
             $profileTableId = $existingStep5->profile_table_id ?? null;
 
             // Update or create ProfileTable if table details exist
-            if (! empty($data['table_details'])) {
+            if (!empty($data['table_details'])) {
                 $tableCount = $data['tables'] ?? count($data['table_details']);
 
                 if ($profileTableId) {
@@ -194,6 +195,7 @@ class SettingsController extends Controller
                 'profile_table_id' => $profileTableId,
             ];
         }
+
 
         //  Step 6
         if ($step === 6 && $request->hasFile('receipt_logo_file')) {
@@ -238,7 +240,7 @@ class SettingsController extends Controller
                     ]
                 );
 
-                if (! empty($day['breaks'])) {
+                if (!empty($day['breaks'])) {
                     $break = $day['breaks'][0]; // only first break
                     $bh->break_from = $break['start'];
                     $bh->break_to = $break['end'];
@@ -268,6 +270,7 @@ class SettingsController extends Controller
             ];
         }
 
+
         // Update the appropriate step model
         $this->updateStepModel($user->id, $step, $data);
 
@@ -290,7 +293,6 @@ class SettingsController extends Controller
 
         if (class_exists($modelClass)) {
             $stepData = $modelClass::where('user_id', $userId)->first();
-
             return $stepData ? $stepData->toArray() : [];
         }
 
@@ -305,28 +307,28 @@ class SettingsController extends Controller
         return match ($step) {
             1 => $request->validate([
                 'country_code' => 'required|string|exists:countries,iso2',
-                'timezone_id' => 'required|integer|exists:timezones,id', // FIXED: Changed from string to integer with exists check
-                'language' => 'required|string|max:10',
+                'timezone_id'  => 'required|integer|exists:timezones,id', // FIXED: Changed from string to integer with exists check
+                'language'     => 'required|string|max:10',
             ], [
                 'country_code.required' => 'Country field is required',
-                'country_code.exists' => 'Selected country is invalid',
-                'timezone_id.required' => 'Timezone field is required',
-                'timezone_id.exists' => 'Selected timezone is invalid', // FIXED: Added error message
-                'language.required' => 'Language field is required',
+                'country_code.exists'   => 'Selected country is invalid',
+                'timezone_id.required'  => 'Timezone field is required',
+                'timezone_id.exists'    => 'Selected timezone is invalid', // FIXED: Added error message
+                'language.required'     => 'Language field is required',
             ]),
 
             2 => $request->validate(
                 [
                     'business_name' => 'required|string|max:190',
                     'business_type' => 'required',
-                    'phone' => 'required|string|max:60',
-                    'phone_local' => 'required|string|max:60',
-                    'email' => 'required|email|max:190',
-                    'address' => 'required|string|max:500',
-                    'website' => 'nullable|max:190',
-                    'logo' => 'nullable',
+                    'phone'         => 'required|string|max:60',
+                    'phone_local'   => 'required|string|max:60',
+                    'email'         => 'required|email|max:190',
+                    'address'       => 'required|string|max:500',
+                    'website'       => 'nullable|max:190',
+                    'logo'          => 'nullable',
                     // FIXED: Check existing data properly
-                    'logo_file' => (! empty($existingData['upload_id']) || ! empty($existingData['logo_url']))
+                    'logo_file'     => (!empty($existingData['upload_id']) || !empty($existingData['logo_url']))
                         ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                         : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 ],
@@ -397,7 +399,7 @@ class SettingsController extends Controller
                 'receipt_footer' => 'required|string|max:2000',
                 'receipt_logo' => 'nullable',
                 // FIXED: Check existing data properly
-                'receipt_logo_file' => (! empty($existingData['upload_id']) || ! empty($existingData['receipt_logo_url']))
+                'receipt_logo_file' => (!empty($existingData['upload_id']) || !empty($existingData['receipt_logo_url']))
                     ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
                     : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
                 'show_qr_on_receipt' => 'required|boolean',
@@ -412,15 +414,6 @@ class SettingsController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
-                'logout_after_order' => 'required|boolean',
-                'logout_after_time' => 'required|boolean',
-                'logout_manual_only' => 'required|boolean',
-                // Time in minutes is required if logout_after_time is true
-                'logout_time_minutes' => 'required_if:logout_after_time,1|nullable|integer|min:1|max:1440',
-            ], [
-                'logout_time_minutes.required_if' => 'Please enter logout time in minutes when "After Selected Time" is enabled.',
-                'logout_time_minutes.min' => 'Logout time must be at least 1 minute.',
-                'logout_time_minutes.max' => 'Logout time cannot exceed 1440 minutes (24 hours).',
             ]),
 
             8 => $request->validate([
@@ -469,9 +462,7 @@ class SettingsController extends Controller
     {
         $profile = RestaurantProfile::where('user_id', $userId)->first();
 
-        if (! $profile) {
-            return;
-        }
+        if (!$profile) return;
 
         // Map fields that should be updated in main profile
         $mainProfileFields = [
@@ -496,10 +487,6 @@ class SettingsController extends Controller
             'currency',
             'timezone_id',
             'language',
-            'logout_after_order',
-            'logout_after_time',
-            'logout_manual_only',
-            'logout_time_minutes',
         ];
 
         $updateData = [];
@@ -509,7 +496,7 @@ class SettingsController extends Controller
             }
         }
 
-        if (! empty($updateData)) {
+        if (!empty($updateData)) {
             $profile->update($updateData);
         }
     }
@@ -528,7 +515,7 @@ class SettingsController extends Controller
                 $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
 
                 //  Step 1: map country info
-                if ($i === 1 && ! empty($data['step1']['country_id'])) {
+                if ($i === 1 && !empty($data['step1']['country_id'])) {
                     $country = \App\Models\Country::where('id', $data['step1']['country_id'])->first();
                     if ($country) {
                         $data['step1']['country_code'] = $country->iso2;
@@ -540,7 +527,7 @@ class SettingsController extends Controller
                     $data['step2'] = $stepData->toArray();
 
                     // Extract phone breakdown from full phone number
-                    if (! empty($data['step2']['phone'])) {
+                    if (!empty($data['step2']['phone'])) {
                         $fullPhone = $data['step2']['phone'];
 
                         // Get all countries and sort by phone_code length (longest first)
@@ -567,11 +554,12 @@ class SettingsController extends Controller
                     $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
                 }
 
+
                 if ($i === 5 && $stepData) {
                     $data['step5'] = $stepData->toArray();
 
                     // Fetch profile_table linked to this step
-                    if (! empty($stepData->profile_table_id)) {
+                    if (!empty($stepData->profile_table_id)) {
                         $profileTable = \App\Models\ProfileTable::find($stepData->profile_table_id);
                         if ($profileTable) {
                             $data['step5']['tables'] = $profileTable->number_of_tables;
@@ -579,6 +567,7 @@ class SettingsController extends Controller
                         }
                     }
                 }
+
 
                 //  Special handling for step 8 (business hours)
                 if ($i === 8 && $stepData) {
@@ -588,38 +577,29 @@ class SettingsController extends Controller
                         return [
                             'id' => $h->id,
                             'day' => $h->day,
-                            'is_open' => (bool) $h->is_open,
+                            'is_open' => (bool)$h->is_open,
                             'from' => $h->from ?? '09:00',
                             'to' => $h->to ?? '17:00',
                             'breaks' => $h->break_from && $h->break_to ? [
-                                ['start' => $h->break_from, 'end' => $h->break_to],
+                                ['start' => $h->break_from, 'end' => $h->break_to]
                             ] : [],
                         ];
                     })->toArray();
                 }
 
-                if ($i === 9 && ! empty($data['step9'])) {
+                if ($i === 9 && !empty($data['step9'])) {
                     // Map database columns back to form fields
                     $data['step9']['feat_loyalty'] = ($data['step9']['enable_loyalty_system'] ?? false) ? 'yes' : 'no';
                     $data['step9']['feat_inventory'] = ($data['step9']['enable_inventory_tracking'] ?? false) ? 'yes' : 'no';
                     $data['step9']['feat_backup'] = ($data['step9']['enable_cloud_backup'] ?? false) ? 'yes' : 'no';
                     $data['step9']['feat_multilocation'] = ($data['step9']['enable_multi_location'] ?? false) ? 'yes' : 'no';
-                    $data['step9']['feat_theme'] = ! empty($data['step9']['theme_preference']) ? 'yes' : 'no';
+                    $data['step9']['feat_theme'] = !empty($data['step9']['theme_preference']) ? 'yes' : 'no';
                 }
 
                 //  Step 2: Logo using UploadHelper
                 if ($i === 2 && $stepData) {
                     $uploadId = $stepData->upload_id ?? null;
                     $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
-                }
-                if ($i === 7 && $stepData) {
-                    $data['step7'] = $stepData->toArray();
-
-                    // Ensure all logout option booleans are properly cast
-                    $data['step7']['logout_after_order'] = (bool) ($data['step7']['logout_after_order'] ?? false);
-                    $data['step7']['logout_after_time'] = (bool) ($data['step7']['logout_after_time'] ?? false);
-                    $data['step7']['logout_manual_only'] = (bool) ($data['step7']['logout_manual_only'] ?? false);
-                    $data['step7']['logout_time_minutes'] = (int) ($data['step7']['logout_time_minutes'] ?? 30);
                 }
                 if ($i === 6 && $stepData) {
                     $uploadId = $stepData->upload_id ?? null;
