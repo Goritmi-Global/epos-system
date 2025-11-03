@@ -27,11 +27,14 @@ const handleSidebarAction = (action) => {
     if (action === "systemRestore") {
         showRestoreModal.value = true; // Use the new modal
         console.log('showConfirmRestore set to:', showConfirmRestore.value);
+    } else if (action === "databaseBackup") {
+        showBackupModal.value = true; // 👈 Add this
     }
 };
 
 const showLogoutModal = ref(false);
 const showRestoreModal = ref(false);
+const showBackupModal = ref(false);
 const isFullscreen = ref(false);
 
 
@@ -149,6 +152,77 @@ const handleSystemRestore = async () => {
         }
 
         toast.error(message);
+    }
+};
+
+
+
+/**
+ * Handle Database Backup
+ * Creates and downloads a SQL backup file
+ */
+const handleDatabaseBackup = async () => {
+    try {
+        // Make API call with blob response type for file download
+        const response = await axios.post(route('database.backup'), {}, {
+            responseType: 'blob' // Critical: tells axios to expect binary data
+        });
+
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+
+        // Extract filename from response headers or use default
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = 'database_backup_' + new Date().toISOString().slice(0, 10) + '.sql';
+
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+
+        // Trigger download
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        // Show success message
+        toast.success('Database backup downloaded successfully!');
+
+        // Close modal
+        showBackupModal.value = false;
+
+    } catch (error) {
+        console.error('Database backup error:', error);
+
+        let message = 'Failed to create database backup. Please try again.';
+
+        // Handle blob error responses
+        if (error.response?.data) {
+            if (error.response.data instanceof Blob) {
+                try {
+                    const text = await error.response.data.text();
+                    const json = JSON.parse(text);
+                    message = json.message || message;
+                } catch (e) {
+                    message = 'An error occurred while creating the backup.';
+                }
+            } else if (error.response.data.message) {
+                message = error.response.data.message;
+            }
+        } else if (error.message) {
+            message = error.message;
+        }
+
+        toast.error(message);
+        showBackupModal.value = false;
     }
 };
 
@@ -296,6 +370,7 @@ const sidebarMenus = ref([
         children: [
             { label: "Settings", icon: "settings", route: "settings.index" },
             { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
+            { label: "Backup Database", icon: "database", action: "databaseBackup" },
             // {
             //     label: "Log Out",
             //     icon: "log-out",
@@ -818,6 +893,11 @@ onMounted(fetchNotifications);
         <RestoreSystemModal v-if="showRestoreModal" :show="showRestoreModal" title="Confirm System Restore"
             message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
             @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
+
+        <ConfirmModal v-model:show="showBackupModal" title="Confirm Database Backup"
+            message="Are you sure you want to create a database backup? The backup file will be downloaded to your computer as an SQL file."
+            icon-type="database" confirm-text="Yes, Create Backup" loading-text="Creating Backup..."
+            @confirm="handleDatabaseBackup" @cancel="showBackupModal = false" />
 
         <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" :loading="isLoggingOut" @confirm="handleLogout"
             @cancel="showLogoutModal = false" />

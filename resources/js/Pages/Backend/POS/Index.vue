@@ -1725,7 +1725,7 @@ const handleClearPromo = () => {
 const openPromoModal = async () => {
     console.log("Fetching promos for current meal...");
     loadingPromos.value = true;
-    showPromoModal.value = true;
+    selectedItem.value = item;
 
     try {
         const response = await axios.get('/api/promos/current');
@@ -1733,12 +1733,12 @@ const openPromoModal = async () => {
             promosData.value = response.data.data || [];
             console.log("Promos loaded:", promosData.value.length);
         } else {
-            console.warn("Failed to fetch promos:", response.data);
+            console.error('Failed to fetch promos', response.data);
             promosData.value = [];
             toast.warning("No promos available at the moment");
         }
     } catch (error) {
-        console.error("Error fetching current meal promos:", error);
+        console.error('Error fetching promos', error);
         promosData.value = [];
         toast.error("Failed to load promotions");
     } finally {
@@ -2582,10 +2582,11 @@ const getSelectedAddonsCount = () => {
                                 @click="openPosOrdersModal">
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
-                            < </button> -->
-                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
+                            </button> -->
+                            <!-- <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
                                 Promos
-                            </button>
+                            </button> -->
+
                         </div>
 
                         <div class="cart card border-0 shadow-lg rounded-4">
@@ -2891,8 +2892,7 @@ const getSelectedAddonsCount = () => {
                                             <strong>Allergies:</strong>
                                         </div>
                                         <span v-for="(a, i) in getModalAllergies()" :key="'a-' + i"
-                                            class="chip chip-red">{{
-                                                a.name
+                                            class="chip chip-red">{{ a.name
                                             }}</span>
 
                                         <div class="w-100 mt-2">
@@ -3810,38 +3810,56 @@ const getSelectedAddonsCount = () => {
     height: 38px;
 }
 
-/* ========== Responsive ========== */
-@media (max-width: 1199.98px) {
-    .item-title {
-        font-size: 0.92rem;
+@media only screen and (max-width: 1024px){
+    .col-md-6 {
+        width: 70% !important;
+        flex: 0 0 100% !important;
+        max-width: 70% !important;
     }
+
+    .col-lg-4 {
+        margin-top: 60px;
+        width: 44% !important;
+        max-width: 44% !important;
+    }
+
 }
 
-@media (max-width: 991.98px) {
-    .cart-lines {
-        max-height: 260px;
+@media only screen and (max-width: 820px){
+    .col-md-6 {
+        width: 51% !important;
+        flex: 0 0 100% !important;
+        max-width: 51% !important;
     }
 
-    .search-wrap {
-        width: 100%;
-        margin-top: 0.4rem;
+    .header-left{
+        width: 56px !important;
     }
+    .col-lg-4 {
+        margin-top: 45px;
+        width: 47% !important;
+        max-width: 47% !important;
+    }
+
 }
 
-@media (max-width: 575.98px) {
-    .cat-tile {
-        padding: 1.5rem 1rem;
+
+@media only screen and (max-width: 768px){
+    .col-md-6 {
+        width: 51% !important;
+        flex: 0 0 100% !important;
+        max-width: 51% !important;
+    }
+    .header-left{
+        width: 86px !important;
+    }
+    .col-lg-4 {
+        margin-top: 35px;
+        width: 47% !important;
+        max-width: 47% !important;
     }
 
-    .cat-name {
-        font-size: 0.9rem;
-    }
-
-    .search-input {
-        width: 100%;
-    }
 }
-
 
 
 

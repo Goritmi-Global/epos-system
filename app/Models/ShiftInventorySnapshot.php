@@ -16,7 +16,7 @@ class ShiftInventorySnapshot extends Model
         'created_at',
     ];
 
-    public $timestamps = false; 
+    public $timestamps = false;
 
     // Relationships
     public function shift()
@@ -28,5 +28,9 @@ class ShiftInventorySnapshot extends Model
     {
         return $this->belongsTo(User::class);
     }
-}
 
+    public function details()
+    {
+        return $this->hasMany(ShiftInventorySnapshotDetail::class, 'snap_id');
+    }
+}

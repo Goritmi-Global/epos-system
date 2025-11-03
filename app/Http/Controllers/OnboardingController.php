@@ -262,6 +262,16 @@ class OnboardingController extends Controller
             7 => $request->validate([
                 'cash_enabled' => 'required|boolean',
                 'card_enabled' => 'required|boolean',
+                // Cashier logout options - at least one must be true
+                'logout_after_order' => 'required|boolean',
+                'logout_after_time' => 'required|boolean',
+                'logout_manual_only' => 'required|boolean',
+                // Time in minutes is required if logout_after_time is true
+                'logout_time_minutes' => 'required_if:logout_after_time,1|nullable|integer|min:1|max:1440',
+            ], [
+                'logout_time_minutes.required_if' => 'Please enter logout time in minutes when "After Selected Time" is enabled.',
+                'logout_time_minutes.min' => 'Logout time must be at least 1 minute.',
+                'logout_time_minutes.max' => 'Logout time cannot exceed 1440 minutes (24 hours).',
             ]),
 
             8 => $request->validate([
@@ -581,7 +591,7 @@ class OnboardingController extends Controller
             4 => ['is_tax_registered', 'tax_type', 'tax_id', 'tax_rate', 'extra_tax_rates', 'price_includes_tax', 'has_service_charges', 'service_charge_flat', 'service_charge_percentage', 'has_delivery_charges', 'delivery_charge_flat', 'delivery_charge_percentage'],
             5 => ['order_types', 'table_management_enabled', 'online_ordering_enabled', 'number_of_tables', 'table_details', 'profile_table_id'],
             6 => ['receipt_header', 'receipt_footer', 'receipt_logo_path', 'upload_id', 'receipt_logo_url', 'show_qr_on_receipt', 'tax_breakdown_on_receipt', 'customer_printer', 'kot_printer', 'printers'],
-            7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method'],
+            7 => ['cash_enabled', 'card_enabled', 'integrated_terminal', 'custom_payment_options', 'default_payment_method',  'logout_after_order','logout_after_time','logout_manual_only','logout_time_minutes'],
             8 => ['auto_disable', 'hours'],
             9 => ['feat_loyalty', 'feat_inventory', 'feat_backup', 'feat_multilocation', 'feat_theme'],
         ];
