@@ -2,93 +2,70 @@
 
 namespace App\Http\Controllers\System;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
+use Illuminate\Http\Request;
 
 class DatabaseBackupController extends Controller
 {
     public function backup(Request $request)
     {
         $user = $request->user();
-        if (!$user->hasRole('Super Admin')) {
+        if (! $user->hasRole('Super Admin')) {
             abort(403, 'Unauthorized');
         }
 
         try {
             $database = env('DB_DATABASE');
-            $username = env('DB_USERNAME');
-            $password = env('DB_PASSWORD');
-            $host = env('DB_HOST', '127.0.0.1');
-            $port = env('DB_PORT', '3306');
-
-            $filename = 'backup_' . $database . '_' . date('Y-m-d_H-i-s') . '.sql';
+            $filename = 'backup_'.$database.'_'.date('Y-m-d_H-i-s').'.sql';
             $backupPath = storage_path('app/backups');
 
-            if (!file_exists($backupPath)) {
+            if (! file_exists($backupPath)) {
                 mkdir($backupPath, 0755, true);
             }
 
-            $fullPath = $backupPath . '/' . $filename;
+            $fullPath = $backupPath.'/'.$filename;
 
-            // Detect OS-specific mysqldump command
-            $mysqldump = 'mysqldump'; // default for Linux/macOS/Windows (if in PATH)
+            // Get all table names
+            $tables = \DB::select('SHOW TABLES');
+            $key = 'Tables_in_'.$database;
 
-            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                // On Windows, check if mysqldump exists in PATH
-                $check = shell_exec('where mysqldump');
-                if (!$check) {
-                    throw new \Exception(
-                        'mysqldump is not found in system PATH. Please ensure MySQL is installed and added to environment variables.'
-                    );
+            $sql = "SET FOREIGN_KEY_CHECKS=0;\n\n";
+
+            foreach ($tables as $table) {
+                $tableName = $table->$key;
+
+                // Get create table statement
+                $create = \DB::select("SHOW CREATE TABLE `$tableName`")[0]->{'Create Table'};
+                $sql .= "DROP TABLE IF EXISTS `$tableName`;\n";
+                $sql .= $create.";\n\n";
+
+                // Get table data
+                $rows = \DB::table($tableName)->get();
+                foreach ($rows as $row) {
+                    $values = array_map(function ($value) {
+                        return isset($value) ? "'".addslashes($value)."'" : 'NULL';
+                    }, (array) $row);
+
+                    $sql .= "INSERT INTO `$tableName` VALUES(".implode(',', $values).");\n";
                 }
-            } else {
-                // For Linux/Mac check command existence
-                $check = shell_exec('which mysqldump');
-                if (!$check) {
-                    throw new \Exception(
-                        'mysqldump command not found. Please install mysql-client or add it to PATH.'
-                    );
-                }
+
+                $sql .= "\n\n";
             }
 
-            // Build the command
-            // (Avoid exposing password if empty)
-            $command = sprintf(
-                '%s --user=%s %s --host=%s --port=%s %s > "%s"',
-                $mysqldump,
-                escapeshellarg($username),
-                $password ? '--password=' . escapeshellarg($password) : '',
-                escapeshellarg($host),
-                escapeshellarg($port),
-                escapeshellarg($database),
-                $fullPath
-            );
+            $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
 
-            // Execute process
-            $process = Process::fromShellCommandline($command);
-            $process->setTimeout(300);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
-            }
-
-            if (!file_exists($fullPath)) {
-                throw new \Exception('Backup file was not created');
-            }
+            file_put_contents($fullPath, $sql);
 
             return response()->download($fullPath, $filename, [
                 'Content-Type' => 'application/sql',
             ])->deleteFileAfterSend(true);
 
         } catch (\Exception $e) {
-            \Log::error('Database backup failed: ' . $e->getMessage());
+            \Log::error('Database backup failed: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create database backup: ' . $e->getMessage(),
+                'message' => 'Failed to create backup: '.$e->getMessage(),
             ], 500);
         }
     }
