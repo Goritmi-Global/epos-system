@@ -648,13 +648,13 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
     const idx = orderItems.value.findIndex((i) => {
         // Compare variant
         if (i.variant_id !== variantId) return false;
-        
+
         // Compare addons
         const itemAddonIds = (i.addons || [])
             .map(a => a.id)
             .sort((a, b) => a - b)
             .join('-');
-        
+
         // Must match both product ID, variant, and addons
         return i.id === baseItem.id && itemAddonIds === addonIds;
     });
@@ -665,12 +665,12 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
         if (newQty <= orderItems.value[idx].stock) {
             orderItems.value[idx].qty = newQty;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * newQty;
-            
+
             // ✅ Update note if provided
             if (note && note.trim()) {
                 orderItems.value[idx].note = note;
             }
-            
+
             toast.success(`Quantity updated to ${newQty}`);
         } else {
             toast.error("Not enough Ingredients stock available for this Menu.");
@@ -696,7 +696,7 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             variant_name: variantName,
             addons: selectedAddons, // ✅ INCLUDE ADDONS
         });
-        
+
         toast.success(`${baseItem.title} added to cart`);
     }
 };
@@ -1090,7 +1090,7 @@ const confirmAdd = async () => {
     try {
         // ✅ Create sorted addon IDs for comparison
         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
-        
+
         const menuStock = variantIngredients.length > 0
             ? calculateStockForIngredients(variantIngredients)
             : 999999;
@@ -1098,12 +1098,12 @@ const confirmAdd = async () => {
         // ✅ Find existing item with EXACT same variant AND addons
         const idx = orderItems.value.findIndex((i) => {
             if (i.variant_id !== variantId) return false;
-            
+
             const itemAddonIds = (i.addons || [])
                 .map(a => a.id)
                 .sort((a, b) => a - b)
                 .join('-');
-            
+
             return i.id === selectedItem.value.id && itemAddonIds === addonIds;
         });
 
@@ -1111,12 +1111,12 @@ const confirmAdd = async () => {
             // ✅ Item exists - increment quantity
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
-            
+
             // ✅ Update note if provided
             if (modalNote.value && modalNote.value.trim()) {
                 orderItems.value[idx].note = modalNote.value;
             }
-            
+
             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
         } else {
             // ✅ New combination - add as new item
@@ -1134,7 +1134,7 @@ const confirmAdd = async () => {
                 variant_name: variantName,
                 addons: selectedAddons,
             });
-            
+
             toast.success(`${selectedItem.value.title} added to cart`);
         }
 
@@ -2664,7 +2664,7 @@ const getSelectedAddonsCount = () => {
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
                                                     {{ it.title }}
-                                                    
+
                                                 </div>
                                                 <!-- ✅ Addon Icons (clickable) -->
                                                 <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
@@ -2681,10 +2681,10 @@ const getSelectedAddonsCount = () => {
                                                         {{ it.variant_name }}
                                                     </span>
                                                     <!-- ✅ NEW: Show if promo applies to this item -->
-                                                <span v-if="isItemEligibleForPromo(it)" class="badge bg-success ms-1"
-                                                    style="font-size: 0.65rem;">
-                                                    <i class="bi bi-tag-fill"></i>
-                                                </span>
+                                                    <span v-if="isItemEligibleForPromo(it)"
+                                                        class="badge bg-success ms-1" style="font-size: 0.65rem;">
+                                                        <i class="bi bi-tag-fill"></i>
+                                                    </span>
                                                 </div>
 
                                                 <div class="note" v-if="it.note">
@@ -2751,7 +2751,7 @@ const getSelectedAddonsCount = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class=" text-success">Total Promo Savings:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -2949,7 +2949,14 @@ const getSelectedAddonsCount = () => {
                                 <i class="bi bi-puzzle-fill text-primary me-2"></i>
                                 Manage Add-ons
                             </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
 
                         <div class="modal-body pt-2" v-if="selectedCartItem">
@@ -3033,7 +3040,7 @@ const getSelectedAddonsCount = () => {
                                             <td>
                                                 <div class="d-flex align-items-center justify-content-center gap-2">
                                                     <button
-                                                        class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                                        class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
                                                         style="width: 36px; height: 36px;"
                                                         @click="decrementAddon(addon)"
                                                         :disabled="!addon.selected || (addon.quantity || 1) <= 1">
@@ -3044,7 +3051,7 @@ const getSelectedAddonsCount = () => {
                                                         {{ addon.quantity || 1 }}
                                                     </span>
                                                     <button
-                                                        class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                                        class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
                                                         style="width: 36px; height: 36px;"
                                                         @click="incrementAddon(addon)" :disabled="!addon.selected">
                                                         <i class="bi bi-plus-lg"></i>
@@ -3078,13 +3085,13 @@ const getSelectedAddonsCount = () => {
                         </div>
 
                         <div class="modal-footer border-0 pt-0 bg-light">
-                            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">
-                                <i class="bi bi-x-circle me-1"></i>
+                            <button type="button" class="btn btn-secondary px-2 py-2" data-bs-dismiss="modal">
+                               
                                 Cancel
                             </button>
-                            <button type="button" class="btn btn-primary px-4" @click="saveAddonChanges">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Save Changes
+                            <button type="button" class="btn btn-primary px-2 py-2" @click="saveAddonChanges">
+                               
+                                Save
                             </button>
                         </div>
                     </div>
@@ -3135,6 +3142,15 @@ const getSelectedAddonsCount = () => {
     color: #fff;
 }
 
+:global(.dark .p-multiselect-label-container) {
+    background-color: #212121 !important;
+}
+
+:global(.dark .p-multiselect-dropdown) {
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
 /* Add this CSS to make the cart fixed on scroll */
 
 /* Make the cart column fixed */
@@ -3150,6 +3166,7 @@ const getSelectedAddonsCount = () => {
     overflow: hidden;
     z-index: 100;
 }
+
 
 
 
@@ -3281,12 +3298,12 @@ const getSelectedAddonsCount = () => {
 }
 
 .dark .table thead {
-    background-color: #4d4d4d !important;
+    background-color: #181818 !important;
     color: #ffffff;
 }
 
 .dark .table thead th {
-    background-color: #4d4d4d !important;
+    background-color: #212121 !important;
     color: #ffffff;
 }
 

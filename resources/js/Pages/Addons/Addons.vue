@@ -395,6 +395,7 @@ const addonGroupOptions = computed(() => {
 
 <template>
     <Master>
+
         <Head title="Addons" />
 
         <div class="page-wrapper">
@@ -407,11 +408,9 @@ const addonGroupOptions = computed(() => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center">
                             <!-- Icon -->
-                            <div
-                                :class="[stat.iconBg, stat.iconColor]"
+                            <div :class="[stat.iconBg, stat.iconColor]"
                                 class="rounded-circle p-3 d-flex align-items-center justify-content-center me-3"
-                                style="width: 56px; height: 56px"
-                            >
+                                style="width: 56px; height: 56px">
                                 <component :is="stat.icon" class="w-6 h-6" />
                             </div>
 
@@ -438,50 +437,25 @@ const addonGroupOptions = computed(() => {
                                 <i class="bi bi-search"></i>
 
                                 <!-- Hidden email input to prevent autofill -->
-                                <input
-                                    type="email"
-                                    name="email"
-                                    autocomplete="email"
-                                    style="
+                                <input type="email" name="email" autocomplete="email" style="
                                         position: absolute;
                                         left: -9999px;
                                         width: 1px;
                                         height: 1px;
-                                    "
-                                    tabindex="-1"
-                                    aria-hidden="true"
-                                />
+                                    " tabindex="-1" aria-hidden="true" />
 
                                 <!-- Actual search input -->
-                                <input
-                                    v-if="isReady"
-                                    :id="inputId"
-                                    v-model="q"
-                                    :key="searchKey"
-                                    class="form-control search-input  rounded-pill"
-                                    placeholder="Search addons..."
-                                    type="search"
-                                    autocomplete="new-password"
-                                    :name="inputId"
-                                    role="presentation"
-                                    @focus="handleFocus"
-                                />
-                                <input
-                                    v-else
-                                    class="form-control search-input  rounded-pill"
-                                    placeholder="Search addons..."
-                                    disabled
-                                    type="text"
-                                />
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input  rounded-pill" placeholder="Search addons..."
+                                    type="search" autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input  rounded-pill"
+                                    placeholder="Search addons..." disabled type="text" />
                             </div>
 
                             <!-- Add Addon Button -->
-                            <button
-                                data-bs-toggle="modal"
-                                data-bs-target="#addonModal"
-                                @click="resetModal"
-                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                            >
+                            <button data-bs-toggle="modal" data-bs-target="#addonModal" @click="resetModal"
+                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Addon
                             </button>
                         </div>
@@ -489,17 +463,11 @@ const addonGroupOptions = computed(() => {
 
                     <!-- Group Filter Buttons -->
                     <div class="mb-3 d-flex flex-wrap gap-2">
-                        <button
-                            v-for="group in uniqueGroups"
-                            :key="group"
-                            @click="setGroupFilter(group)"
-                            class="btn rounded-pill"
-                            :class="
-                                selectedGroupFilter === (group === 'All' ? 'all' : group)
+                        <button v-for="group in uniqueGroups" :key="group" @click="setGroupFilter(group)"
+                            class="btn rounded-pill" :class="selectedGroupFilter === (group === 'All' ? 'all' : group)
                                     ? 'btn-primary'
                                     : 'btn-outline-primary'
-                            "
-                        >
+                                ">
                             {{ group }}
                         </button>
                     </div>
@@ -549,13 +517,10 @@ const addonGroupOptions = computed(() => {
 
                                     <!-- Status Badge -->
                                     <td class="text-center">
-                                        <span
-                                            :class="
-                                                row.status === 'active'
-                                                    ? 'badge bg-success px-4 py-2 rounded-pill'
-                                                    : 'badge bg-danger px-4 py-2 rounded-pill'
-                                            "
-                                        >
+                                        <span :class="row.status === 'active'
+                                                ? 'badge bg-success px-4 py-2 rounded-pill'
+                                                : 'badge bg-danger px-4 py-2 rounded-pill'
+                                            ">
                                             {{ row.status === "active" ? "Active" : "Inactive" }}
                                         </span>
                                     </td>
@@ -564,46 +529,32 @@ const addonGroupOptions = computed(() => {
                                     <td class="text-center">
                                         <div class="d-inline-flex align-items-center gap-3">
                                             <!-- Edit Button -->
-                                            <button
-                                                @click="editRow(row)"
-                                                title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                            >
+                                            <button @click="editRow(row)" title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Pencil class="w-4 h-4" />
                                             </button>
 
                                             <!-- Toggle Status Switch -->
-                                            <ConfirmModal
-                                                :title="'Confirm Status Change'"
+                                            <ConfirmModal :title="'Confirm Status Change'"
                                                 :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
-                                                :showStatusButton="true"
-                                                confirmText="Yes, Change"
-                                                cancelText="Cancel"
-                                                :status="row.status"
-                                                @confirm="toggleStatus(row)"
-                                            >
+                                                :showStatusButton="true" confirmText="Yes, Change" cancelText="Cancel"
+                                                :status="row.status" @confirm="toggleStatus(row)">
                                                 <template #trigger>
                                                     <button
                                                         class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
-                                                        :class="
-                                                            row.status === 'active'
+                                                        :class="row.status === 'active'
                                                                 ? 'bg-green-500 hover:bg-green-600'
                                                                 : 'bg-red-400 hover:bg-red-500'
-                                                        "
-                                                        :title="
-                                                            row.status === 'active'
+                                                            " :title="row.status === 'active'
                                                                 ? 'Set Inactive'
                                                                 : 'Set Active'
-                                                        "
-                                                    >
+                                                            ">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
-                                                            :class="
-                                                                row.status === 'active'
+                                                            :class="row.status === 'active'
                                                                     ? 'translate-x-4'
                                                                     : 'translate-x-0'
-                                                            "
-                                                        ></span>
+                                                                "></span>
                                                     </button>
                                                 </template>
                                             </ConfirmModal>
@@ -634,24 +585,10 @@ const addonGroupOptions = computed(() => {
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                @click="resetModal"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                @click="resetModal" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -662,13 +599,9 @@ const addonGroupOptions = computed(() => {
                                 <!-- Addon Name -->
                                 <div class="col-12">
                                     <label class="form-label">Addon Name *</label>
-                                    <input
-                                        v-model="addonForm.name"
-                                        type="text"
-                                        class="form-control"
+                                    <input v-model="addonForm.name" type="text" class="form-control"
                                         :class="{ 'is-invalid': formErrors.name }"
-                                        placeholder="e.g., Extra Cheese, Pepperoni, BBQ Sauce"
-                                    />
+                                        placeholder="e.g., Extra Cheese, Pepperoni, BBQ Sauce" />
                                     <small v-if="formErrors.name" class="text-danger">
                                         {{ formErrors.name[0] }}
                                     </small>
@@ -677,18 +610,10 @@ const addonGroupOptions = computed(() => {
                                 <!-- Addon Group -->
                                 <div class="col-12">
                                     <label class="form-label">Addon Group *</label>
-                                    <Select
-                                        v-model="addonForm.addon_group_id"
-                                        :options="addonGroupOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="Select addon group"
-                                        class="form-select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.addon_group_id }"
-                                    />
+                                    <Select v-model="addonForm.addon_group_id" :options="addonGroupOptions"
+                                        optionLabel="label" optionValue="value" placeholder="Select addon group"
+                                        class="form-select" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                        :class="{ 'is-invalid': formErrors.addon_group_id }" />
                                     <small v-if="formErrors.addon_group_id" class="text-danger">
                                         {{ formErrors.addon_group_id[0] }}
                                     </small>
@@ -697,15 +622,9 @@ const addonGroupOptions = computed(() => {
                                 <!-- Price -->
                                 <div class="col-md-6">
                                     <label class="form-label">Price *</label>
-                                    <input
-                                        v-model.number="addonForm.price"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="form-control"
-                                        :class="{ 'is-invalid': formErrors.price }"
-                                        placeholder="0.00"
-                                    />
+                                    <input v-model.number="addonForm.price" type="number" step="0.01" min="0"
+                                        class="form-control" :class="{ 'is-invalid': formErrors.price }"
+                                        placeholder="0.00" />
                                     <small class="text-muted"> Additional price for this addon </small>
                                     <small v-if="formErrors.price" class="text-danger d-block">
                                         {{ formErrors.price[0] }}
@@ -715,17 +634,9 @@ const addonGroupOptions = computed(() => {
                                 <!-- Status -->
                                 <div class="col-md-6">
                                     <label class="form-label">Status *</label>
-                                    <Select
-                                        v-model="addonForm.status"
-                                        :options="statusOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        class="form-select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.status }"
-                                    />
+                                    <Select v-model="addonForm.status" :options="statusOptions" optionLabel="label"
+                                        optionValue="value" class="form-select" appendTo="self" :autoZIndex="true"
+                                        :baseZIndex="2000" :class="{ 'is-invalid': formErrors.status }" />
                                     <small v-if="formErrors.status" class="text-danger">
                                         {{ formErrors.status[0] }}
                                     </small>
@@ -753,13 +664,9 @@ const addonGroupOptions = computed(() => {
                                 <!-- Description -->
                                 <div class="col-12">
                                     <label class="form-label">Description (Optional)</label>
-                                    <textarea
-                                        v-model="addonForm.description"
-                                        class="form-control"
-                                        rows="3"
+                                    <textarea v-model="addonForm.description" class="form-control" rows="3"
                                         :class="{ 'is-invalid': formErrors.description }"
-                                        placeholder="Enter addon description..."
-                                    ></textarea>
+                                        placeholder="Enter addon description..."></textarea>
                                     <small v-if="formErrors.description" class="text-danger">
                                         {{ formErrors.description[0] }}
                                     </small>
@@ -770,11 +677,8 @@ const addonGroupOptions = computed(() => {
 
                             <!-- Modal Actions -->
                             <div class="mt-4">
-                                <button
-                                    class="btn btn-primary rounded-pill px-4"
-                                    :disabled="submitting"
-                                    @click="submitAddon"
-                                >
+                                <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
+                                    @click="submitAddon">
                                     <template v-if="submitting">
                                         <span class="spinner-border spinner-border-sm me-2"></span>
                                         Saving...
@@ -784,11 +688,8 @@ const addonGroupOptions = computed(() => {
                                     </template>
                                 </button>
 
-                                <button
-                                    class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    data-bs-dismiss="modal"
-                                    @click="resetModal"
-                                >
+                                <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                    @click="resetModal">
                                     Cancel
                                 </button>
                             </div>
@@ -827,4 +728,266 @@ const addonGroupOptions = computed(() => {
 }
 
 
+ .dark .p-select {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+
+/* ========================  MultiSelect Styling   ============================= */
+:deep(.p-multiselect-header) {
+    background-color: white !important;
+    color: black !important;
+}
+
+:deep(.p-multiselect-label) {
+    color: #000 !important;
+}
+
+:deep(.p-select .p-component .p-inputwrapper) {
+    background: #fff !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Options list container */
+:deep(.p-multiselect-list) {
+    background: #fff !important;
+}
+
+/* Each option */
+:deep(.p-multiselect-option) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Hover/selected option */
+:deep(.p-multiselect-option.p-highlight) {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+}
+
+:deep(.p-multiselect),
+:deep(.p-multiselect-panel),
+:deep(.p-multiselect-token) {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #a4a7aa;
+}
+
+/* Checkbox box in dropdown */
+:deep(.p-multiselect-overlay .p-checkbox-box) {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    color: #fff !important;
+}
+
+/* .dark svg{
+    color: #fff !important;
+} */
+
+
+/* Search filter input */
+:deep(.p-multiselect-filter) {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Optional: adjust filter container */
+:deep(.p-multiselect-filter-container) {
+    background: #fff !important;
+}
+
+/* Selected chip inside the multiselect */
+:deep(.p-multiselect-chip) {
+    background: #e9ecef !important;
+    color: #000 !important;
+    border-radius: 12px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:deep(.p-multiselect-chip .p-chip-remove-icon) {
+    color: #555 !important;
+}
+
+:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #dc3545 !important;
+    /* red on hover */
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+
+/* ====================================================== */
+
+/* ====================Select Styling===================== */
+/* Entire select container */
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #000 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #000 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #212121 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+:global(.dark .p-select) {
+    background-color: #000 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-dropdown) {
+    background-color: #212121 !important;
+    color: #fff !important;
+
+}
+
+:global(.dark .p-select-label) {
+    color: #fff !important;
+    background-color: #212121 !important;
+}
+
+:global(.dark .p-select-list) {
+    background-color: #212121 !important;
+}
+
+:global(.dark .p-placeholder) {
+    color: #aaa !important;
+}
+
+:global(.dark .dark .p-select){
+    background-color: #212121 !important;
+}
 </style>

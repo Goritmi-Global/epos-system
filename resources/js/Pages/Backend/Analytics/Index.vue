@@ -354,7 +354,7 @@ onMounted(async () => {
             <!-- KPIs -->
             <div class="row g-3">
                 <!-- Revenue -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
@@ -370,7 +370,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Orders -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
@@ -386,7 +386,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Average Order Value -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
@@ -402,7 +402,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Items Sold -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
