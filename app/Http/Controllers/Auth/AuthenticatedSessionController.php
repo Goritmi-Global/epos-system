@@ -9,6 +9,7 @@ use App\Models\ShiftDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -78,40 +79,85 @@ class AuthenticatedSessionController extends Controller
     //     }
     // }
 
+    // public function store(LoginRequest $request): RedirectResponse
+    // {
+    //     $request->authenticate();
+    //     $request->session()->regenerate();
+
+    //     $user = auth()->user();
+    //     $role = $user->getRoleNames()->first();
+    //     $activeShift = Shift::where('status', 'open')->first();
+
+    //     if ($role === 'Super Admin') {
+    //         if ($activeShift) {
+    //             session(['current_shift_id' => $activeShift->id]);
+    //             return redirect()->route('dashboard');
+    //         } else {
+    //             session()->flash('show_shift_modal', true);
+    //             return redirect()->route('shift.manage');
+    //         }
+    //     } else {
+    //         if ($activeShift) {
+    //             // ShiftDetail will be created by middleware
+    //             session(['current_shift_id' => $activeShift->id]);
+
+    //             if ($role === 'Cashier') {
+    //                 return redirect()->route('pos.order');
+    //             }
+    //             return redirect()->route('dashboard');
+    //         } else {
+    //             session()->flash('show_no_shift_modal', true);
+    //             return redirect()->route('shift.manage');
+    //         }
+    //     }
+    // }
+
+
     public function store(LoginRequest $request): RedirectResponse
-{
-    $request->authenticate();
-    $request->session()->regenerate();
+    {
+        $request->authenticate();
+        $request->session()->regenerate();
 
-    $user = auth()->user();
-    $role = $user->getRoleNames()->first();
-    $activeShift = Shift::where('status', 'open')->first();
+        $user = auth()->user();
+        $role = $user->getRoleNames()->first();
+        $activeShift = Shift::where('status', 'open')->first();
 
-    if ($role === 'Super Admin') {
-        if ($activeShift) {
-            session(['current_shift_id' => $activeShift->id]);
-            return redirect()->route('dashboard');
-        } else {
-            session()->flash('show_shift_modal', true);
-            return redirect()->route('shift.manage');
+        // ✅ Set login time for cashiers (for auto-logout)
+        if ($role === 'Cashier') {
+            $lastLoginKey = 'last_login_time_' . $user->id;
+            $loginTime = now()->timestamp;
+            Cache::put($lastLoginKey, $loginTime, now()->addHours(24));
+
+            \Log::info('✅ Cashier login time set', [
+                'user_id' => $user->id,
+                'timestamp' => $loginTime,
+                'time' => now()->format('Y-m-d H:i:s')
+            ]);
         }
-    } else {
-        if ($activeShift) {
-            // ShiftDetail will be created by middleware
-            session(['current_shift_id' => $activeShift->id]);
-            
-            if ($role === 'Cashier') {
-                return redirect()->route('pos.order');
+
+        if ($role === 'Super Admin') {
+            if ($activeShift) {
+                session(['current_shift_id' => $activeShift->id]);
+                return redirect()->route('dashboard');
+            } else {
+                session()->flash('show_shift_modal', true);
+                return redirect()->route('shift.manage');
             }
-            return redirect()->route('dashboard');
         } else {
-            session()->flash('show_no_shift_modal', true);
-            return redirect()->route('shift.manage');
+            if ($activeShift) {
+                // ShiftDetail will be created by middleware
+                session(['current_shift_id' => $activeShift->id]);
+
+                if ($role === 'Cashier') {
+                    return redirect()->route('pos.order');
+                }
+                return redirect()->route('dashboard');
+            } else {
+                session()->flash('show_no_shift_modal', true);
+                return redirect()->route('shift.manage');
+            }
         }
     }
-}
-
-
 
 
     public function destroy(Request $request): RedirectResponse
