@@ -27,11 +27,14 @@ const handleSidebarAction = (action) => {
     if (action === "systemRestore") {
         showRestoreModal.value = true; // Use the new modal
         console.log('showConfirmRestore set to:', showConfirmRestore.value);
+    } else if (action === "databaseBackup") {
+        showBackupModal.value = true; // 👈 Add this
     }
 };
 
 const showLogoutModal = ref(false);
 const showRestoreModal = ref(false);
+const showBackupModal = ref(false);
 const isFullscreen = ref(false);
 
 
@@ -152,6 +155,12 @@ const handleSystemRestore = async () => {
     }
 };
 
+
+
+/**
+ * Handle Database Backup
+ * Creates and downloads a SQL backup file
+ */
 const handleDatabaseBackup = async () => {
     try {
         // Make API call with blob response type for file download
@@ -163,36 +172,36 @@ const handleDatabaseBackup = async () => {
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
-
+        
         // Extract filename from response headers or use default
         const contentDisposition = response.headers['content-disposition'];
         let filename = 'database_backup_' + new Date().toISOString().slice(0, 10) + '.sql';
-
+        
         if (contentDisposition) {
             const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
             if (filenameMatch) {
                 filename = filenameMatch[1];
             }
         }
-
+        
         // Trigger download
         link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
-
+        
         // Cleanup
         link.remove();
         window.URL.revokeObjectURL(url);
 
         // Show success message
         toast.success('Database backup downloaded successfully!');
-
+        
         // Close modal
         showBackupModal.value = false;
-
+        
     } catch (error) {
         console.error('Database backup error:', error);
-
+        
         let message = 'Failed to create database backup. Please try again.';
 
         // Handle blob error responses
@@ -214,8 +223,7 @@ const handleDatabaseBackup = async () => {
 
         toast.error(message);
         showBackupModal.value = false;
-    }
-};
+    }};
 
 const userPermissions = computed(() => page.props.current_user?.permissions ?? []);
 const userRoles = computed(() => page.props.current_user?.roles ?? []);
@@ -361,7 +369,7 @@ const sidebarMenus = ref([
         children: [
             { label: "Settings", icon: "settings", route: "settings.index" },
             { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
-
+            { label: "Backup Database", icon: "database", action: "databaseBackup" },
             // {
             //     label: "Log Out",
             //     icon: "log-out",
@@ -407,7 +415,6 @@ const openActiveGroups = () => {
         (block) => block.children && scan(block.children)
     );
 };
-
 
 /* =========================
    Sidebar state (3 modes)
@@ -886,9 +893,8 @@ onMounted(fetchNotifications);
             message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
             @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
 
-        <ConfirmModal v-model:show="showBackupModal" title="Confirm Database Backup"
-            message="Are you sure you want to create a database backup? The backup file will be downloaded to your computer as an SQL file."
-            icon-type="database" confirm-text="Yes, Create Backup" loading-text="Creating Backup..."
+        <RestoreSystemModal v-if="showBackupModal" :show="showBackupModal" title="Confirm Database Backup"
+            message="Are you sure you want to create a database backup? The backup file will be downloaded to your computer."
             @confirm="handleDatabaseBackup" @cancel="showBackupModal = false" />
 
         <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" :loading="isLoggingOut" @confirm="handleLogout"
