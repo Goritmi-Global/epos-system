@@ -16,11 +16,27 @@ import { router } from "@inertiajs/vue3";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import LogoutModal from "@/Components/LogoutModal.vue";
 import RestoreSystemModal from "@/Components/RestoreSystemModal.vue";
+import { useAutoLogout } from '@/composables/useAutoLogout';
 /* =========================
    Sidebar structure (array)
    ========================= */
 const page = usePage();
 const showConfirmRestore = ref(false);
+
+// Get user info from Inertia shared data
+const user = computed(() => page.props.current_user);
+
+// ✅ Corrected: roles is an array of strings, not objects
+const isCashierRole = computed(() => {
+    return user.value?.roles?.includes('Cashier');
+});
+
+console.log('isCashierRole:', page.props.current_user?.roles);
+
+// Only activate auto-logout for cashiers
+if (isCashierRole.value) {
+    useAutoLogout();
+}
 // Add this function to handle the sidebar action
 const handleSidebarAction = (action) => {
     console.log('Sidebar action triggered:', action);

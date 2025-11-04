@@ -30,7 +30,7 @@ class PosOrderService
             ->withQueryString();
     }
 
-    public function create(array $data): PosOrder
+    public function create(array $data): PosOrder|array
     {
         return DB::transaction(function () use ($data) {
             $activeShift = Shift::where('status', 'open')->latest()->first();
@@ -66,7 +66,7 @@ class PosOrderService
             // Create Order details
             foreach ($data['items'] as $item) {
                 // Save order item
-                $order->items()->create([
+                $orderItem = $order->items()->create([
                     'menu_item_id' => $item['product_id'],
                     'title' => $item['title'],
                     'quantity' => $item['quantity'],
@@ -75,6 +75,18 @@ class PosOrderService
                     'variant_name' => $item['variant_name'] ?? null,
                     'kitchen_note' => $item['kitchen_note'] ?? null,
                 ]);
+
+                // Store addons in order_item_addons table
+                if (!empty($item['addons']) && is_array($item['addons'])) {
+                    foreach ($item['addons'] as $addon) {
+                        $orderItem->addons()->create([
+                            'addon_id' => $addon['id'],
+                            'addon_name' => $addon['name'],
+                            'price' => $addon['price'],
+                            'quantity' => $addon['quantity'] ?? 1,
+                        ]);
+                    }
+                }
 
                 // Get ingredients based on variant or base menu item
                 $ingredients = $this->getIngredientsForItem($item);
@@ -173,7 +185,7 @@ class PosOrderService
                 'exp_year' => $data['exp_year'] ?? null,
             ]);
 
-            // ✅ UPDATED: Store multiple promo details
+            // Store multiple promo details
             if (!empty($data['applied_promos']) && is_array($data['applied_promos'])) {
                 foreach ($data['applied_promos'] as $promoData) {
                     \App\Models\OrderPromo::create([
@@ -185,7 +197,7 @@ class PosOrderService
                     ]);
                 }
             }
-            // ✅ Fallback: Handle old single promo format (backward compatibility)
+            // Fallback: Handle old single promo format
             elseif (!empty($data['promo_id']) && !empty($data['promo_discount'])) {
                 \App\Models\OrderPromo::create([
                     'order_id' => $order->id,
@@ -197,6 +209,32 @@ class PosOrderService
             }
 
             $order->load(['items', 'kot.items', 'promo']);
+
+            // ✅ Handle Auto Logout for Cashier Role (Only "logout after order")
+            $currentUser = Auth::user();
+
+            if ($currentUser && $currentUser->hasRole('Cashier')) {
+                // Find the Super Admin
+                $superAdmin = \App\Models\User::where('is_first_super_admin', true)->first();
+
+                if ($superAdmin) {
+                    // Get Super Admin's settings
+                    $settings = \App\Models\ProfileStep7::where('user_id', $superAdmin->id)->first();
+
+                    // ✅ Only logout immediately after order if enabled
+                    if ($settings && $settings->logout_after_order) {
+                        Auth::logout();
+                        request()->session()->invalidate();
+                        request()->session()->regenerateToken();
+
+                        return [
+                            'order' => $order,
+                            'kot' => $kot,
+                            'logout' => true,
+                        ];
+                    }
+                }
+            }
 
             return $order;
         });
