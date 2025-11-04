@@ -1040,6 +1040,8 @@ onMounted(fetchNotifications);
     transition: all 0.2s ease;
 }
 
+
+
 /* Adjust submenu positioning */
 .sidebar-collapsed .submenu-dropdown {
     position: absolute;
