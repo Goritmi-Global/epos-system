@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\PermissionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\RoleController;
 use App\Http\Controllers\Auth\UsersController;
+use App\Http\Controllers\AutoLogout\CashierAutoLogoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -39,6 +40,8 @@ use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
 use App\Http\Controllers\VerifyAccountController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -323,5 +326,12 @@ Route::get('/variant-groups', [VariantGroupController::class, 'index'])
     ->name('variant-groups.index');
 Route::get('/variants', [VariantController::class, 'index'])
     ->name('variants.index');
+
+
+
+Route::middleware(['web'])->group(function () {
+    Route::get('/check-auto-logout', [CashierAutoLogoutController::class, 'check'])
+        ->name('check.auto.logout');
+});
 
 require __DIR__.'/auth.php';

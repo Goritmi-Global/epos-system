@@ -18,14 +18,38 @@ class PosOrderController extends Controller
         return Inertia::render('Backend/POS/Index');
     }
 
+    // public function store(StorePosOrderRequest $request)
+    // {
+    //     $result = $this->service->create($request->validated());
+
+    //     return response()->json([
+    //         'message' => 'Order created successfully',
+    //         'order' => $result['order'],
+    //         'kot' => $result['kot'] ? $result['kot']->load('items') : null,
+    //     ]);
+    // }
     public function store(StorePosOrderRequest $request)
     {
         $result = $this->service->create($request->validated());
 
+        // ✅ Check if this is an array with logout flag (cashier auto-logout)
+        if (is_array($result) && isset($result['logout']) && $result['logout'] === true) {
+            $order = $result['order'];
+
+            return response()->json([
+                'message' => 'Order created successfully. You have been logged out.',
+                'order' => $order,
+                'kot' => $order->kot ? $order->kot->load('items') : null,
+                'redirect' => route('login'), 
+                'logout' => true,
+            ]);
+        }
+
+        // ✅ Normal response (non-cashier or auto-logout disabled)
         return response()->json([
             'message' => 'Order created successfully',
-            'order' => $result['order'],
-            'kot' => $result['kot'] ? $result['kot']->load('items') : null,
+            'order' => $result,
+            'kot' => $result->kot ? $result->kot->load('items') : null,
         ]);
     }
 

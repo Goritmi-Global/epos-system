@@ -1502,6 +1502,19 @@ const confirmOrder = async ({
         };
 
         const res = await axios.post("/pos/order", payload);
+        // ✅ CHECK FOR AUTO-LOGOUT FIRST (before any other actions)
+        console.log("Order response:", res.data);
+        if (res.data.logout === true) {
+            toast.success(res.data.message || "Order created successfully. Logging out...");
+            
+            // ✅ Wait 1 second then redirect to login
+            setTimeout(() => {
+                window.location.href = res.data.redirect || '/login';
+            }, 1000);
+            
+            if (done) done();
+            return; // ✅ Stop further execution
+        }
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message);
