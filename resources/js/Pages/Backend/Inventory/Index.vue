@@ -1317,7 +1317,8 @@ const handleImport = (data) => {
 
 <template>
     <Master>
-          <Head title="inventory Item" />
+
+        <Head title="inventory Item" />
         <div class="page-wrapper">
             <!-- Title -->
             <h4 class="mb-3">Overall Inventory</h4>
@@ -1497,7 +1498,7 @@ const handleImport = (data) => {
                                     <th class="text-center">Action</th>
                                 </tr>
                             </thead>
-                            
+
                             <!-- Loading row -->
                             <tbody v-if="loading">
                                 <tr>
@@ -1676,7 +1677,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1687,7 +1688,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1789,7 +1790,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -2030,14 +2031,14 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.notExpiredQty
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                            }}</span>
+                                                }}</span>
                                         </div>
 
                                         <!-- <div
@@ -2086,7 +2087,7 @@ const handleImport = (data) => {
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -2912,6 +2913,10 @@ row, i
     .table-responsive {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .kpi-cards {
+       border-bottom: 1px !important;
     }
 
     table.table th,

@@ -2,31 +2,42 @@
 
 namespace App\Services\POS;
 
-use App\Models\PosOrder;
 use App\Models\Payment;
-use App\Models\PosOrderItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
-    public function getDateRange(string $range): array
+    public function getDateRange(string $range, ?string $dateFrom = null, ?string $dateTo = null): array
     {
+        // If custom date range is provided, use it
+        if ($dateFrom && $dateTo) {
+            return [
+                Carbon::parse($dateFrom)->startOfDay(),
+                Carbon::parse($dateTo)->endOfDay(),
+            ];
+        }
+
         $now = now();
+
         return match ($range) {
-            'today'     => [Carbon::today(), Carbon::tomorrow()],
-            'last7'     => [$now->copy()->subDays(6)->startOfDay(), $now->copy()->endOfDay()],
+            'today' => [Carbon::today(), Carbon::tomorrow()],
+            'last7' => [$now->copy()->subDays(6)->startOfDay(), $now->copy()->endOfDay()],
             'thisMonth' => [$now->copy()->startOfMonth(), $now->copy()->endOfDay()],
-            'last30'    => [$now->copy()->subDays(29)->startOfDay(), $now->copy()->endOfDay()],
-            default     => [Carbon::parse('2000-01-01')->startOfDay(), $now->copy()->endOfDay()], // all
+            'last30' => [$now->copy()->subDays(29)->startOfDay(), $now->copy()->endOfDay()],
+            default => [Carbon::parse('2000-01-01')->startOfDay(), $now->copy()->endOfDay()], // all
         };
     }
 
     public function fetch(array $filters): array
     {
-        [$from, $to] = $this->getDateRange($filters['range'] ?? 'last30');
-        $orderType   = $filters['orderType'] ?? 'All';   // 'All'|'dine'|'delivery'
-        $payType     = $filters['payType'] ?? 'All';     // 'All'|'cash'|'card'|'qr'|'bank'
+        [$from, $to] = $this->getDateRange(
+            $filters['range'] ?? 'last30',
+            $filters['dateFrom'] ?? null,
+            $filters['dateTo'] ?? null
+        );
+        $orderType = $filters['orderType'] ?? 'All';   // 'All'|'dine'|'delivery'
+        $payType = $filters['payType'] ?? 'All';     // 'All'|'cash'|'card'|'qr'|'bank'
 
         // Base orders query with joins to order type + payment
         $ordersQ = DB::table('pos_orders as o')
@@ -49,7 +60,7 @@ class AnalyticsService
             ->first();
 
         $revenue = (float) ($kpiRow->revenue ?? 0);
-        $ordersCount = (int)   ($kpiRow->orders_count ?? 0);
+        $ordersCount = (int) ($kpiRow->orders_count ?? 0);
         $aov = $ordersCount ? $revenue / $ordersCount : 0;
 
         // --- Items Sold (sum of quantities in order items)
@@ -59,27 +70,27 @@ class AnalyticsService
 
         // --- Sales series per day (fill gaps on frontend)
         $salesRows = (clone $ordersQ)
-            ->selectRaw("DATE(o.created_at) as day, COALESCE(SUM(o.total_amount),0) as total")
+            ->selectRaw('DATE(o.created_at) as day, COALESCE(SUM(o.total_amount),0) as total')
             ->groupByRaw('DATE(o.created_at)')
             ->orderBy('day')
             ->get()
-            ->map(fn($r) => ['day' => (string)$r->day, 'total' => (float)$r->total])
+            ->map(fn ($r) => ['day' => (string) $r->day, 'total' => (float) $r->total])
             ->all();
 
         // --- Orders by type
         $ordersTypeRows = (clone $ordersQ)
-            ->selectRaw("t.order_type, COUNT(DISTINCT o.id) as cnt")
+            ->selectRaw('t.order_type, COUNT(DISTINCT o.id) as cnt')
             ->groupBy('t.order_type')
             ->pluck('cnt', 'order_type');
 
-        $dine     = (int) ($ordersTypeRows['dine'] ?? 0);
+        $dine = (int) ($ordersTypeRows['dine'] ?? 0);
         $delivery = (int) ($ordersTypeRows['delivery'] ?? 0);
         $typeTotal = max(1, $dine + $delivery);
         $ordersByType = [
-            'dine'       => $dine,
-            'delivery'   => $delivery,
-            'dinePct'    => (int) round($dine * 100 / $typeTotal),
-            'deliveryPct'=> (int) round($delivery * 100 / $typeTotal),
+            'dine' => $dine,
+            'delivery' => $delivery,
+            'dinePct' => (int) round($dine * 100 / $typeTotal),
+            'deliveryPct' => (int) round($delivery * 100 / $typeTotal),
         ];
 
         // --- Payments mix
@@ -89,12 +100,12 @@ class AnalyticsService
             ->pluck('cnt', 'method')
             ->toArray();
 
-        $methods = ['cash','card','qr','bank'];
+        $methods = ['cash', 'card', 'qr', 'bank'];
         $mixTotal = array_sum($mixRows) ?: 1;
         $paymentsMix = [];
         foreach ($methods as $m) {
             $c = (int) ($mixRows[$m] ?? 0);
-            $paymentsMix[] = ['method' => $m, 'count' => $c, 'pct' => (int) round(($c/$mixTotal)*100)];
+            $paymentsMix[] = ['method' => $m, 'count' => $c, 'pct' => (int) round(($c / $mixTotal) * 100)];
         }
 
         // --- Top Items (by revenue)
@@ -105,23 +116,23 @@ class AnalyticsService
             ->orderByDesc('revenue')
             ->limit(100)
             ->get()
-            ->map(fn($r) => [
-                'name'    => $r->name,
-                'qty'     => (int)$r->qty,
-                'revenue' => (float)$r->revenue,
+            ->map(fn ($r) => [
+                'name' => $r->name,
+                'qty' => (int) $r->qty,
+                'revenue' => (float) $r->revenue,
             ])
             ->all();
 
         return [
-            'range'        => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
-            'revenue'      => $revenue,
-            'ordersCount'  => $ordersCount,
-            'aov'          => $aov,
-            'itemsSold'    => $itemsSold,
-            'salesSeries'  => $salesRows,   // [{day:'2025-08-17', total: 123.45}, ...]
+            'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'revenue' => $revenue,
+            'ordersCount' => $ordersCount,
+            'aov' => $aov,
+            'itemsSold' => $itemsSold,
+            'salesSeries' => $salesRows,   // [{day:'2025-08-17', total: 123.45}, ...]
             'ordersByType' => $ordersByType,
-            'paymentsMix'  => $paymentsMix,
-            'topItems'     => $topItems,
+            'paymentsMix' => $paymentsMix,
+            'topItems' => $topItems,
         ];
     }
 }

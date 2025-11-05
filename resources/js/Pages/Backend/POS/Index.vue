@@ -3037,7 +3037,14 @@ const openCustomerDisplay = () => {
                                 <i class="bi bi-puzzle-fill text-primary me-2"></i>
                                 Manage Add-ons
                             </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
 
                         <div class="modal-body pt-2" v-if="selectedCartItem">
@@ -3121,7 +3128,7 @@ const openCustomerDisplay = () => {
                                             <td>
                                                 <div class="d-flex align-items-center justify-content-center gap-2">
                                                     <button
-                                                        class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                                        class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
                                                         style="width: 36px; height: 36px;"
                                                         @click="decrementAddon(addon)"
                                                         :disabled="!addon.selected || (addon.quantity || 1) <= 1">
@@ -3132,7 +3139,7 @@ const openCustomerDisplay = () => {
                                                         {{ addon.quantity || 1 }}
                                                     </span>
                                                     <button
-                                                        class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                                        class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
                                                         style="width: 36px; height: 36px;"
                                                         @click="incrementAddon(addon)" :disabled="!addon.selected">
                                                         <i class="bi bi-plus-lg"></i>
@@ -3166,13 +3173,13 @@ const openCustomerDisplay = () => {
                         </div>
 
                         <div class="modal-footer border-0 pt-0 bg-light">
-                            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">
-                                <i class="bi bi-x-circle me-1"></i>
+                            <button type="button" class="btn btn-secondary px-2 py-2" data-bs-dismiss="modal">
+                               
                                 Cancel
                             </button>
-                            <button type="button" class="btn btn-primary px-4" @click="saveAddonChanges">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Save Changes
+                            <button type="button" class="btn btn-primary px-2 py-2" @click="saveAddonChanges">
+                               
+                                Save
                             </button>
                         </div>
                     </div>
@@ -3223,6 +3230,15 @@ const openCustomerDisplay = () => {
     color: #fff;
 }
 
+:global(.dark .p-multiselect-label-container) {
+    background-color: #212121 !important;
+}
+
+:global(.dark .p-multiselect-dropdown) {
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
 /* Add this CSS to make the cart fixed on scroll */
 
 /* Make the cart column fixed */
@@ -3238,6 +3254,7 @@ const openCustomerDisplay = () => {
     overflow: hidden;
     z-index: 100;
 }
+
 
 
 
@@ -3369,12 +3386,12 @@ const openCustomerDisplay = () => {
 }
 
 .dark .table thead {
-    background-color: #4d4d4d !important;
+    background-color: #181818 !important;
     color: #ffffff;
 }
 
 .dark .table thead th {
-    background-color: #4d4d4d !important;
+    background-color: #212121 !important;
     color: #ffffff;
 }
 

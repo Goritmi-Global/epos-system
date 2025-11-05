@@ -34,10 +34,11 @@ Route::get('/geo', [GeoController::class, 'info']);
 Route::get('/test-api', function () {
     return response()->json(['status' => 'API file is loading']);
 });
-Route::get('/analytics', [AnalyticsController::class, 'index'])
-    ->name('api.analytics.index');
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/analytics', [AnalyticsController::class, 'index'])
+    ->name('api.analytics.index');
     // Allergies
     Route::prefix('allergies')->name('api.allergies.')->group(function () {
         Route::post('/import', [AllergyController::class, 'import'])->name('import');
@@ -130,7 +131,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('shift')->name('api.shift.')->group(function () {
         Route::get('/all', [ShiftManagementController::class, 'getAllShifts'])->name('all');
         Route::patch('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
+        Route::get('/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
+            ->name('shift.x-report');
 
+        Route::get('/{shift}/x-report/pdf', [ShiftManagementController::class, 'downloadXReportPdf'])
+            ->name('shift.x-report.pdf');
+
+        // Z Report Routes (for closed shifts)
+        Route::get('/{shift}/z-report', [ShiftManagementController::class, 'generateZReport'])
+            ->name('shift.z-report');
+
+        Route::get('/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
+            ->name('shift.z-report.pdf');
     });
 
     Route::prefix('meals')->name('api.meals.')->group(function () {
