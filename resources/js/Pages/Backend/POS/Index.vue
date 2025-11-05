@@ -1506,12 +1506,12 @@ const confirmOrder = async ({
         console.log("Order response:", res.data);
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
-            
+
             // ✅ Wait 1 second then redirect to login
             setTimeout(() => {
                 window.location.href = res.data.redirect || '/login';
             }, 1000);
-            
+
             if (done) done();
             return; // ✅ Stop further execution
         }
@@ -3086,11 +3086,11 @@ const getSelectedAddonsCount = () => {
 
                         <div class="modal-footer border-0 pt-0 bg-light">
                             <button type="button" class="btn btn-secondary px-2 py-2" data-bs-dismiss="modal">
-                               
+
                                 Cancel
                             </button>
                             <button type="button" class="btn btn-primary px-2 py-2" @click="saveAddonChanges">
-                               
+
                                 Save
                             </button>
                         </div>
@@ -3167,6 +3167,20 @@ const getSelectedAddonsCount = () => {
     z-index: 100;
 }
 
+
+@media only screen and (max-width: 1024px){
+    .col-md-6 {
+        width: 51% !important;
+        flex: 0 0 100% !important;
+        max-width: 51% !important;
+}
+
+.col-lg-4 {
+        margin-top: 35px;
+        width: 44% !important;
+        max-width: 44% !important;
+}
+}
 
 
 
@@ -3372,21 +3386,7 @@ const getSelectedAddonsCount = () => {
     box-shadow: 0 2px 6px rgba(75, 43, 183, 0.25);
 }
 
-/* spacing on small screens */
-@media (max-width: 575.98px) {
-    .cat-card {
-        padding: 1.25rem 0.75rem;
-    }
 
-    .cat-icon-wrap {
-        width: 52px;
-        height: 52px;
-    }
-
-    .cat-name {
-        font-size: 0.95rem;
-    }
-}
 
 /* ========== Search Pill ========== */
 .search-wrap {
@@ -3839,41 +3839,6 @@ const getSelectedAddonsCount = () => {
     width: 38px;
     height: 38px;
 }
-
-/* ========== Responsive ========== */
-@media (max-width: 1199.98px) {
-    .item-title {
-        font-size: 0.92rem;
-    }
-}
-
-@media (max-width: 991.98px) {
-    .cart-lines {
-        max-height: 260px;
-    }
-
-    .search-wrap {
-        width: 100%;
-        margin-top: 0.4rem;
-    }
-}
-
-@media (max-width: 575.98px) {
-    .cat-tile {
-        padding: 1.5rem 1rem;
-    }
-
-    .cat-name {
-        font-size: 0.9rem;
-    }
-
-    .search-input {
-        width: 100%;
-    }
-}
-
-
-
 
 /* Variant dropdown styling */
 .variant-select {
