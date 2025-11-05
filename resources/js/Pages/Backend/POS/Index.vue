@@ -1506,12 +1506,12 @@ const confirmOrder = async ({
         console.log("Order response:", res.data);
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
-            
+
             // ✅ Wait 1 second then redirect to login
             setTimeout(() => {
                 window.location.href = res.data.redirect || '/login';
             }, 1000);
-            
+
             if (done) done();
             return; // ✅ Stop further execution
         }
@@ -2356,6 +2356,89 @@ const getSelectedAddonsCount = () => {
     return selectedCartItem.value.addons.filter(addon => addon.selected !== false).length;
 };
 
+
+
+
+
+
+
+const user = computed(() => page.props.current_user);
+
+const isCashier = computed(() => {
+    return user.value?.roles?.includes('Cashier') || 
+           user.value?.roles?.includes('Admin') || 
+           user.value?.roles?.includes('Manager');
+});
+
+import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
+
+const terminalId = ref(`terminal-${user.value?.id}-${Date.now()}`);
+const { broadcastCartUpdate } = usePOSBroadcast(terminalId.value);
+
+// Throttle the broadcast to avoid too many calls
+import { debounce } from 'lodash';
+
+const debouncedBroadcast = debounce((data) => {
+    broadcastCartUpdate(data);
+}, 500); // Wait 500ms after last change
+
+// Watch for cart changes and broadcast
+watch(
+    () => ({
+        items: orderItems.value,
+        customer: customer.value,
+        orderType: orderType.value,
+        table: selectedTable.value,
+        subtotal: subTotal.value,
+        tax: totalTax.value,
+        deliveryCharges: deliveryCharges.value,
+        promoDiscount: promoDiscount.value,
+        total: grandTotal.value,
+        note: note.value,
+    }),
+    (newCart) => {
+        console.log('Cart changed, broadcasting...', newCart);
+        debouncedBroadcast(newCart);
+    },
+    { deep: true, immediate: false }
+);
+
+
+// After terminalId ref
+const { broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
+
+// Debounce UI broadcast
+const debouncedUIBroadcast = debounce((data) => {
+    broadcastUIUpdate(data);
+}, 300);
+
+// Watch for UI state changes (add after cart watch)
+watch(
+    () => ({
+        showCategories: showCategories.value,
+        activeCat: activeCat.value,
+        menuCategories: menuCategories.value,
+        menuItems: menuItems.value,
+        searchQuery: searchQuery.value,
+    }),
+    (newUI) => {
+        console.log('UI state changed, broadcasting...', newUI);
+        debouncedUIBroadcast(newUI);
+    },
+    { deep: true, immediate: true }
+);
+
+// ✅ ADD THIS FUNCTION
+const openCustomerDisplay = () => {
+    if (!isCashier.value) {
+        alert('❌ Only cashiers can access customer display');
+        return;
+    }
+    const url = route('customer-display.index', { terminal: terminalId.value });
+    window.open(url, '_blank');
+};
+
+
 </script>
 
 <template>
@@ -2373,6 +2456,11 @@ const getSelectedAddonsCount = () => {
                             <div class="col-12 mb-3">
                                 <!-- <h5 class="fw-bold  mb-0"></h5> -->
                                 <h4 class="mb-3">Menu Categories</h4>
+                                <button v-if="isCashier" @click="openCustomerDisplay"
+                                    class="btn btn-primary d-flex align-items-center gap-2" type="button">
+                                    <i class="bi bi-tv"></i>
+                                    <span>Customer View</span>
+                                </button>
                                 <hr class="mt-2 mb-3">
                             </div>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">

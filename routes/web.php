@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\RoleController;
 use App\Http\Controllers\Auth\UsersController;
 use App\Http\Controllers\AutoLogout\CashierAutoLogoutController;
+use App\Http\Controllers\CustomerDisplayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -334,6 +335,10 @@ Route::middleware(['web'])->group(function () {
         ->name('check.auto.logout');
 });
 
+Route::prefix('customer-display')->name('customer-display.')->group(function () {
+    Route::get('/{terminal?}', [CustomerDisplayController::class, 'index'])
+        ->name('index');
+});
 Route::get('/api/shift/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
     ->name('shift.x-report');
 

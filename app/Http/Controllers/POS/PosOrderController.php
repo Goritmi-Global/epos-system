@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\POS;
 
+use App\Events\CartUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PosOrders\StorePosOrderRequest;
 use App\Models\KitchenOrderItem;
@@ -40,7 +41,7 @@ class PosOrderController extends Controller
                 'message' => 'Order created successfully. You have been logged out.',
                 'order' => $order,
                 'kot' => $order->kot ? $order->kot->load('items') : null,
-                'redirect' => route('login'), 
+                'redirect' => route('login'),
                 'logout' => true,
             ]);
         }
@@ -283,5 +284,37 @@ class PosOrderController extends Controller
                 'success' => $msg,
                 'print_payload' => $printPayload,
             ]);
+    }
+
+
+
+    public function broadcastCart(Request $request)
+    {
+        $validated = $request->validate([
+            'terminal_id' => 'required|string',
+            'cart' => 'required|array',
+        ]);
+
+        event(new CartUpdated(
+            $validated['terminal_id'],
+            $validated['cart']
+        ));
+
+        return response()->json(['success' => true]);
+    }
+
+    public function broadcastUI(Request $request)
+    {
+        $validated = $request->validate([
+            'terminal_id' => 'required|string',
+            'ui' => 'required|array',
+        ]);
+
+        event(new \App\Events\UIUpdated(
+            $validated['terminal_id'],
+            $validated['ui']
+        ));
+
+        return response()->json(['success' => true]);
     }
 }
