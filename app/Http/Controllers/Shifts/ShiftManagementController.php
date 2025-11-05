@@ -2,31 +2,37 @@
 
 namespace App\Http\Controllers\Shifts;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\PosOrder;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Shift;
 use App\Models\ShiftDetail;
 use App\Models\ShiftInventorySnapshot;
 use App\Models\ShiftInventorySnapshotDetail;
 use App\Services\Shifts\ShiftManagementService;
+use App\Services\Shifts\ShiftReportService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ShiftManagementController extends Controller
 {
     protected $shiftService;
 
-    public function __construct(ShiftManagementService $shiftService)
+    protected $reportService;
+
+    public function __construct(ShiftManagementService $shiftService, ShiftReportService $reportService)
     {
         $this->shiftService = $shiftService;
+        $this->reportService = $reportService;
     }
+
     public function index()
     {
         return Inertia::render('Backend/Shifts/Index');
     }
+
     public function showShiftModal()
     {
         return Inertia::render('Backend/Shifts/ShowShifts', [
@@ -88,7 +94,7 @@ class ShiftManagementController extends Controller
 
         $activeShift = Shift::where('status', 'open')->first();
 
-        if (!$activeShift) {
+        if (! $activeShift) {
             return response()->json(['active' => false]);
         }
 
@@ -121,7 +127,6 @@ class ShiftManagementController extends Controller
         ]);
     }
 
-
     public function closeShift(Request $request, Shift $shift)
     {
         $isSuperAdmin = Auth::user()->hasRole('Super Admin');
@@ -135,11 +140,11 @@ class ShiftManagementController extends Controller
 
         // 2️⃣ Update shift summary
         $shift->update([
-            'status'       => 'closed',
-            'end_time'     => now(),
-            'ended_by'     => Auth::id(),
+            'status' => 'closed',
+            'end_time' => now(),
+            'ended_by' => Auth::id(),
             'closing_cash' => $closingCash,
-            'sales_total'  => $totalSales,
+            'sales_total' => $totalSales,
         ]);
 
         // 3️⃣ Update ShiftDetail records
@@ -153,15 +158,15 @@ class ShiftManagementController extends Controller
 
             $detail->update([
                 'sales_amount' => $userSales,
-                'left_at'      => now(),
+                'left_at' => now(),
             ]);
         }
 
         // 4️⃣ Create end inventory snapshot
         $snapshot = ShiftInventorySnapshot::create([
-            'shift_id'   => $shift->id,
-            'type'       => 'ended',
-            'user_id'    => Auth::id(),
+            'shift_id' => $shift->id,
+            'type' => 'ended',
+            'user_id' => Auth::id(),
             'created_at' => now(),
         ]);
 
@@ -169,8 +174,8 @@ class ShiftManagementController extends Controller
 
         foreach ($inventoryItems as $item) {
             ShiftInventorySnapshotDetail::create([
-                'snap_id'        => $snapshot->id,
-                'item_id'        => $item->id,
+                'snap_id' => $snapshot->id,
+                'item_id' => $item->id,
                 'stock_quantity' => $item->stock,
             ]);
         }
@@ -186,7 +191,7 @@ class ShiftManagementController extends Controller
         session()->forget('current_shift_id');
 
         // 7️⃣ Handle based on user role
-        if (!$isSuperAdmin) {
+        if (! $isSuperAdmin) {
             // Logout current user
             Auth::guard('web')->logout();
             $request->session()->invalidate();
@@ -197,7 +202,7 @@ class ShiftManagementController extends Controller
                 return response()->json([
                     'success' => true,
                     'redirect' => url('/login'),
-                    'message' => 'Shift closed — please log in again.'
+                    'message' => 'Shift closed — please log in again.',
                 ]);
             }
 
@@ -212,15 +217,12 @@ class ShiftManagementController extends Controller
             return response()->json([
                 'success' => true,
                 'redirect' => route('shift.manage'),
-                'message' => 'Shift closed successfully.'
+                'message' => 'Shift closed successfully.',
             ]);
         }
 
         return redirect()->route('shift.manage')->with('success', 'Shift closed successfully.');
     }
-
-
-
 
     // Fetch All shifts
     public function getAllShifts()
@@ -247,5 +249,125 @@ class ShiftManagementController extends Controller
                 ];
             }),
         ]);
+    }
+
+    public function generateXReport(Shift $shift)
+    {
+        try {
+            $reportData = $this->reportService->generateXReport($shift);
+
+            return response()->json([
+                'success' => true,
+                'data' => $reportData,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    // /**
+    //  * Download X Report as PDF
+    //  *
+    //  * @return StreamedResponse
+    //  */
+    public function downloadXReportPdf(Shift $shift)
+    {
+        try {
+            $reportData = $this->reportService->generateXReport($shift);
+
+            // Format data for PDF
+            $pdfData = [
+                'title' => 'X Report (Mid-Shift)',
+                'generatedDate' => now()->format('d/m/Y H:i:s'),
+                'shiftId' => $reportData['shift_id'],
+                'startedBy' => $reportData['started_by'],
+                'startTime' => \Carbon\Carbon::parse($reportData['start_time'])->format('d/m/Y H:i:s'),
+                'openingCash' => number_format($reportData['opening_cash'], 2),
+                'status' => $reportData['status'],
+                'salesSummary' => $reportData['sales_summary'],
+                'cashSummary' => $reportData['cash_summary'],
+                'paymentMethods' => $reportData['payment_methods'],
+                'salesByUser' => $reportData['sales_by_user'],
+                'topItems' => $reportData['top_items'],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $pdfData,
+                'fileName' => 'X_Report_Shift_'.$shift->id.'_'.now()->format('Y-m-d_H-i-s').'.pdf',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to prepare X Report PDF: '.$e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Generate Z Report (End-of-Shift Report)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function generateZReport(Shift $shift)
+    {
+        try {
+            $reportData = $this->reportService->generateZReport($shift);
+
+            return response()->json([
+                'success' => true,
+                'data' => $reportData,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    // /**
+    //  * Download Z Report as PDF
+    //  *
+    //  * @return StreamedResponse
+    //  */
+   public function downloadZReportPdf(Shift $shift)
+    {
+        try {
+            $reportData = $this->reportService->generateZReport($shift);
+
+            // Format data for PDF
+            $pdfData = [
+                'title' => 'Z Report (End of Shift)',
+                'generatedDate' => now()->format('d/m/Y H:i:s'),
+                'shiftId' => $reportData['shift_id'],
+                'startedBy' => $reportData['started_by'],
+                'startTime' => \Carbon\Carbon::parse($reportData['start_time'])->format('d/m/Y H:i:s'),
+                'endedBy' => $reportData['ended_by'],
+                'endTime' => \Carbon\Carbon::parse($reportData['end_time'])->format('d/m/Y H:i:s'),
+                'duration' => $reportData['duration'],
+                'status' => $reportData['status'],
+                'salesSummary' => $reportData['sales_summary'],
+                'cashReconciliation' => $reportData['cash_reconciliation'],
+                'paymentMethods' => $reportData['payment_methods'],
+                'salesByUser' => $reportData['sales_by_user'],
+                'topItems' => $reportData['top_items'],
+                'stockMovement' => $reportData['stock_movement'],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $pdfData,
+                'fileName' => 'Z_Report_Shift_' . $shift->id . '_' . now()->format('Y-m-d_H-i-s') . '.pdf',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to prepare Z Report PDF: ' . $e->getMessage(),
+            ], 400);
+        }
     }
 }

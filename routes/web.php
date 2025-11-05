@@ -334,4 +334,17 @@ Route::middleware(['web'])->group(function () {
         ->name('check.auto.logout');
 });
 
+Route::get('/api/shift/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
+    ->name('shift.x-report');
+
+Route::get('/api/shift/{shift}/x-report/pdf', [ShiftManagementController::class, 'downloadXReportPdf'])
+    ->name('shift.x-report.pdf');
+
+// Z Report Routes (for closed shifts)
+Route::get('/api/shift/{shift}/z-report', [ShiftManagementController::class, 'generateZReport'])
+    ->name('shift.z-report');
+
+Route::get('/api/shift/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
+    ->name('shift.z-report.pdf');
+
 require __DIR__.'/auth.php';

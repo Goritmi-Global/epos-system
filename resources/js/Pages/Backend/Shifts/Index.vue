@@ -19,6 +19,10 @@ const shifts = ref([]);
 const showShiftDetailsModal = ref(false);
 const selectedShiftDetails = ref([]);
 const selectedShiftId = ref(null);
+const showXReportModal = ref(false);  // Controls X Report Modal visibility
+const showZReportModal = ref(false);  // Controls Z Report Modal visibility
+const xReportData = ref(null);        // Stores X Report data
+const zReportData = ref(null);
 /* ---------------- Fetch shifts ---------------- */
 const fetchShifts = async () => {
     try {
@@ -172,6 +176,35 @@ const toggleShiftStatus = async (shift) => {
 };
 
 const onDownload = (type) => {
+
+    // ✅ HANDLE X REPORT - Find latest OPEN shift and generate report
+    if (type === 'x-report') {
+        const openShift = shifts.value.find(s => s.status === 'open');
+
+        if (!openShift) {
+            toast.warning('No open shift found. X Report can only be generated for open shifts.');
+            return;
+        }
+
+        // Call function to generate X Report
+        generateXReport(openShift);
+        return;
+    }
+
+    // ✅ HANDLE Z REPORT - Find latest CLOSED shift and generate report
+    if (type === 'z-report') {
+        const closedShift = shifts.value.find(s => s.status === 'closed');
+
+        if (!closedShift) {
+            toast.warning('No closed shift found. Z Report can only be generated for closed shifts.');
+            return;
+        }
+
+        // Call function to generate Z Report
+        generateZReport(closedShift);
+        return;
+    }
+
     if (!shifts.value || shifts.value.length === 0) {
         toast.error("No Shifts data to download");
         return;
@@ -218,17 +251,17 @@ const downloadCSV = (data) => {
         // Build CSV rows
         const rows = data.map((s) => {
             // Format start time
-            const startTime = s.start_time 
+            const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format end time
-            const endTime = s.end_time 
+            const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format sales total
-            const salesTotal = s.sales_total 
+            const salesTotal = s.sales_total
                 ? formatMoney(s.sales_total)
                 : "0.00";
 
@@ -305,17 +338,17 @@ const downloadPDF = (data) => {
         // 📊 Build table rows
         const tableRows = data.map((s) => {
             // Format start time
-            const startTime = s.start_time 
+            const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format end time
-            const endTime = s.end_time 
+            const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format sales total
-            const salesTotal = s.sales_total 
+            const salesTotal = s.sales_total
                 ? formatMoney(s.sales_total)
                 : "0.00";
 
@@ -380,17 +413,17 @@ const downloadExcel = (data) => {
         // Prepare data for Excel
         const excelData = data.map((s) => {
             // Format start time
-            const startTime = s.start_time 
+            const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format end time
-            const endTime = s.end_time 
+            const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
 
             // Format sales total
-            const salesTotal = s.sales_total 
+            const salesTotal = s.sales_total
                 ? formatMoney(s.sales_total)
                 : "0.00";
 
@@ -428,6 +461,535 @@ const downloadExcel = (data) => {
         });
     }
 };
+
+// ✅ GENERATE X REPORT (Mid-Shift Report for OPEN shifts)
+const generateXReport = async (shift) => {
+    // Check if shift is open
+    if (shift.status !== 'open') {
+        toast.warning('X Report can only be generated for open shifts');
+        return;
+    }
+
+    try {
+       
+        const res = await axios.get(`/api/shift/${shift.id}/x-report`);
+
+        if (res.data.success) {
+            console.log(res.data.data);
+            xReportData.value = res.data.data;
+            // Show modal
+            showXReportModal.value = true;
+            toast.success('X Report generated successfully');
+        }
+    } catch (error) {
+        console.error('Failed to generate X Report:', error);
+        toast.error(error.response?.data?.message || 'Failed to generate X Report');
+    }
+};
+
+// ✅ CLOSE X REPORT MODAL
+const closeXReportModal = () => {
+    showXReportModal.value = false;
+    xReportData.value = null;
+};
+
+const downloadXReportPdf = async (shiftId) => {
+    try {
+        const res = await axios.get(`/api/shift/${shiftId}/x-report/pdf`);
+
+        if (!res.data.success) {
+            toast.error('Failed to generate X Report PDF');
+            return;
+        }
+
+        const data = res.data.data;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        // Title
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(data.title, 105, 20, { align: 'center' });
+
+        // Generated Date
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generated: ${data.generatedDate}`, 14, 28);
+
+        // Shift Information Section
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Shift Information', 14, 38);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Shift ID: ${data.shiftId}`, 14, 46);
+        doc.text(`Started By: ${data.startedBy}`, 14, 52);
+        doc.text(`Start Time: ${data.startTime}`, 14, 58);
+        doc.text(`Opening Cash: £${data.openingCash}`, 14, 64);
+
+        // Sales Summary Table
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Sales Summary', 14, 75);
+
+        const salesData = [
+            ['Total Orders', data.salesSummary.total_orders.toString()],
+            ['Subtotal', '£' + formatMoney(data.salesSummary.subtotal)],
+            ['Tax', '£' + formatMoney(data.salesSummary.total_tax)],
+            ['Discount', '£' + formatMoney(data.salesSummary.total_discount)],
+            ['Total Sales', '£' + formatMoney(data.salesSummary.total_sales)],
+        ];
+
+        autoTable(doc, {
+            head: [['Description', 'Amount']],
+            body: salesData,
+            startY: 80,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3,
+                halign: 'left',
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center',
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245],
+            },
+            columnStyles: {
+                1: { halign: 'right' },
+            },
+            margin: { left: 14, right: 14 },
+        });
+
+        let currentY = doc.lastAutoTable.finalY + 10;
+
+        // Cash Summary Table
+        if (currentY > 250) {
+            doc.addPage();
+            currentY = 14;
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cash Summary', 14, currentY);
+
+        const cashData = [
+            ['Opening Cash', '£' + formatMoney(data.cashSummary.opening_cash)],
+            ['Cash Sales', '£' + formatMoney(data.cashSummary.cash_sales)],
+            ['Expected Cash', '£' + formatMoney(data.cashSummary.expected_cash)],
+        ];
+
+        autoTable(doc, {
+            head: [['Description', 'Amount']],
+            body: cashData,
+            startY: currentY + 5,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3,
+                halign: 'left',
+            },
+            headStyles: {
+                fillColor: [243, 156, 18],
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center',
+            },
+            alternateRowStyles: {
+                fillColor: [255, 243, 205],
+            },
+            columnStyles: {
+                1: { halign: 'right' },
+            },
+            margin: { left: 14, right: 14 },
+        });
+
+        // Payment Methods Table
+        if (data.paymentMethods.length > 0) {
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            if (currentY > 250) {
+                doc.addPage();
+                currentY = 14;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Payment Methods', 14, currentY);
+
+            const paymentData = data.paymentMethods.map(pm => [
+                pm.method,
+                pm.count.toString(),
+                '£' + formatMoney(pm.total),
+            ]);
+
+            autoTable(doc, {
+                head: [['Method', 'Count', 'Total']],
+                body: paymentData,
+                startY: currentY + 5,
+                theme: 'grid',
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                },
+                headStyles: {
+                    fillColor: [52, 152, 219],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                },
+                columnStyles: {
+                    1: { halign: 'center' },
+                    2: { halign: 'right' },
+                },
+                margin: { left: 14, right: 14 },
+            });
+        }
+
+        // Top Items Table
+        if (data.topItems.length > 0) {
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            if (currentY > 250) {
+                doc.addPage();
+                currentY = 14;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Top Selling Items', 14, currentY);
+
+            const itemsData = data.topItems.map(item => [
+                item.name,
+                item.total_qty.toString(),
+                '£' + formatMoney(item.total_revenue),
+            ]);
+
+            autoTable(doc, {
+                head: [['Item', 'Qty', 'Revenue']],
+                body: itemsData,
+                startY: currentY + 5,
+                theme: 'grid',
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                },
+                headStyles: {
+                    fillColor: [231, 76, 60],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                },
+                columnStyles: {
+                    1: { halign: 'center' },
+                    2: { halign: 'right' },
+                },
+                margin: { left: 14, right: 14 },
+            });
+        }
+
+        // Save PDF
+        doc.save(res.data.fileName);
+        toast.success('X Report PDF downloaded successfully');
+    } catch (error) {
+        console.error('Failed to download X Report PDF:', error);
+        toast.error(error.response?.data?.message || 'Failed to download X Report PDF');
+    }
+};
+
+// ✅ GENERATE Z REPORT (End of Shift Report for CLOSED shifts)
+const generateZReport = async (shift) => {
+    // Check if shift is closed
+    if (shift.status !== 'closed') {
+        toast.warning('Z Report can only be generated for closed shifts');
+        return;
+    }
+
+    try {
+        // Call API to get Z Report data
+        const res = await axios.get(`/api/shift/${shift.id}/z-report`);
+
+        if (res.data.success) {
+            // Store report data
+            zReportData.value = res.data.data;
+            // Show modal
+            showZReportModal.value = true;
+            toast.success('Z Report generated successfully');
+        }
+    } catch (error) {
+        console.error('Failed to generate Z Report:', error);
+        toast.error(error.response?.data?.message || 'Failed to generate Z Report');
+    }
+};
+
+// ✅ CLOSE Z REPORT MODAL
+const closeZReportModal = () => {
+    showZReportModal.value = false;
+    zReportData.value = null;
+};
+
+// ✅ DOWNLOAD Z REPORT AS PDF
+const downloadZReportPdf = async (shiftId) => {
+    try {
+        const res = await axios.get(`/api/shift/${shiftId}/z-report/pdf`);
+
+        if (!res.data.success) {
+            toast.error('Failed to generate Z Report PDF');
+            return;
+        }
+
+        const data = res.data.data;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        // Title
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(data.title, 105, 20, { align: 'center' });
+
+        // Generated Date
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generated: ${data.generatedDate}`, 14, 28);
+
+        // Shift Information Section
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Shift Information', 14, 38);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Shift ID: ${data.shiftId}`, 14, 46);
+        doc.text(`Started By: ${data.startedBy}`, 14, 52);
+        doc.text(`Start Time: ${data.startTime}`, 14, 58);
+        doc.text(`Ended By: ${data.endedBy}`, 14, 64);
+        doc.text(`End Time: ${data.endTime}`, 14, 70);
+        doc.text(`Duration: ${data.duration}`, 14, 76);
+
+        // Sales Summary Table
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Sales Summary', 14, 87);
+
+        const salesData = [
+            ['Total Orders', data.salesSummary.total_orders.toString()],
+            ['Subtotal', '£' + formatMoney(data.salesSummary.subtotal)],
+            ['Tax', '£' + formatMoney(data.salesSummary.total_tax)],
+            ['Discount', '£' + formatMoney(data.salesSummary.total_discount)],
+            ['Avg Order Value', '£' + formatMoney(data.salesSummary.avg_order_value)],
+            ['Total Sales', '£' + formatMoney(data.salesSummary.total_sales)],
+        ];
+
+        autoTable(doc, {
+            head: [['Description', 'Amount']],
+            body: salesData,
+            startY: 92,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3,
+                halign: 'left',
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center',
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245],
+            },
+            columnStyles: {
+                1: { halign: 'right' },
+            },
+            margin: { left: 14, right: 14 },
+        });
+
+        let currentY = doc.lastAutoTable.finalY + 10;
+
+        // Cash Reconciliation Table
+        if (currentY > 250) {
+            doc.addPage();
+            currentY = 14;
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cash Reconciliation', 14, currentY);
+
+        const cashData = [
+            ['Opening Cash', '£' + formatMoney(data.cashReconciliation.opening_cash)],
+            ['Cash Sales', '£' + formatMoney(data.cashReconciliation.cash_sales)],
+            ['Expected Cash', '£' + formatMoney(data.cashReconciliation.expected_cash)],
+            ['Actual Cash', '£' + formatMoney(data.cashReconciliation.actual_cash)],
+            ['Variance', '£' + formatMoney(data.cashReconciliation.variance) + ' (' + data.cashReconciliation.variance_percentage + '%)'],
+        ];
+
+        autoTable(doc, {
+            head: [['Description', 'Amount']],
+            body: cashData,
+            startY: currentY + 5,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 3,
+                halign: 'left',
+            },
+            headStyles: {
+                fillColor: [243, 156, 18],
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center',
+            },
+            alternateRowStyles: {
+                fillColor: [255, 243, 205],
+            },
+            columnStyles: {
+                1: { halign: 'right' },
+            },
+            margin: { left: 14, right: 14 },
+        });
+
+        // Payment Methods Table
+        if (data.paymentMethods.length > 0) {
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            if (currentY > 250) {
+                doc.addPage();
+                currentY = 14;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Payment Methods', 14, currentY);
+
+            const paymentData = data.paymentMethods.map(pm => [
+                pm.method,
+                pm.count.toString(),
+                '£' + formatMoney(pm.total),
+            ]);
+
+            autoTable(doc, {
+                head: [['Method', 'Count', 'Total']],
+                body: paymentData,
+                startY: currentY + 5,
+                theme: 'grid',
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                },
+                headStyles: {
+                    fillColor: [52, 152, 219],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                },
+                columnStyles: {
+                    1: { halign: 'center' },
+                    2: { halign: 'right' },
+                },
+                margin: { left: 14, right: 14 },
+            });
+        }
+
+        // Top Items Table
+        if (data.topItems.length > 0) {
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            if (currentY > 250) {
+                doc.addPage();
+                currentY = 14;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Top Selling Items', 14, currentY);
+
+            const itemsData = data.topItems.map(item => [
+                item.name,
+                item.total_qty.toString(),
+                '£' + formatMoney(item.total_revenue),
+            ]);
+
+            autoTable(doc, {
+                head: [['Item', 'Qty', 'Revenue']],
+                body: itemsData,
+                startY: currentY + 5,
+                theme: 'grid',
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                },
+                headStyles: {
+                    fillColor: [231, 76, 60],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                },
+                columnStyles: {
+                    1: { halign: 'center' },
+                    2: { halign: 'right' },
+                },
+                margin: { left: 14, right: 14 },
+            });
+        }
+
+        // Stock Movement Table (only for Z Report)
+        if (data.stockMovement && data.stockMovement.length > 0) {
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            if (currentY > 250) {
+                doc.addPage();
+                currentY = 14;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Stock Movement', 14, currentY);
+
+            const stockData = data.stockMovement.map(stock => [
+                stock.item_name,
+                stock.start_stock.toString(),
+                stock.end_stock.toString(),
+                stock.sold.toString(),
+            ]);
+
+            autoTable(doc, {
+                head: [['Item', 'Opening Stock', 'Closing Stock', 'Sold']],
+                body: stockData,
+                startY: currentY + 5,
+                theme: 'grid',
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                },
+                headStyles: {
+                    fillColor: [44, 62, 80],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                },
+                columnStyles: {
+                    1: { halign: 'center' },
+                    2: { halign: 'center' },
+                    3: { halign: 'center' },
+                },
+                margin: { left: 14, right: 14 },
+            });
+        }
+
+        // Save PDF
+        doc.save(res.data.fileName);
+        toast.success('Z Report PDF downloaded successfully');
+    } catch (error) {
+        console.error('Failed to download Z Report PDF:', error);
+        toast.error(error.response?.data?.message || 'Failed to download Z Report PDF');
+    }
+};
+
 
 </script>
 
@@ -486,6 +1048,7 @@ const downloadExcel = (data) => {
                                     Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <!-- Existing Export Options -->
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
                                             @click="onDownload('pdf')">Export as PDF</a>
@@ -497,6 +1060,27 @@ const downloadExcel = (data) => {
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
                                             Export as CSV
+                                        </a>
+                                    </li>
+
+                                    <!-- DIVIDER -->
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+
+                                    <!-- NEW: X Report Option -->
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('x-report')">
+                                            Generate X Report
+                                        </a>
+                                    </li>
+
+                                    <!-- NEW: Z Report Option -->
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('z-report')">
+                                            Generate Z Report
                                         </a>
                                     </li>
                                 </ul>
@@ -563,7 +1147,8 @@ const downloadExcel = (data) => {
                                                         class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
                                                         :class="shift.status === 'open'
                                                             ? 'bg-green-500 hover:bg-green-600'
-                                                            : 'bg-red-400 hover:bg-red-500'" :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
+                                                            : 'bg-red-400 hover:bg-red-500'"
+                                                        :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
                                                             :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
@@ -590,7 +1175,7 @@ const downloadExcel = (data) => {
             <!-- Shift Details Modal -->
             <div v-if="showShiftDetailsModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div class="relative bg-white rounded-4 shadow-lg border-0 w-full max-w-2xl overflow-hidden">
+                <div class="relative bg-white rounded-4 shadow-lg border-0 overflow-hidden">
                     <!-- Header -->
                     <div class="modal-header align-items-center">
                         <div class="d-flex align-items-center gap-2">
@@ -674,6 +1259,504 @@ const downloadExcel = (data) => {
                     </div>
                 </div>
             </div>
+
+
+            <!-- ✅ X REPORT MODAL -->
+            <div v-if="showXReportModal"
+                class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 ">
+                <div
+                   class="relative bg-white rounded-4 shadow-lg border-0  max-w-2xl overflow-hidden max-h-[85vh] flex flex-col mt-5">
+
+                    <!-- Header -->
+                    <div class="modal-header align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary rounded-circle p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </span>
+                            <div class="d-flex flex-column">
+                                <h5 class="modal-title mb-0">X Report</h5>
+                                <small class="text-muted">Shift ID: {{ xReportData?.shift_id }}</small>
+                            </div>
+                        </div>
+                        <button @click="closeXReportModal"
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body p-4 bg-light overflow-y-auto" v-if="xReportData">
+                        <div class="row g-4">
+
+                            <!-- Shift Information -->
+                            <div class="col-lg-12">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Shift Information</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p class="mb-2"><strong>Started By:</strong> {{ xReportData.started_by
+                                                }}</p>
+                                                <p class="mb-2"><strong>Start Time:</strong> {{ new
+                                                    Date(xReportData.start_time).toLocaleString()
+                                                }}</p>
+                                                <p class="mb-0"><strong>Opening Cash:</strong> {{
+                                                    formatCurrencySymbol(xReportData.opening_cash)
+                                                }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p class="mb-2"><strong>Status:</strong> <span
+                                                        class="badge bg-primary">{{
+                                                            xReportData.status
+                                                        }}</span></p>
+                                                <p class="mb-0"><strong>Generated At:</strong> {{ new
+                                                    Date(xReportData.generated_at).toLocaleString() }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sales Summary -->
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Sales Summary</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle">
+                                                <tr>
+                                                    <td>Total Orders:</td>
+                                                    <td class="text-end">{{
+                                                        xReportData.sales_summary.total_orders
+                                                    }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Subtotal:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(xReportData.sales_summary.subtotal) }}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Tax:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(xReportData.sales_summary.total_tax) }}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Discount:</td>
+                                                    <td class="text-end text-danger">-{{
+                                                        formatCurrencySymbol(xReportData.sales_summary.total_discount)
+                                                    }}
+                                                    </td>
+                                                </tr>
+                                                <tr class=" border-top">
+                                                    <td>Total Sales:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(xReportData.sales_summary.total_sales)
+                                                    }}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cash Summary -->
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Cash Summary</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <tr>
+                                                    <td>Opening Cash:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(xReportData.cash_summary.opening_cash)
+                                                    }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Cash Sales:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(xReportData.cash_summary.cash_sales) }}
+                                                    </td>
+                                                </tr>
+                                                <tr class="fw-bold border-top">
+                                                    <td>Expected Cash:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(xReportData.cash_summary.expected_cash)
+                                                    }}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Methods -->
+                            <div class="col-12" v-if="xReportData.payment_methods.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Payment Methods</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-semibold">Method</th>
+                                                        <th class="fw-semibold">Count</th>
+                                                        <th class="fw-semibold text-end pe-3">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(pm, idx) in xReportData.payment_methods" :key="idx">
+                                                        <td>{{ pm.method }}</td>
+                                                        <td>{{ pm.count }}</td>
+                                                        <td class="text-end pe-3">{{ formatCurrencySymbol(pm.total) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sales by User -->
+                            <div class="col-12" v-if="xReportData.sales_by_user.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Sales by User</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-semibold">User</th>
+                                                        <th class="fw-semibold">Role</th>
+                                                        <th class="fw-semibold">Orders</th>
+                                                        <th class="fw-semibold text-end pe-3">Total Sales</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(user, idx) in xReportData.sales_by_user" :key="idx">
+                                                        <td>{{ user.user_name }}</td>
+                                                        <td><span class="badge bg-primary rounded-pill">{{ user.role
+                                                        }}</span></td>
+                                                        <td>{{ user.orders_count }}</td>
+                                                        <td class="text-end pe-3">{{
+                                                            formatCurrencySymbol(user.total_sales) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Selling Items -->
+                            <div class="col-12" v-if="xReportData.top_items.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Top Selling Items</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-semibold">Item</th>
+                                                        <th class="fw-semibold">Quantity Sold</th>
+                                                        <th class="fw-semibold text-end pe-3">Revenue</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(item, idx) in xReportData.top_items" :key="idx">
+                                                        <td>{{ item.name }}</td>
+                                                        <td>{{ item.total_qty }}</td>
+                                                        <td class="text-end pe-3">{{
+                                                            formatCurrencySymbol(item.total_revenue) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer border-top-0 px-4 pb-4">
+                        <button class="btn btn-primary px-4 rounded-pill"
+                            @click="downloadXReportPdf(xReportData.shift_id)">
+                            <i class="bi bi-download me-2"></i>Download PDF
+                        </button>
+                        <button class="btn btn-secondary px-4 rounded-pill" @click="closeXReportModal">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ✅ Z REPORT MODAL -->
+           <div v-if="showZReportModal"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div
+        class="relative bg-white rounded-4 shadow-lg border-0 max-w-2xl overflow-hidden max-h-[85vh] flex flex-col mt-5">
+
+        <!-- Header -->
+        <div class="modal-header align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-danger rounded-circle p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <div class="d-flex flex-column">
+                    <h5 class="modal-title mb-0">Z Report (End of Shift)</h5>
+                    <small class="text-muted">Shift ID: {{ zReportData?.shift_id }}</small>
+                </div>
+            </div>
+            <button @click="closeZReportModal"
+                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                aria-label="Close" title="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body p-4 bg-light overflow-y-auto max-h-[70vh]" v-if="zReportData">
+            <div class="row g-4">
+
+                <!-- Shift Information -->
+                <div class="col-lg-12">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Shift Information</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-2"><strong>Started By:</strong> {{ zReportData.started_by }}</p>
+                                    <p class="mb-2"><strong>Start Time:</strong> {{ new Date(zReportData.start_time).toLocaleString() }}</p>
+                                    <p class="mb-0"><strong>Ended By:</strong> {{ zReportData.ended_by }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-2"><strong>End Time:</strong> {{ new Date(zReportData.end_time).toLocaleString() }}</p>
+                                    <p class="mb-2"><strong>Status:</strong> <span class="badge bg-danger">{{ zReportData.status }}</span></p>
+                                    <p class="mb-0"><strong>Duration:</strong> {{ zReportData.duration }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Summary -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Sales Summary</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <tr>
+                                        <td>Total Orders:</td>
+                                        <td class="text-end">{{ zReportData.sales_summary.total_orders }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Subtotal:</td>
+                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.subtotal) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Tax:</td>
+                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.total_tax) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Discount:</td>
+                                        <td class="text-end text-danger">-{{ formatCurrencySymbol(zReportData.sales_summary.total_discount) }}</td>
+                                    </tr>
+                                    <tr class="border-top">
+                                        <td>Total Sales:</td>
+                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.total_sales) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Avg Order Value:</td>
+                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.avg_order_value) }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cash Reconciliation -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Cash Reconciliation</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <tr>
+                                        <td>Opening Cash:</td>
+                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.cash_reconciliation.opening_cash) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Cash Sales:</td>
+                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.cash_reconciliation.cash_sales) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Expected Cash:</td>
+                                        <td class="text-end fw-bold">{{ formatCurrencySymbol(zReportData.cash_reconciliation.expected_cash) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Actual Cash:</td>
+                                        <td class="text-end fw-bold">{{ formatCurrencySymbol(zReportData.cash_reconciliation.actual_cash) }}</td>
+                                    </tr>
+                                    <tr :class="zReportData.cash_reconciliation.variance >= 0 ? 'text-success' : 'text-danger'">
+                                        <td>Variance:</td>
+                                        <td class="text-end fw-bold">
+                                            {{ zReportData.cash_reconciliation.variance >= 0 ? '+' : '' }}{{ formatCurrencySymbol(zReportData.cash_reconciliation.variance) }}
+                                            ({{ zReportData.cash_reconciliation.variance_percentage }}%)
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div class="col-12" v-if="zReportData.payment_methods.length">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Payment Methods</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Method</th>
+                                            <th>Count</th>
+                                            <th class="text-end pe-3">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(pm, idx) in zReportData.payment_methods" :key="idx">
+                                            <td>{{ pm.method }}</td>
+                                            <td>{{ pm.count }}</td>
+                                            <td class="text-end pe-3">{{ formatCurrencySymbol(pm.total) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales by User -->
+                <div class="col-12" v-if="zReportData.sales_by_user.length">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Sales by User</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Role</th>
+                                            <th>Orders</th>
+                                            <th class="text-end pe-3">Total Sales</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(user, idx) in zReportData.sales_by_user" :key="idx">
+                                            <td>{{ user.user_name }}</td>
+                                            <td><span class="badge bg-primary rounded-pill">{{ user.role }}</span></td>
+                                            <td>{{ user.orders_count }}</td>
+                                            <td class="text-end pe-3">{{ formatCurrencySymbol(user.total_sales) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Selling Items -->
+                <div class="col-12" v-if="zReportData.top_items.length">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Top Selling Items </h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Quantity Sold</th>
+                                            <th class="text-end pe-3">Revenue</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(item, idx) in zReportData.top_items" :key="idx">
+                                            <td>{{ item.name }}</td>
+                                            <td>{{ item.total_qty }}</td>
+                                            <td class="text-end pe-3">{{ formatCurrencySymbol(item.total_revenue) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Movement -->
+                <div class="col-12" v-if="zReportData.stock_movement && zReportData.stock_movement.length">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Stock Movement</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle text-center mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Opening Stock</th>
+                                            <th>Closing Stock</th>
+                                            <th>Sold</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(stock, idx) in zReportData.stock_movement" :key="idx">
+                                            <td>{{ stock.item_name }}</td>
+                                            <td>{{ stock.start_stock }}</td>
+                                            <td>{{ stock.end_stock }}</td>
+                                            <td class="fw-bold text-danger">{{ stock.sold }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer border-top-0 px-4 pb-4">
+            <button class="btn btn-danger px-4 rounded-pill" @click="downloadZReportPdf(zReportData.shift_id)">
+                <i class="bi bi-download me-2"></i>Download PDF
+            </button>
+            <button class="btn btn-secondary px-4 rounded-pill" @click="closeZReportModal">Close</button>
+        </div>
+    </div>
+</div>
+
 
         </div>
     </Master>
