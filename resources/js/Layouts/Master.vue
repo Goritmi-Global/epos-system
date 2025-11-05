@@ -17,11 +17,16 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 import LogoutModal from "@/Components/LogoutModal.vue";
 import RestoreSystemModal from "@/Components/RestoreSystemModal.vue";
 import { useAutoLogout } from '@/composables/useAutoLogout';
+
+import Drawer from 'primevue/drawer';
+import Button from 'primevue/button';
 /* =========================
    Sidebar structure (array)
    ========================= */
 const page = usePage();
 const showConfirmRestore = ref(false);
+const drawerVisible = ref(false);
+
 
 // Get user info from Inertia shared data
 const user = computed(() => page.props.current_user);
@@ -114,6 +119,17 @@ const initializeFullscreen = async () => {
     }
 };
 
+import { watch } from 'vue';
+
+watch(drawerVisible, (newVal) => {
+    if (newVal) {
+        // Wait for drawer to fully render
+        nextTick(() => {
+            window.feather?.replace();
+        });
+    }
+});
+
 // Optional: Listen to ESC or manual exit
 document.addEventListener("fullscreenchange", () => {
     isFullscreen.value = !!document.fullscreenElement;
@@ -188,36 +204,36 @@ const handleDatabaseBackup = async () => {
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
-        
+
         // Extract filename from response headers or use default
         const contentDisposition = response.headers['content-disposition'];
         let filename = 'database_backup_' + new Date().toISOString().slice(0, 10) + '.sql';
-        
+
         if (contentDisposition) {
             const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
             if (filenameMatch) {
                 filename = filenameMatch[1];
             }
         }
-        
+
         // Trigger download
         link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
-        
+
         // Cleanup
         link.remove();
         window.URL.revokeObjectURL(url);
 
         // Show success message
         toast.success('Database backup downloaded successfully!');
-        
+
         // Close modal
         showBackupModal.value = false;
-        
+
     } catch (error) {
         console.error('Database backup error:', error);
-        
+
         let message = 'Failed to create database backup. Please try again.';
 
         // Handle blob error responses
@@ -239,7 +255,8 @@ const handleDatabaseBackup = async () => {
 
         toast.error(message);
         showBackupModal.value = false;
-    }};
+    }
+};
 
 const userPermissions = computed(() => page.props.current_user?.permissions ?? []);
 const userRoles = computed(() => page.props.current_user?.roles ?? []);
@@ -475,10 +492,30 @@ const evaluateBreakpoint = () => {
 };
 
 const toggleSidebar = () => {
-    if (isMobile.value) {
-        overlayOpen.value = !overlayOpen.value;
+    if (isMobile.value || isTablet.value) {
+        // Use drawer for mobile and tablet
+        drawerVisible.value = !drawerVisible.value;
     } else {
+        // Desktop uses expand/collapse
         sidebarExpanded.value = !sidebarExpanded.value;
+    }
+};
+
+const handleMenuClick = (routeName) => {
+    if (routeName) {
+        router.visit(route(routeName));
+        // Close drawer on mobile/tablet after navigation
+        if (isMobile.value || isTablet.value) {
+            drawerVisible.value = false;
+        }
+    }
+};
+
+const handleDrawerAction = (action) => {
+    handleSidebarAction(action);
+    // Close drawer after action
+    if (isMobile.value || isTablet.value) {
+        drawerVisible.value = false;
     }
 };
 
@@ -820,7 +857,7 @@ onMounted(fetchNotifications);
         <!-- =================== SIDEBAR =================== -->
         <!-- Replace your sidebar section in the template with this updated version -->
 
-        <aside class="sidebar" id="sidebar" aria-label="Primary">
+        <aside v-if="isDesktop" class="sidebar" id="sidebar" aria-label="Primary">
             <div class="sidebar-inner">
                 <div id="sidebar-menu" class="sidebar-menu px-2">
                     <ul class="mb-3">
@@ -834,7 +871,6 @@ onMounted(fetchNotifications);
                                     <i :data-feather="block.icon" class="me-2 icons"></i>
                                     <span class="truncate-when-mini">{{ block.label }}</span>
                                 </button>
-
                             </li>
 
                             <!-- Section -->
@@ -845,7 +881,7 @@ onMounted(fetchNotifications);
                                 </li>
 
                                 <template v-for="item in block.children" :key="item.label">
-                                    <!-- Dropdown group with PROPER HOVER STRUCTURE -->
+                                    <!-- Dropdown group -->
                                     <li v-if="item.children && item.children.length && item.children.some(child => hasPermission(child.route))"
                                         class="dropdown-parent">
                                         <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
@@ -853,12 +889,11 @@ onMounted(fetchNotifications);
                                             @click="toggleGroup(item.label)" type="button" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
+                                            }}</span>
                                             <i class="chevron-icon"
                                                 :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                                         </button>
 
-                                        <!-- SUBMENU - This will show on hover when collapsed -->
                                         <ul class="list-unstyled my-1 submenu-dropdown"
                                             :class="{ 'expanded': openGroups.has(item.label) || isAnyChildActive(item.children) }">
                                             <li v-for="child in item.children" :key="child.label"
@@ -870,7 +905,6 @@ onMounted(fetchNotifications);
                                                     <i :data-feather="child.icon" class="me-2"></i>
                                                     <span>{{ child.label }}</span>
                                                 </button>
-
                                             </li>
                                         </ul>
                                     </li>
@@ -887,7 +921,7 @@ onMounted(fetchNotifications);
                                         </button>
                                     </li>
 
-                                    <!-- Action item (like System Restore) -->
+                                    <!-- Action item -->
                                     <li v-else-if="item.action && hasPermission(item.action)" class="side-link">
                                         <button @click="handleSidebarAction(item.action)"
                                             class="d-flex align-items-center side-link px-3 py-2 w-100 border-0"
@@ -903,7 +937,112 @@ onMounted(fetchNotifications);
                 </div>
             </div>
         </aside>
+        <Drawer v-model:visible="drawerVisible" :position="'left'" class="sidebar-drawer">
+            <template #container="{ closeCallback }">
+                <div class="flex flex-col h-full bg-white dark:bg-gray-900">
+                    <!-- Drawer Header -->
+                    <div class="flex items-center justify-between px-4 pt-4 pb-3 border-b dark:border-gray-700">
+                        <div class="flex items-center gap-3">
+                            <img :src="businessInfo.image_url" alt="logo" width="40" height="40"
+                                class="rounded-full border shadow" />
+                            <span class="font-bold text-lg text-black dark:text-white">{{ businessInfo.business_name
+                                }}</span>
+                        </div>
 
+
+                        <button
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            @click="closeCallback" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Drawer Menu Content -->
+                    <div class="overflow-y-auto flex-1 px-2 py-3">
+                        <ul class="list-none p-0 m-0">
+                            <template v-for="block in sidebarMenus" :key="block.label || block.section">
+                                <!-- Simple top item -->
+                                <li v-if="!block.section && hasPermission(block.route)"
+                                    :class="{ 'active': isActive(block.route) }" class="mb-1">
+                                    <button
+                                        class="drawer-link w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors"
+                                        @click="handleMenuClick(block.route)">
+                                        <i :data-feather="block.icon" class="w-5 h-5 mr-3"></i>
+                                        <span class="font-medium">{{ block.label }}</span>
+                                    </button>
+                                </li>
+
+                                <!-- Section -->
+                                <template v-else>
+                                    <li class="drawer-section-title mt-4 mb-2 px-4 text-dark text-xs font-semibold uppercase tracking-wider"
+                                        v-if="block.section && block.children.some(child => hasPermission(child.route))">
+                                        {{ block.section }}
+                                    </li>
+
+                                    <template v-for="item in block.children" :key="item.label">
+                                        <!-- Dropdown group -->
+                                        <li v-if="item.children && item.children.length && item.children.some(child => hasPermission(child.route))"
+                                            class="mb-1">
+                                            <button
+                                                class="drawer-link w-full flex items-center justify-between px-4 py-3 rounded-lg text-left transition-colors"
+                                                :class="{ 'active': openGroups.has(item.label) || isAnyChildActive(item.children) }"
+                                                @click="toggleGroup(item.label)" type="button">
+                                                <div class="flex items-center">
+                                                    <i :data-feather="item.icon" class="w-5 h-5 mr-3"></i>
+                                                    <span class="font-medium">{{ item.label }}</span>
+                                                </div>
+                                                <i class="chevron-icon"
+                                                    :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
+
+                                            </button>
+
+                                            <!-- Submenu -->
+                                            <ul v-show="openGroups.has(item.label) || isAnyChildActive(item.children)"
+                                                class="list-none pl-8 mt-1 space-y-1">
+                                                <li v-for="child in item.children" :key="child.label"
+                                                    v-if="hasPermission(child?.route)"
+                                                    :class="{ 'active': isActive(child.route) }">
+                                                    <button
+                                                        class="drawer-link w-full flex items-center px-4 py-2 rounded-lg text-left text-sm transition-colors"
+                                                        @click="handleMenuClick(child.route)">
+                                                        <i :data-feather="child.icon" class="w-4 h-4 mr-3"></i>
+                                                        <span>{{ child.label }}</span>
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </li>
+
+                                        <!-- Flat item -->
+                                        <li v-else-if="item.route && hasPermission(item.route)"
+                                            :class="{ 'active': isActive(item.route) }" class="mb-1">
+                                            <button
+                                                class="drawer-link w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors"
+                                                @click="handleMenuClick(item.route)">
+                                                <i :data-feather="item.icon" class="w-5 h-5 mr-3"></i>
+                                                <span class="font-medium">{{ item.label }}</span>
+                                            </button>
+                                        </li>
+
+                                        <!-- Action item -->
+                                        <li v-else-if="item.action && hasPermission(item.action)" class="mb-1">
+                                            <button
+                                                class="drawer-link w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors"
+                                                @click="handleDrawerAction(item.action)">
+                                                <i :data-feather="item.icon" class="w-5 h-5 mr-3"></i>
+                                                <span class="font-medium">{{ item.label }}</span>
+                                            </button>
+                                        </li>
+                                    </template>
+                                </template>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+            </template>
+        </Drawer>
         <!-- Confirm Modal (keep outside sidebar) -->
         <RestoreSystemModal v-if="showRestoreModal" :show="showRestoreModal" title="Confirm System Restore"
             message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
@@ -1057,6 +1196,71 @@ onMounted(fetchNotifications);
 }
 
 
+@media (max-width: 991px) {
+    .header .header-left {
+        position: absolute;
+        width: 23%;
+    }
+
+    .state-tablet .page-wrapper {
+        margin-left: 0 !important;
+    }
+
+    .sidebar {
+        display: none !important;
+    }
+
+    .page-wrapper {
+        margin-left: 0 !important;
+    }
+
+}
+
+.sidebar-drawer .p-drawer-content {
+    padding: 0 !important;
+}
+
+/* Drawer link styles */
+.drawer-link {
+    color: #1b2850;
+    background: transparent;
+    border: none;
+}
+
+.drawer-link:hover {
+   background: #1b2850;
+    color: #fff !important;
+}
+
+.drawer-link.active,
+li.active .drawer-link {
+    background: #1b2850;
+    color: #ffffff;
+}
+
+/* Dark mode drawer styles */
+html.dark .drawer-link {
+    color: #ffffff;
+}
+
+html.dark .drawer-link:hover {
+    background: #374151;
+    color: #ffffff;
+}
+
+html.dark .drawer-link.active,
+html.dark li.active .drawer-link {
+    background: #1b2850;
+    color: #ffffff;
+}
+
+
+/* Ensure feather icons render properly in drawer */
+.drawer-link i[data-feather] {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+}
 
 /* Adjust submenu positioning */
 .sidebar-collapsed .submenu-dropdown {
