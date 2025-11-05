@@ -2356,6 +2356,89 @@ const getSelectedAddonsCount = () => {
     return selectedCartItem.value.addons.filter(addon => addon.selected !== false).length;
 };
 
+
+
+
+
+
+
+const user = computed(() => page.props.current_user);
+
+const isCashier = computed(() => {
+    return user.value?.roles?.includes('Cashier') ||
+        user.value?.roles?.includes('Admin') ||
+        user.value?.roles?.includes('Manager');
+});
+
+import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
+
+const terminalId = ref(`terminal-${user.value?.id}-${Date.now()}`);
+const { broadcastCartUpdate } = usePOSBroadcast(terminalId.value);
+
+// Throttle the broadcast to avoid too many calls
+import { debounce } from 'lodash';
+
+const debouncedBroadcast = debounce((data) => {
+    broadcastCartUpdate(data);
+}, 500); // Wait 500ms after last change
+
+// Watch for cart changes and broadcast
+watch(
+    () => ({
+        items: orderItems.value,
+        customer: customer.value,
+        orderType: orderType.value,
+        table: selectedTable.value,
+        subtotal: subTotal.value,
+        tax: totalTax.value,
+        deliveryCharges: deliveryCharges.value,
+        promoDiscount: promoDiscount.value,
+        total: grandTotal.value,
+        note: note.value,
+    }),
+    (newCart) => {
+        console.log('Cart changed, broadcasting...', newCart);
+        debouncedBroadcast(newCart);
+    },
+    { deep: true, immediate: false }
+);
+
+
+// After terminalId ref
+const { broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
+
+// Debounce UI broadcast
+const debouncedUIBroadcast = debounce((data) => {
+    broadcastUIUpdate(data);
+}, 10);
+
+// Watch for UI state changes (add after cart watch)
+watch(
+    () => ({
+        showCategories: showCategories.value,
+        activeCat: activeCat.value,
+        menuCategories: menuCategories.value,
+        menuItems: menuItems.value,
+        searchQuery: searchQuery.value,
+    }),
+    (newUI) => {
+        console.log('UI state changed, broadcasting...', newUI);
+        debouncedUIBroadcast(newUI);
+    },
+    { deep: true, immediate: true }
+);
+
+// ✅ ADD THIS FUNCTION
+const openCustomerDisplay = () => {
+    if (!isCashier.value) {
+        alert('❌ Only cashiers can access customer display');
+        return;
+    }
+    const url = route('customer-display.index', { terminal: terminalId.value });
+    window.open(url, '_blank');
+};
+
+
 </script>
 
 <template>
@@ -2369,10 +2452,15 @@ const getSelectedAddonsCount = () => {
                     <!-- LEFT: Menu -->
                     <div :class="showCategories ? 'col-md-12' : 'col-lg-8'">
                         <!-- Categories Grid -->
-                        <div v-if="showCategories" class="row g-3">
+                        <div v-if="showCategories" class="row g-3 tablet-screen">
                             <div class="col-12 mb-3">
                                 <!-- <h5 class="fw-bold  mb-0"></h5> -->
                                 <h4 class="mb-3">Menu Categories</h4>
+                                <button v-if="isCashier" @click="openCustomerDisplay"
+                                    class="btn btn-primary d-flex align-items-center gap-2" type="button">
+                                    <i class="bi bi-tv"></i>
+                                    <span>Customer View</span>
+                                </button>
                                 <hr class="mt-2 mb-3">
                             </div>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
@@ -2751,7 +2839,7 @@ const getSelectedAddonsCount = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class=" text-success">Total Promo Savings:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3168,18 +3256,22 @@ const getSelectedAddonsCount = () => {
 }
 
 
-@media only screen and (max-width: 1024px){
+@media only screen and (max-width: 1024px) {
     .col-md-6 {
-        width: 51% !important;
+        width: 38% !important;
         flex: 0 0 100% !important;
-        max-width: 51% !important;
-}
+        max-width: 38% !important;
+    }
 
-.col-lg-4 {
+    .col-lg-4 {
         margin-top: 35px;
-        width: 44% !important;
-        max-width: 44% !important;
-}
+        width: 60% !important;
+        max-width: 60% !important;
+    }
+
+    .tablet-screen {
+        margin: 0px -131px 0px -14px !important;
+    }
 }
 
 

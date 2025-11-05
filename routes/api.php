@@ -81,6 +81,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('profile.tables');
         Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders'])->name('orders.today');
         Route::put('/kot-item/{item}/status', [PosOrderController::class, 'updateKotItemStatus'])->name('kot.item.status');
+        Route::post('/broadcast-cart', [PosOrderController::class, 'broadcastCart'])->name('broadcast.cart');
+        Route::post('/broadcast-ui', [PosOrderController::class, 'broadcastUI'])->name('broadcast.ui');
     });
 
     // Menu Categories
