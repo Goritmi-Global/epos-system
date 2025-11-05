@@ -9,7 +9,7 @@ import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 
 
-const { formatMoney, formatNumber, dateFmt } = useFormatters()
+const { formatMoney, formatNumber, formatCurrencySymbol, dateFmt } = useFormatters()
 
 /* ---------------- Filters (simple values to match your screenshot) ---------------- */
 const range = ref("last30"); // today | last7 | last30 | thisMonth | all
@@ -48,6 +48,7 @@ const paymentsMix = ref([]); // [{method,count,pct}]
 const topItems = ref([]); // [{name,qty,revenue}]
 const qItems = ref("");
 
+
 let debounceId;
 const fetchAnalytics = () => {
     clearTimeout(debounceId);
@@ -57,11 +58,14 @@ const fetchAnalytics = () => {
         try {
             const { data } = await axios.get("/api/analytics", {
                 params: {
-                    range: range.value,
-                    orderType: orderType.value,
-                    payType: payType.value,
+                    range: filters.value.range,
+                    orderType: filters.value.orderType,
+                    payType: filters.value.paymentType,
+                    dateFrom: filters.value.dateFrom,
+                    dateTo: filters.value.dateTo,
                 },
             });
+            console.log("analytics data", data);
             revenue.value = data.revenue ?? 0;
             ordersCount.value = data.ordersCount ?? 0;
             aov.value = data.aov ?? 0;
@@ -225,7 +229,7 @@ const topItemsFiltered = computed(() => {
             return result;
     }
 });
-
+const q = ref('');
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 onMounted(async () => {
@@ -256,16 +260,9 @@ onMounted(async () => {
             <!-- Filters row -->
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
                 <div class="d-flex flex-wrap gap-2">
-                     <FilterModal
-                        v-model="filters"
-                        title="Analytics"
-                        modal-id="analyticsFilterModal"
-                        modal-size="modal-lg"
-                        :sort-options="filterOptions.sortOptions"
-                        :show-date-range="true"
-                        @apply="handleFilterApply"
-                        @clear="handleFilterClear"
-                    >
+                    <FilterModal v-model="filters" title="Analytics" modal-id="analyticsFilterModal"
+                        modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-date-range="true"
+                        @apply="handleFilterApply" @clear="handleFilterClear">
                         <!-- Custom filters slot for Range, Order Type, and Payment Type -->
                         <template #customFilters="{ filters }">
                             <!-- Date Range Selection -->
@@ -273,15 +270,9 @@ onMounted(async () => {
                                 <label class="form-label fw-semibold text-dark">
                                     <i class="fas fa-calendar-alt me-2 text-muted"></i>Date Range
                                 </label>
-                                <select
-                                    v-model="filters.range"
-                                    class="form-select"
-                                >
-                                    <option
-                                        v-for="opt in filterOptions.rangeOptions"
-                                        :key="opt.value"
-                                        :value="opt.value"
-                                    >
+                                <select v-model="filters.range" class="form-select">
+                                    <option v-for="opt in filterOptions.rangeOptions" :key="opt.value"
+                                        :value="opt.value">
                                         {{ opt.label }}
                                     </option>
                                 </select>
@@ -292,16 +283,10 @@ onMounted(async () => {
                                 <label class="form-label fw-semibold text-dark">
                                     <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
                                 </label>
-                                <select
-                                    v-model="filters.orderType"
-                                    class="form-select"
-                                >
+                                <select v-model="filters.orderType" class="form-select">
                                     <option value="">All</option>
-                                    <option
-                                        v-for="opt in filterOptions.orderTypeOptions"
-                                        :key="opt.value"
-                                        :value="opt.value"
-                                    >
+                                    <option v-for="opt in filterOptions.orderTypeOptions" :key="opt.value"
+                                        :value="opt.value">
                                         {{ opt.label }}
                                     </option>
                                 </select>
@@ -312,16 +297,10 @@ onMounted(async () => {
                                 <label class="form-label fw-semibold text-dark">
                                     <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
                                 </label>
-                                <select
-                                    v-model="filters.paymentType"
-                                    class="form-select"
-                                >
+                                <select v-model="filters.paymentType" class="form-select">
                                     <option value="">All</option>
-                                    <option
-                                        v-for="opt in filterOptions.paymentTypeOptions"
-                                        :key="opt.value"
-                                        :value="opt.value"
-                                    >
+                                    <option v-for="opt in filterOptions.paymentTypeOptions" :key="opt.value"
+                                        :value="opt.value">
                                         {{ opt.label }}
                                     </option>
                                 </select>
@@ -354,11 +333,11 @@ onMounted(async () => {
             <!-- KPIs -->
             <div class="row g-3">
                 <!-- Revenue -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h4 class="mb-0 fw-bold">{{ revenue }}</h4>
+                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(revenue) }}</h4>
                                 <p class="text-muted mb-0 small">Revenue</p>
                             </div>
                             <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
@@ -370,11 +349,11 @@ onMounted(async () => {
                 </div>
 
                 <!-- Orders -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h4 class="mb-0 fw-bold">{{ ordersCount }}</h4>
+                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(ordersCount) }}</h4>
                                 <p class="text-muted mb-0 small">Orders</p>
                             </div>
                             <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
@@ -386,11 +365,11 @@ onMounted(async () => {
                 </div>
 
                 <!-- Average Order Value -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h4 class="mb-0 fw-bold">{{ aov }}</h4>
+                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(aov) }}</h4>
                                 <p class="text-muted mb-0 small">Avg. Order Value</p>
                             </div>
                             <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
@@ -402,11 +381,11 @@ onMounted(async () => {
                 </div>
 
                 <!-- Items Sold -->
-                <div class="col-6 col-lg-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4 ">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
-                                <h4 class="mb-0 fw-bold">{{ itemsSold }}</h4>
+                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(itemsSold) }}</h4>
                                 <p class="text-muted mb-0 small">Items Sold</p>
                             </div>
                             <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
@@ -455,7 +434,7 @@ onMounted(async () => {
                                     <span>Dine In</span>
                                     <span class="stack-val">{{ ordersByType.dine }} ({{
                                         ordersByType.dinePct
-                                    }}%)</span>
+                                        }}%)</span>
                                 </div>
                                 <div class="progress thin">
                                     <div class="progress-bar bg-success" :style="{
@@ -469,7 +448,7 @@ onMounted(async () => {
                                     <span>Delivery</span>
                                     <span class="stack-val">{{ ordersByType.delivery }} ({{
                                         ordersByType.deliveryPct
-                                    }}%)</span>
+                                        }}%)</span>
                                 </div>
                                 <div class="progress thin">
                                     <div class="progress-bar bg-primary" :style="{
@@ -488,7 +467,7 @@ onMounted(async () => {
                                 <div class="stack-row">
                                     <span class="text-capitalize">{{
                                         p.method
-                                        }}</span>
+                                    }}</span>
                                     <span class="stack-val">{{ p.count }} ({{ p.pct }}%)</span>
                                 </div>
                                 <div class="progress thin">
@@ -515,14 +494,14 @@ onMounted(async () => {
                         <h6 class="fw-semibold mb-0">Top Items</h6>
                         <div class="search-wrap">
                             <i class="bi bi-search"></i>
-                             <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                            <input type="email" name="email" autocomplete="email"
+                                style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                            <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                class="form-control search-input" placeholder="Search" type="search"
+                                autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
+                            <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
                         </div>
                     </div>
 
@@ -543,7 +522,7 @@ onMounted(async () => {
                                         {{ r.name }}
                                     </td>
                                     <td>{{ r.qty }}</td>
-                                    <td>{{ r.revenue }}</td>
+                                    <td>{{ formatCurrencySymbol(r.revenue) }}</td>
                                 </tr>
                                 <tr v-if="
                                     !loading &&
@@ -671,11 +650,11 @@ onMounted(async () => {
     font-size: 12px;
 }
 
-.dark .form-label{
+.dark .form-label {
     color: #fff !important;
 }
 
-.dark .form-select{
+.dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }
@@ -933,19 +912,20 @@ onMounted(async () => {
     padding: 0.25rem 0.5rem !important;
 }
 
-.dark .p-inputtext{
+.dark .p-inputtext {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-.dark .p-checkbox-icon{
-    color: #fff !important;
-}
-.dark .p-checkbox-input{
+.dark .p-checkbox-icon {
     color: #fff !important;
 }
 
-.dark .p-component{
+.dark .p-checkbox-input {
+    color: #fff !important;
+}
+
+.dark .p-component {
     color: #fff !important;
 }
 

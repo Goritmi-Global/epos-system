@@ -524,9 +524,9 @@ onMounted(fetchPrinters);
             <h4 class="fw-semibold mb-3">Kitchen Order Tickets</h4>
 
             <!-- KPI Cards -->
-            <div class="row g-3 mb-0">
+            <div class="row g-4">
                 <!-- Total Tables -->
-                <div class="col-6 col-md-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
@@ -542,7 +542,7 @@ onMounted(fetchPrinters);
                 </div>
 
                 <!-- Total Items -->
-                <div class="col-6 col-md-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
@@ -558,7 +558,7 @@ onMounted(fetchPrinters);
                 </div>
 
                 <!-- Pending Orders -->
-                <div class="col-6 col-md-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>
@@ -574,7 +574,7 @@ onMounted(fetchPrinters);
                 </div>
 
                 <!-- Cancelled Orders -->
-                <div class="col-6 col-md-3">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
                             <div>

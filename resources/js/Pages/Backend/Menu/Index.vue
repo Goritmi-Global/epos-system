@@ -3206,6 +3206,18 @@ const deleteVariantIngredients = (variantId) => {
     padding: 7px 8px !important;
 }
 
+:global(.dark .nav-link) {
+    background-color: #212121 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #fff !important;
+}
+
+:global(.dark .nav-link.active) {
+    background-color: #1C0D82 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #fff !important;
+}
+
 .custom-card-cost {
     padding: 8px 10px !important;
 }
@@ -3650,4 +3662,6 @@ const deleteVariantIngredients = (variantId) => {
         width: 100%;
     }
 }
+
+
 </style>
