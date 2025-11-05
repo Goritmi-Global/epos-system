@@ -339,6 +339,7 @@ Route::prefix('customer-display')->name('customer-display.')->group(function () 
     Route::get('/{terminal?}', [CustomerDisplayController::class, 'index'])
         ->name('index');
 });
+
 Route::get('/api/shift/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
     ->name('shift.x-report');
 
