@@ -648,13 +648,13 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
     const idx = orderItems.value.findIndex((i) => {
         // Compare variant
         if (i.variant_id !== variantId) return false;
-        
+
         // Compare addons
         const itemAddonIds = (i.addons || [])
             .map(a => a.id)
             .sort((a, b) => a - b)
             .join('-');
-        
+
         // Must match both product ID, variant, and addons
         return i.id === baseItem.id && itemAddonIds === addonIds;
     });
@@ -665,12 +665,12 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
         if (newQty <= orderItems.value[idx].stock) {
             orderItems.value[idx].qty = newQty;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * newQty;
-            
+
             // ✅ Update note if provided
             if (note && note.trim()) {
                 orderItems.value[idx].note = note;
             }
-            
+
             toast.success(`Quantity updated to ${newQty}`);
         } else {
             toast.error("Not enough Ingredients stock available for this Menu.");
@@ -696,7 +696,7 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             variant_name: variantName,
             addons: selectedAddons, // ✅ INCLUDE ADDONS
         });
-        
+
         toast.success(`${baseItem.title} added to cart`);
     }
 };
@@ -1090,7 +1090,7 @@ const confirmAdd = async () => {
     try {
         // ✅ Create sorted addon IDs for comparison
         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
-        
+
         const menuStock = variantIngredients.length > 0
             ? calculateStockForIngredients(variantIngredients)
             : 999999;
@@ -1098,12 +1098,12 @@ const confirmAdd = async () => {
         // ✅ Find existing item with EXACT same variant AND addons
         const idx = orderItems.value.findIndex((i) => {
             if (i.variant_id !== variantId) return false;
-            
+
             const itemAddonIds = (i.addons || [])
                 .map(a => a.id)
                 .sort((a, b) => a - b)
                 .join('-');
-            
+
             return i.id === selectedItem.value.id && itemAddonIds === addonIds;
         });
 
@@ -1111,12 +1111,12 @@ const confirmAdd = async () => {
             // ✅ Item exists - increment quantity
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
-            
+
             // ✅ Update note if provided
             if (modalNote.value && modalNote.value.trim()) {
                 orderItems.value[idx].note = modalNote.value;
             }
-            
+
             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
         } else {
             // ✅ New combination - add as new item
@@ -1134,7 +1134,7 @@ const confirmAdd = async () => {
                 variant_name: variantName,
                 addons: selectedAddons,
             });
-            
+
             toast.success(`${selectedItem.value.title} added to cart`);
         }
 
@@ -1506,12 +1506,12 @@ const confirmOrder = async ({
         console.log("Order response:", res.data);
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
-            
+
             // ✅ Wait 1 second then redirect to login
             setTimeout(() => {
                 window.location.href = res.data.redirect || '/login';
             }, 1000);
-            
+
             if (done) done();
             return; // ✅ Stop further execution
         }
@@ -2356,6 +2356,89 @@ const getSelectedAddonsCount = () => {
     return selectedCartItem.value.addons.filter(addon => addon.selected !== false).length;
 };
 
+
+
+
+
+
+
+const user = computed(() => page.props.current_user);
+
+const isCashier = computed(() => {
+    return user.value?.roles?.includes('Cashier') || 
+           user.value?.roles?.includes('Admin') || 
+           user.value?.roles?.includes('Manager');
+});
+
+import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
+
+const terminalId = ref(`terminal-${user.value?.id}-${Date.now()}`);
+const { broadcastCartUpdate } = usePOSBroadcast(terminalId.value);
+
+// Throttle the broadcast to avoid too many calls
+import { debounce } from 'lodash';
+
+const debouncedBroadcast = debounce((data) => {
+    broadcastCartUpdate(data);
+}, 500); // Wait 500ms after last change
+
+// Watch for cart changes and broadcast
+watch(
+    () => ({
+        items: orderItems.value,
+        customer: customer.value,
+        orderType: orderType.value,
+        table: selectedTable.value,
+        subtotal: subTotal.value,
+        tax: totalTax.value,
+        deliveryCharges: deliveryCharges.value,
+        promoDiscount: promoDiscount.value,
+        total: grandTotal.value,
+        note: note.value,
+    }),
+    (newCart) => {
+        console.log('Cart changed, broadcasting...', newCart);
+        debouncedBroadcast(newCart);
+    },
+    { deep: true, immediate: false }
+);
+
+
+// After terminalId ref
+const { broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
+
+// Debounce UI broadcast
+const debouncedUIBroadcast = debounce((data) => {
+    broadcastUIUpdate(data);
+}, 300);
+
+// Watch for UI state changes (add after cart watch)
+watch(
+    () => ({
+        showCategories: showCategories.value,
+        activeCat: activeCat.value,
+        menuCategories: menuCategories.value,
+        menuItems: menuItems.value,
+        searchQuery: searchQuery.value,
+    }),
+    (newUI) => {
+        console.log('UI state changed, broadcasting...', newUI);
+        debouncedUIBroadcast(newUI);
+    },
+    { deep: true, immediate: true }
+);
+
+// ✅ ADD THIS FUNCTION
+const openCustomerDisplay = () => {
+    if (!isCashier.value) {
+        alert('❌ Only cashiers can access customer display');
+        return;
+    }
+    const url = route('customer-display.index', { terminal: terminalId.value });
+    window.open(url, '_blank');
+};
+
+
 </script>
 
 <template>
@@ -2373,6 +2456,11 @@ const getSelectedAddonsCount = () => {
                             <div class="col-12 mb-3">
                                 <!-- <h5 class="fw-bold  mb-0"></h5> -->
                                 <h4 class="mb-3">Menu Categories</h4>
+                                <button v-if="isCashier" @click="openCustomerDisplay"
+                                    class="btn btn-primary d-flex align-items-center gap-2" type="button">
+                                    <i class="bi bi-tv"></i>
+                                    <span>Customer View</span>
+                                </button>
                                 <hr class="mt-2 mb-3">
                             </div>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
@@ -2664,7 +2752,7 @@ const getSelectedAddonsCount = () => {
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
                                                     {{ it.title }}
-                                                    
+
                                                 </div>
                                                 <!-- ✅ Addon Icons (clickable) -->
                                                 <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
@@ -2681,10 +2769,10 @@ const getSelectedAddonsCount = () => {
                                                         {{ it.variant_name }}
                                                     </span>
                                                     <!-- ✅ NEW: Show if promo applies to this item -->
-                                                <span v-if="isItemEligibleForPromo(it)" class="badge bg-success ms-1"
-                                                    style="font-size: 0.65rem;">
-                                                    <i class="bi bi-tag-fill"></i>
-                                                </span>
+                                                    <span v-if="isItemEligibleForPromo(it)"
+                                                        class="badge bg-success ms-1" style="font-size: 0.65rem;">
+                                                        <i class="bi bi-tag-fill"></i>
+                                                    </span>
                                                 </div>
 
                                                 <div class="note" v-if="it.note">
@@ -2751,7 +2839,7 @@ const getSelectedAddonsCount = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class=" text-success">Total Promo Savings:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
