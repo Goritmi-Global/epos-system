@@ -2538,7 +2538,7 @@ const openCustomerDisplay = () => {
                             </div>
 
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 col-xl-6 d-flex" v-for="p in filteredProducts" :key="p.id">
+                                <div class="col-12 col-md-6 cat-cards col-xl-6 d-flex" v-for="p in filteredProducts" :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
 
@@ -3258,23 +3258,21 @@ const openCustomerDisplay = () => {
 
 @media only screen and (max-width: 1024px) {
     .col-md-6 {
-        width: 38% !important;
+        width: 51% !important;
         flex: 0 0 100% !important;
-        max-width: 38% !important;
+        max-width: 51% !important;
     }
 
     .col-lg-4 {
         margin-top: 35px;
-        width: 60% !important;
-        max-width: 60% !important;
+        width: 40% !important;
+        max-width: 40% !important;
     }
 
     .tablet-screen {
         margin: 0px -131px 0px -14px !important;
     }
 }
-
-
 
 .fade-enter-active,
 .fade-leave-active {
