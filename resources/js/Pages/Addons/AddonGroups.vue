@@ -7,6 +7,10 @@ import axios from "axios";
 import Select from "primevue/select";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { Head } from "@inertiajs/vue3";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import FilterModal from "@/Components/FilterModal.vue";
 
 /* ============================================
    DATA & STATE MANAGEMENT
@@ -22,6 +26,13 @@ const addonGroupForm = ref({
     max_select: 1,
     description: "",
     status: "active",
+});
+
+const filters = ref({
+    sortBy: "",
+    stockStatus: "", // This will be "Group Status"
+    priceMin: null,
+    priceMax: null,
 });
 
 // Track if we're editing (null = create mode, object = edit mode)
@@ -74,7 +85,7 @@ onMounted(async () => {
     // Delay to prevent browser autofill
     setTimeout(() => {
         isReady.value = true;
-        
+
         // Force clear any autofill
         const input = document.getElementById(inputId);
         if (input) {
@@ -143,13 +154,71 @@ const isReady = ref(false);
  * Searches in: name
  */
 const filteredGroups = computed(() => {
+    let filtered = addonGroups.value;
+
+    // Filter by search query
     const searchTerm = q.value.trim().toLowerCase();
-    if (!searchTerm) return addonGroups.value;
-    
-    return addonGroups.value.filter((group) =>
-        group.name.toLowerCase().includes(searchTerm)
-    );
+    if (searchTerm) {
+        filtered = filtered.filter((group) =>
+            group.name.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    // Filter by status
+    if (filters.value.stockStatus) {
+        filtered = filtered.filter((group) => group.status === filters.value.stockStatus);
+    }
+
+    // Filter by addons count range (using priceMin/priceMax for count range)
+    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
+        filtered = filtered.filter((group) => (group.addons_count || 0) >= parseInt(filters.value.priceMin));
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
+        filtered = filtered.filter((group) => (group.addons_count || 0) <= parseInt(filters.value.priceMax));
+    }
+
+    // Apply sorting
+    if (filters.value.sortBy) {
+        switch (filters.value.sortBy) {
+            case "name_asc":
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case "name_desc":
+                filtered.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case "addons_asc":
+                filtered.sort((a, b) => (a.addons_count || 0) - (b.addons_count || 0));
+                break;
+            case "addons_desc":
+                filtered.sort((a, b) => (b.addons_count || 0) - (a.addons_count || 0));
+                break;
+            case "newest":
+                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                break;
+            case "oldest":
+                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                break;
+        }
+    }
+
+    return filtered;
 });
+
+
+const handleFilterApply = (appliedFilters) => {
+    filters.value = { ...filters.value, ...appliedFilters };
+    console.log("Filters applied:", filters.value);
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
+    };
+    console.log("Filters cleared");
+};
 
 /**
  * Handle focus on search input (prevents autofill)
@@ -183,7 +252,7 @@ const resetModal = () => {
  */
 const editRow = (row) => {
     editingGroup.value = row;
-    
+
     // Populate form with existing data
     addonGroupForm.value = {
         name: row.name,
@@ -246,7 +315,7 @@ const submitAddonGroup = async () => {
         // Handle validation errors (422)
         if (err.response?.status === 422 && err.response?.data?.errors) {
             formErrors.value = err.response.data.errors;
-            
+
             // Show all error messages
             const errorMessages = Object.values(err.response.data.errors).flat();
             toast.error(errorMessages.join("\n"));
@@ -275,7 +344,7 @@ const toggleStatus = async (row) => {
         await axios.patch(`/api/addon-groups/${row.id}/toggle-status`, {
             status: newStatus,
         });
-        
+
         // Update local state immediately
         row.status = newStatus;
         toast.success(`Status changed to ${newStatus}`);
@@ -302,18 +371,298 @@ const deleteGroup = async (row) => {
         await fetchAddonGroups();
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
-        
+
         // Show specific error message from backend
         const errorMessage = err.response?.data?.message || "Failed to delete addon group";
         toast.error(errorMessage);
+    }
+};
+
+
+const onDownload = (type) => {
+
+    if (!addonGroups.value || addonGroups.value.length === 0) {
+        toast.error("No Addon Groups data to download");
+        return;
+    }
+
+
+    const dataToExport = q.value.trim()
+        ? filteredGroups.value
+        : addonGroups.value;
+
+
+    if (dataToExport.length === 0) {
+        toast.error("No Addon Groups found to download");
+        return;
+    }
+
+    try {
+
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+
+const downloadCSV = (data) => {
+    console.log("Data to export:", data);
+    try {
+        // Define CSV column headers
+        const headers = ["Group Name", "Min Select", "Max Select", "Status", "Description", "Total Addons", "Addons List"];
+
+        // Map addon groups data to CSV rows
+        const rows = data.map((group) => {
+            // Get only addon names (no price, no special characters)
+            const addonsList = group.addons && group.addons.length > 0
+                ? group.addons.map(addon => addon.name).join(" | ")
+                : "No addons";
+
+            return [
+                `"${group.name || ""}"`,                              // Group Name
+                `${group.min_select || 0}`,                           // Min Select
+                `${group.max_select || 0}`,                           // Max Select
+                `"${group.status || "active"}"`,                      // Status
+                `"${(group.description || "").replace(/"/g, '""')}"`, // Description (escape quotes)
+                `${group.addons_count || 0}`,                         // Total Addons Count
+                `"${addonsList}"`,                                    // Addons List with prices
+            ];
+        });
+
+        // Build CSV content: headers + data rows
+        const csvContent = [
+            headers.join(","),                    // Header row
+            ...rows.map((r) => r.join(",")),      // Data rows
+        ].join("\n");
+
+        // Create blob from CSV content
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        // Create temporary download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Addon_Groups_${new Date().toISOString().split("T")[0]}.csv`
+        );
+
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+const downloadPDF = (data) => {
+    try {
+        // Initialize PDF document (Portrait, millimeters, A4 size)
+        const doc = new jsPDF("p", "mm", "a4");
+
+        // Add title
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Addon Groups with Addons Report", 14, 20);
+
+        // Add metadata (generation date and total records)
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Groups: ${data.length}`, 14, 34);
+
+        // Define table columns
+        const tableColumns = ["Group Name", "Min", "Max", "Status", "Total Addons", "Addons"];
+
+        // Map addon groups data to table rows
+        const tableRows = data.map((group) => {
+            // Get only addon names (no price, no special characters)
+            const addonsList = group.addons && group.addons.length > 0
+                ? group.addons.map(addon => addon.name).join(", ")
+                : "No addons";
+
+            return [
+                group.name || "",                           // Group Name
+                group.min_select || 0,                      // Min Select
+                group.max_select || 0,                      // Max Select
+                (group.status || "active").toUpperCase(),   // Status
+                group.addons_count || 0,                    // Total Addons Count
+                addonsList,                                 // Addons list with prices
+            ];
+        });
+
+        // Create styled table using autoTable plugin
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 3,
+                halign: "left",
+                valign: "top",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+                overflow: "linebreak",
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],    // Blue header background
+                textColor: 255,                // White text
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]    // Light gray alternate rows
+            },
+            columnStyles: {
+                5: { cellWidth: 50 }           // Make addons column wider
+            },
+            margin: { left: 14, right: 14 },
+
+            // Add page numbers at bottom
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        // Save PDF file with timestamp
+        const fileName = `Addon_Groups_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+const downloadExcel = (data) => {
+    try {
+        // Validate XLSX library is available
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        // ========== SHEET 1: MAIN ADDON GROUPS DATA ==========
+        const worksheetData = data.map((group) => {
+            // Format addons list with names only (no price, no special characters)
+            const addonsList = group.addons && group.addons.length > 0
+                ? group.addons.map(addon => addon.name).join(" | ")
+                : "No addons";
+
+            return {
+                "Group Name": group.name || "",
+                "Min Select": group.min_select || 0,
+                "Max Select": group.max_select || 0,
+                "Status": (group.status || "active").toUpperCase(),
+                "Total Addons": group.addons_count || 0,
+                "Description": group.description || "",
+                "Addons List": addonsList,
+            };
+        });
+
+        // Create workbook and first worksheet (Main Data sheet)
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths for better readability
+        worksheet["!cols"] = [
+            { wch: 20 }, // Group Name
+            { wch: 12 }, // Min Select
+            { wch: 12 }, // Max Select
+            { wch: 12 }, // Status
+            { wch: 14 }, // Total Addons
+            { wch: 30 }, // Description
+            { wch: 50 }, // Addons List
+        ];
+
+        // Add main data sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Addon Groups");
+
+        // ========== SHEET 2: DETAILED ADDONS BREAKDOWN ==========
+        const addonDetailData = [];
+
+        data.forEach((group) => {
+            if (group.addons && group.addons.length > 0) {
+                group.addons.forEach((addon) => {
+                    addonDetailData.push({
+                        "Group Name": group.name,
+                        "Addon Name": addon.name,
+                        "Price": addon.price || 0,
+                        "Status": (addon.status || "active").toUpperCase(),
+                        "Description": addon.description || "",
+                        "Sort Order": addon.sort_order || 0,
+                    });
+                });
+            }
+        });
+
+        const detailSheet = XLSX.utils.json_to_sheet(addonDetailData);
+        detailSheet["!cols"] = [
+            { wch: 20 }, // Group Name
+            { wch: 20 }, // Addon Name
+            { wch: 12 }, // Price
+            { wch: 12 }, // Status
+            { wch: 30 }, // Description
+            { wch: 12 }, // Sort Order
+        ];
+        XLSX.utils.book_append_sheet(workbook, detailSheet, "Addons Details");
+
+        // ========== SHEET 3: METADATA ==========
+        const metaData = [
+            { Info: "Report", Value: "Addon Groups with Addons Export" },
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Groups", Value: data.length },
+            { Info: "Total Addons", Value: data.reduce((sum, g) => sum + (g.addons_count || 0), 0) },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+
+        // Add metadata sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        // Save Excel file with timestamp
+        const fileName = `Addon_Groups_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
 </script>
 
 <template>
     <Master>
+
         <Head title="Addon Groups" />
-        
+
         <div class="page-wrapper">
             <!-- Page Header -->
             <h4 class="fw-semibold mb-3">Addon Groups Management</h4>
@@ -324,14 +673,12 @@ const deleteGroup = async (row) => {
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center">
                             <!-- Icon -->
-                            <div
-                                :class="[stat.iconBg, stat.iconColor]"
+                            <div :class="[stat.iconBg, stat.iconColor]"
                                 class="rounded-circle p-3 d-flex align-items-center justify-content-center me-3"
-                                style="width: 56px; height: 56px"
-                            >
+                                style="width: 56px; height: 56px">
                                 <component :is="stat.icon" class="w-6 h-6" />
                             </div>
-                            
+
                             <!-- Value & Label -->
                             <div>
                                 <h3 class="mb-0 fw-bold">{{ stat.value }}</h3>
@@ -350,52 +697,64 @@ const deleteGroup = async (row) => {
                         <h5 class="mb-0 fw-semibold">Addon Groups</h5>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
+
+
+                            <FilterModal v-model="filters" title="Addon Groups" modalId="addonGroupsFilterModal"
+                                modalSize="modal-lg" :sortOptions="[
+                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                    { value: 'addons_asc', label: 'Addons Count: Low to High' },
+                                    { value: 'addons_desc', label: 'Addons Count: High to Low' },
+                                    { value: 'newest', label: 'Newest First' },
+                                    { value: 'oldest', label: 'Oldest First' },
+                                ]" :showPriceRange="true" :showDateRange="false" :showCategory="false" statusLabel="Group Status"
+                                priceLabel="Addons Count Range" priceMinPlaceholder="Min Count"
+                                priceMaxPlaceholder="Max Count" @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                
+
                                 <!-- Hidden email input to prevent autofill -->
-                                <input
-                                    type="email"
-                                    name="email"
-                                    autocomplete="email"
-                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;"
-                                    tabindex="-1"
-                                    aria-hidden="true"
-                                />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
                                 <!-- Actual search input -->
-                                <input
-                                    v-if="isReady"
-                                    :id="inputId"
-                                    v-model="q"
-                                    :key="searchKey"
-                                    class="form-control search-input  rounded-pill"
-                                    placeholder="Search groups..."
-                                    type="search"
-                                    autocomplete="new-password"
-                                    :name="inputId"
-                                    role="presentation"
-                                    @focus="handleFocus"
-                                />
-                                <input
-                                    v-else
-                                    class="form-control search-input  rounded-pill"
-                                    placeholder="Search groups..."
-                                    disabled
-                                    type="text"
-                                />
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input  rounded-pill" placeholder="Search groups..."
+                                    type="search" autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input  rounded-pill"
+                                    placeholder="Search groups..." disabled type="text" />
                             </div>
 
                             <!-- Add Group Button -->
-                            <button
-                                data-bs-toggle="modal"
-                                data-bs-target="#addonGroupModal"
-                                @click="resetModal"
-                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white"
-                            >
+                            <button data-bs-toggle="modal" data-bs-target="#addonGroupModal" @click="resetModal"
+                                class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Group
                             </button>
+
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Export
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Export as PDF</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Export as Excel</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
@@ -433,16 +792,16 @@ const deleteGroup = async (row) => {
 
                                     <!-- Min Select -->
                                     <td>
-                                        
-                                            {{ row.min_select }}
-                                      
+
+                                        {{ row.min_select }}
+
                                     </td>
 
                                     <!-- Max Select -->
                                     <td>
-                                     
-                                            {{ row.max_select }}
-                                       
+
+                                        {{ row.max_select }}
+
                                     </td>
 
                                     <!-- Addons Count -->
@@ -454,13 +813,10 @@ const deleteGroup = async (row) => {
 
                                     <!-- Status Badge -->
                                     <td class="text-center">
-                                        <span
-                                            :class="
-                                                row.status === 'active'
-                                                    ? 'badge bg-success px-4 py-2 rounded-pill'
-                                                    : 'badge bg-danger px-4 py-2 rounded-pill'
-                                            "
-                                        >
+                                        <span :class="row.status === 'active'
+                                            ? 'badge bg-success px-4 py-2 rounded-pill'
+                                            : 'badge bg-danger px-4 py-2 rounded-pill'
+                                            ">
                                             {{ row.status === "active" ? "Active" : "Inactive" }}
                                         </span>
                                     </td>
@@ -469,42 +825,30 @@ const deleteGroup = async (row) => {
                                     <td class="text-center">
                                         <div class="d-inline-flex align-items-center gap-3">
                                             <!-- Edit Button -->
-                                            <button
-                                                @click="editRow(row)"
-                                                title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
-                                            >
+                                            <button @click="editRow(row)" title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Pencil class="w-4 h-4" />
                                             </button>
 
                                             <!-- Toggle Status Switch -->
-                                            <ConfirmModal
-                                                :title="'Confirm Status Change'"
+                                            <ConfirmModal :title="'Confirm Status Change'"
                                                 :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
-                                                :showStatusButton="true"
-                                                confirmText="Yes, Change"
-                                                cancelText="Cancel"
-                                                :status="row.status"
-                                                @confirm="toggleStatus(row)"
-                                            >
+                                                :showStatusButton="true" confirmText="Yes, Change" cancelText="Cancel"
+                                                :status="row.status" @confirm="toggleStatus(row)">
                                                 <template #trigger>
                                                     <button
                                                         class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
-                                                        :class="
-                                                            row.status === 'active'
-                                                                ? 'bg-green-500 hover:bg-green-600'
-                                                                : 'bg-red-400 hover:bg-red-500'
-                                                        "
-                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'"
-                                                    >
+                                                        :class="row.status === 'active'
+                                                            ? 'bg-green-500 hover:bg-green-600'
+                                                            : 'bg-red-400 hover:bg-red-500'
+                                                            "
+                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
-                                                            :class="
-                                                                row.status === 'active'
-                                                                    ? 'translate-x-4'
-                                                                    : 'translate-x-0'
-                                                            "
-                                                        ></span>
+                                                            :class="row.status === 'active'
+                                                                ? 'translate-x-4'
+                                                                : 'translate-x-0'
+                                                                "></span>
                                                     </button>
                                                 </template>
                                             </ConfirmModal>
@@ -535,24 +879,10 @@ const deleteGroup = async (row) => {
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                @click="resetModal"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                title="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
+                                @click="resetModal" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -563,13 +893,9 @@ const deleteGroup = async (row) => {
                                 <!-- Group Name -->
                                 <div class="col-12">
                                     <label class="form-label">Group Name *</label>
-                                    <input
-                                        v-model="addonGroupForm.name"
-                                        type="text"
-                                        class="form-control"
+                                    <input v-model="addonGroupForm.name" type="text" class="form-control"
                                         :class="{ 'is-invalid': formErrors.name }"
-                                        placeholder="e.g., Toppings, Extras, Sauces"
-                                    />
+                                        placeholder="e.g., Toppings, Extras, Sauces" />
                                     <small v-if="formErrors.name" class="text-danger">
                                         {{ formErrors.name[0] }}
                                     </small>
@@ -578,14 +904,9 @@ const deleteGroup = async (row) => {
                                 <!-- Min Select -->
                                 <div class="col-md-6">
                                     <label class="form-label">Minimum Select *</label>
-                                    <input
-                                        v-model.number="addonGroupForm.min_select"
-                                        type="number"
-                                        min="0"
-                                        class="form-control"
-                                        :class="{ 'is-invalid': formErrors.min_select }"
-                                        placeholder="0"
-                                    />
+                                    <input v-model.number="addonGroupForm.min_select" type="number" min="0"
+                                        class="form-control" :class="{ 'is-invalid': formErrors.min_select }"
+                                        placeholder="0" />
                                     <small class="text-muted">
                                         Minimum items customer must select
                                     </small>
@@ -597,14 +918,9 @@ const deleteGroup = async (row) => {
                                 <!-- Max Select -->
                                 <div class="col-md-6">
                                     <label class="form-label">Maximum Select *</label>
-                                    <input
-                                        v-model.number="addonGroupForm.max_select"
-                                        type="number"
-                                        min="1"
-                                        class="form-control"
-                                        :class="{ 'is-invalid': formErrors.max_select }"
-                                        placeholder="1"
-                                    />
+                                    <input v-model.number="addonGroupForm.max_select" type="number" min="1"
+                                        class="form-control" :class="{ 'is-invalid': formErrors.max_select }"
+                                        placeholder="1" />
                                     <small class="text-muted">
                                         Maximum items customer can select
                                     </small>
@@ -616,17 +932,9 @@ const deleteGroup = async (row) => {
                                 <!-- Status -->
                                 <div class="col-12">
                                     <label class="form-label">Status *</label>
-                                    <Select
-                                        v-model="addonGroupForm.status"
-                                        :options="statusOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        class="form-select"
-                                        appendTo="self"
-                                        :autoZIndex="true"
-                                        :baseZIndex="2000"
-                                        :class="{ 'is-invalid': formErrors.status }"
-                                    />
+                                    <Select v-model="addonGroupForm.status" :options="statusOptions" optionLabel="label"
+                                        optionValue="value" class="form-select" appendTo="self" :autoZIndex="true"
+                                        :baseZIndex="2000" :class="{ 'is-invalid': formErrors.status }" />
                                     <small v-if="formErrors.status" class="text-danger">
                                         {{ formErrors.status[0] }}
                                     </small>
@@ -635,13 +943,9 @@ const deleteGroup = async (row) => {
                                 <!-- Description -->
                                 <div class="col-12">
                                     <label class="form-label">Description (Optional)</label>
-                                    <textarea
-                                        v-model="addonGroupForm.description"
-                                        class="form-control"
-                                        rows="3"
+                                    <textarea v-model="addonGroupForm.description" class="form-control" rows="3"
                                         :class="{ 'is-invalid': formErrors.description }"
-                                        placeholder="Enter group description..."
-                                    ></textarea>
+                                        placeholder="Enter group description..."></textarea>
                                     <small v-if="formErrors.description" class="text-danger">
                                         {{ formErrors.description[0] }}
                                     </small>
@@ -652,11 +956,8 @@ const deleteGroup = async (row) => {
 
                             <!-- Modal Actions -->
                             <div class="mt-4">
-                                <button
-                                    class="btn btn-primary rounded-pill px-4"
-                                    :disabled="submitting"
-                                    @click="submitAddonGroup"
-                                >
+                                <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
+                                    @click="submitAddonGroup">
                                     <template v-if="submitting">
                                         <span class="spinner-border spinner-border-sm me-2"></span>
                                         Saving...
@@ -666,11 +967,8 @@ const deleteGroup = async (row) => {
                                     </template>
                                 </button>
 
-                                <button
-                                    class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    data-bs-dismiss="modal"
-                                    @click="resetModal"
-                                >
+                                <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                    @click="resetModal">
                                     Cancel
                                 </button>
                             </div>
@@ -708,7 +1006,7 @@ const deleteGroup = async (row) => {
     border-radius: 50%;
 }
 
- .dark .p-select {
+.dark .p-select {
     background-color: #181818 !important;
     color: #fff !important;
 }
@@ -967,7 +1265,7 @@ const deleteGroup = async (row) => {
     color: #aaa !important;
 }
 
-:global(.dark .dark .p-select){
+:global(.dark .dark .p-select) {
     background-color: #212121 !important;
 }
 </style>
