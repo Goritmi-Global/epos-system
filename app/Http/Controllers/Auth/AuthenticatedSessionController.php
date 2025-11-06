@@ -137,6 +137,7 @@ class AuthenticatedSessionController extends Controller
 
         if ($role === 'Super Admin') {
             if ($activeShift) {
+                session(['show_inventory_popup' => true]);
                 session(['current_shift_id' => $activeShift->id]);
                 return redirect()->route('dashboard');
             } else {
