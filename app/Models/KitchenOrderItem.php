@@ -15,6 +15,7 @@ class KitchenOrderItem extends Model
         'variant_name',
         'quantity',
         'ingredients',
+        'item_kitchen_note',
         'status',
     ];
 

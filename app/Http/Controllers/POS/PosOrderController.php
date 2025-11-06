@@ -163,6 +163,7 @@ class PosOrderController extends Controller
         if ($request->filled('items')) {
             try {
                 $items = json_decode($request->query('items'), true) ?? [];
+                \Log::info('Parsed items:', $items);
             } catch (\Throwable $e) {
                 \Log::error('Failed to parse items', ['error' => $e->getMessage()]);
             }
@@ -272,6 +273,7 @@ class PosOrderController extends Controller
 
             'note' => $data['note'] ?? null,
             'kitchen_note' => $data['kitchen_note'] ?? null,
+            'item_kitchen_note' => $data['item_kitchen_note'] ?? null,
         ];
 
         // 🔔 Flash for the frontend toast

@@ -45,6 +45,8 @@ class StorePosOrderRequest extends FormRequest
             'items.*.kitchen_note'     => 'nullable|string',
             'items.*.variant_id'       => 'nullable|numeric',
             'items.*.variant_name'     => 'nullable|string',
+            'items.*.item_kitchen_note' => 'nullable|string',
+
 
             // KOT validations
             'auto_print_kot' => 'nullable|boolean',
