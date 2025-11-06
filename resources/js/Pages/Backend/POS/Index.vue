@@ -1,7 +1,7 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head, usePage } from "@inertiajs/vue3";
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { toast } from "vue3-toastify";
 import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
@@ -24,6 +24,20 @@ const props = defineProps(["client_secret", "order_code"]);
 -----------------------------*/
 const menuCategories = ref([]);
 const menuCategoriesLoading = ref(true);
+
+const categorySearchQuery = ref("");
+const categorySearchKey = ref(Date.now());
+const categoryInputId = `category-search-${Math.random().toString(36).substr(2, 9)}`;
+const isCategorySearchReady = ref(false);
+
+const filteredCategories = computed(() => {
+    const q = categorySearchQuery.value.trim().toLowerCase();
+    if (!q) return categoriesWithMenus.value;
+
+    return categoriesWithMenus.value.filter(category =>
+        category.name.toLowerCase().includes(q)
+    );
+});
 
 const fetchMenuCategories = async () => {
     menuCategoriesLoading.value = true;
@@ -159,6 +173,7 @@ const getSelectedVariant = (product) => {
 
     return product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
 };
+
 
 
 // ============================================
@@ -540,6 +555,8 @@ const visibleProducts = computed(
 //             ).includes(q)
 //     );
 // });
+
+
 
 const filters = ref({
     sortBy: '',
@@ -1564,7 +1581,7 @@ const confirmOrder = async ({
 /* ----------------------------
    Lifecycle
 -----------------------------*/
-onMounted(() => {
+onMounted(async () => {
     if (window.bootstrap) {
         document
             .querySelectorAll('[data-bs-toggle="tooltip"]')
@@ -1576,6 +1593,20 @@ onMounted(() => {
             });
         }
     }
+    categorySearchQuery.value = "";
+    categorySearchKey.value = Date.now();
+    await nextTick();
+    // Delay to prevent autofill
+    setTimeout(() => {
+        isCategorySearchReady.value = true;
+        // Force clear any autofill that happened
+        const input = document.getElementById(categoryInputId);
+        if (input) {
+            input.value = '';
+            categorySearchQuery.value = '';
+        }
+    }, 100);
+
     fetchMenuCategories();
     fetchMenuItems();
     fetchProfileTables();
@@ -2371,6 +2402,12 @@ const getSelectedAddonsCount = () => {
 // ================================================
 const user = computed(() => page.props.current_user);
 
+const categoriesWithMenus = computed(() => {
+    return menuCategories.value.filter(category =>
+        category.menu_items_count && category.menu_items_count > 0
+    );
+});
+
 const isCashier = computed(() => {
     return user.value?.roles?.includes('Cashier') ||
         user.value?.roles?.includes('Admin') ||
@@ -2460,16 +2497,28 @@ const openCustomerDisplay = () => {
                     <div :class="showCategories ? 'col-md-12' : 'col-lg-8'">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3 tablet-screen">
-                            <div class="col-12 mb-3">
-                                <!-- <h5 class="fw-bold  mb-0"></h5> -->
-                                <h4 class="mb-3">Menu Categories</h4>
-                                <button v-if="isCashier" @click="openCustomerDisplay"
-                                    class="btn btn-primary d-flex align-items-center gap-2" type="button">
-                                    <i class="bi bi-tv"></i>
-                                    <span>Customer View</span>
-                                </button>
-                                <hr class="mt-2 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="mb-0">Menu Categories</h4>
+
+                                <!-- ✅ REPLACE THIS: Category search with autofill prevention -->
+                                <div style="width: 250px; position: relative;">
+                                    <!-- Hidden decoy input to catch autofill -->
+                                    <input type="email" name="email" autocomplete="email"
+                                        style="position: absolute; left: -9999px; width: 1px; height: 1px;"
+                                        tabindex="-1" aria-hidden="true" />
+
+                                    <input v-if="isCategorySearchReady" :id="categoryInputId"
+                                        v-model="categorySearchQuery" :key="categorySearchKey" type="search"
+                                        class="form-control form-control-sm" placeholder="Search categories..."
+                                        autocomplete="new-password" :name="categoryInputId" role="presentation"
+                                        style="border-radius: 8px; padding: 8px 12px;" />
+                                    <input v-else type="text" class="form-control form-control-sm"
+                                        placeholder="Search categories..." disabled
+                                        style="border-radius: 8px; padding: 8px 12px;" />
+                                </div>
                             </div>
+                            <hr>
+                            </hr>
                             <div v-if="menuCategoriesLoading" class="col-12 text-center py-5">
                                 <div class="spinner-border" role="status"
                                     style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;"></div>
@@ -2479,7 +2528,7 @@ const openCustomerDisplay = () => {
 
                             <!-- Categories List -->
                             <template v-else>
-                                <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-4">
+                                <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-4">
                                     <div class="cat-card" @click="openCategory(c)">
                                         <div class="cat-icon-wrap">
                                             <span class="cat-icon">
@@ -2497,7 +2546,7 @@ const openCustomerDisplay = () => {
 
 
                                 <!-- No Categories Found -->
-                                <div v-if="!menuCategoriesLoading && menuCategories.length === 0" class="col-12">
+                                <div v-if="!menuCategoriesLoading && filteredCategories.length === 0" class="col-12">
                                     <div class="alert alert-light border text-center rounded-4">
                                         No categories found
                                     </div>
@@ -3251,12 +3300,247 @@ const openCustomerDisplay = () => {
     color: #fff;
 }
 
-:global(.dark .p-multiselect-label-container) {
-    background-color: #212121 !important;
+
+:deep(.p-multiselect-overlay) {
+    background: #fff !important;
+    color: #000 !important;
 }
 
-:global(.dark .p-multiselect-dropdown) {
-    background-color: #212121 !important;
+/* Header area (filter + select all) */
+:deep(.p-multiselect-header) {
+    background: #fff !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Options list container */
+:deep(.p-multiselect-list) {
+    background: #fff !important;
+}
+
+/* Each option */
+:deep(.p-multiselect-option) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Hover/selected option */
+:deep(.p-multiselect-option.p-highlight) {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+}
+
+:deep(.p-multiselect),
+:deep(.p-multiselect-panel),
+:deep(.p-multiselect-token) {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Checkbox box in dropdown */
+:deep(.p-multiselect-overlay .p-checkbox-box) {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+}
+
+:deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
+    background: #007bff !important;
+    /* blue when checked */
+    border-color: #007bff !important;
+}
+
+/* Search filter input */
+:deep(.p-multiselect-filter) {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Optional: adjust filter container */
+:deep(.p-multiselect-filter-container) {
+    background: #fff !important;
+}
+
+/* Selected chip inside the multiselect */
+:deep(.p-multiselect-chip) {
+    background: #e9ecef !important;
+    /* light gray, like Bootstrap badge */
+    color: #000 !important;
+    border-radius: 12px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:deep(.p-multiselect-chip .p-chip-remove-icon) {
+    color: #555 !important;
+}
+
+:deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #dc3545 !important;
+    /* red on hover */
+}
+
+/* keep PrimeVue overlays above Bootstrap modal/backdrop */
+:deep(.p-multiselect-panel),
+:deep(.p-select-panel),
+:deep(.p-dropdown-panel) {
+    z-index: 2000 !important;
+}
+
+:deep(.p-multiselect-label) {
+    color: #000 !important;
+}
+
+/* ====================Select Styling===================== */
+/* Entire select container */
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c;
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #000 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important;
+    /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
+:global(.dark .p-select) {
+    background-color: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Options container */
+:global(.dark .p-select-list-container) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+/* Each option */
+:global(.dark .p-select-option) {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
+/* Hovered option */
+:global(.dark .p-select-option:hover),
+:global(.dark .p-select-option.p-focus) {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-select-label) {
     color: #fff !important;
 }
 

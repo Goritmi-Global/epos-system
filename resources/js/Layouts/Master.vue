@@ -351,26 +351,26 @@ const sidebarMenus = ref([
             },
             {
                 label: "Meals",
-                icon: "tag",
+                icon: "coffee",
                 route: "meals.index",
             },
 
-            {
-                label: "Variants",
-                icon: "sliders", // or "settings" or "toggle-right"
-                children: [
-                    {
-                        label: "Variant Groups",
-                        icon: "layers",
-                        route: "variant-groups.index",
-                    },
-                    {
-                        label: "Variants",
-                        icon: "list",
-                        route: "variants.index",
-                    },
-                ],
-            },
+            // {
+            //     label: "Variants",
+            //     icon: "sliders",
+            //     children: [
+            //         {
+            //             label: "Variant Groups",
+            //             icon: "layers",
+            //             route: "variant-groups.index",
+            //         },
+            //         {
+            //             label: "Variants",
+            //             icon: "list",
+            //             route: "variants.index",
+            //         },
+            //     ],
+            // },
 
             {
                 label: "Addons",
@@ -393,24 +393,27 @@ const sidebarMenus = ref([
                 icon: "users",
                 route: "shift.index",
             },
-
-        ],
-    },
-
-    {
-        section: "Other Menu",
-        children: [
-            { label: "Settings", icon: "settings", route: "settings.index" },
+              { label: "Settings", icon: "settings", route: "settings.index" },
             { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
             { label: "Backup Database", icon: "database", action: "databaseBackup" },
-            // {
-            //     label: "Log Out",
-            //     icon: "log-out",
-            //     route: "logout",
-            //     method: "post",
-            // },
+
         ],
     },
+
+    // {
+    //     section: "Other Menu",
+    //     children: [
+    //         { label: "Settings", icon: "settings", route: "settings.index" },
+    //         { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
+    //         { label: "Backup Database", icon: "database", action: "databaseBackup" },
+    //         // {
+    //         //     label: "Log Out",
+    //         //     icon: "log-out",
+    //         //     route: "logout",
+    //         //     method: "post",
+    //         // },
+    //     ],
+    // },
 ]);
 
 /* =========================

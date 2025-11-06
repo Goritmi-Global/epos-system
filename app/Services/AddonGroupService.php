@@ -16,8 +16,9 @@ class AddonGroupService
     public function getAllGroups()
     {
         try {
-            // Fetch all groups with addon count using eager loading
+           
             return AddonGroup::withCount('addons')
+            ->with('addons')
                 ->orderBy('created_at', 'desc')
                 ->get();
         } catch (\Exception $e) {

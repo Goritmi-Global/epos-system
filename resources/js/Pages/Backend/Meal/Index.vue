@@ -6,6 +6,9 @@ import { toast } from "vue3-toastify";
 import axios from "axios";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { Head } from "@inertiajs/vue3";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 
 import { usePage } from "@inertiajs/vue3";
@@ -183,6 +186,221 @@ const deleteMeal = async (row) => {
         toast.error("Failed to delete meal");
     }
 };
+
+/* ---------------- Export Functions ---------------- */
+const onDownload = (type) => {
+    if (!meals.value || meals.value.length === 0) {
+        toast.error("No Meals data to download");
+        return;
+    }
+
+    // Use filtered data if search query exists, otherwise use all meals
+    const dataToExport = q.value.trim() ? filtered.value : meals.value;
+
+    // Validate that there's data to export after filtering
+    if (dataToExport.length === 0) {
+        toast.error("No Meals found to download");
+        return;
+    }
+
+    try {
+        // Route to appropriate export function based on type
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+const downloadCSV = (data) => {
+    console.log("Data to export:", data);
+    try {
+        // Define CSV column headers
+        const headers = ["ID", "Meal Name", "Start Time", "End Time"];
+
+        // Map meals data to CSV rows
+        const rows = data.map((meal) => {
+            return [
+                `${meal.id || ""}`,                                    // ID
+                `"${meal.name || ""}"`,                                // Meal Name
+                `"${meal.start_time || ""}"`,                          // Start Time
+                `"${meal.end_time || ""}"`,                            // End Time
+            ];
+        });
+
+        // Build CSV content: headers + data rows
+        const csvContent = [
+            headers.join(","),                    // Header row
+            ...rows.map((r) => r.join(",")),      // Data rows
+        ].join("\n");
+
+        // Create blob from CSV content
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        // Create temporary download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Meals_${new Date().toISOString().split("T")[0]}.csv`
+        );
+
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+const downloadPDF = (data) => {
+    try {
+        // Initialize PDF document (Portrait, millimeters, A4 size)
+        const doc = new jsPDF("p", "mm", "a4");
+
+        // Add title
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Meals Report", 14, 20);
+
+        // Add metadata (generation date and total records)
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Meals: ${data.length}`, 14, 34);
+
+        // Define table columns
+        const tableColumns = ["ID", "Meal Name", "Start Time", "End Time"];
+
+        // Map meals data to table rows
+        const tableRows = data.map((meal) => {
+            return [
+                meal.id || "",                           // ID
+                meal.name || "",                         // Meal Name
+                meal.start_time || "",                   // Start Time
+                meal.end_time || "",                     // End Time
+            ];
+        });
+
+        // Create styled table using autoTable plugin
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 9,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],    // Blue header background
+                textColor: 255,                // White text
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]    // Light gray alternate rows
+            },
+            margin: { left: 14, right: 14 },
+
+            // Add page numbers at bottom
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        // Save PDF file with timestamp
+        const fileName = `Meals_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+const downloadExcel = (data) => {
+    try {
+        // Validate XLSX library is available
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        // Prepare worksheet data
+        const worksheetData = data.map((meal) => {
+            return {
+                "ID": meal.id || "",
+                "Meal Name": meal.name || "",
+                "Start Time": meal.start_time || "",
+                "End Time": meal.end_time || "",
+            };
+        });
+
+        // Create workbook and first worksheet (Data sheet)
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths for better readability
+        worksheet["!cols"] = [
+            { wch: 8 },  // ID
+            { wch: 25 }, // Meal Name
+            { wch: 15 }, // Start Time
+            { wch: 15 }, // End Time
+        ];
+
+        // Add data sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Meals");
+
+        // Create metadata sheet with report info
+        const metaData = [
+            { Info: "Report", Value: "Meals Export" },
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+
+        // Add metadata sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        // Save Excel file with timestamp
+        const fileName = `Meals_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
 </script>
 
 <template>
@@ -237,6 +455,29 @@ const deleteMeal = async (row) => {
                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Meal
                             </button>
+
+                            
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Export
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Export as PDF</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Export as Excel</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
