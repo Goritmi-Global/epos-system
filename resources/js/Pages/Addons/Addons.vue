@@ -8,6 +8,10 @@ import Select from "primevue/select";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { Head } from "@inertiajs/vue3";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import FilterModal from "@/Components/FilterModal.vue";
 
 const { formatCurrencySymbol } = useFormatters();
 
@@ -163,6 +167,13 @@ const addonStats = computed(() => {
 // Search query
 const q = ref("");
 
+const filters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null
+});
+
 // Unique key for search input (prevents autofill issues)
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
@@ -185,15 +196,7 @@ const uniqueGroups = computed(() => {
 const filteredAddons = computed(() => {
     let filtered = addons.value;
 
-    // Filter by addon group
-    if (selectedGroupFilter.value !== "all") {
-        filtered = filtered.filter(
-            (addon) =>
-                addon.addon_group?.name.toLowerCase() === selectedGroupFilter.value.toLowerCase()
-        );
-    }
-
-    // Filter by search query
+    // Filter by search query (name or addon group name)
     const searchTerm = q.value.trim().toLowerCase();
     if (searchTerm) {
         filtered = filtered.filter(
@@ -203,9 +206,73 @@ const filteredAddons = computed(() => {
         );
     }
 
+    // Filter by addon group (category)
+    if (filters.value.category) {
+        filtered = filtered.filter(
+            (addon) => addon.addon_group_id === parseInt(filters.value.category)
+        );
+    }
+
+    // Filter by price range
+    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
+        filtered = filtered.filter((addon) => parseFloat(addon.price) >= parseFloat(filters.value.priceMin));
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
+        filtered = filtered.filter((addon) => parseFloat(addon.price) <= parseFloat(filters.value.priceMax));
+    }
+
+    // Filter by status
+    if (filters.value.stockStatus) {
+        filtered = filtered.filter((addon) => addon.status === filters.value.stockStatus);
+    }
+
+    // Remove date filtering section completely
+
+    // Apply sorting
+    if (filters.value.sortBy) {
+        switch (filters.value.sortBy) {
+            case "price_asc":
+                filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                break;
+            case "price_desc":
+                filtered.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                break;
+            case "name_asc":
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case "name_desc":
+                filtered.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case "newest":
+                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                break;
+            case "oldest":
+                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                break;
+        }
+    }
+
     return filtered;
 });
 
+const handleFilterApply = (appliedFilters) => {
+    filters.value = { ...filters.value, ...appliedFilters };
+    console.log("Filters applied:", filters.value);
+};
+
+/**
+ * Handle filter clear event
+ */
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
+
+    };
+    console.log("Filters cleared");
+};
 /**
  * Set the group filter
  */
@@ -391,6 +458,237 @@ const addonGroupOptions = computed(() => {
         value: group.id,
     }));
 });
+
+const addonGroupsForFilter = computed(() => {
+    return addonGroups.value.map((group) => ({
+        id: group.id,
+        name: group.name,
+    }));
+});
+
+
+const onDownload = (type) => {
+    
+    if (!addons.value || addons.value.length === 0) {
+        toast.error("No Addons data to download");
+        return;
+    }
+
+    // Use filtered data if search query or group filter exists, otherwise use all addons
+    const dataToExport = (q.value.trim() || selectedGroupFilter.value !== "all")
+        ? filteredAddons.value
+        : addons.value;
+
+    // Validate that there's data to export after filtering
+    if (dataToExport.length === 0) {
+        toast.error("No Addons found to download");
+        return;
+    }
+
+    try {
+        // Route to appropriate export function based on type
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+
+const downloadCSV = (data) => {
+    console.log("Data to export:", data);
+    try {
+        // Define CSV column headers
+        const headers = ["Addon Name", "Addon Group", "Price", "Status", "Description"];
+
+        // Map addons data to CSV rows
+        const rows = data.map((addon) => {
+            return [
+                `"${addon.name || ""}"`,                                    // Addon Name
+                `"${addon.addon_group?.name || "N/A"}"`,                    // Addon Group
+                `${addon.price || 0}`,                                      // Price
+                `"${addon.status || "active"}"`,                            // Status
+                `"${(addon.description || "").replace(/"/g, '""')}"`,       // Description (escape quotes)
+            ];
+        });
+
+        // Build CSV content: headers + data rows
+        const csvContent = [
+            headers.join(","),                    // Header row
+            ...rows.map((r) => r.join(",")),      // Data rows
+        ].join("\n");
+
+        // Create blob from CSV content
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        // Create temporary download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Addons_${new Date().toISOString().split("T")[0]}.csv`
+        );
+
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+
+const downloadPDF = (data) => {
+    try {
+        // Initialize PDF document (Portrait, millimeters, A4 size)
+        const doc = new jsPDF("p", "mm", "a4");
+
+        // Add title
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Addons Report", 14, 20);
+
+        // Add metadata (generation date and total records)
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Addons: ${data.length}`, 14, 34);
+
+        // Define table columns
+        const tableColumns = ["Addon Name", "Addon Group", "Price", "Status", "Description"];
+
+        // Map addons data to table rows
+        const tableRows = data.map((addon) => {
+            return [
+                addon.name || "",                           // Addon Name
+                addon.addon_group?.name || "N/A",           // Addon Group
+                addon.price || 0,                           // Price
+                (addon.status || "active").toUpperCase(),   // Status (formatted)
+                addon.description || "",                    // Description
+            ];
+        });
+
+        // Create styled table using autoTable plugin
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 9,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],    // Blue header background
+                textColor: 255,                // White text
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]    // Light gray alternate rows
+            },
+            margin: { left: 14, right: 14 },
+
+            // Add page numbers at bottom
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        // Save PDF file with timestamp
+        const fileName = `Addons_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+const downloadExcel = (data) => {
+    try {
+        // Validate XLSX library is available
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        // Prepare worksheet data matching CSV structure
+        const worksheetData = data.map((addon) => {
+            return {
+                "Addon Name": addon.name || "",
+                "Addon Group": addon.addon_group?.name || "N/A",
+                "Price": addon.price || 0,
+                "Status": (addon.status || "active").toUpperCase(),
+                "Description": addon.description || "",
+            };
+        });
+
+        // Create workbook and first worksheet (Data sheet)
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths for better readability
+        worksheet["!cols"] = [
+            { wch: 20 }, // Addon Name
+            { wch: 18 }, // Addon Group
+            { wch: 12 }, // Price
+            { wch: 12 }, // Status
+            { wch: 30 }, // Description
+        ];
+
+        // Add data sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Addons");
+
+        // Create metadata sheet with report info
+        const metaData = [
+            { Info: "Report", Value: "Addons Export" },
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+
+        // Add metadata sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        // Save Excel file with timestamp
+        const fileName = `Addons_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
 </script>
 
 <template>
@@ -432,6 +730,17 @@ const addonGroupOptions = computed(() => {
                         <h5 class="mb-0 fw-semibold">Addons</h5>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <FilterModal v-model="filters" title="Addons" modalId="addonsFilterModal"
+                                modalSize="modal-lg" :sortOptions="[
+                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                    { value: 'price_asc', label: 'Price: Low to High' },
+                                    { value: 'price_desc', label: 'Price: High to Low' },
+                                    { value: 'newest', label: 'Newest First' },
+                                    { value: 'oldest', label: 'Oldest First' },
+                                ]" :categories="addonGroupsForFilter" categoryLabel="Addon Group"
+                                statusLabel="Addon Status" :showPriceRange="true" :showDateRange="false"
+                                @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
@@ -453,11 +762,36 @@ const addonGroupOptions = computed(() => {
                                     placeholder="Search addons..." disabled type="text" />
                             </div>
 
+
+
                             <!-- Add Addon Button -->
                             <button data-bs-toggle="modal" data-bs-target="#addonModal" @click="resetModal"
                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Addon
                             </button>
+
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Export
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Export as PDF</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Export as Excel</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
                         </div>
                     </div>
 
@@ -465,8 +799,8 @@ const addonGroupOptions = computed(() => {
                     <div class="mb-3 d-flex flex-wrap gap-2">
                         <button v-for="group in uniqueGroups" :key="group" @click="setGroupFilter(group)"
                             class="btn rounded-pill" :class="selectedGroupFilter === (group === 'All' ? 'all' : group)
-                                    ? 'btn-primary'
-                                    : 'btn-outline-primary'
+                                ? 'btn-primary'
+                                : 'btn-outline-primary'
                                 ">
                             {{ group }}
                         </button>
@@ -518,8 +852,8 @@ const addonGroupOptions = computed(() => {
                                     <!-- Status Badge -->
                                     <td class="text-center">
                                         <span :class="row.status === 'active'
-                                                ? 'badge bg-success px-4 py-2 rounded-pill'
-                                                : 'badge bg-danger px-4 py-2 rounded-pill'
+                                            ? 'badge bg-success px-4 py-2 rounded-pill'
+                                            : 'badge bg-danger px-4 py-2 rounded-pill'
                                             ">
                                             {{ row.status === "active" ? "Active" : "Inactive" }}
                                         </span>
@@ -543,17 +877,17 @@ const addonGroupOptions = computed(() => {
                                                     <button
                                                         class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
                                                         :class="row.status === 'active'
-                                                                ? 'bg-green-500 hover:bg-green-600'
-                                                                : 'bg-red-400 hover:bg-red-500'
+                                                            ? 'bg-green-500 hover:bg-green-600'
+                                                            : 'bg-red-400 hover:bg-red-500'
                                                             " :title="row.status === 'active'
                                                                 ? 'Set Inactive'
                                                                 : 'Set Active'
-                                                            ">
+                                                                ">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
                                                             :class="row.status === 'active'
-                                                                    ? 'translate-x-4'
-                                                                    : 'translate-x-0'
+                                                                ? 'translate-x-4'
+                                                                : 'translate-x-0'
                                                                 "></span>
                                                     </button>
                                                 </template>
@@ -728,7 +1062,7 @@ const addonGroupOptions = computed(() => {
 }
 
 
- .dark .p-select {
+.dark .p-select {
     background-color: #181818 !important;
     color: #fff !important;
 }
@@ -987,7 +1321,7 @@ const addonGroupOptions = computed(() => {
     color: #aaa !important;
 }
 
-:global(.dark .dark .p-select){
+:global(.dark .dark .p-select) {
     background-color: #212121 !important;
 }
 </style>

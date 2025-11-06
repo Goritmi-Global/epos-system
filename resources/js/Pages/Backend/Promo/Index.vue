@@ -1159,8 +1159,8 @@ onUpdated(() => window.feather?.replace());
     background-color: #222 !important;
 }
 
-:global(.p-tablist-tab-list){
-    background: #fff !important;
+:global(.dark .p-tablist-tab-list){
+    background: #212121 !important;
 }
 .p-tabpanels{
     background-color: #fff !important;

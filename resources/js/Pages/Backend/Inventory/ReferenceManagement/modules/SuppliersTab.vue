@@ -49,7 +49,7 @@ onMounted(async () => {
     searchKey.value = Date.now();
     await nextTick();
 
-    // Delay to prevent autofill
+   
     setTimeout(() => {
         isReady.value = true;
 
