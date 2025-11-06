@@ -1042,6 +1042,9 @@ const menuStockForSelected = computed(() =>
 // };
 
 
+// ✅ Add this reactive variable at the top with your other modal variables
+const modalItemKitchenNote = ref('');
+
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
 
@@ -1129,9 +1132,15 @@ const confirmAdd = async () => {
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
 
-            // ✅ Update note if provided
-            if (modalNote.value && modalNote.value.trim()) {
-                orderItems.value[idx].note = modalNote.value;
+            // ✅ Update kitchen note if provided (keep existing or update with new)
+            if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
+                // Append to existing note if present, or replace
+                const existingNote = orderItems.value[idx].item_kitchen_note || '';
+                if (existingNote && existingNote !== modalItemKitchenNote.value.trim()) {
+                    orderItems.value[idx].item_kitchen_note = existingNote + '; ' + modalItemKitchenNote.value.trim();
+                } else {
+                    orderItems.value[idx].item_kitchen_note = modalItemKitchenNote.value.trim();
+                }
             }
 
             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
@@ -1145,6 +1154,7 @@ const confirmAdd = async () => {
                 unit_price: Number(totalItemPrice),
                 qty: modalQty.value,
                 note: modalNote.value || "",
+                item_kitchen_note: modalItemKitchenNote.value.trim() || "", // ✅ NEW: Item-specific kitchen note
                 stock: menuStock,
                 ingredients: variantIngredients,
                 variant_id: variantId,
@@ -1163,6 +1173,7 @@ const confirmAdd = async () => {
         // ✅ Reset modal state after successful add
         modalQty.value = 0;
         modalNote.value = "";
+        modalItemKitchenNote.value = ""; // ✅ Reset kitchen note
         modalSelectedVariant.value = null;
         modalSelectedAddons.value = {};
 
@@ -1186,7 +1197,6 @@ const calculateStockForIngredients = (ingredients) => {
 
     return menuStock === Infinity ? 0 : menuStock;
 };
-
 
 /* ----------------------------
    Update Stock
@@ -1444,7 +1454,7 @@ async function printKot(order) {
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
-    cardAmount,  // ✅ Add this parameter
+    cardAmount,
     changeAmount,
     items,
     autoPrintKot,
@@ -1509,7 +1519,7 @@ const confirmOrder = async ({
                 note: it.note ?? "",
                 kitchen_note: kitchenNote.value ?? "",
                 unit_price: it.unit_price,
-
+                item_kitchen_note: it.item_kitchen_note ?? "",
                 tax_percentage: getItemTaxPercentage(it),
                 tax_amount: getItemTax(it),
                 variant_id: it.variant_id || null,
@@ -2387,6 +2397,9 @@ const getSelectedAddonsCount = () => {
     return selectedCartItem.value.addons.filter(addon => addon.selected !== false).length;
 };
 
+// ================================================
+//              Customer View Screen
+// ================================================
 const user = computed(() => page.props.current_user);
 
 const categoriesWithMenus = computed(() => {
@@ -2462,7 +2475,7 @@ watch(
 // ✅ ADD THIS FUNCTION
 const openCustomerDisplay = () => {
     if (!isCashier.value) {
-        alert('❌ Only cashiers can access customer display');
+        toast.error('Only cashiers can access customer display');
         return;
     }
     const url = route('customer-display.index', { terminal: terminalId.value });
@@ -3014,6 +3027,8 @@ const openCustomerDisplay = () => {
                                         </div>
                                     </div>
 
+                                    
+
                                     <!-- Nutrition, Allergies, Tags (Dynamic based on variant) -->
                                     <div class="chips mb-3">
                                         <div class="mb-1">
@@ -3058,6 +3073,17 @@ const openCustomerDisplay = () => {
                                         <button class="qty-btn" @click="incQty" :disabled="!canIncModalQty()">
                                             +
                                         </button>
+                                    </div>
+
+                                    <!-- Kitchen Note Field  -->
+                                    <div class="mt-3">
+                                        <label class="form-label small fw-semibold mb-1">
+                                            Kitchen Note (Optional)
+                                        </label>
+                                        <textarea v-model="modalItemKitchenNote" class="form-control form-control-sm"
+                                            rows="4"
+                                            placeholder="Special instructions to kitchen for this item (e.g., extra spicy, no onions)..."
+                                            maxlength="200"></textarea>
                                     </div>
                                 </div>
                             </div>

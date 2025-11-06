@@ -263,6 +263,7 @@ async function pay() {
         price: it.price,
         note: it.note ?? null,
         kitchen_note: it.kitchenNote ?? null,
+        item_kitchen_note: it.item_kitchen_note ?? null, 
       }))
     ),
   });

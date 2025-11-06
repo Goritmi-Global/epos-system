@@ -175,7 +175,7 @@ function handleCardConfirm(payload) {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -200,7 +200,7 @@ function handleCardConfirm(payload) {
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -223,7 +223,7 @@ function handleCardConfirm(payload) {
                                                     </thead>
                                                     <tbody>
                                                         <tr v-for="(item, index) in orderItems" :key="item.id || index
-                                                                ">
+                                                            ">
                                                             <td>
                                                                 {{ index + 1 }}
                                                             </td>
@@ -248,6 +248,10 @@ function handleCardConfirm(payload) {
                                                                     {{
                                                                         item.kitchen_note
                                                                     }}
+                                                                </div>
+                                                                <div v-if="item.item_kitchen_note"
+                                                                    class="small text-warning fw-semibold">
+                                                                    🍳 Item Note: {{ item.item_kitchen_note }}
                                                                 </div>
                                                             </td>
                                                             <td class="text-center">
@@ -390,33 +394,20 @@ function handleCardConfirm(payload) {
 
                                         <!-- Card -->
                                         <div v-if="paymentMethod === 'Card'" class="pt-3 border-top">
-                                            <StripePayment 
-                                            :order_code="order_code" 
-                                            :show="show" 
-                                            :customer="customer"
-                                            :orderType="orderType" 
-                                            :selectedTable="selectedTable"
-                                            :orderItems="orderItems" 
-                                            :grandTotal="grandTotal" 
-                                            :money="money"
-                                            :cashReceived="cashReceived" 
-                                            :subTotal="subTotal" 
-                                            :tax="tax ?? 0"
-                                            :serviceCharges="serviceCharges ?? 0" 
-                                            :deliveryCharges="deliveryCharges ?? 0" 
-                                            :note="note"
-                                            :kitchen-note="kitchenNote"
-                                            :orderDate="orderDate ?? new Date().toISOString().split('T')[0]" 
-                                            :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
-                                            :paymentMethod="paymentMethod" 
-                                            :change="changeAmount"
-                                            :promo-discount="promoDiscount" 
-                                            :promo-id="promoId"
-                                            :promo-name="promoName"
-                                            :promo-type="promoType"
-                                            :promo-discount-amount="promoDiscountAmount"
-                                            :applied-promos="appliedPromos"
-                                            />
+                                            <StripePayment :order_code="order_code" :show="show" :customer="customer"
+                                                :orderType="orderType" :selectedTable="selectedTable"
+                                                :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
+                                                :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
+                                                :serviceCharges="serviceCharges ?? 0"
+                                                :deliveryCharges="deliveryCharges ?? 0" :note="note"
+                                                :kitchen-note="kitchenNote"
+                                                :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
+                                                :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
+                                                :paymentMethod="paymentMethod" :change="changeAmount"
+                                                :promo-discount="promoDiscount" :promo-id="promoId"
+                                                :promo-name="promoName" :promo-type="promoType"
+                                                :promo-discount-amount="promoDiscountAmount"
+                                                :applied-promos="appliedPromos" />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
@@ -453,34 +444,20 @@ function handleCardConfirm(payload) {
                                                 @confirm="handleSplitConfirm"
                                             /> -->
 
-                                            <SplitPayment 
-                                            :order_code="order_code" 
-                                            :show="show" 
-                                            :customer="customer"
-                                            :orderType="orderType" 
-                                            :selectedTable="selectedTable"
-                                            :orderItems="orderItems" 
-                                            :grandTotal="grandTotal" 
-                                            :money="money"
-                                            :cashReceived="cashReceived" 
-                                            :subTotal="subTotal" 
-                                            :tax="tax ?? 0"
-                                            :serviceCharges="serviceCharges ?? 0" 
-                                            :deliveryCharges="deliveryCharges ?? 0"
-                                            :note="note" 
-                                            :kitchen-note="kitchenNote"
-                                            :orderDate="orderDate ?? new Date().toISOString().split('T')[0]" 
-                                            :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
-                                            :paymentMethod="paymentMethod" 
-                                            :change="changeAmount"
-                                            :paymentType="paymentMethod" 
-                                            :promo-discount="promoDiscount" 
-                                            :promo-id="promoId"
-                                            :promo-name="promoName"
-                                            :promo-type="promoType"
-                                            :promo-discount-amount="promoDiscountAmount"
-                                            :applied-promos="appliedPromos"
-                                            />
+                                            <SplitPayment :order_code="order_code" :show="show" :customer="customer"
+                                                :orderType="orderType" :selectedTable="selectedTable"
+                                                :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
+                                                :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
+                                                :serviceCharges="serviceCharges ?? 0"
+                                                :deliveryCharges="deliveryCharges ?? 0" :note="note"
+                                                :kitchen-note="kitchenNote"
+                                                :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
+                                                :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
+                                                :paymentMethod="paymentMethod" :change="changeAmount"
+                                                :paymentType="paymentMethod" :promo-discount="promoDiscount"
+                                                :promo-id="promoId" :promo-name="promoName" :promo-type="promoType"
+                                                :promo-discount-amount="promoDiscountAmount"
+                                                :applied-promos="appliedPromos" />
                                         </div>
 
                                         <div class="mt-auto small text-muted pt-2">

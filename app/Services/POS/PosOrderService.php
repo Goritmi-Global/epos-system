@@ -74,6 +74,7 @@ class PosOrderService
                     'note' => $item['note'] ?? null,
                     'variant_name' => $item['variant_name'] ?? null,
                     'kitchen_note' => $item['kitchen_note'] ?? null,
+                    'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
                 ]);
 
                 // Store addons in order_item_addons table
@@ -109,7 +110,7 @@ class PosOrderService
                                 'operation_type' => 'pos_stockout',
                                 'stock_type' => 'stockout',
                                 'description' => "Auto stockout from POS Order #{$order->id}" .
-                                    ($item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
+                                    (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
                                 'user_id' => Auth::id(),
                             ]);
                         }
@@ -144,6 +145,7 @@ class PosOrderService
                     'quantity' => $orderItem->quantity,
                     'variant_name' => $orderItem->variant_name ?? null,
                     'ingredients' => $ingredientsArray,
+                    'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
                     'status' => KitchenOrderItem::STATUS_WAITING,
                 ]);
             }

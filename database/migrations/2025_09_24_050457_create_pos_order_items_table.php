@@ -21,6 +21,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->text('note')->nullable();
             $table->text('kitchen_note')->nullable();
+            $table->text('item_kitchen_note')->nullable();
             $table->timestamps();
         });
     }

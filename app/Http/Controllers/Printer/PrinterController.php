@@ -398,6 +398,17 @@ class PrinterController extends Controller
                     foreach ($wrapped as $more) {
                         $printer->text(sprintf("%-" . $colItem . "s\n", mb_strimwidth($more, 0, $colItem, "")));
                     }
+                    if (!empty($item['item_kitchen_note'])) {
+                        $printer->setEmphasis(true);
+                        $printer->text("Note: ");
+                        $printer->setEmphasis(false);
+
+                        // Wrap long notes
+                        $noteWrapped = explode("\n", wordwrap($item['item_kitchen_note'], $colItem - 4, "\n", true));
+                        foreach ($noteWrapped as $noteLine) {
+                            $printer->text("    " . $noteLine . "\n");
+                        }
+                    }
                 }
             }
 
