@@ -17,6 +17,7 @@ const fetchOrders = async () => {
     try {
         const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
+        console.log("Fetched orders:", orders.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -708,6 +709,9 @@ onMounted(fetchPrinters);
                                     <th>Payment Type</th>
                                     <th>Actual Price</th>
                                     <th>Promo Discount</th>
+                                    <th>Tax</th>
+                                    <th>Service Charges</th>
+                                    <th>Delivery Charges</th>
                                     <th>Promo Name</th>
                                     <th>Total</th>
                                     <th class="text-center">Actions</th>
@@ -715,6 +719,7 @@ onMounted(fetchPrinters);
                             </thead>
                             <tbody>
                                 <tr v-for="(o, i) in sortedOrders" :key="o.id">
+                                    <!-- {{ o }} -->
                                     <td>{{ i + 1 }}</td>
                                     <td>{{ o.type?.table_number ?? "-" }}</td>
                                     <td>{{ o.type?.order_type ?? "-" }}</td>
@@ -732,11 +737,13 @@ onMounted(fetchPrinters);
 
                                     <!-- Promo discount -->
                                     <td class="text-success">
-                                        -{{ formatCurrencySymbol(o.promo?.discount_amount ?? 0) }}
+                                        -{{ formatCurrencySymbol(o.promo[0]?.discount_amount ?? 0) }}
                                     </td>
-
+                                    <td>{{ o.tax ?? "-" }}</td>
+                                    <td>{{ o.service_charges ?? "-" }}</td>
+                                    <td>{{ o.delivery_charges ?? "-" }}</td>
                                     <td>
-                                        {{ o.promo?.promo_name || '-' }}
+                                        {{ o.promo[0]?.promo_name || '-' }}
                                     </td>
 
 
@@ -753,7 +760,7 @@ onMounted(fetchPrinters);
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="11" class="text-center text-muted py-4">
+                                    <td colspan="15" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>
@@ -1015,7 +1022,7 @@ onMounted(fetchPrinters);
                                                 <th>Item</th>
                                                 <th>Qty</th>
                                                 <th>Actual Price</th>
-                                                <th>Promo Discount</th>
+                                                <th>=</th>
                                                 <th>Promo Name</th>
                                                 <th>Total Price</th>
                                             </tr>
@@ -1027,9 +1034,9 @@ onMounted(fetchPrinters);
                                                 <td>{{ item.title }}</td>
                                                 <td>{{ item.quantity }}</td>
                                                 <td class="fw-semibold">{{ formatCurrencySymbol(item.price) }}</td>
-                                                <td>-</td>
+                                                <td></td>
                                                 <td>
-                                                    {{ selectedOrder?.promo?.promo_name || '-' }}
+                                                    {{ selectedOrder.promo[0]?.promo_name || '-' }}
                                                 </td>
                                                 <td class="fw-bold text-success">
                                                     {{ formatCurrencySymbol(item.price) }}
@@ -1047,7 +1054,7 @@ onMounted(fetchPrinters);
 
                                                 </td>
                                                 <td class="text-success fw-semibold" colspan="3">
-                                                    -{{ formatCurrencySymbol(selectedOrder.promo.discount_amount) }}
+                                                    -{{ formatCurrencySymbol(selectedOrder.promo[0].discount_amount) }}
                                                 </td>
 
                                             </tr>
