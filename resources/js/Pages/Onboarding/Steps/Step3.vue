@@ -7,7 +7,7 @@ const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { t
 const emit = defineEmits(["save"]);
 
 const form = reactive({
-    currency: props.model?.currency ?? "₨",  // Default to symbol
+    currency: props.model?.currency ?? "£",  // Default to symbol
     currency_symbol_position: props.model?.currency_symbol_position ?? "before",
     date_format: props.model?.date_format ?? "dd/MM/yyyy",
     number_format: props.model?.number_format ?? "1,000",
