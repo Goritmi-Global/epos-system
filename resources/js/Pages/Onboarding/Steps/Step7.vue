@@ -149,6 +149,11 @@ watch(form, emitSave, { deep: true, immediate: true })
   overflow: hidden;
 }
 
+.dark input{
+  background-color: #212121 !important;
+  color: #fff !important;
+}
+
 .segmented__input {
   position: absolute;
   opacity: 0;

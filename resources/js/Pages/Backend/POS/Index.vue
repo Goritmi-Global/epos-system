@@ -1414,7 +1414,7 @@ const openConfirmModal = () => {
         return;
     }
 
-    cashReceived.value = grandTotal.value;
+    cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
     showConfirmModal.value = true;
 };
 
@@ -2896,7 +2896,7 @@ const openCustomerDisplay = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class=" text-success">Total Promo Savings:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3027,7 +3027,7 @@ const openCustomerDisplay = () => {
                                         </div>
                                     </div>
 
-                                    
+
 
                                     <!-- Nutrition, Allergies, Tags (Dynamic based on variant) -->
                                     <div class="chips mb-3">
