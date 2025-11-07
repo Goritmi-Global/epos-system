@@ -216,7 +216,7 @@ function addIngredient(item) {
     formErrors.value[item.id] = {};
 
     if (!qty || qty <= 0) formErrors.value[item.id].qty = "Enter a valid quantity.";
-    if (!price || price <= 0) formErrors.value[item.id].unitPrice = "Enter a valid unit price.";
+    // if (!price || price <= 0) formErrors.value[item.id].unitPrice = "Enter a valid unit price.";
 
     if (Object.keys(formErrors.value[item.id]).length > 0) {
         const messages = Object.values(formErrors.value[item.id]).join("\n");
@@ -2029,8 +2029,37 @@ const openIngredientModal = (variantMode = false) => {
         }
         // If editing, data is already loaded by editVariantIngredients
     } else {
-        // For simple menu mode
-        i_cart.value = [...(form.value.ingredients || [])];
+        // ✅ FIX: For simple menu mode, load from form.ingredients properly
+        if (isEditMode.value && form.value.ingredients && form.value.ingredients.length > 0) {
+            // Load existing ingredients from form
+            i_cart.value = form.value.ingredients.map((ing) => {
+                const quantity = parseFloat(ing.quantity || ing.qty || 0);
+                const cost = parseFloat(ing.cost || 0);
+                const unitPrice = quantity > 0 ? cost / quantity : 0;
+
+                const inv = inventoryItems.value.find(
+                    (item) => item.id === (ing.inventory_item_id || ing.id)
+                );
+
+                return {
+                    id: ing.inventory_item_id || ing.id,
+                    name: ing.product_name || ing.name || inv?.name || "—",
+                    category: inv?.category || ing.category || { name: "" },
+                    qty: quantity,
+                    unitPrice: unitPrice,
+                    cost: cost,
+                    nutrition: ing.nutrition || inv?.nutrition || {
+                        calories: 0,
+                        protein: 0,
+                        carbs: 0,
+                        fat: 0,
+                    },
+                };
+            });
+        } else {
+            // New menu - start with empty cart
+            i_cart.value = [];
+        }
     }
 
     // Close menu modal
@@ -2612,23 +2641,23 @@ const deleteVariantIngredients = (variantId) => {
                                                                 <tr>
                                                                     <th>Name</th>
                                                                     <th>Qty</th>
-                                                                    <th>Unit Price</th>
-                                                                    <th>Cost</th>
+                                                                    <!-- <th>Unit Price</th> -->
+                                                                    <!-- <th>Cost</th> -->
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 <tr v-for="(ing, idx) in i_cart" :key="idx">
                                                                     <td>{{ ing.name }}</td>
                                                                     <td>{{ ing.qty }}</td>
-                                                                    <td>{{ formatCurrencySymbol(ing.unitPrice) }}</td>
-                                                                    <td>{{ formatCurrencySymbol(ing.cost) }}</td>
+                                                                    <!-- <td>{{ formatCurrencySymbol(ing.unitPrice) }}</td> -->
+                                                                    <!-- <td>{{ formatCurrencySymbol(ing.cost) }}</td> -->
                                                                 </tr>
                                                             </tbody>
                                                         </table>
                                                     </div>
-                                                    <div class="p-3 fw-semibold text-end">
+                                                    <!-- <div class="p-3 fw-semibold text-end">
                                                         Total Cost: {{ formatCurrencySymbol(i_total) }}
-                                                    </div>
+                                                    </div> -->
                                                 </div>
                                             </div>
                                         </div>
@@ -2887,8 +2916,8 @@ const deleteVariantIngredients = (variantId) => {
                                                                         <tr>
                                                                             <th class="small">Name</th>
                                                                             <th class="small">Qty</th>
-                                                                            <th class="small">Price</th>
-                                                                            <th class="small">Cost</th>
+                                                                            <!-- <th class="small">Price</th> -->
+                                                                            <!-- <th class="small">Cost</th> -->
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -2896,17 +2925,17 @@ const deleteVariantIngredients = (variantId) => {
                                                                             :key="idx">
                                                                             <td class="small">{{ ing.name }}</td>
                                                                             <td class="small">{{ ing.qty }}</td>
-                                                                            <td class="small">{{
+                                                                            <!-- <td class="small">{{
                                                                                 formatCurrencySymbol(ing.unitPrice) }}
                                                                             </td>
                                                                             <td class="small">{{
-                                                                                formatCurrencySymbol(ing.cost) }}</td>
+                                                                                formatCurrencySymbol(ing.cost) }}</td> -->
                                                                         </tr>
                                                                     </tbody>
                                                                 </table>
                                                             </div>
                                                         </div>
-                                                        <div class="card-footer bg-light custom-card-cost">
+                                                        <!-- <div class="card-footer bg-light custom-card-cost">
                                                             <div class="fw-semibold text-end">
                                                                 Total Cost: {{
                                                                     formatCurrencySymbol(
@@ -2915,7 +2944,7 @@ const deleteVariantIngredients = (variantId) => {
                                                                     )
                                                                 }}
                                                             </div>
-                                                        </div>
+                                                        </div> -->
                                                     </div>
                                                 </div>
                                             </div>
@@ -3114,14 +3143,14 @@ const deleteVariantIngredients = (variantId) => {
                                                         {{ formErrors[it.id].qty }}
                                                     </small>
                                                 </div>
-                                                <div class="col-4">
+                                                <!-- <div class="col-4">
                                                     <label class="small text-muted">Unit Price</label>
                                                     <input v-model.number="it.unitPrice" type="number" min="0"
                                                         class="form-control form-control-sm" />
                                                     <small v-if="formErrors[it.id]?.unitPrice" class="text-danger">
                                                         {{ formErrors[it.id].unitPrice }}
                                                     </small>
-                                                </div>
+                                                </div> -->
                                             </div>
                                         </div>
                                     </div>
@@ -3146,8 +3175,8 @@ const deleteVariantIngredients = (variantId) => {
                                                     <tr>
                                                         <th>Name</th>
                                                         <th>Qty</th>
-                                                        <th>Unit Price</th>
-                                                        <th>Cost</th>
+                                                        <!-- <th>Unit Price</th> -->
+                                                        <!-- <th>Cost</th> -->
                                                         <th class="text-end">Action</th>
                                                     </tr>
                                                 </thead>
@@ -3155,8 +3184,8 @@ const deleteVariantIngredients = (variantId) => {
                                                     <tr v-for="(ing, idx) in i_cart" :key="idx">
                                                         <td>{{ ing.name }}</td>
                                                         <td>{{ ing.qty }}</td>
-                                                        <td>{{ ing.unitPrice }}</td>
-                                                        <td>{{ ing.cost }}</td>
+                                                        <!-- <td>{{ ing.unitPrice }}</td> -->
+                                                        <!-- <td>{{ ing.cost }}</td> -->
                                                         <td class="text-end">
                                                             <button class="btn btn-sm btn-danger"
                                                                 @click="removeIngredient(idx)">
@@ -3172,9 +3201,9 @@ const deleteVariantIngredients = (variantId) => {
                                                 </tbody>
                                             </table>
                                         </div>
-                                        <div class="p-3 fw-semibold text-end">
+                                        <!-- <div class="p-3 fw-semibold text-end">
                                             Total Cost: {{ formatCurrencySymbol(i_total) }}
-                                        </div>
+                                        </div> -->
                                     </div>
 
                                     <div class="mt-3 text-center">

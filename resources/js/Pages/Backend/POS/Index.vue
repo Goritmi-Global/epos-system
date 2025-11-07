@@ -1481,8 +1481,6 @@ const confirmOrder = async ({
                 applied_to_items: promo.applied_to_items || []
             })),
             total_amount: grandTotal.value,
-            // tax: 0,
-            service_charges: 0,
             delivery_charges: deliveryCharges.value,
             note: note.value,
             kitchen_note: kitchenNote.value,
@@ -2482,6 +2480,19 @@ const openCustomerDisplay = () => {
     window.open(url, '_blank');
 };
 
+const getVariantPriceRange = (product) => {
+    if (!product.variants || product.variants.length === 0) return null;
+
+    const prices = product.variants.map(v => Number(v.price || 0));
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    return {
+        min: minPrice,
+        max: maxPrice
+    };
+};
+
 
 </script>
 
@@ -2602,6 +2613,13 @@ const openCustomerDisplay = () => {
                                         <!-- Left Side (Image + Price Badge) - 40% -->
                                         <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                             <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
+                                            <!-- ✅ Show Variant Price Range -->
+                                            <div v-if="p.variants && p.variants.length > 0"
+                                                class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 py-1 fw-semibold"
+                                                style="font-size: 0.85rem;">
+                                                {{ formatCurrencySymbol(getVariantPriceRange(p).min) }} -
+                                                {{ formatCurrencySymbol(getVariantPriceRange(p).max) }}
+                                            </div>
 
                                             <!-- Dynamic Price Badge including addons -->
                                             <span
@@ -2896,7 +2914,7 @@ const openCustomerDisplay = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class=" text-success">Total Promo Savings:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3027,7 +3045,7 @@ const openCustomerDisplay = () => {
                                         </div>
                                     </div>
 
-                                    
+
 
                                     <!-- Nutrition, Allergies, Tags (Dynamic based on variant) -->
                                     <div class="chips mb-3">
@@ -3300,6 +3318,9 @@ const openCustomerDisplay = () => {
     color: #fff;
 }
 
+.bg-light{
+    font-size: 1.2rem !important;
+}
 
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
