@@ -2,11 +2,26 @@
 import { reactive, ref, toRaw, watch, onMounted, computed } from "vue";
 import Select from "primevue/select";
 import ImageCropperModal from "@/Components/ImageCropperModal.vue";
-import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 
 const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { type: Boolean, default: false } });
 
 const emit = defineEmits(["save"]);
+
+/* UK Phone Configuration */
+const UK_COUNTRY_CODE = "+44";
+const UK_PHONE_LENGTH = 10; // UK local number length without country code
+const UK_AREA_CODES = {
+    "20": "London",
+    "121": "Birmingham",
+    "161": "Manchester",
+    "113": "Leeds",
+    "141": "Glasgow",
+    "151": "Liverpool",
+    "191": "Newcastle",
+    "118": "Reading",
+    "131": "Edinburgh",
+    "29": "Cardiff"
+};
 
 /* ------------------ FORM ------------------ */
 const form = reactive({
@@ -16,61 +31,62 @@ const form = reactive({
     email: props.model?.email ?? "",
     website: props.model?.website ?? "",
     legal_name: props.model?.legal_name ?? "",
-    // phone pieces
-    phone_country: props.model?.phone_country ?? "",
-    phone_code: props.model?.phone_code ?? "",
+    // phone - UK only
+    phone_country: "GB",
+    phone_code: UK_COUNTRY_CODE,
     phone_local: props.model?.phone_local ?? "",
     phone: props.model?.phone ?? "",
-    // logo
     logo: props.model?.logo ?? null,
     logo_url: props.model?.logo_url ?? null,
     logo_file: null,
 });
 
 // Phone validation state
-const phoneError = ref('')
-const isPhoneValid = ref(false)
+const phoneError = ref('');
+const isPhoneValid = ref(false);
+const phoneWarnings = ref([]);
 
-// Validate phone number
+// Validate UK phone number (International format: 10 digits without +44)
 const validatePhone = () => {
-    phoneError.value = ''
-    isPhoneValid.value = false
+    phoneError.value = '';
+    phoneWarnings.value = [];
+    isPhoneValid.value = false;
 
-    // Convert to string to handle both string and number inputs
-    const phoneLocal = String(form.phone_local || '').trim()
-    const fullPhone = form.phone_code + phoneLocal
+    const phoneLocal = String(form.phone_local || '').trim();
 
     if (!phoneLocal) {
-        phoneError.value = 'Phone number is required'
-        return false
+        phoneError.value = 'Phone number is required';
+        return false;
     }
 
-    try {
-        // Validate with country context
-        const isValid = isValidPhoneNumber(fullPhone, form.phone_country)
+    // Remove any non-digit characters
+    let cleanPhone = phoneLocal.replace(/\D+/g, '');
 
-        if (!isValid) {
-            phoneError.value = `Invalid phone number for ${form.phone_country}`
-            return false
-        }
+    // International UK format: 10 digits (without +44)
+    // e.g., 7311865859
+    const UK_INTL_LENGTH = 10;
 
-        // Optional: Parse to get more details
-        const phoneNumber = parsePhoneNumber(fullPhone, form.phone_country)
-        console.log('📱 Phone details:', {
-            country: phoneNumber.country,
-            nationalNumber: phoneNumber.nationalNumber,
-            isValid: phoneNumber.isValid(),
-            type: phoneNumber.getType() // 'MOBILE', 'FIXED_LINE', etc.
-        })
-
-        isPhoneValid.value = true
-        return true
-    } catch (error) {
-        console.error('Phone validation error:', error)
-        phoneError.value = 'Invalid phone number format'
-        return false
+    // Check length
+    if (cleanPhone.length < UK_INTL_LENGTH) {
+        phoneError.value = `UK phone number must be exactly ${UK_INTL_LENGTH} digits`;
+        return false;
     }
-}
+
+    if (cleanPhone.length > UK_INTL_LENGTH) {
+        phoneError.value = `UK phone number cannot exceed ${UK_INTL_LENGTH} digits. You entered ${cleanPhone.length} digits`;
+        return false;
+    }
+
+    // Check valid UK patterns (must start with valid number)
+    const validPatterns = /^[1-9]\d{9}$/;
+    if (!validPatterns.test(cleanPhone)) {
+        phoneError.value = 'Invalid UK phone number format';
+        return false;
+    }
+
+    isPhoneValid.value = true;
+    return true;
+};
 
 /* ------------------ BUSINESS TYPE ------------------ */
 const businessTypeOptions = ref([
@@ -81,7 +97,6 @@ const businessTypeOptions = ref([
     { name: "Food Truck", code: "food_truck" },
 ]);
 
-// Initialize selected business type with support for custom types
 const initializeBusinessType = () => {
     const savedType = props.model?.business_type;
 
@@ -90,10 +105,8 @@ const initializeBusinessType = () => {
         return;
     }
 
-    // Check if the saved type exists in options
     let found = businessTypeOptions.value.find((o) => o.name === savedType);
 
-    // If not found, it means it was a custom type - add it back
     if (!found) {
         const customOption = {
             name: savedType,
@@ -108,10 +121,8 @@ const initializeBusinessType = () => {
 };
 
 const selectedBusinessType = ref(null);
-
 const businessTypeFilterValue = ref('');
 
-// Check if the filter text matches any existing option
 const isNewBusinessType = computed(() => {
     if (!businessTypeFilterValue.value || businessTypeFilterValue.value.trim() === '') return false;
     const searchTerm = businessTypeFilterValue.value.toLowerCase().trim();
@@ -120,7 +131,6 @@ const isNewBusinessType = computed(() => {
     );
 });
 
-// Add custom business type
 const addCustomBusinessType = () => {
     const customName = businessTypeFilterValue.value.trim();
     if (!customName) return;
@@ -128,13 +138,12 @@ const addCustomBusinessType = () => {
     const newOption = {
         name: customName,
         code: customName.toLowerCase().replace(/\s+/g, '_'),
-        custom: true // Flag to identify custom entries
+        custom: true
     };
 
     businessTypeOptions.value.push(newOption);
     selectedBusinessType.value = newOption;
     businessTypeFilterValue.value = '';
-
 };
 
 watch(selectedBusinessType, (opt) => {
@@ -142,105 +151,35 @@ watch(selectedBusinessType, (opt) => {
     emitSave();
 });
 
-/* ------------------ PHONE (flag + dial) ------------------ */
-const countriesDial = ref([])
-const selectedDial = ref(null)
-
-const fetchCountriesDial = async () => {
-    try {
-        console.log("🟡 [FETCH] Fetching countries dial...");
-        const { data } = await axios.get("/api/countries")
-        countriesDial.value = data.map(c => ({
-            name: c.name,
-            iso: c.code,
-            dial: c.phone_code
-        }))
-    } catch (error) {
-        console.error("❌ [FETCH] fetchCountriesDial error:", error)
-    }
-}
-
-function syncDialFromIso(iso) {
-    if (!iso) {
-        return;
-    }
-    const opt = countriesDial.value.find(o => o.iso === iso.toUpperCase())
-    if (opt) {
-        selectedDial.value = opt;
-        form.phone_country = opt.iso;
-        form.phone_code = opt.dial;
-    }
-}
-
 function buildFullPhone() {
-    const code = (form.phone_code || "").trim();
-    // Convert to string first, then remove non-digits
     const local = String(form.phone_local || "").replace(/\D+/g, "");
-    form.phone = code + local;
+    form.phone = form.phone_code + local;
 }
 
 onMounted(async () => {
-
-    // Initialize business type first
     initializeBusinessType();
-
-    await fetchCountriesDial()
-    initializePhoneData()
-})
-
-// Separate function to initialize/reset phone data
-function initializePhoneData() {
-
-    // ✅ Always prioritize country_code from Step 1
-    // This ensures when user changes country in Step 1, we get the new value
-    const countryCode = props.model?.country_code || props.model?.phone_country;
-
-    if (countryCode) {
-        syncDialFromIso(countryCode)
+    
+    // Initialize phone with existing data if available
+    if (props.model?.phone_local) {
+        form.phone_local = props.model.phone_local;
+    } else if (props.model?.phone) {
+        // Extract local number from full phone if only full phone exists
+        const full = props.model.phone;
+        form.phone_local = full.replace(UK_COUNTRY_CODE, '').trim();
     }
 
-    // If phone_local is empty but full phone exists, extract it
-    let phoneLocal = props.model?.phone_local || "";
-
-    if (!phoneLocal && props.model?.phone) {
-        const full = props.model.phone
-        const matched = countriesDial.value.find(opt => full.startsWith(opt.dial));
-
-        // ✅ CRITICAL FIX: Only extract if the phone matches the current country
-        // This prevents old phone data from overwriting the new country selection
-        if (matched && matched.iso === countryCode) {
-            phoneLocal = full.slice(matched.dial.length)
-        }
-    }
-
-    form.phone_local = phoneLocal
-    buildFullPhone()
+    buildFullPhone();
 
     // Initialize logo if needed
     if (!form.logo_url && props.model?.upload_id && props.model?.logo_path) {
-        form.logo_url = props.model.logo_url || `/storage/${props.model.logo_path}`
+        form.logo_url = props.model?.logo_url || `/storage/${props.model?.logo_path}`;
     }
-}
-
-watch(selectedDial, (opt, oldOpt) => {
-    if (!opt) return;
-    form.phone_country = opt.iso;
-    form.phone_code = opt.dial;
-    buildFullPhone();
-    emitSave();
 });
 
-watch(() => form.phone_local, (val, oldVal) => {
+watch(() => form.phone_local, (val) => {
     buildFullPhone();
-    validatePhone(); // Validate on input
+    validatePhone();
     emitSave();
-});
-
-// Also validate when country changes
-watch(() => form.phone_country, () => {
-    if (form.phone_local) {
-        validatePhone();
-    }
 });
 
 /* ------------------ LOGO (crop / zoom modal hooks) ------------------ */
@@ -261,20 +200,14 @@ function onCropped({ file }) {
 }
 
 function emitSave() {
-  const isValidNow = validatePhone(); // returns true/false
+    const isValidNow = validatePhone();
 
-  // Emit full form + validity status to parent
-  emit("save", {
-    step: 2,
-    data: toRaw(form),
-    valid: isValidNow
-  });
+    emit("save", {
+        step: 2,
+        data: toRaw(form),
+        valid: isValidNow
+    });
 }
-
-
-/* helper for flags */
-const flagUrl = (iso, size = "24x18") =>
-    `https://flagcdn.com/${size}/${String(iso || "").toLowerCase()}.png`;
 </script>
 
 <template>
@@ -304,7 +237,6 @@ const flagUrl = (iso, size = "24x18") =>
                     </div>
 
                     <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
-                    <!-- Validation for logo -->
                     <small v-if="formErrors?.logo_file" class="text-danger">
                         {{ formErrors.logo_file[0] }}
                     </small>
@@ -339,7 +271,6 @@ const flagUrl = (iso, size = "24x18") =>
                         </div>
                     </template>
 
-                    <!-- Footer with "Add Custom" button -->
                     <template #footer>
                         <div v-if="isNewBusinessType" class="p-2 border-top">
                             <button type="button" class="btn btn-sm btn-primary w-100" @click="addCustomBusinessType">
@@ -353,6 +284,7 @@ const flagUrl = (iso, size = "24x18") =>
                     {{ formErrors.business_type[0] }}
                 </small>
                 <br>
+
                 <!-- Address -->
                 <label class="form-label mt-3">Address*</label>
                 <input class="form-control" v-model="form.address" @input="emitSave"
@@ -362,67 +294,40 @@ const flagUrl = (iso, size = "24x18") =>
                 </small>
 
                 <div class="row g-3 mt-1">
-                    <!-- Phone -->
-                    <!-- <div class="col-md-6">
-                        <label class="form-label">Phone*</label>
-                        <div class="input-group">
-                            <span class="input-group-text p-0">
-                                <Select v-model="selectedDial" :options="countriesDial" optionLabel="dial" :pt="{
-                                    listContainer: { class: 'bg-white text-black' },
-                                    option: { class: 'text-black hover:bg-gray-100' },
-                                    header: { class: 'bg-white text-black' },
-                                     trigger: { class: 'hidden' }
-                                }" placeholder="Code" class="dial-select" />
-
-                            </span>
-                            <input class="form-control" inputmode="numeric" placeholder="Phone number"
-                                v-model="form.phone_local" 
-                                @blur="validatePhone"
-                                :class="{ 
-                                    'is-invalid': formErrors?.phone_local || phoneError,
-                                    'is-valid': isPhoneValid && form.phone_local 
-                                }" />
-                        </div>
-                        <small v-if="phoneError" class="text-danger d-block mt-1">
-                            {{ phoneError }}
-                        </small>
-                        <small v-else-if="formErrors?.phone_local" class="text-danger d-block mt-1">
-                            {{ formErrors.phone_local[0] }}
-                        </small>
-                        <small v-else-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
-                            ✓ Valid phone number
-                        </small>
-                    </div> -->
-
+                    <!-- UK Phone Number -->
                     <div class="col-md-6">
-                        <label class="form-label">Phone*</label>
+                        <label class="form-label">UK Phone*</label>
                         <div class="input-group">
-                            <!-- Country Code (readonly input instead of dropdown) -->
+                            <!-- UK Country Code (readonly) -->
                             <span class="input-group-text p-0">
                                 <input type="text" class="form-control text-center border-0 bg-light fw-semibold"
-                                    v-model="form.phone_code" readonly style="width: 70px;" />
+                                    value="+44" readonly style="width: 70px;" />
                             </span>
 
-                            <!-- Local Phone Input -->
-                            <input class="form-control phone-input" inputmode="numeric" placeholder="Phone number"
+                            <!-- Phone Input - UK International Format -->
+                            <input class="form-control phone-input" inputmode="numeric" placeholder="7311865859"
                                 v-model="form.phone_local" @blur="validatePhone" :class="{
-                                    'is-invalid': formErrors?.phone_local || phoneError,
+                                    'is-invalid': phoneError,
                                     'is-valid': isPhoneValid && form.phone_local
-                                }" />
+                                }" maxlength="10" />
                         </div>
 
                         <!-- Validation messages -->
                         <small v-if="phoneError" class="text-danger d-block mt-1">
-                            {{ phoneError }}
+                            <i class="bi bi-exclamation-circle me-1"></i>{{ phoneError }}
                         </small>
                         <small v-else-if="formErrors?.phone_local" class="text-danger d-block mt-1">
                             {{ formErrors.phone_local[0] }}
                         </small>
-                        <small v-else-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
-                            ✓ Valid phone number
+                        <small v-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
+                            <i class="bi bi-check-circle me-1"></i>✓ Valid UK phone number
+                        </small>
+
+                        <!-- Warnings (area code, mobile type) -->
+                        <small v-for="(warning, idx) in phoneWarnings" :key="idx" class="text-info d-block mt-1">
+                            <i class="bi bi-info-circle me-1"></i>{{ warning }}
                         </small>
                     </div>
-
 
                     <!-- Email -->
                     <div class="col-md-6">

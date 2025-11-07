@@ -11,14 +11,14 @@ const { formatMoney, formatNumber, formatCurrencySymbol, dateFmt } = useFormatte
 
 
 const form = reactive({
-  receipt_header: props.model?.receipt_header ?? "",
-  receipt_footer: props.model?.receipt_footer ?? "",
+  receipt_header: props.model?.receipt_header ?? props.model?.business_name ?? "Enter store name",
+  receipt_footer: props.model?.receipt_footer ?? "Thank You for Taste Us",
   receipt_logo: props.model?.receipt_logo ?? null, // preview (URL or base64)
   receipt_logo_file: null, // file for backend
   show_qr: props.model?.show_qr ?? 1,
   tax_breakdown: props.model?.tax_breakdown ?? true,
   store_phone: props.model?.phone ?? "",
-  store_name: props.model?.receipt_header ?? "Enter store name",
+  store_name: props.model?.store_name ?? props.model?.business_name ?? "Enter store name",
   address: props.model?.address ?? "xyz",
   customer_printer: props.model?.customer_printer ?? "",
   kot_printer: props.model?.kot_printer ?? "",
@@ -147,7 +147,7 @@ onMounted(fetchPrinters);
               </div>
             </div>
 
-            
+
             <div class="mt-3">
               <!-- Header with refresh button -->
               <div class="d-flex align-items-center justify-content-end mb-1">
@@ -204,37 +204,45 @@ onMounted(fetchPrinters);
         <div class="receipt-card">
           <div class="text-center">
             <!-- <div class="text-center small"> {{ form.receipt_header }} </div> -->
-            <div v-if="form.receipt_logo" class="mb-2 logo-container">
-              <img :src="form.receipt_logo" alt class="logo-preview rounded-circle" />
+            <div v-if="props.model?.logo_url" class="mb-2 logo-container">
+              <img :src="props.model?.logo_url ?? ''" alt class="logo-preview rounded-circle" />
             </div>
+         
 
             <h6 class="mb-1">{{ form.receipt_header }}</h6>
-             <div class="text-center my-2">
+            <div class="text-center my-2">
               <!-- class="badge-pill" -->
-              <div >{{ form.store_phone }}</div>
+              <div>{{ form.store_phone }}</div>
             </div>
-             <div class="text-center my-2">
-              <div >{{ form.address }}</div>
+            <div class="text-center my-2">
+              <div>{{ form.address }}</div>
             </div>
-            <div class="text-muted small"> {{ new Date().toLocaleString() }} </div>
-           
+
           </div>
           <hr class="my-2" />
           <div class="small">
-            <div class="d-flex justify-content-between"> <span>Payment Type:</span><span>Credit</span> </div>
-            <div class="d-flex justify-content-between"> <span>Customer Name:</span><span>Lorem Ipsum</span> </div>
-            <div class="d-flex justify-content-between"> <span>Address:</span><span>abc</span> </div>
+            <div class="d-flex justify-content-between"> <span>Date:</span><span> {{ new
+              Date().toLocaleDateString().replace(/\//g, '-') }}</span> </div>
+            <div class="d-flex justify-content-between"> <span>Time:</span><span> {{ new Date().toLocaleTimeString()
+                }}</span> </div>
+            <div class="d-flex justify-content-between"> <span>Customer Name:</span><span>John Snow</span> </div>
+            <div class="d-flex justify-content-between"> <span>Order Type:</span><span>Dine In</span> </div>
+            <div class="d-flex justify-content-between"> <span>Note:</span><span>One Cheese Burger Please</span> </div>
+            <div class="d-flex justify-content-between"> <span>Payment Type:</span><span>Cash/Card</span> </div>
           </div>
           <hr class="my-2" />
           <div class="small">
             <div class="d-flex justify-content-between fw-semibold"> <span>Name</span><span>Qty</span><span>Price</span>
             </div>
-            <div class="d-flex justify-content-between"> <span>Item A</span><span>1</span><span>{{ formatCurrencySymbol(950, 'PKR') }}</span> </div>
-            <div class="d-flex justify-content-between"> <span>Item B</span><span>2</span><span>{{ formatCurrencySymbol(50, 'Rs') }}</span> </div>
+            <div class="d-flex justify-content-between"> <span>Item A</span><span>1</span><span>{{ props.model?.currency
+              ?? "£" }} 950 </span> </div>
+            <div class="d-flex justify-content-between"> <span>Item B</span><span>2</span><span>{{ props.model?.currency
+              ?? "£" }} 50</span> </div>
           </div>
           <hr class="my-2" />
           <div class="small">
-            <div class="d-flex justify-content-between"> <span>Total Price:</span><span>{{ formatCurrencySymbol(2000, 'Rs') }}</span> </div>
+            <div class="d-flex justify-content-between"> <span>Total Price:</span><span>{{ props.model?.currency ??
+              "£" }} 2000</span> </div>
             <div class="d-flex justify-content-between"> <span>Tax:</span><span>23%</span> </div>
           </div>
           <div v-if="form.show_qr === 1" class="d-flex justify-content-center my-2">

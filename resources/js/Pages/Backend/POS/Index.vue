@@ -1414,7 +1414,7 @@ const openConfirmModal = () => {
         return;
     }
 
-    cashReceived.value = grandTotal.value;
+    cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
     showConfirmModal.value = true;
 };
 
