@@ -56,19 +56,28 @@ const typeOptions = ref(["All", "Cash", "Card", "QR", "Bank"]);
 
 // Map orders → payments shape for easier UI handling
 const payments = computed(() =>
-    orders.value.map((o) => ({
-        orderId: o.id,
-        customer: o.customer_name,
-        user: o.user?.name || "—",
-        type: o.payment?.payment_type || "—",
-        amountReceived: Number(o.sub_total || 0),
-        promoDiscount: Number(o.sub_total || 0) - Number(o.total_amount || 0), // calculate discount
-        grandTotal: Number(o.total_amount || 0),
-        promoName: o.promo?.promo_name || "—",
-        paidAt: o.payment?.payment_date || null,
-        status: o.status,
-    }))
+    orders.value.map((o) => {
+        // handle promo array safely
+        const promo = Array.isArray(o.promo) && o.promo.length > 0 ? o.promo[0] : null;
+
+        return {
+            orderId: o.id,
+            customer: o.customer_name,
+            user: o.user?.name || "—",
+            type: o.payment?.payment_type || "—",
+            serviceCharges: Number(o.service_charges || 0),
+            deliveryCharges: Number(o.delivery_charges || 0),
+            tax: Number(o.tax || 0),
+            amountReceived: Number(o.sub_total || 0),
+            promoDiscount: promo ? Number(promo.discount_amount || 0) : 0,
+            grandTotal: Number(o.total_amount || 0),
+            promoName: promo ? promo.promo_name : "—",
+            paidAt: o.payment?.payment_date || null,
+            status: o.status,
+        };
+    })
 );
+
 
 
 // const filtered = computed(() => {
@@ -254,7 +263,8 @@ onUpdated(() => window.feather?.replace());
 
 <template>
     <Master>
-          <Head title="Payment" />
+
+        <Head title="Payment" />
         <div class="page-wrapper">
             <!-- Title -->
             <h4 class="fw-semibold mb-3">Overall Payments</h4>
@@ -397,9 +407,12 @@ onUpdated(() => window.feather?.replace());
                                     <th>S. #</th>
                                     <th>Order ID</th>
                                     <th>Actual Payment</th>
-                                    <th>Promo Discount</th>
-                                    <th>Grand Total</th>
                                     <th>Promo Name</th>
+                                    <th>Promo Discount</th>
+                                    <th>Tax</th>
+                                    <th>Service Charges</th>
+                                    <th>Delivery Charges</th>
+                                    <th>Grand Total</th>
                                     <th>Payment Date</th>
                                     <th>Payment Type</th>
                                 </tr>
@@ -410,15 +423,21 @@ onUpdated(() => window.feather?.replace());
                                     <td>{{ idx + 1 }}</td>
                                     <td>{{ p.orderId }}</td>
                                     <td>{{ formatCurrencySymbol(p.amountReceived) }}</td>
-                                    <td class="text-success">{{ formatCurrencySymbol(p.promoDiscount) }}</td>
-                                    <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
                                     <td>{{ p.promoName }}</td>
+                                    <td class="text-success">
+                                        {{ p.promoDiscount ? formatCurrencySymbol(p.promoDiscount) : '—' }}
+                                    </td>
+                                    <td>{{ formatCurrencySymbol(p.tax) }}</td>
+                                    <td>{{ formatCurrencySymbol(p.serviceCharges) }}</td>
+                                       <td>{{ formatCurrencySymbol(p.deliveryCharges) }}</td>
+                                    <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
+
                                     <td>{{ dateFmt(p.paidAt) }}</td>
                                     <td class="text-capitalize">{{ p.type }}</td>
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="8" class="text-center text-muted py-4">
+                                    <td colspan="11" class="text-center text-muted py-4">
                                         No payments found.
                                     </td>
                                 </tr>
