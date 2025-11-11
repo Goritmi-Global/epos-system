@@ -127,6 +127,11 @@ class MenuController extends Controller
                             'id' => $variant->id,
                             'name' => $variant->name,
                             'price' => $variant->price,
+                            'is_saleable' => $variant->is_saleable,
+                            'resale_type' => $variant->resale_type,
+                            'resale_value' => $variant->resale_value,
+                            'resale_price' => $variant->resale_price,
+                            'display_name' => $variant->display_name,
                             'ingredients' => $variant->ingredients->map(function ($ing) {
                                 return [
                                     'inventory_item_id' => $ing->inventory_item_id,
@@ -144,6 +149,23 @@ class MenuController extends Controller
             'message' => 'Menu items fetched successfully',
             'data' => $menus,
         ]);
+    }
+
+    private function calculateResalePrice($item)
+    {
+        if (! $item->is_saleable || ! $item->resale_type || ! $item->resale_value) {
+            return 0;
+        }
+
+        if ($item->resale_type === 'flat') {
+            return (float) $item->resale_value;
+        }
+
+        if ($item->resale_type === 'percentage') {
+            return (float) ($item->price * ($item->resale_value / 100));
+        }
+
+        return 0;
     }
 
     public function toggleStatus(Request $request, $id)

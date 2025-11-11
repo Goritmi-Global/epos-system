@@ -44,7 +44,7 @@ class MenuVariant extends Model
 
     public function getResalePriceAttribute(): float
     {
-        if (! $this->is_saleable || ! $this->resale_type || ! $this->resale_value) {
+        if (!$this->is_saleable || !$this->resale_type || !$this->resale_value) {
             return 0;
         }
 
@@ -60,7 +60,7 @@ class MenuVariant extends Model
     }
 
     /**
-     * ✅ NEW: Get display name with resale info
+     * ✅ Get display name with resale info
      */
     public function getDisplayNameAttribute(): string
     {
@@ -68,7 +68,7 @@ class MenuVariant extends Model
 
         if ($this->is_saleable) {
             if ($this->resale_type === 'flat') {
-                $name .= " (Resale: ₹{$this->resale_value})";
+                $name .= " (Resale: ₹" . number_format($this->resale_value, 2) . ")";
             } elseif ($this->resale_type === 'percentage') {
                 $name .= " (Resale: {$this->resale_value}%)";
             }
@@ -76,4 +76,17 @@ class MenuVariant extends Model
 
         return $name;
     }
+
+    /**
+     * ✅ Array representation for API
+     */
+    public function toArray()
+    {
+        return array_merge(parent::toArray(), [
+            'resale_price' => $this->resale_price,
+            'display_name' => $this->display_name,
+        ]);
+    }
 }
+
+

@@ -68,6 +68,9 @@ class StoreMenuRequest extends FormRequest
             'variant_metadata' => 'nullable|array',
             'variant_metadata.*.name' => 'required_with:variant_metadata|string|max:255',
             'variant_metadata.*.price' => 'required_with:variant_metadata|numeric|min:0',
+            'variant_metadata.*.is_saleable' => 'nullable|boolean',
+            'variant_metadata.*.resale_type' => 'nullable|in:flat,percentage',
+            'variant_metadata.*.resale_value' => 'nullable|numeric|min:0',
 
             // Variant Menu Ingredients
             'variant_ingredients' => 'nullable|array',
@@ -90,6 +93,9 @@ class StoreMenuRequest extends FormRequest
             'variant_metadata.*.name.required_with' => 'Variant name is required.',
             'variant_metadata.*.price.required_with' => 'Variant price is required.',
             'variant_metadata.*.price.min' => 'Variant price must be at least 0.',
+            'variant_metadata.*.is_saleable' => 'nullable|boolean',
+            'variant_metadata.*.resale_type' => 'nullable|in:flat,percentage',
+            'variant_metadata.*.resale_value' => 'nullable|numeric|min:0',
 
             // Variant ingredients messages
             'variant_ingredients.*.*.inventory_item_id.required_with' => 'Ingredient is required for variant items.',

@@ -53,7 +53,7 @@ class MenuService
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? null,
             'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
-             ...$resaleData,
+            ...$resaleData,
         ]);
 
         // Nutrition
@@ -90,6 +90,9 @@ class MenuService
                     'menu_item_id' => $menu->id,
                     'name' => $variantData['name'],
                     'price' => $variantData['price'] ?? 0,
+                    'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
+                    'resale_type' => $variantData['resale_type'] ?? null,
+                    'resale_value' => $variantData['resale_value'] ?? null,
                 ]);
 
                 // Save ingredients for this variant
@@ -225,6 +228,9 @@ class MenuService
                     $variant->update([
                         'name' => $variantData['name'],
                         'price' => $variantData['price'] ?? 0,
+                         'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
+                        'resale_type' => $variantData['resale_type'] ?? null,
+                        'resale_value' => $variantData['resale_value'] ?? null,
                     ]);
                     $submittedVariantIds[] = $variantId;
                 } else {
@@ -233,6 +239,9 @@ class MenuService
                         'menu_item_id' => $menu->id,
                         'name' => $variantData['name'],
                         'price' => $variantData['price'] ?? 0,
+                         'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
+                        'resale_type' => $variantData['resale_type'] ?? null,
+                        'resale_value' => $variantData['resale_value'] ?? null,
                     ]);
                     $submittedVariantIds[] = $variant->id;
                 }
