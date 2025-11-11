@@ -21,18 +21,19 @@ class CartUpdated implements ShouldBroadcast
         $this->terminalId = $terminalId;
         $this->cartData = $cartData;
         
-        Log::info('CartUpdated event created', [
+        Log::info('🔔 CartUpdated Event Created', [
             'terminal' => $terminalId,
             'channel' => 'pos-terminal.' . $terminalId,
-            'items_count' => count($cartData['items'] ?? [])
+            'items_count' => count($cartData['items'] ?? []),
+            'total' => $cartData['total'] ?? 0
         ]);
     }
 
     public function broadcastOn()
     {
-        $channel = new Channel('pos-terminal.' . $this->terminalId);
-        Log::info('Broadcasting on channel', ['channel' => $channel->name]);
-        return $channel;
+        $channelName = 'pos-terminal.' . $this->terminalId;
+        Log::info('📡 Broadcasting CartUpdated on channel: ' . $channelName);
+        return new Channel($channelName);
     }
 
     public function broadcastAs()
@@ -42,14 +43,17 @@ class CartUpdated implements ShouldBroadcast
 
     public function broadcastWith()
     {
-        Log::info('Broadcast data prepared', [
-            'items_count' => count($this->cartData['items'] ?? []),
-            'total' => $this->cartData['total'] ?? 0
-        ]);
-        
-        return [
+        $data = [
             'cart' => $this->cartData,
             'timestamp' => now()->toIso8601String(),
         ];
+        
+        Log::info('📤 Broadcasting data:', [
+            'event' => 'cart.updated',
+            'channel' => 'pos-terminal.' . $this->terminalId,
+            'data_keys' => array_keys($data)
+        ]);
+        
+        return $data;
     }
 }

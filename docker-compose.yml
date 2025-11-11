@@ -1,0 +1,16 @@
+services:
+  soketi:
+    image: 'quay.io/soketi/soketi:latest-16-alpine'
+    container_name: soketi
+    ports:
+      - '6001:6001'
+    environment:
+      SOKETI_DEBUG: '1'
+      SOKETI_DEFAULT_APP_ID: 'local'
+      SOKETI_DEFAULT_APP_KEY: 'local'
+      SOKETI_DEFAULT_APP_SECRET: 'local'
+      SOKETI_DEFAULT_APP_MAX_CONNS: '100'
+      SOKETI_DEFAULT_APP_ENABLE_CLIENT_MESSAGES: 'false'
+      SOKETI_DEFAULT_APP_ENABLED: 'true'
+      SOKETI_EVENT_MAX_PAYLOAD_IN_KB: '2048'  
+    restart: unless-stopped

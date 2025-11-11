@@ -2398,6 +2398,8 @@ const getSelectedAddonsCount = () => {
 // ================================================
 //              Customer View Screen
 // ================================================
+import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
+import { debounce } from 'lodash';
 const user = computed(() => page.props.current_user);
 
 const categoriesWithMenus = computed(() => {
@@ -2412,17 +2414,17 @@ const isCashier = computed(() => {
         user.value?.roles?.includes('Manager');
 });
 
-import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
+const terminalId = ref(`terminal-${user.value?.id}`);
+const { broadcastCartUpdate, broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
 
-const terminalId = ref(`terminal-${user.value?.id}-${Date.now()}`);
-const { broadcastCartUpdate } = usePOSBroadcast(terminalId.value);
-
-// Throttle the broadcast to avoid too many calls
-import { debounce } from 'lodash';
-
+// Debounce functions
 const debouncedBroadcast = debounce((data) => {
     broadcastCartUpdate(data);
-}, 500); // Wait 500ms after last change
+}, 500);
+
+const debouncedUIBroadcast = debounce((data) => {
+    broadcastUIUpdate(data);
+}, 10);
 
 // Watch for cart changes and broadcast
 watch(
@@ -2433,10 +2435,12 @@ watch(
         table: selectedTable.value,
         subtotal: subTotal.value,
         tax: totalTax.value,
+        serviceCharges: serviceCharges.value,
         deliveryCharges: deliveryCharges.value,
         promoDiscount: promoDiscount.value,
         total: grandTotal.value,
         note: note.value,
+        appliedPromos: selectedPromos.value,
     }),
     (newCart) => {
         console.log('Cart changed, broadcasting...', newCart);
@@ -2445,16 +2449,7 @@ watch(
     { deep: true, immediate: false }
 );
 
-
-// After terminalId ref
-const { broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
-
-// Debounce UI broadcast
-const debouncedUIBroadcast = debounce((data) => {
-    broadcastUIUpdate(data);
-}, 10);
-
-// Watch for UI state changes (add after cart watch)
+// Watch for UI state changes (including variants and addons)
 watch(
     () => ({
         showCategories: showCategories.value,
@@ -2462,6 +2457,8 @@ watch(
         menuCategories: menuCategories.value,
         menuItems: menuItems.value,
         searchQuery: searchQuery.value,
+        selectedCardVariant: selectedCardVariant.value,
+        selectedCardAddons: selectedCardAddons.value,
     }),
     (newUI) => {
         console.log('UI state changed, broadcasting...', newUI);
@@ -2470,14 +2467,34 @@ watch(
     { deep: true, immediate: true }
 );
 
-// ✅ ADD THIS FUNCTION
+// Watch specifically for variant/addon changes to broadcast immediately
+watch(
+    [selectedCardVariant, selectedCardAddons],
+    () => {
+        broadcastUIUpdate({
+            showCategories: showCategories.value,
+            activeCat: activeCat.value,
+            menuCategories: menuCategories.value,
+            menuItems: menuItems.value,
+            searchQuery: searchQuery.value,
+            selectedCardVariant: selectedCardVariant.value,
+            selectedCardAddons: selectedCardAddons.value,
+        });
+    },
+    { deep: true }
+);
+
+// Customer Display function
 const openCustomerDisplay = () => {
     if (!isCashier.value) {
         toast.error('Only cashiers can access customer display');
         return;
     }
+    
+    console.log('🔗 Opening Customer Display for terminal:', terminalId.value);
+    
     const url = route('customer-display.index', { terminal: terminalId.value });
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'width=1920,height=1080');
 };
 
 const getVariantPriceRange = (product) => {
@@ -2510,6 +2527,12 @@ const getVariantPriceRange = (product) => {
                         <div v-if="showCategories" class="row g-3 tablet-screen">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4 class="mb-0">Menu Categories</h4>
+
+                                <button v-if="isCashier" @click="openCustomerDisplay"
+                                class="btn btn-primary d-flex align-items-center gap-2" type="button">
+                                <i class="bi bi-tv"></i>
+                                <span>Customer View</span>
+                            </button>
 
                                 <!-- ✅ REPLACE THIS: Category search with autofill prevention -->
                                 <div style="width: 250px; position: relative;">

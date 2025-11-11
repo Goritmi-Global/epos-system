@@ -17,9 +17,6 @@ export function useAutoLogout() {
             credentials: 'same-origin'
         });
 
-        console.log('Response status:', response.status);
-        console.log('Content-Type:', response.headers.get('content-type'));
-
         // ✅ If we get HTML, it means we're being redirected to login
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('text/html')) {
@@ -58,7 +55,6 @@ export function useAutoLogout() {
         }
 
         const data = await response.json();
-        console.log('Auto-logout check:', data);
 
         if (data.should_logout) {
             if (intervalId) {
