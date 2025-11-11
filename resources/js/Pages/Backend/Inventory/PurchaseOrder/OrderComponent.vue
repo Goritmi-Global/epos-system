@@ -53,7 +53,7 @@ watch(
 
 
 onMounted(() => {
-  feather.replace();
+    feather.replace();
 });
 
 const filteredItems = computed(() => {
@@ -681,24 +681,33 @@ const formatDate = (date) => {
                                             <select class="form-select" v-model="it.selected_derived_unit_id"
                                                 @change="onUnitChange(it)" @focus="loadDerivedUnits(it)">
                                                 <option :value="null">Base ({{ it.unit_name }})</option>
-                                                <option v-for="du in it.derived_units || []" :key="du.id" :value="du.id">
+                                                <option v-for="du in it.derived_units || []" :key="du.id"
+                                                    :value="du.id">
                                                     {{ du.name }}
                                                 </option>
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" min="0" v-model.number="it.unitPrice" class="form-control"
-                                                @input="updateSubtotal(it)" />
+                                            <input type="number" min="0" v-model.number="it.unitPrice"
+                                                class="form-control" @input="updateSubtotal(it)" />
                                             <small v-if="formErrors[it.id]?.unit_price" class="text-danger">
                                                 {{ formErrors[it.id].unit_price[0] }}
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol((it.subtotal || 0).toFixed(2)) }}</td>
                                         <td>
+
+
                                             <button
                                                 class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
-                                                @click="clearRow(it)" title="Clear">
-                                               <i data-feather="rotate-ccw"></i>
+                                                @click="clearRow(it)" title="Clear" style="width: 36px; height: 36px;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                    fill="currentColor" viewBox="0 0 16 16">
+                                                    <path fill-rule="evenodd"
+                                                        d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+                                                    <path
+                                                        d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+                                                </svg>
                                             </button>
                                         </td>
                                     </tr>
@@ -757,24 +766,34 @@ const formatDate = (date) => {
                                             <select class="form-select" v-model="it.selected_derived_unit_id"
                                                 @change="onMultipleUnitChange(it)" @focus="loadDerivedUnits(it)">
                                                 <option :value="null">Base ({{ it.unit_name }})</option>
-                                                <option v-for="du in it.derived_units || []" :key="du.id" :value="du.id">
+                                                <option v-for="du in it.derived_units || []" :key="du.id"
+                                                    :value="du.id">
                                                     {{ du.name }}
                                                 </option>
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" min="0" v-model.number="it.unitPrice" class="form-control"
-                                                @input="updateMultipleSubtotal(it)" />
+                                            <input type="number" min="0" v-model.number="it.unitPrice"
+                                                class="form-control" @input="updateMultipleSubtotal(it)" />
                                             <small v-if="m_formErrors[it.id]?.unit_price" class="text-danger">
                                                 {{ m_formErrors[it.id].unit_price[0] }}
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol((it.subtotal || 0).toFixed(2)) }}</td>
                                         <td>
+
+
                                             <button
                                                 class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
-                                                @click="clearMultipleRow(it)" title="Clear">
-                                               <i data-feather="rotate-ccw"></i>
+                                                @click="clearMultipleRow(it)" title="Clear"
+                                                style="width: 36px; height: 36px;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                    fill="currentColor" viewBox="0 0 16 16">
+                                                    <path fill-rule="evenodd"
+                                                        d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+                                                    <path
+                                                        d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+                                                </svg>
                                             </button>
                                         </td>
                                     </tr>
@@ -790,13 +809,13 @@ const formatDate = (date) => {
 
                 <!-- 👇 UPDATE THIS: Modal footer with conditional buttons -->
                 <div class="modal-footer">
-                    <button v-if="activeTab === 'single'" class="btn btn-primary rounded-pill px-4 py-2" :disabled="o_submitting"
-                        @click="orderSubmit">
+                    <button v-if="activeTab === 'single'" class="btn btn-primary rounded-pill px-4 py-2"
+                        :disabled="o_submitting" @click="orderSubmit">
                         <span v-if="!o_submitting">Save</span>
                         <span v-else>Saving...</span>
                     </button>
-                    <button v-if="activeTab === 'multiple'" class="btn btn-primary rounded-pill px-4 py-2" :disabled="m_submitting"
-                        @click="multipleOrderSubmit">
+                    <button v-if="activeTab === 'multiple'" class="btn btn-primary rounded-pill px-4 py-2"
+                        :disabled="m_submitting" @click="multipleOrderSubmit">
                         <span v-if="!m_submitting">Save</span>
                         <span v-else>Saving...</span>
                     </button>
