@@ -76,6 +76,30 @@ const isVariantMode = ref(false);
 const selectedVariantForIngredients = ref(null);
 const variantIngredients = ref({}); // { variantId: [ingredients] }
 
+const variantResaleConfig = ref({});
+
+
+const calculateVariantResalePrice = (variantId) => {
+    const config = variantResaleConfig.value[variantId];
+    const variantPrice = variantMetadata.value[variantId]?.price || 0;
+
+    if (!config || !config.is_saleable || !config.resale_type || !config.resale_value) {
+        return 0;
+    }
+
+    if (config.resale_type === 'flat') {
+        return parseFloat(config.resale_value) || 0;
+    }
+
+    if (config.resale_type === 'percentage') {
+        const price = parseFloat(variantPrice) || 0;
+        const percentage = parseFloat(config.resale_value) || 0;
+        return (price * percentage) / 100;
+    }
+
+    return 0;
+};
+
 const loadVariants = () => {
     if (form.value.variant_group_id) {
         const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
@@ -613,155 +637,174 @@ function onCropped({ file }) {
 const submitting = ref(false);
 
 // ==================== UPDATED: Submit Product ====================
+// ==================== UPDATED submitProduct FUNCTION ====================
 const submitProduct = async () => {
     submitting.value = true;
     formErrors.value = {};
 
-    console.log('is_taxable value:', form.value.is_taxable, typeof form.value.is_taxable);
-
-    const formData = new FormData();
-    formData.append("name", form.value.name.trim());
-
-
-    if (form.value.is_saleable) {
-        formData.append("is_saleable", form.value.is_saleable ? 1 : 0);
-        formData.append("resale_type", form.value.resale_type || null);
-        formData.append("resale_value", form.value.resale_value || null);
-    } else {
-        formData.append("is_saleable", 0);
-        formData.append("resale_type", null);
-        formData.append("resale_value", null);
-    }
-
-    if (form.value.price !== "" && form.value.price !== null) {
-        formData.append("price", form.value.price);
-    }
-
-    if (form.value.category_id) {
-        formData.append("category_id", form.value.category_id);
-    }
-
-    if (form.value.label_color) {
-        formData.append("label_color", form.value.label_color);
-    }
-
-    if (form.value.subcategory_id) {
-        formData.append("subcategory_id", form.value.subcategory_id);
-    }
-
-    formData.append("description", form.value.description || "");
-    formData.append("is_taxable", String(form.value.is_taxable ?? 0));
-
-    // Check if we're in variant mode
-    if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
-        // Use variant-specific nutrition calculation
-        const totalNutrition = Object.values(variantIngredients.value)
-            .flat()
-            .reduce(
-                (acc, ing) => {
-                    const qty = Number(ing.qty || 0);
-                    acc.calories += Number(ing.nutrition?.calories || 0) * qty;
-                    acc.protein += Number(ing.nutrition?.protein || 0) * qty;
-                    acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
-                    acc.fat += Number(ing.nutrition?.fat || 0) * qty;
-                    return acc;
-                },
-                { calories: 0, protein: 0, carbs: 0, fat: 0 }
-            );
-
-        formData.append("nutrition[calories]", totalNutrition.calories);
-        formData.append("nutrition[fat]", totalNutrition.fat);
-        formData.append("nutrition[protein]", totalNutrition.protein);
-        formData.append("nutrition[carbs]", totalNutrition.carbs);
-
-        // ✅ FIX: Send variant_metadata in the format backend expects
-        let metadataIndex = 0;
-        Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
-            formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
-            formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
-
-            // Add ingredients for this variant using the same index
-            const ingredients = variantIngredients.value[variantId] || [];
-            ingredients.forEach((ing, ingIndex) => {
-                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][inventory_item_id]`, ing.id);
-                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][qty]`, ing.qty);
-                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][unit_price]`, ing.unitPrice);
-                formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][cost]`, ing.cost);
-            });
-
-            metadataIndex++;
-        });
-    } else {
-        // Simple menu: use i_totalNutrition and i_cart
-        formData.append("nutrition[calories]", i_totalNutrition.value.calories);
-        formData.append("nutrition[fat]", i_totalNutrition.value.fat);
-        formData.append("nutrition[protein]", i_totalNutrition.value.protein);
-        formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
-
-        // ingredients cart
-        i_cart.value.forEach((ing, i) => {
-            formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
-            formData.append(`ingredients[${i}][qty]`, ing.qty);
-            formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
-            formData.append(`ingredients[${i}][cost]`, ing.cost);
-        });
-    }
-
-    // allergies + tags
-    form.value.allergies.forEach((a, i) => {
-        formData.append(`allergies[${i}]`, a.id);
-        formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
-    });
-
-    form.value.meals.forEach((mealId, i) => {
-        formData.append(`meals[${i}]`, mealId);
-    });
-
-    form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
-
-    // image
-    if (form.value.imageFile) {
-        formData.append("image", form.value.imageFile);
-    }
-
-    if (form.value.addon_group_id) {
-        formData.append("addon_group_id", form.value.addon_group_id);
-
-        form.value.addon_ids.forEach((addonId, index) => {
-            formData.append(`addon_ids[${index}]`, addonId);
-        });
-    }
-
     try {
-        if (form.value.id) {
-            await axios.post(`/menu/${form.value.id}?_method=PUT`, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            toast.success("Menu updated successfully");
-        } else {
-            console.log('➡️ Final formData:', [...formData.entries()]);
-            await axios.post("/menu", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            toast.success("Menu created successfully");
+        const formData = new FormData();
+        formData.append("name", form.value.name.trim());
+
+        if (form.value.category_id) {
+            formData.append("category_id", form.value.category_id);
         }
 
-        resetForm();
-        await fetchMenus();
-        bootstrap.Modal.getInstance(
-            document.getElementById("addItemModal")
-        )?.hide();
-    } catch (err) {
-        if (err?.response?.status === 422 && err.response.data?.errors) {
-            formErrors.value = err.response.data.errors;
-            toast.error("Please filled all the required fields");
-        } else {
-            console.error(
-                "❌ Error saving:",
-                err.response?.data || err.message
-            );
-            toast.error("Failed to save menu item");
+        if (form.value.label_color) {
+            formData.append("label_color", form.value.label_color);
         }
+
+        formData.append("description", form.value.description || "");
+        formData.append("is_taxable", String(form.value.is_taxable ?? 0));
+
+        // Check if we're in variant mode
+        if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
+            // ✅ VARIANT MENU SECTION
+            const totalNutrition = Object.values(variantIngredients.value)
+                .flat()
+                .reduce(
+                    (acc, ing) => {
+                        const qty = Number(ing.qty || 0);
+                        acc.calories += Number(ing.nutrition?.calories || 0) * qty;
+                        acc.protein += Number(ing.nutrition?.protein || 0) * qty;
+                        acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+                        acc.fat += Number(ing.nutrition?.fat || 0) * qty;
+                        return acc;
+                    },
+                    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+                );
+
+            formData.append("nutrition[calories]", totalNutrition.calories);
+            formData.append("nutrition[fat]", totalNutrition.fat);
+            formData.append("nutrition[protein]", totalNutrition.protein);
+            formData.append("nutrition[carbs]", totalNutrition.carbs);
+
+            // ✅ Send variant_metadata with PROPERLY FORMATTED resale data
+            let metadataIndex = 0;
+            Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
+                formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
+                formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
+
+                // ✅ FIX: Get resale config and send only if is_saleable is true
+                const resaleConfig = variantResaleConfig.value[variantId];
+
+                if (resaleConfig && resaleConfig.is_saleable) {
+                    // Send as 1 for boolean
+                    formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 1);
+                    
+                    // Only send resale_type and resale_value if they have valid values
+                    if (resaleConfig.resale_type && resaleConfig.resale_type !== 'null') {
+                        formData.append(`variant_metadata[${metadataIndex}][resale_type]`, resaleConfig.resale_type);
+                    }
+                    if (resaleConfig.resale_value !== null && resaleConfig.resale_value !== '' && !isNaN(resaleConfig.resale_value)) {
+                        formData.append(`variant_metadata[${metadataIndex}][resale_value]`, parseFloat(resaleConfig.resale_value));
+                    }
+                } else {
+                    // Not saleable
+                    formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 0);
+                }
+
+                // Add ingredients for this variant
+                const ingredients = variantIngredients.value[variantId] || [];
+                ingredients.forEach((ing, ingIndex) => {
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][inventory_item_id]`, ing.id);
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][qty]`, ing.qty);
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][unit_price]`, ing.unitPrice);
+                    formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][cost]`, ing.cost);
+                });
+
+                metadataIndex++;
+            });
+
+            formData.append("price", 0); // Don't need base price for variants
+        } else {
+            // ✅ SIMPLE MENU SECTION
+            formData.append("nutrition[calories]", i_totalNutrition.value.calories);
+            formData.append("nutrition[fat]", i_totalNutrition.value.fat);
+            formData.append("nutrition[protein]", i_totalNutrition.value.protein);
+            formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
+
+            if (form.value.price !== "" && form.value.price !== null) {
+                formData.append("price", form.value.price);
+            }
+
+            // Simple menu resale
+            if (form.value.is_saleable) {
+                formData.append("is_saleable", 1);
+                
+                if (form.value.resale_type && form.value.resale_type !== 'null') {
+                    formData.append("resale_type", form.value.resale_type);
+                }
+                if (form.value.resale_value !== null && form.value.resale_value !== '' && !isNaN(form.value.resale_value)) {
+                    formData.append("resale_value", parseFloat(form.value.resale_value));
+                }
+            } else {
+                formData.append("is_saleable", 0);
+            }
+
+            // Simple ingredients
+            i_cart.value.forEach((ing, i) => {
+                formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
+                formData.append(`ingredients[${i}][qty]`, ing.qty);
+                formData.append(`ingredients[${i}][unit_price]`, ing.unitPrice);
+                formData.append(`ingredients[${i}][cost]`, ing.cost);
+            });
+        }
+
+        // Allergies + Tags
+        form.value.allergies.forEach((a, i) => {
+            formData.append(`allergies[${i}]`, a.id);
+            formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
+        });
+
+        form.value.meals.forEach((mealId, i) => {
+            formData.append(`meals[${i}]`, mealId);
+        });
+
+        form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
+
+        // Image
+        if (form.value.imageFile) {
+            formData.append("image", form.value.imageFile);
+        }
+
+        // Addons
+        if (form.value.addon_group_id) {
+            formData.append("addon_group_id", form.value.addon_group_id);
+
+            form.value.addon_ids.forEach((addonId, index) => {
+                formData.append(`addon_ids[${index}]`, addonId);
+            });
+        }
+
+        try {
+            console.log('➡️ Submitting menu item...');
+            const response = await axios.post("/menu", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+
+            toast.success("Menu created successfully");
+            resetForm();
+            await fetchMenus();
+            bootstrap.Modal.getInstance(
+                document.getElementById("addItemModal")
+            )?.hide();
+        } catch (err) {
+            console.error("❌ Error saving:", err.response?.data);
+            
+            if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+                const errorMessages = Object.values(err.response.data.errors)
+                    .flat()
+                    .join("\n");
+                toast.error(errorMessages || "Validation failed");
+            } else {
+                toast.error("Failed to save menu item: " + (err.response?.data?.message || err.message));
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error:", error);
+        toast.error("An error occurred: " + error.message);
     } finally {
         submitting.value = false;
     }
@@ -862,6 +905,7 @@ const editItem = (item) => {
     if (hasVariants) {
         variantIngredients.value = {};
         variantMetadata.value = {};
+        variantResaleConfig.value = {};
 
         // Find the highest variant ID to continue counter from there
         let maxVariantId = 0;
@@ -874,6 +918,12 @@ const editItem = (item) => {
             variantMetadata.value[variantId] = {
                 name: variant.name,
                 price: parseFloat(variant.price || 0)
+            };
+
+            variantResaleConfig.value[variantId] = {
+                is_saleable: variant.is_saleable || false,
+                resale_type: variant.resale_type || null,
+                resale_value: variant.resale_value || null
             };
 
             // Store variant ingredients
@@ -988,6 +1038,7 @@ const editItem = (item) => {
 };
 
 // ✅ UPDATE submitEdit to handle variant metadata properly
+// ==================== UPDATED submitEdit FUNCTION ====================
 const submitEdit = async () => {
     submitting.value = true;
     formErrors.value = {};
@@ -1007,7 +1058,7 @@ const submitEdit = async () => {
 
         // Handle nutrition and ingredients based on active tab
         if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
-            // Variant menu: calculate total nutrition from all variants
+            // ✅ VARIANT MENU SECTION
             const totalNutrition = Object.values(variantIngredients.value)
                 .flat()
                 .reduce(
@@ -1027,14 +1078,33 @@ const submitEdit = async () => {
             formData.append("nutrition[protein]", totalNutrition.protein);
             formData.append("nutrition[carbs]", totalNutrition.carbs);
 
-            // ✅ Send variant_metadata in correct format
+            // ✅ Send variant_metadata with PROPERLY FORMATTED resale data
             let metadataIndex = 0;
             Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
-                formData.append(`variant_metadata[${metadataIndex}][id]`, variantId); // Include ID for updates
+                formData.append(`variant_metadata[${metadataIndex}][id]`, variantId);
                 formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
                 formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
 
-                // Add ingredients for this variant using the same index
+                // ✅ FIX: Get resale config and send only if is_saleable is true
+                const resaleConfig = variantResaleConfig.value[variantId];
+
+                if (resaleConfig && resaleConfig.is_saleable) {
+                    // Send as 1 for boolean
+                    formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 1);
+                    
+                    // Only send resale_type and resale_value if they have valid values
+                    if (resaleConfig.resale_type && resaleConfig.resale_type !== 'null') {
+                        formData.append(`variant_metadata[${metadataIndex}][resale_type]`, resaleConfig.resale_type);
+                    }
+                    if (resaleConfig.resale_value !== null && resaleConfig.resale_value !== '' && !isNaN(resaleConfig.resale_value)) {
+                        formData.append(`variant_metadata[${metadataIndex}][resale_value]`, parseFloat(resaleConfig.resale_value));
+                    }
+                } else {
+                    // Not saleable
+                    formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 0);
+                }
+
+                // Add ingredients for this variant
                 const ingredients = variantIngredients.value[variantId] || [];
                 ingredients.forEach((ing, ingIndex) => {
                     formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][inventory_item_id]`, ing.id);
@@ -1046,16 +1116,29 @@ const submitEdit = async () => {
                 metadataIndex++;
             });
 
-            // Don't send base price for variant menus
-            formData.append("price", 0);
+            formData.append("price", 0); // Don't need base price for variants
         } else {
-            // Simple menu: use i_cart and i_totalNutrition
+            // ✅ SIMPLE MENU SECTION
             formData.append("price", form.value.price || 0);
 
             formData.append("nutrition[calories]", i_totalNutrition.value.calories);
             formData.append("nutrition[fat]", i_totalNutrition.value.fat);
             formData.append("nutrition[protein]", i_totalNutrition.value.protein);
             formData.append("nutrition[carbs]", i_totalNutrition.value.carbs);
+
+            // Simple menu resale
+            if (form.value.is_saleable) {
+                formData.append("is_saleable", 1);
+                
+                if (form.value.resale_type && form.value.resale_type !== 'null') {
+                    formData.append("resale_type", form.value.resale_type);
+                }
+                if (form.value.resale_value !== null && form.value.resale_value !== '' && !isNaN(form.value.resale_value)) {
+                    formData.append("resale_value", parseFloat(form.value.resale_value));
+                }
+            } else {
+                formData.append("is_saleable", 0);
+            }
 
             // Simple ingredients
             i_cart.value.forEach((ing, i) => {
@@ -1094,50 +1177,44 @@ const submitEdit = async () => {
             });
         }
 
-        if (form.value.is_saleable) {
-            formData.append("is_saleable", form.value.is_saleable ? 1 : 0);
-            formData.append("resale_type", form.value.resale_type || null);
-            formData.append("resale_value", form.value.resale_value || null);
-        } else {
-            formData.append("is_saleable", 0);
-            formData.append("resale_type", null);
-            formData.append("resale_value", null);
-        }
-
         formData.append("_method", "PUT");
 
-        console.log('Update formData:', [...formData.entries()]);
+        try {
+            console.log('➡️ Updating menu item...');
+            const response = await axios.post(`/menu/${form.value.id}`, formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
 
-        await axios.post(`/menu/${form.value.id}`, formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        });
+            toast.success("Menu updated successfully");
+            resetForm();
+            await fetchMenus();
 
-        toast.success("Menu updated successfully");
-        resetForm();
-        await fetchMenus();
-
-        const modal = bootstrap.Modal.getInstance(
-            document.getElementById("addItemModal")
-        );
-        modal?.hide();
-    } catch (err) {
-        if (err?.response?.status === 422 && err.response.data?.errors) {
-            formErrors.value = err.response.data.errors;
-            const allMessages = Object.values(err.response.data.errors)
-                .flat()
-                .join("\n");
-            toast.error(allMessages);
-        } else {
-            console.error("❌ Update failed:", err.response?.data || err.message);
-            toast.error("Failed to update menu item");
+            const modal = bootstrap.Modal.getInstance(
+                document.getElementById("addItemModal")
+            );
+            modal?.hide();
+        } catch (err) {
+            console.error("❌ Update failed:", err.response?.data);
+            
+            if (err?.response?.status === 422 && err.response.data?.errors) {
+                formErrors.value = err.response.data.errors;
+                const errorMessages = Object.values(err.response.data.errors)
+                    .flat()
+                    .join("\n");
+                toast.error(errorMessages || "Validation failed");
+            } else {
+                toast.error("Failed to update menu item: " + (err.response?.data?.message || err.message));
+            }
         }
+    } catch (error) {
+        console.error("❌ Error:", error);
+        toast.error("An error occurred: " + error.message);
     } finally {
         submitting.value = false;
     }
 };
-
 const toggleStatus = async (item) => {
     try {
         const newStatus = item.status === 1 ? 0 : 1;
@@ -1203,6 +1280,7 @@ function resetForm() {
     selectedVariantForIngredients.value = null;
     variantIngredients.value = {};
     variantMetadata.value = {};
+    variantResaleConfig.value = {};
     variantForm.value = { name: '', price: null };
     variants.value = [];
     addons.value = [];
@@ -2046,6 +2124,15 @@ function saveIngredients() {
             price: variantForm.value.price
         };
 
+
+        if (!variantResaleConfig.value[variantId]) {
+            variantResaleConfig.value[variantId] = {
+                is_saleable: false,
+                resale_type: null,
+                resale_value: null
+            };
+        }
+
         toast.success(`Variant "${variantForm.value.name}" ingredients saved!`);
 
         // Clear cart and form
@@ -2491,95 +2578,62 @@ const deleteVariantIngredients = (variantId) => {
                                         </div>
 
                                         <div class="col-md-6">
-    <label class="form-label">Is this Saleable Menu?</label>
-    <div class="d-flex gap-3">
-        <div class="form-check">
-            <input 
-                v-model="form.is_saleable" 
-                :value="true" 
-                type="radio" 
-                class="form-check-input" 
-                id="saleable_yes"
-                name="is_saleable"
-            />
-            <label class="form-check-label" for="saleable_yes">
-                Yes
-            </label>
-        </div>
-        <div class="form-check">
-            <input 
-                v-model="form.is_saleable" 
-                :value="false" 
-                type="radio" 
-                class="form-check-input" 
-                id="saleable_no"
-                name="is_saleable"
-            />
-            <label class="form-check-label" for="saleable_no">
-                No
-            </label>
-        </div>
-    </div>
-</div>
+                                            <label class="form-label">Is this Saleable Menu?</label>
+                                            <div class="d-flex gap-3">
+                                                <div class="form-check">
+                                                    <input v-model="form.is_saleable" :value="true" type="radio"
+                                                        class="form-check-input" id="saleable_yes" name="is_saleable" />
+                                                    <label class="form-check-label" for="saleable_yes">
+                                                        Yes
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input v-model="form.is_saleable" :value="false" type="radio"
+                                                        class="form-check-input" id="saleable_no" name="is_saleable" />
+                                                    <label class="form-check-label" for="saleable_no">
+                                                        No
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
 
-<!-- Resale Type Dropdown - Shows when "Yes" is selected -->
-<div v-if="form.is_saleable" class="col-md-6">
-    <label class="form-label">Resale Type</label>
-    <Select 
-        v-model="form.resale_type" 
-        :options="resaleTypeOptions"
-        optionLabel="label" 
-        optionValue="value" 
-        placeholder="Select Resale Type"
-        class="w-100"
-        appendTo="self" 
-        :autoZIndex="true" 
-        :baseZIndex="2000"
-        :class="{ 'is-invalid': formErrors.resale_type }"
-    />
-    <small v-if="formErrors.resale_type" class="text-danger">
-        {{ formErrors.resale_type[0] }}
-    </small>
-</div>
+                                        <!-- Resale Type Dropdown - Shows when "Yes" is selected -->
+                                        <div v-if="form.is_saleable" class="col-md-6">
+                                            <label class="form-label">Resale Type</label>
+                                            <Select v-model="form.resale_type" :options="resaleTypeOptions"
+                                                optionLabel="label" optionValue="value" placeholder="Select Resale Type"
+                                                class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
+                                                :class="{ 'is-invalid': formErrors.resale_type }" />
+                                            <small v-if="formErrors.resale_type" class="text-danger">
+                                                {{ formErrors.resale_type[0] }}
+                                            </small>
+                                        </div>
 
-<!-- Resale Value Input - Shows when resale type is selected -->
-<div v-if="form.is_saleable && form.resale_type" class="col-md-6">
-    <label class="form-label">
-        {{ form.resale_type === 'flat' ? 'Flat Amount' : 'Percentage' }}
-    </label>
-    <div class="input-group">
-        <input 
-            v-model.number="form.resale_value" 
-            type="number" 
-            min="0" 
-            :step="form.resale_type === 'flat' ? '0.01' : '0.1'"
-            class="form-control"
-            :class="{ 'is-invalid': formErrors.resale_value }"
-            :placeholder="`Enter ${form.resale_type === 'flat' ? 'flat amount' : 'percentage'}...`"
-        />
-        <span v-if="form.resale_type === 'percentage'" class="input-group-text">
-            %
-        </span>
-        <span v-else class="input-group-text">
-            {{ form.price ? '₹' : 'Amount' }}
-        </span>
-    </div>
-    <small v-if="formErrors.resale_value" class="text-danger">
-        {{ formErrors.resale_value[0] }}
-    </small>
-</div>
+                                        <!-- Resale Value Input - Shows when resale type is selected -->
+                                        <div v-if="form.is_saleable && form.resale_type" class="col-md-6">
+                                            <label class="form-label">
+                                                {{ form.resale_type === 'flat' ? 'Flat Amount' : 'Percentage' }}
+                                            </label>
+                                            <div class="input-group">
+                                                <input v-model.number="form.resale_value" type="number" min="0"
+                                                    :step="form.resale_type === 'flat' ? '0.01' : '0.1'"
+                                                    class="form-control"
+                                                    :class="{ 'is-invalid': formErrors.resale_value }"
+                                                    :placeholder="`Enter ${form.resale_type === 'flat' ? 'flat amount' : 'percentage'}...`" />
+                                                <span v-if="form.resale_type === 'percentage'" class="input-group-text">
+                                                    %
+                                                </span>
+                                                <span v-else class="input-group-text">
+                                                    {{ form.price ? '£' : '£' }}
+                                                </span>
+                                            </div>
+                                            <small v-if="formErrors.resale_value" class="text-danger">
+                                                {{ formErrors.resale_value[0] }}
+                                            </small>
+                                        </div>
 
-<!-- Resale Price Preview - Shows when resale is configured -->
-<div v-if="form.is_saleable && form.resale_type && form.resale_value" class="col-md-6">
-    <div class="card bg-light border-0 rounded-3">
-        <div class="card-body p-2">
-            <small class="text-muted d-block">Resale Price:</small>
-            <div class="fs-6 fw-semibold text-success">
-                ₹ {{ resalePrice.toFixed(2) }}
-            </div>
-        </div>
-    </div>
-</div>
+                                    
+                                      
 
                                         <div class="col-md-6">
                                             <label class="form-label d-block"> Label Color </label>
@@ -2992,13 +3046,13 @@ const deleteVariantIngredients = (variantId) => {
                                                                 </div>
                                                                 <div class="d-flex gap-2">
                                                                     <button @click="editVariantIngredients(variantId)"
-                                                                        class="btn btn-sm btn-outline-primary"
+                                                                        class="btn btn-primary btn-sm"
                                                                         style="height: 32px !important;"
                                                                         title="Edit ingredients">
                                                                         <Pencil class="w-4 h-4" />
                                                                     </button>
                                                                     <button @click="deleteVariantIngredients(variantId)"
-                                                                        class="btn btn-sm btn-outline-danger"
+                                                                        class="btn btn-danger btn-sm"
                                                                         style="height: 32px !important;"
                                                                         title="Delete variant">
                                                                         <XCircle class="w-4 h-4" />
@@ -3118,6 +3172,104 @@ const deleteVariantIngredients = (variantId) => {
                                                 <ImageZoomModal v-if="showImageModal" :show="showImageModal"
                                                     :image="previewImage" @close="showImageModal = false" />
                                             </div>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="mt-4">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="bi bi-cash-coin me-2"></i>Sale Settings
+                                        </h6>
+
+                                        <!-- Info Card -->
+                                     
+                                        <!-- Variants Resale Settings -->
+                                        <div v-if="Object.keys(variantIngredients).length > 0" class="row g-3">
+                                            <div v-for="(ingredients, variantId) in variantIngredients" :key="variantId"
+                                                class="col-md-6">
+                                                <div class="card border rounded-3 shadow-sm">
+                                                    <div class="card-header bg-light py-2">
+                                                        <h6 class="mb-0 fw-semibold small">
+                                                            {{ getVariantName(variantId) }}
+                                                        </h6>
+                                                    </div>
+
+                                                    <div class="card-body">
+                                                        <!-- Is Saleable Radio -->
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-semibold">Enable
+                                                                Resale?</label>
+                                                            <div class="d-flex gap-3">
+                                                                <div class="form-check">
+                                                                    <input :id="`variant_saleable_yes_${variantId}`"
+                                                                        type="radio" class="form-check-input"
+                                                                        :value="true"
+                                                                        :name="`variant_saleable_${variantId}`"
+                                                                        v-model="variantResaleConfig[variantId].is_saleable" />
+                                                                    <label class="form-check-label small"
+                                                                        :for="`variant_saleable_yes_${variantId}`">
+                                                                        Yes
+                                                                    </label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input :id="`variant_saleable_no_${variantId}`"
+                                                                        type="radio" class="form-check-input"
+                                                                        :value="false"
+                                                                        :name="`variant_saleable_${variantId}`"
+                                                                        v-model="variantResaleConfig[variantId].is_saleable" />
+                                                                    <label class="form-check-label small"
+                                                                        :for="`variant_saleable_no_${variantId}`">
+                                                                        No
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Resale Type & Value (shown only if saleable) -->
+                                                        <div v-if="variantResaleConfig[variantId].is_saleable"
+                                                            class="row g-2">
+                                                            <!-- Resale Type -->
+                                                            <div class="col-6">
+                                                                <label class="form-label small">Resale Type</label>
+                                                                <Select
+                                                                    v-model="variantResaleConfig[variantId].resale_type"
+                                                                    :options="resaleTypeOptions" optionLabel="label"
+                                                                    optionValue="value" placeholder="Select"
+                                                                    class="w-100" :style="{ fontSize: '0.875rem' }"
+                                                                    appendTo="self" :autoZIndex="true"
+                                                                    :baseZIndex="2000" />
+                                                            </div>
+
+                                                            <!-- Resale Value -->
+                                                            <div class="col-6">
+                                                                <label class="form-label small">
+                                                                    {{ variantResaleConfig[variantId].resale_type ===
+                                                                        'flat' ?
+                                                                        'Flat Amount' : 'Percentage' }}
+                                                                </label>
+                                                                <div class="input-group input-group-sm">
+                                                                    <input
+                                                                        v-model.number="variantResaleConfig[variantId].resale_value"
+                                                                        type="number" min="0"
+                                                                        :step="variantResaleConfig[variantId].resale_type === 'flat' ? '0.01' : '0.1'"
+                                                                        class="form-control py-2"
+                                                                        :placeholder="`Enter ${variantResaleConfig[variantId].resale_type === 'flat' ? 'amount' : '%'}`" />
+                                                                    <span class="input-group-text small">
+                                                                        {{ variantResaleConfig[variantId].resale_type
+                                                                            ===
+                                                                            'percentage' ? '%' : '£' }}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div v-else class="alert alert-info small" role="alert">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            Add variant ingredients first to configure resale settings.
                                         </div>
                                     </div>
                                 </div>
@@ -3379,6 +3531,11 @@ const deleteVariantIngredients = (variantId) => {
     padding: 5px 20px !important;
 }
 
+.dark .bg-light{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
 .custom-card-body {
     padding: 7px 8px !important;
 }
@@ -3404,6 +3561,11 @@ const deleteVariantIngredients = (variantId) => {
     /* gray-800 */
     color: #ffffff !important;
     /* gray-50 */
+}
+
+.dark .input-group-text {
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 :global(.dark .p-multiselect-empty-message) {

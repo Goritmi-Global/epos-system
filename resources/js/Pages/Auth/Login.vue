@@ -339,19 +339,21 @@ const switchToPin = () => {
 
 /* Logo Styles - CENTERED */
 .login-logo-wrapper {
-    width: 100%;
+    width: 60%;
     display: flex;
     justify-content: center;
     align-items: center;
-    /* margin-bottom: 8px !important; */
+  
 }
+
+
 
 .login-logo {
     text-align: center;
 }
 
 .logo-img {
-    max-width: 80px;
+    max-width: 400px;
     height: auto;
     margin: 0 auto;
     display: block;
@@ -361,7 +363,29 @@ const switchToPin = () => {
     .logo-img {
         max-width: 160px;
     }
+    .login-logo-wrapper {
+    width: 65% !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* margin-bottom: 8px !important; */
 }
+}
+
+@media only screen and (min-width: 1024px) and (max-width: 1800px) {
+    .logo-img {
+        max-width: 400px;
+    }
+
+    .login-logo-wrapper {
+        width: 40% !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        /* margin-bottom: 8px !important; */
+    }
+}
+
 
 .loading-overlay {
     position: fixed;
