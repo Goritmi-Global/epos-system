@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\POS;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StorePurchaseOrderRequest;
 use App\Http\Requests\Inventory\UpdatePurchaseOrderRequest;
 use App\Models\PurchaseOrder;
 use App\Services\POS\PurchaseOrderService;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -22,20 +22,24 @@ class PurchaseOrderController extends Controller
     public function index(Request $request)
     {
         $orders = $this->service->list($request->only(['q', 'status']));
+
         // Instead of JSON response, use Inertia:
         return Inertia::render('Backend/Inventory/PurchaseOrder/Index', [
-            'orders' => $orders
+            'orders' => $orders,
         ]);
     }
+
     public function fetchOrders(Request $request)
     {
         $orders = $this->service->list($request->only(['q', 'status']));
+
         return response()->json(['message' => 'Purchase order fetched successfully', 'data' => $orders], 201);
     }
 
     public function store(StorePurchaseOrderRequest $request)
     {
         $order = $this->service->store($request->validated());
+
         return response()->json(['message' => 'Purchase order created successfully', 'data' => $order], 201);
     }
 
@@ -45,21 +49,32 @@ class PurchaseOrderController extends Controller
             $purchaseOrder->load([
                 'supplier',
                 'items.product',
-                'items.stockEntry' 
+                'items.stockEntry',
             ])
         );
     }
 
-
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder)
     {
         $order = $this->service->update($purchaseOrder, $request->validated());
+
         return response()->json(['message' => 'Purchase order updated successfully', 'data' => $order]);
     }
 
     public function destroy(PurchaseOrder $purchaseOrder)
     {
         $purchaseOrder->delete();
+
         return response()->json(['message' => 'Purchase order deleted successfully']);
+    }
+
+    public function generateInvoice(PurchaseOrder $purchaseOrder)
+    {
+        return response()->json(
+            $purchaseOrder->load([
+                'supplier',
+                'items.product',
+            ])
+        );
     }
 }

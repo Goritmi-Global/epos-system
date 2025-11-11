@@ -43,7 +43,7 @@ class MenuController extends Controller
             'tags' => $tags,
             'meals' => $meals,
             'variantGroups' => $variantGroups,
-            'addonGroups' =>   $addonGroups
+            'addonGroups' => $addonGroups,
         ]);
     }
 
@@ -69,7 +69,7 @@ class MenuController extends Controller
         }
     }
 
-      public function update(UpdateMenuRequest $request, MenuItem $menu)
+    public function update(UpdateMenuRequest $request, MenuItem $menu)
     {
         try {
             $updatedMenu = $this->service->update($menu, $request->validated(), $request);
@@ -95,45 +95,55 @@ class MenuController extends Controller
             'allergies',
             'tags',
             'nutrition',
-            'addonGroupRelations.addonGroup'
+            'addonGroupRelations.addonGroup',
         ])
-        ->get()
-        ->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'price' => $item->price,
-                'description' => $item->description,
-                'is_taxable' => $item->is_taxable,
-                'label_color' => $item->label_color,
-                'status' => $item->status,
-                'category' => $item->category,
-                'meals' => $item->meals,
-                'ingredients' => $item->ingredients,
-                'nutrition' => $item->nutrition,
-                'allergies' => $item->allergies,
-                'tags' => $item->tags,
-                'image_url' => UploadHelper::url($item->upload_id),
-                'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'price' => $item->price,
+                    'description' => $item->description,
+                    'is_taxable' => $item->is_taxable,
+                    'label_color' => $item->label_color,
+                    'status' => $item->status,
+                    'category' => $item->category,
+                    'meals' => $item->meals,
+                    'ingredients' => $item->ingredients,
+                    'nutrition' => $item->nutrition,
+                    'allergies' => $item->allergies,
+                    'tags' => $item->tags,
+                    'image_url' => UploadHelper::url($item->upload_id),
+                    'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
 
-                // ✅ Include variant info with ingredients and prices
-                'variants' => $item->variants->map(function ($variant) {
-                    return [
-                        'id' => $variant->id,
-                        'name' => $variant->name,
-                        'price' => $variant->price,
-                        'ingredients' => $variant->ingredients->map(function ($ing) {
-                            return [
-                                'inventory_item_id' => $ing->inventory_item_id,
-                                'product_name' => $ing->product_name,
-                                'quantity' => $ing->quantity,
-                                'cost' => $ing->cost,
-                            ];
-                        }),
-                    ];
-                }),
-            ];
-        });
+                    'is_saleable' => $item->is_saleable,
+                    'resale_type' => $item->resale_type,
+                    'resale_value' => $item->resale_value,
+                    'resale_price' => $item->resale_price,
+
+                    // ✅ Include variant info with ingredients and prices
+                    'variants' => $item->variants->map(function ($variant) {
+                        return [
+                            'id' => $variant->id,
+                            'name' => $variant->name,
+                            'price' => $variant->price,
+                            'is_saleable' => $variant->is_saleable,
+                            'resale_type' => $variant->resale_type,
+                            'resale_value' => $variant->resale_value,
+                            'resale_price' => $variant->resale_price,
+                            'display_name' => $variant->display_name,
+                            'ingredients' => $variant->ingredients->map(function ($ing) {
+                                return [
+                                    'inventory_item_id' => $ing->inventory_item_id,
+                                    'product_name' => $ing->product_name,
+                                    'quantity' => $ing->quantity,
+                                    'cost' => $ing->cost,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+            });
 
         return response()->json([
             'message' => 'Menu items fetched successfully',
@@ -141,6 +151,22 @@ class MenuController extends Controller
         ]);
     }
 
+    private function calculateResalePrice($item)
+    {
+        if (! $item->is_saleable || ! $item->resale_type || ! $item->resale_value) {
+            return 0;
+        }
+
+        if ($item->resale_type === 'flat') {
+            return (float) $item->resale_value;
+        }
+
+        if ($item->resale_type === 'percentage') {
+            return (float) ($item->price * ($item->resale_value / 100));
+        }
+
+        return 0;
+    }
 
     public function toggleStatus(Request $request, $id)
     {

@@ -11,6 +11,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
+import ImportFile from "@/Components/importFile.vue";
 
 /* ============================================
    DATA & STATE MANAGEMENT
@@ -656,6 +657,95 @@ const downloadExcel = (data) => {
         toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
+
+
+const sampleHeaders = ["Group Name", "Min Select", "Max Select", "Status", "Description"];
+const sampleData = [
+    ["Toppings", "0", "5", "active", "Pizza toppings selection"],
+    ["Extras", "0", "3", "active", "Extra items"],
+    ["Sauces", "1", "1", "active", "Choose one sauce"],
+];
+
+/* ============================================
+   IMPORT HANDLER (ADD AFTER downloadExcel FUNCTION)
+============================================ */
+
+const handleImport = (data) => {
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return;
+    }
+
+    // Extract headers and rows
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Parse each row into group object
+    const groupsToImport = rows.map((row) => {
+        return {
+            name: (row[0] || "").trim(),
+            min_select: parseInt(row[1]) || 0,
+            max_select: parseInt(row[2]) || 1,
+            status: (row[3] || "active").toLowerCase().trim(),
+            description: (row[4] || "").trim(),
+        };
+    }).filter(group => group.name.length > 0); // Remove empty rows
+
+    if (groupsToImport.length === 0) {
+        toast.error("No valid addon groups found in the file.");
+        return;
+    }
+
+    // VALIDATION 1: Check min_select <= max_select
+    const invalidSelects = groupsToImport.filter(g => g.min_select > g.max_select);
+    if (invalidSelects.length > 0) {
+        const names = invalidSelects.map(g => g.name).join(", ");
+        toast.error(`Invalid: Min select > Max select for: ${names}`);
+        return;
+    }
+
+    // VALIDATION 2: Check for duplicates in CSV
+    const groupNames = groupsToImport.map(g => g.name.toLowerCase());
+    const duplicatesInCSV = groupNames.filter((name, index) => groupNames.indexOf(name) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate names in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return;
+    }
+
+    // VALIDATION 3: Check for duplicates in existing table
+    const existingNames = addonGroups.value.map(g => g.name.toLowerCase());
+    const duplicatesInTable = groupsToImport.filter(importGroup =>
+        existingNames.includes(importGroup.name.toLowerCase())
+    );
+
+    if (duplicatesInTable.length > 0) {
+        const names = duplicatesInTable.map(g => g.name).join(", ");
+        toast.error(`Already exist in table: ${names}`);
+        return;
+    }
+
+    // VALIDATION 4: Check status values
+    const validStatuses = ["active", "inactive"];
+    const invalidStatuses = groupsToImport.filter(g => !validStatuses.includes(g.status));
+
+    if (invalidStatuses.length > 0) {
+        toast.error("Status must be 'active' or 'inactive'.");
+        return;
+    }
+
+    // All validations passed - send to API
+    axios.post("/api/addon-groups/import", { groups: groupsToImport })
+        .then((response) => {
+            toast.success(response.data.message || "Import successful!");
+            fetchAddonGroups();
+        })
+        .catch((error) => {
+            const message = error.response?.data?.message || "Import failed";
+            toast.error(message);
+            console.error("Import error:", error);
+        });
+};
 </script>
 
 <template>
@@ -707,9 +797,10 @@ const downloadExcel = (data) => {
                                     { value: 'addons_desc', label: 'Addons Count: High to Low' },
                                     { value: 'newest', label: 'Newest First' },
                                     { value: 'oldest', label: 'Oldest First' },
-                                ]" :showPriceRange="true" :showDateRange="false" :showCategory="false" statusLabel="Group Status"
-                                priceLabel="Addons Count Range" priceMinPlaceholder="Min Count"
-                                priceMaxPlaceholder="Max Count" @apply="handleFilterApply" @clear="handleFilterClear" />
+                                ]" :showPriceRange="true" :showDateRange="false" :showCategory="false"
+                                statusLabel="Group Status" priceLabel="Addons Count Range"
+                                priceMinPlaceholder="Min Count" priceMaxPlaceholder="Max Count"
+                                @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
@@ -733,6 +824,9 @@ const downloadExcel = (data) => {
                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Group
                             </button>
+
+                            <ImportFile label="Import Groups" :sampleHeaders="sampleHeaders" :sampleData="sampleData"
+                                @on-import="handleImport" />
 
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"

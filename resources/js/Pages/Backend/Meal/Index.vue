@@ -12,6 +12,7 @@ import * as XLSX from "xlsx";
 
 
 import { usePage } from "@inertiajs/vue3";
+import ImportFile from "@/Components/importFile.vue";
 const page = usePage()
 
 /* ---------------- Data ---------------- */
@@ -401,6 +402,83 @@ const downloadExcel = (data) => {
     }
 };
 
+/* ============= IMPORT CONFIGURATION ============= */
+const sampleHeaders = ["Meal Name", "Start Time", "End Time"];
+const sampleData = [
+    ["Breakfast", "06:00", "10:00"],
+    ["Lunch", "12:00", "14:00"],
+    ["Dinner", "18:00", "21:00"],
+];
+
+/* ============= IMPORT HANDLER ============= */
+const handleImport = (data) => {
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return;
+    }
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    const mealsToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",           // Meal Name
+            start_time: row[1] || "",     // Start Time (HH:mm format)
+            end_time: row[2] || "",       // End Time (HH:mm format)
+        };
+    }).filter(meal => meal.name.trim()); // Filter out empty rows
+
+    if (mealsToImport.length === 0) {
+        toast.error("No valid meals found in the file.");
+        return;
+    }
+
+    // Check for duplicate meal names within the CSV
+    const mealNames = mealsToImport.map(m => m.name.trim().toLowerCase());
+    const duplicatesInCSV = mealNames.filter((name, index) => mealNames.indexOf(name) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate meal names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return;
+    }
+
+    // Check for duplicate meal names in existing table
+    const existingMealNames = meals.value.map(m => m.name.trim().toLowerCase());
+    const duplicatesInTable = mealsToImport.filter(importMeal =>
+        existingMealNames.includes(importMeal.name.trim().toLowerCase())
+    );
+
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(m => m.name).join(", ");
+        toast.error(`Meals already exist in the table: ${duplicateNamesList}`);
+        return;
+    }
+
+    // Validate time format (HH:mm)
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    const invalidTimes = mealsToImport.filter(m =>
+        !timeRegex.test(m.start_time) || !timeRegex.test(m.end_time)
+    );
+
+    if (invalidTimes.length > 0) {
+        toast.error("Invalid time format. Times must be in HH:mm format (e.g., 09:30).");
+        return;
+    }
+
+    // Send to API
+    axios
+        .post("/api/meals/import", { meals: mealsToImport })
+        .then(() => {
+            toast.success("Meals imported successfully");
+            fetchMeals();
+        })
+        .catch((err) => {
+            console.error("Import error:", err);
+            const errorMessage = err.response?.data?.message || "Import failed";
+            toast.error(errorMessage);
+        });
+};
+
 </script>
 
 <template>
@@ -455,8 +533,11 @@ const downloadExcel = (data) => {
                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Meal
                             </button>
+                            <!-- Add this next to your Export button -->
+                            <ImportFile label="Import Meals" :sampleHeaders="sampleHeaders" :sampleData="sampleData"
+                                @on-import="handleImport" />
 
-                            
+
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">

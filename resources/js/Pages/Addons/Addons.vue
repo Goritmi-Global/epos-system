@@ -12,6 +12,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
+import ImportFile from "@/Components/importFile.vue";
 
 const { formatCurrencySymbol } = useFormatters();
 
@@ -195,6 +196,12 @@ const uniqueGroups = computed(() => {
  */
 const filteredAddons = computed(() => {
     let filtered = addons.value;
+
+    if (selectedGroupFilter.value !== "all") {
+        filtered = filtered.filter(
+            (addon) => addon.addon_group?.name === selectedGroupFilter.value
+        );
+    }
 
     // Filter by search query (name or addon group name)
     const searchTerm = q.value.trim().toLowerCase();
@@ -468,7 +475,7 @@ const addonGroupsForFilter = computed(() => {
 
 
 const onDownload = (type) => {
-    
+
     if (!addons.value || addons.value.length === 0) {
         toast.error("No Addons data to download");
         return;
@@ -689,6 +696,110 @@ const downloadExcel = (data) => {
     }
 };
 
+
+const sampleHeaders = ["Addon Name", "Addon Group Name", "Price", "Status", "Description"];
+const sampleData = [
+    ["Extra Cheese", "Toppings", "0.50", "active", "Additional cheese"],
+    ["Pepperoni", "Toppings", "0.75", "active", "Spicy pepperoni slices"],
+    ["BBQ Sauce", "Sauces", "0.25", "active", "Smoky BBQ sauce"],
+    ["Ranch Dressing", "Sauces", "0.25", "active", "Classic ranch"],
+];
+
+/* ============================================
+   IMPORT HANDLER (ADD AFTER downloadExcel FUNCTION)
+============================================ */
+
+const handleImport = (data) => {
+    // Validate file is not empty
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return;
+    }
+
+    // Extract headers and rows
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Parse each row into addon object
+    const addonsToImport = rows.map((row) => {
+        return {
+            name: (row[0] || "").trim(),
+            addon_group_name: (row[1] || "").trim(),
+            price: parseFloat(row[2]) || 0,
+            status: (row[3] || "active").toLowerCase().trim(),
+            description: (row[4] || "").trim(),
+        };
+    }).filter(addon => addon.name.length > 0); // Remove empty rows
+
+    if (addonsToImport.length === 0) {
+        toast.error("No valid addons found in the file.");
+        return;
+    }
+
+    // VALIDATION 1: Check price >= 0
+    const invalidPrices = addonsToImport.filter(a => a.price < 0);
+    if (invalidPrices.length > 0) {
+        const names = invalidPrices.map(a => a.name).join(", ");
+        toast.error(`Invalid price (must be >= 0) for: ${names}`);
+        return;
+    }
+
+    // VALIDATION 2: Check all addon groups exist
+    const groupNames = addonsToImport.map(a => a.addon_group_name);
+    const existingGroupNames = addonGroups.value.map(g => g.name.toLowerCase());
+    const missingGroups = [...new Set(groupNames.filter(name =>
+        !existingGroupNames.includes(name.toLowerCase())
+    ))];
+
+    if (missingGroups.length > 0) {
+        toast.error(`Addon groups do not exist: ${missingGroups.join(", ")}`);
+        return;
+    }
+
+    // VALIDATION 3: Check for duplicates in CSV
+    const addonKeys = addonsToImport.map(a => `${a.name.toLowerCase()}-${a.addon_group_name.toLowerCase()}`);
+    const duplicatesInCSV = addonKeys.filter((key, index) => addonKeys.indexOf(key) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error("Duplicate addon names found in the same group within CSV");
+        return;
+    }
+
+    // VALIDATION 4: Check for duplicates in existing table
+    const existingKeys = addons.value.map(a =>
+        `${a.name.toLowerCase()}-${a.addon_group?.name.toLowerCase()}`
+    );
+    const duplicatesInTable = addonsToImport.filter(importAddon =>
+        existingKeys.includes(`${importAddon.name.toLowerCase()}-${importAddon.addon_group_name.toLowerCase()}`)
+    );
+
+    if (duplicatesInTable.length > 0) {
+        const names = duplicatesInTable.map(a => `${a.name} (${a.addon_group_name})`).join(", ");
+        toast.error(`Already exist in table: ${names}`);
+        return;
+    }
+
+    // VALIDATION 5: Check status values
+    const validStatuses = ["active", "inactive"];
+    const invalidStatuses = addonsToImport.filter(a => !validStatuses.includes(a.status));
+
+    if (invalidStatuses.length > 0) {
+        toast.error("Status must be 'active' or 'inactive'.");
+        return;
+    }
+
+    // All validations passed - send to API
+    axios.post("/api/addons/import", { addons: addonsToImport })
+        .then((response) => {
+            toast.success(response.data.message || "Import successful!");
+            fetchAddons();
+        })
+        .catch((error) => {
+            const message = error.response?.data?.message || "Import failed";
+            toast.error(message);
+            console.error("Import error:", error);
+        });
+};
 </script>
 
 <template>
@@ -770,6 +881,9 @@ const downloadExcel = (data) => {
                                 <Plus class="w-4 h-4" /> Add Addon
                             </button>
 
+                            <ImportFile label="Import Addons" :sampleHeaders="sampleHeaders" :sampleData="sampleData"
+                                @on-import="handleImport" />
+
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
@@ -798,13 +912,13 @@ const downloadExcel = (data) => {
                     <!-- Group Filter Buttons -->
                     <div class="mb-3 d-flex flex-wrap gap-2">
                         <button v-for="group in uniqueGroups" :key="group" @click="setGroupFilter(group)"
-                            class="btn rounded-pill" :class="selectedGroupFilter === (group === 'All' ? 'all' : group)
-                                ? 'btn-primary'
-                                : 'btn-outline-primary'
-                                ">
+                            class="btn rounded-pill border-dark" :class="selectedGroupFilter === (group === 'All' ? 'all' : group)
+                                ? 'custom-bg-color'
+                                : ''">
                             {{ group }}
                         </button>
                     </div>
+
 
                     <!-- Table -->
                     <div class="table-responsive">
@@ -839,7 +953,7 @@ const downloadExcel = (data) => {
 
                                     <!-- Addon Group -->
                                     <td>
-                                        <span class="badge bg-info px-3 py-2 rounded-pill">
+                                        <span class="badge bg-primary px-3 py-2 rounded-pill">
                                             {{ row.addon_group?.name || "N/A" }}
                                         </span>
                                     </td>
@@ -1048,6 +1162,22 @@ const downloadExcel = (data) => {
     top: 50%;
     transform: translateY(-50%);
     color: #6c757d;
+}
+
+.dark .border-dark{
+ border: 1px solid #fff !important;
+ color: #fff !important;
+}
+
+.dark .custom-bg-color{
+    background-color: #1C0D82 !important;
+    color: #fff !important;
+   
+}
+
+.custom-bg-color{
+    background-color: #1C0D82 !important;
+    color: #fff !important;
 }
 
 .search-input {

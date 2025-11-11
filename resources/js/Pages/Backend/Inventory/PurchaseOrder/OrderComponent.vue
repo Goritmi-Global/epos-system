@@ -1,7 +1,7 @@
 <script setup>
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useFormatters } from '@/composables/useFormatters'
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
@@ -18,34 +18,142 @@ const props = defineProps({
 });
 const emit = defineEmits(["refresh-data"]);
 
+const activeTab = ref("single");
+
 const o_search = ref("");
 const p_supplier = ref(null);
 const p_submitting = ref(false);
 const formErrors = ref({});
-  const p_search = ref("");
+const p_search = ref("");
 const o_submitting = ref(false);
 const derivedUnitsCache = ref({});
 
-const filteredItems = computed(() => {
-  const term = o_search.value.trim().toLowerCase();
-  if (!term) return props.items;
+const m_supplier = ref(null);
+const m_submitting = ref(false);
+const m_formErrors = ref({});
+const multipleOrderItems = ref([]);
 
-  return props.items.filter((i) =>
-    [
-      i.name,
-      i.category?.name ?? "",
-      i.unit_name ?? "",
-      String(i.stock ?? "")
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(term)
-  );
+
+watch(
+    () => props.items,
+    (newItems) => {
+        multipleOrderItems.value = newItems.map((it) => ({
+            ...it,
+            qty: 0,
+            unitPrice: 0,
+            expiry: null,
+            subtotal: 0,
+            supplier_id: null,
+            selected_derived_unit_id: null,
+            derived_units: [],
+        }));
+    },
+    { immediate: true }
+);
+
+
+onMounted(() => {
+  feather.replace();
 });
+
+const filteredItems = computed(() => {
+    const term = o_search.value.trim().toLowerCase();
+
+    if (!term) {
+        // Ensure all items have reactive properties
+        props.items.forEach(item => {
+            if (!('qty' in item)) item.qty = 0;
+            if (!('unitPrice' in item)) item.unitPrice = 0;
+            if (!('expiry' in item)) item.expiry = null;
+            if (!('subtotal' in item)) item.subtotal = 0;
+            if (!('selected_derived_unit_id' in item)) item.selected_derived_unit_id = null;
+            if (!('selectedDerivedUnitInfo' in item)) item.selectedDerivedUnitInfo = null;
+            if (!('derived_units' in item)) item.derived_units = [];
+        });
+        return props.items;
+    }
+
+    return props.items.filter((i) => {
+        // Ensure filtered items also have reactive properties
+        if (!('qty' in i)) i.qty = 0;
+        if (!('unitPrice' in i)) i.unitPrice = 0;
+        if (!('expiry' in i)) i.expiry = null;
+        if (!('subtotal' in i)) i.subtotal = 0;
+        if (!('selected_derived_unit_id' in i)) i.selected_derived_unit_id = null;
+        if (!('selectedDerivedUnitInfo' in i)) i.selectedDerivedUnitInfo = null;
+        if (!('derived_units' in i)) i.derived_units = [];
+
+        return [
+            i.name,
+            i.category?.name ?? "",
+            i.unit_name ?? "",
+            String(i.stock ?? "")
+        ]
+            .join(" ")
+            .toLowerCase()
+            .includes(term);
+    });
+});
+
+
+
+function updateSubtotal(it) {
+    let qty = Number(it.qty) || 0;
+    const price = Number(it.unitPrice) || 0;
+
+    // Apply conversion if derived unit is selected
+    if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+        const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+        qty = qty * conversionFactor;
+    }
+
+    it.subtotal = qty * price;
+}
+
+function updateMultipleSubtotal(it) {
+    let qty = Number(it.qty) || 0;
+    const price = Number(it.unitPrice) || 0;
+
+    if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+        const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+        qty = qty * conversionFactor;
+    }
+
+    it.subtotal = qty * price;
+}
+
+function clearRow(it) {
+    it.qty = 0;
+    it.unitPrice = 0;
+    it.expiry = null;
+    it.subtotal = 0;
+    it.selected_derived_unit_id = null;
+    it.selectedDerivedUnitInfo = null;
+    if (it.derived_units) {
+        it.derived_units = [];
+    }
+    clearItemErrors(it);
+}
+
+
+function clearMultipleRow(it) {
+    it.qty = 0;
+    it.unitPrice = 0;
+    it.expiry = null;
+    it.subtotal = 0;
+    it.supplier_id = null;
+    it.selected_derived_unit_id = null;
+    it.selectedDerivedUnitInfo = null;
+    if (it.derived_units) {
+        it.derived_units = [];
+    }
+    clearMultipleItemErrors(it);
+}
+
 const p_cart = ref([]);
 const resteErrors = () => {
     formErrors.value = {};
-      filteredItems.value.forEach(item => {
+    filteredItems.value.forEach(item => {
         item.selectedDerivedUnitInfo = null;
         item.selected_derived_unit_id = null;
     });
@@ -56,6 +164,15 @@ const resteErrors = () => {
         item.selected_derived_unit_id = null;
     });
 };
+
+const resetMultipleErrors = () => {
+    m_formErrors.value = {};
+    multipleOrderItems.value.forEach(item => {
+        item.selectedDerivedUnitInfo = null;
+        item.selected_derived_unit_id = null;
+    });
+};
+
 const money = (n, currency = "GBP") =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
         Number(n || 0)
@@ -64,11 +181,22 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 const o_cart = ref([]);
 const o_total = computed(() =>
-    round2(o_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
+    round2(filteredItems.value.reduce((s, it) => s + Number(it.subtotal || 0), 0))
 );
+
+const m_total = computed(() =>
+    round2(multipleOrderItems.value.reduce((s, it) => s + Number(it.subtotal || 0), 0))
+);
+
+
 const setItemError = (item, field, message) => {
     if (!formErrors.value[item.id]) formErrors.value[item.id] = {};
     formErrors.value[item.id][field] = [message];
+};
+
+const setMultipleItemError = (item, field, message) => {
+    if (!m_formErrors.value[item.id]) m_formErrors.value[item.id] = {};
+    m_formErrors.value[item.id][field] = [message];
 };
 
 
@@ -118,7 +246,20 @@ function onUnitChange(it) {
             du => du.id === it.selected_derived_unit_id
         )
     }
+    updateSubtotal(it);
 }
+
+function onMultipleUnitChange(it) {
+    if (!it.selected_derived_unit_id) {
+        it.selectedDerivedUnitInfo = null
+    } else {
+        it.selectedDerivedUnitInfo = it.derived_units.find(
+            du => du.id === it.selected_derived_unit_id
+        )
+    }
+    updateMultipleSubtotal(it);
+}
+
 
 
 
@@ -139,9 +280,24 @@ const clearItemErrors = (item, field = null) => {
     }
 };
 
+const clearMultipleItemErrors = (item, field = null) => {
+    if (!m_formErrors.value) return;
+    if (!item || !item.id) return;
+    if (field) {
+        if (m_formErrors.value[item.id]) {
+            delete m_formErrors.value[item.id][field];
+            if (Object.keys(m_formErrors.value[item.id]).length === 0) {
+                delete m_formErrors.value[item.id];
+            }
+        }
+    } else {
+        delete m_formErrors.value[item.id];
+    }
+};
+
 async function addOrderItem(item) {
     clearItemErrors(item);
-    
+
     const inputQty = Number(item.qty || 0);
 
     // ensure qty entered
@@ -172,10 +328,10 @@ async function addOrderItem(item) {
 
     // Get the entered price
     const enteredPrice = item.unitPrice !== "" ? Number(item.unitPrice) : Number(item.defaultPrice || 0);
-    
+
     // Convert price to base unit price if derived unit is selected
-    const baseUnitPrice = selectedDerived 
-        ? round2(enteredPrice / conversionFactor) 
+    const baseUnitPrice = selectedDerived
+        ? round2(enteredPrice / conversionFactor)
         : enteredPrice;
 
     const expiry = item.expiry || null;
@@ -217,7 +373,7 @@ async function addOrderItem(item) {
             derived_unit_id: selectedDerived ? selectedDerived.id : null,
             derived_unit_name: selectedDerived ? selectedDerived.name : null,
             base_unit_name: item.unit_name || null,
-            
+
             // Store the entered price for reference
             entered_price: enteredPrice,
             entered_unit: selectedDerived ? selectedDerived.name : item.unit_name,
@@ -238,66 +394,214 @@ function delOrderRow(idx) {
 
 
 async function orderSubmit() {
-    // validate supplier
+    formErrors.value = {};
+
     if (!p_supplier.value) {
         formErrors.value.supplier_id = ["Please select a supplier."];
         toast.error("Please select a supplier.");
-        await nextTick();
-        document.getElementById("supplierSelect")?.focus();
+        return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const validItems = [];
+
+    filteredItems.value.forEach((it) => {
+        // Check if row has any data entered
+        const hasAnyValue = it.qty || it.unitPrice;
+        const errors = {};
+
+        if (hasAnyValue) {
+            let qty = Number(it.qty) || 0;
+
+            // Apply conversion if derived unit is selected
+            if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+                const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+                qty = qty * conversionFactor;
+            }
+
+            const enteredPrice = Number(it.unitPrice) || 0;
+            const baseUnitPrice = it.selectedDerivedUnitInfo
+                ? round2(enteredPrice / Number(it.selectedDerivedUnitInfo.conversion_factor))
+                : enteredPrice;
+
+            // Validate quantity
+            if (!qty || qty <= 0) {
+                errors.qty = ["Quantity is required"];
+            }
+
+            // Validate unit price
+            if (!enteredPrice || enteredPrice <= 0) {
+                errors.unit_price = ["Unit Price is required"];
+            }
+
+
+            if (Object.keys(errors).length > 0) {
+                formErrors.value[it.id] = errors;
+            } else {
+                validItems.push({
+                    product_id: it.id,
+                    quantity: qty,
+                    unit_price: baseUnitPrice,
+                    expiry: it.expiry || null, // Optional expiry
+                });
+            }
+        }
+    });
+
+    if (validItems.length === 0) {
+        toast.error("No valid items to submit");
+        return;
+    }
+
+    if (Object.keys(formErrors.value).length > 0) {
+        toast.error("Please fix the highlighted errors");
         return;
     }
 
     const payload = {
         supplier_id: p_supplier.value,
-        purchase_date: new Date().toISOString().split("T")[0],
+        purchase_date: today,
         status: "pending",
-        items: o_cart.value.map(({ id, qty, unitPrice, expiry }) => ({
-            product_id: id,
-            quantity: qty,
-            unit_price: unitPrice,
-            expiry: expiry || null,
-        })),
+        items: validItems,
     };
 
     o_submitting.value = true;
-
     try {
-        const res = await axios.post("/purchase-orders", payload);
+        await axios.post("/purchase-orders", payload);
+        toast.success("Purchase order created successfully!");
+        emit("refresh-data");
 
-        // reset
-        o_cart.value = [];
+        // Reset form
         p_supplier.value = null;
+        filteredItems.value.forEach((it) => {
+            it.qty = 0;
+            it.unitPrice = 0;
+            it.expiry = null;
+            it.subtotal = 0;
+            it.selected_derived_unit_id = null;
+            it.selectedDerivedUnitInfo = null;
+        });
 
         const m = bootstrap.Modal.getInstance(
             document.getElementById("addOrderModal")
         );
         m?.hide();
-
-        toast.success("Purchase order created successfully!");
-         emit("refresh-data");
     } catch (err) {
-        if (err?.response?.status === 422 && err.response.data?.errors) {
-            formErrors.value = err.response.data.errors;
-            toast.error("Please fill in all required fields correctly.");
-        } else {
-            console.error(err);
-            toast.error("Something went wrong. Please try again.", {
-                autoClose: 3000,
-            });
-        }
+        console.error(err);
+        toast.error("Failed to save order");
     } finally {
         o_submitting.value = false;
     }
 }
 
+async function multipleOrderSubmit() {
+    m_formErrors.value = {};
+
+    const today = new Date().toISOString().split("T")[0];
+    const validItems = [];
+    const groupedBySupplier = {};
+
+    multipleOrderItems.value.forEach((it, idx) => {
+        const hasAnyValue = it.qty || it.unitPrice;
+        const errors = {};
+
+        if (hasAnyValue) {
+            if (!it.supplier_id) {
+                errors.supplier_id = ["Supplier is required"];
+            }
+
+            let qty = Number(it.qty) || 0;
+
+            if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+                const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+                qty = qty * conversionFactor;
+            }
+
+            const enteredPrice = Number(it.unitPrice) || 0;
+            const baseUnitPrice = it.selectedDerivedUnitInfo
+                ? round2(enteredPrice / Number(it.selectedDerivedUnitInfo.conversion_factor))
+                : enteredPrice;
+
+            if (!qty || qty <= 0) {
+                errors.qty = ["Quantity is required"];
+            }
+
+            if (!enteredPrice || enteredPrice <= 0) {
+                errors.unit_price = ["Unit Price is required"];
+            }
+
+            if (Object.keys(errors).length > 0) {
+                m_formErrors.value[it.id] = errors;
+            } else {
+                const supplierId = it.supplier_id;
+                if (!groupedBySupplier[supplierId]) {
+                    groupedBySupplier[supplierId] = [];
+                }
+                groupedBySupplier[supplierId].push({
+                    product_id: it.id,
+                    quantity: qty,
+                    unit_price: baseUnitPrice,
+                    expiry: it.expiry || null,
+                });
+            }
+        }
+    });
+
+    if (Object.keys(groupedBySupplier).length === 0) {
+        toast.error("No valid items to submit");
+        return;
+    }
+
+    if (Object.keys(m_formErrors.value).length > 0) {
+        toast.error("Please fix the highlighted errors");
+        return;
+    }
+
+    m_submitting.value = true;
+    try {
+        for (const [supplierId, items] of Object.entries(groupedBySupplier)) {
+            const payload = {
+                supplier_id: parseInt(supplierId),
+                purchase_date: today,
+                status: "pending",
+                items: items,
+            };
+            await axios.post("/purchase-orders", payload);
+        }
+
+        toast.success("Multiple orders created successfully!");
+        emit("refresh-data");
+
+        multipleOrderItems.value.forEach((it) => {
+            it.qty = 0;
+            it.unitPrice = 0;
+            it.expiry = null;
+            it.subtotal = 0;
+            it.supplier_id = null;
+            it.selected_derived_unit_id = null;
+            it.selectedDerivedUnitInfo = null;
+        });
+
+        const m = bootstrap.Modal.getInstance(
+            document.getElementById("addOrderModal")
+        );
+        m?.hide();
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to save multiple orders");
+    } finally {
+        m_submitting.value = false;
+    }
+}
+
 // Date formate
 const formatDate = (date) => {
-  if (!date) return "—";
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${month}/${day}/${year}`;
+    if (!date) return "—";
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${month}/${day}/${year}`;
 };
 </script>
 <template>
@@ -308,390 +612,295 @@ const formatDate = (date) => {
                     <h5 class="modal-title fw-semibold">Order</h5>
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        title="Close"
-                        @click="resteErrors"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-red-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
+                        data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resteErrors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
                 <div class="modal-body">
-                    <div class="row g-3 align-items-center">
-                        <div class="col-md-5">
-                            <label class="form-label small text-muted d-block"
-                                >Preferred Supplier</label
-                            >
+                    <!-- 👇 ADD THIS: TAB NAVIGATION -->
+                    <ul class="nav nav-tabs mb-4" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{ active: activeTab === 'single' }"
+                                @click="activeTab = 'single'" type="button" role="tab">
+                                Single Order
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{ active: activeTab === 'multiple' }"
+                                @click="activeTab = 'multiple'" type="button" role="tab">
+                                Multiple Order
+                            </button>
+                        </li>
+                    </ul>
 
-                            <Select
-                                v-model="p_supplier"
-                                :options="suppliers"
-                                optionLabel="name"
-                                optionValue="id"
-                                placeholder="Select Supplier"
-                                class="w-100"
-                                :class="{
-                                    'is-invalid': formErrors.supplier_id,
-                                }"
-                                appendTo="self"
-                                :autoZIndex="true"
-                                :baseZIndex="2000"
-                            />
-
-                            <small
-                                v-if="formErrors.supplier_id"
-                                class="text-danger"
-                            >
+                    <!-- 👇 SINGLE PURCHASE TAB (existing code) -->
+                    <div v-if="activeTab === 'single'">
+                        <div class="mb-3">
+                            <label class="form-label">Preferred Supplier</label>
+                            <Select v-model="p_supplier" :options="suppliers" optionLabel="name" optionValue="id"
+                                placeholder="Select Supplier" class="w-100" appendTo="self" :autoZIndex="true"
+                                :class="{ 'is-invalid': formErrors.supplier_id }" :baseZIndex="2000" />
+                            <small v-if="formErrors.supplier_id" class="text-danger">
                                 {{ formErrors.supplier_id[0] }}
                             </small>
                         </div>
-                    </div>
 
-                    <div class="row g-4 mt-1">
-                        <!-- Left: inventory picker -->
-                        <div class="col-lg-5">
-                            <div class="search-wrap mb-2">
-                                <i class="bi bi-search"></i>
-                                <input
-                                    v-model="o_search"
-                                    type="text"
-                                    class="form-control search-input"
-                                    placeholder="Search..."
-                                />
-                            </div>
-
-                            <div
-                                v-for="it in filteredItems"
-                                :key="it.id"
-                                class="card shadow-sm border-0 rounded-4 mb-3"
-                            >
-                                <div class="card-body">
-                                    <div class="d-flex align-items-start gap-3">
-                                        <img
-                                            :src="it.image_url"
-                                            alt=""
-                                            style="
-                                                width: 76px;
-                                                height: 76px;
-                                                object-fit: cover;
-                                                border-radius: 6px;
-                                            "
-                                        />
-
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold">
-                                                {{ it.name }}
-                                            </div>
-                                            <div class="text-muted small">
-                                                Category:
-                                                {{ it.category.name }}
-                                            </div>
-                                            <div class="text-muted small">
-                                                Unit: {{ it.unit_name }}
-                                            </div>
-                                            <div class="text-muted small">
-                                                Stock:
-                                                {{ it.stock }}
-                                            </div>
-                                        </div>
-                                        <button
-                                            class="btn btn-primary rounded-pill px-3 py-1 btn-sm"
-                                            @click="addOrderItem(it)"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-     <!-- ⚡ badge for derived unit -->
-                                        <div v-if="it.selectedDerivedUnitInfo" class="col-12 mt-3">
-                                            <span style="
-                                                    display: inline-block;
-                                                    background-color: #e6f7f1;   /* light green background */
-                                                    color: #155724;              /* dark green text */
-                                                    padding: 4px 18px;
-                                                    border-radius: 20px;
-                                                    font-size: 0.9rem;
-                                                    font-weight: 500;
-                                                    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-                                                    ">
-                                                1 {{ it.selectedDerivedUnitInfo.name }} =
-                                                {{ it.selectedDerivedUnitInfo.conversion_factor }} {{ it.unit_name }}
-                                            </span>
-                                        </div>
-                                    <div class="row g-2 mt-3">
-                                        <div class="col-3">
-                                            <label class="small text-muted"
-                                                >Quantity</label
-                                            >
-                                            <input
-                                                v-model.number="it.qty"
-                                                type="number"
-                                                min="0"
-                                                class="form-control form-control"
-                                                :class="{
-                                                    'is-invalid':
-                                                        formErrors[it.id] &&
-                                                        formErrors[it.id].qty,
-                                                }"
-                                            />
-                                            <small
-                                                v-if="
-                                                    formErrors[it.id] &&
-                                                    formErrors[it.id].qty
-                                                "
-                                                class="text-danger"
-                                            >
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Unit</th>
+                                        <th>Stock</th>
+                                        <th>Qty</th>
+                                        <th>Unit</th>
+                                        <th>Unit Price</th>
+                                        <th>Subtotal</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(it, idx) in filteredItems" :key="it.id">
+                                        <td>{{ it.name }}</td>
+                                        <td>{{ it.category?.name || "-" }}</td>
+                                        <td>{{ it.unit_name }}</td>
+                                        <td>{{ it.stock }}</td>
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.qty" class="form-control"
+                                                @input="updateSubtotal(it)" />
+                                            <small v-if="formErrors[it.id]?.qty" class="text-danger">
                                                 {{ formErrors[it.id].qty[0] }}
                                             </small>
-                                        </div>
-
-                                           <div class="col-3">
-                                                <label class="small text-muted">Unit</label>
-                                                <select class="form-select" v-model="it.selected_derived_unit_id"
-                                                    @change="onUnitChange(it)" @focus="loadDerivedUnits(it)">
-                                                    <!-- Base unit -->
-                                                    <option :value="null">Base ({{ it.unit_name }})</option>
-
-                                                    <!-- Derived units -->
-                                                    <option v-for="du in it.derived_units || []" :key="du.id"
-                                                        :value="du.id">
-                                                        {{ du.name }}
-                                                    </option>
-                                                </select>
-
-                                                <!-- error -->
-                                                <small v-if="formErrors[it.id] && formErrors[it.id].derived_unit"
-                                                    class="text-danger">
-                                                    {{ formErrors[it.id].derived_unit[0] }}
-                                                </small>
-                                            </div>
-
-                                        <div class="col-3">
-                                            <label class="small text-muted"
-                                                >Unit Price</label
-                                            >
-                                            <input
-                                                v-model.number="it.unitPrice"
-                                                type="number"
-                                                min="0"
-                                                class="form-control form-control"
-                                                :class="{
-                                                    'is-invalid':
-                                                        formErrors[it.id] &&
-                                                        formErrors[it.id]
-                                                            .unit_price,
-                                                }"
-                                            />
-                                            <small
-                                                v-if="
-                                                    formErrors[it.id] &&
-                                                    formErrors[it.id].unit_price
-                                                "
-                                                class="text-danger"
-                                            >
-                                                {{
-                                                    formErrors[it.id]
-                                                        .unit_price[0]
-                                                }}
+                                        </td>
+                                        <td>
+                                            <select class="form-select" v-model="it.selected_derived_unit_id"
+                                                @change="onUnitChange(it)" @focus="loadDerivedUnits(it)">
+                                                <option :value="null">Base ({{ it.unit_name }})</option>
+                                                <option v-for="du in it.derived_units || []" :key="du.id" :value="du.id">
+                                                    {{ du.name }}
+                                                </option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.unitPrice" class="form-control"
+                                                @input="updateSubtotal(it)" />
+                                            <small v-if="formErrors[it.id]?.unit_price" class="text-danger">
+                                                {{ formErrors[it.id].unit_price[0] }}
                                             </small>
-                                        </div>
-                                        
-                                    </div>
-                                </div>
-                            </div>
+                                        </td>
+                                        <td>{{ formatCurrencySymbol((it.subtotal || 0).toFixed(2)) }}</td>
+                                        <td>
+                                            <button
+                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                @click="clearRow(it)" title="Clear">
+                                               <i data-feather="rotate-ccw"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
 
-                        <!-- Right: cart -->
-                        <div class="col-lg-7">
-                            <div class="cart card border rounded-4">
-                                <div class="table-responsive">
-                                    <table class="table align-middle mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Name</th>
+                        <div class="text-end fw-bold mt-3">
+                            Total: {{ formatCurrencySymbol(o_total.toFixed(2)) }}
+                        </div>
+                    </div>
 
-                                                <th>Quantity</th>
-                                                <th>unit price</th>
-                                                <th>cost</th>
-                                                <th class="text-end">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr
-                                                v-for="(r, idx) in o_cart"
-                                                :key="idx"
-                                            >
-                                                <td>
-                                                    {{ r.name }}
-                                                </td>
+                    <!-- 👇 ADD THIS: MULTIPLE PURCHASE TAB -->
+                    <div v-if="activeTab === 'multiple'">
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Unit</th>
+                                        <th>Supplier</th>
+                                        <th>Qty</th>
+                                        <th>Unit</th>
+                                        <th>Unit Price</th>
+                                        <th>Subtotal</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(it, idx) in multipleOrderItems" :key="it.id">
+                                        <td>{{ it.name }}</td>
+                                        <td>{{ it.category?.name || "-" }}</td>
+                                        <td>{{ it.unit_name }}</td>
 
-                                                <td>{{ r.qty }}</td>
-                                                <td>
-                                                    {{ r.unitPrice }}
-                                                </td>
-                                                <td>
-                                                    {{ r.cost }}
-                                                </td>
-                                                <td class="text-end">
-                                                    <button
-                                                        @click="
-                                                            delOrderRow(idx)
-                                                        "
-                                                        class="inline-flex items-center justify-center p-2.5 rounded-full text-red-600 hover:bg-red-100"
-                                                        title="Delete"
-                                                    >
-                                                        <svg
-                                                            class="w-5 h-5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m4-3h2a1 1 0 011 1v1H8V5a1 1 0 011-1z"
-                                                            />
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            <tr v-if="o_cart.length === 0">
-                                                <td
-                                                    colspan="7"
-                                                    class="text-center text-muted py-4"
-                                                >
-                                                    No items added.
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="text-end p-3 fw-semibold">
-                                    Total Bill: {{ formatCurrencySymbol(o_total) }}
-                                </div>
-                            </div>
+                                        <td>
+                                            <Select v-model="it.supplier_id" :options="suppliers" optionLabel="name"
+                                                optionValue="id" placeholder="Select Supplier" class="w-100"
+                                                appendTo="self" :autoZIndex="true"
+                                                :class="{ 'is-invalid': m_formErrors[it.id]?.supplier_id }"
+                                                :baseZIndex="2000" />
 
-                            <div class="mt-4 text-center">
-                                <button
-                                    type="button"
-                                    class="btn btn-primary rounded-pill px-5 py-2"
-                                    :disabled="
-                                        o_submitting || o_cart.length === 0
-                                    "
-                                    @click="orderSubmit"
-                                >
-                                    <span v-if="!o_submitting">Order</span>
-                                    <span v-else>Saving...</span>
-                                </button>
-                            </div>
+                                            <small v-if="m_formErrors[it.id]?.supplier_id" class="text-danger d-block">
+                                                {{ m_formErrors[it.id].supplier_id[0] }}
+                                            </small>
+                                        </td>
+
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.qty" class="form-control"
+                                                @input="updateMultipleSubtotal(it)" />
+                                            <small v-if="m_formErrors[it.id]?.qty" class="text-danger">
+                                                {{ m_formErrors[it.id].qty[0] }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <select class="form-select" v-model="it.selected_derived_unit_id"
+                                                @change="onMultipleUnitChange(it)" @focus="loadDerivedUnits(it)">
+                                                <option :value="null">Base ({{ it.unit_name }})</option>
+                                                <option v-for="du in it.derived_units || []" :key="du.id" :value="du.id">
+                                                    {{ du.name }}
+                                                </option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.unitPrice" class="form-control"
+                                                @input="updateMultipleSubtotal(it)" />
+                                            <small v-if="m_formErrors[it.id]?.unit_price" class="text-danger">
+                                                {{ m_formErrors[it.id].unit_price[0] }}
+                                            </small>
+                                        </td>
+                                        <td>{{ formatCurrencySymbol((it.subtotal || 0).toFixed(2)) }}</td>
+                                        <td>
+                                            <button
+                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                @click="clearMultipleRow(it)" title="Clear">
+                                               <i data-feather="rotate-ccw"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="text-end fw-bold mt-3">
+                            Total: {{ formatCurrencySymbol(m_total.toFixed(2)) }}
                         </div>
                     </div>
                 </div>
-                <!-- /modal-body -->
+
+                <!-- 👇 UPDATE THIS: Modal footer with conditional buttons -->
+                <div class="modal-footer">
+                    <button v-if="activeTab === 'single'" class="btn btn-primary rounded-pill px-4 py-2" :disabled="o_submitting"
+                        @click="orderSubmit">
+                        <span v-if="!o_submitting">Save</span>
+                        <span v-else>Saving...</span>
+                    </button>
+                    <button v-if="activeTab === 'multiple'" class="btn btn-primary rounded-pill px-4 py-2" :disabled="m_submitting"
+                        @click="multipleOrderSubmit">
+                        <span v-if="!m_submitting">Save</span>
+                        <span v-else>Saving...</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </template>
 <style scoped>
-.dark .modal-body{
-    background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
+.dark .modal-body {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
-.dark .modal-header{
-      background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
+.dark .modal-header {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
 .dark .table {
-  background-color: #181818 !important; /* gray-900 */
-  color: #f9fafb !important;
+    background-color: #181818 !important;
+    /* gray-900 */
+    color: #f9fafb !important;
 }
 
 /* .dark .btn-primary{
     background-color: #181818 !important;
     border: #181818 !important;
 } */
-.dark .table thead{
-    background-color:  #181818;
-    color: #f9fafb;
-}
-.dark .table thead th{
-    background-color:  #181818;
+.dark .table thead {
+    background-color: #181818;
     color: #f9fafb;
 }
 
-.dark .table tbody td{
-    background-color:  #181818;
-    color: #f9fafb;
-}
-.dark .cart{
-     background-color:  #181818;
+.dark .table thead th {
+    background-color: #181818;
     color: #f9fafb;
 }
 
-.dark .card-body{
-      background-color:  #181818;
+.dark .table tbody td {
+    background-color: #181818;
     color: #f9fafb;
 }
-.dark .form-select{
+
+.dark .cart {
+    background-color: #181818;
+    color: #f9fafb;
+}
+
+.dark .card-body {
+    background-color: #181818;
+    color: #f9fafb;
+}
+
+.dark .form-select {
     background-color: #181818 !important;
-    color: #fff  !important;
+    color: #fff !important;
 }
-.dark input{
-      background-color:  #181818;
+
+.dark input {
+    background-color: #181818;
     color: #f9fafb;
 }
 
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
-  background-color: white !important;
-  color: black !important;
-  border-color: #9b9c9c
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c
 }
 
 /* Options container */
 :deep(.p-select-list-container) {
-  background-color: white !important;
-  color: black !important;
+    background-color: white !important;
+    color: black !important;
 }
 
 /* Each option */
 :deep(.p-select-option) {
-  background-color: transparent !important; /* instead of 'none' */
-  color: black !important;
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
 }
 
 /* Hovered option */
 :deep(.p-select-option:hover) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
 
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
-  background-color: #f0f0f0 !important;
-  color: black !important;
+    background-color: #f0f0f0 !important;
+    color: black !important;
 }
-:deep(.p-select-label){
+
+:deep(.p-select-label) {
     color: #000 !important;
 }
-:deep(.p-placeholder){
+
+:deep(.p-placeholder) {
     color: #80878e !important;
 }
 </style>

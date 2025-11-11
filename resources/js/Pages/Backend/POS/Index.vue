@@ -2529,10 +2529,10 @@ const getVariantPriceRange = (product) => {
                                 <h4 class="mb-0">Menu Categories</h4>
 
                                 <button v-if="isCashier" @click="openCustomerDisplay"
-                                class="btn btn-primary d-flex align-items-center gap-2" type="button">
-                                <i class="bi bi-tv"></i>
-                                <span>Customer View</span>
-                            </button>
+                                    class="btn btn-primary d-flex align-items-center gap-2" type="button">
+                                    <i class="bi bi-tv"></i>
+                                    <span>Customer View</span>
+                                </button>
 
                                 <!-- ✅ REPLACE THIS: Category search with autofill prevention -->
                                 <div style="width: 250px; position: relative;">
@@ -2937,7 +2937,7 @@ const getVariantPriceRange = (product) => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class=" text-success">Total Promo Savings:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>

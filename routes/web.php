@@ -149,6 +149,10 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
     });
 
+//     Route::get('/purchase-orders/{id}/invoice', 
+//     [PurchaseOrderController::class, 'generateInvoice']
+// )->name('purchase-orders.invoice');
+
     /* -------- Reference Management -------- */
     Route::prefix('reference')->name('reference.')->group(function () {
         Route::get('/', [ReferenceManagementController::class, 'index'])->name('index');

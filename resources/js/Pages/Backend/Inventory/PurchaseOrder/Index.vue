@@ -91,7 +91,7 @@ const filteredOrders = computed(() => {
 });
 
 onMounted(async () => {
-      q.value = "";
+    q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
@@ -522,11 +522,148 @@ onMounted(() => {
     fetchPurchaseOrders(1); // initial load
 });
 onUpdated(() => window.feather?.replace?.());
+
+const downloadInvoice = async (order) => {
+    try {
+        // Fetch the full order details with items
+        const res = await axios.get(`/purchase-orders/${order.id}`);
+        const fullOrder = res.data;
+
+        const doc = new jsPDF("p", "mm", "a4");
+
+        // ===== HEADER SECTION =====
+        doc.setFontSize(24);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(41, 128, 185); // Blue color
+        doc.text("INVOICE", 14, 20);
+
+        // Invoice Details Box
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+
+        // Right side - Invoice metadata
+        const invoiceX = 140;
+        doc.text(`Invoice #: ${fullOrder.id}`, invoiceX, 20);
+        doc.text(`Date: ${fmtDateTime(fullOrder.purchasedAt || fullOrder.purchase_date)}`, invoiceX, 26);
+        doc.text(`Status: ${fullOrder.status?.toUpperCase() || 'PENDING'}`, invoiceX, 32);
+
+        // ===== COMPANY & SUPPLIER INFO =====
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("FROM (Your Company):", 14, 45);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("Your Company Name", 14, 52);
+        doc.text("123 Business Street", 14, 58);
+        doc.text("City, Country", 14, 64);
+        doc.text("contact@company.com", 14, 70);
+
+        // Supplier Information
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("TO (Supplier):", 100, 45);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const supplierName = fullOrder.supplier?.name || fullOrder.supplier || "N/A";
+        doc.text(supplierName, 100, 52);
+        doc.text("Supplier Details", 100, 58);
+        doc.text("Contact: " + (fullOrder.supplier?.contact || "N/A"), 100, 64);
+        doc.text("Email: " + (fullOrder.supplier?.email || "N/A"), 100, 70);
+
+        // ===== LINE SEPARATOR =====
+        doc.setDrawColor(41, 128, 185);
+        doc.setLineWidth(0.5);
+        doc.line(14, 78, 196, 78);
+
+        // ===== ITEMS TABLE =====
+        const tableColumns = ["Item", "Quantity", "Unit Price", "Subtotal"];
+        const tableRows = fullOrder.items.map((item) => [
+            item.product?.name || item.name || "Unknown Product",
+            item.quantity,
+            money(item.unit_price),
+            money(item.sub_total || item.quantity * item.unit_price),
+        ]);
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 85,
+            styles: {
+                fontSize: 10,
+                cellPadding: 3,
+                lineWidth: 0.1,
+                halign: "left",
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+                halign: "center",
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 14, right: 14 },
+            columnStyles: {
+                1: { halign: "center" },
+                2: { halign: "right" },
+                3: { halign: "right" },
+            },
+        });
+
+        // Get the Y position after the table
+        const finalY = doc.lastAutoTable.finalY || 150;
+
+        // ===== TOTALS SECTION =====
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+
+        const totalAmount = fullOrder.items.reduce(
+            (sum, item) => sum + (parseFloat(item.sub_total) || 0),
+            0
+        );
+
+        doc.text(`Total Amount: ${money(totalAmount)}`, 140, finalY + 15);
+
+        // ===== FOOTER =====
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(128, 128, 128);
+
+        const pageHeight = doc.internal.pageSize.height;
+        const pageCount = doc.internal.getNumberOfPages();
+
+        // Page number
+        doc.text(
+            `Page 1 of ${pageCount}`,
+            14,
+            pageHeight - 10
+        );
+
+        // Footer text
+        doc.text(
+            "Thank you for your business!",
+            100,
+            pageHeight - 10
+        );
+
+        // ===== SAVE PDF =====
+        const fileName = `invoice_${fullOrder.id}_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("Invoice downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Invoice generation error:", error);
+        toast.error(`Invoice generation failed: ${error.message}`);
+    }
+};
 </script>
 
 <template>
     <Master>
-          <Head title="Purchase Order" />
+
+        <Head title="Purchase Order" />
         <div class="page-wrapper">
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body p-4">
@@ -558,14 +695,16 @@ onUpdated(() => window.feather?.replace?.());
                         <div class="d-flex gap-2 align-items-center">
                             <div class="search-wrap me-1">
                                 <i class="bi bi-search"></i>
-                              <input type="email" name="email" autocomplete="email"
-                            style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                            aria-hidden="true" />
+                                <input type="email" name="email" autocomplete="email"
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
-                        <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                            class="form-control search-input" placeholder="Search" type="search"
-                            autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                        <input v-else class="form-control search-input" placeholder="Search" disabled type="text"/>
+                                <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
+                                    class="form-control search-input" placeholder="Search" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation"
+                                    @focus="handleFocus" />
+                                <input v-else class="form-control search-input" placeholder="Search" disabled
+                                    type="text" />
                             </div>
 
                             <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" data-bs-toggle="modal"
@@ -680,12 +819,29 @@ onUpdated(() => window.feather?.replace?.());
 
                                         <td>{{ formatCurrencySymbol(row.total) }}</td>
 
-                                        <td class="text-end">
+                                        <!-- <td class="text-end">
                                             <button
                                                 class="p-2 rounded-pill text-primary hover:bg-gray-100 btn"
                                                 @click="openModal(row)" title="View Item">
                                                 <Eye class="w-4 h-4" />
                                             </button>
+                                        </td> -->
+
+                                        <td class="text-end">
+                                            <div class="d-flex gap-2 justify-content-end">
+                                                <!-- View/Edit Button -->
+                                                <button class="p-2 rounded-pill text-primary hover:bg-gray-100 btn"
+                                                    @click="openModal(row)" title="View Item">
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+
+                                                <!-- Print Invoice Button -->
+                                                <button class="p-2 rounded-pill text-success hover:bg-gray-100 btn"
+                                                    @click="downloadInvoice(row)" :disabled="loading"
+                                                    title="Print Invoice">
+                                                    <i class="bi bi-printer fs-5"></i>
+                                                </button>
+                                            </div>
                                         </td>
 
                                     </tr>
@@ -808,7 +964,7 @@ onUpdated(() => window.feather?.replace?.());
                                                     item.product?.name ||
                                                     item.name ||
                                                     "Unknown Product"
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model="item.name" class="form-control" readonly />
                                             </td>
 
@@ -816,7 +972,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     item.quantity
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model.number="item.quantity
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -827,7 +983,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.unit_price)
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model.number="item.unit_price
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -838,7 +994,7 @@ onUpdated(() => window.feather?.replace?.());
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.sub_total)
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model="item.sub_total" class="form-control" readonly />
                                             </td>
 
@@ -850,7 +1006,7 @@ onUpdated(() => window.feather?.replace?.());
                                                 </span>
                                                 <VueDatePicker v-else v-model="item.expiry" :enableTimePicker="false"
                                                     :min-date="new Date()" :teleport="true" :format="'yyyy-MM-dd'"
-                                                    placeholder="Select expiry date" 
+                                                    placeholder="Select expiry date"
                                                     :class="{ 'is-invalid': formError[`items.${index}.expiry`] }" />
 
                                                 <small v-if="formError[`items.${index}.expiry`]" class="text-danger">
@@ -966,9 +1122,10 @@ onUpdated(() => window.feather?.replace?.());
     color: #6b7280;
 }
 
-.dark .black-row{
+.dark .black-row {
     background-color: #181818 !important;
 }
+
 .search-input {
     padding-left: 38px;
     border-radius: 9999px;
