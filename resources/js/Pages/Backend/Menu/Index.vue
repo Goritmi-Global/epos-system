@@ -566,6 +566,33 @@ const form = ref({
     addon_group_id: '',
     addon_ids: [],
     addon_group_constraints: null,
+    is_saleable: false,
+    resale_type: null,
+    resale_value: null,
+});
+
+
+const resaleTypeOptions = ref([
+    { label: "Flat Amount", value: "flat" },
+    { label: "Percentage", value: "percentage" },
+]);
+
+const resalePrice = computed(() => {
+    if (!form.value.is_saleable || !form.value.resale_type || !form.value.resale_value) {
+        return 0;
+    }
+
+    if (form.value.resale_type === 'flat') {
+        return parseFloat(form.value.resale_value) || 0;
+    }
+
+    if (form.value.resale_type === 'percentage') {
+        const price = parseFloat(form.value.price) || 0;
+        const percentage = parseFloat(form.value.resale_value) || 0;
+        return (price * percentage) / 100;
+    }
+
+    return 0;
 });
 
 const showCropper = ref(false);
@@ -594,6 +621,17 @@ const submitProduct = async () => {
 
     const formData = new FormData();
     formData.append("name", form.value.name.trim());
+
+
+    if (form.value.is_saleable) {
+        formData.append("is_saleable", form.value.is_saleable ? 1 : 0);
+        formData.append("resale_type", form.value.resale_type || null);
+        formData.append("resale_value", form.value.resale_value || null);
+    } else {
+        formData.append("is_saleable", 0);
+        formData.append("resale_type", null);
+        formData.append("resale_value", null);
+    }
 
     if (form.value.price !== "" && form.value.price !== null) {
         formData.append("price", form.value.price);
@@ -814,6 +852,10 @@ const editItem = (item) => {
         imageUrl: itemData.image_url || null,
         addon_group_id: itemData.addon_group_id || '',
         addon_ids: itemData.addon_ids || itemData.addons?.map(a => a.id) || [],
+
+        is_saleable: itemData.is_saleable ?? false,
+        resale_type: itemData.resale_type || null,
+        resale_value: itemData.resale_value || null,
     };
 
     // ✅ Load variant data if this is a variant menu
@@ -1052,6 +1094,16 @@ const submitEdit = async () => {
             });
         }
 
+        if (form.value.is_saleable) {
+            formData.append("is_saleable", form.value.is_saleable ? 1 : 0);
+            formData.append("resale_type", form.value.resale_type || null);
+            formData.append("resale_value", form.value.resale_value || null);
+        } else {
+            formData.append("is_saleable", 0);
+            formData.append("resale_type", null);
+            formData.append("resale_value", null);
+        }
+
         formData.append("_method", "PUT");
 
         console.log('Update formData:', [...formData.entries()]);
@@ -1128,6 +1180,10 @@ function resetForm() {
         addon_group_id: '',
         addon_ids: [],
         addon_group_constraints: null,
+
+        is_saleable: false,
+        resale_type: null,
+        resale_value: null,
     };
 
     showCropper.value = false;
@@ -2433,6 +2489,98 @@ const deleteVariantIngredients = (variantId) => {
                                                 {{ formErrors.is_taxable[0] }}
                                             </small>
                                         </div>
+
+                                        <div class="col-md-6">
+    <label class="form-label">Is this Saleable Menu?</label>
+    <div class="d-flex gap-3">
+        <div class="form-check">
+            <input 
+                v-model="form.is_saleable" 
+                :value="true" 
+                type="radio" 
+                class="form-check-input" 
+                id="saleable_yes"
+                name="is_saleable"
+            />
+            <label class="form-check-label" for="saleable_yes">
+                Yes
+            </label>
+        </div>
+        <div class="form-check">
+            <input 
+                v-model="form.is_saleable" 
+                :value="false" 
+                type="radio" 
+                class="form-check-input" 
+                id="saleable_no"
+                name="is_saleable"
+            />
+            <label class="form-check-label" for="saleable_no">
+                No
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Resale Type Dropdown - Shows when "Yes" is selected -->
+<div v-if="form.is_saleable" class="col-md-6">
+    <label class="form-label">Resale Type</label>
+    <Select 
+        v-model="form.resale_type" 
+        :options="resaleTypeOptions"
+        optionLabel="label" 
+        optionValue="value" 
+        placeholder="Select Resale Type"
+        class="w-100"
+        appendTo="self" 
+        :autoZIndex="true" 
+        :baseZIndex="2000"
+        :class="{ 'is-invalid': formErrors.resale_type }"
+    />
+    <small v-if="formErrors.resale_type" class="text-danger">
+        {{ formErrors.resale_type[0] }}
+    </small>
+</div>
+
+<!-- Resale Value Input - Shows when resale type is selected -->
+<div v-if="form.is_saleable && form.resale_type" class="col-md-6">
+    <label class="form-label">
+        {{ form.resale_type === 'flat' ? 'Flat Amount' : 'Percentage' }}
+    </label>
+    <div class="input-group">
+        <input 
+            v-model.number="form.resale_value" 
+            type="number" 
+            min="0" 
+            :step="form.resale_type === 'flat' ? '0.01' : '0.1'"
+            class="form-control"
+            :class="{ 'is-invalid': formErrors.resale_value }"
+            :placeholder="`Enter ${form.resale_type === 'flat' ? 'flat amount' : 'percentage'}...`"
+        />
+        <span v-if="form.resale_type === 'percentage'" class="input-group-text">
+            %
+        </span>
+        <span v-else class="input-group-text">
+            {{ form.price ? '₹' : 'Amount' }}
+        </span>
+    </div>
+    <small v-if="formErrors.resale_value" class="text-danger">
+        {{ formErrors.resale_value[0] }}
+    </small>
+</div>
+
+<!-- Resale Price Preview - Shows when resale is configured -->
+<div v-if="form.is_saleable && form.resale_type && form.resale_value" class="col-md-6">
+    <div class="card bg-light border-0 rounded-3">
+        <div class="card-body p-2">
+            <small class="text-muted d-block">Resale Price:</small>
+            <div class="fs-6 fw-semibold text-success">
+                ₹ {{ resalePrice.toFixed(2) }}
+            </div>
+        </div>
+    </div>
+</div>
+
                                         <div class="col-md-6">
                                             <label class="form-label d-block"> Label Color </label>
                                             <Select v-model="form.label_color" :options="labelColors" optionLabel="name"
@@ -3691,6 +3839,4 @@ const deleteVariantIngredients = (variantId) => {
         width: 100%;
     }
 }
-
-
 </style>

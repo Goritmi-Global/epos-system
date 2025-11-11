@@ -7,6 +7,8 @@ use App\Http\Requests\UpdateMealRequest;
 use App\Services\MealService;
 use Exception;
 use Inertia\Inertia;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MealController extends Controller
 {
@@ -126,6 +128,70 @@ class MealController extends Controller
         } catch (Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to delete meal: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import meals from CSV/Excel file
+     */
+    public function import(Request $request): JsonResponse
+    {
+        try {
+            $meals = $request->input('meals', []);
+
+            if (empty($meals)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No meals data provided',
+                ], 422);
+            }
+
+            $importedCount = 0;
+
+            foreach ($meals as $row) {
+                $name = $row['name'] ?? null;
+                $startTime = $row['start_time'] ?? null;
+                $endTime = $row['end_time'] ?? null;
+
+                // Validate required fields
+                if (!$name || !$startTime || !$endTime) {
+                    continue;
+                }
+
+                // Validate time format (HH:mm)
+                if (!preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/', $startTime) ||
+                    !preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/', $endTime)) {
+                    continue;
+                }
+
+                // Create or update meal
+                $this->mealService->createMeal([
+                    'name' => trim($name),
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                ]);
+
+                $importedCount++;
+            }
+
+            if ($importedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid meals were imported',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully imported {$importedCount} meal(s)",
+                'imported_count' => $importedCount,
+            ], 200);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import meals: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

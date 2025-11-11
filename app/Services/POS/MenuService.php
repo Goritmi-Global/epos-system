@@ -6,10 +6,8 @@ use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\MenuItem;
 use App\Models\MenuItemAddonGroup;
-use App\Models\MenuItemVariantPrice;
-use App\Models\MenuVariantIngredient;
-use App\Models\ProfileStep4;
 use App\Models\MenuVariant;
+use App\Models\MenuVariantIngredient;
 use Illuminate\Http\Request;
 
 class MenuService
@@ -37,7 +35,13 @@ class MenuService
         unset($data['image']);
 
         // ✅ FIX: Check for variant_metadata instead of variant_ingredients
-        $isVariantMenu = !empty($data['variant_metadata']) && is_array($data['variant_metadata']);
+        $isVariantMenu = ! empty($data['variant_metadata']) && is_array($data['variant_metadata']);
+
+        $resaleData = [
+            'is_saleable' => $data['is_saleable'] ?? false,
+            'resale_type' => $data['resale_type'] ?? null,
+            'resale_value' => $data['resale_value'] ?? null,
+        ];
 
         // Create menu item
         $menu = MenuItem::create([
@@ -48,14 +52,15 @@ class MenuService
             'description' => $data['description'] ?? null,
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? null,
-            'is_taxable' => !empty($data['is_taxable']) ? 1 : 0,
+            'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
+             ...$resaleData,
         ]);
 
         // Nutrition
         $menu->nutrition()->create($data['nutrition'] ?? []);
 
         // Allergies
-        if (!empty($data['allergies'])) {
+        if (! empty($data['allergies'])) {
             $syncData = [];
             foreach ($data['allergies'] as $index => $allergyId) {
                 $type = isset($data['allergy_types'][$index])
@@ -67,12 +72,12 @@ class MenuService
         }
 
         // Tags
-        if (!empty($data['tags'])) {
+        if (! empty($data['tags'])) {
             $menu->tags()->sync($data['tags']);
         }
 
         // Meals
-        if (!empty($data['meals'])) {
+        if (! empty($data['meals'])) {
             $menu->meals()->sync($data['meals']);
         }
 
@@ -88,7 +93,7 @@ class MenuService
                 ]);
 
                 // Save ingredients for this variant
-                if (!empty($data['variant_ingredients'][$index])) {
+                if (! empty($data['variant_ingredients'][$index])) {
                     foreach ($data['variant_ingredients'][$index] as $ing) {
                         $inventory = InventoryItem::find($ing['inventory_item_id']);
 
@@ -105,7 +110,7 @@ class MenuService
             }
         } else {
             // Store simple menu ingredients
-            if (!empty($data['ingredients'])) {
+            if (! empty($data['ingredients'])) {
                 foreach ($data['ingredients'] as $ing) {
                     $inventory = InventoryItem::find($ing['inventory_item_id']);
 
@@ -120,7 +125,7 @@ class MenuService
         }
 
         // Addon Group
-        if (!empty($data['addon_group_id'])) {
+        if (! empty($data['addon_group_id'])) {
             MenuItemAddonGroup::create([
                 'menu_item_id' => $menu->id,
                 'addon_group_id' => $data['addon_group_id'],
@@ -134,10 +139,9 @@ class MenuService
             'allergies',
             'tags',
             'meals',
-            'addonGroupRelations'
+            'addonGroupRelations',
         ]);
     }
-
 
     public function update(MenuItem $menu, array $data, Request $request): MenuItem
     {
@@ -150,7 +154,7 @@ class MenuService
                     UploadHelper::delete($oldUpload);
                 }
             }
-            
+
             $upload = UploadHelper::store($data['image'], 'uploads', 'public');
             $data['upload_id'] = $upload->id;
         }
@@ -158,7 +162,7 @@ class MenuService
         unset($data['image']);
 
         // ✅ Check for variant_metadata to determine menu type
-        $isVariantMenu = !empty($data['variant_metadata']) && is_array($data['variant_metadata']);
+        $isVariantMenu = ! empty($data['variant_metadata']) && is_array($data['variant_metadata']);
 
         // Update menu item basic info
         $menu->update([
@@ -169,7 +173,10 @@ class MenuService
             'description' => $data['description'] ?? null,
             'label_color' => $data['label_color'] ?? null,
             'upload_id' => $data['upload_id'] ?? $menu->upload_id,
-            'is_taxable' => !empty($data['is_taxable']) ? 1 : 0,
+            'is_taxable' => ! empty($data['is_taxable']) ? 1 : 0,
+            'is_saleable' => $data['is_saleable'] ?? false,
+            'resale_type' => $data['resale_type'] ?? null,
+            'resale_value' => $data['resale_value'] ?? null,
         ]);
 
         // Update Nutrition
@@ -204,14 +211,14 @@ class MenuService
         if ($isVariantMenu) {
             // Delete old simple ingredients if switching from simple to variant
             $menu->ingredients()->delete();
-            
+
             // Get existing variant IDs
             $existingVariantIds = $menu->variants()->pluck('id')->toArray();
             $submittedVariantIds = [];
-            
+
             foreach ($data['variant_metadata'] as $index => $variantData) {
                 $variantId = $variantData['id'] ?? null;
-                
+
                 if ($variantId && in_array($variantId, $existingVariantIds)) {
                     // Update existing variant
                     $variant = MenuVariant::find($variantId);
@@ -229,17 +236,17 @@ class MenuService
                     ]);
                     $submittedVariantIds[] = $variant->id;
                 }
-                
+
                 // Delete old ingredients for this variant
                 MenuVariantIngredient::where('menu_item_id', $menu->id)
                     ->where('variant_id', $variant->id)
                     ->delete();
-                
+
                 // Add new ingredients
-                if (!empty($data['variant_ingredients'][$index])) {
+                if (! empty($data['variant_ingredients'][$index])) {
                     foreach ($data['variant_ingredients'][$index] as $ing) {
                         $inventory = InventoryItem::find($ing['inventory_item_id']);
-                        
+
                         MenuVariantIngredient::create([
                             'menu_item_id' => $menu->id,
                             'variant_id' => $variant->id,
@@ -251,25 +258,25 @@ class MenuService
                     }
                 }
             }
-            
+
             // Delete variants that were removed
             MenuVariant::where('menu_item_id', $menu->id)
                 ->whereNotIn('id', $submittedVariantIds)
                 ->delete();
-                
+
         } else {
             // Delete old variant data if switching from variant to simple
             $menu->variants()->delete();
             MenuVariantIngredient::where('menu_item_id', $menu->id)->delete();
-            
+
             // Delete old simple ingredients
             $menu->ingredients()->delete();
-            
+
             // Add new simple ingredients
-            if (!empty($data['ingredients'])) {
+            if (! empty($data['ingredients'])) {
                 foreach ($data['ingredients'] as $ing) {
                     $inventory = InventoryItem::find($ing['inventory_item_id']);
-                    
+
                     $menu->ingredients()->create([
                         'inventory_item_id' => $ing['inventory_item_id'],
                         'product_name' => $inventory?->name ?? 'Unknown',
@@ -282,7 +289,7 @@ class MenuService
 
         // Update Addon Group
         MenuItemAddonGroup::where('menu_item_id', $menu->id)->delete();
-        if (!empty($data['addon_group_id'])) {
+        if (! empty($data['addon_group_id'])) {
             MenuItemAddonGroup::create([
                 'menu_item_id' => $menu->id,
                 'addon_group_id' => $data['addon_group_id'],
@@ -296,7 +303,7 @@ class MenuService
             'allergies',
             'tags',
             'meals',
-            'addonGroupRelations'
+            'addonGroupRelations',
         ]);
     }
 

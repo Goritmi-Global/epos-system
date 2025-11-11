@@ -35,10 +35,9 @@ Route::get('/test-api', function () {
     return response()->json(['status' => 'API file is loading']);
 });
 
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/analytics', [AnalyticsController::class, 'index'])
-    ->name('api.analytics.index');
+        ->name('api.analytics.index');
     // Allergies
     Route::prefix('allergies')->name('api.allergies.')->group(function () {
         Route::post('/import', [AllergyController::class, 'import'])->name('import');
@@ -148,6 +147,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('meals')->name('api.meals.')->group(function () {
         Route::get('/all', [MealController::class, 'fetchAllMeals'])->name('all');
         Route::get('/active', [MealController::class, 'getActiveMeals']);
+        Route::post('/import', [MealController::class, 'import']);
     });
 
     Route::prefix('variants')->name('api.variants.')->group(function () {
@@ -180,9 +180,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/printers', [PrinterController::class, 'index']);
     Route::post('/customer/print-receipt', [PrinterController::class, 'printReceipt']);
     Route::post('/kot/print-receipt', [PrinterController::class, 'printKot']);
+    Route::post('/profile/verify-credentials', [ProfileController::class, 'verifyCredentials']);
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
 
     Route::prefix('addon-groups')->group(function () {
+
+        Route::post('/import', [AddonGroupController::class, 'import']);
         // Get all addon groups with their addon counts
         Route::get('/all', [AddonGroupController::class, 'all']);
 
@@ -200,6 +203,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Toggle status (active/inactive)
         Route::patch('/{id}/toggle-status', [AddonGroupController::class, 'toggleStatus']);
+
     });
 
     /*
@@ -210,6 +214,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('addons')->group(function () {
+
+        Route::post('/import', [AddonController::class, 'import']);
         // Get all addons with their group information
         Route::get('/all', [AddonController::class, 'all']);
 

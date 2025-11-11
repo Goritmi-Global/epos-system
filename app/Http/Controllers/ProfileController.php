@@ -25,10 +25,10 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function frontPage(){
+    public function frontPage()
+    {
         return Inertia::render('Profile/FrontPage');
     }
-
 
     /**
      * Update the user's profile information.
@@ -78,11 +78,11 @@ class ProfileController extends Controller
             'role' => 'required|string',
         ]);
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
         }
 
-        if (!empty($validated['pin'])) {
+        if (! empty($validated['pin'])) {
             $user->pin = Hash::make($validated['pin']); // hash it properly
         }
 
@@ -90,5 +90,36 @@ class ProfileController extends Controller
         $user->save();
 
         return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
+    }
+
+    public function verifyCredentials(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $user = auth()->user();
+
+        // Verify username matches
+        if ($user->name !== $validated['username']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid username or password',
+            ], 401);
+        }
+
+        // Verify password
+        if (! Hash::check($validated['password'], $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid username or password',
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Credentials verified successfully',
+        ]);
     }
 }

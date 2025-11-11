@@ -49,6 +49,10 @@ class StoreMenuRequest extends FormRequest
             'meals' => 'nullable|array',
             'meals.*' => 'exists:meals,id',
 
+            'is_saleable' => 'nullable|boolean',
+            'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
+            'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
+
             // Addons
             'addon_group_id' => 'nullable|exists:addon_groups,id',
             'addon_ids' => 'nullable|array',
@@ -81,16 +85,22 @@ class StoreMenuRequest extends FormRequest
             'category_id.required' => 'Please select a category.',
             'ingredients.required' => 'At least one ingredient is required for simple menus.',
             'ingredients.min' => 'At least one ingredient is required.',
-            
+
             // Variant metadata messages
             'variant_metadata.*.name.required_with' => 'Variant name is required.',
             'variant_metadata.*.price.required_with' => 'Variant price is required.',
             'variant_metadata.*.price.min' => 'Variant price must be at least 0.',
-            
+
             // Variant ingredients messages
             'variant_ingredients.*.*.inventory_item_id.required_with' => 'Ingredient is required for variant items.',
             'variant_ingredients.*.*.qty.required_with' => 'Quantity is required for variant items.',
             'variant_ingredients.*.*.qty.min' => 'Quantity must be greater than 0.',
+
+            'resale_type.required_if' => 'Resale type is required when menu is saleable',
+            'resale_type.in' => 'Resale type must be either flat or percentage',
+            'resale_value.required_if' => 'Resale value is required when menu is saleable',
+            'resale_value.numeric' => 'Resale value must be a number',
+            'resale_value.min' => 'Resale value must be at least 0',
         ];
     }
 
@@ -114,7 +124,7 @@ class StoreMenuRequest extends FormRequest
                 // Validate that number of variants matches number of ingredient sets
                 $metadataCount = count($this->variant_metadata ?? []);
                 $ingredientsCount = count($this->variant_ingredients ?? []);
-                
+
                 if ($metadataCount !== $ingredientsCount) {
                     $validator->errors()->add('variant_ingredients', 'Each variant must have ingredients.');
                 }
@@ -122,7 +132,7 @@ class StoreMenuRequest extends FormRequest
                 // Validate that each variant has ingredients
                 foreach ($this->variant_ingredients ?? [] as $variantId => $ingredients) {
                     if (empty($ingredients) || count($ingredients) === 0) {
-                        $validator->errors()->add("variant_ingredients.$variantId", "Each variant must have at least one ingredient.");
+                        $validator->errors()->add("variant_ingredients.$variantId", 'Each variant must have at least one ingredient.');
                     }
                 }
             }
