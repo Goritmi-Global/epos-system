@@ -20,6 +20,10 @@ class MenuItem extends Model
         'label_color',
         'is_taxable',
         'tax_percentage',
+
+        'is_saleable',
+        'resale_type',
+        'resale_value',
     ];
 
     // Category
@@ -90,6 +94,7 @@ class MenuItem extends Model
         return $this->belongsToMany(AddonGroup::class, 'menu_item_addon_groups')
             ->withTimestamps();
     }
+
     public function addonPrices()
     {
         return $this->hasMany(MenuItemAddonGroup::class, 'menu_item_id');
@@ -109,14 +114,14 @@ class MenuItem extends Model
     public function getVariantIngredientsGroupedAttribute()
     {
         $grouped = [];
-        
+
         foreach ($this->variantIngredients as $ingredient) {
             $variantId = $ingredient->variant_id;
-            
-            if (!isset($grouped[$variantId])) {
+
+            if (! isset($grouped[$variantId])) {
                 $grouped[$variantId] = [];
             }
-            
+
             $grouped[$variantId][] = [
                 'id' => $ingredient->inventory_item_id,
                 'inventory_item_id' => $ingredient->inventory_item_id,
@@ -128,7 +133,7 @@ class MenuItem extends Model
                 'nutrition' => $ingredient->inventoryItem?->nutrition ?? null,
             ];
         }
-        
+
         return $grouped;
     }
 
@@ -137,5 +142,20 @@ class MenuItem extends Model
         return $this->hasMany(MenuVariant::class, 'menu_item_id');
     }
 
+    public function getResalePriceAttribute(): float
+    {
+        if (! $this->is_saleable || ! $this->resale_type || ! $this->resale_value) {
+            return 0;
+        }
 
+        if ($this->resale_type === 'flat') {
+            return (float) $this->resale_value;
+        }
+
+        if ($this->resale_type === 'percentage') {
+            return (float) ($this->price * ($this->resale_value / 100));
+        }
+
+        return 0;
+    }
 }

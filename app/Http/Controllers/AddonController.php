@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAddonRequest;
-use App\Services\AddonService;
+use App\Models\Addon;
+use App\Models\AddonGroup;
 use App\Services\AddonGroupService;
-use Illuminate\Http\Request;
+use App\Services\AddonService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AddonController extends Controller
 {
     protected $addonService;
+
     protected $addonGroupService;
 
     /**
@@ -26,7 +29,7 @@ class AddonController extends Controller
 
     /**
      * Display the addons management page
-     * 
+     *
      * @return \Inertia\Response
      */
     public function index()
@@ -36,207 +39,190 @@ class AddonController extends Controller
 
     /**
      * Get all addons (API endpoint for Vue)
-     * 
-     * @return JsonResponse
      */
     public function all(): JsonResponse
     {
         try {
             $addons = $this->addonService->getAllAddons();
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $addons
+                'data' => $addons,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch addons',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get addons by group ID
-     * 
-     * @param int $groupId
-     * @return JsonResponse
+     *
+     * @param  int  $groupId
      */
     public function byGroup($groupId): JsonResponse
     {
         try {
             $addons = $this->addonService->getAddonsByGroup($groupId);
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $addons
+                'data' => $addons,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch addons',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get statistics for KPI cards
-     * 
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
         try {
             $stats = $this->addonService->getStatistics();
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch statistics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Store a new addon
-     * 
-     * @param StoreAddonRequest $request
-     * @return JsonResponse
      */
     public function store(StoreAddonRequest $request): JsonResponse
     {
         try {
             $addon = $this->addonService->createAddon($request->validated());
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Addon created successfully',
-                'data' => $addon
+                'data' => $addon,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create addon',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Get a specific addon
-     * 
-     * @param int $id
-     * @return JsonResponse
+     *
+     * @param  int  $id
      */
     public function show($id): JsonResponse
     {
         try {
             $addon = $this->addonService->getAddonById($id);
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $addon
+                'data' => $addon,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Addon not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
 
     /**
      * Update an existing addon
-     * 
-     * @param StoreAddonRequest $request
-     * @param int $id
-     * @return JsonResponse
+     *
+     * @param  int  $id
      */
     public function update(StoreAddonRequest $request, $id): JsonResponse
     {
         try {
             $addon = $this->addonService->updateAddon($id, $request->validated());
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Addon updated successfully',
-                'data' => $addon
+                'data' => $addon,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update addon',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Delete an addon
-     * 
-     * @param int $id
-     * @return JsonResponse
+     *
+     * @param  int  $id
      */
     public function destroy($id): JsonResponse
     {
         try {
             $this->addonService->deleteAddon($id);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Addon deleted successfully'
+                'message' => 'Addon deleted successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Toggle addon status
-     * 
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
+     *
+     * @param  int  $id
      */
     public function toggleStatus(Request $request, $id): JsonResponse
     {
         try {
             $request->validate([
-                'status' => 'required|in:active,inactive'
+                'status' => 'required|in:active,inactive',
             ]);
 
             $addon = $this->addonService->toggleStatus($id, $request->status);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Status updated successfully',
-                'data' => $addon
+                'data' => $addon,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update status',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Update sort order for multiple addons
-     * 
-     * @param Request $request
-     * @return JsonResponse
      */
     public function updateSortOrder(Request $request): JsonResponse
     {
@@ -244,20 +230,127 @@ class AddonController extends Controller
             $request->validate([
                 'sort_data' => 'required|array',
                 'sort_data.*.id' => 'required|exists:addons,id',
-                'sort_data.*.sort_order' => 'required|integer|min:0'
+                'sort_data.*.sort_order' => 'required|integer|min:0',
             ]);
 
             $this->addonService->updateSortOrder($request->sort_data);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Sort order updated successfully'
+                'message' => 'Sort order updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update sort order',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function import(Request $request): JsonResponse
+    {
+        try {
+            $addons = $request->input('addons', []);
+
+            if (empty($addons)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No addons data provided',
+                ], 422);
+            }
+
+            $importedCount = 0;
+            $skipped = 0;
+
+            foreach ($addons as $index => $addonData) {
+                try {
+                    // Validate required fields
+                    if (empty($addonData['name']) || empty($addonData['addon_group_name'])) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    // Parse numeric value
+                    $price = (float) ($addonData['price'] ?? 0);
+                    $status = strtolower($addonData['status'] ?? 'active');
+                    $description = $addonData['description'] ?? '';
+
+                    // Validate price
+                    if ($price < 0) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    // Validate status
+                    if (! in_array($status, ['active', 'inactive'])) {
+                        $status = 'active';
+                    }
+
+                    // Find addon group by name
+                    $addonGroup = AddonGroup::where('name', trim($addonData['addon_group_name']))->first();
+                    if (! $addonGroup) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    // Check if addon already exists in this group
+                    $exists = Addon::where('name', trim($addonData['name']))
+                        ->where('addon_group_id', $addonGroup->id)
+                        ->exists();
+
+                    if ($exists) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    // Create the addon
+                    $this->addonService->createAddon([
+                        'name' => trim($addonData['name']),
+                        'addon_group_id' => $addonGroup->id,
+                        'price' => $price,
+                        'status' => $status,
+                        'description' => trim($description),
+                    ]);
+
+                    $importedCount++;
+
+                } catch (\Exception $e) {
+                    $skipped++;
+
+                    continue;
+                }
+            }
+
+            // Check if any were imported
+            if ($importedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid addons were imported. Please check your data.',
+                ], 422);
+            }
+
+            // Build success message
+            $message = "Successfully imported {$importedCount} addon(s)";
+            if ($skipped > 0) {
+                $message .= " ({$skipped} skipped)";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'imported_count' => $importedCount,
+                'skipped_count' => $skipped,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import addons: '.$e->getMessage(),
             ], 500);
         }
     }

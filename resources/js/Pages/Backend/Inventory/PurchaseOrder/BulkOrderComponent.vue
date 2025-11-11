@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, toRaw } from "vue";
+import { ref, computed,onMounted, watch, toRaw } from "vue";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
@@ -18,14 +18,18 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["refresh-data"]);
+const activeTab = ref("single");
 
 const b_supplier = ref(null);
 const b_submitting = ref(false);
 const formErrors = ref({});
-
-
 // reactive table rows
 const bulkItems = ref([]);
+
+// Multiple Purchase
+const m_submitting = ref(false);
+const m_formErrors = ref({});
+const multipleItems = ref([]);
 
 // 👇 Build bulkItems whenever items change
 watch(
@@ -42,6 +46,26 @@ watch(
     { immediate: true }
 );
 
+watch(
+    () => props.items,
+    (newItems) => {
+        multipleItems.value = newItems.map((it) => ({
+            ...it,
+            qty: 0,
+            unitPrice: 0,
+            expiry: null,
+            subtotal: 0,
+            supplier_id: null,
+        }));
+    },
+    { immediate: true }
+);
+
+
+
+onMounted(() => {
+  feather.replace();
+});
 
 function updateSubtotal(it) {
     const qty = Number(it.qty) || 0;
@@ -56,9 +80,21 @@ function delRow(idx) {
     bulkItems.value[idx].subtotal = 0;
 }
 
+function delMultipleRow(idx) {
+    multipleItems.value[idx].qty = 0;
+    multipleItems.value[idx].unitPrice = 0;
+    multipleItems.value[idx].expiry = null;
+    multipleItems.value[idx].subtotal = 0;
+    multipleItems.value[idx].supplier_id = null;
+}
+
 
 const b_total = computed(() =>
     bulkItems.value.reduce((sum, it) => sum + (Number(it.subtotal) || 0), 0)
+);
+
+const m_total = computed(() =>
+    multipleItems.value.reduce((sum, it) => sum + (Number(it.subtotal) || 0), 0)
 );
 
 async function bulkSubmit() {
@@ -156,6 +192,96 @@ async function bulkSubmit() {
 }
 
 
+async function multipleSubmit() {
+    m_formErrors.value = {};
+
+    const today = new Date().toISOString().split("T")[0];
+    const validItems = [];
+    const groupedBySupplier = {};
+
+    multipleItems.value.forEach((it, idx) => {
+        const hasAnyValue = it.qty || it.unitPrice || it.expiry;
+        const errors = {};
+
+        if (hasAnyValue) {
+            if (!it.supplier_id) {
+                errors.supplier_id = "Supplier is required";
+            }
+            if (!it.qty || it.qty <= 0) {
+                errors.qty = "Quantity is required";
+            }
+            if (!it.unitPrice || it.unitPrice <= 0) {
+                errors.unitPrice = "Unit Price is required";
+            }
+            if (!it.expiry) {
+                errors.expiry = "Expiry date is required";
+            } else if (new Date(it.expiry) < new Date(today)) {
+                errors.expiry = "Expiry must be today or later";
+            }
+
+            if (Object.keys(errors).length > 0) {
+                m_formErrors.value[idx] = errors;
+            } else {
+                const supplierId = it.supplier_id;
+                if (!groupedBySupplier[supplierId]) {
+                    groupedBySupplier[supplierId] = [];
+                }
+                groupedBySupplier[supplierId].push({
+                    product_id: it.id,
+                    quantity: it.qty,
+                    unit_price: it.unitPrice,
+                    expiry: it.expiry,
+                });
+            }
+        }
+    });
+
+    if (Object.keys(groupedBySupplier).length === 0) {
+        toast.error("No valid items to submit");
+        return;
+    }
+
+    if (Object.keys(m_formErrors.value).length > 0) {
+        toast.error("Please fix the highlighted errors");
+        return;
+    }
+
+    m_submitting.value = true;
+    try {
+        // Create separate purchase order for each supplier
+        for (const [supplierId, items] of Object.entries(groupedBySupplier)) {
+            const payload = {
+                supplier_id: parseInt(supplierId),
+                purchase_date: today,
+                status: "completed",
+                items: items,
+            };
+            await axios.post("/purchase-orders", payload);
+        }
+
+        toast.success("Multiple orders created successfully!");
+        emit("refresh-data");
+
+        multipleItems.value.forEach((it) => {
+            it.qty = 0;
+            it.unitPrice = 0;
+            it.expiry = null;
+            it.subtotal = 0;
+            it.supplier_id = null;
+        });
+
+        const m = bootstrap.Modal.getInstance(
+            document.getElementById("bulkOrderModal")
+        );
+        m?.hide();
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to save multiple orders");
+    } finally {
+        m_submitting.value = false;
+    }
+}
+
 
 </script>
 
@@ -175,84 +301,192 @@ async function bulkSubmit() {
                     </button>
                 </div>
 
+                <!-- TAB NAVIGATION -->
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Preferred Supplier</label>
-                        <Select v-model="b_supplier" :options="suppliers" optionLabel="name" optionValue="id"
-                            placeholder="Select Supplier" class="w-100" appendTo="self" :autoZIndex="true"
-                            :class="{ 'is-invalid': formErrors.supplier }" :baseZIndex="2000" />
+                    <ul class="nav nav-tabs mb-4" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{ active: activeTab === 'single' }"
+                                @click="activeTab = 'single'" type="button" role="tab">
+                                Single Purchase
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{ active: activeTab === 'multiple' }"
+                                @click="activeTab = 'multiple'" type="button" role="tab">
+                                Multiple Purchase
+                            </button>
+                        </li>
+                    </ul>
 
-                        <small v-if="formErrors.supplier" class="text-danger">
-                            {{ formErrors.supplier }}
-                        </small>
 
+                    <!-- SINGLE PURCHASE TAB -->
+                    <div v-if="activeTab === 'single'">
+                        <div class="mb-3">
+                            <label class="form-label">Preferred Supplier</label>
+                            <Select v-model="b_supplier" :options="suppliers" optionLabel="name" optionValue="id"
+                                placeholder="Select Supplier" class="w-100" appendTo="self" :autoZIndex="true"
+                                :class="{ 'is-invalid': formErrors.supplier }" :baseZIndex="2000" />
+
+                            <small v-if="formErrors.supplier" class="text-danger">
+                                {{ formErrors.supplier }}
+                            </small>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Unit</th>
+                                        <th>Qty</th>
+                                        <th>Unit Price</th>
+                                        <th>Expiry</th>
+                                        <th>Subtotal</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(it, idx) in bulkItems" :key="it.id">
+                                        <td>{{ it.name }}</td>
+                                        <td>{{ it.category?.name || "-" }}</td>
+                                        <td>{{ it.unit_name }}</td>
+
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.qty" class="form-control"
+                                                @input="updateSubtotal(it)" />
+                                            <small v-if="formErrors[idx]?.qty" class="text-danger">
+                                                {{ formErrors[idx].qty }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.unitPrice"
+                                                class="form-control" @input="updateSubtotal(it)" />
+                                            <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
+                                                {{ formErrors[idx].unitPrice }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
+                                                :enableTimePicker="false" :teleport="true" placeholder="Select date"
+                                                :class="{
+                                                    'is-invalid': formErrors[idx]?.expiry
+                                                }" />
+
+                                            <small v-if="formErrors[idx]?.expiry" class="text-danger">
+                                                {{ formErrors[idx].expiry }}
+                                            </small>
+                                        </td>
+                                        <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
+                                        <td>
+                                        <td>
+                                            <button
+                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                @click="delRow(idx)" title="Clear">
+                                               <i data-feather="rotate-ccw"></i>
+                                            </button>
+                                        </td>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="text-end fw-bold mt-3">
+                            Total: {{ formatCurrencySymbol(b_total.toFixed(2)) }}
+                        </div>
                     </div>
 
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Category</th>
-                                    <th>Unit</th>
-                                    <th>Qty</th>
-                                    <th>Unit Price</th>
-                                    <th>Expiry</th>
-                                    <th>Subtotal</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <!-- MULTIPLE PURCHASE TAB -->
+                    <div v-if="activeTab === 'multiple'">
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Unit</th>
+                                        <th>Supplier</th>
+                                        <th>Qty</th>
+                                        <th>Unit Price</th>
+                                        <th>Expiry</th>
+                                        <th>Subtotal</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(it, idx) in multipleItems" :key="it.id">
+                                        <td>{{ it.name }}</td>
+                                        <td>{{ it.category?.name || "-" }}</td>
+                                        <td>{{ it.unit_name }}</td>
 
-                                <tr v-for="(it, idx) in bulkItems" :key="it.id">
-                           
-                                    <td>{{ it.name }}</td>
-                                    <td>{{ it.category?.name || "-" }}</td>
-                                    <td>{{ it.unit_name }}</td>
-                                   
-                                    <td>
-                                        <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                            @input="updateSubtotal(it)" />
-                                        <small v-if="formErrors[idx]?.qty" class="text-danger">
-                                            {{ formErrors[idx].qty }}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <input type="number" min="0" v-model.number="it.unitPrice" class="form-control"
-                                            @input="updateSubtotal(it)" />
-                                        <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
-                                            {{ formErrors[idx].unitPrice }}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                            :enableTimePicker="false" :teleport="true" placeholder="Select date" :class="{
-                                                'is-invalid': formErrors[it.id] && formErrors[it.id].expiry_date
-                                            }" />
+                                        <td>
+                                            <Select v-model="it.supplier_id" :options="suppliers" optionLabel="name"
+                                                optionValue="id" placeholder="Select Supplier" class="w-100"
+                                                appendTo="self" :autoZIndex="true"
+                                                :class="{ 'is-invalid': m_formErrors[idx]?.supplier_id }"
+                                                baseZIndex="2000" />
 
-                                        <small v-if="formErrors[idx]?.expiry" class="text-danger">
-                                            {{ formErrors[idx].expiry }}
-                                        </small>
-                                    </td>
-                                    <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-danger" @click="delRow(idx)">
-                                            Clear
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                            <small v-if="m_formErrors[idx]?.supplier_id" class="text-danger d-block">
+                                                {{ m_formErrors[idx].supplier_id }}
+                                            </small>
+                                        </td>
 
-                    <div class="text-end fw-bold mt-3">
-                        Total: {{ formatCurrencySymbol(b_total.toFixed(2)) }}
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.qty" class="form-control"
+                                                @input="updateSubtotal(it)" />
+                                            <small v-if="m_formErrors[idx]?.qty" class="text-danger">
+                                                {{ m_formErrors[idx].qty }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <input type="number" min="0" v-model.number="it.unitPrice"
+                                                class="form-control" @input="updateSubtotal(it)" />
+                                            <small v-if="m_formErrors[idx]?.unitPrice" class="text-danger">
+                                                {{ m_formErrors[idx].unitPrice }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
+                                                :enableTimePicker="false" :teleport="true" placeholder="Select date"
+                                                :class="{
+                                                    'is-invalid': m_formErrors[idx]?.expiry
+                                                }" />
+
+                                            <small v-if="m_formErrors[idx]?.expiry" class="text-danger">
+                                                {{ m_formErrors[idx].expiry }}
+                                            </small>
+                                        </td>
+                                        <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
+                                        <td>
+                                          
+
+                                            <button
+                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                @click="delMultipleRow(idx)" title="Clear">
+                                               <i data-feather="rotate-ccw"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="text-end fw-bold mt-3">
+                            Total: {{ formatCurrencySymbol(m_total.toFixed(2)) }}
+                        </div>
                     </div>
                 </div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-primary rounded-pill px-4 py-2" :disabled="b_submitting" @click="bulkSubmit">
+                    <button v-if="activeTab === 'single'" class="btn btn-primary rounded-pill px-4 py-2"
+                        :disabled="b_submitting" @click="bulkSubmit">
                         <span v-if="!b_submitting">Save</span>
+                        <span v-else>Saving...</span>
+                    </button>
+                    <button v-if="activeTab === 'multiple'" class="btn btn-primary rounded-pill px-4 py-2"
+                        :disabled="m_submitting" @click="multipleSubmit">
+                        <span v-if="!m_submitting">Save</span>
                         <span v-else>Saving...</span>
                     </button>
                 </div>
@@ -269,6 +503,27 @@ async function bulkSubmit() {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
+:global(.dark .nav-tabs .nav-link) {
+  background-color: #212121 !important;
+  color: #fff !important;
+  border: 1px solid #333 !important;
+  border-bottom: 1px solid #fff !important;
+  transition: all 0.2s ease;
+}
+
+:global(.dark .nav-tabs .nav-link.active) {
+  background-color: #1C0D82 !important;
+  color: #fff !important;
+  border: 1px solid #1C0D82 !important;
+  border-bottom: 1px solid #fff !important;
+}
+
+:global(.dark .nav-tabs .nav-link:hover) {
+  background-color: #2a2a2a !important;
+  color: #fff !important;
+}
+
 
 /* ====================================================== */
 

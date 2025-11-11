@@ -289,6 +289,105 @@ onMounted(() => {
     window.feather?.replace();
 });
 
+// Add verification form state
+const verificationForm = ref({
+    username: '',
+    password: ''
+});
+
+const verificationErrors = ref({});
+const isVerifying = ref(false);
+
+// Reset verification form
+const resetVerificationForm = () => {
+    verificationForm.value = {
+        username: '',
+        password: ''
+    };
+    verificationErrors.value = {};
+};
+
+// Verify credentials before opening profile modal
+const verifyCredentials = async () => {
+    // Clear previous errors
+    verificationErrors.value = {};
+
+    // Validate inputs
+    if (!verificationForm.value.username) {
+        verificationErrors.value.username = 'Username is required';
+        // 👇 Show toast error
+        toast.error('Username is required');
+        return;
+    }
+
+    if (!verificationForm.value.password) {
+        verificationErrors.value.password = 'Password is required';
+        // 👇 Show toast error
+        toast.error('Password is required');
+        return;
+    }
+
+    isVerifying.value = true;
+
+    try {
+        const response = await axios.post('/api/profile/verify-credentials', {
+            username: verificationForm.value.username,
+            password: verificationForm.value.password
+        });
+
+        if (response.data.success) {
+            // Close verification modal
+            const verifyModal = bootstrap.Modal.getInstance(
+                document.getElementById('verifyPasswordModal')
+            );
+            verifyModal.hide();
+
+            // Reset form
+            resetVerificationForm();
+
+            // Show success message
+            toast.success('Identity verified successfully');
+
+            // Small delay then open profile modal
+            setTimeout(() => {
+                const profileModal = new bootstrap.Modal(
+                    document.getElementById('userProfileModal')
+                );
+                profileModal.show();
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Verification error:', error);
+
+        if (error.response?.status === 422) {
+            // Validation errors - show first error in toast
+            verificationErrors.value = error.response.data.errors || {};
+            
+            // 👇 Get first error message and show in toast
+            const firstError = Object.values(verificationErrors.value)[0];
+            if (Array.isArray(firstError)) {
+                toast.error(firstError[0]);
+            } else {
+                toast.error(firstError || 'Validation error occurred');
+            }
+        } else if (error.response?.status === 401) {
+            // Invalid credentials - show in toast
+            const errorMessage = 'Invalid username or password';
+            verificationErrors.value.general = errorMessage;
+            // 👇 Show toast error
+            toast.error(errorMessage);
+        } else {
+            // Generic error - show in toast
+            const errorMessage = error.response?.data?.message || 'An error occurred. Please try again.';
+            verificationErrors.value.general = errorMessage;
+            // 👇 Show toast error
+            toast.error(errorMessage);
+        }
+    } finally {
+        isVerifying.value = false;
+    }
+};
+
 const sidebarMenus = ref([
     { label: "Dashboard", icon: "grid", route: "dashboard" },
 
@@ -393,7 +492,7 @@ const sidebarMenus = ref([
                 icon: "users",
                 route: "shift.index",
             },
-              { label: "Settings", icon: "settings", route: "settings.index" },
+            { label: "Settings", icon: "settings", route: "settings.index" },
             { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
             { label: "Backup Database", icon: "database", action: "databaseBackup" },
 
@@ -842,7 +941,7 @@ onMounted(fetchNotifications);
 
 
                 <li class="nav-item dropdown has-arrow main-drop cursor-pointer" data-bs-toggle="modal"
-                    data-bs-target="#userProfileModal">
+                    data-bs-target="#verifyPasswordModal">
                     <span class="user-img">
                         <i class="bi bi-person-circle"></i>
                     </span>
@@ -851,7 +950,6 @@ onMounted(fetchNotifications);
                         <br />
                         <small class="super-admin text-black">{{ logedIUser.roles[0] }}</small>
                     </div>
-
                 </li>
             </ul>
         </header>
@@ -892,7 +990,7 @@ onMounted(fetchNotifications);
                                             @click="toggleGroup(item.label)" type="button" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                            }}</span>
+                                                }}</span>
                                             <i class="chevron-icon"
                                                 :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                                         </button>
@@ -949,7 +1047,7 @@ onMounted(fetchNotifications);
                             <img :src="businessInfo.image_url" alt="logo" width="40" height="40"
                                 class="rounded-full border shadow" />
                             <span class="font-bold text-lg text-black dark:text-white">{{ businessInfo.business_name
-                                }}</span>
+                            }}</span>
                         </div>
 
 
@@ -1101,6 +1199,63 @@ onMounted(fetchNotifications);
         </div>
     </footer>
 
+
+    <!-- Password Verification Modal -->
+    <div class="modal fade" id="verifyPasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-black rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Verify Your Identity</h5>
+                    <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal" aria-label="Close" title="Close" @click="resetVerificationForm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Please verify your credentials to access profile settings</p>
+
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" :class="{ 'is-invalid': verificationErrors.username }"
+                            v-model="verificationForm.username" @keyup.enter="verifyCredentials"
+                            placeholder="Enter your username" />
+                        <div v-if="verificationErrors.username" class="invalid-feedback">
+                            {{ verificationErrors.username }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control"
+                            :class="{ 'is-invalid': verificationErrors.password }" v-model="verificationForm.password"
+                            @keyup.enter="verifyCredentials" placeholder="Enter your password" />
+                        <div v-if="verificationErrors.password" class="invalid-feedback">
+                            {{ verificationErrors.password }}
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-2 py-2" data-bs-dismiss="modal"
+                        @click="resetVerificationForm">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary rounded-pill px-2 py-2" @click="verifyCredentials"
+                        :disabled="isVerifying">
+                        <span v-if="isVerifying" class="spinner-border spinner-border-sm me-2"></span>
+                        {{ isVerifying ? 'Verifying...' : 'Verify' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- user data update modal -->
     <div class="modal fade" id="userProfileModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1231,7 +1386,7 @@ onMounted(fetchNotifications);
 }
 
 .drawer-link:hover {
-   background: #1b2850;
+    background: #1b2850;
     color: #fff !important;
 }
 
