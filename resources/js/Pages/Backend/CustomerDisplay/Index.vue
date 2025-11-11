@@ -33,11 +33,23 @@ const menuCategories = ref([]);
 const menuItems = ref([]);
 const searchQuery = ref("");
 
+// ✅ NEW: Track selected variants and addons from POS
+const selectedCardVariant = ref({});
+const selectedCardAddons = ref({});
+
 const currentTime = ref(new Date().toLocaleTimeString());
 const connectionStatus = ref('Connecting...');
 let echoChannel = null;
 
-const formatCurrencySymbol = (amount) => `£${(amount || 0).toFixed(2)}`;
+const formatCurrencySymbol = (amount) => {
+    const num = parseFloat(amount) || 0;
+    return `£${num.toFixed(2)}`;
+};
+
+// ✅ Filter categories to show only those with menu items
+const filteredCategories = computed(() => {
+    return menuCategories.value.filter(cat => cat.menu_items_count > 0);
+});
 
 // Products by Category (same as POS)
 const productsByCat = computed(() => {
@@ -69,7 +81,7 @@ const visibleProducts = computed(
 );
 
 const filteredProducts = computed(() => {
-   const q = (searchQuery.value || '').trim().toLowerCase();
+    const q = (searchQuery.value || '').trim().toLowerCase();
     if (!q) return visibleProducts.value;
     return visibleProducts.value.filter(
         (p) =>
@@ -83,6 +95,50 @@ const filteredProducts = computed(() => {
 const selectedCategoryName = computed(() => {
     return menuCategories.value.find((c) => c.id === activeCat.value)?.name || "Items";
 });
+
+// ✅ NEW: Get variant price range
+const getVariantPriceRange = (product) => {
+    if (!product.variants || product.variants.length === 0) {
+        return { min: product.price, max: product.price };
+    }
+    const prices = product.variants.map(v => Number(v.price));
+    return {
+        min: Math.min(...prices),
+        max: Math.max(...prices)
+    };
+};
+
+// ✅ NEW: Get selected variant or default
+const getSelectedVariant = (product) => {
+    if (!product.variants || product.variants.length === 0) return null;
+    const selectedId = selectedCardVariant.value[product.id];
+    return product.variants.find(v => v.id === selectedId) || product.variants[0];
+};
+
+// ✅ NEW: Get total price including addons
+const getTotalPrice = (product) => {
+    let basePrice = product.price;
+    
+    // Use variant price if selected
+    const selectedVariant = getSelectedVariant(product);
+    if (selectedVariant) {
+        basePrice = Number(selectedVariant.price);
+    }
+
+    // Add addon prices
+    const productAddons = selectedCardAddons.value[product.id] || {};
+    let addonTotal = 0;
+    
+    Object.values(productAddons).forEach(groupAddons => {
+        if (Array.isArray(groupAddons)) {
+            groupAddons.forEach(addon => {
+                addonTotal += Number(addon.price || 0);
+            });
+        }
+    });
+
+    return basePrice + addonTotal;
+};
 
 // Check if item is eligible for promo
 const isItemEligibleForPromo = (cartItem) => {
@@ -102,14 +158,25 @@ onMounted(() => {
         currentTime.value = new Date().toLocaleTimeString();
     }, 1000);
 
+    console.log('🔌 Terminal ID:', props.terminalId);
+
     if (!window.Echo) {
-        console.error('Echo not found');
+        console.error('❌ Echo not found - WebSocket connection failed');
         connectionStatus.value = 'Error: Echo not found';
         return;
     }
 
     try {
-        echoChannel = window.Echo.channel(`pos-terminal.${props.terminalId}`);
+        const channelName = `pos-terminal.${props.terminalId}`;
+        console.log('🔌 Subscribing to channel:', channelName);
+        
+        echoChannel = window.Echo.channel(channelName);
+
+        // Subscription success callback
+        echoChannel.subscribed(() => {
+            console.log('✅ Successfully subscribed to:', channelName);
+            connectionStatus.value = 'Connected';
+        });
 
         // Listen for cart updates
         echoChannel.listen('.cart.updated', (e) => {
@@ -118,42 +185,92 @@ onMounted(() => {
             connectionStatus.value = 'Connected';
         });
 
-        // Listen for UI state updates (categories, menu items, active category, etc.)
+        // Listen for UI state updates
         echoChannel.listen('.ui.updated', (e) => {
             console.log('🖥️ UI update received:', e);
 
-            const ui = e.ui || e; // support both formats
+            const ui = e.ui || e;
 
             if (ui.showCategories !== undefined) showCategories.value = ui.showCategories;
             if (ui.activeCat !== undefined) activeCat.value = ui.activeCat;
             if (ui.menuCategories) menuCategories.value = ui.menuCategories;
             if (ui.menuItems) menuItems.value = ui.menuItems;
             if (ui.searchQuery !== undefined) searchQuery.value = ui.searchQuery;
+            
+            // ✅ NEW: Sync selected variants and addons
+            if (ui.selectedCardVariant) selectedCardVariant.value = ui.selectedCardVariant;
+            if (ui.selectedCardAddons) selectedCardAddons.value = ui.selectedCardAddons;
 
-            console.log("✅ menuCategories updated:", menuCategories.value.length);
+            console.log("✅ UI state updated:", {
+                showCategories: showCategories.value,
+                activeCat: activeCat.value,
+                categoriesCount: menuCategories.value.length,
+                itemsCount: menuItems.value.length,
+                selectedVariants: Object.keys(selectedCardVariant.value).length,
+                selectedAddons: Object.keys(selectedCardAddons.value).length
+            });
         });
 
+        // Add error handler
+        echoChannel.error((error) => {
+            console.error('❌ Channel error:', error);
+            connectionStatus.value = 'Error';
+        });
 
+        // Monitor Pusher connection status
         if (window.Echo.connector && window.Echo.connector.pusher) {
             const pusher = window.Echo.connector.pusher;
 
             pusher.connection.bind('connected', () => {
+                console.log('✅ Pusher connected');
                 connectionStatus.value = 'Connected';
             });
 
+            pusher.connection.bind('connecting', () => {
+                console.log('🔄 Pusher connecting...');
+                connectionStatus.value = 'Connecting...';
+            });
+
             pusher.connection.bind('disconnected', () => {
+                console.log('❌ Pusher disconnected');
                 connectionStatus.value = 'Disconnected';
             });
 
+            pusher.connection.bind('unavailable', () => {
+                console.log('❌ Pusher unavailable');
+                connectionStatus.value = 'Unavailable';
+            });
+
             pusher.connection.bind('failed', () => {
+                console.log('❌ Pusher connection failed');
                 connectionStatus.value = 'Connection Failed';
             });
+
+            pusher.connection.bind('error', (err) => {
+                console.error('❌ Pusher error:', err);
+                connectionStatus.value = 'Connection Error';
+            });
+
+            console.log('🔍 Current Pusher state:', pusher.connection.state);
         }
 
     } catch (error) {
-        console.error('Echo setup error:', error);
+        console.error('❌ Echo setup error:', error);
         connectionStatus.value = 'Setup Error';
     }
+
+    // Debug: Log Echo configuration after 2 seconds
+    setTimeout(() => {
+        if (window.Echo && window.Echo.connector && window.Echo.connector.pusher) {
+            const pusher = window.Echo.connector.pusher;
+            console.log('📊 Echo Debug Info:', {
+                state: pusher.connection.state,
+                key: pusher.key,
+                config: pusher.config,
+                channels: Object.keys(pusher.channels.channels)
+            });
+        }
+    }, 2000);
 });
 
 onUnmounted(() => {
@@ -164,7 +281,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-
     <Head title="Customer Display" />
 
     <div class="page-wrapper">
@@ -188,15 +304,15 @@ onUnmounted(() => {
             <div class="row gx-3 gy-3">
                 <!-- LEFT: Menu (Categories or Products) -->
                 <div :class="showCategories ? 'col-md-12' : 'col-lg-8'">
-                    <!-- Categories Grid (Same as POS) -->
+                    <!-- Categories Grid -->
                     <div v-if="showCategories" class="row g-3">
                         <div class="col-12 mb-3">
                             <h4 class="mb-3">Menu Categories</h4>
                             <hr class="mt-2 mb-3">
                         </div>
 
-                        <!-- Categories List -->
-                        <div v-for="c in menuCategories" :key="c.id" class="col-6 col-md-4 col-lg-3">
+                        <!-- ✅ Categories List (only showing categories with menu items) -->
+                        <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-3">
                             <div class="cat-card">
                                 <div class="cat-icon-wrap">
                                     <span class="cat-icon">
@@ -213,14 +329,14 @@ onUnmounted(() => {
                         </div>
 
                         <!-- No Categories Found -->
-                        <div v-if="menuCategories.length === 0" class="col-12">
+                        <div v-if="filteredCategories.length === 0" class="col-12">
                             <div class="alert alert-light border text-center rounded-4">
                                 No categories found
                             </div>
                         </div>
                     </div>
 
-                    <!-- Items in selected category (Same as POS) -->
+                    <!-- Items in selected category -->
                     <div v-else>
                         <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
                             <div class="d-flex align-items-center gap-2">
@@ -243,16 +359,24 @@ onUnmounted(() => {
                                     <!-- Left Side (Image + Price Badge) - 40% -->
                                     <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                         <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
+                                        
+                                        <!-- ✅ Show Variant Price Range -->
+                                        <div v-if="p.variants && p.variants.length > 0"
+                                            class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 py-1 fw-semibold"
+                                            style="font-size: 0.85rem;">
+                                            {{ formatCurrencySymbol(getVariantPriceRange(p).min) }} -
+                                            {{ formatCurrencySymbol(getVariantPriceRange(p).max) }}
+                                        </div>
 
-                                        <!-- Price Badge -->
+                                        <!-- ✅ Dynamic Price Badge including addons -->
                                         <span
                                             class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
                                             :style="{ background: p.label_color || '#1B1670' }">
-                                            {{ formatCurrencySymbol(p.price) }}
+                                            {{ formatCurrencySymbol(getTotalPrice(p)) }}
                                         </span>
                                     </div>
 
-                                    <!-- Right Side (Details) -->
+                                    <!-- Right Side (Details + Variant + Addons) -->
                                     <div class="p-3 d-flex flex-column justify-content-between"
                                         style="flex: 1 1 60%; min-width: 0;">
                                         <div>
@@ -260,32 +384,50 @@ onUnmounted(() => {
                                                 {{ p.title }}
                                             </div>
 
-                                            <!-- Variants Display -->
-                                            <div v-if="p.variants && p.variants.length > 0" class="mb-2">
-                                                <small class="text-muted d-block mb-1 fw-semibold">Variants:</small>
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    <span v-for="variant in p.variants" :key="variant.id"
-                                                        class="badge bg-secondary-subtle text-secondary">
-                                                        {{ variant.name }}
-                                                    </span>
-                                                </div>
+                                            <!-- ✅ Variant Dropdown (Read-only, showing selected from POS) -->
+                                            <div v-if="p.variants && p.variants.length > 0" class="mb-3">
+                                                <label class="form-label small fw-semibold mb-1">
+                                                    Selected Variant:
+                                                </label>
+                                                <select 
+                                                    :value="selectedCardVariant[p.id] || p.variants[0].id"
+                                                    class="form-select form-select-sm variant-select"
+                                                    disabled
+                                                    style="background-color: #f8f9fa; cursor: not-allowed;">
+                                                    <option v-for="variant in p.variants" :key="variant.id"
+                                                        :value="variant.id">
+                                                        {{ variant.name }} - {{ formatCurrencySymbol(variant.price) }}
+                                                    </option>
+                                                </select>
                                             </div>
 
-                                            <!-- Addon Groups Display -->
-                                            <div v-if="p.addon_groups && p.addon_groups.length > 0" class="mb-2">
-                                                <small class="text-muted d-block mb-1 fw-semibold">Available
-                                                    Add-ons:</small>
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    <span v-for="group in p.addon_groups" :key="group.group_id"
-                                                        class="badge bg-primary-subtle text-primary">
+                                            <!-- ✅ Addons Display (Read-only, showing selected from POS) -->
+                                            <div v-if="p.addon_groups && p.addon_groups.length > 0">
+                                                <div v-for="group in p.addon_groups" :key="group.group_id" class="mb-3">
+                                                    <label class="form-label small fw-semibold mb-2">
                                                         {{ group.group_name }}
-                                                    </span>
+                                                        <span v-if="group.max_select > 0" class="text-muted"
+                                                            style="font-size: 0.75rem;">
+                                                            (Max {{ group.max_select }})
+                                                        </span>
+                                                    </label>
+                                                    
+                                                    <!-- Show selected addons -->
+                                                    <div v-if="selectedCardAddons[p.id]?.[group.group_id]?.length > 0"
+                                                        class="d-flex flex-wrap gap-1">
+                                                        <span v-for="addon in selectedCardAddons[p.id][group.group_id]"
+                                                            :key="addon.id" 
+                                                            class="badge bg-primary px-2 py-1">
+                                                            {{ addon.name }} +{{ formatCurrencySymbol(addon.price) }}
+                                                        </span>
+                                                    </div>
+                                                    <div v-else class="text-muted small fst-italic">
+                                                        No addons selected
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <p v-if="p.description" class="text-muted small mb-0">
-                                                {{ p.description }}
-                                            </p>
+                                            
                                         </div>
                                     </div>
                                 </div>
@@ -404,7 +546,7 @@ onUnmounted(() => {
                                 <div v-if="cartData.deliveryCharges > 0" class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Delivery Charges:</span>
                                     <span class="fw-semibold">{{ formatCurrencySymbol(cartData.deliveryCharges)
-                                        }}</span>
+                                    }}</span>
                                 </div>
 
                                 <!-- Promo Discount -->
@@ -477,24 +619,19 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 /* ========== Page Base ========== */
 .page-wrapper {
     background: #f5f7fb;
     min-height: 100vh;
+    margin: 0px 10px !important;
+    padding: 0px !important;
 }
 
-/* ========== Categories Grid (Same as POS) ========== */
+/* ========== Categories Grid ========== */
 .cat-card {
     display: flex;
     flex-direction: column;
@@ -563,12 +700,49 @@ onUnmounted(() => {
     color: #1b1670;
 }
 
-/* ========== Cart Panel (Same as POS) ========== */
+/* ========== Product Cards ========== */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ========== Variant Select Styling ========== */
+.variant-select {
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.variant-select:disabled {
+    opacity: 0.8;
+    cursor: not-allowed;
+    background-color: #f8f9fa !important;
+}
+
+/* ========== Addon Badges ========== */
+.badge {
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+}
+
+.badge.bg-primary {
+    background-color: #1b1670 !important;
+}
+
+/* ========== Cart Panel ========== */
 .cart {
     display: flex;
     flex-direction: column;
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
+    height: fit-content;
+    max-height: calc(100vh - 120px);
+    position: sticky;
+    top: 20px;
 }
 
 .cart-header {
@@ -596,6 +770,7 @@ onUnmounted(() => {
     border-radius: 999px;
     padding: 0.25rem 0.65rem;
     font-size: 0.8rem;
+    transition: all 0.2s ease;
 }
 
 .ot-pill.active {
@@ -607,21 +782,29 @@ onUnmounted(() => {
 .cart-body {
     padding: 1rem;
     background: #fff;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
+/* ========== Cart Lines ========== */
 .cart-lines {
     background: #fff;
     border: 1px dashed #e8e9ef;
     border-radius: 12px;
     padding: 0.5rem;
     max-height: 360px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
 }
 
 .empty {
     color: #9aa0b6;
     text-align: center;
     padding: 1.25rem 0;
+    font-size: 0.95rem;
 }
 
 .line {
@@ -631,10 +814,15 @@ onUnmounted(() => {
     gap: 0.6rem;
     padding: 0.45rem 0.35rem;
     border-bottom: 1px solid #f1f2f6;
+    transition: background-color 0.2s ease;
 }
 
 .line:last-child {
     border-bottom: 0;
+}
+
+.line:hover {
+    background-color: #f9fafb;
 }
 
 .line-left {
@@ -649,6 +837,12 @@ onUnmounted(() => {
     height: 38px;
     object-fit: cover;
     border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.meta {
+    min-width: 0;
+    flex: 1;
 }
 
 .meta .name {
@@ -657,11 +851,20 @@ onUnmounted(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: #1f2937;
+}
+
+.meta .addon-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
 }
 
 .meta .note {
     font-size: 0.75rem;
     color: #8a8fa7;
+    margin-top: 0.25rem;
 }
 
 .line-mid {
@@ -677,6 +880,8 @@ onUnmounted(() => {
     background: #f1f2f6;
     border-radius: 999px;
     padding: 0.15rem 0.4rem;
+    font-size: 0.85rem;
+    color: #374151;
 }
 
 .line-right {
@@ -689,36 +894,77 @@ onUnmounted(() => {
     font-weight: 700;
     min-width: 64px;
     text-align: right;
+    color: #1f2937;
+    font-size: 0.95rem;
 }
 
+/* ========== Totals Section ========== */
 .totals {
     padding: 0.75rem 0 0.25rem;
+    border-top: 1px solid #f1f2f6;
+    margin-top: 0.5rem;
 }
 
 .trow {
     display: flex;
     justify-content: space-between;
-    padding: 0.25rem 0;
+    align-items: center;
+    padding: 0.35rem 0;
     color: #4b5563;
+    font-size: 0.9rem;
+}
+
+.trow span {
+    display: flex;
+    align-items: center;
+}
+
+.trow b {
+    font-weight: 700;
 }
 
 .trow.total {
-    border-top: 1px solid #eef0f6;
-    margin-top: 0.25rem;
-    padding-top: 0.6rem;
+    border-top: 2px solid #e5e7eb;
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
     color: #181818;
-    font-size: 16px;
+    font-size: 1.1rem;
     font-weight: 800;
 }
 
+.sub-total {
+    color: #1f2937;
+}
+
+/* ========== Promo Section ========== */
+.promos-section {
+    margin-top: 0.5rem;
+}
+
+.promo-total {
+    padding: 0.75rem;
+    background: #dcfce7;
+    border: 1px solid #86efac;
+}
+
+.bg-success-subtle {
+    background-color: #dcfce7 !important;
+}
+
+.text-success {
+    color: #16a34a !important;
+}
+
+/* ========== Cart Footer ========== */
 .cart-footer {
     background: #f7f8ff;
     padding: 0.75rem;
     border-bottom-left-radius: 1rem;
     border-bottom-right-radius: 1rem;
+    border-top: 1px solid #e5e7eb;
 }
 
-/* ========== Scrollbar ========== */
+/* ========== Scrollbar Styling ========== */
 .cart-lines::-webkit-scrollbar {
     width: 6px;
 }
@@ -729,22 +975,34 @@ onUnmounted(() => {
 }
 
 .cart-lines::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #cbd5e1;
     border-radius: 10px;
+    transition: background 0.2s ease;
 }
 
 .cart-lines::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #94a3b8;
 }
 
-/* ========== Responsive ========== */
+/* ========== Responsive Design ========== */
 @media (max-width: 1199.98px) {
     .cat-card {
         padding: 1.5rem 0.85rem;
     }
+    
+    .cat-icon-wrap {
+        width: 70px;
+        height: 70px;
+    }
 }
 
 @media (max-width: 991.98px) {
+    .cart {
+        max-height: none;
+        position: relative;
+        top: 0;
+    }
+    
     .cart-lines {
         max-height: 300px;
     }
@@ -767,6 +1025,15 @@ onUnmounted(() => {
 
     .cat-name {
         font-size: 0.9rem;
+    }
+    
+    .connection-bar .container-fluid {
+        padding: 0 1rem;
+    }
+    
+    .search-display {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
     }
 }
 </style>

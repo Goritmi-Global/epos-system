@@ -21,7 +21,7 @@ class UIUpdated implements ShouldBroadcast
         $this->terminalId = $terminalId;
         $this->uiData = $uiData;
 
-        Log::info('UIUpdated event created', [
+        Log::info('🔔 UIUpdated Event Created', [
             'terminal' => $terminalId,
             'channel' => 'pos-terminal.' . $terminalId,
             'keys' => array_keys($uiData ?? []),
@@ -30,9 +30,9 @@ class UIUpdated implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        $channel = new Channel('pos-terminal.' . $this->terminalId);
-        Log::info('Broadcasting UI update on channel', ['channel' => $channel->name]);
-        return $channel;
+        $channelName = 'pos-terminal.' . $this->terminalId;
+        Log::info('📡 Broadcasting UIUpdated on channel: ' . $channelName);
+        return new Channel($channelName);
     }
 
     public function broadcastAs()
@@ -42,9 +42,17 @@ class UIUpdated implements ShouldBroadcast
 
     public function broadcastWith()
     {
-        return [
+        $data = [
             'ui' => $this->uiData,
             'timestamp' => now()->toIso8601String(),
         ];
+        
+        Log::info('📤 Broadcasting data:', [
+            'event' => 'ui.updated',
+            'channel' => 'pos-terminal.' . $this->terminalId,
+            'data_keys' => array_keys($data)
+        ]);
+        
+        return $data;
     }
 }

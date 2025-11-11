@@ -1,17 +1,4 @@
 // resources/js/composables/usePOSBroadcast.js
-import { watch } from 'vue';
-import Echo from 'laravel-echo';
-import Pusher from 'pusher-js';
-
-window.Pusher = Pusher;
-
-// Initialize Echo
-window.Echo = new Echo({
-    broadcaster: 'pusher',
-    key: import.meta.env.VITE_PUSHER_APP_KEY,
-    cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
-    forceTLS: true
-});
 
 export function usePOSBroadcast(terminalId) {
     // Broadcast cart updates to customer display
