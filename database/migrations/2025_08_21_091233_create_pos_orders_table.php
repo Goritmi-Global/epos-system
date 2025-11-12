@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('tax', 10, 2)->nullable();
             $table->decimal('service_charges', 10, 2)->nullable();
             $table->decimal('delivery_charges', 10, 2)->nullable();
+            $table->decimal('sales_discount', 10, 2)->default(0);
 
             $table->string('status')->default('paid');
             $table->text('note')->nullable();

@@ -110,7 +110,7 @@ const productsByCat = computed(() => {
             id: item.id,
             title: item.name,
             img: item.image_url || "/assets/img/default.png",
-            stock: 0, // Will be calculated reactively
+            stock: 0,
             price: Number(item.price),
             label_color: item.label_color || "#1B1670",
             family: catName,
@@ -121,6 +121,11 @@ const productsByCat = computed(() => {
             ingredients: item.ingredients ?? [],
             variants: item.variants ?? [],
             addon_groups: item.addon_groups ?? [],
+
+            // ✅ ADD THESE THREE FIELDS:
+            is_saleable: item.is_saleable,
+            resale_type: item.resale_type,
+            resale_value: item.resale_value,
         };
 
         grouped[catId].push(product);
@@ -621,6 +626,7 @@ const filteredProducts = computed(() => {
     return products;
 });
 
+console.log("Filtered Products:", filteredProducts.value);
 /* ----------------------------
    Filter Handlers
 -----------------------------*/
@@ -645,45 +651,44 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
     console.log(baseItem);
     const menuStock = calculateMenuStock(baseItem);
 
-    // Get selected variant info
     const variant = getSelectedVariant(baseItem);
     const variantId = variant ? variant.id : null;
     const variantName = variant ? variant.name : null;
-    const variantPrice = variant ? parseFloat(variant.price) : baseItem.price;
 
-    // ✅ Get selected addons
+    // ✅ CHANGED: Use ORIGINAL prices (not discounted)
+    const variantPrice = variant
+        ? parseFloat(variant.price)  // ✅ Original price
+        : parseFloat(baseItem.price); // ✅ Original price
+
     const selectedAddons = getSelectedAddons(baseItem);
     const addonsPrice = getAddonsPrice(baseItem);
     const totalItemPrice = variantPrice + addonsPrice;
 
-    console.log("selectedAddons", selectedAddons);
+    // ✅ NEW: Calculate resale discount per item
+    const resaleDiscountPerItem = variant
+        ? calculateResalePrice(variant, true)
+        : calculateResalePrice(baseItem, false);
 
-    // ✅ Create sorted addon IDs for comparison
     const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
 
-    // ✅ Find existing item with EXACT same variant AND addons
     const idx = orderItems.value.findIndex((i) => {
-        // Compare variant
         if (i.variant_id !== variantId) return false;
-
-        // Compare addons
         const itemAddonIds = (i.addons || [])
             .map(a => a.id)
             .sort((a, b) => a - b)
             .join('-');
-
-        // Must match both product ID, variant, and addons
         return i.id === baseItem.id && itemAddonIds === addonIds;
     });
 
     if (idx >= 0) {
-        // ✅ Item with same variant and addons exists - increment quantity
         const newQty = orderItems.value[idx].qty + qty;
         if (newQty <= orderItems.value[idx].stock) {
             orderItems.value[idx].qty = newQty;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * newQty;
 
-            // ✅ Update note if provided
+            // ✅ Update total discount
+            orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * newQty;
+
             if (note && note.trim()) {
                 orderItems.value[idx].note = note;
             }
@@ -693,7 +698,6 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             toast.error("Not enough Ingredients stock available for this Menu.");
         }
     } else {
-        // ✅ New combination - add as new item
         if (qty > menuStock) {
             toast.error("Not enough Ingredients stock available for this Menu.");
             return;
@@ -703,21 +707,24 @@ const addToOrder = (baseItem, qty = 1, note = "") => {
             id: baseItem.id,
             title: baseItem.title,
             img: baseItem.img,
-            price: totalItemPrice * qty,
-            unit_price: Number(totalItemPrice),
+            price: totalItemPrice * qty, // ✅ Original price * qty
+            unit_price: Number(totalItemPrice), // ✅ Original price
             qty: qty,
             note: note || "",
             stock: menuStock,
             ingredients: baseItem.ingredients ?? [],
             variant_id: variantId,
             variant_name: variantName,
-            addons: selectedAddons, // ✅ INCLUDE ADDONS
+            addons: selectedAddons,
+
+            // ✅ NEW: Store resale discount info
+            resale_discount_per_item: resaleDiscountPerItem,
+            total_resale_discount: resaleDiscountPerItem * qty,
         });
 
         toast.success(`${baseItem.title} added to cart`);
     }
 };
-
 
 // const incCart = async (i) => {
 //     const it = orderItems.value[i];
@@ -750,7 +757,6 @@ const incCart = async (i) => {
         return;
     }
 
-    // Check if we can increment this specific item
     if (!canIncCartItem(it)) {
         const variantText = it.variant_name ? ` (${it.variant_name})` : '';
         toast.error(`Not enough ingredients for "${it.title}${variantText}".`);
@@ -758,10 +764,14 @@ const incCart = async (i) => {
         return;
     }
 
-    // If all checks pass, increment
     it.outOfStock = false;
     it.qty++;
     it.price = it.unit_price * it.qty;
+
+    // ✅ Update total discount
+    if (it.resale_discount_per_item) {
+        it.total_resale_discount = it.resale_discount_per_item * it.qty;
+    }
 };
 
 
@@ -778,9 +788,14 @@ const decCart = async (i) => {
 
     it.qty--;
     it.price = it.unit_price * it.qty;
-    it.outOfStock = false; // Reset out of stock flag
-};
 
+    // ✅ Update total discount
+    if (it.resale_discount_per_item) {
+        it.total_resale_discount = it.resale_discount_per_item * it.qty;
+    }
+
+    it.outOfStock = false;
+};
 // const removeCart = (i) => orderItems.value.splice(i, 1);
 
 const removeCart = (index) => {
@@ -1052,21 +1067,28 @@ const confirmAdd = async () => {
     const variantId = variant ? variant.id : null;
     const variantText = variant ? ` (${variant.name})` : '';
 
-    // ✅ Check if quantity is 0 or less
     if (modalQty.value <= 0) {
         toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
         return;
     }
 
     const variantName = variant ? variant.name : null;
-    const variantPrice = variant ? parseFloat(variant.price) : selectedItem.value.price;
+
+    // ✅ CHANGED: Use ORIGINAL prices
+    const variantPrice = variant
+        ? parseFloat(variant.price)  // ✅ Original price
+        : parseFloat(selectedItem.value.price); // ✅ Original price
+
     const selectedAddons = getModalSelectedAddons();
     const addonsPrice = getModalAddonsPrice();
     const totalItemPrice = variantPrice + addonsPrice;
 
-    const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+    // ✅ NEW: Calculate resale discount
+    const resaleDiscountPerItem = variant
+        ? calculateResalePrice(variant, true)
+        : calculateResalePrice(selectedItem.value, false);
 
-    // ✅ DOUBLE CHECK available stock before confirming
+    const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
     const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
 
     if (modalQty.value > availableToAdd) {
@@ -1079,9 +1101,8 @@ const confirmAdd = async () => {
         return;
     }
 
+    // Stock validation...
     const ingredientStock = {};
-
-    // Check stock from current cart
     for (const item of orderItems.value) {
         const itemIngredients = getVariantIngredients(item, item.variant_id);
         itemIngredients.forEach(ing => {
@@ -1093,7 +1114,6 @@ const confirmAdd = async () => {
         });
     }
 
-    // Check stock for selected item
     if (variantIngredients.length > 0) {
         for (const ing of variantIngredients) {
             const ingredientId = ing.inventory_item_id;
@@ -1108,33 +1128,28 @@ const confirmAdd = async () => {
     }
 
     try {
-        // ✅ Create sorted addon IDs for comparison
         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
-
         const menuStock = variantIngredients.length > 0
             ? calculateStockForIngredients(variantIngredients)
             : 999999;
 
-        // ✅ Find existing item with EXACT same variant AND addons
         const idx = orderItems.value.findIndex((i) => {
             if (i.variant_id !== variantId) return false;
-
             const itemAddonIds = (i.addons || [])
                 .map(a => a.id)
                 .sort((a, b) => a - b)
                 .join('-');
-
             return i.id === selectedItem.value.id && itemAddonIds === addonIds;
         });
 
         if (idx >= 0) {
-            // ✅ Item exists - increment quantity
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
 
-            // ✅ Update kitchen note if provided (keep existing or update with new)
+            // ✅ Update total discount
+            orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
+
             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
-                // Append to existing note if present, or replace
                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
                 if (existingNote && existingNote !== modalItemKitchenNote.value.trim()) {
                     orderItems.value[idx].item_kitchen_note = existingNote + '; ' + modalItemKitchenNote.value.trim();
@@ -1145,21 +1160,24 @@ const confirmAdd = async () => {
 
             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
         } else {
-            // ✅ New combination - add as new item
             orderItems.value.push({
                 id: selectedItem.value.id,
                 title: selectedItem.value.title,
                 img: selectedItem.value.img,
-                price: totalItemPrice * modalQty.value,
-                unit_price: Number(totalItemPrice),
+                price: totalItemPrice * modalQty.value, // ✅ Original price * qty
+                unit_price: Number(totalItemPrice), // ✅ Original price
                 qty: modalQty.value,
                 note: modalNote.value || "",
-                item_kitchen_note: modalItemKitchenNote.value.trim() || "", // ✅ NEW: Item-specific kitchen note
+                item_kitchen_note: modalItemKitchenNote.value.trim() || "",
                 stock: menuStock,
                 ingredients: variantIngredients,
                 variant_id: variantId,
                 variant_name: variantName,
                 addons: selectedAddons,
+
+                // ✅ NEW: Store resale discount info
+                resale_discount_per_item: resaleDiscountPerItem,
+                total_resale_discount: resaleDiscountPerItem * modalQty.value,
             });
 
             toast.success(`${selectedItem.value.title} added to cart`);
@@ -1170,10 +1188,9 @@ const confirmAdd = async () => {
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
 
-        // ✅ Reset modal state after successful add
         modalQty.value = 0;
         modalNote.value = "";
-        modalItemKitchenNote.value = ""; // ✅ Reset kitchen note
+        modalItemKitchenNote.value = "";
         modalSelectedVariant.value = null;
         modalSelectedAddons.value = {};
 
@@ -1181,6 +1198,7 @@ const confirmAdd = async () => {
         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
     }
 };
+
 
 // Helper function
 const calculateStockForIngredients = (ingredients) => {
@@ -1470,7 +1488,7 @@ const confirmOrder = async ({
 
             service_charges: serviceCharges.value,
             delivery_charges: deliveryCharges.value,
-
+            sale_discount: totalResaleSavings.value,
             // Promo Details
             promo_discount: promoDiscount.value,
             applied_promos: selectedPromos.value.map(promo => ({
@@ -1509,21 +1527,54 @@ const confirmOrder = async ({
                 card_amount: cardAmount
             }),
 
-            items: (orderItems.value ?? []).map((it) => ({
-                product_id: it.id,
-                title: it.title,
-                quantity: it.qty,
-                price: it.price,
-                note: it.note ?? "",
-                kitchen_note: kitchenNote.value ?? "",
-                unit_price: it.unit_price,
-                item_kitchen_note: it.item_kitchen_note ?? "",
-                tax_percentage: getItemTaxPercentage(it),
-                tax_amount: getItemTax(it),
-                variant_id: it.variant_id || null,
-                variant_name: it.variant_name || null,
-                addons: it.addons || [],
-            })),
+            // items: (orderItems.value ?? []).map((it) => ({
+            //     product_id: it.id,
+            //     title: it.title,
+            //     quantity: it.qty,
+            //     price: it.price,
+            //     note: it.note ?? "",
+            //     kitchen_note: kitchenNote.value ?? "",
+            //     unit_price: it.unit_price,
+            //     item_kitchen_note: it.item_kitchen_note ?? "",
+            //     tax_percentage: getItemTaxPercentage(it),
+            //     tax_amount: getItemTax(it),
+            //     variant_id: it.variant_id || null,
+            //     variant_name: it.variant_name || null,
+            //     addons: it.addons || [],
+            // })),
+
+            items: (orderItems.value ?? []).map((it) => {
+                // ✅ Find the original menu item to get resale info
+                const menuItem = menuItems.value.find(m => m.id === it.id);
+                let sourceItem = menuItem;
+
+                // Get variant if exists
+                if (it.variant_id && menuItem?.variants) {
+                    const variant = menuItem.variants.find(v => v.id === it.variant_id);
+                    if (variant) sourceItem = variant;
+                }
+
+                // Calculate resale discount for this item
+                const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
+                const originalPrice = parseFloat(sourceItem?.price || it.unit_price);
+
+                return {
+                    product_id: it.id,
+                    title: it.title,
+                    quantity: it.qty,
+                    price: it.price,
+                    note: it.note ?? "",
+                    kitchen_note: kitchenNote.value ?? "",
+                    unit_price: it.unit_price,
+                    item_kitchen_note: it.item_kitchen_note ?? "",
+                    tax_percentage: getItemTaxPercentage(it),
+                    tax_amount: getItemTax(it),
+                    variant_id: it.variant_id || null,
+                    variant_name: it.variant_name || null,
+                    addons: it.addons || [],
+                    sale_discount_per_item: resaleDiscount,
+                };
+            }),
         };
 
         const res = await axios.post("/pos/order", payload);
@@ -1933,13 +1984,20 @@ const totalTax = computed(() => {
     return tax;
 });
 
-// Update grandTotal to include tax
+const totalResaleSavings = computed(() => {
+    return orderItems.value.reduce((total, item) => {
+        // Use the stored discount if available
+        return total + (item.total_resale_discount || 0);
+    }, 0);
+});
 const grandTotal = computed(() => {
     const total = subTotal.value
         + totalTax.value
         + deliveryCharges.value
         + serviceCharges.value
+        - totalResaleSavings.value  // ✅ ADD THIS LINE
         - promoDiscount.value;
+    
     return Math.max(0, total);
 });
 
@@ -2093,13 +2151,17 @@ const checkIngredientAvailability = (product, targetQty) => {
 // Fixed: Increment quantity from card with proper validation
 // ========================================
 const incrementCardQty = (product) => {
-    // ✅ Check stock first (silent check, no toast since button is disabled)
     if (getProductStock(product) <= 0) {
-        return; // Exit silently, button is already disabled
+        return;
     }
 
     const variant = getSelectedVariant(product);
-    const variantPrice = variant ? parseFloat(variant.price) : product.price;
+
+    // ✅ CHANGED: Use ORIGINAL prices
+    const variantPrice = variant
+        ? parseFloat(variant.price)  // ✅ Original price
+        : parseFloat(product.price); // ✅ Original price
+
     const variantId = variant ? variant.id : null;
     const variantName = variant ? variant.name : null;
 
@@ -2108,10 +2170,13 @@ const incrementCardQty = (product) => {
     const totalItemPrice = variantPrice + addonsPrice;
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
-    // Get ingredients for the SELECTED variant
+    // ✅ NEW: Calculate resale discount
+    const resaleDiscountPerItem = variant
+        ? calculateResalePrice(variant, true)
+        : calculateResalePrice(product, false);
+
     const variantIngredients = getVariantIngredients(product, variantId);
 
-    // Check if we can add more (only show toast if there ARE ingredients but not enough)
     if (!canAddMore(product)) {
         if (variantIngredients.length > 0) {
             const variantText = variantName ? ` (${variantName})` : '';
@@ -2131,6 +2196,11 @@ const incrementCardQty = (product) => {
         orderItems.value[existingIndex].qty++;
         orderItems.value[existingIndex].price =
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
+
+        // ✅ Update total discount
+        orderItems.value[existingIndex].total_resale_discount =
+            resaleDiscountPerItem * orderItems.value[existingIndex].qty;
+
         orderItems.value[existingIndex].outOfStock = false;
     } else {
         const menuStock = calculateMenuStock(product);
@@ -2138,16 +2208,20 @@ const incrementCardQty = (product) => {
             id: product.id,
             title: product.title,
             img: product.img,
-            price: totalItemPrice,
-            unit_price: Number(totalItemPrice),
+            price: totalItemPrice, // ✅ Original price
+            unit_price: Number(totalItemPrice), // ✅ Original price
             qty: 1,
             note: "",
             stock: menuStock,
-            ingredients: variantIngredients, // Use variant-specific ingredients
+            ingredients: variantIngredients,
             variant_id: variantId,
             variant_name: variantName,
             addons: selectedAddons,
             outOfStock: false,
+
+            // ✅ NEW: Store resale discount info
+            resale_discount_per_item: resaleDiscountPerItem,
+            total_resale_discount: resaleDiscountPerItem,
         });
     }
 };
@@ -2441,6 +2515,7 @@ watch(
         total: grandTotal.value,
         note: note.value,
         appliedPromos: selectedPromos.value,
+        saleDiscount: totalResaleSavings.value,
     }),
     (newCart) => {
         console.log('Cart changed, broadcasting...', newCart);
@@ -2490,9 +2565,9 @@ const openCustomerDisplay = () => {
         toast.error('Only cashiers can access customer display');
         return;
     }
-    
+
     console.log('🔗 Opening Customer Display for terminal:', terminalId.value);
-    
+
     const url = route('customer-display.index', { terminal: terminalId.value });
     window.open(url, '_blank', 'width=1920,height=1080');
 };
@@ -2509,6 +2584,163 @@ const getVariantPriceRange = (product) => {
         max: maxPrice
     };
 };
+
+
+// ============================================
+// RESALE PRICE CALCULATION HELPERS
+// ============================================
+
+/**
+ * Calculate resale price for a menu item or variant
+ */
+const calculateResalePrice = (item, isVariant = false) => {
+    if (!item) return 0;
+
+    // 🧠 Safe extraction for both simple & variant items
+    const isSaleable = item.is_saleable ?? item?.menu_item?.is_saleable;
+    const resaleType = item.resale_type ?? item?.menu_item?.resale_type;
+    const resaleValue = item.resale_value ?? item?.menu_item?.resale_value;
+    const basePrice = parseFloat(item.price || 0);
+
+    if (!isSaleable || !resaleType || !resaleValue) {
+        return 0;
+    }
+
+    if (resaleType === 'flat') {
+        return parseFloat(resaleValue);
+    }
+
+    if (resaleType === 'percentage') {
+        return (basePrice * parseFloat(resaleValue)) / 100;
+    }
+
+    return 0;
+};
+/**
+ * Get the final price after resale discount
+ */
+const getFinalPrice = (item, isVariant = false) => {
+    const basePrice = parseFloat(item.price || 0);
+    const resalePrice = calculateResalePrice(item, isVariant);
+    return Math.max(0, basePrice - resalePrice);
+};
+
+/**
+ * Get resale badge info for display
+ */
+const getResaleBadgeInfo = (item, isVariant = false) => {
+    if (!item) return null;
+
+    // 🧠 Same safe extraction here
+    const isSaleable = item.is_saleable ?? item?.menu_item?.is_saleable;
+    const resaleType = item.resale_type ?? item?.menu_item?.resale_type;
+    const resaleValue = item.resale_value ?? item?.menu_item?.resale_value;
+
+    const resalePrice = calculateResalePrice(item, isVariant);
+
+    if (!isSaleable || !resaleType || !resaleValue || resalePrice <= 0) {
+        return null;
+    }
+
+    return {
+        type: resaleType,
+        value: resaleValue,
+        amount: resalePrice,
+        display:
+            resaleType === 'flat'
+                ? `Sale ${formatCurrencySymbol(resalePrice)}`
+                : `${resaleValue}% OFF`
+    };
+};
+
+/**
+ * Get total price including variant and addons with resale
+ */
+const getTotalPriceWithResale = (product) => {
+    const variant = getSelectedVariant(product);
+
+    // Get base price after resale
+    let basePrice;
+    if (variant) {
+        basePrice = getFinalPrice(variant, true);
+    } else {
+        basePrice = getFinalPrice(product, false);
+    }
+
+    // Add addons (addons don't have resale)
+    const addonsPrice = getAddonsPrice(product);
+
+    return basePrice + addonsPrice;
+};
+
+
+/**
+ * Get variant price range with resale (only strike-through if there's a sale)
+ */
+const getVariantPriceRangeWithResale = (product) => {
+    if (!product.variants || product.variants.length === 0) {
+        const hasSale = calculateResalePrice(product, false) > 0;
+        return {
+            min: getFinalPrice(product, false),
+            max: getFinalPrice(product, false),
+            minOriginal: hasSale ? parseFloat(product.price || 0) : null,
+            maxOriginal: hasSale ? parseFloat(product.price || 0) : null
+        };
+    }
+
+    const prices = product.variants.map(v => getFinalPrice(v, true));
+    const originalPrices = product.variants.map(v => parseFloat(v.price || 0));
+    const hasSale = product.variants.some(v => calculateResalePrice(v, true) > 0);
+
+    return {
+        min: Math.min(...prices),
+        max: Math.max(...prices),
+        minOriginal: hasSale ? Math.min(...originalPrices) : null,
+        maxOriginal: hasSale ? Math.max(...originalPrices) : null
+    };
+};
+
+
+
+/**
+ * Get selected variant price with resale for display
+ */
+const getSelectedVariantPriceWithResale = (product) => {
+    if (!product.variants || product.variants.length === 0) {
+        return getFinalPrice(product, false);
+    }
+
+    const selectedVariantId = selectedCardVariant.value[product.id];
+    if (!selectedVariantId) {
+        return getFinalPrice(product.variants[0], true);
+    }
+
+    const variant = product.variants.find(v => v.id === selectedVariantId);
+    return variant ? getFinalPrice(variant, true) : getFinalPrice(product, false);
+};
+
+/**
+ * Get modal variant price with resale
+ */
+const getModalVariantPriceWithResale = () => {
+    if (!selectedItem.value) return 0;
+
+    const variant = getModalSelectedVariant();
+    if (variant) {
+        return getFinalPrice(variant, true);
+    }
+
+    return getFinalPrice(selectedItem.value, false);
+};
+
+/**
+ * Get modal total price with resale
+ */
+const getModalTotalPriceWithResale = () => {
+    return getModalVariantPriceWithResale() + getModalAddonsPrice();
+};
+
+
 
 
 </script>
@@ -2636,22 +2868,58 @@ const getVariantPriceRange = (product) => {
                                         <!-- Left Side (Image + Price Badge) - 40% -->
                                         <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                             <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
-                                            <!-- ✅ Show Variant Price Range -->
+
+                                            <!-- ✅ Show Variant Price Range with Resale -->
                                             <div v-if="p.variants && p.variants.length > 0"
-                                                class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 py-1 fw-semibold"
-                                                style="font-size: 0.85rem;">
-                                                {{ formatCurrencySymbol(getVariantPriceRange(p).min) }} -
-                                                {{ formatCurrencySymbol(getVariantPriceRange(p).max) }}
+                                                class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 fw-semibold"
+                                                style="font-size: 0.6rem !important; padding: 2px 4px;">
+
+                                                <!-- Minimum price -->
+                                                <span v-if="getVariantPriceRangeWithResale(p).minOriginal !== null"
+                                                    class="text-muted text-decoration-line-through me-1">
+                                                    {{
+                                                        formatCurrencySymbol(getVariantPriceRangeWithResale(p).minOriginal)
+                                                    }}
+                                                </span>
+                                                <span class="fw-bold text-success me-2">
+                                                    {{ formatCurrencySymbol(getVariantPriceRangeWithResale(p).min) }} -
+                                                </span>
+
+                                                <!-- Maximum price -->
+                                                <span v-if="getVariantPriceRangeWithResale(p).maxOriginal !== null"
+                                                    class="text-muted text-decoration-line-through me-1">
+                                                    {{
+                                                        formatCurrencySymbol(getVariantPriceRangeWithResale(p).maxOriginal)
+                                                    }}
+                                                </span>
+                                                <span class="fw-bold text-success">
+                                                    {{ formatCurrencySymbol(getVariantPriceRangeWithResale(p).max) }}
+                                                </span>
                                             </div>
 
-                                            <!-- Dynamic Price Badge including addons -->
+
+
+                                            <!-- ✅ Dynamic Price Badge with Resale -->
                                             <span
-                                                class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
-                                                :style="{ background: p.label_color || '#1B1670' }">
-                                                {{ formatCurrencySymbol(getTotalPrice(p)) }}
+                                                class="position-absolute top-0 start-0 m-2 px-2 py-1 rounded-pill text-white fw-semibold"
+                                                :style="{ background: p.label_color || '#1B1670', fontSize: '0.78rem', letterSpacing: '0.3px' }">
+                                                <template
+                                                    v-if="getResaleBadgeInfo(getSelectedVariant(p) || p, !!p.variants?.length)">
+                                                    <span class="text-decoration-line-through opacity-75 me-1">
+                                                        {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price)
+                                                        }}
+                                                    </span>
+                                                    <span class="fw-bold text-white">
+                                                        {{ formatCurrencySymbol(getTotalPriceWithResale(p)) }}
+                                                    </span>
+                                                </template>
+
+                                                <template v-else>
+                                                    {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price) }}
+                                                </template>
                                             </span>
 
-                                            <!-- OUT OF STOCK Badge (only if selected variant is out of stock) -->
+                                            <!-- OUT OF STOCK Badge -->
                                             <span v-if="getProductStock(p) <= 0"
                                                 class="position-absolute bottom-0 start-0 end-0 m-2 badge bg-danger py-2">
                                                 OUT OF STOCK
@@ -2660,13 +2928,28 @@ const getVariantPriceRange = (product) => {
 
                                         <!-- Right Side (Details + Variant + Addons + Quantity Controls) -->
                                         <div class="p-3 d-flex flex-column justify-content-between"
-                                            style="flex: 1 1 60%; min-width: 0;">
+                                            style="flex: 1 1 60%; min-width: 0; position: relative;">
+                                            <!-- Right Section Sale Badge (top-right, slightly up & right) -->
+                                            <span
+                                                v-if="(p.variants && p.variants.length > 0 && getResaleBadgeInfo(getSelectedVariant(p), true)) ||
+                                                    (!p.variants || p.variants.length === 0) && getResaleBadgeInfo(p, false)"
+                                                class="position-absolute px-2 py-1 rounded-pill bg-success text-white small fw-bold"
+                                                :style="{
+                                                    fontSize: '0.7rem',
+                                                    top: '7px',        // move slightly up
+                                                    right: '7px'       // move slightly right
+                                                }">
+                                                {{ p.variants && p.variants.length > 0
+                                                    ? getResaleBadgeInfo(getSelectedVariant(p), true).display
+                                                    : getResaleBadgeInfo(p, false).display }}
+                                            </span>
+
+
                                             <div>
                                                 <div class="h5 fw-bold mb-2"
                                                     :style="{ color: p.label_color || '#1B1670' }">
                                                     {{ p.title }}
                                                 </div>
-
                                                 <!-- Variant Dropdown -->
                                                 <div v-if="p.variants && p.variants.length > 0" class="mb-3">
                                                     <label class="form-label small fw-semibold mb-1">
@@ -2679,9 +2962,25 @@ const getVariantPriceRange = (product) => {
                                                             :value="variant.id">
                                                             {{ variant.name }} - {{ formatCurrencySymbol(variant.price)
                                                             }}
+                                                            <template
+                                                                v-if="variant.is_saleable && calculateResalePrice(variant, true) > 0">
+                                                                (Sale: {{
+                                                                    formatCurrencySymbol(calculateResalePrice(variant,
+                                                                        true)) }})
+                                                            </template>
                                                         </option>
                                                     </select>
+
                                                 </div>
+
+                                                <!-- Show selected variant's resale badge -->
+                                                <!-- <div v-if="getSelectedVariant(p) && getResaleBadgeInfo(getSelectedVariant(p), true)"
+                                                    class="mb-2">
+                                                    <span class="badge bg-success">
+                                                        🏷️ {{ getResaleBadgeInfo(getSelectedVariant(p), true).display
+                                                        }}
+                                                    </span>
+                                                </div> -->
 
                                                 <!-- Addons Selection -->
                                                 <div v-if="p.addon_groups && p.addon_groups.length > 0">
@@ -2852,6 +3151,13 @@ const getVariantPriceRange = (product) => {
                                                     {{ it.title }}
 
                                                 </div>
+                                                <div v-if="it.resale_discount_per_item > 0" class="mt-1">
+                                                    <span class="badge bg-success" style="font-size: 0.65rem;">
+                                                        <i class="bi bi-tag-fill"></i>
+                                                        Save {{ formatCurrencySymbol(it.resale_discount_per_item) }}
+                                                        each
+                                                    </span>
+                                                </div>
                                                 <!-- ✅ Addon Icons (clickable) -->
                                                 <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
                                                     <button class="btn-link p-0 py-0 text-decoration-none"
@@ -2903,6 +3209,7 @@ const getVariantPriceRange = (product) => {
 
                                 <!-- Totals -->
                                 <div class="totals">
+                                    <!-- Sub Total (Original Prices) -->
                                     <div class="trow">
                                         <span>Sub Total</span>
                                         <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
@@ -2917,32 +3224,40 @@ const getVariantPriceRange = (product) => {
                                         <b class="text-info">{{ formatCurrencySymbol(totalTax) }}</b>
                                     </div>
 
-                                    <div v-if="serviceCharges > 0" class="d-flex justify-content-between mb-2">
+                                    <!-- Service Charges -->
+                                    <div v-if="serviceCharges > 0" class="trow">
                                         <span class="text-muted">Service Charges:</span>
                                         <span class="fw-semibold">{{ formatCurrencySymbol(serviceCharges) }}</span>
                                     </div>
 
-
-                                    <div v-if="deliveryCharges > 0" class="d-flex justify-content-between mb-2">
+                                    <!-- Delivery Charges -->
+                                    <div v-if="deliveryCharges > 0" class="trow">
                                         <span class="text-muted">Delivery Charges:</span>
                                         <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
                                     </div>
 
+                                    <!-- ✅ Sale Discount (Now showing as minus from subtotal) -->
+                                    <div v-if="totalResaleSavings > 0" class="trow">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-tag text-danger"></i>
+                                            <span class="text-danger">Sale Discount:</span>
+                                        </span>
+                                        <b class="text-danger">-{{ formatCurrencySymbol(totalResaleSavings) }}</b>
+                                    </div>
 
                                     <!-- Promo Discount -->
                                     <div v-if="selectedPromos && selectedPromos.length > 0" class="promos-section mb-3">
-
                                         <!-- Total Discount Summary -->
                                         <div class="promo-total mt-2 rounded-3 bg-success-subtle">
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <span class=" text-success">Total Promo Savings:</span>
+                                                <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
                                                     }}</b>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Total -->
+                                    <!-- ✅ Total After All Discounts -->
                                     <div class="trow total">
                                         <span>Total</span>
                                         <b>{{ formatCurrencySymbol(grandTotal) }}</b>
@@ -3010,7 +3325,33 @@ const getVariantPriceRange = (product) => {
                                 <div class="col-md-7">
                                     <!-- Dynamic Price (variant + addons) -->
                                     <div class="h4 mb-3">
-                                        {{ formatCurrencySymbol(getModalTotalPrice()) }}
+                                        <div class="h4 d-flex align-items-center gap-2 flex-wrap">
+                                            <span>{{ formatCurrencySymbol(getModalTotalPriceWithResale()) }}</span>
+
+                                            <!-- Show original price if there's resale discount (for variants) -->
+                                            <template
+                                                v-if="getModalSelectedVariant() && getResaleBadgeInfo(getModalSelectedVariant(), true)">
+                                                <span class="text-decoration-line-through text-muted small">
+                                                    {{ formatCurrencySymbol(getModalVariantPrice() +
+                                                        getModalAddonsPrice()) }}
+                                                </span>
+                                                <span class="badge bg-success">
+                                                    {{ getResaleBadgeInfo(getModalSelectedVariant(), true).display }}
+                                                </span>
+                                            </template>
+
+                                            <!-- Show original price if there's resale discount (for simple items) -->
+                                            <template
+                                                v-else-if="selectedItem && (!selectedItem.variants || selectedItem.variants.length === 0) && getResaleBadgeInfo(selectedItem, false)">
+                                                <span class="text-decoration-line-through text-muted small">
+                                                    {{ formatCurrencySymbol(getModalVariantPrice() +
+                                                        getModalAddonsPrice()) }}
+                                                </span>
+                                                <span class="badge bg-success">
+                                                    {{ getResaleBadgeInfo(selectedItem, false).display }}
+                                                </span>
+                                            </template>
+                                        </div>
                                     </div>
 
                                     <!-- Variant Dropdown -->
@@ -3341,7 +3682,7 @@ const getVariantPriceRange = (product) => {
     color: #fff;
 }
 
-.bg-light{
+.bg-light {
     font-size: 1.2rem !important;
 }
 

@@ -20,6 +20,7 @@ const cartData = ref({
     tax: 0,
     serviceCharges: 0,
     deliveryCharges: 0,
+    saleDiscount: 0,
     promoDiscount: 0,
     total: 0,
     note: '',
@@ -118,7 +119,7 @@ const getSelectedVariant = (product) => {
 // ✅ NEW: Get total price including addons
 const getTotalPrice = (product) => {
     let basePrice = product.price;
-    
+
     // Use variant price if selected
     const selectedVariant = getSelectedVariant(product);
     if (selectedVariant) {
@@ -128,7 +129,7 @@ const getTotalPrice = (product) => {
     // Add addon prices
     const productAddons = selectedCardAddons.value[product.id] || {};
     let addonTotal = 0;
-    
+
     Object.values(productAddons).forEach(groupAddons => {
         if (Array.isArray(groupAddons)) {
             groupAddons.forEach(addon => {
@@ -139,6 +140,111 @@ const getTotalPrice = (product) => {
 
     return basePrice + addonTotal;
 };
+
+// ========================================
+// NEW: Sales Discount Eligibility Check
+// =======================================
+const calculateResalePrice = (item, isVariant = false) => {
+    if (!item) return 0;
+
+    const isSaleable = item.is_saleable ?? item?.menu_item?.is_saleable;
+    const resaleType = item.resale_type ?? item?.menu_item?.resale_type;
+    const resaleValue = item.resale_value ?? item?.menu_item?.resale_value;
+    const basePrice = parseFloat(item.price || 0);
+
+    if (!isSaleable || !resaleType || !resaleValue) {
+        return 0;
+    }
+
+    if (resaleType === 'flat') {
+        return parseFloat(resaleValue);
+    }
+
+    if (resaleType === 'percentage') {
+        return (basePrice * parseFloat(resaleValue)) / 100;
+    }
+
+    return 0;
+};
+
+const getFinalPrice = (item, isVariant = false) => {
+    const basePrice = parseFloat(item.price || 0);
+    const resalePrice = calculateResalePrice(item, isVariant);
+    return Math.max(0, basePrice - resalePrice);
+};
+
+const getResaleBadgeInfo = (item, isVariant = false) => {
+    if (!item) return null;
+
+    const isSaleable = item.is_saleable ?? item?.menu_item?.is_saleable;
+    const resaleType = item.resale_type ?? item?.menu_item?.resale_type;
+    const resaleValue = item.resale_value ?? item?.menu_item?.resale_value;
+    const resalePrice = calculateResalePrice(item, isVariant);
+
+    if (!isSaleable || !resaleType || !resaleValue || resalePrice <= 0) {
+        return null;
+    }
+
+    return {
+        type: resaleType,
+        value: resaleValue,
+        amount: resalePrice,
+        display:
+            resaleType === 'flat'
+                ? `Sale ${formatCurrencySymbol(resalePrice)}`
+                : `${resaleValue}% OFF`
+    };
+};
+
+// ✅ UPDATE: Get variant price range with resale
+const getVariantPriceRangeWithResale = (product) => {
+    if (!product.variants || product.variants.length === 0) {
+        const hasSale = calculateResalePrice(product, false) > 0;
+        return {
+            min: getFinalPrice(product, false),
+            max: getFinalPrice(product, false),
+            minOriginal: hasSale ? parseFloat(product.price || 0) : null,
+            maxOriginal: hasSale ? parseFloat(product.price || 0) : null
+        };
+    }
+
+    const prices = product.variants.map(v => getFinalPrice(v, true));
+    const originalPrices = product.variants.map(v => parseFloat(v.price || 0));
+    const hasSale = product.variants.some(v => calculateResalePrice(v, true) > 0);
+
+    return {
+        min: Math.min(...prices),
+        max: Math.max(...prices),
+        minOriginal: hasSale ? Math.min(...originalPrices) : null,
+        maxOriginal: hasSale ? Math.max(...originalPrices) : null
+    };
+};
+
+const getTotalPriceWithResale = (product) => {
+    const selectedVariant = getSelectedVariant(product);
+
+    let basePrice;
+    if (selectedVariant) {
+        basePrice = getFinalPrice(selectedVariant, true);
+    } else {
+        basePrice = getFinalPrice(product, false);
+    }
+
+    // Add addon prices (addons don't have resale)
+    const productAddons = selectedCardAddons.value[product.id] || {};
+    let addonTotal = 0;
+
+    Object.values(productAddons).forEach(groupAddons => {
+        if (Array.isArray(groupAddons)) {
+            groupAddons.forEach(addon => {
+                addonTotal += Number(addon.price || 0);
+            });
+        }
+    });
+
+    return basePrice + addonTotal;
+};
+
 
 // Check if item is eligible for promo
 const isItemEligibleForPromo = (cartItem) => {
@@ -169,7 +275,7 @@ onMounted(() => {
     try {
         const channelName = `pos-terminal.${props.terminalId}`;
         console.log('🔌 Subscribing to channel:', channelName);
-        
+
         echoChannel = window.Echo.channel(channelName);
 
         // Subscription success callback
@@ -196,7 +302,7 @@ onMounted(() => {
             if (ui.menuCategories) menuCategories.value = ui.menuCategories;
             if (ui.menuItems) menuItems.value = ui.menuItems;
             if (ui.searchQuery !== undefined) searchQuery.value = ui.searchQuery;
-            
+
             // ✅ NEW: Sync selected variants and addons
             if (ui.selectedCardVariant) selectedCardVariant.value = ui.selectedCardVariant;
             if (ui.selectedCardAddons) selectedCardAddons.value = ui.selectedCardAddons;
@@ -278,9 +384,11 @@ onUnmounted(() => {
         window.Echo.leaveChannel(`pos-terminal.${props.terminalId}`);
     }
 });
+
 </script>
 
 <template>
+
     <Head title="Customer Display" />
 
     <div class="page-wrapper">
@@ -359,27 +467,64 @@ onUnmounted(() => {
                                     <!-- Left Side (Image + Price Badge) - 40% -->
                                     <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                         <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
-                                        
-                                        <!-- ✅ Show Variant Price Range -->
+
+                                        <!-- ✅ UPDATED: Show Variant Price Range with Resale -->
                                         <div v-if="p.variants && p.variants.length > 0"
-                                            class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 py-1 fw-semibold"
-                                            style="font-size: 0.85rem;">
-                                            {{ formatCurrencySymbol(getVariantPriceRange(p).min) }} -
-                                            {{ formatCurrencySymbol(getVariantPriceRange(p).max) }}
+                                            class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 fw-semibold"
+                                            style="font-size: 0.6rem !important; padding: 2px 4px;">
+
+                                            <!-- Minimum price -->
+                                            <span v-if="getVariantPriceRangeWithResale(p).minOriginal !== null"
+                                                class="text-muted text-decoration-line-through me-1">
+                                                {{ formatCurrencySymbol(getVariantPriceRangeWithResale(p).minOriginal)
+                                                }}
+                                            </span>
+                                            <span class="fw-bold text-success me-2">
+                                                {{ formatCurrencySymbol(getVariantPriceRangeWithResale(p).min) }} -
+                                            </span>
+
+                                            <!-- Maximum price -->
+                                            <span v-if="getVariantPriceRangeWithResale(p).maxOriginal !== null"
+                                                class="text-muted text-decoration-line-through me-1">
+                                                {{ formatCurrencySymbol(getVariantPriceRangeWithResale(p).maxOriginal)
+                                                }}
+                                            </span>
+                                            <span class="fw-bold text-success">
+                                                {{ formatCurrencySymbol(getVariantPriceRangeWithResale(p).max) }}
+                                            </span>
                                         </div>
 
-                                        <!-- ✅ Dynamic Price Badge including addons -->
+                                        <!-- ✅ UPDATED: Dynamic Price Badge with Resale -->
                                         <span
-                                            class="position-absolute top-0 start-0 m-2 px-3 py-1 rounded-pill text-white small fw-semibold"
-                                            :style="{ background: p.label_color || '#1B1670' }">
-                                            {{ formatCurrencySymbol(getTotalPrice(p)) }}
+                                            class="position-absolute top-0 start-0 m-2 px-2 py-1 rounded-pill text-white fw-semibold"
+                                            :style="{ background: p.label_color || '#1B1670', fontSize: '0.78rem' }">
+                                            <template
+                                                v-if="getResaleBadgeInfo(getSelectedVariant(p) || p, !!p.variants?.length)">
+                                                <span class="text-decoration-line-through opacity-75 me-1">
+                                                    {{ formatCurrencySymbol(getSelectedVariant(p)?.price || p.price) }}
+                                                </span>
+                                                <span class="fw-bold text-white">
+                                                    {{ formatCurrencySymbol(getTotalPriceWithResale(p)) }}
+                                                </span>
+                                            </template>
+                                            <template v-else>
+                                                {{ formatCurrencySymbol(getTotalPriceWithResale(p)) }}
+                                            </template>
                                         </span>
                                     </div>
-
                                     <!-- Right Side (Details + Variant + Addons) -->
                                     <div class="p-3 d-flex flex-column justify-content-between"
                                         style="flex: 1 1 60%; min-width: 0;">
                                         <div>
+                                            <span
+                                                v-if="(p.variants && p.variants.length > 0 && getResaleBadgeInfo(getSelectedVariant(p), true)) ||
+                                                    (!p.variants || p.variants.length === 0) && getResaleBadgeInfo(p, false)"
+                                                class="position-absolute px-2 py-1 rounded-pill bg-success text-white small fw-bold"
+                                                :style="{ fontSize: '0.7rem', top: '7px', right: '7px' }">
+                                                {{ p.variants && p.variants.length > 0
+                                                    ? getResaleBadgeInfo(getSelectedVariant(p), true).display
+                                                    : getResaleBadgeInfo(p, false).display }}
+                                            </span>
                                             <div class="h5 fw-bold mb-2" :style="{ color: p.label_color || '#1B1670' }">
                                                 {{ p.title }}
                                             </div>
@@ -389,14 +534,13 @@ onUnmounted(() => {
                                                 <label class="form-label small fw-semibold mb-1">
                                                     Selected Variant:
                                                 </label>
-                                                <select 
-                                                    :value="selectedCardVariant[p.id] || p.variants[0].id"
-                                                    class="form-select form-select-sm variant-select"
-                                                    disabled
+                                                <select :value="selectedCardVariant[p.id] || p.variants[0].id"
+                                                    class="form-select form-select-sm variant-select" disabled
                                                     style="background-color: #f8f9fa; cursor: not-allowed;">
                                                     <option v-for="variant in p.variants" :key="variant.id"
                                                         :value="variant.id">
                                                         {{ variant.name }} - {{ formatCurrencySymbol(variant.price) }}
+
                                                     </option>
                                                 </select>
                                             </div>
@@ -411,13 +555,12 @@ onUnmounted(() => {
                                                             (Max {{ group.max_select }})
                                                         </span>
                                                     </label>
-                                                    
+
                                                     <!-- Show selected addons -->
                                                     <div v-if="selectedCardAddons[p.id]?.[group.group_id]?.length > 0"
                                                         class="d-flex flex-wrap gap-1">
                                                         <span v-for="addon in selectedCardAddons[p.id][group.group_id]"
-                                                            :key="addon.id" 
-                                                            class="badge bg-primary px-2 py-1">
+                                                            :key="addon.id" class="badge bg-primary px-2 py-1">
                                                             {{ addon.name }} +{{ formatCurrencySymbol(addon.price) }}
                                                         </span>
                                                     </div>
@@ -427,7 +570,7 @@ onUnmounted(() => {
                                                 </div>
                                             </div>
 
-                                            
+
                                         </div>
                                     </div>
                                 </div>
@@ -481,31 +624,48 @@ onUnmounted(() => {
                                 <div v-for="(item, i) in cartData.items" :key="i" class="line">
                                     <div class="line-left">
                                         <img :src="item.img || '/assets/img/default.png'" alt="" />
-                                        <div class="meta">
-                                            <div class="name" :title="item.title">
+                                        <div class="meta d-flex align-items-center flex-wrap gap-1">
+                                            <!-- Item Title -->
+                                            <div class="name fw-semibold text-truncate" :title="item.title"
+                                                style="max-width: 150px;">
                                                 {{ item.title }}
                                             </div>
-                                            <div v-if="item.addons && item.addons.length > 0 || item.variant_name"
-                                                class="addon-icons mt-1">
-                                                <span v-if="item.addons && item.addons.length > 0"
-                                                    class="text-muted small">
-                                                    <i class="bi bi-plus-circle-fill text-primary me-1"
-                                                        style="font-size: 0.9rem;"></i>
-                                                    {{ item.addons.length }} addon(s)
-                                                </span>
-                                                <span v-if="item.variant_name" class="badge ms-1"
-                                                    style="font-size: 0.65rem; background: #1B1670; color: white;">
-                                                    {{ item.variant_name }}
-                                                </span>
-                                                <span v-if="isItemEligibleForPromo(item)" class="badge bg-success ms-1"
-                                                    style="font-size: 0.65rem;">
-                                                    <i class="bi bi-tag-fill"></i>
-                                                </span>
-                                            </div>
-                                            <div class="note" v-if="item.note">
-                                                {{ item.note }}
-                                            </div>
+
+                                            <!-- Sale Discount Badge -->
+                                            <span v-if="item.resale_discount_per_item > 0"
+                                                class="badge d-inline-flex align-items-center gap-1 sale-badge">
+                                                <i class="bi bi-star-fill blinking-star"></i>
+                                                -{{ formatCurrencySymbol(item.resale_discount_per_item) }}
+                                            </span>
+
+
+
+                                            <!-- Addons -->
+                                            <span v-if="item.addons && item.addons.length > 0"
+                                                class="text-muted small d-inline-flex align-items-center">
+                                                <i class="bi bi-plus-circle-fill text-primary me-1"
+                                                    style="font-size: 0.9rem;"></i>
+                                                {{ item.addons.length }} addon(s)
+                                            </span>
+
+                                            <!-- Variant -->
+                                            <span v-if="item.variant_name" class="badge ms-1"
+                                                style="font-size: 0.65rem; background: #1B1670; color: white;">
+                                                {{ item.variant_name }}
+                                            </span>
+
+                                            <!-- Promo Tag -->
+                                            <span v-if="isItemEligibleForPromo(item)" class="badge bg-success ms-1"
+                                                style="font-size: 0.65rem;">
+                                                <i class="bi bi-tag-fill"></i>
+                                            </span>
                                         </div>
+
+                                        <!-- Optional: Note below (if you still want notes separate) -->
+                                        <div class="note text-muted small mt-1" v-if="item.note">
+                                            {{ item.note }}
+                                        </div>
+
                                     </div>
 
                                     <div class="line-mid">
@@ -546,7 +706,14 @@ onUnmounted(() => {
                                 <div v-if="cartData.deliveryCharges > 0" class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Delivery Charges:</span>
                                     <span class="fw-semibold">{{ formatCurrencySymbol(cartData.deliveryCharges)
-                                    }}</span>
+                                        }}</span>
+                                </div>
+                                <div v-if="cartData.saleDiscount > 0" class="trow">
+                                    <span class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-tag text-danger"></i>
+                                        <span class="text-danger">Sale Discount:</span>
+                                    </span>
+                                    <b class="text-danger">-{{ formatCurrencySymbol(cartData.saleDiscount) }}</b>
                                 </div>
 
                                 <!-- Promo Discount -->
@@ -593,6 +760,28 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+
+.sale-badge {
+    font-size: 0.65rem !important;
+    padding: 3px 6px !important;
+    background: #fff5f1;
+    color: #d9480f;
+    border: 1px dashed #f97316;
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+
+.blinking-star {
+    font-size: 0.7rem;
+    color: #f97316;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(1.2); }
+}
+
 /* ========== Connection Bar ========== */
 .connection-bar {
     background: #fef3c7;
@@ -619,8 +808,15 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* ========== Page Base ========== */
@@ -989,7 +1185,7 @@ onUnmounted(() => {
     .cat-card {
         padding: 1.5rem 0.85rem;
     }
-    
+
     .cat-icon-wrap {
         width: 70px;
         height: 70px;
@@ -1002,7 +1198,7 @@ onUnmounted(() => {
         position: relative;
         top: 0;
     }
-    
+
     .cart-lines {
         max-height: 300px;
     }
@@ -1026,11 +1222,11 @@ onUnmounted(() => {
     .cat-name {
         font-size: 0.9rem;
     }
-    
+
     .connection-bar .container-fluid {
         padding: 0 1rem;
     }
-    
+
     .search-display {
         padding: 0.4rem 0.8rem;
         font-size: 0.85rem;

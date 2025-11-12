@@ -16,6 +16,7 @@ class PosOrder extends Model
         'tax',
         'service_charges',
         'delivery_charges',
+        'sales_discount',
         'status',
         'note',
         'kitchen_note',
