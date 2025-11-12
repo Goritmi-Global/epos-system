@@ -454,6 +454,12 @@ const sidebarMenus = ref([
                 route: "meals.index",
             },
 
+             {
+                label: "Discount",
+                icon: "tag",
+                route: "discounts.index",
+            },
+
             // {
             //     label: "Variants",
             //     icon: "sliders",
