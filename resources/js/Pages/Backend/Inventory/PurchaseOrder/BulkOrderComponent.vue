@@ -378,15 +378,20 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
-                                        <td>
-                                        <td>
-                                            <button
-                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
-                                                @click="delRow(idx)" title="Clear">
-                                               <i data-feather="rotate-ccw"></i>
-                                            </button>
-                                        </td>
-                                        </td>
+                                     <td>
+  <!-- Clear button with static SVG rotate icon -->
+  <button
+    class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+    @click="delRow(idx)"
+    title="Clear"
+    style="width: 36px; height: 36px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+    </svg>
+  </button>
+</td>
+                                       
                                     </tr>
                                 </tbody>
                             </table>
@@ -458,15 +463,19 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
-                                        <td>
-                                          
-
-                                            <button
-                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
-                                                @click="delMultipleRow(idx)" title="Clear">
-                                               <i data-feather="rotate-ccw"></i>
-                                            </button>
-                                        </td>
+                                      <td>
+  <!-- Clear button with static SVG rotate icon -->
+  <button
+    class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+    @click="delMultipleRow(idx)"
+    title="Clear"
+    style="width: 36px; height: 36px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+    </svg>
+  </button>
+</td>
                                     </tr>
                                 </tbody>
                             </table>
