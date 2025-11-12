@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\UsersController;
 use App\Http\Controllers\AutoLogout\CashierAutoLogoutController;
 use App\Http\Controllers\CustomerDisplayController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\OnboardingController;
@@ -341,6 +342,38 @@ Route::middleware(['web'])->group(function () {
 Route::prefix('customer-display')->name('customer-display.')->group(function () {
     Route::get('/{terminal?}', [CustomerDisplayController::class, 'index'])
         ->name('index');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    
+    /**
+     * Discount Management Routes
+     * These are the main CRUD routes for the Discount module
+     */
+    Route::resource('discounts', DiscountController::class);
+    
+    /**
+     * API Discount Routes
+     * These are used by the Vue frontend via AJAX/Axios
+     */
+    Route::prefix('api')->group(function () {
+        
+        // Fetch all discounts
+        Route::get('/discounts/all', [DiscountController::class, 'fetchAllDiscounts'])
+            ->name('discounts.all');
+        
+        // Get today's active discounts
+        Route::get('/discounts/today', [DiscountController::class, 'getTodayDiscounts'])
+            ->name('discounts.today');
+        
+        // Toggle discount status
+        Route::patch('/discounts/{id}/toggle-status', [DiscountController::class, 'toggleStatus'])
+            ->name('discounts.toggle-status');
+        
+        // Get active discounts (for customer-facing features)
+        Route::get('/discounts/active', [DiscountController::class, 'getActiveDiscounts'])
+            ->name('discounts.active');
+    });
 });
 
 Route::get('/api/shift/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
