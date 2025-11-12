@@ -1,27 +1,26 @@
 <template>
-    <!-- Show Shift Management Modal -->
-    <div v-if="showShiftModal"
+    <!-- Close Shift Modal -->
+    <div v-if="show"
         class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div
             class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-xl font-semibold text-gray-800">Start Shift</h2>
+                <h2 class="text-xl font-semibold text-gray-800">Close Shift</h2>
                 <p class="text-sm mt-1 text-gray-600">
-                    Enter opening cash, complete checklist items, and add notes.
+                    Complete closing checklist items and add notes before closing the shift.
                 </p>
             </div>
 
             <!-- Body - Scrollable -->
             <div class="px-6 py-4 overflow-y-auto check-list-body flex-1">
-                <!-- ✅ Checklists Section (Moved to Top) -->
+                <!-- ✅ Closing Checklists Section -->
                 <div class="mb-6">
                     <h3 class="text-sm font-semibold text-white mb-3">
-                        Daily Safety Checklist
+                        Daily Closing Checklist
                     </h3>
                     <p class="text-xs text-gray-600 mb-4">
-                        Complete all required checks before opening. You can add your own
-                        checks too.
+                        Complete all required checks before closing. You can add your own checks too.
                     </p>
 
                     <!-- Grid Layout: Two per row -->
@@ -52,95 +51,87 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- Opening Cash Section -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Opening Cash</label>
-                    <input type="number" v-model="openingCash" step="0.01" class="form-control w-full"
-                        placeholder="0.00" />
-                </div>
-
-                <!-- Notes Section -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea v-model="notes" class="form-control w-full" rows="2"
-                        placeholder="Optional notes..."></textarea>
-                </div>
             </div>
 
             <!-- Footer -->
             <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-3 bg-gray-50">
-                <button @click="startShift" :disabled="loadingStart || !isFormValid"
-                    class="btn btn-primary py-2 px-4 rounded-pill flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span v-if="loadingStart" class="spinner-border spinner-border-sm"></span>
-                    <span>{{ loadingStart ? "Starting..." : "Start Shift" }}</span>
+                <button @click="$emit('cancel')" :disabled="loading"
+                    class="btn btn-secondary py-2 px-4 rounded-pill">
+                    Cancel
+                </button>
+                <button @click="closeShift" :disabled="loading"
+                    class="btn btn-danger py-2 px-4 rounded-pill flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                    <span>{{ loading ? "Closing..." : "Close Shift" }}</span>
                 </button>
             </div>
         </div>
     </div>
-
-    <!-- No Active Shift Modal -->
-    <div v-if="showNoShiftModal"
-        class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center">
-            <h2 class="text-xl font-semibold mb-2 text-gray-800">No active shift</h2>
-            <p class="text-sm text-gray-600 mb-4 text-center">
-                There is no currently active shift available. Please ask manager or
-                admin to start session or try again later.
-            </p>
-
-            <button @click="retryCheck" :disabled="loadingRetry"
-                class="btn btn-primary py-2 px-4 w-100 rounded-pill flex items-center justify-center gap-2 transition">
-                <span v-if="loadingRetry" class="spinner-border spinner-border-sm"></span>
-                <span>{{ loadingRetry ? "Checking..." : "Retry" }}</span>
-            </button>
-        </div>
-    </div>
 </template>
 
-
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import axios from 'axios';
-import { usePage } from '@inertiajs/vue3';
 import { toast } from "vue3-toastify";
 import Checkbox from 'primevue/checkbox';
 
+const props = defineProps({
+    show: {
+        type: Boolean,
+        default: false
+    },
+    shiftId: {
+        type: Number,
+        required: true
+    },
+    expectedClosingCash: {
+        type: Number,
+        default: 0
+    }
+});
 
-const page = usePage();
+const emit = defineEmits(['cancel', 'closed']);
 
-const showShiftModal = ref(page.props.showShiftModal || false);
-const showNoShiftModal = ref(page.props.showNoShiftModal || false);
-
-const openingCash = ref('');
-const notes = ref('');
-const loadingStart = ref(false);
-const loadingRetry = ref(false);
+const loading = ref(false);
 
 const checklistItems = ref([]);
 const selectedChecklists = ref({});
 const customChecklistName = ref('');
 
-// Fetch checklist items on component mount
-onMounted(async () => {
+// Watch for show prop changes to fetch closing checklist items
+watch(() => props.show, async (newValue) => {
+    if (newValue) {
+        await fetchClosingChecklistItems();
+    }
+});
+
+// Fetch closing checklist items
+const fetchClosingChecklistItems = async () => {
     try {
-        const response = await axios.get('/shift/checklist-items', {params: { type: 'start' }});
+        const response = await axios.get('/shift/checklist-items', {
+            params: { type: 'end' }
+        });
         checklistItems.value = response.data.data;
 
         // Initialize selected checklists object
+        selectedChecklists.value = {};
         checklistItems.value.forEach(item => {
             selectedChecklists.value[item.id] = false;
         });
     } catch (error) {
-        console.error('Failed to fetch checklist items:', error);
-        toast.error('Failed to load checklist items');
+        console.error('Failed to fetch closing checklist items:', error);
+        toast.error('Failed to load closing checklist items');
     }
-});
+};
 
-// Form validation
-const isFormValid = computed(() => {
-    return openingCash.value !== '' && Object.values(selectedChecklists.value).some(val => val === true);
-});
+
+// Format currency
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-GB', { 
+        style: 'currency', 
+        currency: 'GBP' 
+    }).format(value);
+};
 
 // Add custom checklist
 const addCustomChecklist = async () => {
@@ -149,7 +140,7 @@ const addCustomChecklist = async () => {
             // ✅ Save to database first
             const response = await axios.post('/shift/checklist-items/custom', {
                 name: customChecklistName.value,
-                type: 'start', // for opening shift
+                type: 'end', // for closing shift
             });
 
             if (response.data.success) {
@@ -172,48 +163,34 @@ const addCustomChecklist = async () => {
         }
     }
 };
-const startShift = async () => {
+
+// Close shift
+const closeShift = async () => {
     try {
-        loadingStart.value = true;
+        loading.value = true;
 
         // Collect selected checklist IDs
         const selectedChecklistIds = Object.keys(selectedChecklists.value)
             .filter(id => selectedChecklists.value[id] === true);
 
-        const response = await axios.post('/shift/start', {
-            opening_cash: openingCash.value,
-            notes: notes.value,
+        const response = await axios.patch(`/api/shift/${props.shiftId}/close`, {
             checklists: selectedChecklistIds,
         });
 
-        if (response.status === 200) {
-            toast.success('Shift started successfully!');
-            window.location.href = '/dashboard';
+        if (response.data.success) {
+            toast.success(response.data.message || 'Shift closed successfully!');
+            emit('closed', response.data);
+            
+            // Handle redirect
+            if (response.data.redirect) {
+                window.location.href = response.data.redirect;
+            }
         }
     } catch (error) {
-        console.error(error);
-        toast.error(error.response?.data?.message || 'Failed to start shift');
+        console.error('Failed to close shift:', error);
+        toast.error(error.response?.data?.message || 'Failed to close shift');
     } finally {
-        loadingStart.value = false;
-    }
-};
-
-// Retry check for other users
-const retryCheck = async () => {
-    try {
-        loadingRetry.value = true;
-        const res = await axios.post('/shift/check-active-shift');
-
-        if (res.data.active) {
-            window.location.href = res.data.redirect_url;
-        } else {
-            toast.error("Shift is still not active. Please try again later.");
-        }
-    } catch (error) {
-        console.error(error);
-        toast.error('Failed to check shift status');
-    } finally {
-        loadingRetry.value = false;
+        loading.value = false;
     }
 };
 </script>
@@ -237,10 +214,8 @@ const retryCheck = async () => {
 .check-list-item input[type="checkbox"] {
     accent-color: #f5f5f5 !important;
     background-color: #3d3d3d !important;
-    /* White background for checkbox */
     border: 1px solid #ccc !important;
 }
-
 
 .fixed {
     background-color: #181818 !important;
@@ -248,11 +223,6 @@ const retryCheck = async () => {
 
 .border-gray-100 {
     background-color: #212121 !important;
-}
-
-.body {
-    background-color: #212121 !important;
-    color: #fff !important;
 }
 
 h2 {

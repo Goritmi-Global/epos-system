@@ -41,8 +41,6 @@ use App\Http\Controllers\system\SystemRestoreController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
 use App\Http\Controllers\VerifyAccountController;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -67,6 +65,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [ShiftManagementController::class, 'index'])->name('index');
         Route::get('/manage', [ShiftManagementController::class, 'showShiftModal'])->name('manage');
         Route::post('/start', [ShiftManagementController::class, 'startShift'])->name('start');
+        Route::get('/checklist-items', [ShiftManagementController::class, 'getChecklistItems'])->name('shift.checklist-items');
+        Route::post('/checklist-items/custom', [ShiftManagementController::class, 'storeCustomChecklistItem'])
+            ->name('shift.checklist.custom');
         Route::post('/check-active-shift', [ShiftManagementController::class, 'checkActiveShift'])->name('check');
         Route::post('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
         Route::get('/all', [ShiftManagementController::class, 'getAllShifts'])->name('getAllShifts');
@@ -149,9 +150,9 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
     });
 
-//     Route::get('/purchase-orders/{id}/invoice', 
-//     [PurchaseOrderController::class, 'generateInvoice']
-// )->name('purchase-orders.invoice');
+    //     Route::get('/purchase-orders/{id}/invoice',
+    //     [PurchaseOrderController::class, 'generateInvoice']
+    // )->name('purchase-orders.invoice');
 
     /* -------- Reference Management -------- */
     Route::prefix('reference')->name('reference.')->group(function () {
@@ -331,8 +332,6 @@ Route::get('/variant-groups', [VariantGroupController::class, 'index'])
     ->name('variant-groups.index');
 Route::get('/variants', [VariantController::class, 'index'])
     ->name('variants.index');
-
-
 
 Route::middleware(['web'])->group(function () {
     Route::get('/check-auto-logout', [CashierAutoLogoutController::class, 'check'])

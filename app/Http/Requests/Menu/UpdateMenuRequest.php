@@ -49,9 +49,9 @@ class UpdateMenuRequest extends FormRequest
             'meals' => 'nullable|array',
             'meals.*' => 'exists:meals,id',
 
-            'is_saleable' => 'nullable|boolean',
-            'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
-            'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
+            // 'is_saleable' => 'nullable|boolean',
+            // 'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
+            // 'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
 
             // Addons
             'addon_group_id' => 'nullable|exists:addon_groups,id',
@@ -68,6 +68,13 @@ class UpdateMenuRequest extends FormRequest
             'variant_metadata' => 'nullable|array',
             'variant_metadata.*.name' => 'required_with:variant_metadata|string|max:255',
             'variant_metadata.*.price' => 'required_with:variant_metadata|numeric|min:0',
+
+            // is_saleable is optional but can be true (1)
+            'variant_metadata.*.is_saleable' => 'nullable|boolean',
+
+            // Conditional validation: required if is_saleable == 1
+            'variant_metadata.*.resale_type' => 'required_if:variant_metadata.*.is_saleable,1|string',
+            'variant_metadata.*.resale_value' => 'required_if:variant_metadata.*.is_saleable,1|numeric|min:0',
 
             // Variant Menu Ingredients
             'variant_ingredients' => 'nullable|array',
@@ -90,6 +97,12 @@ class UpdateMenuRequest extends FormRequest
             'variant_metadata.*.name.required_with' => 'Variant name is required.',
             'variant_metadata.*.price.required_with' => 'Variant price is required.',
             'variant_metadata.*.price.min' => 'Variant price must be at least 0.',
+
+            'variant_metadata.*.resale_type.required_if' => 'Resale type is required when the variant is saleable.',
+            'variant_metadata.*.resale_type.in' => 'Resale type must be either "flat" or "percent".',
+            'variant_metadata.*.resale_value.required_if' => 'Resale value is required when the variant is saleable.',
+            'variant_metadata.*.resale_value.numeric' => 'Resale value must be a number.',
+            'variant_metadata.*.resale_value.min' => 'Resale value must be greater than or equal to 0.',
 
             // Variant ingredients messages
             'variant_ingredients.*.*.inventory_item_id.required_with' => 'Ingredient is required for variant items.',
@@ -132,6 +145,21 @@ class UpdateMenuRequest extends FormRequest
                 foreach ($this->variant_ingredients ?? [] as $variantId => $ingredients) {
                     if (empty($ingredients) || count($ingredients) === 0) {
                         $validator->errors()->add("variant_ingredients.$variantId", 'Each variant must have at least one ingredient.');
+                    }
+                }
+
+                foreach ($this->variant_metadata ?? [] as $index => $variant) {
+                    if (isset($variant['is_saleable']) && $variant['is_saleable'] == 1) {
+                        $resaleType = $variant['resale_type'] ?? null;
+                        $resaleValue = $variant['resale_value'] ?? null;
+
+                        // Check if resale type is percentage and value exceeds 100
+                        if ($resaleType === 'percentage' && $resaleValue !== null && $resaleValue > 100) {
+                            $validator->errors()->add(
+                                "variant_metadata.$index.resale_value",
+                                'Resale value percentage cannot exceed 100%.'
+                            );
+                        }
                     }
                 }
             }

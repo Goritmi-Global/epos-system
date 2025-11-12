@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\PosOrder;
 use App\Models\Shift;
+use App\Models\ShiftChecklist;
+use App\Models\ShiftChecklistItem;
 use App\Models\ShiftDetail;
 use App\Models\ShiftInventorySnapshot;
 use App\Models\ShiftInventorySnapshotDetail;
@@ -41,8 +43,26 @@ class ShiftManagementController extends Controller
         ]);
     }
 
+    public function getChecklistItems(Request $request)
+    {
+       
+        $query = ShiftChecklistItem::where('is_default', true)->orWhere('is_default', false);
+
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+
+        $items = $query->orderBy('created_at', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $items,
+        ]);
+    }
+
     public function startShift(Request $request)
     {
+
         $activeShift = Shift::where('status', 'open')->first();
         if ($activeShift) {
             return redirect()->route('dashboard')
@@ -51,6 +71,8 @@ class ShiftManagementController extends Controller
         $request->validate([
             'opening_cash' => 'required|numeric',
             'notes' => 'nullable|string',
+            'checklists' => 'required|array|min:1',
+            'checklists.*' => 'required|string',
         ]);
 
         $shift = Shift::create([
@@ -63,6 +85,12 @@ class ShiftManagementController extends Controller
 
         // Store shift in session for other users
         session(['current_shift_id' => $shift->id]);
+
+        ShiftChecklist::create([
+            'shift_id' => $shift->id,
+            'type' => 'started', // ✅ Added
+            'checklist_item_ids' => $request->checklists ?? [],
+        ]);
 
         // Take inventory snapshot
         $snapshot = ShiftInventorySnapshot::create([
@@ -127,8 +155,36 @@ class ShiftManagementController extends Controller
         ]);
     }
 
+ 
+public function storeCustomChecklistItem(Request $request)
+{
+ 
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'type' => 'required|in:start,end',
+    ]);
+
+    $item = ShiftChecklistItem::create([
+        'name' => $request->name,
+        'description' => null,
+        'is_default' => false, // Custom items are not default
+        'type' => $request->type,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'data' => $item,
+    ]);
+}
+
     public function closeShift(Request $request, Shift $shift)
     {
+        // Validate closing checklist
+        $request->validate([
+            'checklists' => 'required|array|min:1',
+            'checklists.*' => 'required|string',
+        ]);
+
         $isSuperAdmin = Auth::user()->hasRole('Super Admin');
 
         // 1️⃣ Calculate total sales for this shift
@@ -147,7 +203,15 @@ class ShiftManagementController extends Controller
             'sales_total' => $totalSales,
         ]);
 
-        // 3️⃣ Update ShiftDetail records
+        // 3️⃣ ✅ CREATE NEW closing checklist record (don't update the existing one)
+        // This will create a SEPARATE record with type 'ended'
+        ShiftChecklist::create([
+            'shift_id' => $shift->id,
+            'type' => 'ended', // ✅ This is the closing checklist
+            'checklist_item_ids' => $request->checklists ?? [],
+        ]);
+
+        // 4️⃣ Update ShiftDetail records
         $shiftDetails = ShiftDetail::where('shift_id', $shift->id)->get();
 
         foreach ($shiftDetails as $detail) {
@@ -162,7 +226,7 @@ class ShiftManagementController extends Controller
             ]);
         }
 
-        // 4️⃣ Create end inventory snapshot
+        // 5️⃣ Create end inventory snapshot
         $snapshot = ShiftInventorySnapshot::create([
             'shift_id' => $shift->id,
             'type' => 'ended',
@@ -180,48 +244,38 @@ class ShiftManagementController extends Controller
             ]);
         }
 
-        // 5️⃣ Logout all non-Super Admin users
+        // 6️⃣ Logout all non-Super Admin users
         $usersToLogout = \App\Models\User::whereDoesntHave('roles', function ($q) {
             $q->where('name', 'Super Admin');
         })->pluck('id');
 
         DB::table('sessions')->whereIn('user_id', $usersToLogout)->delete();
 
-        // 6️⃣ Clear session shift data
+        // 7️⃣ Clear session shift data
         session()->forget('current_shift_id');
 
-        // 7️⃣ Handle based on user role
+        // 8️⃣ Handle based on user role
         if (! $isSuperAdmin) {
             // Logout current user
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            // Return JSON response for AJAX or redirect
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'redirect' => url('/login'),
-                    'message' => 'Shift closed — please log in again.',
-                ]);
-            }
-
-            return redirect()->away(url('/login'))->with('info', 'Shift closed — please log in again.');
-        }
-
-        // 8️⃣ For Super Admin
-        session()->flash('show_shift_modal', true);
-
-        // Return JSON response for AJAX or redirect
-        if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'redirect' => route('shift.manage'),
-                'message' => 'Shift closed successfully.',
+                'redirect' => url('/login'),
+                'message' => 'Shift closed — please log in again.',
             ]);
         }
 
-        return redirect()->route('shift.manage')->with('success', 'Shift closed successfully.');
+        // 9️⃣ For Super Admin
+        session()->flash('show_shift_modal', true);
+
+        return response()->json([
+            'success' => true,
+            'redirect' => route('shift.manage'),
+            'message' => 'Shift closed successfully.',
+        ]);
     }
 
     // Fetch All shifts
@@ -237,7 +291,7 @@ class ShiftManagementController extends Controller
 
     public function details($id)
     {
-        $shift = \App\Models\Shift::with('details')->findOrFail($id);
+        $shift = \App\Models\Shift::with('details', 'checklists.checklistItem')->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -246,6 +300,12 @@ class ShiftManagementController extends Controller
                     'role' => $detail->role,
                     'joined_at' => $detail->joined_at,
                     'sales_amount' => $detail->sales_amount,
+                ];
+            }),
+            'checklists' => $shift->checklists->map(function ($checklist) {
+                return [
+                    'name' => $checklist->checklistItem->name,
+                    'is_completed' => $checklist->is_completed,
                 ];
             }),
         ]);
@@ -334,7 +394,7 @@ class ShiftManagementController extends Controller
     //  *
     //  * @return StreamedResponse
     //  */
-   public function downloadZReportPdf(Shift $shift)
+    public function downloadZReportPdf(Shift $shift)
     {
         try {
             $reportData = $this->reportService->generateZReport($shift);
@@ -361,12 +421,12 @@ class ShiftManagementController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $pdfData,
-                'fileName' => 'Z_Report_Shift_' . $shift->id . '_' . now()->format('Y-m-d_H-i-s') . '.pdf',
+                'fileName' => 'Z_Report_Shift_'.$shift->id.'_'.now()->format('Y-m-d_H-i-s').'.pdf',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to prepare Z Report PDF: ' . $e->getMessage(),
+                'message' => 'Failed to prepare Z Report PDF: '.$e->getMessage(),
             ], 400);
         }
     }

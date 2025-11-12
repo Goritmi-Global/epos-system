@@ -148,6 +148,8 @@ class MenuService
 
     public function update(MenuItem $menu, array $data, Request $request): MenuItem
     {
+
+        
         // Handle image upload
         if (isset($data['image']) && $data['image']) {
             // Delete old image if exists
@@ -239,7 +241,7 @@ class MenuService
                         'menu_item_id' => $menu->id,
                         'name' => $variantData['name'],
                         'price' => $variantData['price'] ?? 0,
-                         'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
+                        'is_saleable' => isset($variantData['is_saleable']) ? (bool) $variantData['is_saleable'] : false,
                         'resale_type' => $variantData['resale_type'] ?? null,
                         'resale_value' => $variantData['resale_value'] ?? null,
                     ]);
