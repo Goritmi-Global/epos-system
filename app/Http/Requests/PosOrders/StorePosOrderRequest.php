@@ -25,6 +25,7 @@ class StorePosOrderRequest extends FormRequest
             'kitchen_note'     => 'nullable|string',
             'order_date'       => 'nullable|date',
             'order_time'       => 'nullable',
+            'sale_discount'    => 'nullable|numeric|min:0',
 
             // Order type
             'order_type'   => 'required|in:Dine In,Delivery,Collection,Takeaway',
@@ -46,6 +47,7 @@ class StorePosOrderRequest extends FormRequest
             'items.*.variant_id'       => 'nullable|numeric',
             'items.*.variant_name'     => 'nullable|string',
             'items.*.item_kitchen_note' => 'nullable|string',
+            'items.*.sale_discount_per_item' => 'nullable|numeric',
 
 
             // KOT validations

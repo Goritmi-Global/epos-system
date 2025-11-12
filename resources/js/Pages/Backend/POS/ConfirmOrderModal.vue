@@ -53,16 +53,6 @@ const changeAmount = computed(() => {
     return 0;
 });
 
-// Subtotal (since you pass :subTotal to StripePayment)
-// const subTotal = computed(() =>
-//     Array.isArray(props.orderItems)
-//         ? props.orderItems.reduce(
-//             (sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 0),
-//             0
-//         )
-//         : 0
-// );
-
 const subTotal = computed(() =>
     Array.isArray(props.orderItems)
         ? props.orderItems.reduce(

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->string('variant_name')->nullable();
             $table->decimal('price', 10, 2);
+            $table->decimal('sale_discount_per_item', 10, 2)->default(0);
             $table->text('note')->nullable();
             $table->text('kitchen_note')->nullable();
             $table->text('item_kitchen_note')->nullable();
