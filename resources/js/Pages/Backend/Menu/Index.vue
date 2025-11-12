@@ -691,7 +691,7 @@ const submitProduct = async () => {
                 if (resaleConfig && resaleConfig.is_saleable) {
                     // Send as 1 for boolean
                     formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 1);
-                    
+
                     // Only send resale_type and resale_value if they have valid values
                     if (resaleConfig.resale_type && resaleConfig.resale_type !== 'null') {
                         formData.append(`variant_metadata[${metadataIndex}][resale_type]`, resaleConfig.resale_type);
@@ -731,7 +731,7 @@ const submitProduct = async () => {
             // Simple menu resale
             if (form.value.is_saleable) {
                 formData.append("is_saleable", 1);
-                
+
                 if (form.value.resale_type && form.value.resale_type !== 'null') {
                     formData.append("resale_type", form.value.resale_type);
                 }
@@ -791,7 +791,7 @@ const submitProduct = async () => {
             )?.hide();
         } catch (err) {
             console.error("❌ Error saving:", err.response?.data);
-            
+
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
                 const errorMessages = Object.values(err.response.data.errors)
@@ -834,6 +834,19 @@ watch(
     },
     { deep: true }
 );
+
+watch(variantIngredients, (newIngredients) => {
+    // Ensure every variant has a resale config entry
+    Object.keys(newIngredients).forEach(variantId => {
+        if (!variantResaleConfig.value[variantId]) {
+            variantResaleConfig.value[variantId] = {
+                is_saleable: false,
+                resale_type: null,
+                resale_value: null
+            };
+        }
+    });
+}, { deep: true });
 
 // ===============Edit item ==================
 const savedNutrition = ref({ calories: 0, protein: 0, carbs: 0, fat: 0 });
@@ -896,7 +909,7 @@ const editItem = (item) => {
         addon_group_id: itemData.addon_group_id || '',
         addon_ids: itemData.addon_ids || itemData.addons?.map(a => a.id) || [],
 
-        is_saleable: itemData.is_saleable ?? false,
+        is_saleable: itemData.is_saleable === 1 || itemData.is_saleable === true ? true : false,
         resale_type: itemData.resale_type || null,
         resale_value: itemData.resale_value || null,
     };
@@ -921,9 +934,9 @@ const editItem = (item) => {
             };
 
             variantResaleConfig.value[variantId] = {
-                is_saleable: variant.is_saleable || false,
+                is_saleable: variant.is_saleable === 1 || variant.is_saleable === true ? true : false,
                 resale_type: variant.resale_type || null,
-                resale_value: variant.resale_value || null
+                resale_value: variant.resale_value ? parseFloat(variant.resale_value) : null
             };
 
             // Store variant ingredients
@@ -1091,7 +1104,7 @@ const submitEdit = async () => {
                 if (resaleConfig && resaleConfig.is_saleable) {
                     // Send as 1 for boolean
                     formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 1);
-                    
+
                     // Only send resale_type and resale_value if they have valid values
                     if (resaleConfig.resale_type && resaleConfig.resale_type !== 'null') {
                         formData.append(`variant_metadata[${metadataIndex}][resale_type]`, resaleConfig.resale_type);
@@ -1129,7 +1142,7 @@ const submitEdit = async () => {
             // Simple menu resale
             if (form.value.is_saleable) {
                 formData.append("is_saleable", 1);
-                
+
                 if (form.value.resale_type && form.value.resale_type !== 'null') {
                     formData.append("resale_type", form.value.resale_type);
                 }
@@ -1197,7 +1210,7 @@ const submitEdit = async () => {
             modal?.hide();
         } catch (err) {
             console.error("❌ Update failed:", err.response?.data);
-            
+
             if (err?.response?.status === 422 && err.response.data?.errors) {
                 formErrors.value = err.response.data.errors;
                 const errorMessages = Object.values(err.response.data.errors)
@@ -2582,14 +2595,14 @@ const deleteVariantIngredients = (variantId) => {
                                             <div class="d-flex gap-3">
                                                 <div class="form-check">
                                                     <input v-model="form.is_saleable" :value="true" type="radio"
-                                                        class="form-check-input" id="saleable_yes" name="is_saleable" />
+                                                        class="form-check-input" id="saleable_yes" name="is_saleable"  :checked="form.is_saleable === true" />
                                                     <label class="form-check-label" for="saleable_yes">
                                                         Yes
                                                     </label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input v-model="form.is_saleable" :value="false" type="radio"
-                                                        class="form-check-input" id="saleable_no" name="is_saleable" />
+                                                        class="form-check-input" id="saleable_no" name="is_saleable" :checked="form.is_saleable === false" />
                                                     <label class="form-check-label" for="saleable_no">
                                                         No
                                                     </label>
@@ -2632,8 +2645,8 @@ const deleteVariantIngredients = (variantId) => {
                                             </small>
                                         </div>
 
-                                    
-                                      
+
+
 
                                         <div class="col-md-6">
                                             <label class="form-label d-block"> Label Color </label>
@@ -3182,7 +3195,7 @@ const deleteVariantIngredients = (variantId) => {
                                         </h6>
 
                                         <!-- Info Card -->
-                                     
+
                                         <!-- Variants Resale Settings -->
                                         <div v-if="Object.keys(variantIngredients).length > 0" class="row g-3">
                                             <div v-for="(ingredients, variantId) in variantIngredients" :key="variantId"
@@ -3205,7 +3218,7 @@ const deleteVariantIngredients = (variantId) => {
                                                                         type="radio" class="form-check-input"
                                                                         :value="true"
                                                                         :name="`variant_saleable_${variantId}`"
-                                                                        v-model="variantResaleConfig[variantId].is_saleable" />
+                                                                        v-model="variantResaleConfig[variantId].is_saleable"  :checked="variantResaleConfig[variantId].is_saleable === true"/>
                                                                     <label class="form-check-label small"
                                                                         :for="`variant_saleable_yes_${variantId}`">
                                                                         Yes
@@ -3216,7 +3229,7 @@ const deleteVariantIngredients = (variantId) => {
                                                                         type="radio" class="form-check-input"
                                                                         :value="false"
                                                                         :name="`variant_saleable_${variantId}`"
-                                                                        v-model="variantResaleConfig[variantId].is_saleable" />
+                                                                        v-model="variantResaleConfig[variantId].is_saleable"  :checked="variantResaleConfig[variantId].is_saleable === false" />
                                                                     <label class="form-check-label small"
                                                                         :for="`variant_saleable_no_${variantId}`">
                                                                         No
@@ -3531,7 +3544,7 @@ const deleteVariantIngredients = (variantId) => {
     padding: 5px 20px !important;
 }
 
-.dark .bg-light{
+.dark .bg-light {
     background-color: #212121 !important;
     color: #fff !important;
 }

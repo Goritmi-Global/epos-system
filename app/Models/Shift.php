@@ -36,4 +36,9 @@ class Shift extends Model
     {
         return $this->hasMany(\App\Models\ShiftDetail::class, 'shift_id');
     }
+
+    public function checklists()
+    {
+        return $this->hasMany(\App\Models\ShiftChecklist::class, 'shift_id');
+    }
 }

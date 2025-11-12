@@ -11,6 +11,7 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import CloseShiftModal from "@/Components/CloseShiftModal.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -23,6 +24,10 @@ const showXReportModal = ref(false);  // Controls X Report Modal visibility
 const showZReportModal = ref(false);  // Controls Z Report Modal visibility
 const xReportData = ref(null);        // Stores X Report data
 const zReportData = ref(null);
+
+
+const showCloseShiftModal = ref(false);
+const selectedShiftForClose = ref(null);
 /* ---------------- Fetch shifts ---------------- */
 const fetchShifts = async () => {
     try {
@@ -31,6 +36,41 @@ const fetchShifts = async () => {
     } catch (err) {
         console.error("Failed to fetch shifts:", err);
         toast.error("Failed to load shifts");
+    }
+};
+
+
+const handleToggleShift = (shift) => {
+    if (shift.status === 'open') {
+        // Show close shift modal
+        selectedShiftForClose.value = shift;
+        showCloseShiftModal.value = true;
+    } else {
+        // Reopen shift directly
+        reopenShift(shift);
+    }
+};
+
+const reopenShift = async (shift) => {
+    try {
+        const response = await axios.patch(`/api/shift/${shift.id}/reopen`, { 
+            status: 'open' 
+        });
+
+        if (response.data.success) {
+            toast.success(response.data.message || 'Shift reopened successfully.');
+            shift.status = 'open';
+            await fetchShifts(); // Refresh the list
+            
+            if (response.data.redirect) {
+                window.location.href = response.data.redirect;
+            }
+        } else {
+            toast.error("Unexpected response from server.");
+        }
+    } catch (error) {
+        console.error("Failed to reopen shift:", error);
+        toast.error(error.response?.data?.message || "Failed to reopen shift.");
     }
 };
 
@@ -151,28 +191,78 @@ onUpdated(() => window.feather?.replace());
 
 // Open or closed shift 
 
-const toggleShiftStatus = async (shift) => {
-    const newStatus = shift.status === "open" ? "closed" : "open";
-    const url = newStatus === "closed"
-        ? `/api/shift/${shift.id}/close`
-        : `/api/shift/${shift.id}/reopen`; // assuming you have reopen endpoint
+// const toggleShiftStatus = async (shift) => {
+//     const newStatus = shift.status === "open" ? "closed" : "open";
+//     const url = newStatus === "closed"
+//         ? `/api/shift/${shift.id}/close`
+//         : `/api/shift/${shift.id}/reopen`; // assuming you have reopen endpoint
 
-    try {
-        const response = await axios.patch(url, { status: newStatus });
+//     try {
+//         const response = await axios.patch(url, { status: newStatus });
 
-        if (response.data.success) {
-            toast.success(response.data.message || `Shift ${newStatus} successfully.`);
-            shift.status = newStatus;
-            if (response.data.redirect) {
-                window.location.href = response.data.redirect;
-            }
-        } else {
-            toast.error("Unexpected response from server.");
-        }
-    } catch (error) {
-        console.error("Failed to change shift status:", error);
-        toast.error("Failed to change shift status.");
-    }
+//         if (response.data.success) {
+//             toast.success(response.data.message || `Shift ${newStatus} successfully.`);
+//             shift.status = newStatus;
+//             if (response.data.redirect) {
+//                 window.location.href = response.data.redirect;
+//             }
+//         } else {
+//             toast.error("Unexpected response from server.");
+//         }
+//     } catch (error) {
+//         console.error("Failed to change shift status:", error);
+//         toast.error("Failed to change shift status.");
+//     }
+// };
+
+// const toggleShiftStatus = async (shift) => {
+//     const newStatus = shift.status === "open" ? "closed" : "open";
+
+//     if (newStatus === "closed") {
+//         // Show close shift modal instead of direct close
+//         selectedShiftForClose.value = shift;
+//         showCloseShiftModal.value = true;
+//     } else {
+//         // Reopen shift logic
+//         const url = `/api/shift/${shift.id}/reopen`;
+
+//         try {
+//             const response = await axios.patch(url, { status: newStatus });
+
+//             if (response.data.success) {
+//                 toast.success(response.data.message || 'Shift reopened successfully.');
+//                 shift.status = newStatus;
+//                 if (response.data.redirect) {
+//                     window.location.href = response.data.redirect;
+//                 }
+//             } else {
+//                 toast.error("Unexpected response from server.");
+//             }
+//         } catch (error) {
+//             console.error("Failed to reopen shift:", error);
+//             toast.error("Failed to reopen shift.");
+//         }
+//     }
+// };
+
+
+const onShiftClosed = (data) => {
+    showCloseShiftModal.value = false;
+    selectedShiftForClose.value = null;
+
+    // Refresh shifts list
+    fetchShifts();
+};
+
+// Handle modal cancel
+const onCloseModalCancel = () => {
+    showCloseShiftModal.value = false;
+    selectedShiftForClose.value = null;
+};
+
+
+const calculateExpectedClosingCash = (shift) => {
+    return parseFloat(shift.opening_cash || 0) + parseFloat(shift.sales_total || 0);
 };
 
 const onDownload = (type) => {
@@ -471,7 +561,7 @@ const generateXReport = async (shift) => {
     }
 
     try {
-       
+
         const res = await axios.get(`/api/shift/${shift.id}/x-report`);
 
         if (res.data.success) {
@@ -1128,36 +1218,27 @@ const downloadZReportPdf = async (shiftId) => {
 
                                     <!-- Actions -->
                                     <td class="text-center">
-                                        <div class="d-inline-flex align-items-center gap-3">
-                                            <!-- View Shift -->
-                                            <button @click="viewShift(shift)" title="View Shift"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                <Eye class="w-4 h-4" />
-                                            </button>
+        <div class="d-inline-flex align-items-center gap-3">
+            <!-- View Shift -->
+            <button @click="viewShift(shift)" title="View Shift"
+                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                <Eye class="w-4 h-4" />
+            </button>
 
-                                            <!-- Toggle Shift Status -->
-                                            <ConfirmModal :title="'Confirm Shift Status Change'"
-                                                :message="`Are you sure you want to ${shift.status === 'open' ? 'close' : 'reopen'} this shift (#${shift.id})?`"
-                                                :showStatusButton="true" :status="shift.status"
-                                                confirmText="Yes, Change" cancelText="Cancel"
-                                                @confirm="toggleShiftStatus(shift)">
-                                                <template #trigger>
-                                                    <!-- Toggle Switch -->
-                                                    <button
-                                                        class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
-                                                        :class="shift.status === 'open'
-                                                            ? 'bg-green-500 hover:bg-green-600'
-                                                            : 'bg-red-400 hover:bg-red-500'"
-                                                        :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
-                                                        <span
-                                                            class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
-                                                            :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
-                                                    </button>
-                                                </template>
-                                            </ConfirmModal>
-
-                                        </div>
-                                    </td>
+            <!-- Toggle Shift Status Button (NO ConfirmModal wrapper) -->
+            <button
+                @click="handleToggleShift(shift)"
+                class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
+                :class="shift.status === 'open'
+                    ? 'bg-green-500 hover:bg-green-600'
+                    : 'bg-red-400 hover:bg-red-500'"
+                :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
+                <span
+                    class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
+                    :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
+            </button>
+        </div>
+    </td>
 
                                 </tr>
 
@@ -1265,7 +1346,7 @@ const downloadZReportPdf = async (shiftId) => {
             <div v-if="showXReportModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 ">
                 <div
-                   class="relative bg-white rounded-4 shadow-lg border-0  max-w-2xl overflow-hidden max-h-[85vh] flex flex-col mt-5">
+                    class="relative bg-white rounded-4 shadow-lg border-0  max-w-2xl overflow-hidden max-h-[85vh] flex flex-col mt-5">
 
                     <!-- Header -->
                     <div class="modal-header align-items-center">
@@ -1304,13 +1385,13 @@ const downloadZReportPdf = async (shiftId) => {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <p class="mb-2"><strong>Started By:</strong> {{ xReportData.started_by
-                                                }}</p>
+                                                    }}</p>
                                                 <p class="mb-2"><strong>Start Time:</strong> {{ new
                                                     Date(xReportData.start_time).toLocaleString()
-                                                }}</p>
+                                                    }}</p>
                                                 <p class="mb-0"><strong>Opening Cash:</strong> {{
                                                     formatCurrencySymbol(xReportData.opening_cash)
-                                                }}</p>
+                                                    }}</p>
                                             </div>
                                             <div class="col-md-6">
                                                 <p class="mb-2"><strong>Status:</strong> <span
@@ -1336,7 +1417,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Total Orders:</td>
                                                     <td class="text-end">{{
                                                         xReportData.sales_summary.total_orders
-                                                    }}</td>
+                                                        }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Subtotal:</td>
@@ -1354,14 +1435,14 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Discount:</td>
                                                     <td class="text-end text-danger">-{{
                                                         formatCurrencySymbol(xReportData.sales_summary.total_discount)
-                                                    }}
+                                                        }}
                                                     </td>
                                                 </tr>
                                                 <tr class=" border-top">
                                                     <td>Total Sales:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(xReportData.sales_summary.total_sales)
-                                                    }}</td>
+                                                        }}</td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -1380,7 +1461,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Opening Cash:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(xReportData.cash_summary.opening_cash)
-                                                    }}</td>
+                                                        }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Cash Sales:</td>
@@ -1392,7 +1473,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Expected Cash:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(xReportData.cash_summary.expected_cash)
-                                                    }}</td>
+                                                        }}</td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -1447,7 +1528,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <tr v-for="(user, idx) in xReportData.sales_by_user" :key="idx">
                                                         <td>{{ user.user_name }}</td>
                                                         <td><span class="badge bg-primary rounded-pill">{{ user.role
-                                                        }}</span></td>
+                                                                }}</span></td>
                                                         <td>{{ user.orders_count }}</td>
                                                         <td class="text-end pe-3">{{
                                                             formatCurrencySymbol(user.total_sales) }}
@@ -1504,261 +1585,304 @@ const downloadZReportPdf = async (shiftId) => {
             </div>
 
             <!-- ✅ Z REPORT MODAL -->
-           <div v-if="showZReportModal"
-    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div
-        class="relative bg-white rounded-4 shadow-lg border-0 max-w-2xl overflow-hidden max-h-[85vh] flex flex-col mt-5">
+            <div v-if="showZReportModal"
+                class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div
+                    class="relative bg-white rounded-4 shadow-lg border-0 max-w-2xl overflow-hidden max-h-[85vh] flex flex-col mt-5">
 
-        <!-- Header -->
-        <div class="modal-header align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-danger rounded-circle p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </span>
-                <div class="d-flex flex-column">
-                    <h5 class="modal-title mb-0">Z Report (End of Shift)</h5>
-                    <small class="text-muted">Shift ID: {{ zReportData?.shift_id }}</small>
+                    <!-- Header -->
+                    <div class="modal-header align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger rounded-circle p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </span>
+                            <div class="d-flex flex-column">
+                                <h5 class="modal-title mb-0">Z Report (End of Shift)</h5>
+                                <small class="text-muted">Shift ID: {{ zReportData?.shift_id }}</small>
+                            </div>
+                        </div>
+                        <button @click="closeZReportModal"
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body p-4 bg-light overflow-y-auto max-h-[70vh]" v-if="zReportData">
+                        <div class="row g-4">
+
+                            <!-- Shift Information -->
+                            <div class="col-lg-12">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Shift Information</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p class="mb-2"><strong>Started By:</strong> {{ zReportData.started_by
+                                                    }}</p>
+                                                <p class="mb-2"><strong>Start Time:</strong> {{ new
+                                                    Date(zReportData.start_time).toLocaleString() }}</p>
+                                                <p class="mb-0"><strong>Ended By:</strong> {{ zReportData.ended_by }}
+                                                </p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p class="mb-2"><strong>End Time:</strong> {{ new
+                                                    Date(zReportData.end_time).toLocaleString() }}</p>
+                                                <p class="mb-2"><strong>Status:</strong> <span
+                                                        class="badge bg-danger">{{
+                                                        zReportData.status }}</span></p>
+                                                <p class="mb-0"><strong>Duration:</strong> {{ zReportData.duration }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sales Summary -->
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Sales Summary</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle">
+                                                <tr>
+                                                    <td>Total Orders:</td>
+                                                    <td class="text-end">{{ zReportData.sales_summary.total_orders }}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Subtotal:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(zReportData.sales_summary.subtotal)
+                                                        }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Tax:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(zReportData.sales_summary.total_tax) }}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Discount:</td>
+                                                    <td class="text-end text-danger">-{{
+                                                        formatCurrencySymbol(zReportData.sales_summary.total_discount)
+                                                        }}</td>
+                                                </tr>
+                                                <tr class="border-top">
+                                                    <td>Total Sales:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(zReportData.sales_summary.total_sales) }}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Avg Order Value:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(zReportData.sales_summary.avg_order_value)
+                                                        }}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cash Reconciliation -->
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Cash Reconciliation</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <tr>
+                                                    <td>Opening Cash:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(zReportData.cash_reconciliation.opening_cash)
+                                                        }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Cash Sales:</td>
+                                                    <td class="text-end">{{
+                                                        formatCurrencySymbol(zReportData.cash_reconciliation.cash_sales)
+                                                        }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Expected Cash:</td>
+                                                    <td class="text-end fw-bold">{{
+                                                        formatCurrencySymbol(zReportData.cash_reconciliation.expected_cash)
+                                                        }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Actual Cash:</td>
+                                                    <td class="text-end fw-bold">{{
+                                                        formatCurrencySymbol(zReportData.cash_reconciliation.actual_cash)
+                                                        }}</td>
+                                                </tr>
+                                                <tr
+                                                    :class="zReportData.cash_reconciliation.variance >= 0 ? 'text-success' : 'text-danger'">
+                                                    <td>Variance:</td>
+                                                    <td class="text-end fw-bold">
+                                                        {{ zReportData.cash_reconciliation.variance >= 0 ? '+' : '' }}{{
+                                                        formatCurrencySymbol(zReportData.cash_reconciliation.variance)
+                                                        }}
+                                                        ({{ zReportData.cash_reconciliation.variance_percentage }}%)
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Methods -->
+                            <div class="col-12" v-if="zReportData.payment_methods.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Payment Methods</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Method</th>
+                                                        <th>Count</th>
+                                                        <th class="text-end pe-3">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(pm, idx) in zReportData.payment_methods" :key="idx">
+                                                        <td>{{ pm.method }}</td>
+                                                        <td>{{ pm.count }}</td>
+                                                        <td class="text-end pe-3">{{ formatCurrencySymbol(pm.total) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sales by User -->
+                            <div class="col-12" v-if="zReportData.sales_by_user.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Sales by User</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>User</th>
+                                                        <th>Role</th>
+                                                        <th>Orders</th>
+                                                        <th class="text-end pe-3">Total Sales</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(user, idx) in zReportData.sales_by_user" :key="idx">
+                                                        <td>{{ user.user_name }}</td>
+                                                        <td><span class="badge bg-primary rounded-pill">{{ user.role
+                                                                }}</span></td>
+                                                        <td>{{ user.orders_count }}</td>
+                                                        <td class="text-end pe-3">{{
+                                                            formatCurrencySymbol(user.total_sales) }}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Selling Items -->
+                            <div class="col-12" v-if="zReportData.top_items.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Top Selling Items </h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Item</th>
+                                                        <th>Quantity Sold</th>
+                                                        <th class="text-end pe-3">Revenue</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(item, idx) in zReportData.top_items" :key="idx">
+                                                        <td>{{ item.name }}</td>
+                                                        <td>{{ item.total_qty }}</td>
+                                                        <td class="text-end pe-3">{{
+                                                            formatCurrencySymbol(item.total_revenue) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stock Movement -->
+                            <div class="col-12" v-if="zReportData.stock_movement && zReportData.stock_movement.length">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body">
+                                        <h6 class="fw-semibold mb-3">Stock Movement</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle text-center mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Item</th>
+                                                        <th>Opening Stock</th>
+                                                        <th>Closing Stock</th>
+                                                        <th>Sold</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(stock, idx) in zReportData.stock_movement" :key="idx">
+                                                        <td>{{ stock.item_name }}</td>
+                                                        <td>{{ stock.start_stock }}</td>
+                                                        <td>{{ stock.end_stock }}</td>
+                                                        <td class="fw-bold text-danger">{{ stock.sold }}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer border-top-0 px-4 pb-4">
+                        <button class="btn btn-danger px-4 rounded-pill"
+                            @click="downloadZReportPdf(zReportData.shift_id)">
+                            <i class="bi bi-download me-2"></i>Download PDF
+                        </button>
+                        <button class="btn btn-secondary px-4 rounded-pill" @click="closeZReportModal">Close</button>
+                    </div>
                 </div>
             </div>
-            <button @click="closeZReportModal"
-                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                aria-label="Close" title="Close">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-danger" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-
-        <!-- Body -->
-        <div class="modal-body p-4 bg-light overflow-y-auto max-h-[70vh]" v-if="zReportData">
-            <div class="row g-4">
-
-                <!-- Shift Information -->
-                <div class="col-lg-12">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Shift Information</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p class="mb-2"><strong>Started By:</strong> {{ zReportData.started_by }}</p>
-                                    <p class="mb-2"><strong>Start Time:</strong> {{ new Date(zReportData.start_time).toLocaleString() }}</p>
-                                    <p class="mb-0"><strong>Ended By:</strong> {{ zReportData.ended_by }}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p class="mb-2"><strong>End Time:</strong> {{ new Date(zReportData.end_time).toLocaleString() }}</p>
-                                    <p class="mb-2"><strong>Status:</strong> <span class="badge bg-danger">{{ zReportData.status }}</span></p>
-                                    <p class="mb-0"><strong>Duration:</strong> {{ zReportData.duration }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sales Summary -->
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Sales Summary</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <tr>
-                                        <td>Total Orders:</td>
-                                        <td class="text-end">{{ zReportData.sales_summary.total_orders }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Subtotal:</td>
-                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.subtotal) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Tax:</td>
-                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.total_tax) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Discount:</td>
-                                        <td class="text-end text-danger">-{{ formatCurrencySymbol(zReportData.sales_summary.total_discount) }}</td>
-                                    </tr>
-                                    <tr class="border-top">
-                                        <td>Total Sales:</td>
-                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.total_sales) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Avg Order Value:</td>
-                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.sales_summary.avg_order_value) }}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cash Reconciliation -->
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Cash Reconciliation</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0">
-                                    <tr>
-                                        <td>Opening Cash:</td>
-                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.cash_reconciliation.opening_cash) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Cash Sales:</td>
-                                        <td class="text-end">{{ formatCurrencySymbol(zReportData.cash_reconciliation.cash_sales) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Expected Cash:</td>
-                                        <td class="text-end fw-bold">{{ formatCurrencySymbol(zReportData.cash_reconciliation.expected_cash) }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Actual Cash:</td>
-                                        <td class="text-end fw-bold">{{ formatCurrencySymbol(zReportData.cash_reconciliation.actual_cash) }}</td>
-                                    </tr>
-                                    <tr :class="zReportData.cash_reconciliation.variance >= 0 ? 'text-success' : 'text-danger'">
-                                        <td>Variance:</td>
-                                        <td class="text-end fw-bold">
-                                            {{ zReportData.cash_reconciliation.variance >= 0 ? '+' : '' }}{{ formatCurrencySymbol(zReportData.cash_reconciliation.variance) }}
-                                            ({{ zReportData.cash_reconciliation.variance_percentage }}%)
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Payment Methods -->
-                <div class="col-12" v-if="zReportData.payment_methods.length">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Payment Methods</h6>
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle text-center mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Method</th>
-                                            <th>Count</th>
-                                            <th class="text-end pe-3">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(pm, idx) in zReportData.payment_methods" :key="idx">
-                                            <td>{{ pm.method }}</td>
-                                            <td>{{ pm.count }}</td>
-                                            <td class="text-end pe-3">{{ formatCurrencySymbol(pm.total) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sales by User -->
-                <div class="col-12" v-if="zReportData.sales_by_user.length">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Sales by User</h6>
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle text-center mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>User</th>
-                                            <th>Role</th>
-                                            <th>Orders</th>
-                                            <th class="text-end pe-3">Total Sales</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(user, idx) in zReportData.sales_by_user" :key="idx">
-                                            <td>{{ user.user_name }}</td>
-                                            <td><span class="badge bg-primary rounded-pill">{{ user.role }}</span></td>
-                                            <td>{{ user.orders_count }}</td>
-                                            <td class="text-end pe-3">{{ formatCurrencySymbol(user.total_sales) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Top Selling Items -->
-                <div class="col-12" v-if="zReportData.top_items.length">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Top Selling Items </h6>
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle text-center mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>Quantity Sold</th>
-                                            <th class="text-end pe-3">Revenue</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(item, idx) in zReportData.top_items" :key="idx">
-                                            <td>{{ item.name }}</td>
-                                            <td>{{ item.total_qty }}</td>
-                                            <td class="text-end pe-3">{{ formatCurrencySymbol(item.total_revenue) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Stock Movement -->
-                <div class="col-12" v-if="zReportData.stock_movement && zReportData.stock_movement.length">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Stock Movement</h6>
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle text-center mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>Opening Stock</th>
-                                            <th>Closing Stock</th>
-                                            <th>Sold</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="(stock, idx) in zReportData.stock_movement" :key="idx">
-                                            <td>{{ stock.item_name }}</td>
-                                            <td>{{ stock.start_stock }}</td>
-                                            <td>{{ stock.end_stock }}</td>
-                                            <td class="fw-bold text-danger">{{ stock.sold }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="modal-footer border-top-0 px-4 pb-4">
-            <button class="btn btn-danger px-4 rounded-pill" @click="downloadZReportPdf(zReportData.shift_id)">
-                <i class="bi bi-download me-2"></i>Download PDF
-            </button>
-            <button class="btn btn-secondary px-4 rounded-pill" @click="closeZReportModal">Close</button>
-        </div>
-    </div>
-</div>
 
 
         </div>
+
+         <CloseShiftModal 
+        :show="showCloseShiftModal"
+        :shiftId="selectedShiftForClose?.id"
+        :expectedClosingCash="selectedShiftForClose ? calculateExpectedClosingCash(selectedShiftForClose) : 0"
+        @cancel="onCloseModalCancel" 
+        @closed="onShiftClosed" 
+    />
     </Master>
 </template>
 
