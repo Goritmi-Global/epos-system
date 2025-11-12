@@ -19,16 +19,6 @@ class PosOrderController extends Controller
         return Inertia::render('Backend/POS/Index');
     }
 
-    // public function store(StorePosOrderRequest $request)
-    // {
-    //     $result = $this->service->create($request->validated());
-
-    //     return response()->json([
-    //         'message' => 'Order created successfully',
-    //         'order' => $result['order'],
-    //         'kot' => $result['kot'] ? $result['kot']->load('items') : null,
-    //     ]);
-    // }
     public function store(StorePosOrderRequest $request)
     {
         $result = $this->service->create($request->validated());
@@ -207,6 +197,7 @@ class PosOrderController extends Controller
             'tax' => (float) $request->query('tax', 0),
             'service_charges' => (float) $request->query('service_charges', 0),
             'delivery_charges' => (float) $request->query('delivery_charges', 0),
+            'sale_discount' => (float) $request->query('sale_discount', 0),
             'status' => 'paid',
             'note' => $request->query('note'),
             'kitchen_note' => $request->query('kitchen_note'),
@@ -258,6 +249,7 @@ class PosOrderController extends Controller
             'last4' => $data['last_digits'] ?? null,
             'sub_total' => $data['sub_total'] ?? 0,
             'total_amount' => $data['total_amount'] ?? 0,
+            'sale_discount' => $data['sale_discount'] ?? 0,
             'items' => $data['items'] ?? [],
             'payment_type' => $data['payment_type'] ?? 'Card',
 

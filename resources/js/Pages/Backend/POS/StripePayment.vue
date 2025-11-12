@@ -234,6 +234,11 @@ async function pay() {
     type: String(props.type ?? 0),
 
     tax: String(props.tax ?? 0),
+    sale_discount: String(
+      props.orderItems?.reduce((total, item) =>
+        total + (item.total_resale_discount || 0), 0
+      ) || 0
+    ),
     service_charges: String(props.serviceCharges ?? 0),
     delivery_charges: String(props.deliveryCharges ?? 0),
 
@@ -263,7 +268,8 @@ async function pay() {
         price: it.price,
         note: it.note ?? null,
         kitchen_note: it.kitchenNote ?? null,
-        item_kitchen_note: it.item_kitchen_note ?? null, 
+        item_kitchen_note: it.item_kitchen_note ?? null,
+        sale_discount_per_item: it.resale_discount_per_item || 0,
       }))
     ),
   });
