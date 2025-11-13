@@ -1,6 +1,5 @@
 <script setup>
-import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated, onUnmounted, reactive } from "vue";
+import Master from "@/Layouts/Master.vue"; import { ref, computed, onMounted, onUpdated, onUnmounted, reactive } from "vue";
 import { Percent, Calendar, AlertTriangle, XCircle, Pencil, Plus, Trash2 } from "lucide-vue-next";
 import { toast } from "vue3-toastify";
 import axios from "axios";
@@ -219,11 +218,11 @@ const fetchDiscounts = async () => {
 const fetchPendingRequests = async (silent = false) => {
     // Prevent multiple simultaneous requests
     if (loadingApprovals.value && !silent) return;
-    
+
     if (!silent) {
         loadingApprovals.value = true;
     }
-    
+
     try {
         const response = await axios.get('/api/discount-approvals/pending');
         if (response.data.success) {
@@ -273,8 +272,8 @@ const editRow = (row) => {
         name: row.name,
         type: row.type,
         status: row.status,
-        start_date: row.start_date ? new Date(row.start_date) : null,  
-        end_date: row.end_date ? new Date(row.end_date) : null,    
+        start_date: row.start_date ? new Date(row.start_date) : null,
+        end_date: row.end_date ? new Date(row.end_date) : null,
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
@@ -516,7 +515,7 @@ const startAutoRefresh = () => {
     if (refreshInterval.value) {
         clearInterval(refreshInterval.value);
     }
-    
+
     refreshInterval.value = setInterval(() => {
         // Use silent mode for background refresh (no loading spinner)
         fetchPendingRequests(true);
@@ -795,6 +794,7 @@ const downloadExcel = (data) => {
 
 <template>
     <Master>
+
         <Head title="Discount Management" />
 
         <div class="page-wrapper">
@@ -840,6 +840,19 @@ const downloadExcel = (data) => {
                                         <h5 class="mb-0 fw-semibold">Discounts</h5>
 
                                         <div class="d-flex flex-wrap gap-2 align-items-center">
+                                            <FilterModal v-model="filters" title="Discounts"
+                                                modalId="discountsFilterModal" modalSize="modal-lg" :sortOptions="[
+                                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                                    { value: 'discount_asc', label: 'Discount: Low to High' },
+                                                    { value: 'discount_desc', label: 'Discount: High to Low' },
+                                                    { value: 'date_asc', label: 'Start Date: Oldest First' },
+                                                    { value: 'date_desc', label: 'Start Date: Newest First' },
+                                                ]" :categories="discountTypesForFilter" categoryLabel="Discount Type"
+                                                statusLabel="Discount Status" :showPriceRange="true"
+                                                priceRangeLabel="Discount Amount Range" :showDateRange="true"
+                                                @apply="handleFilterApply" @clear="handleFilterClear" />
+
                                             <!-- Search Input -->
                                             <div class="search-wrap">
                                                 <i class="bi bi-search"></i>
@@ -856,12 +869,35 @@ const downloadExcel = (data) => {
                                                     placeholder="Search discounts" disabled type="text" />
                                             </div>
 
+
+
+
                                             <!-- Add New Button -->
                                             <button data-bs-toggle="modal" data-bs-target="#discountModal"
                                                 @click="resetModal"
                                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                                 <Plus class="w-4 h-4" /> Add Discount
                                             </button>
+
+                                            <ImportFile label="Import Discounts" :sampleHeaders="sampleHeaders"
+                                                :sampleData="sampleData" @on-import="handleImport" />
+
+                                            <!-- Export Dropdown -->
+                                            <div class="dropdown">
+                                                <button
+                                                    class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
+                                                    data-bs-toggle="dropdown">
+                                                    Export
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                                    <li><a class="dropdown-item py-2" href="javascript:;"
+                                                            @click="onDownload('pdf')">Export as PDF</a></li>
+                                                    <li><a class="dropdown-item py-2" href="javascript:;"
+                                                            @click="onDownload('excel')">Export as Excel</a></li>
+                                                    <li><a class="dropdown-item py-2" href="javascript:;"
+                                                            @click="onDownload('csv')">Export as CSV</a></li>
+                                                </ul>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1045,7 +1081,7 @@ const downloadExcel = (data) => {
                                                             <small class="text-muted">
                                                                 Order Subtotal: <span class="fw-semibold">£{{
                                                                     parseFloat(request.order_subtotal).toFixed(2)
-                                                                }}</span>
+                                                                    }}</span>
                                                             </small>
                                                         </div>
                                                     </div>
@@ -1282,23 +1318,49 @@ const downloadExcel = (data) => {
     border-radius: 50px;
 }
 
+.p-tablist{
+    background: #fff !important;
+}
+
+.dark .p-tablist{
+    background: #212121 !important;
+    color: #fff !important;
+}
+
+
+.p-tabpanels{
+    background-color: #fff !important;
+}
+
+
+
+.dark .p-tabpanels{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
 /* ======================== PrimeVue Select Styling ======================== */
+
+/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
 
+/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
 
+/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
 
+/* Hovered/focused option */
 :deep(.p-select-option:hover),
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
@@ -1313,11 +1375,13 @@ const downloadExcel = (data) => {
     color: #80878e !important;
 }
 
+/* Keep PrimeVue overlays above Bootstrap modal */
 :deep(.p-select-panel) {
     z-index: 2000 !important;
 }
 
 /* ======================== Dark Mode Select Styling ======================== */
+
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -1350,59 +1414,5 @@ const downloadExcel = (data) => {
 
 :global(.dark .p-select-panel) {
     z-index: 2000 !important;
-}
-
-/* ======================== Tabs Styling ======================== */
-.p-tabpanels {
-    background-color: #fff !important;
-}
-
-:global(.dark .p-tabpanels) {
-    background-color: #222 !important;
-}
-
-:global(.dark .p-tablist-tab-list) {
-    background: #212121 !important;
-}
-
-:global(.dark .p-tablist-content) {
-    background: #212121 !important;
-    color: #fff !important;
-}
-
-.p-tab {
-    color: #000 !important;
-}
-
-:global(.dark .p-tab) {
-    color: #fff !important;
-}
-
-.p-tablist-active-bar {
-    background-color: #1c0d82;
-}
-
-/* ======================== Approval Cards Styling ======================== */
-.card {
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
-}
-
-.list-group-item {
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.list-group-item:last-child {
-    border-bottom: none;
-}
-
-:global(.dark .list-group-item) {
-    border-bottom-color: #333;
 }
 </style>
