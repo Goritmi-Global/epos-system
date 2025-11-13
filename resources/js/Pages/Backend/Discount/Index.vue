@@ -182,7 +182,7 @@ const submitDiscount = async () => {
     try {
         if (editingDiscount.value) {
             // UPDATE existing discount
-            await axios.post(`/discounts/${editingDiscount.value.id}`, discountForm.value);
+            await axios.patch(`/discounts/${editingDiscount.value.id}`, discountForm.value);
             toast.success("Discount updated successfully");
         } else {
             // CREATE new discount
@@ -609,7 +609,7 @@ onUpdated(() => window.feather?.replace());
                                         Saving...
                                     </template>
                                     <template v-else>
-                                        {{ editingDiscount ? "Update" : "Save" }}
+                                        {{ editingDiscount ? "Save" : "Save" }}
                                     </template>
                                 </button>
 

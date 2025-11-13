@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AddonController;
 use App\Http\Controllers\AddonGroupController;
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -204,6 +205,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Toggle status (active/inactive)
         Route::patch('/{id}/toggle-status', [AddonGroupController::class, 'toggleStatus']);
 
+    });
+
+    Route::prefix('discounts')->name('api.discounts.')->group(function () {
+        Route::get('/all', [DiscountController::class, 'fetchAllDiscounts'])->name('discounts.all');
+        Route::get('/today', [DiscountController::class, 'getTodayDiscounts'])->name('discounts.today');
+        Route::patch('/{id}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
+        Route::get('/active', [DiscountController::class, 'getActiveDiscounts'])->name('discounts.active');
     });
 
     /*
