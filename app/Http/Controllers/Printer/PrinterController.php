@@ -431,6 +431,473 @@ class PrinterController extends Controller
         }
     }
 
+    public function printZReport(Request $request, $shiftId)
+    {
+        try {
+            $shift = \App\Models\Shift::findOrFail($shiftId);
+
+            if ($shift->status !== 'closed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Z Report can only be printed for closed shifts'
+                ]);
+            }
+
+            // Generate Z Report data
+            $reportService = new \App\Services\Shifts\ShiftReportService();
+            $data = $reportService->generateZReport($shift);
+
+            // === FETCH PRINTER INFO ===
+            $superAdmin = User::where('is_first_super_admin', true)->first();
+            $onboardingUserId = $superAdmin ? $superAdmin->id : auth()->id();
+            $profile = ProfileStep6::where('user_id', $onboardingUserId)->first();
+            $customerPrinter = $profile->customer_printer ?? 'Default_Customer_Printer';
+
+            // === CONNECT TO PRINTER ===
+            $connector = new WindowsPrintConnector($customerPrinter);
+            $printer = new Printer($connector);
+
+            $charsPerLine = 48;
+            $formatMoney = fn($v) => "£" . number_format((float)$v, 2);
+
+            // === HEADER ===
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->setTextSize(2, 2);
+            $printer->text("Daily Summary Report\n");
+            $printer->setTextSize(1, 1);
+            $printer->setEmphasis(false);
+            $printer->text("All Brands\n");
+            $printer->text(date('Y-m-d H:i:s') . "\n");
+            $printer->text(str_repeat("=", $charsPerLine) . "\n\n");
+
+            // ============== FLOAT SESSION ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("FLOAT SESSION\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            $cash = $data['cash_reconciliation'];
+            $printer->text(sprintf("%-30s %16s\n", "Started by", $data['started_by'] ?? 'N/A'));
+            $printer->text(sprintf("%-30s %16s\n", "Started at", $data['start_time'] ?? 'N/A'));
+            $printer->text(sprintf("%-30s %16s\n", "Closed at", $data['end_time'] ?? 'N/A'));
+            $printer->text(sprintf("%-30s %16s\n", "Closed by", $data['ended_by'] ?? 'N/A'));
+            $printer->text(sprintf("%-30s %16s\n", "Opening Cash", $formatMoney($cash['opening_cash'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Cash Expenses", $formatMoney($cash['cash_expenses'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Cash Transfers", $formatMoney($cash['cash_transfers'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Cash Changed", $formatMoney($cash['cash_changed'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Cash Sales", $formatMoney($cash['cash_sales'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Cash Refunds", $formatMoney($cash['cash_refunds'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Estimated Closing Balance", $formatMoney($cash['expected_cash'] ?? 0)));
+            $printer->text("\n");
+
+            // ============== FLOAT SESSION JOURNAL ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("FLOAT SESSION JOURNAL\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            $printer->text(sprintf("%-30s %16s\n", "Deposits Till Deposits", "0.00"));
+            $printer->text(sprintf("%-30s %16s\n", "Withdrawals Till Withdrawals", "0.00"));
+            $printer->text(sprintf("%-30s %16s\n", "Total", "0.00"));
+            $printer->text("\n");
+
+            // ============== SALES SUMMARY ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("SALES SUMMARY\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            $sales = $data['sales_summary'];
+            $retailPrice = ($sales['subtotal'] ?? 0) + ($sales['total_tax'] ?? 0);
+
+            $printer->text(sprintf("%-30s %16s\n", "Sales Count", $sales['total_orders'] ?? 0));
+            $printer->text(sprintf("%-30s %16s\n", "Average Ticket Size", $formatMoney($sales['avg_order_value'] ?? 0)));
+            $printer->text("\n");
+            $printer->text(sprintf("%-30s %16s\n", "Retail Price", $formatMoney($retailPrice)));
+            $printer->text(sprintf("%-30s %16s\n", "Discount *", $formatMoney($sales['total_discount'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Refund **", $formatMoney(0)));
+            $printer->text(sprintf("%-30s %16s\n", "Net Retail Price", $formatMoney($sales['total_sales'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Net Charges ?", $formatMoney($sales['total_charges'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Sale Price", $formatMoney($sales['subtotal'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Tax ?", $formatMoney($sales['total_tax'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Sale Price Inclusive of Tax", $formatMoney($sales['total_sales'] ?? 0)));
+            $printer->text("\n");
+            $printer->text(sprintf("%-30s %16s\n", "Paid Amount", $formatMoney($sales['total_sales'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Net Paid Amount", $formatMoney($sales['total_sales'] ?? 0)));
+            $printer->text(sprintf("%-30s %16s\n", "Balance", $formatMoney(0)));
+            $printer->text("\n");
+
+            // ============== PAYMENT METHOD BREAKDOWN ==============
+            $printer->text(sprintf("%-30s %16s\n", "Net Cash Receipts", $formatMoney($cash['cash_sales'] ?? 0)));
+
+            if (!empty($data['payment_methods'])) {
+                foreach ($data['payment_methods'] as $pm) {
+                    if (strtolower($pm['method']) !== 'cash') {
+                        $printer->text(sprintf("%-30s %16s\n", "Net " . $pm['method'] . " Receipts", $formatMoney($pm['net'] ?? 0)));
+                    }
+                }
+
+                $onlineTotal = 0;
+                foreach ($data['payment_methods'] as $pm) {
+                    if (in_array(strtolower($pm['method']), ['online', 'card'])) {
+                        $onlineTotal += ($pm['net'] ?? 0);
+                    }
+                }
+                $printer->text(sprintf("%-30s %16s\n", "Net Online Payment Receipts", $formatMoney($onlineTotal)));
+            }
+
+            $printer->text(sprintf("%-30s %16s\n", "Net Other Receipts", "£0.00"));
+            $printer->text("\n");
+            $printer->text(sprintf("%-30s %16s\n", "Unpaid Sales Count", "0"));
+            $printer->text(sprintf("%-30s %16s\n", "Unpaid Sales Amount", $formatMoney(0)));
+            $printer->text("\n");
+
+            // ============== SALES VAT ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("SALES VAT\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            $printer->text(sprintf("%-10s %10s %12s %12s\n", "Tax %", "Count", "Sale*", "Tax*"));
+            $printer->text(str_repeat("-", $charsPerLine) . "\n");
+            $totalOrders = $sales['total_orders'] ?? 0;
+            $subtotal = $sales['subtotal'] ?? 0;
+            $totalTax = $sales['total_tax'] ?? 0;
+
+            $printer->text(sprintf("%-10s %10s %12s %12s\n", "0.00 %", "1", "£1.00", "£0.00"));
+            $printer->text(sprintf(
+                "%-10s %10s %12s %12s\n",
+                "20.00 %",
+                max(0, $totalOrders - 1),
+                $formatMoney(max(0, $subtotal - 1)),
+                $formatMoney($totalTax)
+            ));
+            $printer->text(str_repeat("-", $charsPerLine) . "\n");
+            $printer->setEmphasis(true);
+            $printer->text(sprintf(
+                "%-10s %10s %12s %12s\n",
+                "Total",
+                $totalOrders,
+                $formatMoney($subtotal),
+                $formatMoney($totalTax)
+            ));
+            $printer->setEmphasis(false);
+            $printer->text("\n");
+
+            // ============== SALE REFUNDS ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("SALE REFUNDS\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+            $printer->text("No Data Available\n");
+            $printer->text("\n");
+
+            // ============== SALE CANCELLATIONS ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("SALE CANCELLATIONS\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+            $printer->text("No Data Available\n");
+            $printer->text("\n");
+
+            // ============== VENUE SALES ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("VENUE SALES\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            if (!empty($data['venue_sales'])) {
+                $printer->text(sprintf("%-26s %10s %10s\n", "Venue", "Count", "Amount"));
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+
+                $venueTotal = 0;
+                $venueCount = 0;
+                foreach ($data['venue_sales'] as $v) {
+                    $venueName = mb_strimwidth($v['venue'] ?? 'Unknown', 0, 26, "...");
+                    $printer->text(sprintf(
+                        "%-26s %10s %10s\n",
+                        $venueName,
+                        $v['count'] ?? 0,
+                        $formatMoney($v['amount'] ?? 0)
+                    ));
+                    $venueTotal += ($v['amount'] ?? 0);
+                    $venueCount += ($v['count'] ?? 0);
+                }
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+                $printer->setEmphasis(true);
+                $printer->text(sprintf("%-26s %10s %10s\n", "Total", $venueCount, $formatMoney($venueTotal)));
+                $printer->setEmphasis(false);
+            } else {
+                $printer->text("No Data Available\n");
+            }
+            $printer->text("\n");
+
+            // ============== DISPATCH SALES ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("DISPATCH SALES\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            if (!empty($data['dispatch_sales'])) {
+                $printer->text(sprintf("%-26s %10s %10s\n", "Dispatch Type", "Count", "Amount"));
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+
+                $dispatchTotal = 0;
+                $dispatchCount = 0;
+                foreach ($data['dispatch_sales'] as $d) {
+                    $typeName = mb_strimwidth($d['type'] ?? 'Unknown', 0, 26, "...");
+                    $printer->text(sprintf(
+                        "%-26s %10s %10s\n",
+                        $typeName,
+                        $d['count'] ?? 0,
+                        $formatMoney($d['amount'] ?? 0)
+                    ));
+                    $dispatchTotal += ($d['amount'] ?? 0);
+                    $dispatchCount += ($d['count'] ?? 0);
+                }
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+                $printer->setEmphasis(true);
+                $printer->text(sprintf("%-26s %10s %10s\n", "Total", $dispatchCount, $formatMoney($dispatchTotal)));
+                $printer->setEmphasis(false);
+            } else {
+                $printer->text("No Data Available\n");
+            }
+            $printer->text("\n");
+
+            // ============== PAYMENT METHOD SALES ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("PAYMENT METHOD SALES\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            if (!empty($data['payment_methods'])) {
+                $printer->text(sprintf("%-14s %10s %10s %10s\n", "Pay Method", "Receipts", "Refunds", "Net"));
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+
+                $totalReceipts = 0;
+                $totalRefunds = 0;
+                $totalNet = 0;
+                foreach ($data['payment_methods'] as $pm) {
+                    $methodName = mb_strimwidth($pm['method'] ?? 'Unknown', 0, 14, "...");
+                    $receipts = $pm['receipts'] ?? 0;
+                    $refunds = $pm['refunds'] ?? 0;
+                    $net = $pm['net'] ?? 0;
+
+                    $printer->text(sprintf(
+                        "%-14s %10s %10s %10s\n",
+                        $methodName,
+                        $formatMoney($receipts),
+                        $formatMoney($refunds),
+                        $formatMoney($net)
+                    ));
+                    $totalReceipts += $receipts;
+                    $totalRefunds += $refunds;
+                    $totalNet += $net;
+                }
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+                $printer->setEmphasis(true);
+                $printer->text(sprintf(
+                    "%-14s %10s %10s %10s\n",
+                    "Total",
+                    $formatMoney($totalReceipts),
+                    $formatMoney($totalRefunds),
+                    $formatMoney($totalNet)
+                ));
+                $printer->setEmphasis(false);
+            } else {
+                $printer->text("No Data Available\n");
+            }
+            $printer->text("\n");
+
+            // ============== MENU CATEGORIES SUMMARY ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("MENU CATEGORIES SUMMARY\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            if (!empty($data['menu_category_summary'])) {
+                $printer->text(sprintf("%-26s %10s %10s\n", "Menu Category", "Count", "Amount*"));
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+
+                $catTotal = 0;
+                $catCount = 0;
+                foreach ($data['menu_category_summary'] as $cat) {
+                    $catName = mb_strimwidth($cat['category'] ?? 'Unknown', 0, 26, "...");
+                    $printer->text(sprintf(
+                        "%-26s %10s %10s\n",
+                        $catName,
+                        $cat['count'] ?? 0,
+                        $formatMoney($cat['amount'] ?? 0)
+                    ));
+                    $catTotal += ($cat['amount'] ?? 0);
+                    $catCount += ($cat['count'] ?? 0);
+                }
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+                $printer->setEmphasis(true);
+                $printer->text(sprintf("%-26s %10s %10s\n", "Total", $catCount, $formatMoney($catTotal)));
+                $printer->setEmphasis(false);
+            } else {
+                $printer->text("No Data Available\n");
+            }
+            $printer->text("\n");
+
+            // ============== COVERS SALES SUMMARY ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("COVERS SALES SUMMARY\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            $totalCovers = $data['covers_summary']['total_covers'] ?? 0;
+            $avgRevenue = $data['covers_summary']['avg_revenue_per_cover'] ?? 0;
+
+            $printer->text(sprintf("%-30s %16s\n", "Total number of covers", $totalCovers));
+            $printer->text(sprintf("%-30s %16s\n", "Average revenue per cover", $formatMoney($avgRevenue)));
+            $printer->text("\n");
+
+            // ============== SALE DISCOUNTS ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("SALE DISCOUNTS\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            if (!empty($data['discounts_summary'])) {
+                $printer->text(sprintf("%-26s %10s %10s\n", "Discount Type", "Count", "Amount"));
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+
+                $discTotal = 0;
+                $discCount = 0;
+                foreach ($data['discounts_summary'] as $d) {
+                    $discType = mb_strimwidth($d['type'] ?? 'Unknown', 0, 26, "...");
+                    $printer->text(sprintf(
+                        "%-26s %10s %10s\n",
+                        $discType,
+                        $d['count'] ?? 0,
+                        $formatMoney($d['amount'] ?? 0)
+                    ));
+                    $discTotal += ($d['amount'] ?? 0);
+                    $discCount += ($d['count'] ?? 0);
+                }
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+                $printer->setEmphasis(true);
+                $printer->text(sprintf("%-26s %10s %10s\n", "Total", $discCount, $formatMoney($discTotal)));
+                $printer->setEmphasis(false);
+            } else {
+                $printer->text("No Data Available\n");
+            }
+            $printer->text("\n");
+
+            // ============== SALE CHARGES ==============
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->setEmphasis(true);
+            $printer->text("SALE CHARGES\n");
+            $printer->setEmphasis(false);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+            if (!empty($data['charges_summary'])) {
+                $printer->text(sprintf("%-18s %8s %10s %10s\n", "Scheme", "Count", "Amount", "Tax"));
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+
+                $chargeTotal = 0;
+                $chargeCount = 0;
+                $chargeTax = 0;
+                foreach ($data['charges_summary'] as $c) {
+                    $schemeName = mb_strimwidth($c['scheme'] ?? 'Unknown', 0, 18, "...");
+                    $printer->text(sprintf(
+                        "%-18s %8s %10s %10s\n",
+                        $schemeName,
+                        $c['count'] ?? 0,
+                        $formatMoney($c['amount'] ?? 0),
+                        $formatMoney($c['tax'] ?? 0)
+                    ));
+                    $chargeTotal += ($c['amount'] ?? 0);
+                    $chargeCount += ($c['count'] ?? 0);
+                    $chargeTax += ($c['tax'] ?? 0);
+                }
+                $printer->text(str_repeat("-", $charsPerLine) . "\n");
+                $printer->setEmphasis(true);
+                $printer->text(sprintf(
+                    "%-18s %8s %10s %10s\n",
+                    "Total",
+                    $chargeCount,
+                    $formatMoney($chargeTotal),
+                    $formatMoney($chargeTax)
+                ));
+                $printer->setEmphasis(false);
+            } else {
+                $printer->text("No Data Available\n");
+            }
+            $printer->text("\n");
+
+            // === TOP SELLING ITEMS ===
+            if (!empty($data['top_items'])) {
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->setEmphasis(true);
+                $printer->text("TOP SELLING ITEMS\n");
+                $printer->setEmphasis(false);
+                $printer->text(str_repeat("=", $charsPerLine) . "\n");
+                $printer->setJustification(Printer::JUSTIFY_LEFT);
+
+                foreach (array_slice($data['top_items'], 0, 5) as $idx => $item) {
+                    $itemName = mb_strimwidth($item['name'] ?? 'Unknown', 0, 25, "...");
+                    $printer->text(sprintf(
+                        "%d. %-25s %6s %12s\n",
+                        $idx + 1,
+                        $itemName,
+                        $item['total_qty'] ?? 0,
+                        $formatMoney($item['total_revenue'] ?? 0)
+                    ));
+                }
+                $printer->text("\n");
+            }
+
+            // === FOOTER ===
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->feed(1);
+            $printer->text(str_repeat("=", $charsPerLine) . "\n");
+            $printer->text("--- END OF Z REPORT ---\n");
+            $printer->text(date('Y-m-d H:i:s') . "\n");
+            $printer->feed(3);
+
+            $printer->cut();
+            $printer->close();
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Z Report Print Error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'No printer is connected for Z report.',
+            ]);
+        }
+    }
+
     private function prepareLogo($businessLogo)
     {
         if (empty($businessLogo)) return null;

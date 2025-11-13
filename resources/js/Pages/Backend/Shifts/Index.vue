@@ -53,15 +53,15 @@ const handleToggleShift = (shift) => {
 
 const reopenShift = async (shift) => {
     try {
-        const response = await axios.patch(`/api/shift/${shift.id}/reopen`, { 
-            status: 'open' 
+        const response = await axios.patch(`/api/shift/${shift.id}/reopen`, {
+            status: 'open'
         });
 
         if (response.data.success) {
             toast.success(response.data.message || 'Shift reopened successfully.');
             shift.status = 'open';
             await fetchShifts(); // Refresh the list
-            
+
             if (response.data.redirect) {
                 window.location.href = response.data.redirect;
             }
@@ -352,7 +352,7 @@ const downloadCSV = (data) => {
 
             // Format sales total
             const salesTotal = s.sales_total
-                ? formatMoney(s.sales_total)
+                ? formatCurrencySymbol(s.sales_total)
                 : "0.00";
 
             return [
@@ -439,7 +439,7 @@ const downloadPDF = (data) => {
 
             // Format sales total
             const salesTotal = s.sales_total
-                ? formatMoney(s.sales_total)
+                ? formatCurrencySymbol(s.sales_total)
                 : "0.00";
 
             return [
@@ -514,7 +514,7 @@ const downloadExcel = (data) => {
 
             // Format sales total
             const salesTotal = s.sales_total
-                ? formatMoney(s.sales_total)
+                ? formatCurrencySymbol(s.sales_total)
                 : "0.00";
 
             return {
@@ -624,10 +624,10 @@ const downloadXReportPdf = async (shiftId) => {
 
         const salesData = [
             ['Total Orders', data.salesSummary.total_orders.toString()],
-            ['Subtotal', '£' + formatMoney(data.salesSummary.subtotal)],
-            ['Tax', '£' + formatMoney(data.salesSummary.total_tax)],
-            ['Discount', '£' + formatMoney(data.salesSummary.total_discount)],
-            ['Total Sales', '£' + formatMoney(data.salesSummary.total_sales)],
+            ['Subtotal', '£' + formatCurrencySymbol(data.salesSummary.subtotal)],
+            ['Tax', '£' + formatCurrencySymbol(data.salesSummary.total_tax)],
+            ['Discount', '£' + formatCurrencySymbol(data.salesSummary.total_discount)],
+            ['Total Sales', '£' + formatCurrencySymbol(data.salesSummary.total_sales)],
         ];
 
         autoTable(doc, {
@@ -668,9 +668,9 @@ const downloadXReportPdf = async (shiftId) => {
         doc.text('Cash Summary', 14, currentY);
 
         const cashData = [
-            ['Opening Cash', '£' + formatMoney(data.cashSummary.opening_cash)],
-            ['Cash Sales', '£' + formatMoney(data.cashSummary.cash_sales)],
-            ['Expected Cash', '£' + formatMoney(data.cashSummary.expected_cash)],
+            ['Opening Cash', '£' + formatCurrencySymbol(data.cashSummary.opening_cash)],
+            ['Cash Sales', '£' + formatCurrencySymbol(data.cashSummary.cash_sales)],
+            ['Expected Cash', '£' + formatCurrencySymbol(data.cashSummary.expected_cash)],
         ];
 
         autoTable(doc, {
@@ -714,7 +714,7 @@ const downloadXReportPdf = async (shiftId) => {
             const paymentData = data.paymentMethods.map(pm => [
                 pm.method,
                 pm.count.toString(),
-                '£' + formatMoney(pm.total),
+                '£' + formatCurrencySymbol(pm.total),
             ]);
 
             autoTable(doc, {
@@ -756,7 +756,7 @@ const downloadXReportPdf = async (shiftId) => {
             const itemsData = data.topItems.map(item => [
                 item.name,
                 item.total_qty.toString(),
-                '£' + formatMoney(item.total_revenue),
+                '£' + formatCurrencySymbol(item.total_revenue),
             ]);
 
             autoTable(doc, {
@@ -840,11 +840,11 @@ const downloadZReportPdf = async (shiftId) => {
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Daily Summary Report', 105, currentY, { align: 'center' });
-        
+
         currentY += 6;
         doc.setFontSize(12);
-        doc.text('All Brands', 105, currentY, { align: 'center'});
-        
+        doc.text('All Brands', 105, currentY, { align: 'center' });
+
         currentY += 6;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
@@ -859,25 +859,25 @@ const downloadZReportPdf = async (shiftId) => {
         doc.setFont('helvetica', 'bold');
         doc.text('Float Session', 105, currentY + 5.5, { align: 'center' });
         doc.setTextColor(0, 0, 0);
-        
+
         currentY += 12;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        
+
         const floatData = [
-            ['Started at', data.startedBy],
-            ['Started by', data.startTime],
+            ['Started by', data.startedBy],
+            ['Started at', data.startTime],
             ['Closed at', data.endTime],
             ['Closed by', data.endedBy],
-            ['Opening Cash', '£' + formatMoney(data.cashReconciliation.opening_cash)],
-            ['Cash Expenses', '£' + formatMoney(data.cashReconciliation.cash_expenses || 0)],
-            ['Cash Transfers *', '£' + formatMoney(data.cashReconciliation.cash_transfers || 0)],
-            ['Cash Changed *', '£' + formatMoney(data.cashReconciliation.cash_changed || 0)],
-            ['Cash Sales **', '£' + formatMoney(data.cashReconciliation.cash_sales)],
-            ['Cash Refunds', '£' + formatMoney(data.cashReconciliation.cash_refunds || 0)],
-            ['Estimated Closing Balance', '£' + formatMoney(data.cashReconciliation.expected_cash)],
+            ['Opening Cash', formatCurrencySymbol(data.cashReconciliation.opening_cash)],
+            ['Cash Expenses', formatCurrencySymbol(data.cashReconciliation.cash_expenses || 0)],
+            ['Cash Transfers ', formatCurrencySymbol(data.cashReconciliation.cash_transfers || 0)],
+            ['Cash Changed', formatCurrencySymbol(data.cashReconciliation.cash_changed || 0)],
+            ['Cash Sales ', formatCurrencySymbol(data.cashReconciliation.cash_sales)],
+            ['Cash Refunds', formatCurrencySymbol(data.cashReconciliation.cash_refunds || 0)],
+            ['Estimated Closing Balance', formatCurrencySymbol(data.cashReconciliation.expected_cash)],
         ];
-        
+
         floatData.forEach(([label, value]) => {
             doc.text(label, 16, currentY);
             doc.text(value, 190, currentY, { align: 'right' });
@@ -892,7 +892,7 @@ const downloadZReportPdf = async (shiftId) => {
         doc.setFont('helvetica', 'bold');
         doc.text('Float Session Journal', 105, currentY + 5.5, { align: 'center' });
         doc.setTextColor(0, 0, 0);
-        
+
         currentY += 12;
         doc.setFont('helvetica', 'normal');
         doc.text('Deposits        Till Deposits', 16, currentY);
@@ -912,28 +912,28 @@ const downloadZReportPdf = async (shiftId) => {
         doc.setFont('helvetica', 'bold');
         doc.text('Sales Summary', 105, currentY + 5.5, { align: 'center' });
         doc.setTextColor(0, 0, 0);
-        
+
         currentY += 12;
         doc.setFont('helvetica', 'normal');
-        
+
         const salesData = [
             ['Sales Count', data.salesSummary.total_orders.toString()],
-            ['Average Ticket Size', '£' + formatMoney(data.salesSummary.avg_order_value)],
+            ['Average Ticket Size', formatCurrencySymbol(data.salesSummary.avg_order_value)],
             ['', ''],
-            ['Retail Price', '£' + formatMoney(data.salesSummary.subtotal + data.salesSummary.total_tax)],
-            ['Discount *', '£' + formatMoney(data.salesSummary.total_discount)],
-            ['Refund **', '£0.00'],
-            ['Net Retail Price', '£' + formatMoney(data.salesSummary.subtotal)],
-            ['Net Charges ?', '£' + formatMoney(data.salesSummary.total_charges || 0)],
-            ['Sale Price', '£' + formatMoney(data.salesSummary.subtotal)],
-            ['Tax ?', '£' + formatMoney(data.salesSummary.total_tax)],
-            ['Sale Price Inclusive of Tax', '£' + formatMoney(data.salesSummary.total_sales)],
+            ['Retail Price', formatCurrencySymbol(data.salesSummary.subtotal + data.salesSummary.total_tax)],
+            ['Discount *', formatCurrencySymbol(data.salesSummary.total_discount)],
+            ['Refund **', formatCurrencySymbol(0)],
+            ['Net Retail Price', formatCurrencySymbol(data.salesSummary.total_sales)],
+            ['Net Charges ?', formatCurrencySymbol(data.salesSummary.total_charges || 0)],
+            ['Sale Price', formatCurrencySymbol(data.salesSummary.subtotal)],
+            ['Tax ?', formatCurrencySymbol(data.salesSummary.total_tax)],
+            ['Sale Price Inclusive of Tax', formatCurrencySymbol(data.salesSummary.total_sales)],
             ['', ''],
-            ['Paid Amount', '£' + formatMoney(data.salesSummary.total_sales)],
-            ['Net Paid Amount', '£' + formatMoney(data.salesSummary.total_sales)],
-            ['Balance', '£0.00'],
+            ['Paid Amount', formatCurrencySymbol(data.salesSummary.total_sales)],
+            ['Net Paid Amount', formatCurrencySymbol(data.salesSummary.total_sales)],
+            ['Balance', formatCurrencySymbol(0)],
         ];
-        
+
         salesData.forEach(([label, value]) => {
             if (label === '') {
                 currentY += 3;
@@ -953,39 +953,39 @@ const downloadZReportPdf = async (shiftId) => {
         // ============== PAYMENT METHOD BREAKDOWN ==============
         currentY += 5;
         doc.text('Net Cash Receipts', 16, currentY);
-        doc.text('£' + formatMoney(data.cashReconciliation.cash_sales), 190, currentY, { align: 'right' });
+        doc.text(formatCurrencySymbol(data.cashReconciliation.cash_sales), 190, currentY, { align: 'right' });
         currentY += 5;
-        
+
         data.paymentMethods.forEach(pm => {
             if (pm.method.toLowerCase() !== 'cash') {
                 doc.text(`Net ${pm.method} Receipts`, 16, currentY);
-                doc.text('£' + formatMoney(pm.net), 190, currentY, { align: 'right' });
+                doc.text(formatCurrencySymbol(pm.net), 190, currentY, { align: 'right' });
                 currentY += 5;
             }
         });
-        
+
         doc.text('Net Online Payment Receipts', 16, currentY);
         const onlineTotal = data.paymentMethods
             .filter(pm => ['online', 'card'].includes(pm.method.toLowerCase()))
             .reduce((sum, pm) => sum + pm.net, 0);
-        doc.text('£' + formatMoney(onlineTotal), 190, currentY, { align: 'right' });
+        doc.text(formatCurrencySymbol(onlineTotal), 190, currentY, { align: 'right' });
         currentY += 5;
         doc.text('Net Other Receipts', 16, currentY);
         doc.text('£0.00', 190, currentY, { align: 'right' });
         currentY += 8;
-        
+
         doc.text('Unpaid Sales Count', 16, currentY);
-        doc.text('0', 190, currentY, { align: 'right' });
+        doc.text(formatCurrencySymbol(0), 190, currentY, { align: 'right' });
         currentY += 5;
         doc.text('Unpaid Sales Amount', 16, currentY);
-        doc.text('£0.00', 190, currentY, { align: 'right' });
+        doc.text(formatCurrencySymbol(0), 190, currentY, { align: 'right' });
 
         // ============== SALES VAT ==============
         if (currentY > 220) {
             doc.addPage();
             currentY = 20;
         }
-        
+
         currentY += 10;
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
@@ -999,13 +999,13 @@ const downloadZReportPdf = async (shiftId) => {
             head: [['Tax %', 'Count', 'Sale*', 'Tax*']],
             body: [
                 ['0.00 %', '1', '£1.00', '£0.00'],
-                ['20.00 %', data.salesSummary.total_orders - 1, 
-                 '£' + formatMoney(data.salesSummary.subtotal - 1), 
-                 '£' + formatMoney(data.salesSummary.total_tax)],
+                ['20.00 %', data.salesSummary.total_orders - 1,
+                    formatCurrencySymbol(data.salesSummary.subtotal - 1),
+                    formatCurrencySymbol(data.salesSummary.total_tax)],
             ],
-            foot: [['Total', data.salesSummary.total_orders, 
-                   '£' + formatMoney(data.salesSummary.subtotal), 
-                   '£' + formatMoney(data.salesSummary.total_tax)]],
+            foot: [['Total', data.salesSummary.total_orders,
+                formatCurrencySymbol(data.salesSummary.subtotal),
+                formatCurrencySymbol(data.salesSummary.total_tax)]],
             startY: currentY,
             theme: 'grid',
             styles: { fontSize: 9, cellPadding: 3 },
@@ -1048,14 +1048,14 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
         doc.text('Sale Cancellations', 105, currentY + 5.5, { align: 'center' });
         doc.setTextColor(0, 0, 0);
         currentY += 12;
-        
+
         if (!data.cancelled_items || data.cancelled_items.length === 0) {
             doc.setFont('helvetica', 'normal');
             doc.text('No Data Available', 105, currentY, { align: 'center' });
@@ -1067,7 +1067,7 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1078,10 +1078,10 @@ const downloadZReportPdf = async (shiftId) => {
         if (data.venue_sales && data.venue_sales.length > 0) {
             autoTable(doc, {
                 head: [['Venue', 'Count', 'Amount']],
-                body: data.venue_sales.map(v => [v.venue, v.count, '£' + formatMoney(v.amount)]),
-                foot: [['Total', 
-                       data.venue_sales.reduce((s, v) => s + v.count, 0), 
-                       '£' + formatMoney(data.venue_sales.reduce((s, v) => s + v.amount, 0))]],
+                body: data.venue_sales.map(v => [v.venue, v.count, formatCurrencySymbol(v.amount)]),
+                foot: [['Total',
+                    data.venue_sales.reduce((s, v) => s + v.count, 0),
+                    formatCurrencySymbol(data.venue_sales.reduce((s, v) => s + v.amount, 0))]],
                 startY: currentY,
                 theme: 'grid',
                 styles: { fontSize: 9, cellPadding: 3 },
@@ -1098,7 +1098,7 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1109,10 +1109,10 @@ const downloadZReportPdf = async (shiftId) => {
         if (data.dispatch_sales && data.dispatch_sales.length > 0) {
             autoTable(doc, {
                 head: [['Dispatch Type', 'Count', 'Amount']],
-                body: data.dispatch_sales.map(d => [d.type, d.count, '£' + formatMoney(d.amount)]),
-                foot: [['Total', 
-                       data.dispatch_sales.reduce((s, d) => s + d.count, 0), 
-                       '£' + formatMoney(data.dispatch_sales.reduce((s, d) => s + d.amount, 0))]],
+                body: data.dispatch_sales.map(d => [d.type, d.count, formatCurrencySymbol(d.amount)]),
+                foot: [['Total',
+                    data.dispatch_sales.reduce((s, d) => s + d.count, 0),
+                    formatCurrencySymbol(data.dispatch_sales.reduce((s, d) => s + d.amount, 0))]],
                 startY: currentY,
                 theme: 'grid',
                 styles: { fontSize: 9, cellPadding: 3 },
@@ -1129,7 +1129,7 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1141,14 +1141,14 @@ const downloadZReportPdf = async (shiftId) => {
             head: [['Pay Method', 'Receipts', 'Refunds', 'Net']],
             body: data.paymentMethods.map(pm => [
                 pm.method,
-                '£' + formatMoney(pm.receipts),
-                '£' + formatMoney(pm.refunds),
-                '£' + formatMoney(pm.net)
+                formatCurrencySymbol(pm.receipts),
+                formatCurrencySymbol(pm.refunds),
+                formatCurrencySymbol(pm.net)
             ]),
-            foot: [['Total', 
-                   '£' + formatMoney(data.paymentMethods.reduce((s, pm) => s + pm.receipts, 0)),
-                   '£' + formatMoney(data.paymentMethods.reduce((s, pm) => s + pm.refunds, 0)),
-                   '£' + formatMoney(data.paymentMethods.reduce((s, pm) => s + pm.net, 0))]],
+            foot: [['Total',
+                formatCurrencySymbol(data.paymentMethods.reduce((s, pm) => s + pm.receipts, 0)),
+                formatCurrencySymbol(data.paymentMethods.reduce((s, pm) => s + pm.refunds, 0)),
+                formatCurrencySymbol(data.paymentMethods.reduce((s, pm) => s + pm.net, 0))]],
             startY: currentY,
             theme: 'grid',
             styles: { fontSize: 9, cellPadding: 3 },
@@ -1170,7 +1170,7 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1184,11 +1184,11 @@ const downloadZReportPdf = async (shiftId) => {
                 body: data.menu_category_summary.map(cat => [
                     cat.category,
                     cat.count,
-                    '£' + formatMoney(cat.amount)
+                    formatCurrencySymbol(cat.amount)
                 ]),
-                foot: [['Total', 
-                       data.menu_category_summary.reduce((s, c) => s + c.count, 0), 
-                       '£' + formatMoney(data.menu_category_summary.reduce((s, c) => s + c.amount, 0))]],
+                foot: [['Total',
+                    data.menu_category_summary.reduce((s, c) => s + c.count, 0),
+                    formatCurrencySymbol(data.menu_category_summary.reduce((s, c) => s + c.amount, 0))]],
                 startY: currentY,
                 theme: 'grid',
                 styles: { fontSize: 9, cellPadding: 3 },
@@ -1205,7 +1205,7 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1218,7 +1218,7 @@ const downloadZReportPdf = async (shiftId) => {
         doc.text(data.covers_summary?.total_covers.toString() || '0', 190, currentY, { align: 'right' });
         currentY += 5;
         doc.text('Average revenue per cover', 16, currentY);
-        doc.text('£' + formatMoney(data.covers_summary?.avg_revenue_per_cover || 0), 190, currentY, { align: 'right' });
+        doc.text(formatCurrencySymbol(data.covers_summary?.avg_revenue_per_cover || 0), 190, currentY, { align: 'right' });
 
         // ============== SALE DISCOUNTS ==============
         currentY += 10;
@@ -1232,10 +1232,10 @@ const downloadZReportPdf = async (shiftId) => {
         if (data.discounts_summary && data.discounts_summary.length > 0) {
             autoTable(doc, {
                 head: [['Discount Type', 'Count', 'Amount']],
-                body: data.discounts_summary.map(d => [d.type, d.count, '£' + formatMoney(d.amount)]),
-                foot: [['Total', 
-                       data.discounts_summary.reduce((s, d) => s + d.count, 0), 
-                       '£' + formatMoney(data.discounts_summary.reduce((s, d) => s + d.amount, 0))]],
+                body: data.discounts_summary.map(d => [d.type, d.count, formatCurrencySymbol(d.amount)]),
+                foot: [['Total',
+                    data.discounts_summary.reduce((s, d) => s + d.count, 0),
+                    formatCurrencySymbol(data.discounts_summary.reduce((s, d) => s + d.amount, 0))]],
                 startY: currentY,
                 theme: 'grid',
                 styles: { fontSize: 9, cellPadding: 3 },
@@ -1252,7 +1252,7 @@ const downloadZReportPdf = async (shiftId) => {
             doc.addPage();
             currentY = 20;
         }
-        
+
         doc.setFillColor(0, 0, 0);
         doc.rect(14, currentY, 182, 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1266,13 +1266,13 @@ const downloadZReportPdf = async (shiftId) => {
                 body: data.charges_summary.map(c => [
                     c.scheme,
                     c.count,
-                    '£' + formatMoney(c.amount),
-                    '£' + formatMoney(c.tax)
+                    formatCurrencySymbol(c.amount),
+                    formatCurrencySymbol(c.tax)
                 ]),
-                foot: [['Total', 
-                       data.charges_summary.reduce((s, c) => s + c.count, 0), 
-                       '£' + formatMoney(data.charges_summary.reduce((s, c) => s + c.amount, 0)),
-                       '£' + formatMoney(data.charges_summary.reduce((s, c) => s + c.tax, 0))]],
+                foot: [['Total',
+                    data.charges_summary.reduce((s, c) => s + c.count, 0),
+                    formatCurrencySymbol(data.charges_summary.reduce((s, c) => s + c.amount, 0)),
+                    formatCurrencySymbol(data.charges_summary.reduce((s, c) => s + c.tax, 0))]],
                 startY: currentY,
                 theme: 'grid',
                 styles: { fontSize: 9, cellPadding: 3 },
@@ -1297,6 +1297,21 @@ const downloadZReportPdf = async (shiftId) => {
     }
 };
 
+// Add this function alongside your downloadZReportPdf function
+const printZReport = async (shiftId) => {
+    try {
+        const res = await axios.post(`/api/printers/${shiftId}/z-report/print`);
+        
+        if (res.data.success) {
+            toast.success('Z Report sent to printer successfully');
+        } else {
+            toast.error(res.data.message || 'Print failed');
+        }
+    } catch (error) {
+        console.error('Print failed:', error);
+        toast.error('Unable to connect to the printer. Please ensure it is properly connected.');
+    }
+};
 
 
 </script>
@@ -1436,27 +1451,25 @@ const downloadZReportPdf = async (shiftId) => {
 
                                     <!-- Actions -->
                                     <td class="text-center">
-        <div class="d-inline-flex align-items-center gap-3">
-            <!-- View Shift -->
-            <button @click="viewShift(shift)" title="View Shift"
-                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                <Eye class="w-4 h-4" />
-            </button>
+                                        <div class="d-inline-flex align-items-center gap-3">
+                                            <!-- View Shift -->
+                                            <button @click="viewShift(shift)" title="View Shift"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                <Eye class="w-4 h-4" />
+                                            </button>
 
-            <!-- Toggle Shift Status Button (NO ConfirmModal wrapper) -->
-            <button
-                @click="handleToggleShift(shift)"
-                class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
-                :class="shift.status === 'open'
-                    ? 'bg-green-500 hover:bg-green-600'
-                    : 'bg-red-400 hover:bg-red-500'"
-                :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
-                <span
-                    class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
-                    :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
-            </button>
-        </div>
-    </td>
+                                            <!-- Toggle Shift Status Button (NO ConfirmModal wrapper) -->
+                                            <button @click="handleToggleShift(shift)"
+                                                class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
+                                                :class="shift.status === 'open'
+                                                    ? 'bg-green-500 hover:bg-green-600'
+                                                    : 'bg-red-400 hover:bg-red-500'" :title="shift.status === 'open' ? 'Close Shift' : 'Reopen Shift'">
+                                                <span
+                                                    class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300"
+                                                    :class="shift.status === 'open' ? 'translate-x-5' : 'translate-x-0'"></span>
+                                            </button>
+                                        </div>
+                                    </td>
 
                                 </tr>
 
@@ -1603,13 +1616,13 @@ const downloadZReportPdf = async (shiftId) => {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <p class="mb-2"><strong>Started By:</strong> {{ xReportData.started_by
-                                                    }}</p>
+                                                }}</p>
                                                 <p class="mb-2"><strong>Start Time:</strong> {{ new
                                                     Date(xReportData.start_time).toLocaleString()
-                                                    }}</p>
+                                                }}</p>
                                                 <p class="mb-0"><strong>Opening Cash:</strong> {{
                                                     formatCurrencySymbol(xReportData.opening_cash)
-                                                    }}</p>
+                                                }}</p>
                                             </div>
                                             <div class="col-md-6">
                                                 <p class="mb-2"><strong>Status:</strong> <span
@@ -1635,7 +1648,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Total Orders:</td>
                                                     <td class="text-end">{{
                                                         xReportData.sales_summary.total_orders
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Subtotal:</td>
@@ -1653,14 +1666,14 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Discount:</td>
                                                     <td class="text-end text-danger">-{{
                                                         formatCurrencySymbol(xReportData.sales_summary.total_discount)
-                                                        }}
+                                                    }}
                                                     </td>
                                                 </tr>
                                                 <tr class=" border-top">
                                                     <td>Total Sales:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(xReportData.sales_summary.total_sales)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -1679,7 +1692,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Opening Cash:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(xReportData.cash_summary.opening_cash)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Cash Sales:</td>
@@ -1691,7 +1704,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Expected Cash:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(xReportData.cash_summary.expected_cash)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -1746,7 +1759,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <tr v-for="(user, idx) in xReportData.sales_by_user" :key="idx">
                                                         <td>{{ user.user_name }}</td>
                                                         <td><span class="badge bg-primary rounded-pill">{{ user.role
-                                                                }}</span></td>
+                                                        }}</span></td>
                                                         <td>{{ user.orders_count }}</td>
                                                         <td class="text-end pe-3">{{
                                                             formatCurrencySymbol(user.total_sales) }}
@@ -1845,7 +1858,7 @@ const downloadZReportPdf = async (shiftId) => {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <p class="mb-2"><strong>Started By:</strong> {{ zReportData.started_by
-                                                    }}</p>
+                                                }}</p>
                                                 <p class="mb-2"><strong>Start Time:</strong> {{ new
                                                     Date(zReportData.start_time).toLocaleString() }}</p>
                                                 <p class="mb-0"><strong>Ended By:</strong> {{ zReportData.ended_by }}
@@ -1856,7 +1869,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     Date(zReportData.end_time).toLocaleString() }}</p>
                                                 <p class="mb-2"><strong>Status:</strong> <span
                                                         class="badge bg-danger">{{
-                                                        zReportData.status }}</span></p>
+                                                            zReportData.status }}</span></p>
                                                 <p class="mb-0"><strong>Duration:</strong> {{ zReportData.duration }}
                                                 </p>
                                             </div>
@@ -1881,7 +1894,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Subtotal:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(zReportData.sales_summary.subtotal)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Tax:</td>
@@ -1893,7 +1906,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Discount:</td>
                                                     <td class="text-end text-danger">-{{
                                                         formatCurrencySymbol(zReportData.sales_summary.total_discount)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr class="border-top">
                                                     <td>Total Sales:</td>
@@ -1905,7 +1918,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Avg Order Value:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(zReportData.sales_summary.avg_order_value)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                             </table>
                                         </div>
@@ -1924,32 +1937,32 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <td>Opening Cash:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(zReportData.cash_reconciliation.opening_cash)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Cash Sales:</td>
                                                     <td class="text-end">{{
                                                         formatCurrencySymbol(zReportData.cash_reconciliation.cash_sales)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Expected Cash:</td>
                                                     <td class="text-end fw-bold">{{
                                                         formatCurrencySymbol(zReportData.cash_reconciliation.expected_cash)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Actual Cash:</td>
                                                     <td class="text-end fw-bold">{{
                                                         formatCurrencySymbol(zReportData.cash_reconciliation.actual_cash)
-                                                        }}</td>
+                                                    }}</td>
                                                 </tr>
                                                 <tr
                                                     :class="zReportData.cash_reconciliation.variance >= 0 ? 'text-success' : 'text-danger'">
                                                     <td>Variance:</td>
                                                     <td class="text-end fw-bold">
                                                         {{ zReportData.cash_reconciliation.variance >= 0 ? '+' : '' }}{{
-                                                        formatCurrencySymbol(zReportData.cash_reconciliation.variance)
+                                                            formatCurrencySymbol(zReportData.cash_reconciliation.variance)
                                                         }}
                                                         ({{ zReportData.cash_reconciliation.variance_percentage }}%)
                                                     </td>
@@ -2007,7 +2020,7 @@ const downloadZReportPdf = async (shiftId) => {
                                                     <tr v-for="(user, idx) in zReportData.sales_by_user" :key="idx">
                                                         <td>{{ user.user_name }}</td>
                                                         <td><span class="badge bg-primary rounded-pill">{{ user.role
-                                                                }}</span></td>
+                                                        }}</span></td>
                                                         <td>{{ user.orders_count }}</td>
                                                         <td class="text-end pe-3">{{
                                                             formatCurrencySymbol(user.total_sales) }}</td>
@@ -2086,6 +2099,10 @@ const downloadZReportPdf = async (shiftId) => {
                             @click="downloadZReportPdf(zReportData.shift_id)">
                             <i class="bi bi-download me-2"></i>Download PDF
                         </button>
+                        <button class="btn btn-primary px-4 rounded-pill ms-2"
+                            @click="printZReport(zReportData.shift_id)">
+                            <i class="bi bi-printer me-2"></i>Print Z Report
+                        </button>
                         <button class="btn btn-secondary px-4 rounded-pill" @click="closeZReportModal">Close</button>
                     </div>
                 </div>
@@ -2094,13 +2111,9 @@ const downloadZReportPdf = async (shiftId) => {
 
         </div>
 
-         <CloseShiftModal 
-        :show="showCloseShiftModal"
-        :shiftId="selectedShiftForClose?.id"
-        :expectedClosingCash="selectedShiftForClose ? calculateExpectedClosingCash(selectedShiftForClose) : 0"
-        @cancel="onCloseModalCancel" 
-        @closed="onShiftClosed" 
-    />
+        <CloseShiftModal :show="showCloseShiftModal" :shiftId="selectedShiftForClose?.id"
+            :expectedClosingCash="selectedShiftForClose ? calculateExpectedClosingCash(selectedShiftForClose) : 0"
+            @cancel="onCloseModalCancel" @closed="onShiftClosed" />
     </Master>
 </template>
 

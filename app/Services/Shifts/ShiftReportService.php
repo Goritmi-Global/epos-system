@@ -129,7 +129,7 @@ class ShiftReportService
     {
         $subtotal = $orders->sum('sub_total');
         $totalTax = $orders->sum('tax');
-        $totalDiscount = $orders->sum('discount_amount');
+        $totalDiscount = $orders->sum('sales_discount');
         $totalSales = $orders->sum('total_amount');
         $totalOrders = $orders->count();
         

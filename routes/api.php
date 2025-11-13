@@ -133,18 +133,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('shift')->name('api.shift.')->group(function () {
         Route::get('/all', [ShiftManagementController::class, 'getAllShifts'])->name('all');
         Route::patch('/{shift}/close', [ShiftManagementController::class, 'closeShift'])->name('close');
-        Route::get('/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
-            ->name('shift.x-report');
-
-        Route::get('/{shift}/x-report/pdf', [ShiftManagementController::class, 'downloadXReportPdf'])
-            ->name('shift.x-report.pdf');
-
-        // Z Report Routes (for closed shifts)
-        Route::get('/{shift}/z-report', [ShiftManagementController::class, 'generateZReport'])
-            ->name('shift.z-report');
-
-        Route::get('/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
-            ->name('shift.z-report.pdf');
+        Route::get('/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])->name('shift.x-report');
+        Route::get('/{shift}/x-report/pdf', [ShiftManagementController::class, 'downloadXReportPdf'])->name('shift.x-report.pdf');
+        Route::get('/{shift}/z-report', [ShiftManagementController::class, 'generateZReport'])->name('shift.z-report');
+        Route::get('/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])->name('shift.z-report.pdf');
+        
     });
 
     Route::prefix('meals')->name('api.meals.')->group(function () {
@@ -185,6 +178,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/kot/print-receipt', [PrinterController::class, 'printKot']);
     Route::post('/profile/verify-credentials', [ProfileController::class, 'verifyCredentials']);
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('api.profile.update');
+    Route::post('/printers/{shift}/z-report/print', [PrinterController::class, 'printZReport'])->name('shift.z-report.print');
 
     Route::prefix('addon-groups')->group(function () {
 

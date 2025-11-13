@@ -16,6 +16,9 @@ use App\Services\Shifts\ShiftReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use mike42\Escpos\Printer;
+use mike42\Escpos\PrintConnectors\WindowsPrintConnector;
+use mike42\Escpos\EscposImage;
 use Inertia\Inertia;
 
 class ShiftManagementController extends Controller
@@ -45,7 +48,7 @@ class ShiftManagementController extends Controller
 
     public function getChecklistItems(Request $request)
     {
-       
+
         $query = ShiftChecklistItem::where('is_default', true)->orWhere('is_default', false);
 
         if ($request->has('type')) {
@@ -155,27 +158,27 @@ class ShiftManagementController extends Controller
         ]);
     }
 
- 
-public function storeCustomChecklistItem(Request $request)
-{
- 
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'type' => 'required|in:start,end',
-    ]);
 
-    $item = ShiftChecklistItem::create([
-        'name' => $request->name,
-        'description' => null,
-        'is_default' => false, // Custom items are not default
-        'type' => $request->type,
-    ]);
+    public function storeCustomChecklistItem(Request $request)
+    {
 
-    return response()->json([
-        'success' => true,
-        'data' => $item,
-    ]);
-}
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|in:start,end',
+        ]);
+
+        $item = ShiftChecklistItem::create([
+            'name' => $request->name,
+            'description' => null,
+            'is_default' => false, // Custom items are not default
+            'type' => $request->type,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $item,
+        ]);
+    }
 
     public function closeShift(Request $request, Shift $shift)
     {
@@ -357,12 +360,12 @@ public function storeCustomChecklistItem(Request $request)
             return response()->json([
                 'success' => true,
                 'data' => $pdfData,
-                'fileName' => 'X_Report_Shift_'.$shift->id.'_'.now()->format('Y-m-d_H-i-s').'.pdf',
+                'fileName' => 'X_Report_Shift_' . $shift->id . '_' . now()->format('Y-m-d_H-i-s') . '.pdf',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to prepare X Report PDF: '.$e->getMessage(),
+                'message' => 'Failed to prepare X Report PDF: ' . $e->getMessage(),
             ], 400);
         }
     }
@@ -389,81 +392,81 @@ public function storeCustomChecklistItem(Request $request)
         }
     }
 
-  
-  public function downloadZReportPdf(Shift $shift)
-{
-    try {
-        $reportData = $this->reportService->generateZReport($shift);
 
-        // Format data for PDF with all sections matching client template
-        $pdfData = [
-            'title' => 'Daily Summary Report - All Brands',
-            'generatedDate' => now()->format('l, M d, Y'),
-            'shiftId' => $reportData['shift_id'],
-            'startedBy' => $reportData['started_by'],
-            'startTime' => \Carbon\Carbon::parse($reportData['start_time'])->format('l, h:i a'),
-            'endedBy' => $reportData['ended_by'],
-            'endTime' => \Carbon\Carbon::parse($reportData['end_time'])->format('l, h:i a'),
-            'duration' => $reportData['duration'],
-            'status' => $reportData['status'],
-            
-            // Sales Summary
-            'salesSummary' => [
-                'total_orders' => $reportData['sales_summary']['total_orders'],
-                'subtotal' => $reportData['sales_summary']['subtotal'],
-                'total_tax' => $reportData['sales_summary']['total_tax'],
-                'total_discount' => $reportData['sales_summary']['total_discount'],
-                'total_charges' => $reportData['sales_summary']['total_charges'] ?? 0,
-                'total_sales' => $reportData['sales_summary']['total_sales'],
-                'avg_order_value' => $reportData['sales_summary']['avg_order_value'],
-                'total_refunds' => 0, // Add if you track refunds
-            ],
-            
-            // Cash Reconciliation
-            'cashReconciliation' => [
-                'opening_cash' => $reportData['cash_reconciliation']['opening_cash'],
-                'cash_expenses' => $reportData['cash_reconciliation']['cash_expenses'] ?? 0,
-                'cash_transfers' => $reportData['cash_reconciliation']['cash_transfers'] ?? 0,
-                'cash_changed' => $reportData['cash_reconciliation']['cash_changed'] ?? 0,
-                'cash_sales' => $reportData['cash_reconciliation']['cash_sales'],
-                'cash_refunds' => $reportData['cash_reconciliation']['cash_refunds'] ?? 0,
-                'expected_cash' => $reportData['cash_reconciliation']['expected_cash'],
-                'actual_cash' => $reportData['cash_reconciliation']['actual_cash'],
-                'variance' => $reportData['cash_reconciliation']['variance'],
-                'variance_percentage' => $reportData['cash_reconciliation']['variance_percentage'],
-            ],
-            
-            // Payment Methods
-            'paymentMethods' => $reportData['payment_methods'],
-            
-            // New sections matching template
-            'venue_sales' => $reportData['venue_sales'] ?? [],
-            'dispatch_sales' => $reportData['dispatch_sales'] ?? [],
-            'menu_category_summary' => $reportData['menu_category_summary'] ?? [],
-            'covers_summary' => $reportData['covers_summary'] ?? [
-                'total_covers' => 0,
-                'avg_revenue_per_cover' => 0,
-            ],
-            'discounts_summary' => $reportData['discounts_summary'] ?? [],
-            'charges_summary' => $reportData['charges_summary'] ?? [],
-            'cancelled_items' => $reportData['cancelled_items'] ?? [],
-            
-            // Additional sections
-            'salesByUser' => $reportData['sales_by_user'],
-            'topItems' => $reportData['top_items'],
-            'stockMovement' => $reportData['stock_movement'],
-        ];
+    public function downloadZReportPdf(Shift $shift)
+    {
+        try {
+            $reportData = $this->reportService->generateZReport($shift);
 
-        return response()->json([
-            'success' => true,
-            'data' => $pdfData,
-            'fileName' => 'Z_Report_Shift_'.$shift->id.'_'.now()->format('Y-m-d_H-i-s').'.pdf',
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to prepare Z Report PDF: '.$e->getMessage(),
-        ], 400);
+            // Format data for PDF with all sections matching client template
+            $pdfData = [
+                'title' => 'Daily Summary Report - All Brands',
+                'generatedDate' => now()->format('l, M d, Y'),
+                'shiftId' => $reportData['shift_id'],
+                'startedBy' => $reportData['started_by'],
+                'startTime' => \Carbon\Carbon::parse($reportData['start_time'])->format('l, h:i a'),
+                'endedBy' => $reportData['ended_by'],
+                'endTime' => \Carbon\Carbon::parse($reportData['end_time'])->format('l, h:i a'),
+                'duration' => $reportData['duration'],
+                'status' => $reportData['status'],
+
+                // Sales Summary
+                'salesSummary' => [
+                    'total_orders' => $reportData['sales_summary']['total_orders'],
+                    'subtotal' => $reportData['sales_summary']['subtotal'],
+                    'total_tax' => $reportData['sales_summary']['total_tax'],
+                    'total_discount' => $reportData['sales_summary']['total_discount'],
+                    'total_charges' => $reportData['sales_summary']['total_charges'] ?? 0,
+                    'total_sales' => $reportData['sales_summary']['total_sales'],
+                    'avg_order_value' => $reportData['sales_summary']['avg_order_value'],
+                    'total_refunds' => 0, // Add if you track refunds
+                ],
+
+                // Cash Reconciliation
+                'cashReconciliation' => [
+                    'opening_cash' => $reportData['cash_reconciliation']['opening_cash'],
+                    'cash_expenses' => $reportData['cash_reconciliation']['cash_expenses'] ?? 0,
+                    'cash_transfers' => $reportData['cash_reconciliation']['cash_transfers'] ?? 0,
+                    'cash_changed' => $reportData['cash_reconciliation']['cash_changed'] ?? 0,
+                    'cash_sales' => $reportData['cash_reconciliation']['cash_sales'],
+                    'cash_refunds' => $reportData['cash_reconciliation']['cash_refunds'] ?? 0,
+                    'expected_cash' => $reportData['cash_reconciliation']['expected_cash'],
+                    'actual_cash' => $reportData['cash_reconciliation']['actual_cash'],
+                    'variance' => $reportData['cash_reconciliation']['variance'],
+                    'variance_percentage' => $reportData['cash_reconciliation']['variance_percentage'],
+                ],
+
+                // Payment Methods
+                'paymentMethods' => $reportData['payment_methods'],
+
+                // New sections matching template
+                'venue_sales' => $reportData['venue_sales'] ?? [],
+                'dispatch_sales' => $reportData['dispatch_sales'] ?? [],
+                'menu_category_summary' => $reportData['menu_category_summary'] ?? [],
+                'covers_summary' => $reportData['covers_summary'] ?? [
+                    'total_covers' => 0,
+                    'avg_revenue_per_cover' => 0,
+                ],
+                'discounts_summary' => $reportData['discounts_summary'] ?? [],
+                'charges_summary' => $reportData['charges_summary'] ?? [],
+                'cancelled_items' => $reportData['cancelled_items'] ?? [],
+
+                // Additional sections
+                'salesByUser' => $reportData['sales_by_user'],
+                'topItems' => $reportData['top_items'],
+                'stockMovement' => $reportData['stock_movement'],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $pdfData,
+                'fileName' => 'Z_Report_Shift_' . $shift->id . '_' . now()->format('Y-m-d_H-i-s') . '.pdf',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to prepare Z Report PDF: ' . $e->getMessage(),
+            ], 400);
+        }
     }
-}
 }
