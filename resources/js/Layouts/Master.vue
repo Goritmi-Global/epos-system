@@ -456,7 +456,7 @@ const sidebarMenus = ref([
 
              {
                 label: "Discount",
-                icon: "tag",
+                icon: "percent",
                 route: "discounts.index",
             },
 
