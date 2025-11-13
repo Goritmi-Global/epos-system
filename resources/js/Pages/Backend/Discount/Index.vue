@@ -9,7 +9,11 @@ import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
 import { Head } from "@inertiajs/vue3";
-
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import ImportFile from "@/Components/importFile.vue";
+import FilterModal from "@/Components/FilterModal.vue";
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ============================================================
@@ -52,24 +56,98 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
-/* ============================================================
-   COMPUTED PROPERTIES
-   ============================================================ */
+const discountTypesForFilter = computed(() => [
+    { id: "flat", name: "Flat" },
+    { id: "percent", name: "Percentage" }
+]);
 
-/**
- * Filter discounts based on search query
- * Searches by discount name (case-insensitive)
- */
-const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    if (!t) return discounts.value;
-    return discounts.value.filter((d) => d.name.toLowerCase().includes(t));
+const filters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
 });
 
-/**
- * KPI Statistics Cards
- * Shows total, active, flat, and percentage discounts
- */
+const filtered = computed(() => {
+    let result = discounts.value;
+    const t = q.value.trim().toLowerCase();
+    if (t) {
+        result = result.filter((d) => d.name.toLowerCase().includes(t));
+    }
+
+    if (filters.value.stockStatus) {
+        result = result.filter((d) => d.status === filters.value.stockStatus);
+    }
+
+    if (filters.value.category) {
+        result = result.filter((d) => d.type === filters.value.category);
+    }
+
+    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
+        result = result.filter((d) => parseFloat(d.discount_amount) >= parseFloat(filters.value.priceMin));
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
+        result = result.filter((d) => parseFloat(d.discount_amount) <= parseFloat(filters.value.priceMax));
+    }
+
+    if (filters.value.dateFrom) {
+        const fromDate = new Date(filters.value.dateFrom);
+        result = result.filter((d) => new Date(d.start_date) >= fromDate);
+    }
+    if (filters.value.dateTo) {
+        const toDate = new Date(filters.value.dateTo);
+        result = result.filter((d) => new Date(d.start_date) <= toDate);
+    }
+
+    if (filters.value.sortBy) {
+        switch (filters.value.sortBy) {
+            case "discount_asc":
+                result.sort((a, b) => parseFloat(a.discount_amount) - parseFloat(b.discount_amount));
+                break;
+            case "discount_desc":
+                result.sort((a, b) => parseFloat(b.discount_amount) - parseFloat(a.discount_amount));
+                break;
+            case "name_asc":
+                result.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case "name_desc":
+                result.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case "date_asc":
+                result.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                break;
+            case "date_desc":
+                result.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+                break;
+        }
+    }
+
+    return result;
+});
+
+
+const handleFilterApply = (appliedFilters) => {
+    filters.value = { ...filters.value, ...appliedFilters };
+    console.log("Filters applied:", filters.value);
+};
+
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+    console.log("Filters cleared");
+};
+
+
 const discountStats = computed(() => [
     {
         label: "Total Discounts",
@@ -154,8 +232,8 @@ const editRow = (row) => {
         name: row.name,
         type: row.type,
         status: row.status,
-        start_date: row.start_date,
-        end_date: row.end_date,
+        start_date: row.start_date ? new Date(row.start_date) : null,  
+        end_date: row.end_date ? new Date(row.end_date) : null,    
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
@@ -214,15 +292,103 @@ const submitDiscount = async () => {
     }
 };
 
+
+const sampleHeaders = [
+    "Discount Name", "Type", "Discount Amount", "Start Date",
+    "End Date", "Min Purchase", "Max Discount", "Status", "Description"
+];
+
+const sampleData = [
+    ["Summer Sale", "percent", "20", "2025-06-01", "2025-08-31", "50", "100", "active", "Summer discount on all items"],
+    ["Flat Discount", "flat", "10", "2025-01-01", "2025-12-31", "30", "", "active", "Flat 10 off on purchase"],
+];
+
+
+const handleImport = (data) => {
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return;
+    }
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    const discountsToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",
+            type: row[1] || "percent",
+            discount_amount: row[2] || "",
+            start_date: row[3] || "",
+            end_date: row[4] || "",
+            min_purchase: row[5] || "0",
+            max_discount: row[6] || null,
+            status: row[7] || "active",
+            description: row[8] || "",
+        };
+    }).filter(discount => discount.name.trim());
+
+    if (discountsToImport.length === 0) {
+        toast.error("No valid discounts found in the file.");
+        return;
+    }
+
+    // Check for duplicate discount names within the CSV
+    const discountNames = discountsToImport.map(d => d.name.trim().toLowerCase());
+    const duplicatesInCSV = discountNames.filter((name, index) => discountNames.indexOf(name) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate discount names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return;
+    }
+
+    // Check for duplicate discount names in existing table
+    const existingDiscountNames = discounts.value.map(d => d.name.trim().toLowerCase());
+    const duplicatesInTable = discountsToImport.filter(importDiscount =>
+        existingDiscountNames.includes(importDiscount.name.trim().toLowerCase())
+    );
+
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(d => d.name).join(", ");
+        toast.error(`Discounts already exist in the table: ${duplicateNamesList}`);
+        return;
+    }
+
+    // Validate type values
+    const validTypes = ["flat", "percent"];
+    const invalidTypes = discountsToImport.filter(d => !validTypes.includes(d.type.toLowerCase()));
+
+    if (invalidTypes.length > 0) {
+        toast.error("Invalid type found. Type must be either 'flat' or 'percent'.");
+        return;
+    }
+
+    // Validate status values
+    const validStatuses = ["active", "inactive"];
+    const invalidStatuses = discountsToImport.filter(d => !validStatuses.includes(d.status.toLowerCase()));
+
+    if (invalidStatuses.length > 0) {
+        toast.error("Invalid status found. Status must be either 'active' or 'inactive'.");
+        return;
+    }
+
+    // Send to API
+    axios
+        .post("/api/discounts/import", { discounts: discountsToImport })
+        .then(() => {
+            toast.success("Discounts imported successfully");
+            fetchDiscounts();
+        })
+        .catch((err) => {
+            console.error("Import error:", err);
+            const errorMessage = err.response?.data?.message || "Import failed";
+            toast.error(errorMessage);
+        });
+};
+
 /* ============================================================
    ACTION HANDLERS - STATUS & DELETE
    ============================================================ */
 
-/**
- * Toggle discount status between active and inactive
- * Called when user clicks the status toggle button
- * @param {Object} row - The discount record to toggle
- */
 const toggleStatus = async (row) => {
     const newStatus = row.status === "active" ? "inactive" : "active";
 
@@ -254,26 +420,17 @@ const deleteDiscount = async (row) => {
     }
 };
 
-/* ============================================================
-   LIFECYCLE HOOKS
-   ============================================================ */
 
-/**
- * Initialize component on mount
- * - Clear search input
- * - Mark component as ready (prevent autofill issues)
- * - Fetch all discounts from backend
- */
 onMounted(async () => {
     q.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
-    // Delay to prevent browser autofill
+
     setTimeout(() => {
         isReady.value = true;
 
-        // Force clear any autofill that happened
+
         const input = document.getElementById(inputId);
         if (input) {
             input.value = '';
@@ -284,16 +441,238 @@ onMounted(async () => {
     await fetchDiscounts();
 });
 
-/**
- * Re-initialize feather icons after DOM update
- */
+
 onUpdated(() => window.feather?.replace());
+
+const onDownload = (type) => {
+    if (!discounts.value || discounts.value.length === 0) {
+        toast.error("No Discounts data to download");
+        return;
+    }
+
+
+    const dataToExport = q.value.trim() ? filtered.value : discounts.value;
+
+
+    if (dataToExport.length === 0) {
+        toast.error("No Discounts found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+
+const downloadCSV = (data) => {
+    try {
+        const headers = [
+            "ID", "Discount Name", "Type", "Discount Amount",
+            "Start Date", "End Date", "Min Purchase", "Max Discount",
+            "Status", "Description"
+        ];
+
+        const rows = data.map((discount) => {
+            return [
+                `${discount.id || ""}`,
+                `"${discount.name || ""}"`,
+                `"${discount.type || ""}"`,
+                `${discount.discount_amount || ""}`,
+                `"${dateFmt(discount.start_date) || ""}"`,
+                `"${dateFmt(discount.end_date) || ""}"`,
+                `${discount.min_purchase || ""}`,
+                `${discount.max_discount || ""}`,
+                `"${discount.status || ""}"`,
+                `"${discount.description || ""}"`,
+            ];
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Discounts_${new Date().toISOString().split("T")[0]}.csv`
+        );
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4");
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Discounts Report", 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Discounts: ${data.length}`, 14, 34);
+
+        const tableColumns = [
+            "ID", "Name", "Type", "Amount", "Start Date",
+            "End Date", "Min Purchase", "Max Discount", "Status"
+        ];
+
+        const tableRows = data.map((discount) => {
+            return [
+                discount.id || "",
+                discount.name || "",
+                discount.type === "flat" ? "Flat" : "Percent",
+                discount.type === "flat"
+                    ? formatCurrencySymbol(discount.discount_amount)
+                    : discount.discount_amount + "%",
+                dateFmt(discount.start_date) || "",
+                dateFmt(discount.end_date) || "",
+                formatCurrencySymbol(discount.min_purchase) || "",
+                discount.max_discount ? formatCurrencySymbol(discount.max_discount) : "N/A",
+                discount.status === "active" ? "Active" : "Inactive",
+            ];
+        });
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `Discounts_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        const worksheetData = data.map((discount) => {
+            return {
+                "ID": discount.id || "",
+                "Discount Name": discount.name || "",
+                "Type": discount.type === "flat" ? "Flat" : "Percent",
+                "Discount Amount": discount.type === "flat"
+                    ? discount.discount_amount
+                    : discount.discount_amount + "%",
+                "Start Date": dateFmt(discount.start_date) || "",
+                "End Date": dateFmt(discount.end_date) || "",
+                "Min Purchase": discount.min_purchase || "",
+                "Max Discount": discount.max_discount || "",
+                "Status": discount.status === "active" ? "Active" : "Inactive",
+                "Description": discount.description || "",
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        worksheet["!cols"] = [
+            { wch: 8 },
+            { wch: 25 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 30 },
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Discounts");
+
+        const metaData = [
+            { Info: "Report", Value: "Discounts Export" },
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        const fileName = `Discounts_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully");
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
 </script>
 
 <template>
     <Master>
+
         <Head title="Discount" />
-        
+
         <div class="page-wrapper">
             <h4 class="fw-semibold mb-3">Discount Management</h4>
 
@@ -322,37 +701,74 @@ onUpdated(() => window.feather?.replace());
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body">
                     <!-- Table Toolbar -->
+                    <!-- Table Toolbar -->
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 fw-semibold">Discounts</h5>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
+
+                            <FilterModal v-model="filters" title="Discounts" modalId="discountsFilterModal"
+                                modalSize="modal-lg" :sortOptions="[
+                                    { value: 'name_asc', label: 'Name: A to Z' },
+                                    { value: 'name_desc', label: 'Name: Z to A' },
+                                    { value: 'discount_asc', label: 'Discount: Low to High' },
+                                    { value: 'discount_desc', label: 'Discount: High to Low' },
+                                    { value: 'date_asc', label: 'Start Date: Oldest First' },
+                                    { value: 'date_desc', label: 'Start Date: Newest First' },
+                                ]" :categories="discountTypesForFilter" categoryLabel="Discount Type" statusLabel="Discount Status"
+                                :showPriceRange="true" priceRangeLabel="Discount Amount Range" :showDateRange="true"
+                                @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
-                                
+
                                 <!-- Hidden autofill prevention input -->
                                 <input type="email" name="email" autocomplete="email"
-                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;"
-                                    tabindex="-1" aria-hidden="true" />
+                                    style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
+                                    aria-hidden="true" />
 
                                 <!-- Actual search input (conditionally rendered) -->
                                 <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                                    class="form-control search-input" placeholder="Search discounts"
-                                    type="search" autocomplete="new-password" :name="inputId"
-                                    role="presentation" />
-                                <input v-else class="form-control search-input" placeholder="Search discounts"
-                                    disabled type="text" />
+                                    class="form-control search-input" placeholder="Search discounts" type="search"
+                                    autocomplete="new-password" :name="inputId" role="presentation" />
+                                <input v-else class="form-control search-input" placeholder="Search discounts" disabled
+                                    type="text" />
                             </div>
 
                             <!-- Add New Button -->
-                            <button data-bs-toggle="modal" data-bs-target="#discountModal"
-                                @click="resetModal"
+                            <button data-bs-toggle="modal" data-bs-target="#discountModal" @click="resetModal"
                                 class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Discount
                             </button>
+
+                            <!-- Import Button -->
+                            <ImportFile label="Import Discounts" :sampleHeaders="sampleHeaders" :sampleData="sampleData"
+                                @on-import="handleImport" />
+
+                            <!-- Export Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    Export
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('pdf')">Export as PDF</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;"
+                                            @click="onDownload('excel')">Export as Excel</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
-
                     <!-- Discounts Table -->
                     <div class="table-responsive">
                         <table class="table table-striped">
@@ -375,7 +791,7 @@ onUpdated(() => window.feather?.replace());
                                 <tr v-for="(row, i) in filtered" :key="row.id">
                                     <td>{{ i + 1 }}</td>
                                     <td class="fw-semibold">{{ row.name }}</td>
-                                    
+
                                     <!-- Type Badge -->
                                     <td>
                                         <span :class="row.type === 'flat'
@@ -385,25 +801,25 @@ onUpdated(() => window.feather?.replace());
                                             {{ row.type === "flat" ? "Flat" : "Percent" }}
                                         </span>
                                     </td>
-                                    
+
                                     <!-- Discount Amount -->
                                     <td>
-                                        {{ row.type === "flat" 
+                                        {{ row.type === "flat"
                                             ? formatCurrencySymbol(row.discount_amount)
-                                            : row.discount_amount + "%" 
+                                            : row.discount_amount + "%"
                                         }}
                                     </td>
-                                    
+
                                     <!-- Dates -->
                                     <td>{{ dateFmt(row.start_date) }}</td>
                                     <td>{{ dateFmt(row.end_date) }}</td>
-                                    
+
                                     <!-- Purchase Requirements -->
                                     <td>{{ formatCurrencySymbol(row.min_purchase) }}</td>
                                     <td>
                                         {{ row.max_discount ? formatCurrencySymbol(row.max_discount) : "N/A" }}
                                     </td>
-                                    
+
                                     <!-- Status Badge -->
                                     <td class="text-center">
                                         <span :class="row.status === 'active'
@@ -413,7 +829,7 @@ onUpdated(() => window.feather?.replace());
                                             {{ row.status === "active" ? "Active" : "Inactive" }}
                                         </span>
                                     </td>
-                                    
+
                                     <!-- Action Buttons -->
                                     <td class="text-center">
                                         <div class="d-inline-flex align-items-center gap-3">
@@ -426,9 +842,8 @@ onUpdated(() => window.feather?.replace());
                                             <!-- Toggle Status Button with Confirmation -->
                                             <ConfirmModal :title="'Confirm Status Change'"
                                                 :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
-                                                :showStatusButton="true" confirmText="Yes, Change"
-                                                cancelText="Cancel" :status="row.status"
-                                                @confirm="toggleStatus(row)">
+                                                :showStatusButton="true" confirmText="Yes, Change" cancelText="Cancel"
+                                                :status="row.status" @confirm="toggleStatus(row)">
                                                 <template #trigger>
                                                     <!-- Toggle Switch -->
                                                     <button
@@ -482,13 +897,10 @@ onUpdated(() => window.feather?.replace());
                             </h5>
                             <button
                                 class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                                @click="resetModal" data-bs-dismiss="modal" aria-label="Close"
-                                title="Close">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500"
-                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12" />
+                                @click="resetModal" data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -510,10 +922,9 @@ onUpdated(() => window.feather?.replace());
                                 <!-- Discount Type -->
                                 <div class="col-md-6">
                                     <label class="form-label">Discount Type *</label>
-                                    <Select v-model="discountForm.type" :options="discountOptions"
-                                        optionLabel="label" appendTo="self" :autoZIndex="true"
-                                        :baseZIndex="2000" optionValue="value" class="form-select"
-                                        :class="{ 'is-invalid': discountFormErrors.type }" />
+                                    <Select v-model="discountForm.type" :options="discountOptions" optionLabel="label"
+                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000" optionValue="value"
+                                        class="form-select" :class="{ 'is-invalid': discountFormErrors.type }" />
                                     <small v-if="discountFormErrors.type" class="text-danger">
                                         {{ discountFormErrors.type[0] }}
                                     </small>
@@ -522,10 +933,9 @@ onUpdated(() => window.feather?.replace());
                                 <!-- Status -->
                                 <div class="col-md-6">
                                     <label class="form-label">Status *</label>
-                                    <Select v-model="discountForm.status" :options="statusOptions"
-                                        optionLabel="label" optionValue="value" class="form-select"
-                                        appendTo="self" :autoZIndex="true" :baseZIndex="2000"
-                                        :class="{ 'is-invalid': discountFormErrors.status }" />
+                                    <Select v-model="discountForm.status" :options="statusOptions" optionLabel="label"
+                                        optionValue="value" class="form-select" appendTo="self" :autoZIndex="true"
+                                        :baseZIndex="2000" :class="{ 'is-invalid': discountFormErrors.status }" />
                                     <small v-if="discountFormErrors.status" class="text-danger">
                                         {{ discountFormErrors.status[0] }}
                                     </small>
@@ -534,8 +944,8 @@ onUpdated(() => window.feather?.replace());
                                 <!-- Discount Amount -->
                                 <div class="col-12">
                                     <label class="form-label">Discount Amount *</label>
-                                    <input v-model="discountForm.discount_amount" type="number"
-                                        class="form-control" :class="{ 'is-invalid': discountFormErrors.discount_amount }"
+                                    <input v-model="discountForm.discount_amount" type="number" class="form-control"
+                                        :class="{ 'is-invalid': discountFormErrors.discount_amount }"
                                         placeholder="Enter discount amount" />
                                     <small v-if="discountFormErrors.discount_amount" class="text-danger">
                                         {{ discountFormErrors.discount_amount[0] }}
@@ -546,8 +956,8 @@ onUpdated(() => window.feather?.replace());
                                 <div class="col-md-6">
                                     <label class="form-label">Start Date *</label>
                                     <VueDatePicker v-model="discountForm.start_date" :format="dateFmt"
-                                        :min-date="new Date()" :enableTimePicker="false"
-                                        placeholder="Select start date" :class="{ 'is-invalid': discountFormErrors.start_date }" />
+                                        :min-date="new Date()" :enableTimePicker="false" placeholder="Select start date"
+                                        :class="{ 'is-invalid': discountFormErrors.start_date }" />
                                     <small v-if="discountFormErrors.start_date" class="text-danger">
                                         {{ discountFormErrors.start_date[0] }}
                                     </small>
@@ -557,8 +967,8 @@ onUpdated(() => window.feather?.replace());
                                 <div class="col-md-6">
                                     <label class="form-label">End Date *</label>
                                     <VueDatePicker v-model="discountForm.end_date" :format="dateFmt"
-                                        :min-date="new Date()" :enableTimePicker="false"
-                                        placeholder="Select end date" :class="{ 'is-invalid': discountFormErrors.end_date }" />
+                                        :min-date="new Date()" :enableTimePicker="false" placeholder="Select end date"
+                                        :class="{ 'is-invalid': discountFormErrors.end_date }" />
                                     <small v-if="discountFormErrors.end_date" class="text-danger">
                                         {{ discountFormErrors.end_date[0] }}
                                     </small>
@@ -567,8 +977,8 @@ onUpdated(() => window.feather?.replace());
                                 <!-- Minimum Purchase Amount -->
                                 <div class="col-md-6">
                                     <label class="form-label">Minimum Purchase Amount *</label>
-                                    <input v-model="discountForm.min_purchase" type="number"
-                                        step="0.01" class="form-control" :class="{ 'is-invalid': discountFormErrors.min_purchase }"
+                                    <input v-model="discountForm.min_purchase" type="number" step="0.01"
+                                        class="form-control" :class="{ 'is-invalid': discountFormErrors.min_purchase }"
                                         placeholder="0.00" />
                                     <small v-if="discountFormErrors.min_purchase" class="text-danger">
                                         {{ discountFormErrors.min_purchase[0] }}
@@ -578,8 +988,8 @@ onUpdated(() => window.feather?.replace());
                                 <!-- Maximum Discount (Optional) -->
                                 <div class="col-md-6">
                                     <label class="form-label">Maximum Discount (Optional)</label>
-                                    <input v-model="discountForm.max_discount" type="number"
-                                        step="0.01" class="form-control" :class="{ 'is-invalid': discountFormErrors.max_discount }"
+                                    <input v-model="discountForm.max_discount" type="number" step="0.01"
+                                        class="form-control" :class="{ 'is-invalid': discountFormErrors.max_discount }"
                                         placeholder="0.00" />
                                     <small v-if="discountFormErrors.max_discount" class="text-danger">
                                         {{ discountFormErrors.max_discount[0] }}
@@ -589,8 +999,8 @@ onUpdated(() => window.feather?.replace());
                                 <!-- Description (Optional) -->
                                 <div class="col-12">
                                     <label class="form-label">Description (Optional)</label>
-                                    <textarea v-model="discountForm.description" class="form-control"
-                                        rows="3" :class="{ 'is-invalid': discountFormErrors.description }"
+                                    <textarea v-model="discountForm.description" class="form-control" rows="3"
+                                        :class="{ 'is-invalid': discountFormErrors.description }"
                                         placeholder="Enter discount description"></textarea>
                                     <small v-if="discountFormErrors.description" class="text-danger">
                                         {{ discountFormErrors.description[0] }}
@@ -602,8 +1012,8 @@ onUpdated(() => window.feather?.replace());
 
                             <!-- Modal Footer -->
                             <div class="mt-4">
-                                <button class="btn btn-primary rounded-pill px-4"
-                                    :disabled="submitting" @click="submitDiscount()">
+                                <button class="btn btn-primary rounded-pill px-4" :disabled="submitting"
+                                    @click="submitDiscount()">
                                     <template v-if="submitting">
                                         <span class="spinner-border spinner-border-sm me-2"></span>
                                         Saving...
@@ -613,8 +1023,8 @@ onUpdated(() => window.feather?.replace());
                                     </template>
                                 </button>
 
-                                <button class="btn btn-secondary rounded-pill px-4 ms-2"
-                                    data-bs-dismiss="modal" @click="resetModal">
+                                <button class="btn btn-secondary rounded-pill px-4 ms-2" data-bs-dismiss="modal"
+                                    @click="resetModal">
                                     Cancel
                                 </button>
                             </div>

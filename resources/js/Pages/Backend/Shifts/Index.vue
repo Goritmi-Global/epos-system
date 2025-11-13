@@ -633,7 +633,7 @@ const downloadXReportPdf = async (shiftId) => {
         autoTable(doc, {
             head: [['Description', 'Amount']],
             body: salesData,
-            startY: 80,
+            startY: 0,
             theme: 'grid',
             styles: {
                 fontSize: 9,
@@ -834,241 +834,458 @@ const downloadZReportPdf = async (shiftId) => {
 
         const data = res.data.data;
         const doc = new jsPDF('p', 'mm', 'a4');
+        let currentY = 20;
 
-        // Title
-        doc.setFontSize(18);
+        // ============== HEADER ==============
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.text(data.title, 105, 20, { align: 'center' });
-
-        // Generated Date
+        doc.text('Daily Summary Report', 105, currentY, { align: 'center' });
+        
+        currentY += 6;
+        doc.setFontSize(12);
+        doc.text('All Brands', 105, currentY, { align: 'center'});
+        
+        currentY += 6;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Generated: ${data.generatedDate}`, 14, 28);
+        doc.text(data.generatedDate, 105, currentY, { align: 'center' });
 
-        // Shift Information Section
-        doc.setFontSize(12);
+        // ============== FLOAT SESSION ==============
+        currentY += 10;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text('Shift Information', 14, 38);
-
-        doc.setFontSize(10);
+        doc.text('Float Session', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        
+        currentY += 12;
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Shift ID: ${data.shiftId}`, 14, 46);
-        doc.text(`Started By: ${data.startedBy}`, 14, 52);
-        doc.text(`Start Time: ${data.startTime}`, 14, 58);
-        doc.text(`Ended By: ${data.endedBy}`, 14, 64);
-        doc.text(`End Time: ${data.endTime}`, 14, 70);
-        doc.text(`Duration: ${data.duration}`, 14, 76);
-
-        // Sales Summary Table
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Sales Summary', 14, 87);
-
-        const salesData = [
-            ['Total Orders', data.salesSummary.total_orders.toString()],
-            ['Subtotal', '£' + formatMoney(data.salesSummary.subtotal)],
-            ['Tax', '£' + formatMoney(data.salesSummary.total_tax)],
-            ['Discount', '£' + formatMoney(data.salesSummary.total_discount)],
-            ['Avg Order Value', '£' + formatMoney(data.salesSummary.avg_order_value)],
-            ['Total Sales', '£' + formatMoney(data.salesSummary.total_sales)],
+        
+        const floatData = [
+            ['Started at', data.startedBy],
+            ['Started by', data.startTime],
+            ['Closed at', data.endTime],
+            ['Closed by', data.endedBy],
+            ['Opening Cash', '£' + formatMoney(data.cashReconciliation.opening_cash)],
+            ['Cash Expenses', '£' + formatMoney(data.cashReconciliation.cash_expenses || 0)],
+            ['Cash Transfers *', '£' + formatMoney(data.cashReconciliation.cash_transfers || 0)],
+            ['Cash Changed *', '£' + formatMoney(data.cashReconciliation.cash_changed || 0)],
+            ['Cash Sales **', '£' + formatMoney(data.cashReconciliation.cash_sales)],
+            ['Cash Refunds', '£' + formatMoney(data.cashReconciliation.cash_refunds || 0)],
+            ['Estimated Closing Balance', '£' + formatMoney(data.cashReconciliation.expected_cash)],
         ];
-
-        autoTable(doc, {
-            head: [['Description', 'Amount']],
-            body: salesData,
-            startY: 92,
-            theme: 'grid',
-            styles: {
-                fontSize: 9,
-                cellPadding: 3,
-                halign: 'left',
-            },
-            headStyles: {
-                fillColor: [41, 128, 185],
-                textColor: 255,
-                fontStyle: 'bold',
-                halign: 'center',
-            },
-            alternateRowStyles: {
-                fillColor: [245, 245, 245],
-            },
-            columnStyles: {
-                1: { halign: 'right' },
-            },
-            margin: { left: 14, right: 14 },
+        
+        floatData.forEach(([label, value]) => {
+            doc.text(label, 16, currentY);
+            doc.text(value, 190, currentY, { align: 'right' });
+            currentY += 5;
         });
 
-        let currentY = doc.lastAutoTable.finalY + 10;
+        // ============== FLOAT SESSION JOURNAL ==============
+        currentY += 5;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Float Session Journal', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        
+        currentY += 12;
+        doc.setFont('helvetica', 'normal');
+        doc.text('Deposits        Till Deposits', 16, currentY);
+        doc.text('0.00', 190, currentY, { align: 'right' });
+        currentY += 5;
+        doc.text('Withdrawals Till Withdrawals', 16, currentY);
+        doc.text('0.00', 190, currentY, { align: 'right' });
+        currentY += 5;
+        doc.text('Total', 16, currentY);
+        doc.text('0.00', 190, currentY, { align: 'right' });
 
-        // Cash Reconciliation Table
+        // ============== SALES SUMMARY ==============
+        currentY += 10;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Sales Summary', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        
+        currentY += 12;
+        doc.setFont('helvetica', 'normal');
+        
+        const salesData = [
+            ['Sales Count', data.salesSummary.total_orders.toString()],
+            ['Average Ticket Size', '£' + formatMoney(data.salesSummary.avg_order_value)],
+            ['', ''],
+            ['Retail Price', '£' + formatMoney(data.salesSummary.subtotal + data.salesSummary.total_tax)],
+            ['Discount *', '£' + formatMoney(data.salesSummary.total_discount)],
+            ['Refund **', '£0.00'],
+            ['Net Retail Price', '£' + formatMoney(data.salesSummary.subtotal)],
+            ['Net Charges ?', '£' + formatMoney(data.salesSummary.total_charges || 0)],
+            ['Sale Price', '£' + formatMoney(data.salesSummary.subtotal)],
+            ['Tax ?', '£' + formatMoney(data.salesSummary.total_tax)],
+            ['Sale Price Inclusive of Tax', '£' + formatMoney(data.salesSummary.total_sales)],
+            ['', ''],
+            ['Paid Amount', '£' + formatMoney(data.salesSummary.total_sales)],
+            ['Net Paid Amount', '£' + formatMoney(data.salesSummary.total_sales)],
+            ['Balance', '£0.00'],
+        ];
+        
+        salesData.forEach(([label, value]) => {
+            if (label === '') {
+                currentY += 3;
+            } else {
+                doc.text(label, 16, currentY);
+                doc.text(value, 190, currentY, { align: 'right' });
+                currentY += 5;
+            }
+        });
+
+        // Check for page break
         if (currentY > 250) {
             doc.addPage();
-            currentY = 14;
+            currentY = 20;
         }
 
-        doc.setFontSize(12);
+        // ============== PAYMENT METHOD BREAKDOWN ==============
+        currentY += 5;
+        doc.text('Net Cash Receipts', 16, currentY);
+        doc.text('£' + formatMoney(data.cashReconciliation.cash_sales), 190, currentY, { align: 'right' });
+        currentY += 5;
+        
+        data.paymentMethods.forEach(pm => {
+            if (pm.method.toLowerCase() !== 'cash') {
+                doc.text(`Net ${pm.method} Receipts`, 16, currentY);
+                doc.text('£' + formatMoney(pm.net), 190, currentY, { align: 'right' });
+                currentY += 5;
+            }
+        });
+        
+        doc.text('Net Online Payment Receipts', 16, currentY);
+        const onlineTotal = data.paymentMethods
+            .filter(pm => ['online', 'card'].includes(pm.method.toLowerCase()))
+            .reduce((sum, pm) => sum + pm.net, 0);
+        doc.text('£' + formatMoney(onlineTotal), 190, currentY, { align: 'right' });
+        currentY += 5;
+        doc.text('Net Other Receipts', 16, currentY);
+        doc.text('£0.00', 190, currentY, { align: 'right' });
+        currentY += 8;
+        
+        doc.text('Unpaid Sales Count', 16, currentY);
+        doc.text('0', 190, currentY, { align: 'right' });
+        currentY += 5;
+        doc.text('Unpaid Sales Amount', 16, currentY);
+        doc.text('£0.00', 190, currentY, { align: 'right' });
+
+        // ============== SALES VAT ==============
+        if (currentY > 220) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        currentY += 10;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
-        doc.text('Cash Reconciliation', 14, currentY);
+        doc.text('Sales VAT', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
 
-        const cashData = [
-            ['Opening Cash', '£' + formatMoney(data.cashReconciliation.opening_cash)],
-            ['Cash Sales', '£' + formatMoney(data.cashReconciliation.cash_sales)],
-            ['Expected Cash', '£' + formatMoney(data.cashReconciliation.expected_cash)],
-            ['Actual Cash', '£' + formatMoney(data.cashReconciliation.actual_cash)],
-            ['Variance', '£' + formatMoney(data.cashReconciliation.variance) + ' (' + data.cashReconciliation.variance_percentage + '%)'],
-        ];
-
+        currentY += 12;
         autoTable(doc, {
-            head: [['Description', 'Amount']],
-            body: cashData,
-            startY: currentY + 5,
+            head: [['Tax %', 'Count', 'Sale*', 'Tax*']],
+            body: [
+                ['0.00 %', '1', '£1.00', '£0.00'],
+                ['20.00 %', data.salesSummary.total_orders - 1, 
+                 '£' + formatMoney(data.salesSummary.subtotal - 1), 
+                 '£' + formatMoney(data.salesSummary.total_tax)],
+            ],
+            foot: [['Total', data.salesSummary.total_orders, 
+                   '£' + formatMoney(data.salesSummary.subtotal), 
+                   '£' + formatMoney(data.salesSummary.total_tax)]],
+            startY: currentY,
             theme: 'grid',
-            styles: {
-                fontSize: 9,
-                cellPadding: 3,
-                halign: 'left',
-            },
-            headStyles: {
-                fillColor: [243, 156, 18],
-                textColor: 255,
-                fontStyle: 'bold',
-                halign: 'center',
-            },
-            alternateRowStyles: {
-                fillColor: [255, 243, 205],
-            },
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
             columnStyles: {
-                1: { halign: 'right' },
+                0: { halign: 'left' },
+                1: { halign: 'center' },
+                2: { halign: 'right' },
+                3: { halign: 'right' },
             },
             margin: { left: 14, right: 14 },
         });
 
-        // Payment Methods Table
-        if (data.paymentMethods.length > 0) {
+        currentY = doc.lastAutoTable.finalY + 10;
+
+        // ============== SALE REFUNDS ==============
+        if (data.salesSummary.total_refunds > 0) {
+            doc.setFillColor(0, 0, 0);
+            doc.rect(14, currentY, 182, 8, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.text('Sale Refunds', 105, currentY + 5.5, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+            currentY += 12;
+            // Add refunds data here if available
+        } else {
+            doc.setFillColor(0, 0, 0);
+            doc.rect(14, currentY, 182, 8, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.text('Sale Refunds', 105, currentY + 5.5, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+            currentY += 12;
+            doc.setFont('helvetica', 'normal');
+            doc.text('No Data Available', 105, currentY, { align: 'center' });
+            currentY += 10;
+        }
+
+        // ============== SALE CANCELLATIONS ==============
+        if (currentY > 230) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Sale Cancellations', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        currentY += 12;
+        
+        if (!data.cancelled_items || data.cancelled_items.length === 0) {
+            doc.setFont('helvetica', 'normal');
+            doc.text('No Data Available', 105, currentY, { align: 'center' });
+            currentY += 10;
+        }
+
+        // ============== VENUE SALES ==============
+        if (currentY > 230) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Venue Sales', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        currentY += 12;
+        if (data.venue_sales && data.venue_sales.length > 0) {
+            autoTable(doc, {
+                head: [['Venue', 'Count', 'Amount']],
+                body: data.venue_sales.map(v => [v.venue, v.count, '£' + formatMoney(v.amount)]),
+                foot: [['Total', 
+                       data.venue_sales.reduce((s, v) => s + v.count, 0), 
+                       '£' + formatMoney(data.venue_sales.reduce((s, v) => s + v.amount, 0))]],
+                startY: currentY,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+                columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+                margin: { left: 14, right: 14 },
+            });
             currentY = doc.lastAutoTable.finalY + 10;
+        }
 
-            if (currentY > 250) {
-                doc.addPage();
-                currentY = 14;
-            }
+        // ============== DISPATCH SALES ==============
+        if (currentY > 230) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Dispatch Sales', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
 
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Payment Methods', 14, currentY);
+        currentY += 12;
+        if (data.dispatch_sales && data.dispatch_sales.length > 0) {
+            autoTable(doc, {
+                head: [['Dispatch Type', 'Count', 'Amount']],
+                body: data.dispatch_sales.map(d => [d.type, d.count, '£' + formatMoney(d.amount)]),
+                foot: [['Total', 
+                       data.dispatch_sales.reduce((s, d) => s + d.count, 0), 
+                       '£' + formatMoney(data.dispatch_sales.reduce((s, d) => s + d.amount, 0))]],
+                startY: currentY,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+                columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+                margin: { left: 14, right: 14 },
+            });
+            currentY = doc.lastAutoTable.finalY + 10;
+        }
 
-            const paymentData = data.paymentMethods.map(pm => [
+        // ============== PAYMENT METHOD SALES ==============
+        if (currentY > 210) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Payment Method Sales', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        currentY += 12;
+        autoTable(doc, {
+            head: [['Pay Method', 'Receipts', 'Refunds', 'Net']],
+            body: data.paymentMethods.map(pm => [
                 pm.method,
-                pm.count.toString(),
-                '£' + formatMoney(pm.total),
-            ]);
+                '£' + formatMoney(pm.receipts),
+                '£' + formatMoney(pm.refunds),
+                '£' + formatMoney(pm.net)
+            ]),
+            foot: [['Total', 
+                   '£' + formatMoney(data.paymentMethods.reduce((s, pm) => s + pm.receipts, 0)),
+                   '£' + formatMoney(data.paymentMethods.reduce((s, pm) => s + pm.refunds, 0)),
+                   '£' + formatMoney(data.paymentMethods.reduce((s, pm) => s + pm.net, 0))]],
+            startY: currentY,
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+            columnStyles: {
+                0: { halign: 'left' },
+                1: { halign: 'right' },
+                2: { halign: 'right' },
+                3: { halign: 'right' },
+            },
+            margin: { left: 14, right: 14 },
+        });
 
+        currentY = doc.lastAutoTable.finalY + 10;
+
+        // ============== MENU CATEGORIES SUMMARY ==============
+        if (currentY > 210) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Menu Categories Summary', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        currentY += 12;
+        if (data.menu_category_summary && data.menu_category_summary.length > 0) {
             autoTable(doc, {
-                head: [['Method', 'Count', 'Total']],
-                body: paymentData,
-                startY: currentY + 5,
+                head: [['Menu Category', 'Count', 'Amount*']],
+                body: data.menu_category_summary.map(cat => [
+                    cat.category,
+                    cat.count,
+                    '£' + formatMoney(cat.amount)
+                ]),
+                foot: [['Total', 
+                       data.menu_category_summary.reduce((s, c) => s + c.count, 0), 
+                       '£' + formatMoney(data.menu_category_summary.reduce((s, c) => s + c.amount, 0))]],
+                startY: currentY,
                 theme: 'grid',
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                },
-                headStyles: {
-                    fillColor: [52, 152, 219],
-                    textColor: 255,
-                    fontStyle: 'bold',
-                    halign: 'center',
-                },
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+                columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+                margin: { left: 14, right: 14 },
+            });
+            currentY = doc.lastAutoTable.finalY + 10;
+        }
+
+        // ============== COVERS SALES SUMMARY ==============
+        if (currentY > 240) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Covers Sales Summary', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        currentY += 12;
+        doc.setFont('helvetica', 'normal');
+        doc.text('Total number of covers', 16, currentY);
+        doc.text(data.covers_summary?.total_covers.toString() || '0', 190, currentY, { align: 'right' });
+        currentY += 5;
+        doc.text('Average revenue per cover', 16, currentY);
+        doc.text('£' + formatMoney(data.covers_summary?.avg_revenue_per_cover || 0), 190, currentY, { align: 'right' });
+
+        // ============== SALE DISCOUNTS ==============
+        currentY += 10;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Sale Discounts', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        currentY += 12;
+        if (data.discounts_summary && data.discounts_summary.length > 0) {
+            autoTable(doc, {
+                head: [['Discount Type', 'Count', 'Amount']],
+                body: data.discounts_summary.map(d => [d.type, d.count, '£' + formatMoney(d.amount)]),
+                foot: [['Total', 
+                       data.discounts_summary.reduce((s, d) => s + d.count, 0), 
+                       '£' + formatMoney(data.discounts_summary.reduce((s, d) => s + d.amount, 0))]],
+                startY: currentY,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+                columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+                margin: { left: 14, right: 14 },
+            });
+            currentY = doc.lastAutoTable.finalY + 10;
+        }
+
+        // ============== SALE CHARGES ==============
+        if (currentY > 230) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFillColor(0, 0, 0);
+        doc.rect(14, currentY, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Sale Charges', 105, currentY + 5.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        currentY += 12;
+        if (data.charges_summary && data.charges_summary.length > 0) {
+            autoTable(doc, {
+                head: [['Scheme', 'Count', 'Amount', 'Tax']],
+                body: data.charges_summary.map(c => [
+                    c.scheme,
+                    c.count,
+                    '£' + formatMoney(c.amount),
+                    '£' + formatMoney(c.tax)
+                ]),
+                foot: [['Total', 
+                       data.charges_summary.reduce((s, c) => s + c.count, 0), 
+                       '£' + formatMoney(data.charges_summary.reduce((s, c) => s + c.amount, 0)),
+                       '£' + formatMoney(data.charges_summary.reduce((s, c) => s + c.tax, 0))]],
+                startY: currentY,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
                 columnStyles: {
                     1: { halign: 'center' },
                     2: { halign: 'right' },
+                    3: { halign: 'right' },
                 },
                 margin: { left: 14, right: 14 },
             });
-        }
-
-        // Top Items Table
-        if (data.topItems.length > 0) {
             currentY = doc.lastAutoTable.finalY + 10;
-
-            if (currentY > 250) {
-                doc.addPage();
-                currentY = 14;
-            }
-
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Top Selling Items', 14, currentY);
-
-            const itemsData = data.topItems.map(item => [
-                item.name,
-                item.total_qty.toString(),
-                '£' + formatMoney(item.total_revenue),
-            ]);
-
-            autoTable(doc, {
-                head: [['Item', 'Qty', 'Revenue']],
-                body: itemsData,
-                startY: currentY + 5,
-                theme: 'grid',
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                },
-                headStyles: {
-                    fillColor: [231, 76, 60],
-                    textColor: 255,
-                    fontStyle: 'bold',
-                    halign: 'center',
-                },
-                columnStyles: {
-                    1: { halign: 'center' },
-                    2: { halign: 'right' },
-                },
-                margin: { left: 14, right: 14 },
-            });
-        }
-
-        // Stock Movement Table (only for Z Report)
-        if (data.stockMovement && data.stockMovement.length > 0) {
-            currentY = doc.lastAutoTable.finalY + 10;
-
-            if (currentY > 250) {
-                doc.addPage();
-                currentY = 14;
-            }
-
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Stock Movement', 14, currentY);
-
-            const stockData = data.stockMovement.map(stock => [
-                stock.item_name,
-                stock.start_stock.toString(),
-                stock.end_stock.toString(),
-                stock.sold.toString(),
-            ]);
-
-            autoTable(doc, {
-                head: [['Item', 'Opening Stock', 'Closing Stock', 'Sold']],
-                body: stockData,
-                startY: currentY + 5,
-                theme: 'grid',
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                },
-                headStyles: {
-                    fillColor: [44, 62, 80],
-                    textColor: 255,
-                    fontStyle: 'bold',
-                    halign: 'center',
-                },
-                columnStyles: {
-                    1: { halign: 'center' },
-                    2: { halign: 'center' },
-                    3: { halign: 'center' },
-                },
-                margin: { left: 14, right: 14 },
-            });
         }
 
         // Save PDF
@@ -1079,6 +1296,7 @@ const downloadZReportPdf = async (shiftId) => {
         toast.error(error.response?.data?.message || 'Failed to download Z Report PDF');
     }
 };
+
 
 
 </script>

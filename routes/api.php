@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/all', [PromoController::class, 'fetchAllPromos'])->name('fetchAll');
         Route::get('/today', [PromoController::class, 'getTodayPromos'])->name('today');
         Route::get('/current', [PromoController::class, 'getAllPromos']);
+        Route::post('/import', [PromoController::class, 'import'])->name('import');
         Route::get('/for-item/{item}', [PromoController::class, 'getPromosForItem']);
         Route::patch('/{id}/toggle-status', [PromoController::class, 'toggleStatus'])->name('toggle');
     });
@@ -212,6 +213,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/today', [DiscountController::class, 'getTodayDiscounts'])->name('discounts.today');
         Route::patch('/{id}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
         Route::get('/active', [DiscountController::class, 'getActiveDiscounts'])->name('discounts.active');
+        Route::post('/import', [DiscountController::class, 'import'])->name('import');
     });
 
     /*

@@ -389,45 +389,81 @@ public function storeCustomChecklistItem(Request $request)
         }
     }
 
-    // /**
-    //  * Download Z Report as PDF
-    //  *
-    //  * @return StreamedResponse
-    //  */
-    public function downloadZReportPdf(Shift $shift)
-    {
-        try {
-            $reportData = $this->reportService->generateZReport($shift);
+  
+  public function downloadZReportPdf(Shift $shift)
+{
+    try {
+        $reportData = $this->reportService->generateZReport($shift);
 
-            // Format data for PDF
-            $pdfData = [
-                'title' => 'Z Report (End of Shift)',
-                'generatedDate' => now()->format('d/m/Y H:i:s'),
-                'shiftId' => $reportData['shift_id'],
-                'startedBy' => $reportData['started_by'],
-                'startTime' => \Carbon\Carbon::parse($reportData['start_time'])->format('d/m/Y H:i:s'),
-                'endedBy' => $reportData['ended_by'],
-                'endTime' => \Carbon\Carbon::parse($reportData['end_time'])->format('d/m/Y H:i:s'),
-                'duration' => $reportData['duration'],
-                'status' => $reportData['status'],
-                'salesSummary' => $reportData['sales_summary'],
-                'cashReconciliation' => $reportData['cash_reconciliation'],
-                'paymentMethods' => $reportData['payment_methods'],
-                'salesByUser' => $reportData['sales_by_user'],
-                'topItems' => $reportData['top_items'],
-                'stockMovement' => $reportData['stock_movement'],
-            ];
+        // Format data for PDF with all sections matching client template
+        $pdfData = [
+            'title' => 'Daily Summary Report - All Brands',
+            'generatedDate' => now()->format('l, M d, Y'),
+            'shiftId' => $reportData['shift_id'],
+            'startedBy' => $reportData['started_by'],
+            'startTime' => \Carbon\Carbon::parse($reportData['start_time'])->format('l, h:i a'),
+            'endedBy' => $reportData['ended_by'],
+            'endTime' => \Carbon\Carbon::parse($reportData['end_time'])->format('l, h:i a'),
+            'duration' => $reportData['duration'],
+            'status' => $reportData['status'],
+            
+            // Sales Summary
+            'salesSummary' => [
+                'total_orders' => $reportData['sales_summary']['total_orders'],
+                'subtotal' => $reportData['sales_summary']['subtotal'],
+                'total_tax' => $reportData['sales_summary']['total_tax'],
+                'total_discount' => $reportData['sales_summary']['total_discount'],
+                'total_charges' => $reportData['sales_summary']['total_charges'] ?? 0,
+                'total_sales' => $reportData['sales_summary']['total_sales'],
+                'avg_order_value' => $reportData['sales_summary']['avg_order_value'],
+                'total_refunds' => 0, // Add if you track refunds
+            ],
+            
+            // Cash Reconciliation
+            'cashReconciliation' => [
+                'opening_cash' => $reportData['cash_reconciliation']['opening_cash'],
+                'cash_expenses' => $reportData['cash_reconciliation']['cash_expenses'] ?? 0,
+                'cash_transfers' => $reportData['cash_reconciliation']['cash_transfers'] ?? 0,
+                'cash_changed' => $reportData['cash_reconciliation']['cash_changed'] ?? 0,
+                'cash_sales' => $reportData['cash_reconciliation']['cash_sales'],
+                'cash_refunds' => $reportData['cash_reconciliation']['cash_refunds'] ?? 0,
+                'expected_cash' => $reportData['cash_reconciliation']['expected_cash'],
+                'actual_cash' => $reportData['cash_reconciliation']['actual_cash'],
+                'variance' => $reportData['cash_reconciliation']['variance'],
+                'variance_percentage' => $reportData['cash_reconciliation']['variance_percentage'],
+            ],
+            
+            // Payment Methods
+            'paymentMethods' => $reportData['payment_methods'],
+            
+            // New sections matching template
+            'venue_sales' => $reportData['venue_sales'] ?? [],
+            'dispatch_sales' => $reportData['dispatch_sales'] ?? [],
+            'menu_category_summary' => $reportData['menu_category_summary'] ?? [],
+            'covers_summary' => $reportData['covers_summary'] ?? [
+                'total_covers' => 0,
+                'avg_revenue_per_cover' => 0,
+            ],
+            'discounts_summary' => $reportData['discounts_summary'] ?? [],
+            'charges_summary' => $reportData['charges_summary'] ?? [],
+            'cancelled_items' => $reportData['cancelled_items'] ?? [],
+            
+            // Additional sections
+            'salesByUser' => $reportData['sales_by_user'],
+            'topItems' => $reportData['top_items'],
+            'stockMovement' => $reportData['stock_movement'],
+        ];
 
-            return response()->json([
-                'success' => true,
-                'data' => $pdfData,
-                'fileName' => 'Z_Report_Shift_'.$shift->id.'_'.now()->format('Y-m-d_H-i-s').'.pdf',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to prepare Z Report PDF: '.$e->getMessage(),
-            ], 400);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $pdfData,
+            'fileName' => 'Z_Report_Shift_'.$shift->id.'_'.now()->format('Y-m-d_H-i-s').'.pdf',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to prepare Z Report PDF: '.$e->getMessage(),
+        ], 400);
     }
+}
 }
