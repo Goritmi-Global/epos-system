@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AddonController;
 use App\Http\Controllers\AddonGroupController;
+use App\Http\Controllers\DiscountApprovalController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\IndexController;
@@ -248,4 +249,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
 
+
+    Route::post('/discount-approvals/request', [DiscountApprovalController::class, 'requestApproval']);
+    Route::post('/discount-approvals/check-status', [DiscountApprovalController::class, 'checkApprovalStatus']);
+    Route::get('/discount-approvals/pending', [DiscountApprovalController::class, 'getPendingRequests']);
+    Route::post('/discount-approvals/{id}/respond', [DiscountApprovalController::class, 'respondToRequest']);
+    Route::get('/discount-approvals/history', [DiscountApprovalController::class, 'getApprovalHistory']);
+
 });
+

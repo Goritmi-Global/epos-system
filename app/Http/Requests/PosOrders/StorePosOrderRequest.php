@@ -25,7 +25,8 @@ class StorePosOrderRequest extends FormRequest
             'kitchen_note'     => 'nullable|string',
             'order_date'       => 'nullable|date',
             'order_time'       => 'nullable',
-            'sale_discount'    => 'nullable|numeric|min:0',
+            'sales_discount'    => 'nullable|numeric|min:0',
+            'approved_discounts'    => 'nullable|numeric|min:0',
 
             // Order type
             'order_type'   => 'required|in:Dine In,Delivery,Collection,Takeaway',
