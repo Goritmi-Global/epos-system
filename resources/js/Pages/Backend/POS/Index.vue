@@ -1,7 +1,7 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head, usePage } from "@inertiajs/vue3";
-import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, nextTick, watch, onUnmounted } from "vue";
 import { toast } from "vue3-toastify";
 import ConfirmOrderModal from "./ConfirmOrderModal.vue";
 import ReceiptModal from "./ReceiptModal.vue";
@@ -1333,6 +1333,9 @@ const resetCart = () => {
     kitchenNote.value = "";
     deliveryPercent.value = 0;
     selectedPromos.value = [];
+    selectedDiscounts.value = []; 
+    pendingDiscountApprovals.value = []; 
+    stopApprovalPolling(); 
 };
 watch(orderType, () => (formErrors.value = {}));
 
@@ -1466,6 +1469,233 @@ async function printKot(order) {
     }
 }
 
+
+// ================================================
+// DISCOUNT APPROVAL SYSTEM
+// ================================================
+
+// Add these to your POS component's script section
+
+// ================================================
+// DISCOUNT APPROVAL SYSTEM
+// ================================================
+
+const pendingDiscountApprovals = ref([]);
+const approvalCheckInterval = ref(null);
+const showApprovalWaitingModal = ref(false);
+const selectedDiscounts = ref([]); // Store approved discounts
+
+// Handle discount application (request approval)
+const handleApplyDiscount = async (appliedDiscounts) => {
+    if (!appliedDiscounts || appliedDiscounts.length === 0) {
+        toast.warning("No discounts selected.");
+        return;
+    }
+
+    try {
+        // Send approval request to Super Admin
+        const response = await axios.post('/api/discount-approvals/request', {
+            discounts: appliedDiscounts.map(d => ({
+                discount_id: d.id,
+                discount_amount: d.applied_discount
+            })),
+            order_items: orderItems.value.map(item => ({
+                id: item.id,
+                title: item.title,
+                qty: item.qty,
+                unit_price: item.unit_price,
+                price: item.price
+            })),
+            order_subtotal: subTotal.value,
+            request_note: `Discount approval request from ${user.value?.name || 'Cashier'}`
+        });
+
+        if (response.data.success) {
+            // Store approval request IDs with PENDING status
+            pendingDiscountApprovals.value = response.data.data.map(approval => ({
+                ...approval,
+                discountData: appliedDiscounts.find(d => d.id === approval.discount_id),
+                status: 'pending' // ✅ Mark as pending
+            }));
+
+            // Close discount modal
+            showDiscountModal.value = false;
+
+            // Show waiting modal
+            showApprovalWaitingModal.value = true;
+
+            toast.info('Discount approval request sent to Super Admin. Waiting for approval...');
+
+            // Start polling for approval status
+            startApprovalPolling();
+        }
+    } catch (error) {
+        console.error('Error requesting discount approval:', error);
+        toast.error(error.response?.data?.message || 'Failed to request discount approval');
+    }
+};
+
+// Start polling for approval status
+const startApprovalPolling = () => {
+    if (approvalCheckInterval.value) {
+        clearInterval(approvalCheckInterval.value);
+    }
+
+    approvalCheckInterval.value = setInterval(async () => {
+        await checkApprovalStatus();
+    }, 3000); // Check every 3 seconds
+};
+
+// Check approval status
+// Check approval status
+const checkApprovalStatus = async () => {
+    if (pendingDiscountApprovals.value.length === 0) {
+        stopApprovalPolling();
+        return;
+    }
+
+    try {
+        const approvalIds = pendingDiscountApprovals.value.map(a => a.id);
+        const response = await axios.post('/api/discount-approvals/check-status', {
+            approval_ids: approvalIds
+        });
+
+        if (response.data.success) {
+            const approvals = response.data.data;
+
+            approvals.forEach(approval => {
+                if (approval.status !== 'pending') {
+                    // Find the pending approval
+                    const pendingIndex = pendingDiscountApprovals.value.findIndex(
+                        p => p.id === approval.id
+                    );
+
+                    if (pendingIndex >= 0) {
+                        const pendingApproval = pendingDiscountApprovals.value[pendingIndex];
+
+                        if (approval.status === 'approved') {
+                            // ✅ Calculate the actual discount amount
+                            const discountType = approval.discount.type;
+                            const discountValue = parseFloat(approval.discount.discount_amount);
+                            let actualDiscount = 0;
+
+                            if (discountType === 'flat') {
+                                actualDiscount = discountValue;
+                            } else if (discountType === 'percent') {
+                                actualDiscount = (subTotal.value * discountValue) / 100;
+                                
+                                // Apply max discount cap if exists
+                                const maxDiscount = parseFloat(approval.discount.max_discount || 0);
+                                if (maxDiscount > 0 && actualDiscount > maxDiscount) {
+                                    actualDiscount = maxDiscount;
+                                }
+                            }
+
+                            // Create properly formatted discount data
+                            const formattedDiscount = {
+                                id: approval.discount.id,
+                                name: approval.discount.name,
+                                type: approval.discount.type,
+                                discount_amount: approval.discount.discount_amount,
+                                applied_discount: actualDiscount, // ✅ This is the calculated amount to subtract
+                                max_discount: approval.discount.max_discount,
+                                min_purchase: approval.discount.min_purchase,
+                            };
+
+                            // ✅ Apply the discount to cart
+                            applyApprovedDiscount(formattedDiscount);
+                            
+                            toast.success(
+                                `Discount "${approval.discount.name}" approved! ` +
+                                `Saving ${formatCurrencySymbol(actualDiscount)}`
+                            );
+                        } else if (approval.status === 'rejected') {
+                            toast.error(
+                                `Discount "${approval.discount.name}" rejected.` +
+                                (approval.approval_note ? ` Reason: ${approval.approval_note}` : '')
+                            );
+                        }
+
+                        // Remove from pending
+                        pendingDiscountApprovals.value.splice(pendingIndex, 1);
+                    }
+                }
+            });
+
+            // If no more pending, close modal and stop polling
+            if (pendingDiscountApprovals.value.length === 0) {
+                showApprovalWaitingModal.value = false;
+                stopApprovalPolling();
+            }
+        }
+    } catch (error) {
+        console.error('Error checking approval status:', error);
+    }
+};
+
+// Stop polling
+const stopApprovalPolling = () => {
+    if (approvalCheckInterval.value) {
+        clearInterval(approvalCheckInterval.value);
+        approvalCheckInterval.value = null;
+    }
+};
+
+// Apply approved discount
+const applyApprovedDiscount = (discountData) => {
+    // Add to approved discounts list
+    selectedDiscounts.value.push(discountData);
+};
+
+// Cancel approval request
+const cancelApprovalRequest = () => {
+    pendingDiscountApprovals.value = [];
+    showApprovalWaitingModal.value = false;
+    stopApprovalPolling();
+    toast.info('Discount approval request cancelled');
+};
+
+// Cleanup on component unmount
+onUnmounted(() => {
+    stopApprovalPolling();
+});
+
+// Listen for broadcast events (optional - for real-time updates)
+onMounted(() => {
+    if (window.Echo) {
+        window.Echo.channel('discount-approvals')
+            .listen('.approval.responded', (event) => {
+                console.log('Approval response received:', event.approval);
+                // Trigger immediate check instead of waiting for next poll
+                checkApprovalStatus();
+            });
+    }
+});
+
+// ✅ NEW: Computed for pending discount total (NOT deducted yet)
+const pendingDiscountTotal = computed(() => {
+    if (!pendingDiscountApprovals.value || pendingDiscountApprovals.value.length === 0) return 0;
+
+    return pendingDiscountApprovals.value.reduce((total, approval) => {
+        return total + parseFloat(approval.discount_amount || 0);
+    }, 0);
+});
+
+// ✅ NEW: Computed for approved discount total (DEDUCTED from total)
+const approvedDiscountTotal = computed(() => {
+    if (!selectedDiscounts.value || selectedDiscounts.value.length === 0) return 0;
+
+    return selectedDiscounts.value.reduce((total, discount) => {
+        return total + parseFloat(discount.applied_discount || 0);
+    }, 0);
+});
+// ✅ NEW: Clear discounts helper
+const clearDiscounts = () => {
+    selectedDiscounts.value = [];
+    pendingDiscountApprovals.value = [];
+    stopApprovalPolling();
+};
+
 /* ----------------------------
    Confirm Order
 -----------------------------*/
@@ -1489,6 +1719,7 @@ const confirmOrder = async ({
             service_charges: serviceCharges.value,
             delivery_charges: deliveryCharges.value,
             sale_discount: totalResaleSavings.value,
+            approved_discounts: approvedDiscountTotal.value,
             // Promo Details
             promo_discount: promoDiscount.value,
             applied_promos: selectedPromos.value.map(promo => ({
@@ -1526,22 +1757,6 @@ const confirmOrder = async ({
                 cash_amount: cashReceived,
                 card_amount: cardAmount
             }),
-
-            // items: (orderItems.value ?? []).map((it) => ({
-            //     product_id: it.id,
-            //     title: it.title,
-            //     quantity: it.qty,
-            //     price: it.price,
-            //     note: it.note ?? "",
-            //     kitchen_note: kitchenNote.value ?? "",
-            //     unit_price: it.unit_price,
-            //     item_kitchen_note: it.item_kitchen_note ?? "",
-            //     tax_percentage: getItemTaxPercentage(it),
-            //     tax_amount: getItemTax(it),
-            //     variant_id: it.variant_id || null,
-            //     variant_name: it.variant_name || null,
-            //     addons: it.addons || [],
-            // })),
 
             items: (orderItems.value ?? []).map((it) => {
                 // ✅ Find the original menu item to get resale info
@@ -1618,6 +1833,7 @@ const confirmOrder = async ({
 
         // Clear promo after successful order
         selectedPromos.value = [];
+
     } catch (err) {
         console.error("Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
@@ -1754,8 +1970,11 @@ const openPosOrdersModal = async () => {
 -----------------------------*/
 
 const showPromoModal = ref(false);
+const showDiscountModal = ref(false);
 const loadingPromos = ref(true);
+const loadingDiscounts = ref(true);
 const promosData = ref([]);
+const discountsData = ref([]);
 const selectedPromos = ref([]);
 
 
@@ -1846,6 +2065,32 @@ const openPromoModal = async () => {
         toast.error("Failed to load promotions");
     } finally {
         loadingPromos.value = false;
+    }
+};
+
+// ================================================
+// DISCOUNT MODAL FETCHER (similar to openPromoModal)
+// ================================================
+const openDiscountModal = async () => {
+    loadingDiscounts.value = true;
+    showDiscountModal.value = true;
+
+    try {
+        const response = await axios.get('/api/discounts/all');
+        if (response.data?.success) {
+            discountsData.value = response.data.data || [];
+            console.log("Discounts loaded:", discountsData.value.length);
+        } else {
+            console.warn("Failed to fetch discounts:", response.data);
+            discountsData.value = [];
+            toast.warning("No discounts available at the moment");
+        }
+    } catch (error) {
+        console.error("Error fetching current meal discounts:", error);
+        discountsData.value = [];
+        toast.error("Failed to load discounts");
+    } finally {
+        loadingDiscounts.value = false;
     }
 };
 
@@ -1995,11 +2240,13 @@ const grandTotal = computed(() => {
         + totalTax.value
         + deliveryCharges.value
         + serviceCharges.value
-        - totalResaleSavings.value  // ✅ ADD THIS LINE
-        - promoDiscount.value;
-    
+        - totalResaleSavings.value
+        - promoDiscount.value
+        - approvedDiscountTotal.value;
     return Math.max(0, total);
 });
+
+console.log("Grand Total computed:", approvedDiscountTotal.value);
 
 
 // Helper function to get tax amount for a specific item
@@ -2474,6 +2721,7 @@ const getSelectedAddonsCount = () => {
 // ================================================
 import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
+import DiscountModal from "./DiscountModal.vue";
 const user = computed(() => page.props.current_user);
 
 const categoriesWithMenus = computed(() => {
@@ -2739,7 +2987,6 @@ const getModalVariantPriceWithResale = () => {
 const getModalTotalPriceWithResale = () => {
     return getModalVariantPriceWithResale() + getModalAddonsPrice();
 };
-
 
 
 
@@ -3084,6 +3331,9 @@ const getModalTotalPriceWithResale = () => {
                             <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
                                 Promos
                             </button>
+                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openDiscountModal">
+                                Discounts
+                            </button>
                         </div>
 
                         <div class="cart card border-0 shadow-lg rounded-4">
@@ -3252,12 +3502,45 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- ✅ Total After All Discounts -->
+                                    <!-- Pending Discount Requests (Shown but NOT deducted) -->
+                                    <div v-if="pendingDiscountApprovals.length > 0"
+                                        class="pending-discounts-section mb-3">
+                                        <div class="alert alert-warning py-2 px-3 mb-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi bi-clock-history"></i>
+                                                <small class="fw-semibold">Pending Approval</small>
+                                            </div>
+                                        </div>
+                                        <div v-for="approval in pendingDiscountApprovals" :key="approval.id"
+                                            class="trow">
+                                            <span class="d-flex align-items-center gap-2 text-warning">
+                                                <i class="bi bi-hourglass-split"></i>
+                                                <span>{{ approval.discount?.name || 'Discount' }} (Pending)</span>
+                                            </span>
+                                            <span class="text-warning">-{{
+                                                formatCurrencySymbol(approval.discount_amount) }}</span>
+                                        </div>
+                                        <small class="text-muted d-block mt-1 ms-4">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Will apply after Super Admin approval
+                                        </small>
+                                    </div>
+
+                                    <!-- Approved Discounts (Actually deducted) -->
+                                    <div v-if="approvedDiscountTotal > 0" class="trow">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle text-success"></i>
+                                            <span class="text-success">Approved Discount:</span>
+                                        </span>
+                                        <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal) }}</b>
+                                    </div>
+
+                                    <!-- Total After All Discounts -->
                                     <div class="trow total">
                                         <span>Total</span>
                                         <b>{{ formatCurrencySymbol(grandTotal) }}</b>
@@ -3670,7 +3953,8 @@ const getModalTotalPriceWithResale = () => {
 
             <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData" :order-items="orderItems"
                 @apply-promo="handleApplyPromo" @close="showPromoModal = false" />
-
+            <DiscountModal :show="showDiscountModal" :loading="loadingDiscounts" :discounts="discountsData"
+                :order-items="orderItems" @apply-discount="handleApplyDiscount" @close="showDiscountModal = false" />
 
         </div>
     </Master>

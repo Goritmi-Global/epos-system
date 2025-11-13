@@ -50,6 +50,7 @@ class PosOrderService
                 'service_charges' => $data['service_charges'] ?? null,
                 'delivery_charges' => $data['delivery_charges'] ?? null,
                 'sales_discount' => $data['sale_discount'] ?? 0,
+                'approved_discounts' => $data['approved_discounts'] ?? 0,
                 'status' => $data['status'] ?? 'paid',
                 'note' => $data['note'] ?? null,
                 'kitchen_note' => $data['kitchen_note'] ?? null,
@@ -131,8 +132,28 @@ class PosOrderService
                 'kitchen_note' => $data['kitchen_note'] ?? null,
             ]);
 
+            // ✅ FIXED: Create KOT items with proper null handling
             foreach ($order->items as $orderItem) {
                 $itemData = collect($data['items'])->firstWhere('product_id', $orderItem->menu_item_id);
+
+                // ✅ Handle case where item data is not found
+                if (!$itemData) {
+                    \Log::warning("Item data not found for menu_item_id: {$orderItem->menu_item_id} in order #{$order->id}");
+
+                    // Create KOT item with minimal data from orderItem
+                    $kot->items()->create([
+                        'item_name' => $orderItem->title,
+                        'quantity' => $orderItem->quantity,
+                        'variant_name' => $orderItem->variant_name ?? null,
+                        'ingredients' => [],
+                        'item_kitchen_note' => $orderItem->item_kitchen_note ?? null,
+                        'status' => KitchenOrderItem::STATUS_WAITING,
+                    ]);
+
+                    continue;
+                }
+
+                // Get ingredients for this item
                 $ingredients = $this->getIngredientsForItem($itemData);
 
                 $ingredientsArray = [];
@@ -142,15 +163,17 @@ class PosOrderService
                     }
                 }
 
+                // ✅ FIXED: Use $itemData instead of undefined $item
                 $kot->items()->create([
                     'item_name' => $orderItem->title,
                     'quantity' => $orderItem->quantity,
                     'variant_name' => $orderItem->variant_name ?? null,
                     'ingredients' => $ingredientsArray,
-                    'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
+                    'item_kitchen_note' => $itemData['item_kitchen_note'] ?? null,
                     'status' => KitchenOrderItem::STATUS_WAITING,
                 ]);
             }
+
             $kot->load('items');
 
             // Payment handling
@@ -245,15 +268,20 @@ class PosOrderService
     }
 
     /**
-     * ✅ NEW METHOD: Get ingredients for a menu item (variant-aware)
+     * ✅ FIXED: Get ingredients for a menu item (variant-aware) with null handling
      *
-     * @param  array  $item  The item data from the request
+     * @param  array|null  $item  The item data from the request
      * @return \Illuminate\Support\Collection
      */
-    private function getIngredientsForItem(array $item)
+    private function getIngredientsForItem(?array $item)
     {
+        // ✅ Handle null case
+        if (!$item) {
+            return collect();
+        }
+
         // If variant_id is provided, get variant ingredients
-        if (! empty($item['variant_id'])) {
+        if (!empty($item['variant_id'])) {
             $variant = \App\Models\MenuVariant::with('ingredients.inventoryItem')
                 ->find($item['variant_id']);
 
@@ -335,7 +363,6 @@ class PosOrderService
 
     public function getAllMenus()
     {
-        \Log::info('--- Fetching all menus ---');
 
         $menus = MenuItem::with([
             'category',
@@ -348,14 +375,9 @@ class PosOrderService
             'addonGroupRelations.addonGroup.addons',
         ])->get();
 
-        \Log::info('Total MenuItems loaded: ' . $menus->count());
 
         return $menus->map(function ($item) {
-            \Log::info("🔸 Processing MenuItem: {$item->name} (ID: {$item->id})");
 
-            // Check variant and ingredient relations before mapping
-            \Log::info(' - Variants count: ' . $item->variants->count());
-            \Log::info(' - Ingredients count: ' . $item->ingredients->count());
 
             $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
 
@@ -376,8 +398,7 @@ class PosOrderService
 
             // --- Map and log variants ---
             $item->variants = $item->variants->map(function ($variant) use ($item) {
-                \Log::info("  🧩 Variant found: {$variant->name} (ID: {$variant->id}) for MenuItem: {$item->id}");
-                \Log::info('    - Ingredients count: ' . $variant->ingredients->count());
+
 
                 if ($variant->ingredients->isEmpty()) {
                     \Log::warning("    ⚠️ No ingredients found for Variant ID: {$variant->id}");
@@ -403,9 +424,6 @@ class PosOrderService
                     })->values()->toArray(),
                 ];
             })->values()->toArray();
-
-            // --- Log after variants mapped ---
-            \Log::info("✅ Finished MenuItem: {$item->name} | Variants processed: " . count($item->variants));
 
             // --- Addons mapping ---
             $addonsGrouped = [];
@@ -445,8 +463,6 @@ class PosOrderService
             $item->tax_percentage = $item->tax_percentage ?? 0;
 
             unset($item->addonGroupRelations);
-
-            \Log::info("--- Finished processing MenuItem ID: {$item->id} ---");
 
             return $item->toArray();
         });
