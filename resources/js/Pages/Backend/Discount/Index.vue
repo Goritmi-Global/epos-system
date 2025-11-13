@@ -17,6 +17,11 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import ImportFile from "@/Components/importFile.vue";
+import FilterModal from "@/Components/FilterModal.vue";
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ============================================================
@@ -67,22 +72,98 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
-/* ============================================================
-   COMPUTED PROPERTIES
-   ============================================================ */
+const discountTypesForFilter = computed(() => [
+    { id: "flat", name: "Flat" },
+    { id: "percent", name: "Percentage" }
+]);
 
-/**
- * Filter discounts based on search query
- */
-const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    if (!t) return discounts.value;
-    return discounts.value.filter((d) => d.name.toLowerCase().includes(t));
+const filters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
 });
 
-/**
- * KPI Statistics Cards
- */
+const filtered = computed(() => {
+    let result = discounts.value;
+    const t = q.value.trim().toLowerCase();
+    if (t) {
+        result = result.filter((d) => d.name.toLowerCase().includes(t));
+    }
+
+    if (filters.value.stockStatus) {
+        result = result.filter((d) => d.status === filters.value.stockStatus);
+    }
+
+    if (filters.value.category) {
+        result = result.filter((d) => d.type === filters.value.category);
+    }
+
+    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
+        result = result.filter((d) => parseFloat(d.discount_amount) >= parseFloat(filters.value.priceMin));
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
+        result = result.filter((d) => parseFloat(d.discount_amount) <= parseFloat(filters.value.priceMax));
+    }
+
+    if (filters.value.dateFrom) {
+        const fromDate = new Date(filters.value.dateFrom);
+        result = result.filter((d) => new Date(d.start_date) >= fromDate);
+    }
+    if (filters.value.dateTo) {
+        const toDate = new Date(filters.value.dateTo);
+        result = result.filter((d) => new Date(d.start_date) <= toDate);
+    }
+
+    if (filters.value.sortBy) {
+        switch (filters.value.sortBy) {
+            case "discount_asc":
+                result.sort((a, b) => parseFloat(a.discount_amount) - parseFloat(b.discount_amount));
+                break;
+            case "discount_desc":
+                result.sort((a, b) => parseFloat(b.discount_amount) - parseFloat(a.discount_amount));
+                break;
+            case "name_asc":
+                result.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case "name_desc":
+                result.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case "date_asc":
+                result.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                break;
+            case "date_desc":
+                result.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+                break;
+        }
+    }
+
+    return result;
+});
+
+
+const handleFilterApply = (appliedFilters) => {
+    filters.value = { ...filters.value, ...appliedFilters };
+    console.log("Filters applied:", filters.value);
+};
+
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+    console.log("Filters cleared");
+};
+
+
 const discountStats = computed(() => [
     {
         label: "Total Discounts",
@@ -192,8 +273,8 @@ const editRow = (row) => {
         name: row.name,
         type: row.type,
         status: row.status,
-        start_date: row.start_date,
-        end_date: row.end_date,
+        start_date: row.start_date ? new Date(row.start_date) : null,  
+        end_date: row.end_date ? new Date(row.end_date) : null,    
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
@@ -246,13 +327,103 @@ const submitDiscount = async () => {
     }
 };
 
+
+const sampleHeaders = [
+    "Discount Name", "Type", "Discount Amount", "Start Date",
+    "End Date", "Min Purchase", "Max Discount", "Status", "Description"
+];
+
+const sampleData = [
+    ["Summer Sale", "percent", "20", "2025-06-01", "2025-08-31", "50", "100", "active", "Summer discount on all items"],
+    ["Flat Discount", "flat", "10", "2025-01-01", "2025-12-31", "30", "", "active", "Flat 10 off on purchase"],
+];
+
+
+const handleImport = (data) => {
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return;
+    }
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    const discountsToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",
+            type: row[1] || "percent",
+            discount_amount: row[2] || "",
+            start_date: row[3] || "",
+            end_date: row[4] || "",
+            min_purchase: row[5] || "0",
+            max_discount: row[6] || null,
+            status: row[7] || "active",
+            description: row[8] || "",
+        };
+    }).filter(discount => discount.name.trim());
+
+    if (discountsToImport.length === 0) {
+        toast.error("No valid discounts found in the file.");
+        return;
+    }
+
+    // Check for duplicate discount names within the CSV
+    const discountNames = discountsToImport.map(d => d.name.trim().toLowerCase());
+    const duplicatesInCSV = discountNames.filter((name, index) => discountNames.indexOf(name) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate discount names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return;
+    }
+
+    // Check for duplicate discount names in existing table
+    const existingDiscountNames = discounts.value.map(d => d.name.trim().toLowerCase());
+    const duplicatesInTable = discountsToImport.filter(importDiscount =>
+        existingDiscountNames.includes(importDiscount.name.trim().toLowerCase())
+    );
+
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(d => d.name).join(", ");
+        toast.error(`Discounts already exist in the table: ${duplicateNamesList}`);
+        return;
+    }
+
+    // Validate type values
+    const validTypes = ["flat", "percent"];
+    const invalidTypes = discountsToImport.filter(d => !validTypes.includes(d.type.toLowerCase()));
+
+    if (invalidTypes.length > 0) {
+        toast.error("Invalid type found. Type must be either 'flat' or 'percent'.");
+        return;
+    }
+
+    // Validate status values
+    const validStatuses = ["active", "inactive"];
+    const invalidStatuses = discountsToImport.filter(d => !validStatuses.includes(d.status.toLowerCase()));
+
+    if (invalidStatuses.length > 0) {
+        toast.error("Invalid status found. Status must be either 'active' or 'inactive'.");
+        return;
+    }
+
+    // Send to API
+    axios
+        .post("/api/discounts/import", { discounts: discountsToImport })
+        .then(() => {
+            toast.success("Discounts imported successfully");
+            fetchDiscounts();
+        })
+        .catch((err) => {
+            console.error("Import error:", err);
+            const errorMessage = err.response?.data?.message || "Import failed";
+            toast.error(errorMessage);
+        });
+};
+
 /* ============================================================
    ACTION HANDLERS - STATUS & DELETE
    ============================================================ */
 
-/**
- * Toggle discount status between active and inactive
- */
 const toggleStatus = async (row) => {
     const newStatus = row.status === "active" ? "inactive" : "active";
 
@@ -397,6 +568,229 @@ onUnmounted(() => {
 });
 
 onUpdated(() => window.feather?.replace());
+
+const onDownload = (type) => {
+    if (!discounts.value || discounts.value.length === 0) {
+        toast.error("No Discounts data to download");
+        return;
+    }
+
+
+    const dataToExport = q.value.trim() ? filtered.value : discounts.value;
+
+
+    if (dataToExport.length === 0) {
+        toast.error("No Discounts found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+
+const downloadCSV = (data) => {
+    try {
+        const headers = [
+            "ID", "Discount Name", "Type", "Discount Amount",
+            "Start Date", "End Date", "Min Purchase", "Max Discount",
+            "Status", "Description"
+        ];
+
+        const rows = data.map((discount) => {
+            return [
+                `${discount.id || ""}`,
+                `"${discount.name || ""}"`,
+                `"${discount.type || ""}"`,
+                `${discount.discount_amount || ""}`,
+                `"${dateFmt(discount.start_date) || ""}"`,
+                `"${dateFmt(discount.end_date) || ""}"`,
+                `${discount.min_purchase || ""}`,
+                `${discount.max_discount || ""}`,
+                `"${discount.status || ""}"`,
+                `"${discount.description || ""}"`,
+            ];
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Discounts_${new Date().toISOString().split("T")[0]}.csv`
+        );
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4");
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Discounts Report", 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Discounts: ${data.length}`, 14, 34);
+
+        const tableColumns = [
+            "ID", "Name", "Type", "Amount", "Start Date",
+            "End Date", "Min Purchase", "Max Discount", "Status"
+        ];
+
+        const tableRows = data.map((discount) => {
+            return [
+                discount.id || "",
+                discount.name || "",
+                discount.type === "flat" ? "Flat" : "Percent",
+                discount.type === "flat"
+                    ? formatCurrencySymbol(discount.discount_amount)
+                    : discount.discount_amount + "%",
+                dateFmt(discount.start_date) || "",
+                dateFmt(discount.end_date) || "",
+                formatCurrencySymbol(discount.min_purchase) || "",
+                discount.max_discount ? formatCurrencySymbol(discount.max_discount) : "N/A",
+                discount.status === "active" ? "Active" : "Inactive",
+            ];
+        });
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `Discounts_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        const worksheetData = data.map((discount) => {
+            return {
+                "ID": discount.id || "",
+                "Discount Name": discount.name || "",
+                "Type": discount.type === "flat" ? "Flat" : "Percent",
+                "Discount Amount": discount.type === "flat"
+                    ? discount.discount_amount
+                    : discount.discount_amount + "%",
+                "Start Date": dateFmt(discount.start_date) || "",
+                "End Date": dateFmt(discount.end_date) || "",
+                "Min Purchase": discount.min_purchase || "",
+                "Max Discount": discount.max_discount || "",
+                "Status": discount.status === "active" ? "Active" : "Inactive",
+                "Description": discount.description || "",
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        worksheet["!cols"] = [
+            { wch: 8 },
+            { wch: 25 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 30 },
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Discounts");
+
+        const metaData = [
+            { Info: "Report", Value: "Discounts Export" },
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        const fileName = `Discounts_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully");
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
 </script>
 
 <template>

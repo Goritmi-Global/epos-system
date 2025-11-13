@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDiscountRequest;
 use App\Http\Requests\UpdateDiscountRequest;
 use App\Services\DiscountService;
+use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DiscountController extends Controller
@@ -45,7 +48,7 @@ class DiscountController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch discounts: ' . $e->getMessage(),
+                'message' => 'Failed to fetch discounts: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -66,7 +69,7 @@ class DiscountController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch discounts: ' . $e->getMessage(),
+                'message' => 'Failed to fetch discounts: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -83,12 +86,12 @@ class DiscountController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Discount created successfully'
+                'message' => 'Discount created successfully',
             ], 201);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create discount: ' . $e->getMessage()
+                'message' => 'Failed to create discount: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -121,7 +124,7 @@ class DiscountController extends Controller
     public function update(UpdateDiscountRequest $request, int $id)
     {
         try {
-           
+
             $discount = $this->discountService->updateDiscount($id, $request->validated());
 
             return response()->json([
@@ -132,7 +135,7 @@ class DiscountController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update discount: ' . $e->getMessage()
+                'message' => 'Failed to update discount: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -153,7 +156,7 @@ class DiscountController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete discount: ' . $e->getMessage()
+                'message' => 'Failed to delete discount: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -176,7 +179,7 @@ class DiscountController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update discount status: ' . $e->getMessage(),
+                'message' => 'Failed to update discount status: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -197,8 +200,135 @@ class DiscountController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch active discounts: ' . $e->getMessage(),
+                'message' => 'Failed to fetch active discounts: '.$e->getMessage(),
             ], 500);
         }
     }
+
+    public function import(Request $request): JsonResponse
+    {
+        try {
+            $discounts = $request->input('discounts', []);
+
+            if (empty($discounts)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No discounts data provided',
+                ], 422);
+            }
+
+            $importedCount = 0;
+            $errors = [];
+
+            foreach ($discounts as $index => $row) {
+                $name = $row['name'] ?? null;
+                $type = strtolower($row['type'] ?? 'percent');
+                $discountAmount = $row['discount_amount'] ?? null;
+                $startDate = $row['start_date'] ?? null;
+                $endDate = $row['end_date'] ?? null;
+                $minPurchase = $row['min_purchase'] ?? 0;
+                $maxDiscount = $row['max_discount'] ?? null;
+                $status = strtolower($row['status'] ?? 'active');
+                $description = $row['description'] ?? null;
+
+                // Validate required fields
+                if (! $name || ! $discountAmount || ! $startDate || ! $endDate) {
+                    $errors[] = 'Row '.($index + 1).': Missing required fields';
+
+                    continue;
+                }
+
+                // Validate type
+                if (! in_array($type, ['flat', 'percent'])) {
+                    $errors[] = 'Row '.($index + 1).': Invalid type';
+
+                    continue;
+                }
+
+                // Validate status
+                if (! in_array($status, ['active', 'inactive'])) {
+                    $errors[] = 'Row '.($index + 1).': Invalid status';
+
+                    continue;
+                }
+
+                // Validate dates using Carbon
+                try {
+                    $startDateObj = Carbon::parse($startDate)->startOfDay();
+                    $endDateObj = Carbon::parse($endDate)->startOfDay();
+
+                    if ($endDateObj->lt($startDateObj)) {
+                        $errors[] = 'Row '.($index + 1).': End date must be after start date';
+
+                        continue;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = 'Row '.($index + 1).': Invalid date format';
+
+                    continue;
+                }
+
+                // Validate discount amount
+                if (! is_numeric($discountAmount) || $discountAmount <= 0) {
+                    $errors[] = 'Row '.($index + 1).': Invalid discount amount';
+
+                    continue;
+                }
+
+                // Validate percentage
+                if ($type === 'percent' && $discountAmount > 100) {
+                    $errors[] = 'Row '.($index + 1).': Percentage cannot exceed 100%';
+
+                    continue;
+                }
+
+                try {
+                    $this->discountService->createDiscount([
+                        'name' => trim($name),
+                        'type' => $type,
+                        'discount_amount' => $discountAmount,
+                        'start_date' => $startDateObj->format('Y-m-d'),
+                        'end_date' => $endDateObj->format('Y-m-d'),
+                        'min_purchase' => $minPurchase,
+                        'max_discount' => $maxDiscount && $maxDiscount !== '' ? $maxDiscount : null,
+                        'status' => $status,
+                        'description' => $description,
+                    ]);
+
+                    $importedCount++;
+                } catch (\Exception $e) {
+                    $errors[] = 'Row '.($index + 1).': '.$e->getMessage();
+
+                    continue;
+                }
+            }
+
+            if ($importedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid discounts were imported',
+                    'errors' => $errors,
+                ], 422);
+            }
+
+            $responseMessage = "Successfully imported {$importedCount} discount(s)";
+            if (! empty($errors)) {
+                $responseMessage .= ' with '.count($errors).' error(s)';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $responseMessage,
+                'imported_count' => $importedCount,
+                'errors' => $errors,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import discounts: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
 }

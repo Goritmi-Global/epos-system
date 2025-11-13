@@ -8,6 +8,8 @@ use App\Models\Meal;
 use App\Models\PromoScope;
 use App\Services\PromoService;
 use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PromoController extends Controller
@@ -43,7 +45,7 @@ class PromoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
+                'message' => 'Failed to fetch promos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -63,7 +65,7 @@ class PromoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
+                'message' => 'Failed to fetch promos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -80,7 +82,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo created successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->withErrors(['error' => 'Failed to create promo: ' . $e->getMessage()])
+                ->withErrors(['error' => 'Failed to create promo: '.$e->getMessage()])
                 ->withInput();
         }
     }
@@ -113,7 +115,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo updated successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->withErrors(['error' => 'Failed to update promo: ' . $e->getMessage()])
+                ->withErrors(['error' => 'Failed to update promo: '.$e->getMessage()])
                 ->withInput();
         }
     }
@@ -129,7 +131,7 @@ class PromoController extends Controller
             return redirect()->back()->with('success', 'Promo deleted successfully');
         } catch (Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to delete promo: ' . $e->getMessage());
+                ->with('error', 'Failed to delete promo: '.$e->getMessage());
         }
     }
 
@@ -149,7 +151,7 @@ class PromoController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update promo status: ' . $e->getMessage(),
+                'message' => 'Failed to update promo status: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -206,7 +208,7 @@ class PromoController extends Controller
                     'promo' => $scope->promos->first(),
                     'menu_items' => $scope->menuItems,
                 ];
-            })->filter(fn($p) => $p['promo']);
+            })->filter(fn ($p) => $p['promo']);
 
             \Log::info('Fetched current-time promos', [
                 'item_id' => $itemId,
@@ -222,14 +224,14 @@ class PromoController extends Controller
                 'current_time' => $currentTimeOnly,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching promos for item: ' . $e->getMessage(), [
+            \Log::error('Error fetching promos for item: '.$e->getMessage(), [
                 'item_id' => $itemId,
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch promos: ' . $e->getMessage(),
+                'message' => 'Failed to fetch promos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -255,7 +257,7 @@ class PromoController extends Controller
                         ->orderBy('discount_amount', 'desc'); // Show best deals first
                 },
                 'menuItems:id,name',
-                'meals:id,name'
+                'meals:id,name',
             ]);
 
             // If there's a current meal, prioritize meal-specific promos
@@ -274,15 +276,15 @@ class PromoController extends Controller
                 return $scope->promos->map(function ($promo) use ($scope) {
                     // Build description if not set
                     $description = $promo->description;
-                    if (!$description) {
+                    if (! $description) {
                         if ($promo->type === 'flat') {
-                            $description = "Get $" . number_format($promo->discount_amount, 2) . " off your order";
+                            $description = 'Get $'.number_format($promo->discount_amount, 2).' off your order';
                         } else {
-                            $description = "Save " . $promo->discount_amount . "% on eligible items";
+                            $description = 'Save '.$promo->discount_amount.'% on eligible items';
                         }
 
                         if ($promo->min_purchase > 0) {
-                            $description .= " (min purchase $" . number_format($promo->min_purchase, 2) . ")";
+                            $description .= ' (min purchase $'.number_format($promo->min_purchase, 2).')';
                         }
                     }
 
@@ -321,13 +323,13 @@ class PromoController extends Controller
                 'total_promos' => $promos->count(),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching current meal promos: ' . $e->getMessage(), [
+            \Log::error('Error fetching current meal promos: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch current meal promos: ' . $e->getMessage(),
+                'message' => 'Failed to fetch current meal promos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -346,21 +348,21 @@ class PromoController extends Controller
                         ->orderBy('discount_amount', 'desc');
                 },
                 'menuItems:id,name',
-                'meals:id,name'
+                'meals:id,name',
             ])->get();
 
             $promos = $promoScopes->flatMap(function ($scope) {
                 return $scope->promos->map(function ($promo) use ($scope) {
                     $description = $promo->description;
-                    if (!$description) {
+                    if (! $description) {
                         if ($promo->type === 'flat') {
-                            $description = "Get $" . number_format($promo->discount_amount, 2) . " off your order";
+                            $description = 'Get $'.number_format($promo->discount_amount, 2).' off your order';
                         } else {
-                            $description = "Save " . $promo->discount_amount . "% on eligible items";
+                            $description = 'Save '.$promo->discount_amount.'% on eligible items';
                         }
 
                         if ($promo->min_purchase > 0) {
-                            $description .= " (min purchase $" . number_format($promo->min_purchase, 2) . ")";
+                            $description .= ' (min purchase $'.number_format($promo->min_purchase, 2).')';
                         }
                     }
 
@@ -391,7 +393,7 @@ class PromoController extends Controller
                 'total_promos' => $promos->count(),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching all promos: ' . $e->getMessage());
+            \Log::error('Error fetching all promos: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -399,4 +401,229 @@ class PromoController extends Controller
             ], 500);
         }
     }
+
+    public function import(Request $request): JsonResponse
+    {
+        try {
+            $promos = $request->input('promos', []);
+
+            if (empty($promos)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No promos data provided',
+                ], 422);
+            }
+
+            $importedCount = 0;
+            $errors = [];
+
+            foreach ($promos as $index => $row) {
+                $name = $row['name'] ?? null;
+                $type = strtolower($row['type'] ?? 'percent');
+                $discountAmount = $row['discount_amount'] ?? null;
+                $startDate = $row['start_date'] ?? null;
+                $endDate = $row['end_date'] ?? null;
+                $minPurchase = $row['min_purchase'] ?? 0;
+                $maxDiscount = $row['max_discount'] ?? null;
+                $status = strtolower($row['status'] ?? 'active');
+                $description = $row['description'] ?? null;
+
+                // Validate required fields
+                if (! $name || ! $discountAmount || ! $startDate || ! $endDate) {
+                    $errors[] = 'Row '.($index + 1).': Missing required fields (name, discount_amount, start_date, end_date)';
+
+                    continue;
+                }
+
+                // Validate type
+                if (! in_array($type, ['flat', 'percent'])) {
+                    $errors[] = 'Row '.($index + 1).": Invalid type. Must be 'flat' or 'percent'";
+
+                    continue;
+                }
+
+                // Validate status
+                if (! in_array($status, ['active', 'inactive'])) {
+                    $errors[] = 'Row '.($index + 1).": Invalid status. Must be 'active' or 'inactive'";
+
+                    continue;
+                }
+
+                // Validate dates
+                try {
+                    // Handle multiple date formats
+                    $startDateObj = $this->parseDate($startDate);
+                    $endDateObj = $this->parseDate($endDate);
+
+                    if (! $startDateObj || ! $endDateObj) {
+                        $errors[] = 'Row '.($index + 1).': Invalid date format. Use YYYY-MM-DD format';
+
+                        continue;
+                    }
+
+                    if ($endDateObj < $startDateObj) {
+                        $errors[] = 'Row '.($index + 1).': End date must be after start date';
+
+                        continue;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = 'Row '.($index + 1).': Invalid date format: '.$e->getMessage();
+
+                    continue;
+                }
+
+                // Validate discount amount
+                if (! is_numeric($discountAmount) || $discountAmount <= 0) {
+                    $errors[] = 'Row '.($index + 1).': Discount amount must be a positive number';
+
+                    continue;
+                }
+
+                // Validate percentage discount
+                if ($type === 'percent' && $discountAmount > 100) {
+                    $errors[] = 'Row '.($index + 1).': Percentage discount cannot exceed 100%';
+
+                    continue;
+                }
+
+                // Validate min purchase
+                if (! is_numeric($minPurchase) || $minPurchase < 0) {
+                    $errors[] = 'Row '.($index + 1).': Minimum purchase must be a non-negative number';
+
+                    continue;
+                }
+
+                // Validate max discount (if provided)
+                if ($maxDiscount !== null && $maxDiscount !== '' && (! is_numeric($maxDiscount) || $maxDiscount <= 0)) {
+                    $errors[] = 'Row '.($index + 1).': Maximum discount must be a positive number';
+
+                    continue;
+                }
+
+                try {
+                    // Create promo using service
+                    $this->promoService->createPromo([
+                        'name' => trim($name),
+                        'type' => $type,
+                        'discount_amount' => $discountAmount,
+                        'start_date' => $startDateObj->format('Y-m-d'),
+                        'end_date' => $endDateObj->format('Y-m-d'),
+                        'min_purchase' => $minPurchase,
+                        'max_discount' => $maxDiscount && $maxDiscount !== '' ? $maxDiscount : null,
+                        'status' => $status,
+                        'description' => $description,
+                    ]);
+
+                    $importedCount++;
+                } catch (\Exception $e) {
+                    $errors[] = 'Row '.($index + 1).': '.$e->getMessage();
+
+                    continue;
+                }
+            }
+
+            // Prepare response
+            if ($importedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid promos were imported',
+                    'errors' => $errors,
+                ], 422);
+            }
+
+            $responseMessage = "Successfully imported {$importedCount} promo(s)";
+            if (! empty($errors)) {
+                $responseMessage .= ' with '.count($errors).' error(s)';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $responseMessage,
+                'imported_count' => $importedCount,
+                'errors' => $errors,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import promos: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Parse date from various formats
+     */
+   /**
+ * Parse date from various formats
+ */
+private function parseDate($date)
+{
+    if (empty($date)) {
+        return null;
+    }
+
+    // If already a DateTime object, return it
+    if ($date instanceof \DateTime) {
+        return $date;
+    }
+
+    // Clean up the date string
+    $date = trim($date);
+
+    // Try common date formats in order of specificity
+    $formats = [
+        'Y-m-d',           // 2025-06-01 (ISO format - most specific)
+        'Y/m/d',           // 2025/06/01
+        'd-m-Y',           // 01-06-2025 (day with leading zero)
+        'm-d-Y',           // 06-01-2025 (month with leading zero)
+    ];
+
+    foreach ($formats as $format) {
+        $dateObj = \DateTime::createFromFormat($format, $date);
+        
+        // Check if parsing was successful AND no extra characters remain
+        if ($dateObj !== false && $dateObj->format($format) === $date) {
+            $dateObj->setTime(0, 0, 0);
+            return $dateObj;
+        }
+    }
+
+    // Handle dates with single-digit month/day (e.g., 6/1/2025, 1/15/2025)
+    // Determine if it's m/d/Y or d/m/Y based on values
+    if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $date, $matches)) {
+        $first = (int)$matches[1];
+        $second = (int)$matches[2];
+        $year = (int)$matches[3];
+
+        // If first number > 12, it must be day (d/m/Y format)
+        if ($first > 12) {
+            $dateObj = \DateTime::createFromFormat('d/m/Y', $date);
+        }
+        // If second number > 12, it must be m/d/Y format
+        elseif ($second > 12) {
+            $dateObj = \DateTime::createFromFormat('m/d/Y', $date);
+        }
+        // Default to m/d/Y (US format) when ambiguous
+        else {
+            $dateObj = \DateTime::createFromFormat('m/d/Y', $date);
+        }
+
+        if ($dateObj !== false) {
+            $dateObj->setTime(0, 0, 0);
+            return $dateObj;
+        }
+    }
+
+    // Last resort: try strtotime (handles many formats automatically)
+    $timestamp = strtotime($date);
+    if ($timestamp !== false) {
+        $dateObj = new \DateTime();
+        $dateObj->setTimestamp($timestamp);
+        $dateObj->setTime(0, 0, 0);
+        return $dateObj;
+    }
+
+    return null;
+}
 }
