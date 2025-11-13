@@ -1350,6 +1350,8 @@ onMounted(fetchNotifications);
     --border: #eef0f3;
 }
 
+
+
 /* Show submenu on hover when sidebar is collapsed */
 .sidebar-collapsed .dropdown-parent:hover .submenu-dropdown {
     display: block !important;
@@ -1357,6 +1359,11 @@ onMounted(fetchNotifications);
     visibility: visible;
     transform: translateX(100%);
     transition: all 0.2s ease;
+}
+
+.bg-transparent {
+    --bs-bg-opacity: 1;
+    background-color: none !important;
 }
 
 

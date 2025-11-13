@@ -10,12 +10,16 @@ import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
 import { Head } from "@inertiajs/vue3";
 import MultiSelect from 'primevue/multiselect';
-
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import ImportFile from "@/Components/importFile.vue";
 import Tabs from 'primevue/tabs';
 import TabList from 'primevue/tablist';
 import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
+import FilterModal from "@/Components/FilterModal.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -91,6 +95,100 @@ watch(() => promoScopeForm.value.meals, (newVal) => {
 watch(() => promoScopeForm.value.menu_items, (newVal) => {
     console.log('Selected menu items changed:', newVal);
 }, { deep: true });
+
+
+/* ============= IMPORT CONFIGURATION ============= */
+const sampleHeaders = [
+    "Promo Name", "Type", "Discount Amount", "Start Date", 
+    "End Date", "Min Purchase", "Max Discount", "Status", "Description"
+];
+
+const sampleData = [
+    ["Summer Sale", "percent", "20", "2025-06-01", "2025-08-31", "50", "100", "active", "Summer discount"],
+    ["Flat Discount", "flat", "10", "2025-01-01", "2025-12-31", "30", "", "active", "Flat 10 off"],
+];
+
+/* ============= IMPORT HANDLER ============= */
+const handleImport = (data) => {
+    if (!data || data.length <= 1) {
+        toast.error("The imported file is empty.");
+        return;
+    }
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    const promosToImport = rows.map((row) => {
+        return {
+            name: row[0] || "",
+            type: row[1] || "percent",
+            discount_amount: row[2] || "",
+            start_date: row[3] || "",
+            end_date: row[4] || "",
+            min_purchase: row[5] || "0",
+            max_discount: row[6] || null,
+            status: row[7] || "active",
+            description: row[8] || "",
+        };
+    }).filter(promo => promo.name.trim());
+
+    if (promosToImport.length === 0) {
+        toast.error("No valid promos found in the file.");
+        return;
+    }
+
+    // Check for duplicate promo names within the CSV
+    const promoNames = promosToImport.map(p => p.name.trim().toLowerCase());
+    const duplicatesInCSV = promoNames.filter((name, index) => promoNames.indexOf(name) !== index);
+
+    if (duplicatesInCSV.length > 0) {
+        toast.error(`Duplicate promo names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        return;
+    }
+
+    // Check for duplicate promo names in existing table
+    const existingPromoNames = promos.value.map(p => p.name.trim().toLowerCase());
+    const duplicatesInTable = promosToImport.filter(importPromo =>
+        existingPromoNames.includes(importPromo.name.trim().toLowerCase())
+    );
+
+    if (duplicatesInTable.length > 0) {
+        const duplicateNamesList = duplicatesInTable.map(p => p.name).join(", ");
+        toast.error(`Promos already exist in the table: ${duplicateNamesList}`);
+        return;
+    }
+
+    // Validate type values
+    const validTypes = ["flat", "percent"];
+    const invalidTypes = promosToImport.filter(p => !validTypes.includes(p.type.toLowerCase()));
+
+    if (invalidTypes.length > 0) {
+        toast.error("Invalid type found. Type must be either 'flat' or 'percent'.");
+        return;
+    }
+
+    // Validate status values
+    const validStatuses = ["active", "inactive"];
+    const invalidStatuses = promosToImport.filter(p => !validStatuses.includes(p.status.toLowerCase()));
+
+    if (invalidStatuses.length > 0) {
+        toast.error("Invalid status found. Status must be either 'active' or 'inactive'.");
+        return;
+    }
+
+    // Send to API
+    axios
+        .post("/api/promos/import", { promos: promosToImport })
+        .then(() => {
+            toast.success("Promos imported successfully");
+            fetchPromos();
+        })
+        .catch((err) => {
+            console.error("Import error:", err);
+            const errorMessage = err.response?.data?.message || "Import failed";
+            toast.error(errorMessage);
+        });
+};
 
 /* ---------------- Fetch Promos ---------------- */
 const fetchPromos = async () => {
@@ -180,11 +278,103 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 
-const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    if (!t) return promos.value;
-    return promos.value.filter((p) => p.name.toLowerCase().includes(t));
+const filters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
 });
+
+const promoTypesForFilter = computed(() => [
+    { id: "flat", name: "Flat" },
+    { id: "percent", name: "Percentage" }
+]);
+
+
+/* ---------------- Search & Filter ---------------- */
+const filtered = computed(() => {
+    let result = promos.value;
+
+    // Search by name
+    const t = q.value.trim().toLowerCase();
+    if (t) {
+        result = result.filter((p) => p.name.toLowerCase().includes(t));
+    }
+
+    // Filter by status
+    if (filters.value.stockStatus) {
+        result = result.filter((p) => p.status === filters.value.stockStatus);
+    }
+
+    // Filter by type (using category field for type)
+    if (filters.value.category) {
+        result = result.filter((p) => p.type === filters.value.category);
+    }
+
+    // Filter by discount amount range (using price fields)
+    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
+        result = result.filter((p) => parseFloat(p.discount_amount) >= parseFloat(filters.value.priceMin));
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
+        result = result.filter((p) => parseFloat(p.discount_amount) <= parseFloat(filters.value.priceMax));
+    }
+
+    // Filter by date range (start_date)
+    if (filters.value.dateFrom) {
+        const fromDate = new Date(filters.value.dateFrom);
+        result = result.filter((p) => new Date(p.start_date) >= fromDate);
+    }
+    if (filters.value.dateTo) {
+        const toDate = new Date(filters.value.dateTo);
+        result = result.filter((p) => new Date(p.start_date) <= toDate);
+    }
+
+    // Apply sorting
+    if (filters.value.sortBy) {
+        switch (filters.value.sortBy) {
+            case "discount_asc":
+                result.sort((a, b) => parseFloat(a.discount_amount) - parseFloat(b.discount_amount));
+                break;
+            case "discount_desc":
+                result.sort((a, b) => parseFloat(b.discount_amount) - parseFloat(a.discount_amount));
+                break;
+            case "name_asc":
+                result.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case "name_desc":
+                result.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case "date_asc":
+                result.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                break;
+            case "date_desc":
+                result.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+                break;
+        }
+    }
+
+    return result;
+});
+
+const handleFilterApply = (appliedFilters) => {
+    filters.value = { ...filters.value, ...appliedFilters };
+    console.log("Filters applied:", filters.value);
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+    console.log("Filters cleared");
+};
 
 /* ---------------- Form State ---------------- */
 const promoForm = ref({
@@ -312,8 +502,8 @@ const editRow = (row) => {
         name: row.name,
         type: row.type,
         status: row.status,
-        start_date: row.start_date,
-        end_date: row.end_date,
+        start_date: row.start_date ? new Date(row.start_date) : null, 
+        end_date: row.end_date ? new Date(row.end_date) : null, 
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
@@ -365,6 +555,215 @@ const formatDate = (date) => {
 };
 
 onUpdated(() => window.feather?.replace());
+
+const onDownload = (type) => {
+    if (!promos.value || promos.value.length === 0) {
+        toast.error("No Promos data to download");
+        return;
+    }
+
+    // Use filtered data if search query exists, otherwise use all promos
+    const dataToExport = q.value.trim() ? filtered.value : promos.value;
+
+    // Validate that there's data to export after filtering
+    if (dataToExport.length === 0) {
+        toast.error("No Promos found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+const downloadCSV = (data) => {
+    try {
+        const headers = ["ID", "Promo Name", "Type", "Discount Amount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status", "Description"];
+
+        const rows = data.map((promo) => {
+            return [
+                `${promo.id || ""}`,
+                `"${promo.name || ""}"`,
+                `"${promo.type || ""}"`,
+                `${promo.discount_amount || ""}`,
+                `"${dateFmt(promo.start_date) || ""}"`,
+                `"${dateFmt(promo.end_date) || ""}"`,
+                `${promo.min_purchase || ""}`,
+                `${promo.max_discount || ""}`,
+                `"${promo.status || ""}"`,
+                `"${promo.description || ""}"`,
+            ];
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Promos_${new Date().toISOString().split("T")[0]}.csv`
+        );
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4"); // Landscape for more columns
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Promos Report", 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Promos: ${data.length}`, 14, 34);
+
+        const tableColumns = ["ID", "Name", "Type", "Discount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status"];
+
+        const tableRows = data.map((promo) => {
+            return [
+                promo.id || "",
+                promo.name || "",
+                promo.type === "flat" ? "Flat" : "Percent",
+                promo.discount_amount || "",
+                dateFmt(promo.start_date) || "",
+                dateFmt(promo.end_date) || "",
+                formatCurrencySymbol(promo.min_purchase) || "",
+                promo.max_discount ? formatCurrencySymbol(promo.max_discount) : "N/A",
+                promo.status === "active" ? "Active" : "Inactive",
+            ];
+        });
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `Promos_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        const worksheetData = data.map((promo) => {
+            return {
+                "ID": promo.id || "",
+                "Promo Name": promo.name || "",
+                "Type": promo.type === "flat" ? "Flat" : "Percent",
+                "Discount Amount": promo.discount_amount || "",
+                "Start Date": dateFmt(promo.start_date) || "",
+                "End Date": dateFmt(promo.end_date) || "",
+                "Min Purchase": promo.min_purchase || "",
+                "Max Discount": promo.max_discount || "",
+                "Status": promo.status === "active" ? "Active" : "Inactive",
+                "Description": promo.description || "",
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        worksheet["!cols"] = [
+            { wch: 8 },  // ID
+            { wch: 25 }, // Promo Name
+            { wch: 12 }, // Type
+            { wch: 15 }, // Discount Amount
+            { wch: 15 }, // Start Date
+            { wch: 15 }, // End Date
+            { wch: 15 }, // Min Purchase
+            { wch: 15 }, // Max Discount
+            { wch: 12 }, // Status
+            { wch: 30 }, // Description
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Promos");
+
+        const metaData = [
+            { Info: "Report", Value: "Promos Export" },
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Inventory Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        const fileName = `Promos_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully");
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
 </script>
 
 <template>
@@ -416,6 +815,20 @@ onUpdated(() => window.feather?.replace());
                                             <h5 class="mb-0 fw-semibold">Promos</h5>
 
                                             <div class="d-flex flex-wrap gap-2 align-items-center">
+
+                                                <FilterModal v-model="filters" title="Promos"
+                                                    modalId="promosFilterModal" modalSize="modal-lg" :sortOptions="[
+                                                        { value: 'name_asc', label: 'Name: A to Z' },
+                                                        { value: 'name_desc', label: 'Name: Z to A' },
+                                                        { value: 'discount_asc', label: 'Discount: Low to High' },
+                                                        { value: 'discount_desc', label: 'Discount: High to Low' },
+                                                        { value: 'date_asc', label: 'Start Date: Oldest First' },
+                                                        { value: 'date_desc', label: 'Start Date: Newest First' },
+                                                    ]" :categories="promoTypesForFilter" categoryLabel="Promo Type" statusLabel="Promo Status"
+                                                    :showPriceRange="true" priceRangeLabel="Discount Amount Range"
+                                                    :showDateRange="true" @apply="handleFilterApply"
+                                                    @clear="handleFilterClear" />
+
                                                 <div class="search-wrap">
                                                     <i class="bi bi-search"></i>
                                                     <input type="email" name="email" autocomplete="email"
@@ -430,11 +843,40 @@ onUpdated(() => window.feather?.replace());
                                                         disabled type="text" />
                                                 </div>
 
+
+
                                                 <button data-bs-toggle="modal" data-bs-target="#promoModal"
                                                     @click="resetModal"
                                                     class="d-flex align-items-center gap-1 px-4 py-2 rounded-pill btn btn-primary text-white">
                                                     <Plus class="w-4 h-4" /> Add Promo
                                                 </button>
+
+                                                <ImportFile label="Import Promos" :sampleHeaders="sampleHeaders"
+                                                    :sampleData="sampleData" @on-import="handleImport" />
+
+                                                <div class="dropdown">
+                                                    <button
+                                                        class="btn btn-outline-secondary rounded-pill py-2 btn-sm px-4 dropdown-toggle"
+                                                        data-bs-toggle="dropdown">
+                                                        Export
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
+                                                        <li>
+                                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                                @click="onDownload('pdf')">Export as PDF</a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                                @click="onDownload('excel')">Export as Excel</a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item py-2" href="javascript:;"
+                                                                @click="onDownload('csv')">
+                                                                Export as CSV
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1159,10 +1601,11 @@ onUpdated(() => window.feather?.replace());
     background-color: #222 !important;
 }
 
-:global(.dark .p-tablist-tab-list){
+:global(.dark .p-tablist-tab-list) {
     background: #212121 !important;
 }
-.p-tabpanels{
+
+.p-tabpanels {
     background-color: #fff !important;
 }
 
