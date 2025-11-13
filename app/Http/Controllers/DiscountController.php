@@ -121,7 +121,7 @@ class DiscountController extends Controller
     public function update(UpdateDiscountRequest $request, int $id)
     {
         try {
-            // Use the service to update the discount
+           
             $discount = $this->discountService->updateDiscount($id, $request->validated());
 
             return response()->json([
