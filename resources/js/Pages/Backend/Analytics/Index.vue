@@ -2,250 +2,299 @@
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, watch, onMounted, onUpdated } from "vue";
-import Select from "primevue/select";
 import axios from "axios";
 import { useFormatters } from '@/composables/useFormatters'
-import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
-
+import Select from "primevue/select";
+import VueDatePicker from "@vuepic/vue-datepicker";
+import "@vuepic/vue-datepicker/dist/main.css";
 
 const { formatMoney, formatNumber, formatCurrencySymbol, dateFmt } = useFormatters()
 
-/* ---------------- Filters (simple values to match your screenshot) ---------------- */
-const range = ref("last30"); // today | last7 | last30 | thisMonth | all
-const orderType = ref("All"); // All | dine | delivery
-const payType = ref("All"); // All | cash | card | qr | bank
-
+/* ============= Filters State ============= */
 const filters = ref({
-    sortBy: "",
-    range: "last30",
-    orderType: "",
-    paymentType: "",
+    type: "sales",
+    timeRange: "monthly",
+    selectedMonth: "",
+    selectedYear: "",
     dateFrom: "",
     dateTo: "",
+    orderType: "",
+    paymentType: "",
 });
 
+const analyticsTypeOptions = [
+    { label: 'Sales Analytics', value: 'sales' },
+    { label: 'Purchase Analytics', value: 'purchase' },
+    { label: 'Sales vs Purchase', value: 'comparison' },
+    { label: 'Stock Analysis', value: 'stock' },
+    { label: 'Cashier Performance', value: 'userSales' },
+    { label: 'Category Analysis', value: 'category' }
+];
+
+const timeRangeOptions = [
+    { label: 'Monthly', value: 'monthly' },
+    { label: 'Yearly', value: 'yearly' },
+    { label: 'Custom Range', value: 'custom' }
+];
+
+/* ============= API State ============= */
+const loading = ref(false);
+const errorMsg = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
+const searchQuery = ref("");
 
+/* ============= Response Data ============= */
+const kpi = ref({});
+const chartData = ref([]);
+const tableData = ref([]);
+const distributionData = ref([]);
 
-const rangeOptions = ["today", "last7", "last30", "thisMonth", "all"];
-const orderTypeOptions = ["All", "dine", "delivery"];
-const payTypeOptions = ["All", "cash", "card", "qr", "bank"];
+/* ============= Helper State ============= */
+const lastUpdated = ref("Just now");
+const dataPointsCount = ref(0);
 
-/* ---------------- API state ---------------- */
-const loading = ref(false);
-const errorMsg = ref("");
+/* ============= Months & Years Lists ============= */
+const monthsList = computed(() => {
+    const months = [];
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
 
-const revenue = ref(0);
-const ordersCount = ref(0);
-const aov = ref(0);
-const itemsSold = ref(0);
-const salesSeries = ref([]); // [{day:'YYYY-MM-DD', total:number}]
-const ordersByType = ref({ dine: 0, delivery: 0, dinePct: 0, deliveryPct: 0 });
-const paymentsMix = ref([]); // [{method,count,pct}]
-const topItems = ref([]); // [{name,qty,revenue}]
-const qItems = ref("");
+    for (let i = 1; i <= 12; i++) {
+        const monthValue = String(i).padStart(2, '0');
+        months.push({
+            value: monthValue,
+            label: monthNames[i - 1]
+        });
+    }
+    return months;
+});
 
+const yearsList = computed(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear; i >= currentYear - 10; i--) {
+        years.push(i);
+    }
+    return years;
+});
 
-let debounceId;
-const fetchAnalytics = () => {
-    clearTimeout(debounceId);
-    debounceId = setTimeout(async () => {
-        loading.value = true;
-        errorMsg.value = "";
-        try {
-            const { data } = await axios.get("/api/analytics", {
-                params: {
-                    range: filters.value.range,
-                    orderType: filters.value.orderType,
-                    payType: filters.value.paymentType,
-                    dateFrom: filters.value.dateFrom,
-                    dateTo: filters.value.dateTo,
-                },
-            });
-            console.log("analytics data", data);
-            revenue.value = data.revenue ?? 0;
-            ordersCount.value = data.ordersCount ?? 0;
-            aov.value = data.aov ?? 0;
-            itemsSold.value = data.itemsSold ?? 0;
-            salesSeries.value = data.salesSeries ?? [];
-            ordersByType.value = data.ordersByType ?? {
-                dine: 0,
-                delivery: 0,
-                dinePct: 0,
-                deliveryPct: 0,
-            };
-            paymentsMix.value = data.paymentsMix ?? [];
-            topItems.value = data.topItems ?? [];
-        } catch (e) {
-            console.error(e);
-            errorMsg.value = "Failed to load analytics.";
-        } finally {
-            loading.value = false;
+/* ============= Computed Properties ============= */
+const chartTitle = computed(() => {
+    const titles = {
+        sales: 'Sales Over Time',
+        purchase: 'Purchase Over Time',
+        comparison: 'Sales vs Purchase',
+        stock: 'Stock Trend',
+        userSales: 'Cashier Performance',
+        category: 'Category Distribution'
+    };
+    return titles[filters.value.type] || 'Chart';
+});
+
+const periodLabel = computed(() => {
+    if (filters.value.timeRange === 'monthly') {
+        return filters.value.selectedMonth ? `Month: ${filters.value.selectedMonth}` : 'Select a month';
+    }
+    if (filters.value.timeRange === 'yearly') {
+        return filters.value.selectedYear ? `Year: ${filters.value.selectedYear}` : 'Select a year';
+    }
+    return filters.value.dateFrom && filters.value.dateTo
+        ? `${filters.value.dateFrom} to ${filters.value.dateTo}`
+        : 'Select dates';
+});
+
+/* ============= Chart Building ============= */
+/* ============= Chart Building ============= */
+function buildLine(series, W, H, m = { l: 50, r: 20, t: 40, b: 50 }) {
+    if (!series?.length) return { paths: [], xLabels: [], yLabels: [] };
+
+    const xs = series.map((_, i) => i);
+    const ys = series.map((d) => +d.total || +d.sales || +d.purchase || +d.value || 0);
+    const ysPurchase = series.map((d) => +d.purchase || 0);
+
+    const minX = 0, maxX = Math.max(1, xs.length - 1);
+    const allYValues = [...ys, ...ysPurchase].filter(v => v > 0);
+    const minY = 0, maxY = Math.max(1, ...allYValues);
+
+    const iw = Math.max(1, W - m.l - m.r);
+    const ih = Math.max(1, H - m.t - m.b);
+
+    const sx = (x) => m.l + ((x - minX) / (maxX - minX)) * iw;
+    const sy = (y) => m.t + ih - ((y - minY) / (maxY - minY)) * ih;
+
+    // Build Sales line
+    let salesPath = '';
+    if (xs.length === 1) {
+        const x = sx(0), y = sy(ys[0]);
+        salesPath = `M${x},${y} L${x + 0.01},${y}`;
+    } else {
+        salesPath = xs.map((x, i) => `${i ? "L" : "M"}${sx(x)},${sy(ys[i])}`).join(" ");
+    }
+
+    // Build Purchase line (for comparison type)
+    let purchasePath = '';
+    if (ysPurchase.some(v => v > 0)) {
+        if (xs.length === 1) {
+            const x = sx(0), y = sy(ysPurchase[0]);
+            purchasePath = `M${x},${y} L${x + 0.01},${y}`;
+        } else {
+            purchasePath = xs.map((x, i) => `${i ? "L" : "M"}${sx(x)},${sy(ysPurchase[i])}`).join(" ");
         }
-    }, 180);
-};
-// watch([range, orderType, payType], fetchAnalytics, { immediate: true });
+    }
 
+    // X-axis labels (dates)
+  // X-axis labels (dates)
+const xLabels = series.map((d, i) => {
+    let label;
+    if (d.date) {
+        const date = new Date(d.date);
+        // Check if it's a month format (YYYY-MM)
+        if (d.date.length === 7 && d.date.includes('-')) {
+            label = date.toLocaleDateString('en-US', { month: 'short' });
+        } else {
+            label = date.toLocaleDateString('en-US', { weekday: 'short' });
+        }
+    } else {
+        label = `Day ${i + 1}`;
+    }
+    return {
+        x: sx(i),
+        y: m.t + ih + 20,
+        text: label
+    };
+});
+
+    // Y-axis labels
+    const ySteps = 5;
+    const yLabels = [];
+    for (let i = 0; i <= ySteps; i++) {
+        const value = (maxY / ySteps) * i;
+        yLabels.push({
+            x: m.l - 10,
+            y: sy(value),
+            text: Math.round(value).toLocaleString()
+        });
+    }
+
+    return { salesPath, purchasePath, xLabels, yLabels };
+}
+
+const chartPaths = computed(() => buildLine(chartData.value, 840, 280));
+
+const bigLinePath = computed(() => buildLine(chartData.value, 840, 280));
+
+/* ============= Table Filtering ============= */
+const tableDataFiltered = computed(() => {
+    const t = searchQuery.value.trim().toLowerCase();
+    return t
+        ? (tableData.value || []).filter((i) => {
+            const searchableText = [
+                i.name, i.cashierName, i.categoryName, i.metric
+            ].filter(Boolean).join(' ').toLowerCase();
+            return searchableText.includes(t);
+        })
+        : tableData.value || [];
+});
+
+/* ============= Event Handlers ============= */
+const handleTimeRangeChange = () => {
+    filters.value.selectedMonth = "";
+    filters.value.selectedYear = "";
+    filters.value.dateFrom = "";
+    filters.value.dateTo = "";
+};
+
+const fetchAnalytics = async () => {
+    // Validate required fields
+    if (filters.value.timeRange === 'monthly' && !filters.value.selectedMonth) {
+        errorMsg.value = "Please select a month";
+        return;
+    }
+    if (filters.value.timeRange === 'yearly' && !filters.value.selectedYear) {
+        errorMsg.value = "Please select a year";
+        return;
+    }
+    if (filters.value.timeRange === 'custom' && (!filters.value.dateFrom || !filters.value.dateTo)) {
+        errorMsg.value = "Please select both start and end dates";
+        return;
+    }
+
+    loading.value = true;
+    errorMsg.value = "";
+
+    try {
+        const { data } = await axios.get("/api/analytics", {
+            params: {
+                type: filters.value.type,
+                timeRange: filters.value.timeRange,
+                selectedMonth: filters.value.selectedMonth,
+                selectedYear: filters.value.selectedYear,
+                dateFrom: filters.value.dateFrom,
+                dateTo: filters.value.dateTo,
+                orderType: filters.value.orderType,
+                paymentType: filters.value.paymentType,
+            },
+        });
+
+        console.log("Analytics data:", data);
+
+        // Update state from response
+        kpi.value = data.kpi || {};
+        chartData.value = data.chartData || [];
+        tableData.value = data.tableData || [];
+        distributionData.value = data.distributionData || [];
+        dataPointsCount.value = tableData.value.length;
+        lastUpdated.value = new Date().toLocaleTimeString();
+    } catch (error) {
+        console.error(error);
+        errorMsg.value = error.response?.data?.message || "Failed to load analytics";
+    } finally {
+        loading.value = false;
+    }
+};
+
+/* ============= Watchers ============= */
 watch(
-    () => [filters.value.range, filters.value.orderType, filters.value.paymentType, filters.value.dateFrom, filters.value.dateTo],
-    fetchAnalytics,
-    { immediate: true }
+    () => [
+        filters.value.type,
+        filters.value.timeRange,
+        filters.value.selectedMonth,
+        filters.value.selectedYear,
+    ],
+    () => {
+        if (filters.value.type && filters.value.timeRange) {
+            // Auto-fetch when type or timeRange changes if required fields are filled
+            if (filters.value.timeRange === 'monthly' && filters.value.selectedMonth) {
+                fetchAnalytics();
+            } else if (filters.value.timeRange === 'yearly' && filters.value.selectedYear) {
+                fetchAnalytics();
+            } else if (filters.value.timeRange === 'custom' && filters.value.dateFrom && filters.value.dateTo) {
+                fetchAnalytics();
+            }
+        }
+    }
 );
 
-const filterOptions = computed(() => ({
-    sortOptions: [
-        { value: "revenue_desc", label: "Revenue: High to Low" },
-        { value: "revenue_asc", label: "Revenue: Low to High" },
-        { value: "qty_desc", label: "Quantity: High to Low" },
-        { value: "qty_asc", label: "Quantity: Low to High" },
-        { value: "name_asc", label: "Item Name: A to Z" },
-        { value: "name_desc", label: "Item Name: Z to A" },
-    ],
-    rangeOptions: [
-        { value: "today", label: "Today" },
-        { value: "last7", label: "Last 7 Days" },
-        { value: "last30", label: "Last 30 Days" },
-        { value: "thisMonth", label: "This Month" },
-        { value: "all", label: "All Time" },
-    ],
-    orderTypeOptions: [
-        { value: "dine", label: "Dine In" },
-        { value: "delivery", label: "Delivery" },
-    ],
-    paymentTypeOptions: [
-        { value: "cash", label: "Cash" },
-        { value: "card", label: "Card" },
-        { value: "qr", label: "QR" },
-        { value: "bank", label: "Bank" },
-    ],
-}));
-// ===============================================
-
-// ========== ADD FILTER HANDLERS ==========
-const handleFilterApply = (appliedFilters) => {
-    console.log("Filters applied:", appliedFilters);
-};
-
-const handleFilterClear = () => {
-    console.log("Filters cleared");
-};
-
-
-
-
-/* ---------------- Helpers ---------------- */
-const money = (n, c = "GBP") =>
-    new Intl.NumberFormat("en-GB", { style: "currency", currency: c }).format(
-        n
-    );
-
-// Build pretty line path (with margins) from salesSeries
-// Build pretty line with margins. Draw a teeny segment if only 1 point.
-function buildLine(series, W, H, m = { l: 40, r: 10, t: 16, b: 28 }) {
-    if (!series?.length) return "";
-    const xs = series.map((_, i) => i);
-    const ys = series.map((d) => +d.total || 0);
-
-    const minX = 0,
-        maxX = Math.max(1, xs.length - 1);
-    const minY = 0,
-        maxY = Math.max(1, ...ys);
-
-    const iw = Math.max(1, W - m.l - m.r);
-    const ih = Math.max(1, H - m.t - m.b);
-
-    const sx = (x) => m.l + ((x - minX) / (maxX - minX)) * iw;
-    const sy = (y) => m.t + ih - ((y - minY) / (maxY - minY)) * ih;
-
-    if (xs.length === 1) {
-        const x = sx(0),
-            y = sy(ys[0]);
-        // tiny visible segment
-        return `M${x},${y} L${x + 0.01},${y}`;
-    }
-    return xs.map((x, i) => `${i ? "L" : "M"}${sx(x)},${sy(ys[i])}`).join(" ");
-}
-
-// For visible dots on the line (works for any number of points)
-function buildMarkers(series, W, H, m = { l: 40, r: 10, t: 16, b: 28 }) {
-    if (!series?.length) return [];
-    const xs = series.map((_, i) => i);
-    const ys = series.map((d) => +d.total || 0);
-
-    const minX = 0,
-        maxX = Math.max(1, xs.length - 1);
-    const minY = 0,
-        maxY = Math.max(1, ...ys);
-
-    const iw = Math.max(1, W - m.l - m.r);
-    const ih = Math.max(1, H - m.t - m.b);
-
-    const sx = (x) => m.l + ((x - minX) / (maxX - minX)) * iw;
-    const sy = (y) => m.t + ih - ((y - minY) / (maxY - minY)) * ih;
-
-    return xs.map((x, i) => ({ x: sx(x), y: sy(ys[i]) }));
-}
-
-// use them
-const bigLinePath = computed(() => buildLine(salesSeries.value, 840, 280));
-const markerPoints = computed(() => buildMarkers(salesSeries.value, 840, 280));
-
-// const topItemsFiltered = computed(() => {
-//     const t = qItems.value.trim().toLowerCase();
-//     return t
-//         ? (topItems.value || []).filter((i) =>
-//             (i.name || "").toLowerCase().includes(t)
-//         )
-//         : topItems.value || [];
-// });
-
-const topItemsFiltered = computed(() => {
-    const t = qItems.value.trim().toLowerCase();
-    let result = t
-        ? (topItems.value || []).filter((i) =>
-            (i.name || "").toLowerCase().includes(t)
-        )
-        : topItems.value || [];
-
-    // Apply sorting
-    const sortBy = filters.value.sortBy;
-    switch (sortBy) {
-        case "revenue_desc":
-            return result.sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
-        case "revenue_asc":
-            return result.sort((a, b) => (Number(a.revenue) || 0) - (Number(b.revenue) || 0));
-        case "qty_desc":
-            return result.sort((a, b) => (Number(b.qty) || 0) - (Number(a.qty) || 0));
-        case "qty_asc":
-            return result.sort((a, b) => (Number(a.qty) || 0) - (Number(b.qty) || 0));
-        case "name_asc":
-            return result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        case "name_desc":
-            return result.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        default:
-            return result;
-    }
-});
-const q = ref('');
+/* ============= Lifecycle ============= */
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
+
 onMounted(async () => {
-    q.value = "";
+    searchQuery.value = "";
     searchKey.value = Date.now();
     await nextTick();
 
-    // Delay to prevent autofill
     setTimeout(() => {
         isReady.value = true;
-
-        // Force clear any autofill that happened
         const input = document.getElementById(inputId);
         if (input) {
             input.value = '';
-            q.value = '';
+            searchQuery.value = '';
         }
     }, 100);
 });
@@ -257,166 +306,660 @@ onMounted(async () => {
     <Head title="Analytics" />
     <Master>
         <div class="page-wrapper">
-            <!-- Filters row -->
+
+            <!-- Download Section -->
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
-                <div class="d-flex flex-wrap gap-2">
-                    <FilterModal v-model="filters" title="Analytics" modal-id="analyticsFilterModal"
-                        modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-date-range="true"
-                        @apply="handleFilterApply" @clear="handleFilterClear">
-                        <!-- Custom filters slot for Range, Order Type, and Payment Type -->
-                        <template #customFilters="{ filters }">
-                            <!-- Date Range Selection -->
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-semibold text-dark">
-                                    <i class="fas fa-calendar-alt me-2 text-muted"></i>Date Range
-                                </label>
-                                <select v-model="filters.range" class="form-select">
-                                    <option v-for="opt in filterOptions.rangeOptions" :key="opt.value"
-                                        :value="opt.value">
-                                        {{ opt.label }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <!-- Order Type -->
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold text-dark">
-                                    <i class="fas fa-concierge-bell me-2 text-muted"></i>Order Type
-                                </label>
-                                <select v-model="filters.orderType" class="form-select">
-                                    <option value="">All</option>
-                                    <option v-for="opt in filterOptions.orderTypeOptions" :key="opt.value"
-                                        :value="opt.value">
-                                        {{ opt.label }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <!-- Payment Type -->
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold text-dark">
-                                    <i class="fas fa-credit-card me-2 text-muted"></i>Payment Type
-                                </label>
-                                <select v-model="filters.paymentType" class="form-select">
-                                    <option value="">All</option>
-                                    <option v-for="opt in filterOptions.paymentTypeOptions" :key="opt.value"
-                                        :value="opt.value">
-                                        {{ opt.label }}
-                                    </option>
-                                </select>
-                            </div>
-                        </template>
-                    </FilterModal>
-                </div>
-
+                <h4 class="mb-1">Analytics & Reports</h4>
+                <div></div>
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                         data-bs-toggle="dropdown">
-                        Download
+                        <i class="fas fa-download me-2"></i>Download
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                         <li>
-                            <a class="dropdown-item py-2" href="javascript:void(0)">Download as PDF</a>
+                            <a class="dropdown-item py-2" href="javascript:void(0)">
+                                <i class="fas fa-file-pdf me-2 text-danger"></i>Download as PDF
+                            </a>
                         </li>
                         <li>
-                            <a class="dropdown-item py-2" href="javascript:void(0)">Download as Excel</a>
+                            <a class="dropdown-item py-2" href="javascript:void(0)">
+                                <i class="fas fa-file-excel me-2 text-success"></i>Download as Excel
+                            </a>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            <!-- Error -->
+            <!-- KPIs - Dynamic based on Analytics Type -->
+
+
+            <!-- Main Filter Section -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Analytics Type Selector - PrimeVue Select -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-chart-bar me-2 text-muted"></i>Analytics Type
+                            </label>
+                            <Select v-model="filters.type" :options="analyticsTypeOptions" optionLabel="label"
+                                optionValue="value" placeholder="Select Analytics Type" class="w-100" />
+                        </div>
+
+                        <!-- Time Range Selector - PrimeVue Select -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar-alt me-2 text-muted"></i>Time Range
+                            </label>
+                            <Select v-model="filters.timeRange" :options="timeRangeOptions" optionLabel="label"
+                                optionValue="value" placeholder="Select Time Range" @change="handleTimeRangeChange"
+                                class="w-100" />
+                        </div>
+
+                        <!-- Month Selector - PrimeVue Select -->
+                        <div v-if="filters.timeRange === 'monthly'" class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar me-2 text-muted"></i>Select Month
+                            </label>
+                            <Select v-model="filters.selectedMonth" :options="monthsList" optionLabel="label"
+                                optionValue="value" placeholder="Choose Month" class="w-100" />
+                        </div>
+
+                        <!-- Year Selector - PrimeVue Select -->
+                        <div v-if="filters.timeRange === 'yearly'" class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar me-2 text-muted"></i>Select Year
+                            </label>
+                            <Select v-model="filters.selectedYear" :options="yearsList" placeholder="Choose Year"
+                                class="w-100" />
+                        </div>
+
+                        <!-- Start Date - VueDatepicker -->
+                        <div v-if="filters.timeRange === 'custom'" class="col-md-2">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar me-2 text-muted"></i>Start Date
+                            </label>
+                            <VueDatePicker v-model="filters.dateFrom" placeholder="Select Start Date"
+                                format="yyyy-MM-dd" />
+                        </div>
+
+                        <!-- End Date - VueDatepicker -->
+                        <div v-if="filters.timeRange === 'custom'" class="col-md-2">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar me-2 text-muted"></i>End Date
+                            </label>
+                            <VueDatePicker v-model="filters.dateTo" placeholder="Select End Date" format="yyyy-MM-dd" />
+                        </div>
+
+                        <!-- Apply Button -->
+                        <!-- <div class="col-md-2 d-flex gap-2 align-items-end">
+                            <button @click="fetchAnalytics" class="btn btn-primary w-100" :disabled="loading">
+                                <i class="fas fa-search me-2"></i>{{ loading ? 'Loading...' : 'Apply' }}
+                            </button>
+                        </div> -->
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="row g-3 mb-4">
+                <!-- Sales KPIs -->
+                <template v-if="filters.type === 'sales'">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.revenue || 0) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Revenue</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-currency-pound fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.ordersCount) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Orders</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-receipt fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.aov || 0) }}</h4>
+                                    <p class="text-muted mb-0 small">Avg. Order Value</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-graph-up fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.itemsSold) }}</h4>
+                                    <p class="text-muted mb-0 small">Items Sold</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-basket fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Purchase KPIs -->
+                <template v-if="filters.type === 'purchase'">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.purchaseCost || 0) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Purchase Cost</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-bag-check fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.purchaseCount) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Purchases</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-box-seam fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.avgPurchaseValue || 0) }}</h4>
+                                    <p class="text-muted mb-0 small">Avg. Purchase Value</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-graph-up fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.itemsPurchased) }}</h4>
+                                    <p class="text-muted mb-0 small">Items Purchased</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-boxes fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Comparison KPIs -->
+                <template v-if="filters.type === 'comparison'">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.salesRevenue) }}</h4>
+                                    <p class="text-muted mb-0 small">Sales Revenue</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-arrow-up-right fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.purchaseCost) }}</h4>
+                                    <p class="text-muted mb-0 small">Purchase Cost</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-arrow-down-left fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.grossProfit) }}</h4>
+                                    <p class="text-muted mb-0 small">Gross Profit</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-graph-up fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ kpi.profitMargin }}%</h4>
+                                    <p class="text-muted mb-0 small">Profit Margin</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-percent fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Stock KPIs -->
+                <template v-if="filters.type === 'stock'">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.totalStock) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Items in Stock</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-box-seam fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.lowStockItems) }}</h4>
+                                    <p class="text-muted mb-0 small">Low Stock Items</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-exclamation-triangle fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.outOfStockItems) }}</h4>
+                                    <p class="text-muted mb-0 small">Out of Stock</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-x-circle fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.stockValue) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Stock Value</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-cash-coin fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- User Sales KPIs -->
+                <template v-if="filters.type === 'userSales'">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.totalUserSales) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Sales</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-currency-pound fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.avgCashierSales) }}</h4>
+                                    <p class="text-muted mb-0 small">Avg. per Cashier</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-person-check fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.activeCashiers) }}</h4>
+                                    <p class="text-muted mb-0 small">Active Cashiers</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-people fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.topCashierSales) }}</h4>
+                                    <p class="text-muted mb-0 small">Top Cashier Sales</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-star fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Category KPIs -->
+                <template v-if="filters.type === 'category'">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.totalCategories) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Categories</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-tag fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(kpi.categoryRevenue) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Revenue</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-currency-pound fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ kpi.topCategory }}</h4>
+                                    <p class="text-muted mb-0 small">Top Category</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-trophy fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ formatNumber(kpi.totalCategorySales) }}</h4>
+                                    <p class="text-muted mb-0 small">Total Items Sold</p>
+                                </div>
+                                <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                    style="width: 56px; height: 56px">
+                                    <i class="bi bi-bag-check fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <!-- Error Alert -->
             <div v-if="errorMsg" class="alert alert-warning border-0 rounded-4 shadow-sm">
                 {{ errorMsg }}
             </div>
-
-            <!-- KPIs -->
-            <div class="row g-3">
-                <!-- Revenue -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card border-0 shadow-sm rounded-4 ">
-                        <div class="card-body d-flex align-items-center justify-content-between">
-                            <div>
-                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(revenue) }}</h4>
-                                <p class="text-muted mb-0 small">Revenue</p>
-                            </div>
-                            <div class="rounded-circle p-3 bg-success-subtle text-success d-flex align-items-center justify-content-center"
-                                style="width: 56px; height: 56px">
-                                <i class="bi bi-currency-pound fs-4"></i>
-                            </div>
+ <!-- Detailed Table -->
+            <div class="card border-0 shadow-sm rounded-4 mt-3">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                        <h6 class="fw-semibold mb-0">Detailed Data</h6>
+                        <div class="search-wrap">
+                            <i class="bi bi-search"></i>
+                            <input v-if="isReady" :id="inputId" v-model="searchQuery" :key="searchKey"
+                                class="form-control search-input" placeholder="Search" type="search"
+                                autocomplete="new-password" :name="inputId" role="presentation" />
+                            <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
                         </div>
                     </div>
-                </div>
 
-                <!-- Orders -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card border-0 shadow-sm rounded-4 ">
-                        <div class="card-body d-flex align-items-center justify-content-between">
-                            <div>
-                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(ordersCount) }}</h4>
-                                <p class="text-muted mb-0 small">Orders</p>
-                            </div>
-                            <div class="rounded-circle p-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
-                                style="width: 56px; height: 56px">
-                                <i class="bi bi-receipt fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Average Order Value -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card border-0 shadow-sm rounded-4 ">
-                        <div class="card-body d-flex align-items-center justify-content-between">
-                            <div>
-                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(aov) }}</h4>
-                                <p class="text-muted mb-0 small">Avg. Order Value</p>
-                            </div>
-                            <div class="rounded-circle p-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
-                                style="width: 56px; height: 56px">
-                                <i class="bi bi-graph-up fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Items Sold -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card border-0 shadow-sm rounded-4 ">
-                        <div class="card-body d-flex align-items-center justify-content-between">
-                            <div>
-                                <h4 class="mb-0 fw-bold">{{ formatCurrencySymbol(itemsSold) }}</h4>
-                                <p class="text-muted mb-0 small">Items Sold</p>
-                            </div>
-                            <div class="rounded-circle p-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
-                                style="width: 56px; height: 56px">
-                                <i class="bi bi-basket fs-4"></i>
-                            </div>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="small text-muted">
+                                <tr>
+                                    <th style="width: 60px">S.#</th>
+                                    <!-- Sales Table -->
+                                    <template v-if="filters.type === 'sales'">
+                                        <th>Item</th>
+                                        <th style="width: 120px">Qty Sold</th>
+                                        <th style="width: 140px">Revenue</th>
+                                        <th style="width: 100px">Date</th>
+                                    </template>
+                                    <!-- Purchase Table -->
+                                    <template v-if="filters.type === 'purchase'">
+                                        <th>Item</th>
+                                        <th style="width: 120px">Qty</th>
+                                        <th style="width: 140px">Cost</th>
+                                        <th style="width: 100px">Date</th>
+                                    </template>
+                                    <!-- Comparison Table -->
+                                    <template v-if="filters.type === 'comparison'">
+                                        <th>Metric</th>
+                                        <th style="width: 140px">Sales</th>
+                                        <th style="width: 140px">Purchase</th>
+                                        <th style="width: 140px">Difference</th>
+                                    </template>
+                                    <!-- Stock Table -->
+                                    <template v-if="filters.type === 'stock'">
+                                        <th>Item</th>
+                                        <th style="width: 100px">Stock</th>
+                                        <th style="width: 100px">Min Level</th>
+                                        <th style="width: 120px">Status</th>
+                                    </template>
+                                    <!-- User Sales Table -->
+                                    <template v-if="filters.type === 'userSales'">
+                                        <th>Cashier Name</th>
+                                        <th style="width: 120px">Orders</th>
+                                        <th style="width: 140px">Total Sales</th>
+                                        <th style="width: 120px">Avg Sale</th>
+                                    </template>
+                                    <!-- Category Table -->
+                                    <template v-if="filters.type === 'category'">
+                                        <th>Category</th>
+                                        <th style="width: 120px">Qty Sold</th>
+                                        <th style="width: 140px">Revenue</th>
+                                        <th style="width: 100px">% of Total</th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(r, i) in tableDataFiltered" :key="i">
+                                    <td>{{ i + 1 }}</td>
+                                    <!-- Sales Row -->
+                                    <template v-if="filters.type === 'sales'">
+                                        <td class="fw-semibold">{{ r.name }}</td>
+                                        <td>{{ formatNumber(r.qty) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.revenue) }}</td>
+                                        <td class="small">{{ dateFmt(r.date) }}</td>
+                                    </template>
+                                    <!-- Purchase Row -->
+                                    <template v-if="filters.type === 'purchase'">
+                                        <td class="fw-semibold">{{ r.name }}</td>
+                                        <td>{{ formatNumber(r.qty) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.cost) }}</td>
+                                        <td class="small">{{ dateFmt(r.date) }}</td>
+                                    </template>
+                                    <!-- Comparison Row -->
+                                    <template v-if="filters.type === 'comparison'">
+                                        <td class="fw-semibold">{{ r.metric }}</td>
+                                        <td>{{ formatCurrencySymbol(r.sales) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.purchase) }}</td>
+                                        <td :style="{ color: r.difference > 0 ? '#10b981' : '#ef4444' }"
+                                            class="fw-semibold">
+                                            {{ formatCurrencySymbol(r.difference) }}
+                                        </td>
+                                    </template>
+                                    <!-- Stock Row -->
+                                    <template v-if="filters.type === 'stock'">
+                                        <td class="fw-semibold">{{ r.name }}</td>
+                                        <td>{{ formatNumber(r.currentStock) }}</td>
+                                        <td>{{ formatNumber(r.minLevel) }}</td>
+                                        <td>
+                                            <span v-if="r.currentStock > r.minLevel"
+                                                class="badge bg-success-subtle text-success">
+                                                In Stock
+                                            </span>
+                                            <span v-else-if="r.currentStock > 0"
+                                                class="badge bg-warning-subtle text-warning">
+                                                Low Stock
+                                            </span>
+                                            <span v-else class="badge bg-danger-subtle text-danger">
+                                                Out of Stock
+                                            </span>
+                                        </td>
+                                    </template>
+                                    <!-- User Sales Row -->
+                                    <template v-if="filters.type === 'userSales'">
+                                        <td class="fw-semibold">{{ r.cashierName }}</td>
+                                        <td>{{ formatNumber(r.orderCount) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.totalSales) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.avgSale) }}</td>
+                                    </template>
+                                    <!-- Category Row -->
+                                    <template v-if="filters.type === 'category'">
+                                        <td class="fw-semibold">{{ r.categoryName }}</td>
+                                        <td>{{ formatNumber(r.qty) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.revenue) }}</td>
+                                        <td>{{ r.percentage }}%</td>
+                                    </template>
+                                </tr>
+                                <tr v-if="!loading && tableDataFiltered.length === 0">
+                                    <td :colspan="5" class="text-center text-muted py-4">
+                                        No data available for this period.
+                                    </td>
+                                </tr>
+                                <tr v-if="loading">
+                                    <td :colspan="5" class="text-center text-muted py-4">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Loading…
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-
 
             <!-- Charts row -->
             <div class="row g-3">
                 <div class="col-lg-8">
                     <div class="card border-0 shadow-sm rounded-4 h-100">
                         <div class="card-body">
-                            <h6 class="fw-semibold mb-2">Sales Over Time</h6>
+                            <h6 class="fw-semibold mb-2">{{ chartTitle }}</h6>
                             <div class="chart">
                                 <svg viewBox="0 0 840 280">
-                                    <!-- Axes -->
-                                    <line x1="40" y1="16" x2="40" y2="252" class="axis" />
-                                    <line x1="40" y1="252" x2="830" y2="252" class="axis" />
-                                    <!-- Grid -->
-                                    <g v-for="i in 6" :key="'g' + i">
-                                        <line :x1="40" :x2="830" :y1="252 - i * 36" :y2="252 - i * 36" class="grid" />
+                                    <!-- Y-axis -->
+                                    <line x1="50" y1="40" x2="50" y2="230" stroke="#4b5563" stroke-width="1" />
+                                    <!-- X-axis -->
+                                    <line x1="50" y1="230" x2="820" y2="230" stroke="#4b5563" stroke-width="1" />
+
+                                    <!-- Grid lines -->
+                                    <g v-for="i in 5" :key="'grid' + i">
+                                        <line :x1="50" :x2="820" :y1="230 - i * 38" :y2="230 - i * 38" stroke="#374151"
+                                            stroke-width="0.5" opacity="0.3" />
                                     </g>
-                                    <!-- Series -->
-                                    <path :d="bigLinePath" class="line" />
-                                    <text v-if="!salesSeries.length" x="430" y="140" text-anchor="middle" class="muted">
-                                        No data
+
+                                    <!-- Y-axis labels -->
+                                    <text v-for="(label, i) in chartPaths.yLabels" :key="'ylabel' + i" :x="label.x"
+                                        :y="label.y + 5" text-anchor="end" fill="#9ca3af" font-size="11">
+                                        {{ label.text }}
+                                    </text>
+
+                                    <!-- X-axis labels -->
+                                    <text v-for="(label, i) in chartPaths.xLabels" :key="'xlabel' + i" :x="label.x"
+                                        :y="label.y" text-anchor="middle" fill="#9ca3af" font-size="11">
+                                        {{ label.text }}
+                                    </text>
+
+                                    <!-- Sales line (green) -->
+                                    <path v-if="chartPaths.salesPath" :d="chartPaths.salesPath" fill="none"
+                                        stroke="#10b981" stroke-width="3" stroke-linecap="round" />
+
+                                    <!-- Purchase line (red) - only for comparison -->
+                                    <path v-if="filters.type === 'comparison' && chartPaths.purchasePath"
+                                        :d="chartPaths.purchasePath" fill="none" stroke="#ef4444" stroke-width="3"
+                                        stroke-linecap="round" />
+
+                                    <!-- Legend -->
+                                    <g v-if="filters.type === 'comparison'">
+                                        <circle cx="750" cy="20" r="5" fill="#10b981" />
+                                        <text x="760" y="25" fill="#9ca3af" font-size="12">Sales</text>
+
+                                        <circle cx="820" cy="20" r="5" fill="#ef4444" />
+                                        <text x="830" y="25" fill="#9ca3af" font-size="12">Purchase</text>
+                                    </g>
+
+                                    <!-- No data message -->
+                                    <text v-if="!chartData.length" x="430" y="140" text-anchor="middle" fill="#6b7280">
+                                        No data available
                                     </text>
                                 </svg>
                             </div>
@@ -427,33 +970,16 @@ onMounted(async () => {
                 <div class="col-lg-4">
                     <div class="card border-0 shadow-sm rounded-4 mb-3">
                         <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Orders by Type</h6>
-
-                            <div class="stack">
+                            <h6 class="fw-semibold mb-3">Distribution</h6>
+                            <div v-for="item in distributionData" :key="item.label" class="stack">
                                 <div class="stack-row">
-                                    <span>Dine In</span>
-                                    <span class="stack-val">{{ ordersByType.dine }} ({{
-                                        ordersByType.dinePct
-                                        }}%)</span>
+                                    <span>{{ item.label }}</span>
+                                    <span class="stack-val">{{ item.value }} ({{ item.percentage }}%)</span>
                                 </div>
                                 <div class="progress thin">
-                                    <div class="progress-bar bg-success" :style="{
-                                        width: ordersByType.dinePct + '%',
-                                    }"></div>
-                                </div>
-                            </div>
-
-                            <div class="stack mt-2">
-                                <div class="stack-row">
-                                    <span>Delivery</span>
-                                    <span class="stack-val">{{ ordersByType.delivery }} ({{
-                                        ordersByType.deliveryPct
-                                        }}%)</span>
-                                </div>
-                                <div class="progress thin">
-                                    <div class="progress-bar bg-primary" :style="{
-                                        width:
-                                            ordersByType.deliveryPct + '%',
+                                    <div class="progress-bar" :style="{
+                                        width: item.percentage + '%',
+                                        backgroundColor: item.color
                                     }"></div>
                                 </div>
                             </div>
@@ -462,86 +988,33 @@ onMounted(async () => {
 
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body">
-                            <h6 class="fw-semibold mb-3">Payments Mix</h6>
-                            <div v-for="p in paymentsMix" :key="p.method" class="mb-2">
+                            <h6 class="fw-semibold mb-3">Summary Info</h6>
+                            <div class="stack">
                                 <div class="stack-row">
-                                    <span class="text-capitalize">{{
-                                        p.method
-                                    }}</span>
-                                    <span class="stack-val">{{ p.count }} ({{ p.pct }}%)</span>
+                                    <span>Period</span>
+                                    <span class="stack-val">{{ periodLabel }}</span>
                                 </div>
-                                <div class="progress thin">
-                                    <div class="progress-bar" :class="{
-                                        'bg-secondary': p.method === 'cash',
-                                        'bg-info': p.method === 'card',
-                                        'bg-warning': p.method === 'qr',
-                                        'bg-dark': p.method === 'bank',
-                                    }" :style="{ width: p.pct + '%' }" />
+                                <div class="stack-row">
+                                    <span>Data Points</span>
+                                    <span class="stack-val">{{ dataPointsCount }}</span>
                                 </div>
-                            </div>
-                            <div v-if="!paymentsMix.length" class="small text-muted">
-                                No payment data.
+                                <div class="stack-row">
+                                    <span>Last Updated</span>
+                                    <span class="stack-val">{{ lastUpdated }}</span>
+                                </div>
+                                <div class="stack-row">
+                                    <span>Status</span>
+                                    <span class="stack-val" :style="{ color: loading ? '#f59e0b' : '#10b981' }">
+                                        {{ loading ? 'Loading...' : 'Active' }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Top Items -->
-            <div class="card border-0 shadow-sm rounded-4 mt-3">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                        <h6 class="fw-semibold mb-0">Top Items</h6>
-                        <div class="search-wrap">
-                            <i class="bi bi-search"></i>
-                            <input type="email" name="email" autocomplete="email"
-                                style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
-                                aria-hidden="true" />
-
-                            <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                                class="form-control search-input" placeholder="Search" type="search"
-                                autocomplete="new-password" :name="inputId" role="presentation" @focus="handleFocus" />
-                            <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="small text-muted">
-                                <tr>
-                                    <th style="width: 60px">S.#</th>
-                                    <th>Item</th>
-                                    <th style="width: 140px">Qty Sold</th>
-                                    <th style="width: 160px">Revenue</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(r, i) in topItemsFiltered" :key="r.name">
-                                    <td>{{ i + 1 }}</td>
-                                    <td class="fw-semibold">
-                                        {{ r.name }}
-                                    </td>
-                                    <td>{{ r.qty }}</td>
-                                    <td>{{ formatCurrencySymbol(r.revenue) }}</td>
-                                </tr>
-                                <tr v-if="
-                                    !loading &&
-                                    topItemsFiltered.length === 0
-                                ">
-                                    <td colspan="4" class="text-center text-muted py-4">
-                                        No items in this range.
-                                    </td>
-                                </tr>
-                                <tr v-if="loading">
-                                    <td colspan="4" class="text-center text-muted py-4">
-                                        Loading…
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+           
         </div>
     </Master>
 </template>
@@ -553,14 +1026,27 @@ onMounted(async () => {
 
 .dark .card {
     background-color: #181818 !important;
-    /* gray-800 */
     color: #ffffff !important;
-    /* gray-50 */
+}
+
+.chart svg text {
+    fill: #9ca3af;
+}
+
+.dark .chart svg text {
+    fill: #ffffff;
+}
+
+.dark .chart svg line {
+    stroke: #6b7280;
+}
+
+.dark .chart svg line.grid {
+    stroke: #4b5563;
 }
 
 .dark .table {
     background-color: #181818 !important;
-    /* gray-900 */
     color: #f9fafb !important;
 }
 
@@ -569,62 +1055,19 @@ onMounted(async () => {
     color: #ffffff;
 }
 
-.dark .table thead th {
-    background-color: #181818 !important;
-    color: #ffffff;
+.dark .form-label {
+    color: #fff !important;
+}
+
+.dark .form-select {
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 :root {
     --brand: #1c0d82;
 }
 
-/* Filters: small width like screenshot */
-.filter {
-    min-width: 140px;
-}
-
-/* KPI */
-.kpi .card-body {
-    padding: 1rem 1.25rem;
-}
-
-.kpi-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.kpi-icon {
-    font-size: 1.8rem;
-    color: var(--brand);
-}
-
-.kpi-label {
-    font-size: 0.9rem;
-    color: #6b7280;
-    margin-top: 0.25rem;
-}
-
-.kpi-value {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #181818;
-}
-
-/* Spark */
-.spark {
-    width: 160px;
-    height: 44px;
-}
-
-.spark-line {
-    fill: none;
-    stroke: var(--brand);
-    stroke-width: 2;
-    opacity: 0.9;
-}
-
-/* Chart */
 .chart {
     width: 100%;
 }
@@ -650,16 +1093,6 @@ onMounted(async () => {
     font-size: 12px;
 }
 
-.dark .form-label {
-    color: #fff !important;
-}
-
-.dark .form-select {
-    background-color: #212121 !important;
-    color: #fff !important;
-}
-
-/* Progress blocks */
 .progress.thin {
     height: 8px;
     background: #eef2ff;
@@ -677,7 +1110,6 @@ onMounted(async () => {
     color: #6b7280;
 }
 
-/* Search pill */
 .search-wrap {
     position: relative;
     width: clamp(220px, 30vw, 360px);
@@ -696,7 +1128,6 @@ onMounted(async () => {
     border-radius: 9999px;
 }
 
-/* Table */
 .table thead th {
     font-weight: 600;
 }
@@ -880,7 +1311,7 @@ onMounted(async () => {
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
-    background: #181818 !important;
+    background: #212121 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
@@ -912,22 +1343,7 @@ onMounted(async () => {
     padding: 0.25rem 0.5rem !important;
 }
 
-.dark .p-inputtext {
-    background-color: #181818 !important;
-    color: #fff !important;
-}
 
-.dark .p-checkbox-icon {
-    color: #fff !important;
-}
-
-.dark .p-checkbox-input {
-    color: #fff !important;
-}
-
-.dark .p-component {
-    color: #fff !important;
-}
 
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
@@ -940,15 +1356,136 @@ onMounted(async () => {
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
+:deep(.p-select) {
+    background-color: white !important;
+    color: black !important;
+    border-color: #9b9c9c
+}
+
+/* Options container */
+:deep(.p-select-list-container) {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Each option */
+:deep(.p-select-option) {
+    background-color: transparent !important;
+    /* instead of 'none' */
+    color: black !important;
+}
+
+/* Hovered option */
+:deep(.p-select-option:hover) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+/* Focused option (when using arrow keys) */
+:deep(.p-select-option.p-focus) {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+}
+
+:deep(.p-select-label) {
+    color: #000 !important;
+}
+
+:deep(.p-placeholder) {
+    color: #80878e !important;
+}
+
+
+
+/* ======================== Dark Mode MultiSelect ============================= */
+:global(.dark .p-multiselect-header) {
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect-label) {
+    color: #fff !important;
+}
+
+:global(.dark .p-select .p-component .p-inputwrapper) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* Options list container */
+:global(.dark .p-multiselect-list) {
+    background: #181818 !important;
+}
+
+/* Each option */
+:global(.dark .p-multiselect-option) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+/* Hover/selected option */
+:global(.dark .p-multiselect-option.p-highlight),
+:global(.dark .p-multiselect-option:hover) {
+    background: #181818 !important;
+    color: #fff !important;
+}
+
+:global(.dark .p-multiselect),
+:global(.dark .p-multiselect-panel),
+:global(.dark .p-multiselect-token) {
+    background: #181818 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
+/* Checkbox box in dropdown */
+:global(.dark .p-multiselect-overlay .p-checkbox-box) {
+    background: #181818 !important;
+    border: 1px solid #555 !important;
+}
+
+/* Search filter input */
+:global(.dark .p-multiselect-filter) {
+    background: #181818 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Optional: adjust filter container */
+:global(.dark .p-multiselect-filter-container) {
+    background: #181818 !important;
+}
+
+/* Selected chip inside the multiselect */
+:global(.dark .p-multiselect-chip) {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Chip remove (x) icon */
+:global(.dark .p-multiselect-chip .p-chip-remove-icon) {
+    color: #ccc !important;
+}
+
+:global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
+    color: #f87171 !important;
+    /* lighter red */
+}
+
+/* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
-    background-color: #000 !important;
+    background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
 /* Options container */
 :global(.dark .p-select-list-container) {
-    background-color: #000 !important;
+    background-color: #181818 !important;
     color: #fff !important;
 }
 
@@ -973,23 +1510,17 @@ onMounted(async () => {
     color: #aaa !important;
 }
 
-:global(.dark .p-select-list-container) {
+
+.dark .logo-card {
     background-color: #181818 !important;
-    color: #fff !important;
+}
+
+.dark .logo-frame {
+    background-color: #181818 !important;
 }
 
 
-
-/* Responsive polish */
 @media (max-width: 576px) {
-    .kpi-value {
-        font-size: 1.3rem;
-    }
-
-    .filter {
-        min-width: 46%;
-    }
-
     .search-wrap {
         width: 100%;
     }
