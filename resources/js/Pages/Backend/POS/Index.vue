@@ -19,6 +19,16 @@ const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatte
 
 const props = defineProps(["client_secret", "order_code"]);
 
+import { Popover } from 'bootstrap';
+
+onMounted(() => {
+    nextTick(() => {
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach((el) => {
+            new Popover(el);
+        });
+    });
+});
+
 /* ----------------------------
    Categories
 -----------------------------*/
@@ -801,21 +811,27 @@ const decCart = async (i) => {
 const removeCart = (index) => {
     const removedItem = orderItems.value[index];
 
-    // 1️⃣ Remove the item from cart
+    // 1️⃣ Remove the item
     orderItems.value.splice(index, 1);
 
-    // 2️⃣ If promos are applied, remove those that no longer apply
+    // 2️⃣ If NO items left, clear all discounts + promos
+    if (orderItems.value.length === 0) {
+        selectedDiscounts.value = [];
+        selectedPromos.value = [];
+        pendingDiscountApprovals.value = [];
+        stopApprovalPolling();
+        return;
+    }
+
+    // 3️⃣ Remove promos that no longer apply
     if (selectedPromos.value.length > 0) {
         selectedPromos.value = selectedPromos.value.filter((promo) => {
-            // If promo applies to all items (no menu_items), keep it
             if (!promo.menu_items || promo.menu_items.length === 0) {
                 return true;
             }
 
-            // Check if any of this promo's menu_items still exist in the updated cart
             const promoMenuIds = promo.menu_items.map(item => item.id);
 
-            // If none of its menu_items are left, remove this promo
             const stillApplicable = orderItems.value.some(cartItem =>
                 promoMenuIds.includes(cartItem.id)
             );
@@ -823,7 +839,29 @@ const removeCart = (index) => {
             return stillApplicable;
         });
     }
+
+    // 4️⃣ Re-check approved discount conditions
+    const discountsToKeep = [];
+
+    selectedDiscounts.value.forEach(discount => {
+        // If subtotal < min_purchase → remove the discount
+        if (discount.min_purchase && subTotal.value < discount.min_purchase) {
+
+            toast.info(
+                `Discount "${discount.name}" removed — subtotal is lower than minimum required (${formatCurrencySymbol(discount.min_purchase)}).`
+            );
+
+            // ❌ Do NOT add it to `discountsToKeep`
+        } else {
+            // ✔ Keep the discount
+            discountsToKeep.push(discount);
+        }
+    });
+
+    selectedDiscounts.value = discountsToKeep;
 };
+
+
 
 
 const subTotal = computed(() =>
@@ -1333,9 +1371,9 @@ const resetCart = () => {
     kitchenNote.value = "";
     deliveryPercent.value = 0;
     selectedPromos.value = [];
-    selectedDiscounts.value = []; 
-    pendingDiscountApprovals.value = []; 
-    stopApprovalPolling(); 
+    selectedDiscounts.value = [];
+    pendingDiscountApprovals.value = [];
+    stopApprovalPolling();
 };
 watch(orderType, () => (formErrors.value = {}));
 
@@ -1471,21 +1509,15 @@ async function printKot(order) {
 
 
 // ================================================
-// DISCOUNT APPROVAL SYSTEM
-// ================================================
-
-// Add these to your POS component's script section
-
-// ================================================
-// DISCOUNT APPROVAL SYSTEM
+// DISCOUNT APPROVAL SYSTEM - PERCENTAGE ONLY
 // ================================================
 
 const pendingDiscountApprovals = ref([]);
 const approvalCheckInterval = ref(null);
 const showApprovalWaitingModal = ref(false);
-const selectedDiscounts = ref([]); // Store approved discounts
+const selectedDiscounts = ref([]); // Store approved discounts with percentage
 
-// Handle discount application (request approval)
+// Handle discount application (request approval) - PERCENTAGE ONLY
 const handleApplyDiscount = async (appliedDiscounts) => {
     if (!appliedDiscounts || appliedDiscounts.length === 0) {
         toast.warning("No discounts selected.");
@@ -1493,11 +1525,12 @@ const handleApplyDiscount = async (appliedDiscounts) => {
     }
 
     try {
-        // Send approval request to Super Admin
+        // ✅ Send only percentage to Super Admin
         const response = await axios.post('/api/discount-approvals/request', {
             discounts: appliedDiscounts.map(d => ({
                 discount_id: d.id,
-                discount_amount: d.applied_discount
+                discount_percentage: parseFloat(d.discount_amount), // ✅ Only send percentage
+                discount_name: d.name
             })),
             order_items: orderItems.value.map(item => ({
                 id: item.id,
@@ -1515,18 +1548,14 @@ const handleApplyDiscount = async (appliedDiscounts) => {
             pendingDiscountApprovals.value = response.data.data.map(approval => ({
                 ...approval,
                 discountData: appliedDiscounts.find(d => d.id === approval.discount_id),
-                status: 'pending' // ✅ Mark as pending
+                percentage: parseFloat(approval.discount_percentage), // ✅ Store percentage
+                status: 'pending'
             }));
 
-            // Close discount modal
             showDiscountModal.value = false;
-
-            // Show waiting modal
             showApprovalWaitingModal.value = true;
 
             toast.info('Discount approval request sent to Super Admin. Waiting for approval...');
-
-            // Start polling for approval status
             startApprovalPolling();
         }
     } catch (error) {
@@ -1543,10 +1572,9 @@ const startApprovalPolling = () => {
 
     approvalCheckInterval.value = setInterval(async () => {
         await checkApprovalStatus();
-    }, 3000); // Check every 3 seconds
+    }, 3000);
 };
 
-// Check approval status
 // Check approval status
 const checkApprovalStatus = async () => {
     if (pendingDiscountApprovals.value.length === 0) {
@@ -1565,53 +1593,29 @@ const checkApprovalStatus = async () => {
 
             approvals.forEach(approval => {
                 if (approval.status !== 'pending') {
-                    // Find the pending approval
                     const pendingIndex = pendingDiscountApprovals.value.findIndex(
                         p => p.id === approval.id
                     );
 
                     if (pendingIndex >= 0) {
-                        const pendingApproval = pendingDiscountApprovals.value[pendingIndex];
-
                         if (approval.status === 'approved') {
-                            // ✅ Calculate the actual discount amount
-                            const discountType = approval.discount.type;
-                            const discountValue = parseFloat(approval.discount.discount_amount);
-                            let actualDiscount = 0;
-
-                            if (discountType === 'flat') {
-                                actualDiscount = discountValue;
-                            } else if (discountType === 'percent') {
-                                actualDiscount = (subTotal.value * discountValue) / 100;
-                                
-                                // Apply max discount cap if exists
-                                const maxDiscount = parseFloat(approval.discount.max_discount || 0);
-                                if (maxDiscount > 0 && actualDiscount > maxDiscount) {
-                                    actualDiscount = maxDiscount;
-                                }
-                            }
-
-                            // Create properly formatted discount data
-                            const formattedDiscount = {
-                                id: approval.discount.id,
-                                name: approval.discount.name,
-                                type: approval.discount.type,
-                                discount_amount: approval.discount.discount_amount,
-                                applied_discount: actualDiscount, // ✅ This is the calculated amount to subtract
-                                max_discount: approval.discount.max_discount,
-                                min_purchase: approval.discount.min_purchase,
+                            // ✅ Store approved discount with percentage only
+                            const approvedDiscount = {
+                                id: approval.discount_id,
+                                name: approval.discount_name || approval.discount?.name,
+                                percentage: parseFloat(approval.discount_percentage), // ✅ Store percentage
+                                approval_id: approval.id
                             };
 
-                            // ✅ Apply the discount to cart
-                            applyApprovedDiscount(formattedDiscount);
-                            
+                            // Add to approved discounts
+                            applyApprovedDiscount(approvedDiscount);
+
                             toast.success(
-                                `Discount "${approval.discount.name}" approved! ` +
-                                `Saving ${formatCurrencySymbol(actualDiscount)}`
+                                `Discount "${approvedDiscount.name}" (${approvedDiscount.percentage}%) approved!`
                             );
                         } else if (approval.status === 'rejected') {
                             toast.error(
-                                `Discount "${approval.discount.name}" rejected.` +
+                                `Discount "${approval.discount_name}" rejected.` +
                                 (approval.approval_note ? ` Reason: ${approval.approval_note}` : '')
                             );
                         }
@@ -1622,7 +1626,6 @@ const checkApprovalStatus = async () => {
                 }
             });
 
-            // If no more pending, close modal and stop polling
             if (pendingDiscountApprovals.value.length === 0) {
                 showApprovalWaitingModal.value = false;
                 stopApprovalPolling();
@@ -1641,9 +1644,8 @@ const stopApprovalPolling = () => {
     }
 };
 
-// Apply approved discount
+// Apply approved discount (store percentage only)
 const applyApprovedDiscount = (discountData) => {
-    // Add to approved discounts list
     selectedDiscounts.value.push(discountData);
 };
 
@@ -1660,45 +1662,52 @@ onUnmounted(() => {
     stopApprovalPolling();
 });
 
-// Listen for broadcast events (optional - for real-time updates)
+// Listen for broadcast events
 onMounted(() => {
     if (window.Echo) {
         window.Echo.channel('discount-approvals')
             .listen('.approval.responded', (event) => {
                 console.log('Approval response received:', event.approval);
-                // Trigger immediate check instead of waiting for next poll
                 checkApprovalStatus();
             });
     }
 });
 
-// ✅ NEW: Computed for pending discount total (NOT deducted yet)
+// ✅ Calculate pending discount dynamically based on current subtotal
 const pendingDiscountTotal = computed(() => {
     if (!pendingDiscountApprovals.value || pendingDiscountApprovals.value.length === 0) return 0;
 
     return pendingDiscountApprovals.value.reduce((total, approval) => {
-        return total + parseFloat(approval.discount_amount || 0);
+        const percentage = parseFloat(approval.percentage || 0);
+        const discountAmount = (subTotal.value * percentage) / 100;
+        return total + discountAmount;
     }, 0);
 });
 
-// ✅ NEW: Computed for approved discount total (DEDUCTED from total)
+// ✅ Calculate approved discount dynamically based on current subtotal
 const approvedDiscountTotal = computed(() => {
     if (!selectedDiscounts.value || selectedDiscounts.value.length === 0) return 0;
 
     return selectedDiscounts.value.reduce((total, discount) => {
-        return total + parseFloat(discount.applied_discount || 0);
+        const percentage = parseFloat(discount.percentage || 0);
+        const discountAmount = (subTotal.value * percentage) / 100;
+        return total + discountAmount;
     }, 0);
 });
-// ✅ NEW: Clear discounts helper
+
+// ✅ Get individual discount amount for display
+const getDiscountAmount = (percentage) => {
+    return (subTotal.value * percentage) / 100;
+};
+
+// Clear discounts helper
 const clearDiscounts = () => {
     selectedDiscounts.value = [];
     pendingDiscountApprovals.value = [];
     stopApprovalPolling();
 };
 
-/* ----------------------------
-   Confirm Order
------------------------------*/
+// ✅ Confirm Order - Updated to use percentage-based discounts
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
@@ -1713,13 +1722,21 @@ const confirmOrder = async ({
         const payload = {
             customer_name: customer.value,
             sub_total: subTotal.value,
-
             tax: totalTax.value,
-
             service_charges: serviceCharges.value,
             delivery_charges: deliveryCharges.value,
             sale_discount: totalResaleSavings.value,
+
+            // ✅ Send approved discounts with percentage and calculated amount
             approved_discounts: approvedDiscountTotal.value,
+            approved_discount_details: selectedDiscounts.value.map(discount => ({
+                discount_id: discount.id,
+                discount_name: discount.name,
+                discount_percentage: discount.percentage,
+                discount_amount: getDiscountAmount(discount.percentage), // Calculated at order time
+                approval_id: discount.approval_id
+            })),
+
             // Promo Details
             promo_discount: promoDiscount.value,
             applied_promos: selectedPromos.value.map(promo => ({
@@ -1729,8 +1746,8 @@ const confirmOrder = async ({
                 discount_amount: promo.applied_discount || 0,
                 applied_to_items: promo.applied_to_items || []
             })),
+
             total_amount: grandTotal.value,
-            delivery_charges: deliveryCharges.value,
             note: note.value,
             kitchen_note: kitchenNote.value,
             order_date: new Date().toISOString().split("T")[0],
@@ -1747,11 +1764,9 @@ const confirmOrder = async ({
             payment_method: paymentMethod,
             auto_print_kot: autoPrintKot,
 
-            // ✅ Add split payment handling
             cash_received: cashReceived,
             change: changeAmount,
 
-            // ✅ Add these for split payments
             ...(paymentMethod === 'Split' && {
                 payment_type: 'split',
                 cash_amount: cashReceived,
@@ -1759,17 +1774,14 @@ const confirmOrder = async ({
             }),
 
             items: (orderItems.value ?? []).map((it) => {
-                // ✅ Find the original menu item to get resale info
                 const menuItem = menuItems.value.find(m => m.id === it.id);
                 let sourceItem = menuItem;
 
-                // Get variant if exists
                 if (it.variant_id && menuItem?.variants) {
                     const variant = menuItem.variants.find(v => v.id === it.variant_id);
                     if (variant) sourceItem = variant;
                 }
 
-                // Calculate resale discount for this item
                 const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
                 const originalPrice = parseFloat(sourceItem?.price || it.unit_price);
 
@@ -1793,52 +1805,44 @@ const confirmOrder = async ({
         };
 
         const res = await axios.post("/pos/order", payload);
-        // ✅ CHECK FOR AUTO-LOGOUT FIRST (before any other actions)
-        console.log("Order response:", res.data);
+
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
-
-            // ✅ Wait 1 second then redirect to login
             setTimeout(() => {
                 window.location.href = res.data.redirect || '/login';
             }, 1000);
-
             if (done) done();
-            return; // ✅ Stop further execution
+            return;
         }
+
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message);
 
-        // ✅ Merge the response with payload to include split payment data
         lastOrder.value = {
             ...res.data.order,
             ...payload,
             items: payload.items,
-            // Ensure split payment data is included
             payment_type: paymentMethod === 'Split' ? 'split' : paymentMethod.toLowerCase(),
             cash_amount: paymentMethod === 'Split' ? cashReceived : null,
             card_amount: paymentMethod === 'Split' ? cardAmount : null,
         };
 
-        // Open KOT modal after confirmation
         if (autoPrintKot) {
             kotData.value = await openPosOrdersModal();
             printKot(JSON.parse(JSON.stringify(lastOrder.value)));
-            // showKotModal.value = true;
         }
 
-        // Print receipt immediately
         printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
 
-        // Clear promo after successful order
+        // Clear discounts after successful order
         selectedPromos.value = [];
+        selectedDiscounts.value = [];
 
     } catch (err) {
         console.error("Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
-    }
-    finally {
+    } finally {
         if (done) done();
     }
 };
@@ -3459,7 +3463,7 @@ const getModalTotalPriceWithResale = () => {
 
                                 <!-- Totals -->
                                 <div class="totals">
-                                    <!-- Sub Total (Original Prices) -->
+                                    <!-- Sub Total -->
                                     <div class="trow">
                                         <span>Sub Total</span>
                                         <b class="sub-total">{{ formatCurrencySymbol(subTotal) }}</b>
@@ -3486,7 +3490,7 @@ const getModalTotalPriceWithResale = () => {
                                         <span class="fw-semibold">{{ formatCurrencySymbol(deliveryCharges) }}</span>
                                     </div>
 
-                                    <!-- ✅ Sale Discount (Now showing as minus from subtotal) -->
+                                    <!-- Sale Discount -->
                                     <div v-if="totalResaleSavings > 0" class="trow">
                                         <span class="d-flex align-items-center gap-2">
                                             <i class="bi bi-tag text-danger"></i>
@@ -3497,17 +3501,16 @@ const getModalTotalPriceWithResale = () => {
 
                                     <!-- Promo Discount -->
                                     <div v-if="selectedPromos && selectedPromos.length > 0" class="promos-section mb-3">
-                                        <!-- Total Discount Summary -->
                                         <div class="promo-total mt-2 rounded-3 bg-success-subtle">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Pending Discount Requests (Shown but NOT deducted) -->
+                                    <!-- ✅ Pending Percentage Discounts (NOT deducted yet) -->
                                     <div v-if="pendingDiscountApprovals.length > 0"
                                         class="pending-discounts-section mb-3">
                                         <div class="alert alert-warning py-2 px-3 mb-2">
@@ -3520,10 +3523,12 @@ const getModalTotalPriceWithResale = () => {
                                             class="trow">
                                             <span class="d-flex align-items-center gap-2 text-warning">
                                                 <i class="bi bi-hourglass-split"></i>
-                                                <span>{{ approval.discount?.name || 'Discount' }} (Pending)</span>
+                                                <span>{{ approval.discountData?.name || 'Discount' }} ({{
+                                                    approval.percentage }}%)</span>
                                             </span>
-                                            <span class="text-warning">-{{
-                                                formatCurrencySymbol(approval.discount_amount) }}</span>
+                                            <span class="text-warning">
+                                                -{{ formatCurrencySymbol(getDiscountAmount(approval.percentage)) }}
+                                            </span>
                                         </div>
                                         <small class="text-muted d-block mt-1 ms-4">
                                             <i class="bi bi-info-circle me-1"></i>
@@ -3531,13 +3536,29 @@ const getModalTotalPriceWithResale = () => {
                                         </small>
                                     </div>
 
-                                    <!-- Approved Discounts (Actually deducted) -->
-                                    <div v-if="approvedDiscountTotal > 0" class="trow">
-                                        <span class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-check-circle text-success"></i>
-                                            <span class="text-success">Approved Discount:</span>
-                                        </span>
-                                        <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal) }}</b>
+                                    <!-- ✅ Approved Percentage Discounts (Dynamically calculated) -->
+                                    <div v-if="selectedDiscounts.length > 0" class="approved-discounts-section mb-3">
+
+
+                                        <!-- Total Approved Discount -->
+                                        <div class="trow border-top pt-2 mt-2">
+                                            <div class="d-flex align-items-center text-success gap-2">
+                                                <i class="bi bi-check-circle"></i>
+                                                <small class="fw-semibold">Approved Discounts</small>
+
+                                                <!-- NEW: Info Icon with Popover -->
+                                                <i class="bi bi-info-circle text-muted" tabindex="0" role="button"
+                                                    data-bs-toggle="popover" data-bs-trigger="click" data-bs-html="true"
+                                                    data-bs-placement="top" data-bs-container="body"
+                                                    data-bs-content="Auto-updates with cart changes<br>Approved Discounts">
+                                                </i>
+
+                                            </div>
+
+                                            <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
+                                            }}</b>
+                                        </div>
+
                                     </div>
 
                                     <!-- Total After All Discounts -->

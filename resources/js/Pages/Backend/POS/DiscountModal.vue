@@ -175,8 +175,10 @@
             <button 
               class="btn btn-success rounded-pill px-4" 
               @click="applyDiscounts"
+              :disabled="isApplying"
             >
-              Apply ({{ selectedDiscounts.length }})
+              <span v-if="isApplying" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              {{ isApplying ? 'Applying...' : `Apply (${selectedDiscounts.length})` }}
             </button>
             <button class="btn btn-outline-danger rounded-pill" @click="clearDiscounts">Clear</button>
           </div>
@@ -229,28 +231,46 @@ const isDiscountSelected = (discount) => {
   return selectedDiscounts.value.some(d => d.id === discount.id);
 };
 
-// Apply all selected discounts (Request approval)
+const isApplying = ref(false);
+
+// Replace your applyDiscounts function with this:
 const applyDiscounts = async () => {
+  // Prevent multiple simultaneous requests
+  if (isApplying.value) {
+    return;
+  }
+
   const eligibleDiscounts = selectedDiscounts.value.filter(discount => isDiscountEligible(discount));
   
   if (eligibleDiscounts.length === 0) {
     return;
   }
 
-  // Calculate discount for each and attach metadata
-  const discountsWithAmounts = eligibleDiscounts.map(discount => {
-    const discountAmount = parseFloat(calculateDiscount(discount));
-    
-    return {
-      ...discount,
-      applied_discount: discountAmount,
-      applied_to_items: props.orderItems.map(item => item.id),
-      applied_subtotal: getCartSubtotal(),
-      discount_id: discount.id
-    };
-  });
+  try {
+    isApplying.value = true;
 
-  emit('apply-discount', discountsWithAmounts);
+    // Calculate discount for each and attach metadata
+    const discountsWithAmounts = eligibleDiscounts.map(discount => {
+      const discountAmount = parseFloat(calculateDiscount(discount));
+      
+      return {
+        ...discount,
+        applied_discount: discountAmount,
+        applied_to_items: props.orderItems.map(item => item.id),
+        applied_subtotal: getCartSubtotal(),
+        discount_id: discount.id
+      };
+    });
+
+    emit('apply-discount', discountsWithAmounts);
+    
+  } finally {
+    selectedDiscounts.value = [];
+    // Reset the flag after a short delay to prevent double-clicks
+    setTimeout(() => {
+      isApplying.value = false;
+    }, 500);
+  }
 };
 
 // Clear all selections

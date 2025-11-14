@@ -14,7 +14,8 @@ class DiscountApproval extends Model
         'requested_by',
         'approved_by',
         'status',
-        'discount_amount',
+        'discount_percentage', 
+        'discount_name',       
         'order_items',
         'order_subtotal',
         'request_note',
@@ -25,10 +26,18 @@ class DiscountApproval extends Model
 
     protected $casts = [
         'order_items' => 'array',
+        'order_subtotal' => 'decimal:2',
+        'discount_percentage' => 'decimal:2', 
         'requested_at' => 'datetime',
         'responded_at' => 'datetime',
     ];
 
+    public function getDiscountAmountAttribute()
+    {
+        return round(($this->order_subtotal * $this->discount_percentage) / 100, 2);
+    }
+
+    // Relationships
     public function discount()
     {
         return $this->belongsTo(Discount::class);
@@ -42,5 +51,21 @@ class DiscountApproval extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    // Scopes
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
     }
 }

@@ -43,7 +43,7 @@ const refreshInterval = ref(null);
 
 // Discount type and status options for dropdowns
 const discountOptions = [
-    { label: "Flat Amount", value: "flat" },
+    // { label: "Flat Amount", value: "flat" },
     { label: "Percentage", value: "percent" },
 ];
 
@@ -1041,23 +1041,34 @@ const downloadExcel = (data) => {
 
                                     <!-- Pending Requests List -->
                                     <div v-else class="row g-3">
-                                        <div v-for="request in pendingRequests" :key="request.id" class="col-md-6">
+                                        <div v-for="request in pendingRequests" :key="request.id" class="col-md-4">
                                             <div class="card border border-warning rounded-4 h-100">
                                                 <div class="card-body">
                                                     <!-- Header -->
+                                                    <!-- Header -->
                                                     <div class="d-flex justify-content-between align-items-start mb-3">
                                                         <div>
-                                                            <h5 class="fw-bold mb-1">{{ request.discount.name }}</h5>
+                                                            <h5 class="fw-bold mb-1">{{ request.discount_name ||
+                                                                request.discount.name }}
+                                                            </h5>
                                                             <span class="badge bg-warning">
                                                                 <i class="bi bi-clock-history me-1"></i>
-                                                                Pending
+                                                                Pending Approval
                                                             </span>
                                                         </div>
+
+                                                        <!-- ✅ SHOW PERCENTAGE -->
                                                         <div class="text-end">
-                                                            <div class="h4 text-success mb-0">
-                                                                -£{{ parseFloat(request.discount_amount).toFixed(2) }}
+                                                            <div class="h3 text-primary mb-0 fw-bold">
+                                                                {{ parseFloat(request.discount_percentage).toFixed(0)
+                                                                }}%
                                                             </div>
-                                                            <small class="text-muted">Discount Amount</small>
+                                                            <small class="text-muted d-block">Discount Rate</small>
+                                                            <!-- <div class="small text-success mt-1">
+                                                                Will save: -£{{ ((parseFloat(request.order_subtotal) *
+                                                                parseFloat(request.discount_percentage)) /
+                                                                100).toFixed(2) }}
+                                                            </div> -->
                                                         </div>
                                                     </div>
 
@@ -1076,45 +1087,37 @@ const downloadExcel = (data) => {
                                                                 {{ formatDateTime(request.requested_at) }}
                                                             </small>
                                                         </div>
-                                                        <div class="d-flex align-items-center gap-2">
+                                                        <!-- <div class="d-flex align-items-center gap-2">
                                                             <i class="bi bi-cart text-muted"></i>
                                                             <small class="text-muted">
                                                                 Order Subtotal: <span class="fw-semibold">£{{
                                                                     parseFloat(request.order_subtotal).toFixed(2)
-                                                                    }}</span>
+                                                                }}</span>
                                                             </small>
-                                                        </div>
+                                                        </div> -->
                                                     </div>
 
-                                                    <!-- Request Note -->
-                                                    <div v-if="request.request_note"
-                                                        class="alert alert-light border mb-3 py-2">
-                                                        <small class="text-muted">
-                                                            <i class="bi bi-chat-left-text me-1"></i>
-                                                            {{ request.request_note }}
-                                                        </small>
-                                                    </div>
 
                                                     <!-- Order Items Preview -->
-                                                    <div class="mb-3">
-                                                        <button class="btn btn-link btn-sm p-0 text-decoration-none"
-                                                            @click="toggleOrderItems(request.id)">
-                                                            <i class="bi"
-                                                                :class="showOrderItems[request.id] ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
-                                                            View Order Items ({{ request.order_items?.length || 0 }})
-                                                        </button>
+                                                    <!-- <div class="mb-3">
 
-                                                        <div v-if="showOrderItems[request.id]" class="mt-2">
+                                                        <div class="text-muted small mb-1">
+                                                            Order Items ({{ request.order_items?.length || 0 }})
+                                                        </div>
+
+                                                        <div class="mt-2">
                                                             <div class="list-group list-group-flush small">
                                                                 <div v-for="item in request.order_items" :key="item.id"
                                                                     class="list-group-item px-0 py-2 d-flex justify-content-between">
                                                                     <span>{{ item.title }} × {{ item.qty }}</span>
                                                                     <span class="fw-semibold">£{{
-                                                                        parseFloat(item.price).toFixed(2) }}</span>
+                                                                        parseFloat(item.price).toFixed(2)
+                                                                        }}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
+
+                                                    </div> -->
 
                                                     <!-- Approval Note Input -->
                                                     <div class="mb-3">
@@ -1305,6 +1308,10 @@ const downloadExcel = (data) => {
     position: relative;
 }
 
+.list-group {
+    color: #121212 !important;
+}
+
 .search-wrap i {
     position: absolute;
     left: 12px;
@@ -1318,23 +1325,23 @@ const downloadExcel = (data) => {
     border-radius: 50px;
 }
 
-.p-tablist{
+.p-tablist {
     background: #fff !important;
 }
 
-.dark .p-tablist{
+.dark .p-tablist {
     background: #212121 !important;
     color: #fff !important;
 }
 
 
-.p-tabpanels{
+.p-tabpanels {
     background-color: #fff !important;
 }
 
 
 
-.dark .p-tabpanels{
+.dark .p-tabpanels {
     background-color: #212121 !important;
     color: #fff !important;
 }
