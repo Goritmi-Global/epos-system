@@ -14,8 +14,10 @@ return new class extends Migration
             $table->foreignId('requested_by')->constrained('users')->onDelete('cascade');
             $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->decimal('discount_amount', 10, 2);
-            $table->json('order_items')->nullable(); 
+            $table->decimal('discount_percentage', 5, 2); 
+            $table->string('discount_name'); 
+
+            $table->json('order_items')->nullable();
             $table->decimal('order_subtotal', 10, 2);
             $table->text('request_note')->nullable();
             $table->text('approval_note')->nullable();
