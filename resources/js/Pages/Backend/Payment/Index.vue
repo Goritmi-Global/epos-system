@@ -447,7 +447,7 @@ onUpdated(() => window.feather?.replace());
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="11" class="text-center text-muted py-4">
+                                    <td colspan="13" class="text-center text-muted py-4">
                                         No payments found.
                                     </td>
                                 </tr>
