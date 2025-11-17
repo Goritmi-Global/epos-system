@@ -239,7 +239,7 @@ const getTotalPrice = (product) => {
     return variantPrice + addonsPrice;
 };
 // ================================================
-const openDetailsModal = (item) => {
+const openDetailsModal = async (item) => {
     selectedItem.value = item;
     modalNote.value = "";
     modalSelectedVariant.value = null;
@@ -250,18 +250,23 @@ const openDetailsModal = (item) => {
         modalSelectedVariant.value = item.variants[0].id;
     }
 
-    // ✅ Always open modal, but set quantity based on available stock
     const variant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
     const variantId = variant ? variant.id : null;
     const variantIngredients = getVariantIngredients(item, variantId);
-
-    // Calculate how many we can still add
     const availableToAdd = calculateAvailableStock(item, variantId, variantIngredients);
-
-    // Set quantity to 0 if no stock, otherwise 1
     modalQty.value = availableToAdd > 0 ? 1 : 0;
 
-    const modal = new bootstrap.Modal(document.getElementById("chooseItem"));
+    // Get modal element
+    const modalEl = document.getElementById("chooseItem");
+    const modal = new bootstrap.Modal(modalEl);
+
+    // Wait for modal to be shown before initializing PrimeVue components
+    modalEl.addEventListener('shown.bs.modal', async () => {
+        // Force Vue to re-render the MultiSelect components
+        await nextTick();
+        console.log('Modal fully shown, MultiSelect should be visible now');
+    }, { once: true });
+
     modal.show();
 };
 
@@ -3461,7 +3466,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3512,7 +3517,7 @@ const getModalTotalPriceWithResale = () => {
                                             </div>
 
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
 
                                     </div>
@@ -3614,6 +3619,7 @@ const getModalTotalPriceWithResale = () => {
                                         </div>
                                     </div>
 
+
                                     <!-- Variant Dropdown -->
                                     <div v-if="selectedItem?.variants && selectedItem.variants.length > 0" class="mb-3">
                                         <label class="form-label small fw-semibold mb-1">
@@ -3630,8 +3636,11 @@ const getModalTotalPriceWithResale = () => {
 
                                     <!-- Addons Selection -->
                                     <div v-if="selectedItem?.addon_groups && selectedItem.addon_groups.length > 0">
+                                        <h6>DEBUG: Found {{ selectedItem.addon_groups.length }} addon groups</h6>
+
                                         <div v-for="group in selectedItem.addon_groups" :key="group.group_id"
                                             class="mb-3">
+
                                             <label class="form-label small fw-semibold mb-2">
                                                 {{ group.group_name }}
                                                 <span v-if="group.max_select > 0" class="text-muted"
@@ -3639,11 +3648,12 @@ const getModalTotalPriceWithResale = () => {
                                                     (Max {{ group.max_select }})
                                                 </span>
                                             </label>
+
                                             <MultiSelect :modelValue="modalSelectedAddons[group.group_id] || []"
                                                 @update:modelValue="(val) => handleModalAddonChange(group.group_id, val)"
                                                 :options="group.addons" optionLabel="name" dataKey="id"
                                                 placeholder="Select addons" :maxSelectedLabels="3"
-                                                class="w-100 addon-multiselect">
+                                                class="w-100 addon-multiselect" appendTo="self">
                                                 <template #value="slotProps">
                                                     <div v-if="slotProps.value && slotProps.value.length > 0"
                                                         class="d-flex flex-wrap gap-1">
@@ -3668,6 +3678,7 @@ const getModalTotalPriceWithResale = () => {
                                             </MultiSelect>
                                         </div>
                                     </div>
+
 
 
 
@@ -3914,44 +3925,24 @@ const getModalTotalPriceWithResale = () => {
                 @close="showReceiptModal = false" />
 
 
-            <ConfirmOrderModal 
-    :show="showConfirmModal" 
-    :customer="customer" 
-    :order-type="orderType"
-    :selected-table="selectedTable" 
-    :order-items="orderItems" 
-    :grand-total="grandTotal" 
-    :money="money"
-    v-model:cashReceived="cashReceived" 
-    :client_secret="client_secret" 
-    :order_code="order_code"
-    :sub-total="subTotal" 
-    :tax="totalTax" 
-    :service-charges="serviceCharges" 
-    :delivery-charges="deliveryCharges"
-    :promo-discount="promoDiscount" 
-    :promo-id="selectedPromos?.id" 
-    :promo-name="selectedPromos?.name"
-    :promo-type="selectedPromos?.type" 
-    :promo-discount-amount="promoDiscount" 
-    :note="note"
-    :kitchen-note="kitchenNote" 
-    :order-date="new Date().toISOString().split('T')[0]"
-    :order-time="new Date().toTimeString().split(' ')[0]" 
-    :payment-method="paymentMethod"
-    :change="changeAmount" 
-    @close="showConfirmModal = false" 
-    @confirm="confirmOrder"
-    :appliedPromos="getAppliedPromosData" 
-    :approved-discounts="approvedDiscountTotal"
-    :approved-discount-details="selectedDiscounts.map(d => ({
-        discount_id: d.id,
-        discount_name: d.name,
-        discount_percentage: d.percentage,
-        discount_amount: getDiscountAmount(d.percentage),
-        approval_id: d.approval_id
-    }))"
-/>
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
+                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
+                :sub-total="subTotal" :tax="totalTax" :service-charges="serviceCharges"
+                :delivery-charges="deliveryCharges" :promo-discount="promoDiscount" :promo-id="selectedPromos?.id"
+                :promo-name="selectedPromos?.name" :promo-type="selectedPromos?.type"
+                :promo-discount-amount="promoDiscount" :note="note" :kitchen-note="kitchenNote"
+                :order-date="new Date().toISOString().split('T')[0]"
+                :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
+                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder"
+                :appliedPromos="getAppliedPromosData" :approved-discounts="approvedDiscountTotal"
+                :approved-discount-details="selectedDiscounts.map(d => ({
+                    discount_id: d.id,
+                    discount_name: d.name,
+                    discount_percentage: d.percentage,
+                    discount_amount: getDiscountAmount(d.percentage),
+                    approval_id: d.approval_id
+                }))" />
 
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />

@@ -79,12 +79,12 @@ class AnalyticsController extends Controller
             ];
         }
 
-       if ($timeRange === 'monthly' && $selectedMonth && $selectedYear) {
-        $start = Carbon::createFromDate($selectedYear, $selectedMonth, 1)->startOfMonth();
-        $end = $start->copy()->endOfMonth();
+        if ($timeRange === 'monthly' && $selectedMonth && $selectedYear) {
+            $start = Carbon::createFromDate($selectedYear, $selectedMonth, 1)->startOfMonth();
+            $end = $start->copy()->endOfMonth();
 
-        return [$start, $end];
-    }
+            return [$start, $end];
+        }
 
         if ($timeRange === 'yearly' && $selectedYear) {
             $start = Carbon::createFromDate($selectedYear, 1, 1)->startOfYear();
@@ -134,7 +134,7 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE_FORMAT(order_date, "%Y-%m")')
                 ->orderBy('date')
                 ->get()
-                ->map(fn ($row) => [
+                ->map(fn($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
@@ -145,14 +145,14 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE(order_date)')
                 ->orderBy('date')
                 ->get()
-                ->map(fn ($row) => [
+                ->map(fn($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
                 ->toArray();
         }
 
-      
+
 
         // Distribution data - by order type
         $dineCount = PosOrderType::where('order_type', 'dine')->count();
@@ -171,8 +171,8 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE_FORMAT(order_date, "%Y-%m")')
                 ->orderBy('month_name')
                 ->get()
-                ->map(fn ($row) => [
-                    'name' => Carbon::parse($row->month_name.'-01')->format('F Y'),
+                ->map(fn($row) => [
+                    'name' => Carbon::parse($row->month_name . '-01')->format('F Y'),
                     'qty' => (int) $row->qty,
                     'revenue' => (float) $row->revenue,
                     'date' => $row->date,
@@ -191,7 +191,7 @@ class AnalyticsController extends Controller
                 ->orderByDesc('revenue')
                 ->limit(50)
                 ->get()
-                ->map(fn ($row) => [
+                ->map(fn($row) => [
                     'name' => $row->name,
                     'qty' => (int) $row->qty,
                     'revenue' => (float) $row->revenue,
@@ -240,7 +240,7 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE_FORMAT(purchase_date, "%Y-%m")')
                 ->orderBy('date')
                 ->get()
-                ->map(fn ($row) => [
+                ->map(fn($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
@@ -251,7 +251,7 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE(purchase_date)')
                 ->orderBy('date')
                 ->get()
-                ->map(fn ($row) => [
+                ->map(fn($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
@@ -282,8 +282,8 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE_FORMAT(purchase_date, "%Y-%m")')
                 ->orderBy('month_name')
                 ->get()
-                ->map(fn ($row) => [
-                    'name' => Carbon::parse($row->month_name.'-01')->format('F Y'),
+                ->map(fn($row) => [
+                    'name' => Carbon::parse($row->month_name . '-01')->format('F Y'),
                     'qty' => (int) $row->qty,
                     'cost' => (float) $row->cost,
                     'date' => $row->date,
@@ -300,7 +300,7 @@ class AnalyticsController extends Controller
                 ->limit(50)
                 ->with('product:id,name')
                 ->get()
-                ->map(fn ($row) => [
+                ->map(fn($row) => [
                     'name' => $row->product->name ?? 'Unknown Item',
                     'qty' => (int) $row->qty,
                     'cost' => (float) $row->cost,
@@ -363,7 +363,7 @@ class AnalyticsController extends Controller
 
         $allDates = collect($salesChart->keys())->merge($purchaseChart->keys())->unique()->sort();
 
-        $chartData = $allDates->map(fn ($date) => [
+        $chartData = $allDates->map(fn($date) => [
             'date' => $date,
             'sales' => (float) ($salesChart->get($date) ?? 0),
             'purchase' => (float) ($purchaseChart->get($date) ?? 0),
@@ -406,10 +406,10 @@ class AnalyticsController extends Controller
         $totalStock = (int) $items->sum('stock');
         $lowStockItems = (int) $items->where('stock', '<', DB::raw('min_alert'))->count();
         $outOfStockItems = (int) $items->where('stock', '<=', 0)->count();
-        $stockValue = (float) $items->sum(fn ($item) => ($item->stock ?? 0) * ($item->unit_cost ?? 0));
+        $stockValue = (float) $items->sum(fn($item) => ($item->stock ?? 0) * ($item->unit_cost ?? 0));
 
         // Chart data - stock by category or item
-        $chartData = $items->take(10)->map(fn ($item) => [
+        $chartData = $items->take(10)->map(fn($item) => [
             'date' => $item->name,
             'total' => (int) $item->stock,
         ])->toArray();
@@ -425,7 +425,7 @@ class AnalyticsController extends Controller
         ];
 
         // Table data
-        $tableData = $items->map(fn ($item) => [
+        $tableData = $items->map(fn($item) => [
             'name' => $item->name,
             'currentStock' => (int) $item->stock,
             'minLevel' => (int) ($item->min_alert ?? 5),
@@ -475,7 +475,7 @@ class AnalyticsController extends Controller
         $topCashierSales = $cashierSales->first()?->total_sales ?? 0;
 
         // Chart data - top cashiers
-        $chartData = $cashierSales->take(10)->map(fn ($row) => [
+        $chartData = $cashierSales->take(10)->map(fn($row) => [
             'date' => $row->user->name ?? 'Unknown',
             'total' => (float) $row->total_sales,
         ])->toArray();
@@ -487,12 +487,12 @@ class AnalyticsController extends Controller
                 'label' => $row->user->name ?? 'Unknown',
                 'value' => (int) $row->order_count,
                 'percentage' => round($row->total_sales * 100 / $totalSales),
-                'color' => '#'.substr(md5($row->user_id), 0, 6),
+                'color' => '#' . substr(md5($row->user_id), 0, 6),
             ];
         })->toArray();
 
         // Table data
-        $tableData = $cashierSales->map(fn ($row) => [
+        $tableData = $cashierSales->map(fn($row) => [
             'cashierName' => $row->user->name ?? 'Unknown',
             'orderCount' => (int) $row->order_count,
             'totalSales' => (float) $row->total_sales,
@@ -530,14 +530,22 @@ class AnalyticsController extends Controller
         $categorySales = PosOrderItem::whereHas('order', function ($q) use ($from, $to, $orderType) {
             $q->whereBetween('order_date', [$from, $to])
                 ->where('status', 'paid');
+
             if ($orderType) {
                 $q->where('order_type', $orderType);
             }
         })
-            ->selectRaw('category as categoryName, SUM(quantity) as qty, SUM(quantity * price) as revenue')
-            ->groupBy('category')
+            ->join('menu_items', 'menu_items.id', '=', 'pos_order_items.menu_item_id')
+            ->join('menu_categories', 'menu_categories.id', '=', 'menu_items.category_id')
+            ->selectRaw('
+                menu_categories.name as categoryName,
+                SUM(pos_order_items.quantity) as qty,
+                SUM(pos_order_items.quantity * pos_order_items.price) as revenue
+            ')
+            ->groupBy('menu_categories.name')
             ->orderByDesc('revenue')
             ->get();
+
 
         // KPIs
         $totalCategories = $categorySales->count();
@@ -547,7 +555,7 @@ class AnalyticsController extends Controller
 
         // Chart data
         $totalRev = $categorySales->sum('revenue') ?: 1;
-        $chartData = $categorySales->take(10)->map(fn ($row) => [
+        $chartData = $categorySales->take(10)->map(fn($row) => [
             'date' => $row->categoryName,
             'total' => (float) $row->revenue,
         ])->toArray();
@@ -558,7 +566,7 @@ class AnalyticsController extends Controller
                 'label' => $row->categoryName,
                 'value' => (int) $row->qty,
                 'percentage' => round($row->revenue * 100 / $totalRev),
-                'color' => '#'.substr(md5($row->categoryName), 0, 6),
+                'color' => '#' . substr(md5($row->categoryName), 0, 6),
             ];
         })->toArray();
 
