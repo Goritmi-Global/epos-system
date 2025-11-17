@@ -17,6 +17,8 @@ const filters = ref({
     timeRange: "monthly",
     selectedMonth: "",
     selectedYear: "",
+    selectedDate: "",
+    selectedYear: "",
     dateFrom: "",
     dateTo: "",
     orderType: "",
@@ -33,6 +35,7 @@ const analyticsTypeOptions = [
 ];
 
 const timeRangeOptions = [
+    { label: 'Daily', value: 'daily' },
     { label: 'Monthly', value: 'monthly' },
     { label: 'Yearly', value: 'yearly' },
     { label: 'Custom Range', value: 'custom' }
@@ -97,8 +100,20 @@ const chartTitle = computed(() => {
 });
 
 const periodLabel = computed(() => {
+    if (filters.value.timeRange === 'daily') {
+        return filters.value.selectedDate
+            ? `Date: ${filters.value.selectedDate}`
+            : 'Select a date';
+    }
     if (filters.value.timeRange === 'monthly') {
-        return filters.value.selectedMonth ? `Month: ${filters.value.selectedMonth}` : 'Select a month';
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const monthLabel = monthNames[parseInt(filters.value.selectedMonth) - 1] || '';
+        return filters.value.selectedMonth && filters.value.selectedYear
+            ? `${monthLabel} ${filters.value.selectedYear}`
+            : 'Select month and year';
     }
     if (filters.value.timeRange === 'yearly') {
         return filters.value.selectedYear ? `Year: ${filters.value.selectedYear}` : 'Select a year';
@@ -148,26 +163,26 @@ function buildLine(series, W, H, m = { l: 50, r: 20, t: 40, b: 50 }) {
     }
 
     // X-axis labels (dates)
-  // X-axis labels (dates)
-const xLabels = series.map((d, i) => {
-    let label;
-    if (d.date) {
-        const date = new Date(d.date);
-        // Check if it's a month format (YYYY-MM)
-        if (d.date.length === 7 && d.date.includes('-')) {
-            label = date.toLocaleDateString('en-US', { month: 'short' });
+    // X-axis labels (dates)
+    const xLabels = series.map((d, i) => {
+        let label;
+        if (d.date) {
+            const date = new Date(d.date);
+            // Check if it's a month format (YYYY-MM)
+            if (d.date.length === 7 && d.date.includes('-')) {
+                label = date.toLocaleDateString('en-US', { month: 'short' });
+            } else {
+                label = date.toLocaleDateString('en-US', { weekday: 'short' });
+            }
         } else {
-            label = date.toLocaleDateString('en-US', { weekday: 'short' });
+            label = `Day ${i + 1}`;
         }
-    } else {
-        label = `Day ${i + 1}`;
-    }
-    return {
-        x: sx(i),
-        y: m.t + ih + 20,
-        text: label
-    };
-});
+        return {
+            x: sx(i),
+            y: m.t + ih + 20,
+            text: label
+        };
+    });
 
     // Y-axis labels
     const ySteps = 5;
@@ -205,12 +220,23 @@ const tableDataFiltered = computed(() => {
 const handleTimeRangeChange = () => {
     filters.value.selectedMonth = "";
     filters.value.selectedYear = "";
+    filters.value.selectedDate = "";
     filters.value.dateFrom = "";
     filters.value.dateTo = "";
 };
 
 const fetchAnalytics = async () => {
     // Validate required fields
+    if (filters.value.timeRange === 'daily' && !filters.value.selectedDate) {
+        errorMsg.value = "Please select a date";
+        return;
+    }
+
+    // UPDATE: For monthly validation - now requires both month AND year
+    if (filters.value.timeRange === 'monthly' && (!filters.value.selectedMonth || !filters.value.selectedYear)) {
+        errorMsg.value = "Please select both month and year";
+        return;
+    }
     if (filters.value.timeRange === 'monthly' && !filters.value.selectedMonth) {
         errorMsg.value = "Please select a month";
         return;
@@ -234,6 +260,7 @@ const fetchAnalytics = async () => {
                 timeRange: filters.value.timeRange,
                 selectedMonth: filters.value.selectedMonth,
                 selectedYear: filters.value.selectedYear,
+                selectedDate: filters.value.selectedDate,
                 dateFrom: filters.value.dateFrom,
                 dateTo: filters.value.dateTo,
                 orderType: filters.value.orderType,
@@ -265,15 +292,24 @@ watch(
         filters.value.timeRange,
         filters.value.selectedMonth,
         filters.value.selectedYear,
+        filters.value.selectedDate,
     ],
     () => {
         if (filters.value.type && filters.value.timeRange) {
-            // Auto-fetch when type or timeRange changes if required fields are filled
-            if (filters.value.timeRange === 'monthly' && filters.value.selectedMonth) {
+
+            if (filters.value.timeRange === 'daily' && filters.value.selectedDate) {
                 fetchAnalytics();
-            } else if (filters.value.timeRange === 'yearly' && filters.value.selectedYear) {
+            }
+
+            else if (filters.value.timeRange === 'monthly' && filters.value.selectedMonth && filters.value.selectedYear) {
                 fetchAnalytics();
-            } else if (filters.value.timeRange === 'custom' && filters.value.dateFrom && filters.value.dateTo) {
+            }
+
+            else if (filters.value.timeRange === 'yearly' && filters.value.selectedYear) {
+                fetchAnalytics();
+            }
+
+            else if (filters.value.timeRange === 'custom' && filters.value.dateFrom && filters.value.dateTo) {
                 fetchAnalytics();
             }
         }
@@ -357,8 +393,18 @@ onMounted(async () => {
                                 class="w-100" />
                         </div>
 
-                        <!-- Month Selector - PrimeVue Select -->
-                        <div v-if="filters.timeRange === 'monthly'" class="col-md-3">
+                        <!-- DAILY: Date Picker for Daily Time Range -->
+                        <!-- NEW: Add this block for daily date selection -->
+                        <div v-if="filters.timeRange === 'daily'" class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar me-2 text-muted"></i>Select Date
+                            </label>
+                            <VueDatePicker v-model="filters.selectedDate" placeholder="Choose Date" format="yyyy-MM-dd"
+                                :enable-time-picker="false" single-calendar />
+                        </div>
+
+                        <!-- MONTHLY: Month Selector -->
+                        <div v-if="filters.timeRange === 'monthly'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Select Month
                             </label>
@@ -366,7 +412,17 @@ onMounted(async () => {
                                 optionValue="value" placeholder="Choose Month" class="w-100" />
                         </div>
 
-                        <!-- Year Selector - PrimeVue Select -->
+                        <!-- MONTHLY: Year Selector (NEW) -->
+                        <!-- NEW: Add this block for year selection in monthly view -->
+                        <div v-if="filters.timeRange === 'monthly'" class="col-md-2">
+                            <label class="form-label fw-semibold text-dark">
+                                <i class="fas fa-calendar me-2 text-muted"></i>Select Year
+                            </label>
+                            <Select v-model="filters.selectedYear" :options="yearsList" placeholder="Choose Year"
+                                class="w-100" />
+                        </div>
+
+                        <!-- YEARLY: Year Selector -->
                         <div v-if="filters.timeRange === 'yearly'" class="col-md-3">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Select Year
@@ -375,7 +431,7 @@ onMounted(async () => {
                                 class="w-100" />
                         </div>
 
-                        <!-- Start Date - VueDatepicker -->
+                        <!-- CUSTOM: Start Date - VueDatepicker -->
                         <div v-if="filters.timeRange === 'custom'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Start Date
@@ -384,7 +440,7 @@ onMounted(async () => {
                                 format="yyyy-MM-dd" />
                         </div>
 
-                        <!-- End Date - VueDatepicker -->
+                        <!-- CUSTOM: End Date - VueDatepicker -->
                         <div v-if="filters.timeRange === 'custom'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>End Date
@@ -392,12 +448,12 @@ onMounted(async () => {
                             <VueDatePicker v-model="filters.dateTo" placeholder="Select End Date" format="yyyy-MM-dd" />
                         </div>
 
-                        <!-- Apply Button -->
+                        <!-- Apply Button - Optional (can keep commented as auto-fetch works) -->
                         <!-- <div class="col-md-2 d-flex gap-2 align-items-end">
-                            <button @click="fetchAnalytics" class="btn btn-primary w-100" :disabled="loading">
-                                <i class="fas fa-search me-2"></i>{{ loading ? 'Loading...' : 'Apply' }}
-                            </button>
-                        </div> -->
+                <button @click="fetchAnalytics" class="btn btn-primary w-100" :disabled="loading">
+                    <i class="fas fa-search me-2"></i>{{ loading ? 'Loading...' : 'Apply' }}
+                </button>
+            </div> -->
                     </div>
                 </div>
             </div>
@@ -768,7 +824,7 @@ onMounted(async () => {
             <div v-if="errorMsg" class="alert alert-warning border-0 rounded-4 shadow-sm">
                 {{ errorMsg }}
             </div>
- <!-- Detailed Table -->
+            <!-- Detailed Table -->
             <div class="card border-0 shadow-sm rounded-4 mt-3">
                 <div class="card-body">
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -1014,7 +1070,7 @@ onMounted(async () => {
                 </div>
             </div>
 
-           
+
         </div>
     </Master>
 </template>
