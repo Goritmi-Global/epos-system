@@ -106,7 +106,10 @@
             <div class="discount-grid" v-else>
               <div v-for="discount in filteredDiscounts" :key="discount.id" 
                 class="discount-card"
-                :class="{ 'selected': isDiscountSelected(discount) }" 
+                :class="{ 
+                  'selected': isDiscountSelected(discount),
+                  'already-applied': isDiscountAlreadyApplied(discount)
+                }" 
                 @click="toggleDiscount(discount)">
                 
                 <!-- Selection Checkbox -->
@@ -114,6 +117,7 @@
                   <input 
                     type="checkbox" 
                     :checked="isDiscountSelected(discount)"
+                    :disabled="isDiscountAlreadyApplied(discount)"
                     @click.stop="toggleDiscount(discount)"
                     class="form-check-input"
                   >
@@ -121,7 +125,12 @@
 
                 <div class="discount-header d-flex align-items-center justify-content-between">
                   <span class="fw-bold fs-6">{{ discount.name }}</span>
-                  <span class="badge bg-primary text-white small">{{ discount.type.toUpperCase() }}</span>
+                  <div class="d-flex gap-2 align-items-center">
+                    <span class="badge bg-primary text-white small">{{ discount.type.toUpperCase() }}</span>
+                    <span v-if="isDiscountAlreadyApplied(discount)" class="badge bg-success text-white small">
+                      ✓ APPLIED
+                    </span>
+                  </div>
                 </div>
 
                 <p class="discount-desc">{{ discount.description || 'Special discount offer' }}</p>
@@ -202,7 +211,8 @@ const props = defineProps({
     default: () => []
   },
   orderItems: { type: Array, default: () => [] },
-  loading: { type: Boolean, default: false }
+  loading: { type: Boolean, default: false },
+  appliedDiscounts: { type: Array, default: () => [] } // ✅ NEW: Already applied discounts
 });
 
 const emit = defineEmits(['close', 'apply-discount', 'clear-discount']);
@@ -215,8 +225,18 @@ const filters = ref({
   minDiscount: null
 });
 
-// Toggle discount selection
+// ✅ NEW: Check if discount is already applied to current order
+const isDiscountAlreadyApplied = (discount) => {
+  return props.appliedDiscounts.some(d => d.id === discount.id);
+};
+
+// ✅ UPDATED: Toggle discount selection (prevent re-selection of applied discounts)
 const toggleDiscount = (discount) => {
+  // Prevent selecting already applied discounts
+  if (isDiscountAlreadyApplied(discount)) {
+    return;
+  }
+  
   const index = selectedDiscounts.value.findIndex(d => d.id === discount.id);
   
   if (index >= 0) {
@@ -233,9 +253,8 @@ const isDiscountSelected = (discount) => {
 
 const isApplying = ref(false);
 
-// Replace your applyDiscounts function with this:
+// Apply discounts
 const applyDiscounts = async () => {
-  // Prevent multiple simultaneous requests
   if (isApplying.value) {
     return;
   }
@@ -249,7 +268,6 @@ const applyDiscounts = async () => {
   try {
     isApplying.value = true;
 
-    // Calculate discount for each and attach metadata
     const discountsWithAmounts = eligibleDiscounts.map(discount => {
       const discountAmount = parseFloat(calculateDiscount(discount));
       
@@ -266,7 +284,6 @@ const applyDiscounts = async () => {
     
   } finally {
     selectedDiscounts.value = [];
-    // Reset the flag after a short delay to prevent double-clicks
     setTimeout(() => {
       isApplying.value = false;
     }, 500);
@@ -495,6 +512,32 @@ const filteredDiscounts = computed(() => {
 
 .discount-card.selected .text-success {
   color: #fff !important;
+}
+
+/* ✅ NEW: Already Applied Styles */
+.discount-card.already-applied {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #e8f5e9 !important;
+  border-color: #4caf50 !important;
+}
+
+.dark .discount-card.already-applied {
+  background-color: #1b5e20 !important;
+  border-color: #4caf50 !important;
+}
+
+.discount-card.already-applied:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.discount-card.already-applied .discount-checkbox .form-check-input {
+  cursor: not-allowed;
+}
+
+.discount-card.already-applied .badge.bg-success {
+  background-color: #4caf50 !important;
 }
 
 .dark .discount-card {

@@ -32,6 +32,9 @@ const props = defineProps({
     promoType: { type: [String, null], default: null },
     promoDiscountAmount: { type: Number, default: 0 },
     appliedPromos: { type: Array, default: () => [] },
+
+    approvedDiscounts: { type: Number, default: 0 },
+    approvedDiscountDetails: { type: Array, default: () => [] },
 });
 const autoPrintKot = ref(false);
 const formErrors = ref({});
@@ -397,7 +400,10 @@ function handleCardConfirm(payload) {
                                                 :promo-discount="promoDiscount" :promo-id="promoId"
                                                 :promo-name="promoName" :promo-type="promoType"
                                                 :promo-discount-amount="promoDiscountAmount"
-                                                :applied-promos="appliedPromos" />
+                                                :applied-promos="appliedPromos"
+                                                :approved-discounts="approvedDiscounts"
+                                                :approved-discount-details="approvedDiscountDetails"
+                                             />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
@@ -447,7 +453,10 @@ function handleCardConfirm(payload) {
                                                 :paymentType="paymentMethod" :promo-discount="promoDiscount"
                                                 :promo-id="promoId" :promo-name="promoName" :promo-type="promoType"
                                                 :promo-discount-amount="promoDiscountAmount"
-                                                :applied-promos="appliedPromos" />
+                                                :applied-promos="appliedPromos"
+                                                :approved-discounts="approvedDiscounts"
+                                                :approved-discount-details="approvedDiscountDetails"
+                                                 />
                                         </div>
 
                                         <div class="mt-auto small text-muted pt-2">
