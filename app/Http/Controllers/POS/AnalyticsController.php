@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\PosOrder;
 use App\Models\PosOrderItem;
+use App\Models\PosOrderType;
 use App\Models\PurchaseItem;
 use App\Models\PurchaseOrder;
 use App\Models\User;
@@ -25,9 +26,10 @@ class AnalyticsController extends Controller
     {
         $validated = $req->validate([
             'type' => 'required|in:sales,purchase,comparison,stock,userSales,category',
-            'timeRange' => 'required|in:monthly,yearly,custom',
+            'timeRange' => 'required|in:daily,monthly,yearly,custom',
             'selectedMonth' => 'nullable|string',
             'selectedYear' => 'nullable|integer',
+            'selectedDate' => 'nullable|date',
             'dateFrom' => 'nullable|date',
             'dateTo' => 'nullable|date|after_or_equal:dateFrom',
             'orderType' => 'nullable|in:dine,delivery',
@@ -39,6 +41,7 @@ class AnalyticsController extends Controller
             $validated['timeRange'],
             $validated['selectedMonth'] ?? null,
             $validated['selectedYear'] ?? null,
+            $validated['selectedDate'] ?? null,
             $validated['dateFrom'] ?? null,
             $validated['dateTo'] ?? null
         );
@@ -60,8 +63,15 @@ class AnalyticsController extends Controller
     /**
      * Get date range based on timeRange parameter
      */
-    protected function getDateRange($timeRange, $selectedMonth = null, $selectedYear = null, $dateFrom = null, $dateTo = null)
+    protected function getDateRange($timeRange, $selectedMonth = null, $selectedYear = null, $selectedDate = null, $dateFrom = null, $dateTo = null)
     {
+
+        if ($timeRange === 'daily' && $selectedDate) {
+            return [
+                Carbon::parse($selectedDate)->startOfDay(),
+                Carbon::parse($selectedDate)->endOfDay(),
+            ];
+        }
         if ($timeRange === 'custom' && $dateFrom && $dateTo) {
             return [
                 Carbon::parse($dateFrom)->startOfDay(),
@@ -69,14 +79,12 @@ class AnalyticsController extends Controller
             ];
         }
 
-        if ($timeRange === 'monthly' && $selectedMonth) {
-            // Use current year if no year is selected
-            $year = $selectedYear ?? now()->year;
-            $start = Carbon::createFromDate($year, $selectedMonth, 1)->startOfMonth();
-            $end = $start->copy()->endOfMonth();
+       if ($timeRange === 'monthly' && $selectedMonth && $selectedYear) {
+        $start = Carbon::createFromDate($selectedYear, $selectedMonth, 1)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
 
-            return [$start, $end];
-        }
+        return [$start, $end];
+    }
 
         if ($timeRange === 'yearly' && $selectedYear) {
             $start = Carbon::createFromDate($selectedYear, 1, 1)->startOfYear();
@@ -92,9 +100,6 @@ class AnalyticsController extends Controller
         return [$start, $end];
     }
 
-    /**
-     * Sales Analytics
-     */
     protected function getSalesAnalytics($from, $to, $validated)
     {
         $orderType = $validated['orderType'] ?? null;
@@ -147,9 +152,11 @@ class AnalyticsController extends Controller
                 ->toArray();
         }
 
+      
+
         // Distribution data - by order type
-        $dineCount = (clone $ordersQ)->where('order_type', 'dine')->count();
-        $deliveryCount = (clone $ordersQ)->where('order_type', 'delivery')->count();
+        $dineCount = PosOrderType::where('order_type', 'dine')->count();
+        $deliveryCount = PosOrderType::where('order_type', 'delivery')->count();
         $total = max(1, $dineCount + $deliveryCount);
 
         $distributionData = [
