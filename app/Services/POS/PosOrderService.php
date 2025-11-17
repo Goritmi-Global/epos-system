@@ -49,7 +49,7 @@ class PosOrderService
                 'tax' => $data['tax'] ?? null,
                 'service_charges' => $data['service_charges'] ?? null,
                 'delivery_charges' => $data['delivery_charges'] ?? null,
-                'sales_discount' => $data['sale_discount'] ?? 0,
+                'sales_discount' => $data['sale_discount'] ?? $data['sales_discount'] ?? 0,
                 'approved_discounts' => $data['approved_discounts'] ?? 0,
                 'status' => $data['status'] ?? 'paid',
                 'note' => $data['note'] ?? null,

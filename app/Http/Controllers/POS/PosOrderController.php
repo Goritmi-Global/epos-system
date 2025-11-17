@@ -159,6 +159,16 @@ class PosOrderController extends Controller
             }
         }
 
+        // ✅ NEW: Parse approved_discount_details
+        $approvedDiscountDetails = [];
+        if ($request->filled('approved_discount_details')) {
+            try {
+                $approvedDiscountDetails = json_decode($request->query('approved_discount_details'), true) ?? [];
+            } catch (\Throwable $e) {
+                \Log::error('Failed to parse approved_discount_details', ['error' => $e->getMessage()]);
+            }
+        }
+
         // ✅ Parse applied_promos JSON
         $appliedPromos = [];
         if ($request->filled('applied_promos')) {
@@ -198,6 +208,8 @@ class PosOrderController extends Controller
             'service_charges' => (float) $request->query('service_charges', 0),
             'delivery_charges' => (float) $request->query('delivery_charges', 0),
             'sale_discount' => (float) $request->query('sale_discount', 0),
+            'approved_discounts' => (float) $request->query('approved_discounts', 0),
+            'approved_discount_details' => $approvedDiscountDetails,
             'status' => 'paid',
             'note' => $request->query('note'),
             'kitchen_note' => $request->query('kitchen_note'),

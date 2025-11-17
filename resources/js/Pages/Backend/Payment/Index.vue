@@ -70,6 +70,8 @@ const payments = computed(() =>
             tax: Number(o.tax || 0),
             amountReceived: Number(o.sub_total || 0),
             promoDiscount: promo ? Number(promo.discount_amount || 0) : 0,
+            salesDiscount: Number(o.sales_discount || 0),
+            approvedDiscount: Number(o.approved_discounts || 0),
             grandTotal: Number(o.total_amount || 0),
             promoName: promo ? promo.promo_name : "—",
             paidAt: o.payment?.payment_date || null,
@@ -409,6 +411,8 @@ onUpdated(() => window.feather?.replace());
                                     <th>Actual Payment</th>
                                     <th>Promo Name</th>
                                     <th>Promo Discount</th>
+                                    <th>Sales Discount</th>
+                                    <th>Approved Discount</th>
                                     <th>Tax</th>
                                     <th>Service Charges</th>
                                     <th>Delivery Charges</th>
@@ -426,6 +430,12 @@ onUpdated(() => window.feather?.replace());
                                     <td>{{ p.promoName }}</td>
                                     <td class="text-success">
                                         {{ p.promoDiscount ? formatCurrencySymbol(p.promoDiscount) : '—' }}
+                                    </td>
+                                    <td class="text-success">
+                                        {{ p.salesDiscount ? formatCurrencySymbol(p.salesDiscount) : '—' }}
+                                    </td>
+                                    <td class="text-success">
+                                        {{ p.approvedDiscount ? formatCurrencySymbol(p.approvedDiscount) : '—' }}
                                     </td>
                                     <td>{{ formatCurrencySymbol(p.tax) }}</td>
                                     <td>{{ formatCurrencySymbol(p.serviceCharges) }}</td>

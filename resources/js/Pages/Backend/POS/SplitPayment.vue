@@ -36,6 +36,9 @@ const props = defineProps({
   promoType: { type: [String, null], default: null },
   promoDiscountAmount: { type: Number, default: 0 },
   appliedPromos: { type: Array, default: () => [] },
+
+  approvedDiscounts: { type: Number, default: 0 },
+  approvedDiscountDetails: { type: Array, default: () => [] },
 });
 
 
@@ -242,7 +245,8 @@ function confirmSplit() {
         :promo-type="promoType"
         :promo-discount-amount="promoDiscountAmount"
         :applied-promos="appliedPromos"
-
+        :approved-discounts="approvedDiscounts"
+        :approved-discount-details="approvedDiscountDetails"
       />
     </div>
 
