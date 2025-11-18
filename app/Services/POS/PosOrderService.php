@@ -92,12 +92,25 @@ class PosOrderService
                     }
                 }
 
+                // ✅ NEW: Get removed ingredients from request
+                $removedIngredients = $item['removed_ingredients'] ?? [];
+
                 // Get ingredients based on variant or base menu item
                 $ingredients = $this->getIngredientsForItem($item);
 
-                // Process stockout for the correct ingredients
+                // ✅ UPDATED: Process stockout ONLY for ingredients that are NOT removed
                 if (! empty($ingredients)) {
                     foreach ($ingredients as $ingredient) {
+                        // ✅ CRITICAL: Skip stockout if this ingredient was removed by customer
+                        if (
+                            in_array($ingredient->id, $removedIngredients) ||
+                            in_array($ingredient->inventory_item_id, $removedIngredients)
+                        ) {
+
+                            \Log::info("Skipping stockout for removed ingredient: {$ingredient->product_name} in Order #{$order->id}");
+                            continue; // Skip this ingredient
+                        }
+
                         $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
 
                         if ($inventoryItem) {
@@ -132,15 +145,13 @@ class PosOrderService
                 'kitchen_note' => $data['kitchen_note'] ?? null,
             ]);
 
-            // ✅ FIXED: Create KOT items with proper null handling
+            // ✅ Create KOT items with removed ingredients handled
             foreach ($order->items as $orderItem) {
                 $itemData = collect($data['items'])->firstWhere('product_id', $orderItem->menu_item_id);
 
-                // ✅ Handle case where item data is not found
                 if (!$itemData) {
                     \Log::warning("Item data not found for menu_item_id: {$orderItem->menu_item_id} in order #{$order->id}");
 
-                    // Create KOT item with minimal data from orderItem
                     $kot->items()->create([
                         'item_name' => $orderItem->title,
                         'quantity' => $orderItem->quantity,
@@ -156,14 +167,22 @@ class PosOrderService
                 // Get ingredients for this item
                 $ingredients = $this->getIngredientsForItem($itemData);
 
+                // ✅ NEW: Filter out removed ingredients from KOT display
+                $removedIngredients = $itemData['removed_ingredients'] ?? [];
+
                 $ingredientsArray = [];
                 if (! empty($ingredients)) {
                     foreach ($ingredients as $ingredient) {
-                        $ingredientsArray[] = $ingredient->product_name;
+                        // ✅ Only show ingredients that were NOT removed
+                        if (
+                            !in_array($ingredient->id, $removedIngredients) &&
+                            !in_array($ingredient->inventory_item_id, $removedIngredients)
+                        ) {
+                            $ingredientsArray[] = $ingredient->product_name;
+                        }
                     }
                 }
 
-                // ✅ FIXED: Use $itemData instead of undefined $item
                 $kot->items()->create([
                     'item_name' => $orderItem->title,
                     'quantity' => $orderItem->quantity,
@@ -223,9 +242,7 @@ class PosOrderService
                         'discount_amount' => $promoData['discount_amount'] ?? 0,
                     ]);
                 }
-            }
-            // Fallback: Handle old single promo format
-            elseif (!empty($data['promo_id']) && !empty($data['promo_discount'])) {
+            } elseif (!empty($data['promo_id']) && !empty($data['promo_discount'])) {
                 \App\Models\OrderPromo::create([
                     'order_id' => $order->id,
                     'promo_id' => $data['promo_id'],
@@ -237,18 +254,15 @@ class PosOrderService
 
             $order->load(['items', 'kot.items', 'promo']);
 
-            // ✅ Handle Auto Logout for Cashier Role (Only "logout after order")
+            // Handle Auto Logout for Cashier Role
             $currentUser = Auth::user();
 
             if ($currentUser && $currentUser->hasRole('Cashier')) {
-                // Find the Super Admin
                 $superAdmin = \App\Models\User::where('is_first_super_admin', true)->first();
 
                 if ($superAdmin) {
-                    // Get Super Admin's settings
                     $settings = \App\Models\ProfileStep7::where('user_id', $superAdmin->id)->first();
 
-                    // ✅ Only logout immediately after order if enabled
                     if ($settings && $settings->logout_after_order) {
                         Auth::logout();
                         request()->session()->invalidate();
