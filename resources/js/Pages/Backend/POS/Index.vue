@@ -75,37 +75,6 @@ const fetchMenuItems = async () => {
     }
 };
 
-// const fetchMenuItems = async () => {
-//     try {
-//         const response = await axios.get("/api/pos/fetch-menu-items");
-
-//         const processedMenus = response.data.data.map(menu => {
-//             // Start with top-level ingredients (for simple menus)
-//             let ingredients = menu.ingredients || [];
-
-//             // If menu has variants, add all variant ingredients
-//             if (menu.variants && menu.variants.length > 0) {
-//                 ingredients = [
-//                     ...ingredients,
-//                     ...menu.variants.flatMap(variant => variant.ingredients || [])
-//                 ];
-//             }
-
-//             return {
-//                 ...menu,
-//                 ingredients // now contains all ingredients for simple + variants
-//             };
-//         });
-
-//         menuItems.value = processedMenus;
-
-//         console.log("Processed menu items:", menuItems.value);
-//     } catch (error) {
-//         console.error("Error fetching menu items:", error);
-//     }
-// };
-
-
 /* ----------------------------
    Products by Category
 -----------------------------*/
@@ -270,7 +239,7 @@ const getTotalPrice = (product) => {
     return variantPrice + addonsPrice;
 };
 // ================================================
-const openDetailsModal = (item) => {
+const openDetailsModal = async (item) => {
     selectedItem.value = item;
     modalNote.value = "";
     modalSelectedVariant.value = null;
@@ -281,18 +250,23 @@ const openDetailsModal = (item) => {
         modalSelectedVariant.value = item.variants[0].id;
     }
 
-    // ✅ Always open modal, but set quantity based on available stock
     const variant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
     const variantId = variant ? variant.id : null;
     const variantIngredients = getVariantIngredients(item, variantId);
-
-    // Calculate how many we can still add
     const availableToAdd = calculateAvailableStock(item, variantId, variantIngredients);
-
-    // Set quantity to 0 if no stock, otherwise 1
     modalQty.value = availableToAdd > 0 ? 1 : 0;
 
-    const modal = new bootstrap.Modal(document.getElementById("chooseItem"));
+    // Get modal element
+    const modalEl = document.getElementById("chooseItem");
+    const modal = new bootstrap.Modal(modalEl);
+
+    // Wait for modal to be shown before initializing PrimeVue components
+    modalEl.addEventListener('shown.bs.modal', async () => {
+        // Force Vue to re-render the MultiSelect components
+        await nextTick();
+        console.log('Modal fully shown, MultiSelect should be visible now');
+    }, { once: true });
+
     modal.show();
 };
 
@@ -482,7 +456,7 @@ const getAllIngredients = (item) => {
 };
 
 
-// ✅ Get stock for a specific product (based on selected variant)
+// Get stock for a specific product (based on selected variant)
 const getProductStock = (product) => {
     if (!product) return 0;
 
@@ -556,21 +530,6 @@ const fetchProfileTables = async () => {
 const visibleProducts = computed(
     () => productsByCat.value[activeCat.value] ?? []
 );
-
-// const filteredProducts = computed(() => {
-//     const q = searchQuery.value.trim().toLowerCase();
-//     if (!q) return visibleProducts.value;
-//     return visibleProducts.value.filter(
-//         (p) =>
-//             p.title.toLowerCase().includes(q) ||
-//             (p.family || "").toLowerCase().includes(q) ||
-//             (p.description || "").toLowerCase().includes(q) ||
-//             (
-//                 p.tags?.map((t) => t.name.toLowerCase()).join(", ") || ""
-//             ).includes(q)
-//     );
-// });
-
 
 
 const filters = ref({
@@ -778,7 +737,7 @@ const incCart = async (i) => {
     it.qty++;
     it.price = it.unit_price * it.qty;
 
-    // ✅ Update total discount
+    // Update total discount
     if (it.resale_discount_per_item) {
         it.total_resale_discount = it.resale_discount_per_item * it.qty;
     }
@@ -799,7 +758,7 @@ const decCart = async (i) => {
     it.qty--;
     it.price = it.unit_price * it.qty;
 
-    // ✅ Update total discount
+    // Update total discount
     if (it.resale_discount_per_item) {
         it.total_resale_discount = it.resale_discount_per_item * it.qty;
     }
@@ -1112,16 +1071,16 @@ const confirmAdd = async () => {
 
     const variantName = variant ? variant.name : null;
 
-    // ✅ CHANGED: Use ORIGINAL prices
+    // CHANGED: Use ORIGINAL prices
     const variantPrice = variant
-        ? parseFloat(variant.price)  // ✅ Original price
-        : parseFloat(selectedItem.value.price); // ✅ Original price
+        ? parseFloat(variant.price)  // Original price
+        : parseFloat(selectedItem.value.price); // Original price
 
     const selectedAddons = getModalSelectedAddons();
     const addonsPrice = getModalAddonsPrice();
     const totalItemPrice = variantPrice + addonsPrice;
 
-    // ✅ NEW: Calculate resale discount
+    // NEW: Calculate resale discount
     const resaleDiscountPerItem = variant
         ? calculateResalePrice(variant, true)
         : calculateResalePrice(selectedItem.value, false);
@@ -1184,7 +1143,7 @@ const confirmAdd = async () => {
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
 
-            // ✅ Update total discount
+            // Update total discount
             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
 
             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
@@ -1202,8 +1161,8 @@ const confirmAdd = async () => {
                 id: selectedItem.value.id,
                 title: selectedItem.value.title,
                 img: selectedItem.value.img,
-                price: totalItemPrice * modalQty.value, // ✅ Original price * qty
-                unit_price: Number(totalItemPrice), // ✅ Original price
+                price: totalItemPrice * modalQty.value, // Original price * qty
+                unit_price: Number(totalItemPrice), // Original price
                 qty: modalQty.value,
                 note: modalNote.value || "",
                 item_kitchen_note: modalItemKitchenNote.value.trim() || "",
@@ -1213,7 +1172,7 @@ const confirmAdd = async () => {
                 variant_name: variantName,
                 addons: selectedAddons,
 
-                // ✅ NEW: Store resale discount info
+                // NEW: Store resale discount info
                 resale_discount_per_item: resaleDiscountPerItem,
                 total_resale_discount: resaleDiscountPerItem * modalQty.value,
             });
@@ -1395,14 +1354,14 @@ const hasEnoughStockForOrder = () => {
 
     // Calculate total usage
     for (const item of orderItems.value) {
-        // ✅ Use the ingredients that were stored when item was added to cart
+        // Use the ingredients that were stored when item was added to cart
         // These are already variant-specific
         const itemIngredients = item.ingredients || [];
 
         console.log(`Item: ${item.title} (${item.variant_name || 'no variant'}), Qty: ${item.qty}`);
         console.log("Item ingredients:", itemIngredients);
 
-        // ✅ If item has no ingredients, skip stock checking for this item
+        // If item has no ingredients, skip stock checking for this item
         if (itemIngredients.length === 0) {
             console.log(`  - No ingredients to track for ${item.title}`);
             continue;
@@ -1525,11 +1484,11 @@ const handleApplyDiscount = async (appliedDiscounts) => {
     }
 
     try {
-        // ✅ Send only percentage to Super Admin
+        // Send only percentage to Super Admin
         const response = await axios.post('/api/discount-approvals/request', {
             discounts: appliedDiscounts.map(d => ({
                 discount_id: d.id,
-                discount_percentage: parseFloat(d.discount_amount), // ✅ Only send percentage
+                discount_percentage: parseFloat(d.discount_amount), // Only send percentage
                 discount_name: d.name
             })),
             order_items: orderItems.value.map(item => ({
@@ -1548,7 +1507,7 @@ const handleApplyDiscount = async (appliedDiscounts) => {
             pendingDiscountApprovals.value = response.data.data.map(approval => ({
                 ...approval,
                 discountData: appliedDiscounts.find(d => d.id === approval.discount_id),
-                percentage: parseFloat(approval.discount_percentage), // ✅ Store percentage
+                percentage: parseFloat(approval.discount_percentage), // Store percentage
                 status: 'pending'
             }));
 
@@ -1599,11 +1558,11 @@ const checkApprovalStatus = async () => {
 
                     if (pendingIndex >= 0) {
                         if (approval.status === 'approved') {
-                            // ✅ Store approved discount with percentage only
+                            // Store approved discount with percentage only
                             const approvedDiscount = {
                                 id: approval.discount_id,
                                 name: approval.discount_name || approval.discount?.name,
-                                percentage: parseFloat(approval.discount_percentage), // ✅ Store percentage
+                                percentage: parseFloat(approval.discount_percentage), // Store percentage
                                 approval_id: approval.id
                             };
 
@@ -1673,7 +1632,7 @@ onMounted(() => {
     }
 });
 
-// ✅ Calculate pending discount dynamically based on current subtotal
+// Calculate pending discount dynamically based on current subtotal
 const pendingDiscountTotal = computed(() => {
     if (!pendingDiscountApprovals.value || pendingDiscountApprovals.value.length === 0) return 0;
 
@@ -1684,7 +1643,7 @@ const pendingDiscountTotal = computed(() => {
     }, 0);
 });
 
-// ✅ Calculate approved discount dynamically based on current subtotal
+// Calculate approved discount dynamically based on current subtotal
 const approvedDiscountTotal = computed(() => {
     if (!selectedDiscounts.value || selectedDiscounts.value.length === 0) return 0;
 
@@ -1695,7 +1654,7 @@ const approvedDiscountTotal = computed(() => {
     }, 0);
 });
 
-// ✅ Get individual discount amount for display
+// Get individual discount amount for display
 const getDiscountAmount = (percentage) => {
     return (subTotal.value * percentage) / 100;
 };
@@ -1707,7 +1666,7 @@ const clearDiscounts = () => {
     stopApprovalPolling();
 };
 
-// ✅ Confirm Order - Updated to use percentage-based discounts
+// Confirm Order - Updated to use percentage-based discounts
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
@@ -1725,9 +1684,9 @@ const confirmOrder = async ({
             tax: totalTax.value,
             service_charges: serviceCharges.value,
             delivery_charges: deliveryCharges.value,
-            sale_discount: totalResaleSavings.value,
+            sales_discount: totalResaleSavings.value,
 
-            // ✅ Send approved discounts with percentage and calculated amount
+            // Send approved discounts with percentage and calculated amount
             approved_discounts: approvedDiscountTotal.value,
             approved_discount_details: selectedDiscounts.value.map(discount => ({
                 discount_id: discount.id,
@@ -1838,6 +1797,8 @@ const confirmOrder = async ({
         // Clear discounts after successful order
         selectedPromos.value = [];
         selectedDiscounts.value = [];
+        pendingDiscountApprovals.value = [];
+        stopApprovalPolling();
 
     } catch (err) {
         console.error("Order submission error:", err);
@@ -2047,7 +2008,7 @@ const handleClearPromo = () => {
 };
 
 
-// ✅ REPLACE THIS ENTIRE FUNCTION
+// REPLACE THIS ENTIRE FUNCTION
 const openPromoModal = async () => {
     console.log("Fetching promos for current meal...");
     loadingPromos.value = true;
@@ -2408,10 +2369,10 @@ const incrementCardQty = (product) => {
 
     const variant = getSelectedVariant(product);
 
-    // ✅ CHANGED: Use ORIGINAL prices
+    // CHANGED: Use ORIGINAL prices
     const variantPrice = variant
-        ? parseFloat(variant.price)  // ✅ Original price
-        : parseFloat(product.price); // ✅ Original price
+        ? parseFloat(variant.price)  // Original price
+        : parseFloat(product.price); // Original price
 
     const variantId = variant ? variant.id : null;
     const variantName = variant ? variant.name : null;
@@ -2421,7 +2382,7 @@ const incrementCardQty = (product) => {
     const totalItemPrice = variantPrice + addonsPrice;
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
-    // ✅ NEW: Calculate resale discount
+    // NEW: Calculate resale discount
     const resaleDiscountPerItem = variant
         ? calculateResalePrice(variant, true)
         : calculateResalePrice(product, false);
@@ -2448,7 +2409,7 @@ const incrementCardQty = (product) => {
         orderItems.value[existingIndex].price =
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
 
-        // ✅ Update total discount
+        // Update total discount
         orderItems.value[existingIndex].total_resale_discount =
             resaleDiscountPerItem * orderItems.value[existingIndex].qty;
 
@@ -2459,8 +2420,8 @@ const incrementCardQty = (product) => {
             id: product.id,
             title: product.title,
             img: product.img,
-            price: totalItemPrice, // ✅ Original price
-            unit_price: Number(totalItemPrice), // ✅ Original price
+            price: totalItemPrice, // Original price
+            unit_price: Number(totalItemPrice), // Original price
             qty: 1,
             note: "",
             stock: menuStock,
@@ -2470,7 +2431,7 @@ const incrementCardQty = (product) => {
             addons: selectedAddons,
             outOfStock: false,
 
-            // ✅ NEW: Store resale discount info
+            // NEW: Store resale discount info
             resale_discount_per_item: resaleDiscountPerItem,
             total_resale_discount: resaleDiscountPerItem,
         });
@@ -2586,7 +2547,7 @@ const openAddonModal = (cartItem, index) => {
     selectedCartItem.value = JSON.parse(JSON.stringify(cartItem)); // Deep clone
     selectedCartItemIndex.value = index;
 
-    // ✅ Get the full menu item to access ALL available addons
+    // Get the full menu item to access ALL available addons
     const menuItem = menuItems.value.find(m => m.id === cartItem.id);
 
     if (menuItem && menuItem.addon_groups && menuItem.addon_groups.length > 0) {
@@ -2601,7 +2562,7 @@ const openAddonModal = (cartItem, index) => {
             });
         }
 
-        // ✅ Extract ALL addons from all addon groups
+        // Extract ALL addons from all addon groups
         const allAddons = [];
         menuItem.addon_groups.forEach(group => {
             if (group.addons && group.addons.length > 0) {
@@ -3658,6 +3619,7 @@ const getModalTotalPriceWithResale = () => {
                                         </div>
                                     </div>
 
+
                                     <!-- Variant Dropdown -->
                                     <div v-if="selectedItem?.variants && selectedItem.variants.length > 0" class="mb-3">
                                         <label class="form-label small fw-semibold mb-1">
@@ -3674,8 +3636,11 @@ const getModalTotalPriceWithResale = () => {
 
                                     <!-- Addons Selection -->
                                     <div v-if="selectedItem?.addon_groups && selectedItem.addon_groups.length > 0">
+                                        <h6>DEBUG: Found {{ selectedItem.addon_groups.length }} addon groups</h6>
+
                                         <div v-for="group in selectedItem.addon_groups" :key="group.group_id"
                                             class="mb-3">
+
                                             <label class="form-label small fw-semibold mb-2">
                                                 {{ group.group_name }}
                                                 <span v-if="group.max_select > 0" class="text-muted"
@@ -3683,11 +3648,12 @@ const getModalTotalPriceWithResale = () => {
                                                     (Max {{ group.max_select }})
                                                 </span>
                                             </label>
+
                                             <MultiSelect :modelValue="modalSelectedAddons[group.group_id] || []"
                                                 @update:modelValue="(val) => handleModalAddonChange(group.group_id, val)"
                                                 :options="group.addons" optionLabel="name" dataKey="id"
                                                 placeholder="Select addons" :maxSelectedLabels="3"
-                                                class="w-100 addon-multiselect">
+                                                class="w-100 addon-multiselect" appendTo="self">
                                                 <template #value="slotProps">
                                                     <div v-if="slotProps.value && slotProps.value.length > 0"
                                                         class="d-flex flex-wrap gap-1">
@@ -3712,6 +3678,7 @@ const getModalTotalPriceWithResale = () => {
                                             </MultiSelect>
                                         </div>
                                     </div>
+
 
 
 
@@ -3961,21 +3928,30 @@ const getModalTotalPriceWithResale = () => {
             <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
                 :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
                 v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
-                :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="deliveryCharges"
-                :promo-discount="promoDiscount" :promo-id="selectedPromos?.id" :promo-name="selectedPromos?.name"
-                :promo-type="selectedPromos?.type" :promo-discount-amount="promoDiscount" :note="note"
-                :kitchen-note="kitchenNote" :order-date="new Date().toISOString().split('T')[0]"
+                :sub-total="subTotal" :tax="totalTax" :service-charges="serviceCharges"
+                :delivery-charges="deliveryCharges" :promo-discount="promoDiscount" :promo-id="selectedPromos?.id"
+                :promo-name="selectedPromos?.name" :promo-type="selectedPromos?.type"
+                :promo-discount-amount="promoDiscount" :note="note" :kitchen-note="kitchenNote"
+                :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
                 :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder"
-                :appliedPromos="getAppliedPromosData" />
+                :appliedPromos="getAppliedPromosData" :approved-discounts="approvedDiscountTotal"
+                :approved-discount-details="selectedDiscounts.map(d => ({
+                    discount_id: d.id,
+                    discount_name: d.name,
+                    discount_percentage: d.percentage,
+                    discount_amount: getDiscountAmount(d.percentage),
+                    approval_id: d.approval_id
+                }))" />
 
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />
 
             <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData" :order-items="orderItems"
                 @apply-promo="handleApplyPromo" @close="showPromoModal = false" />
-            <DiscountModal :show="showDiscountModal" :loading="loadingDiscounts" :discounts="discountsData"
-                :order-items="orderItems" @apply-discount="handleApplyDiscount" @close="showDiscountModal = false" />
+            <DiscountModal :show="showDiscountModal" :discounts="discountsData" :order-items="orderItems"
+                :loading="loadingDiscounts" :applied-discounts="selectedDiscounts" @close="showDiscountModal = false"
+                @apply-discount="handleApplyDiscount" @clear-discount="clearDiscounts" />
 
         </div>
     </Master>

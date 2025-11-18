@@ -709,6 +709,8 @@ onMounted(fetchPrinters);
                                     <th>Payment Type</th>
                                     <th>Actual Price</th>
                                     <th>Promo Discount</th>
+                                    <th>Sales Discount</th>
+                                    <th>Approved Discount</th>
                                     <th>Tax</th>
                                     <th>Service Charges</th>
                                     <th>Delivery Charges</th>
@@ -739,6 +741,12 @@ onMounted(fetchPrinters);
                                     <td class="text-success">
                                         -{{ formatCurrencySymbol(o.promo[0]?.discount_amount ?? 0) }}
                                     </td>
+                                    <td class="text-success">
+                                        -{{ formatCurrencySymbol(o.sales_discount ?? 0) }}
+                                    </td>
+                                    <td class="text-success">
+                                        -{{ formatCurrencySymbol(o?.approved_discounts ?? 0) }}
+                                    </td>
                                     <td>{{ o.tax ?? "-" }}</td>
                                     <td>{{ o.service_charges ?? "-" }}</td>
                                     <td>{{ o.delivery_charges ?? "-" }}</td>
@@ -760,7 +768,7 @@ onMounted(fetchPrinters);
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="15" class="text-center text-muted py-4">
+                                    <td colspan="17" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>
@@ -802,7 +810,7 @@ onMounted(fetchPrinters);
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -882,7 +890,7 @@ onMounted(fetchPrinters);
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -903,7 +911,7 @@ onMounted(fetchPrinters);
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                            }}/{{
+                                                }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -915,7 +923,7 @@ onMounted(fetchPrinters);
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1035,33 +1043,84 @@ onMounted(fetchPrinters);
                                                 <td>{{ item.quantity }}</td>
                                                 <td class="fw-semibold">{{ formatCurrencySymbol(item.price) }}</td>
                                                 <td></td>
-                                                <td>
-                                                    {{ selectedOrder.promo[0]?.promo_name || '-' }}
-                                                </td>
+                                                <td>{{ selectedOrder.promo[0]?.promo_name || '-' }}</td>
                                                 <td class="fw-bold text-success">
                                                     {{ formatCurrencySymbol(item.price) }}
                                                 </td>
-
                                             </tr>
 
-                                            <!-- Promo Discount Row (applied at order level) -->
-                                            <tr v-if="selectedOrder.promo">
+                                            <!-- Promo Discount Row -->
+                                            <tr v-if="selectedOrder.promo" class="no-border">
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted">
-                                                    Promo Discount
-
-                                                </td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Promo Discount</td>
                                                 <td class="text-success fw-semibold" colspan="3">
-                                                    -{{ formatCurrencySymbol(selectedOrder.promo[0].discount_amount) }}
+                                                    -{{ formatCurrencySymbol(selectedOrder.promo[0]?.discount_amount ??
+                                                    0) }}
                                                 </td>
+                                            </tr>
 
+                                            <!-- Tax Row -->
+                                            <tr v-if="selectedOrder.tax" class="no-border">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Tax</td>
+                                                <td class="text-success fw-semibold" colspan="3">
+                                                    +{{ formatCurrencySymbol(selectedOrder.tax ?? 0) }}
+                                                </td>
+                                            </tr>
+
+                                            <!-- Service Charges Row -->
+                                            <tr v-if="selectedOrder.service_charges" class="no-border">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Service Charges</td>
+                                                <td class="text-success fw-semibold" colspan="3">
+                                                    +{{ formatCurrencySymbol(selectedOrder.service_charges ?? 0) }}
+                                                </td>
+                                            </tr>
+
+                                            <!-- Delivery Charges Row -->
+                                            <tr v-if="selectedOrder.delivery_charges" class="no-border">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Delivery Charges</td>
+                                                <td class="text-success fw-semibold" colspan="3">
+                                                    +{{ formatCurrencySymbol(selectedOrder.delivery_charges ?? 0) }}
+                                                </td>
+                                            </tr>
+                                            <!-- Sales Discount Row -->
+                                            <tr v-if="selectedOrder.sales_discount" class="no-border">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Sales Discount</td>
+                                                <td class="text-success fw-semibold" colspan="3">
+                                                    +{{ formatCurrencySymbol(selectedOrder.sales_discount ?? 0) }}
+                                                </td>
+                                            </tr>
+
+                                            <!-- Approved Discounts Row -->
+                                            <tr v-if="selectedOrder.approved_discounts" class="no-border">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Approved Discounts</td>
+                                                <td class="text-success fw-semibold" colspan="3">
+                                                    +{{ formatCurrencySymbol(selectedOrder.approved_discounts ?? 0) }}
+                                                </td>
                                             </tr>
 
                                             <!-- Grand Total Row -->
-                                            <tr>
-                                                <td colspan="6" rowspan="2" class="text-end fw-bold">Grand Total</td>
+                                            <tr class="border-top-thick">
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Grand Total</td>
                                                 <td class="fw-bold text-success">
                                                     {{ formatCurrencySymbol(selectedOrder.total_amount) }}
                                                 </td>
@@ -1075,9 +1134,6 @@ onMounted(fetchPrinters);
                                             </tr>
                                         </tbody>
                                     </table>
-
-
-
                                 </div>
                             </div>
                         </div>
@@ -1104,6 +1160,25 @@ onMounted(fetchPrinters);
     color: white;
 }
 
+.no-border td {
+    border-top: none !important;
+    border-bottom: none !important;
+    text-align: left;
+}
+.text-adjusting{
+    text-align: left !important;
+}
+
+/* Optional: Add a thick border before Grand Total */
+.border-top-thick td {
+    border-top: 2px solid #dee2e6 !important;
+}
+
+/* Optional: Make the table striped only for item rows */
+tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
 .dark .card {
     background-color: #181818 !important;
     /* gray-800 */
@@ -1122,7 +1197,7 @@ onMounted(fetchPrinters);
     color: #ffffff;
 }
 
-.dark .info-card{
+.dark .info-card {
     background-color: #212121 !important;
     color: #fff !important;
 }
