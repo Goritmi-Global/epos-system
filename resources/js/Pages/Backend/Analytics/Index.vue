@@ -8,6 +8,9 @@ import { nextTick } from "vue";
 import Select from "primevue/select";
 import VueDatePicker from "@vuepic/vue-datepicker";
 import "@vuepic/vue-datepicker/dist/main.css";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const { formatMoney, formatNumber, formatCurrencySymbol, dateFmt } = useFormatters()
 
@@ -54,6 +57,7 @@ const kpi = ref({});
 const chartData = ref([]);
 const tableData = ref([]);
 const distributionData = ref([]);
+const totalsSummary = ref({});
 
 /* ============= Helper State ============= */
 const lastUpdated = ref("Just now");
@@ -206,10 +210,24 @@ const bigLinePath = computed(() => buildLine(chartData.value, 840, 280));
 /* ============= Table Filtering ============= */
 const tableDataFiltered = computed(() => {
     const t = searchQuery.value.trim().toLowerCase();
+
+    if (filters.value.type !== 'sales') {
+        // For non-sales types, use original filter logic
+        return t
+            ? (tableData.value || []).filter((i) => {
+                const searchableText = [
+                    i.name, i.cashierName, i.categoryName, i.metric
+                ].filter(Boolean).join(' ').toLowerCase();
+                return searchableText.includes(t);
+            })
+            : tableData.value || [];
+    }
+
+    // For sales type, filter by customer name or order ID
     return t
         ? (tableData.value || []).filter((i) => {
             const searchableText = [
-                i.name, i.cashierName, i.categoryName, i.metric
+                String(i.id), i.customer_name
             ].filter(Boolean).join(' ').toLowerCase();
             return searchableText.includes(t);
         })
@@ -275,6 +293,7 @@ const fetchAnalytics = async () => {
         chartData.value = data.chartData || [];
         tableData.value = data.tableData || [];
         distributionData.value = data.distributionData || [];
+        totalsSummary.value = data.totalsSummary || {};
         dataPointsCount.value = tableData.value.length;
         lastUpdated.value = new Date().toLocaleTimeString();
     } catch (error) {
@@ -335,6 +354,313 @@ onMounted(async () => {
     }, 100);
 });
 
+
+/* ============= Download Methods ============= */
+const downloadPDF = () => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4"); // Landscape for more columns
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${chartTitle.value}`, 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Period: ${periodLabel.value}`, 14, 34);
+        doc.text(`Total Records: ${tableDataFiltered.value.length}`, 14, 40);
+
+        let tableColumns = [];
+        let tableRows = [];
+
+        if (filters.value.type === 'sales') {
+            tableColumns = ["S.#", "Order ID", "Customer", "Items", "Qty", "Sub Total", "Tax",
+                "Service", "Delivery", "Sales Disc.", "Approved Disc.", "Promo Disc.",
+                "Promos", "Promo Type", "Total", "Date"];
+
+            tableRows = tableDataFiltered.value.map((r, i) => [
+                i + 1,
+                r.id,
+                r.customer_name || "-",
+                r.item_count,
+                r.total_qty,
+                formatCurrencySymbol(r.sub_total),
+                formatCurrencySymbol(r.tax),
+                formatCurrencySymbol(r.service_charges),
+                formatCurrencySymbol(r.delivery_charges),
+                formatCurrencySymbol(r.sales_discount),
+                formatCurrencySymbol(r.approved_discounts),
+                formatCurrencySymbol(r.promo_discount),
+                r.promo_names || "-",
+                r.promo_types || "-",
+                formatCurrencySymbol(r.total_amount),
+                dateFmt(r.order_date)
+            ]);
+
+            // Add totals row
+            if (totalsSummary.value && tableDataFiltered.value.length > 0) {
+                tableRows.push([
+                    "TOTAL", "-", "-",
+                    totalsSummary.value.item_count,
+                    totalsSummary.value.total_qty,
+                    formatCurrencySymbol(totalsSummary.value.sub_total),
+                    formatCurrencySymbol(totalsSummary.value.tax),
+                    formatCurrencySymbol(totalsSummary.value.service_charges),
+                    formatCurrencySymbol(totalsSummary.value.delivery_charges),
+                    formatCurrencySymbol(totalsSummary.value.sales_discount),
+                    formatCurrencySymbol(totalsSummary.value.approved_discounts),
+                    formatCurrencySymbol(totalsSummary.value.promo_discount),
+                    "-", "-",
+                    formatCurrencySymbol(totalsSummary.value.total_amount),
+                    "-"
+                ]);
+            }
+        }
+
+        else if (filters.value.type === 'purchase') {
+            tableColumns = ["S.#", "Purchase ID", "Supplier", "Product", "Quantity",
+                "Unit Price", "Sub Total", "Expiry", "Purchase Date", "Status"];
+
+            tableRows = tableDataFiltered.value.map((r, i) => [
+                i + 1,
+                r.purchase_id,
+                r.supplier_name || "-",
+                r.product_name || "-",
+                r.quantity,
+                formatCurrencySymbol(r.unit_price),
+                formatCurrencySymbol(r.sub_total),
+                r.expiry_date ? dateFmt(r.expiry_date) : "N/A",
+                dateFmt(r.purchase_date),
+                r.status || "-"
+            ]);
+
+            if (totalsSummary.value && tableDataFiltered.value.length > 0) {
+                tableRows.push([
+                    "TOTAL", "-", "-", "-",
+                    totalsSummary.value.quantity,
+                    formatCurrencySymbol(totalsSummary.value.total_unit_price),
+                    formatCurrencySymbol(totalsSummary.value.sub_total),
+                    "-", "-", "-"
+                ]);
+            }
+        }
+
+        else if (filters.value.type === 'comparison') {
+            tableColumns = ["S.#", "Metric", "Sales", "Purchase", "Difference"];
+            tableRows = tableDataFiltered.value.map((r, i) => [
+                i + 1,
+                r.metric,
+                formatCurrencySymbol(r.sales),
+                formatCurrencySymbol(r.purchase),
+                formatCurrencySymbol(r.difference)
+            ]);
+        }
+
+        else if (filters.value.type === 'stock') {
+            tableColumns = ["S.#", "Item", "Current Stock", "Min Level", "Status"];
+            tableRows = tableDataFiltered.value.map((r, i) => [
+                i + 1,
+                r.name,
+                r.currentStock,
+                r.minLevel,
+                r.currentStock > r.minLevel ? "In Stock" :
+                    r.currentStock > 0 ? "Low Stock" : "Out of Stock"
+            ]);
+        }
+
+        else if (filters.value.type === 'userSales') {
+            tableColumns = ["S.#", "Cashier Name", "Orders", "Total Sales", "Avg Sale"];
+            tableRows = tableDataFiltered.value.map((r, i) => [
+                i + 1,
+                r.cashierName,
+                r.orderCount,
+                formatCurrencySymbol(r.totalSales),
+                formatCurrencySymbol(r.avgSale)
+            ]);
+        }
+
+        else if (filters.value.type === 'category') {
+            tableColumns = ["S.#", "Category", "Qty Sold", "Revenue", "% of Total"];
+            tableRows = tableDataFiltered.value.map((r, i) => [
+                i + 1,
+                r.categoryName,
+                r.qty,
+                formatCurrencySymbol(r.revenue),
+                r.percentage + "%"
+            ]);
+        }
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 46,
+            styles: {
+                fontSize: 7,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `${filters.value.type}_Analytics_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        // Optional: Show success message if you have toast
+        // toast.success("PDF downloaded successfully");
+
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        errorMsg.value = `PDF generation failed: ${error.message}`;
+        // Optional: Show error message if you have toast
+        // toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+const downloadExcel = () => {
+    let data = [];
+
+    if (filters.value.type === 'sales') {
+        data = tableDataFiltered.value.map((r, i) => ({
+            'S.#': i + 1,
+            'Order ID': r.id,
+            'Customer Name': r.customer_name,
+            'Item Count': r.item_count,
+            'Total Qty': r.total_qty,
+            'Sub Total': r.sub_total,
+            'Tax': r.tax,
+            'Service Charge': r.service_charges,
+            'Delivery Charge': r.delivery_charges,
+            'Sales Discount': r.sales_discount,
+            'Approved Discount': r.approved_discounts,
+            'Promo Discount': r.promo_discount,
+            'Applied Promos': r.promo_names,
+            'Promo Type': r.promo_types,
+            'Total Amount': r.total_amount,
+            'Date': dateFmt(r.order_date)
+        }));
+
+        if (totalsSummary.value) {
+            data.push({
+                'S.#': 'TOTAL',
+                'Order ID': '-',
+                'Customer Name': '-',
+                'Item Count': totalsSummary.value.item_count,
+                'Total Qty': totalsSummary.value.total_qty,
+                'Sub Total': totalsSummary.value.sub_total,
+                'Tax': totalsSummary.value.tax,
+                'Service Charge': totalsSummary.value.service_charges,
+                'Delivery Charge': totalsSummary.value.delivery_charges,
+                'Sales Discount': totalsSummary.value.sales_discount,
+                'Approved Discount': totalsSummary.value.approved_discounts,
+                'Promo Discount': totalsSummary.value.promo_discount,
+                'Applied Promos': '-',
+                'Promo Type': '-',
+                'Total Amount': totalsSummary.value.total_amount,
+                'Date': '-'
+            });
+        }
+    }
+
+    else if (filters.value.type === 'purchase') {
+        data = tableDataFiltered.value.map((r, i) => ({
+            'S.#': i + 1,
+            'Purchase ID': r.purchase_id,
+            'Supplier Name': r.supplier_name,
+            'Product Name': r.product_name,
+            'Quantity': r.quantity,
+            'Unit Price': r.unit_price,
+            'Sub Total': r.sub_total,
+            'Expiry Date': r.expiry_date ? dateFmt(r.expiry_date) : 'N/A',
+            'Purchase Date': dateFmt(r.purchase_date),
+            'Status': r.status
+        }));
+
+        if (totalsSummary.value) {
+            data.push({
+                'S.#': 'TOTAL',
+                'Purchase ID': '-',
+                'Supplier Name': '-',
+                'Product Name': '-',
+                'Quantity': totalsSummary.value.quantity,
+                'Unit Price': totalsSummary.value.total_unit_price,
+                'Sub Total': totalsSummary.value.sub_total,
+                'Expiry Date': '-',
+                'Purchase Date': '-',
+                'Status': '-'
+            });
+        }
+    }
+
+    else if (filters.value.type === 'comparison') {
+        data = tableDataFiltered.value.map((r, i) => ({
+            'S.#': i + 1,
+            'Metric': r.metric,
+            'Sales': r.sales,
+            'Purchase': r.purchase,
+            'Difference': r.difference
+        }));
+    }
+
+    else if (filters.value.type === 'stock') {
+        data = tableDataFiltered.value.map((r, i) => ({
+            'S.#': i + 1,
+            'Item': r.name,
+            'Current Stock': r.currentStock,
+            'Min Level': r.minLevel,
+            'Status': r.currentStock > r.minLevel ? 'In Stock' :
+                r.currentStock > 0 ? 'Low Stock' : 'Out of Stock'
+        }));
+    }
+
+    else if (filters.value.type === 'userSales') {
+        data = tableDataFiltered.value.map((r, i) => ({
+            'S.#': i + 1,
+            'Cashier Name': r.cashierName,
+            'Orders': r.orderCount,
+            'Total Sales': r.totalSales,
+            'Avg Sale': r.avgSale
+        }));
+    }
+
+    else if (filters.value.type === 'category') {
+        data = tableDataFiltered.value.map((r, i) => ({
+            'S.#': i + 1,
+            'Category': r.categoryName,
+            'Qty Sold': r.qty,
+            'Revenue': r.revenue,
+            '% of Total': r.percentage + '%'
+        }));
+    }
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, filters.value.type);
+
+    // Save file
+    XLSX.writeFile(wb, `${filters.value.type}-analytics-${Date.now()}.xlsx`);
+};
+
 </script>
 
 <template>
@@ -354,12 +680,12 @@ onMounted(async () => {
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                         <li>
-                            <a class="dropdown-item py-2" href="javascript:void(0)">
+                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="downloadPDF">
                                 <i class="fas fa-file-pdf me-2 text-danger"></i>Download as PDF
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item py-2" href="javascript:void(0)">
+                            <a class="dropdown-item py-2" href="javascript:void(0)" @click="downloadExcel">
                                 <i class="fas fa-file-excel me-2 text-success"></i>Download as Excel
                             </a>
                         </li>
@@ -843,42 +1169,58 @@ onMounted(async () => {
                             <thead class="small text-muted">
                                 <tr>
                                     <th style="width: 60px">S.#</th>
-                                    <!-- Sales Table -->
+
                                     <template v-if="filters.type === 'sales'">
-                                        <th>Item</th>
-                                        <th style="width: 120px">Qty Sold</th>
-                                        <th style="width: 140px">Revenue</th>
+                                        <th>Order ID</th>
+                                        <th>Customer Name</th>
+                                        <th style="width: 100px">Item Count</th>
+                                        <th style="width: 100px">Total Qty</th>
+                                        <th style="width: 120px">Sub Total</th>
+                                        <th style="width: 120px">Tax</th>
+                                        <th style="width: 120px">Service Charge</th>
+                                        <th style="width: 120px">Delivery Charge</th>
+                                        <th style="width: 120px">Sale Discount</th>
+                                        <th style="width: 120px">Approved Discount</th>
+                                        <th style="width: 140px">Promo Discount</th>
+                                        <th style="width: 150px">Applied Promos</th>
+                                        <th style="width: 100px">Promo Type</th>
+                                        <th style="width: 140px">Total Amount</th>
                                         <th style="width: 100px">Date</th>
                                     </template>
-                                    <!-- Purchase Table -->
+
                                     <template v-if="filters.type === 'purchase'">
-                                        <th>Item</th>
-                                        <th style="width: 120px">Qty</th>
-                                        <th style="width: 140px">Cost</th>
-                                        <th style="width: 100px">Date</th>
+                                        <th style="width: 100px">Purchase ID</th>
+                                        <th style="width: 150px">Supplier Name</th>
+                                        <th style="width: 150px">Product Name</th>
+                                        <th style="width: 100px">Quantity</th>
+                                        <th style="width: 120px">Unit Price</th>
+                                        <th style="width: 140px">Sub Total</th>
+                                        <th style="width: 130px">Expiry Date</th>
+                                        <th style="width: 120px">Purchase Date</th>
+                                        <th style="width: 100px">Status</th>
                                     </template>
-                                    <!-- Comparison Table -->
+
                                     <template v-if="filters.type === 'comparison'">
                                         <th>Metric</th>
                                         <th style="width: 140px">Sales</th>
                                         <th style="width: 140px">Purchase</th>
                                         <th style="width: 140px">Difference</th>
                                     </template>
-                                    <!-- Stock Table -->
+
                                     <template v-if="filters.type === 'stock'">
                                         <th>Item</th>
                                         <th style="width: 100px">Stock</th>
                                         <th style="width: 100px">Min Level</th>
                                         <th style="width: 120px">Status</th>
                                     </template>
-                                    <!-- User Sales Table -->
+
                                     <template v-if="filters.type === 'userSales'">
                                         <th>Cashier Name</th>
                                         <th style="width: 120px">Orders</th>
                                         <th style="width: 140px">Total Sales</th>
                                         <th style="width: 120px">Avg Sale</th>
                                     </template>
-                                    <!-- Category Table -->
+
                                     <template v-if="filters.type === 'category'">
                                         <th>Category</th>
                                         <th style="width: 120px">Qty Sold</th>
@@ -892,17 +1234,54 @@ onMounted(async () => {
                                     <td>{{ i + 1 }}</td>
                                     <!-- Sales Row -->
                                     <template v-if="filters.type === 'sales'">
-                                        <td class="fw-semibold">{{ r.name }}</td>
-                                        <td>{{ formatNumber(r.qty) }}</td>
-                                        <td>{{ formatCurrencySymbol(r.revenue) }}</td>
-                                        <td class="small">{{ dateFmt(r.date) }}</td>
+                                        <td class="fw-semibold">{{ r.id }}</td>
+                                        <td>{{ r.customer_name }}</td>
+                                        <td>{{ formatNumber(r.item_count) }}</td>
+                                        <td>{{ formatNumber(r.total_qty) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.sub_total) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.tax) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.service_charges) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.delivery_charges) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.sales_discount) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.approved_discounts) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.promo_discount) }}</td>
+                                        <td class="small">{{ r.promo_names }}</td>
+                                        <td class="small">{{ r.promo_types }}</td>
+                                        <td class="fw-bold text-success">{{ formatCurrencySymbol(r.total_amount) }}</td>
+                                        <td class="small">{{ dateFmt(r.order_date) }}</td>
                                     </template>
                                     <!-- Purchase Row -->
                                     <template v-if="filters.type === 'purchase'">
-                                        <td class="fw-semibold">{{ r.name }}</td>
-                                        <td>{{ formatNumber(r.qty) }}</td>
-                                        <td>{{ formatCurrencySymbol(r.cost) }}</td>
-                                        <td class="small">{{ dateFmt(r.date) }}</td>
+                                        <td class="fw-semibold">{{ r.purchase_id }}</td>
+                                        <td>{{ r.supplier_name }}</td>
+                                        <td class="fw-semibold">{{ r.product_name }}</td>
+                                        <td>{{ formatNumber(r.quantity) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.unit_price) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.sub_total) }}</td>
+                                        <td class="small">
+                                            <span v-if="r.expiry_date" class="text-muted">
+                                                {{ dateFmt(r.expiry_date) }}
+                                            </span>
+                                            <span v-else class="text-secondary">N/A</span>
+                                        </td>
+                                        <td class="small">{{ dateFmt(r.purchase_date) }}</td>
+                                        <td>
+                                            <span v-if="r.status === 'completed'"
+                                                class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
+                                                Completed
+                                            </span>
+
+                                            <span v-else-if="r.status === 'pending'"
+                                                class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill">
+                                                Pending
+                                            </span>
+
+                                            <span v-else
+                                                class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded-pill">
+                                                {{ r.status }}
+                                            </span>
+                                        </td>
+
                                     </template>
                                     <!-- Comparison Row -->
                                     <template v-if="filters.type === 'comparison'">
@@ -948,8 +1327,44 @@ onMounted(async () => {
                                         <td>{{ r.percentage }}%</td>
                                     </template>
                                 </tr>
+                                <tr v-if="filters.type === 'sales' && tableDataFiltered.length > 0"
+                                    class="table-active fw-bold border-top border-3">
+                                    <td colspan="0" class="text-end">TOTALS</td>
+                                    <td colspan="0">-</td>
+                                    <td colspan="0">-</td>
+                                    <td>{{ formatNumber(totalsSummary.item_count) }}</td>
+                                    <td>{{ formatNumber(totalsSummary.total_qty) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.sub_total) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.tax) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.service_charges) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.delivery_charges) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.sales_discount +
+                                        totalsSummary.approved_discounts) }}
+                                    </td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.approved_discounts) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.promo_discount) }}</td>
+
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td class="text-success">{{ formatCurrencySymbol(totalsSummary.total_amount) }}</td>
+                                    <td></td>
+
+                                </tr>
+
+                                <tr v-if="filters.type === 'purchase' && tableDataFiltered.length > 0"
+                                    class="table-active fw-bold border-top border-3">
+                                    <td colspan="0">TOTALS</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>{{ formatNumber(totalsSummary.quantity) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.total_unit_price) }}</td>
+                                    <td>{{ formatCurrencySymbol(totalsSummary.sub_total) }}</td>
+                                    <td colspan="3"></td>
+                                </tr>
+
                                 <tr v-if="!loading && tableDataFiltered.length === 0">
-                                    <td :colspan="5" class="text-center text-muted py-4">
+                                    <td :colspan="16" class="text-center text-muted py-4">
                                         No data available for this period.
                                     </td>
                                 </tr>
@@ -958,6 +1373,7 @@ onMounted(async () => {
                                         <i class="fas fa-spinner fa-spin me-2"></i>Loading…
                                     </td>
                                 </tr>
+
                             </tbody>
                         </table>
                     </div>
@@ -1048,7 +1464,7 @@ onMounted(async () => {
                             <div class="stack">
                                 <div class="stack-row">
                                     <span>Period</span>
-                                    <span class="stack-val">{{ periodLabel }}</span>
+                                    <span class="stack-val">{{ dateFmt(periodLabel) }}</span>
                                 </div>
                                 <div class="stack-row">
                                     <span>Data Points</span>

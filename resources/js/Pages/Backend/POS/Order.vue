@@ -1,4 +1,4 @@
-ot
+
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
