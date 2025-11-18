@@ -744,16 +744,22 @@ const formatDate = (date) => {
                                         <td>{{ it.unit_name }}</td>
 
                                         <td>
-                                            <Select v-model="it.supplier_id" :options="suppliers" optionLabel="name"
-                                                optionValue="id" placeholder="Select Supplier" class="w-100"
-                                                appendTo="self" :autoZIndex="true"
-                                                :class="{ 'is-invalid': m_formErrors[it.id]?.supplier_id }"
-                                                :baseZIndex="2000" />
+                                            <select v-model="it.supplier_id" class="form-select w-100"
+                                                :class="{ 'is-invalid': m_formErrors[it.id]?.supplier_id }">
+
+                                                <option value="" disabled hidden>Select Supplier</option>
+
+                                                <option v-for="supplier in suppliers" :key="supplier.id"
+                                                    :value="supplier.id">
+                                                    {{ supplier.name }}
+                                                </option>
+                                            </select>
 
                                             <small v-if="m_formErrors[it.id]?.supplier_id" class="text-danger d-block">
                                                 {{ m_formErrors[it.id].supplier_id[0] }}
                                             </small>
                                         </td>
+
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"

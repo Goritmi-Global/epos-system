@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed,onMounted, watch, toRaw } from "vue";
+import { ref, computed, onMounted, watch, toRaw } from "vue";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
@@ -64,7 +64,7 @@ watch(
 
 
 onMounted(() => {
-  feather.replace();
+    feather.replace();
 });
 
 function updateSubtotal(it) {
@@ -378,20 +378,21 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
-                                     <td>
-  <!-- Clear button with static SVG rotate icon -->
-  <button
-    class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
-    @click="delRow(idx)"
-    title="Clear"
-    style="width: 36px; height: 36px;">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-      <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-    </svg>
-  </button>
-</td>
-                                       
+                                        <td>
+
+                                            <button
+                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                @click="delRow(idx)" title="Clear" style="width: 36px; height: 36px;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                    fill="currentColor" viewBox="0 0 16 16">
+                                                    <path fill-rule="evenodd"
+                                                        d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+                                                    <path
+                                                        d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+                                                </svg>
+                                            </button>
+                                        </td>
+
                                     </tr>
                                 </tbody>
                             </table>
@@ -426,11 +427,17 @@ async function multipleSubmit() {
                                         <td>{{ it.unit_name }}</td>
 
                                         <td>
-                                            <Select v-model="it.supplier_id" :options="suppliers" optionLabel="name"
-                                                optionValue="id" placeholder="Select Supplier" class="w-100"
-                                                appendTo="self" :autoZIndex="true"
-                                                :class="{ 'is-invalid': m_formErrors[idx]?.supplier_id }"
-                                                baseZIndex="2000" />
+                                            <select v-model="it.supplier_id" class="form-select w-100"
+                                                :class="{ 'is-invalid': m_formErrors[idx]?.supplier_id }">
+
+                                                <option value="" disabled hidden>Select Supplier</option>
+
+                                                <option v-for="supplier in suppliers" :key="supplier.id"
+                                                    :value="supplier.id">
+                                                    {{ supplier.name }}
+                                                </option>
+                                            </select>
+
 
                                             <small v-if="m_formErrors[idx]?.supplier_id" class="text-danger d-block">
                                                 {{ m_formErrors[idx].supplier_id }}
@@ -463,19 +470,21 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol(it.subtotal.toFixed(2)) }}</td>
-                                      <td>
-  <!-- Clear button with static SVG rotate icon -->
-  <button
-    class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
-    @click="delMultipleRow(idx)"
-    title="Clear"
-    style="width: 36px; height: 36px;">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-      <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-    </svg>
-  </button>
-</td>
+                                        <td>
+                                            <!-- Clear button with static SVG rotate icon -->
+                                            <button
+                                                class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                @click="delMultipleRow(idx)" title="Clear"
+                                                style="width: 36px; height: 36px;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                    fill="currentColor" viewBox="0 0 16 16">
+                                                    <path fill-rule="evenodd"
+                                                        d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+                                                    <path
+                                                        d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+                                                </svg>
+                                            </button>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -514,25 +523,29 @@ async function multipleSubmit() {
 }
 
 :global(.dark .nav-tabs .nav-link) {
-  background-color: #212121 !important;
-  color: #fff !important;
-  border: 1px solid #333 !important;
-  border-bottom: 1px solid #fff !important;
-  transition: all 0.2s ease;
+    background-color: #212121 !important;
+    color: #fff !important;
+    border: 1px solid #333 !important;
+    border-bottom: 1px solid #fff !important;
+    transition: all 0.2s ease;
 }
 
 :global(.dark .nav-tabs .nav-link.active) {
-  background-color: #1C0D82 !important;
-  color: #fff !important;
-  border: 1px solid #1C0D82 !important;
-  border-bottom: 1px solid #fff !important;
+    background-color: #1C0D82 !important;
+    color: #fff !important;
+    border: 1px solid #1C0D82 !important;
+    border-bottom: 1px solid #fff !important;
 }
 
 :global(.dark .nav-tabs .nav-link:hover) {
-  background-color: #2a2a2a !important;
-  color: #fff !important;
+    background-color: #2a2a2a !important;
+    color: #fff !important;
 }
 
+.dark .form-select{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
 
 /* ====================================================== */
 
