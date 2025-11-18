@@ -430,7 +430,7 @@ async function multipleSubmit() {
                                             <select v-model="it.supplier_id" class="form-select w-100"
                                                 :class="{ 'is-invalid': m_formErrors[idx]?.supplier_id }">
 
-                                                <option value="">Select Supplier</option>
+                                                <option value="" disabled hidden>Select Supplier</option>
 
                                                 <option v-for="supplier in suppliers" :key="supplier.id"
                                                     :value="supplier.id">
@@ -438,11 +438,11 @@ async function multipleSubmit() {
                                                 </option>
                                             </select>
 
+
                                             <small v-if="m_formErrors[idx]?.supplier_id" class="text-danger d-block">
                                                 {{ m_formErrors[idx].supplier_id }}
                                             </small>
                                         </td>
-
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
@@ -541,7 +541,6 @@ async function multipleSubmit() {
     background-color: #2a2a2a !important;
     color: #fff !important;
 }
-
 
 .dark .form-select{
     background-color: #212121 !important;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
+use App\Models\OrderPromo;
 use App\Models\PosOrder;
 use App\Models\PosOrderItem;
 use App\Models\PosOrderType;
@@ -127,6 +128,23 @@ class AnalyticsController extends Controller
             }
         })->sum('quantity');
 
+        // Promo KPIs
+        $totalPromoDiscount = OrderPromo::whereHas('order', function ($q) use ($from, $to, $orderType) {
+            $q->whereBetween('order_date', [$from, $to])
+                ->where('status', 'paid');
+            if ($orderType) {
+                $q->where('order_type', $orderType);
+            }
+        })->sum('discount_amount');
+
+        $ordersWithPromo = OrderPromo::whereHas('order', function ($q) use ($from, $to, $orderType) {
+            $q->whereBetween('order_date', [$from, $to])
+                ->where('status', 'paid');
+            if ($orderType) {
+                $q->where('order_type', $orderType);
+            }
+        })->distinct('order_id')->count('order_id');
+
         // Chart data - daily or monthly based on timeRange
         if ($timeRange === 'yearly') {
             $chartData = (clone $ordersQ)
@@ -134,7 +152,7 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE_FORMAT(order_date, "%Y-%m")')
                 ->orderBy('date')
                 ->get()
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
@@ -145,14 +163,12 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE(order_date)')
                 ->orderBy('date')
                 ->get()
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
                 ->toArray();
         }
-
-
 
         // Distribution data - by order type
         $dineCount = PosOrderType::where('order_type', 'dine')->count();
@@ -164,41 +180,79 @@ class AnalyticsController extends Controller
             ['label' => 'Delivery', 'value' => $deliveryCount, 'percentage' => round($deliveryCount * 100 / $total), 'color' => '#3b82f6'],
         ];
 
-        // Table data - grouped by month if yearly, otherwise by item
-        if ($timeRange === 'yearly') {
-            $tableData = (clone $ordersQ)
-                ->selectRaw('DATE_FORMAT(order_date, "%Y-%m") as month_name, COUNT(*) as qty, SUM(total_amount) as revenue, MAX(order_date) as date')
-                ->groupByRaw('DATE_FORMAT(order_date, "%Y-%m")')
-                ->orderBy('month_name')
-                ->get()
-                ->map(fn($row) => [
-                    'name' => Carbon::parse($row->month_name . '-01')->format('F Y'),
-                    'qty' => (int) $row->qty,
-                    'revenue' => (float) $row->revenue,
-                    'date' => $row->date,
-                ])
-                ->toArray();
-        } else {
-            $tableData = PosOrderItem::whereHas('order', function ($q) use ($from, $to, $orderType) {
-                $q->whereBetween('order_date', [$from, $to])
-                    ->where('status', 'paid');
-                if ($orderType) {
-                    $q->where('order_type', $orderType);
-                }
-            })
-                ->selectRaw('title as name, SUM(quantity) as qty, SUM(quantity * price) as revenue, MAX(created_at) as date')
-                ->groupBy('title')
-                ->orderByDesc('revenue')
-                ->limit(50)
-                ->get()
-                ->map(fn($row) => [
-                    'name' => $row->name,
-                    'qty' => (int) $row->qty,
-                    'revenue' => (float) $row->revenue,
-                    'date' => $row->date,
-                ])
-                ->toArray();
-        }
+        // Table data - Get PosOrders with their related items count, totals, and promo info
+        $tableData = (clone $ordersQ)
+            ->selectRaw('
+            pos_orders.id,
+            pos_orders.customer_name,
+            pos_orders.sub_total,
+            pos_orders.total_amount,
+            pos_orders.tax,
+            pos_orders.service_charges,
+            pos_orders.delivery_charges,
+            pos_orders.sales_discount,
+            pos_orders.approved_discounts,
+            pos_orders.order_date,
+            COUNT(pos_order_items.id) as item_count,
+            COALESCE(SUM(pos_order_items.quantity), 0) as total_qty,
+            COALESCE(SUM(order_promos.discount_amount), 0) as promo_discount,
+            GROUP_CONCAT(DISTINCT order_promos.promo_name SEPARATOR ", ") as promo_names,
+            GROUP_CONCAT(DISTINCT order_promos.promo_type SEPARATOR ", ") as promo_types
+        ')
+            ->leftJoin('pos_order_items', 'pos_orders.id', '=', 'pos_order_items.pos_order_id')
+            ->leftJoin('order_promos', 'pos_orders.id', '=', 'order_promos.order_id')
+            ->groupBy('pos_orders.id')
+            ->orderByDesc('pos_orders.order_date')
+            ->limit(50)
+            ->get()
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'customer_name' => $row->customer_name,
+                'sub_total' => (float) $row->sub_total,
+                'total_amount' => (float) $row->total_amount,
+                'tax' => (float) $row->tax,
+                'service_charges' => (float) $row->service_charges,
+                'delivery_charges' => (float) $row->delivery_charges,
+                'sales_discount' => (float) $row->sales_discount,
+                'approved_discounts' => (float) $row->approved_discounts,
+                'item_count' => (int) $row->item_count,
+                'total_qty' => (int) $row->total_qty,
+                'order_date' => $row->order_date,
+                'promo_discount' => (float) $row->promo_discount,
+                'promo_names' => $row->promo_names ?? '-',
+                'promo_types' => $row->promo_types ?? '-',
+            ])
+            ->toArray();
+
+        // Calculate totals for the totals row
+        $totalsSummary = [
+            'id' => 'TOTAL',
+            'customer_name' => 'TOTAL',
+            'sub_total' => array_sum(array_column($tableData, 'sub_total')),
+            'total_amount' => array_sum(array_column($tableData, 'total_amount')),
+            'tax' => array_sum(array_column($tableData, 'tax')),
+            'service_charges' => array_sum(array_column($tableData, 'service_charges')),
+            'delivery_charges' => array_sum(array_column($tableData, 'delivery_charges')),
+            'sales_discount' => array_sum(array_column($tableData, 'sales_discount')),
+            'approved_discounts' => array_sum(array_column($tableData, 'approved_discounts')),
+            'item_count' => array_sum(array_column($tableData, 'item_count')),
+            'total_qty' => array_sum(array_column($tableData, 'total_qty')),
+            'promo_discount' => array_sum(array_column($tableData, 'promo_discount')),
+            'order_date' => null,
+        ];
+
+        // Promo breakdown distribution data
+        $promoDistribution = OrderPromo::whereHas('order', function ($q) use ($from, $to, $orderType) {
+            $q->whereBetween('order_date', [$from, $to])
+                ->where('status', 'paid');
+            if ($orderType) {
+                $q->where('order_type', $orderType);
+            }
+        })
+            ->selectRaw('promo_type, COUNT(*) as count, SUM(discount_amount) as total_discount')
+            ->groupBy('promo_type')
+            ->get()
+            ->toArray();
 
         return response()->json([
             'kpi' => [
@@ -206,10 +260,15 @@ class AnalyticsController extends Controller
                 'ordersCount' => $ordersCount,
                 'aov' => (float) $aov,
                 'itemsSold' => (int) $itemsSold,
+                'totalPromoDiscount' => (float) $totalPromoDiscount,
+                'ordersWithPromo' => (int) $ordersWithPromo,
+                'promoPercentage' => $ordersCount > 0 ? round(($ordersWithPromo / $ordersCount) * 100, 2) : 0,
             ],
             'chartData' => $chartData,
             'distributionData' => $distributionData,
             'tableData' => $tableData,
+            'totalsSummary' => $totalsSummary,
+            'promoDistribution' => $promoDistribution,
         ]);
     }
 
@@ -240,7 +299,7 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE_FORMAT(purchase_date, "%Y-%m")')
                 ->orderBy('date')
                 ->get()
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
@@ -251,7 +310,7 @@ class AnalyticsController extends Controller
                 ->groupByRaw('DATE(purchase_date)')
                 ->orderBy('date')
                 ->get()
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'date' => $row->date,
                     'total' => (float) $row->total,
                 ])
@@ -275,39 +334,54 @@ class AnalyticsController extends Controller
             ];
         })->toArray();
 
-        // Table data - monthly if yearly
-        if ($timeRange === 'yearly') {
-            $tableData = (clone $ordersQ)
-                ->selectRaw('DATE_FORMAT(purchase_date, "%Y-%m") as month_name, COUNT(*) as qty, SUM(total_amount) as cost, MAX(purchase_date) as date')
-                ->groupByRaw('DATE_FORMAT(purchase_date, "%Y-%m")')
-                ->orderBy('month_name')
-                ->get()
-                ->map(fn($row) => [
-                    'name' => Carbon::parse($row->month_name . '-01')->format('F Y'),
-                    'qty' => (int) $row->qty,
-                    'cost' => (float) $row->cost,
-                    'date' => $row->date,
-                ])
-                ->toArray();
-        } else {
-            $tableData = PurchaseItem::whereHas('purchase', function ($q) use ($from, $to) {
-                $q->whereBetween('purchase_date', [$from, $to])
-                    ->where('status', 'completed');
-            })
-                ->selectRaw('COALESCE(product_id, 0) as product_id, SUM(quantity) as qty, SUM(quantity * unit_price) as cost, MAX(purchase_items.created_at) as date')
-                ->groupBy('product_id')
-                ->orderByDesc('cost')
-                ->limit(50)
-                ->with('product:id,name')
-                ->get()
-                ->map(fn($row) => [
-                    'name' => $row->product->name ?? 'Unknown Item',
-                    'qty' => (int) $row->qty,
-                    'cost' => (float) $row->cost,
-                    'date' => $row->date,
-                ])
-                ->toArray();
-        }
+        // Detailed Table data - Get all purchase items with supplier and product details
+        $tableData = PurchaseItem::whereHas('purchase', function ($q) use ($from, $to) {
+            $q->whereBetween('purchase_date', [$from, $to])
+                ->where('status', 'completed');
+        })
+            ->selectRaw('
+            purchase_items.id,
+            purchase_items.purchase_id,
+            purchase_items.product_id,
+            purchase_items.quantity,
+            purchase_items.unit_price,
+            purchase_items.sub_total,
+            purchase_items.expiry_date,
+            purchase_orders.purchase_date,
+            purchase_orders.status,
+            purchase_orders.total_amount,
+            suppliers.name as supplier_name,
+            inventory_items.name as product_name
+        ')
+            ->leftJoin('purchase_orders', 'purchase_items.purchase_id', '=', 'purchase_orders.id')
+            ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
+            ->leftJoin('inventory_items', 'purchase_items.product_id', '=', 'inventory_items.id')
+            ->orderByDesc('purchase_items.created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'purchase_id' => $row->purchase_id,
+                'product_id' => $row->product_id,
+                'product_name' => $row->product_name ?? 'Unknown Item',
+                'supplier_name' => $row->supplier_name ?? 'Unknown Supplier',
+                'quantity' => (int) $row->quantity,
+                'unit_price' => (float) $row->unit_price,
+                'sub_total' => (float) $row->sub_total,
+                'expiry_date' => $row->expiry_date,
+                'purchase_date' => $row->purchase_date,
+                'status' => $row->status,
+                'total_amount' => (float) $row->total_amount,
+            ])
+            ->toArray();
+
+        // Calculate totals for the totals row
+        $totalsSummary = [
+            'product_name' => 'TOTAL',
+            'quantity' => array_sum(array_column($tableData, 'quantity')),
+            'total_unit_price' =>array_sum(array_column($tableData, 'unit_price')), 
+            'sub_total' => array_sum(array_column($tableData, 'sub_total')),
+        ];
 
         return response()->json([
             'kpi' => [
@@ -319,6 +393,7 @@ class AnalyticsController extends Controller
             'chartData' => $chartData,
             'distributionData' => $distributionData,
             'tableData' => $tableData,
+            'totalsSummary' => $totalsSummary,
         ]);
     }
 
@@ -363,7 +438,7 @@ class AnalyticsController extends Controller
 
         $allDates = collect($salesChart->keys())->merge($purchaseChart->keys())->unique()->sort();
 
-        $chartData = $allDates->map(fn($date) => [
+        $chartData = $allDates->map(fn ($date) => [
             'date' => $date,
             'sales' => (float) ($salesChart->get($date) ?? 0),
             'purchase' => (float) ($purchaseChart->get($date) ?? 0),
@@ -406,10 +481,10 @@ class AnalyticsController extends Controller
         $totalStock = (int) $items->sum('stock');
         $lowStockItems = (int) $items->where('stock', '<', DB::raw('min_alert'))->count();
         $outOfStockItems = (int) $items->where('stock', '<=', 0)->count();
-        $stockValue = (float) $items->sum(fn($item) => ($item->stock ?? 0) * ($item->unit_cost ?? 0));
+        $stockValue = (float) $items->sum(fn ($item) => ($item->stock ?? 0) * ($item->unit_cost ?? 0));
 
         // Chart data - stock by category or item
-        $chartData = $items->take(10)->map(fn($item) => [
+        $chartData = $items->take(10)->map(fn ($item) => [
             'date' => $item->name,
             'total' => (int) $item->stock,
         ])->toArray();
@@ -425,7 +500,7 @@ class AnalyticsController extends Controller
         ];
 
         // Table data
-        $tableData = $items->map(fn($item) => [
+        $tableData = $items->map(fn ($item) => [
             'name' => $item->name,
             'currentStock' => (int) $item->stock,
             'minLevel' => (int) ($item->min_alert ?? 5),
@@ -475,7 +550,7 @@ class AnalyticsController extends Controller
         $topCashierSales = $cashierSales->first()?->total_sales ?? 0;
 
         // Chart data - top cashiers
-        $chartData = $cashierSales->take(10)->map(fn($row) => [
+        $chartData = $cashierSales->take(10)->map(fn ($row) => [
             'date' => $row->user->name ?? 'Unknown',
             'total' => (float) $row->total_sales,
         ])->toArray();
@@ -487,12 +562,12 @@ class AnalyticsController extends Controller
                 'label' => $row->user->name ?? 'Unknown',
                 'value' => (int) $row->order_count,
                 'percentage' => round($row->total_sales * 100 / $totalSales),
-                'color' => '#' . substr(md5($row->user_id), 0, 6),
+                'color' => '#'.substr(md5($row->user_id), 0, 6),
             ];
         })->toArray();
 
         // Table data
-        $tableData = $cashierSales->map(fn($row) => [
+        $tableData = $cashierSales->map(fn ($row) => [
             'cashierName' => $row->user->name ?? 'Unknown',
             'orderCount' => (int) $row->order_count,
             'totalSales' => (float) $row->total_sales,
@@ -546,7 +621,6 @@ class AnalyticsController extends Controller
             ->orderByDesc('revenue')
             ->get();
 
-
         // KPIs
         $totalCategories = $categorySales->count();
         $categoryRevenue = (float) $categorySales->sum('revenue');
@@ -555,7 +629,7 @@ class AnalyticsController extends Controller
 
         // Chart data
         $totalRev = $categorySales->sum('revenue') ?: 1;
-        $chartData = $categorySales->take(10)->map(fn($row) => [
+        $chartData = $categorySales->take(10)->map(fn ($row) => [
             'date' => $row->categoryName,
             'total' => (float) $row->revenue,
         ])->toArray();
@@ -566,7 +640,7 @@ class AnalyticsController extends Controller
                 'label' => $row->categoryName,
                 'value' => (int) $row->qty,
                 'percentage' => round($row->revenue * 100 / $totalRev),
-                'color' => '#' . substr(md5($row->categoryName), 0, 6),
+                'color' => '#'.substr(md5($row->categoryName), 0, 6),
             ];
         })->toArray();
 
