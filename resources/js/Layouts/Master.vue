@@ -973,7 +973,7 @@ onMounted(fetchNotifications);
                             <li v-if="!block.section && hasPermission(block.route)"
                                 :class="{ active: isActive(block.route) }">
                                 <button
-                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0  text-start"
                                     @click="router.visit(route(block.route))">
                                     <i :data-feather="block.icon" class="me-2 icons"></i>
                                     <span class="truncate-when-mini">{{ block.label }}</span>
@@ -1007,7 +1007,7 @@ onMounted(fetchNotifications);
                                                 v-if="hasPermission(child?.route)"
                                                 :class="{ active: isActive(child.route) }">
                                                 <button
-                                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 text-start"
                                                     @click="router.visit(route(child.route))">
                                                     <i :data-feather="child.icon" class="me-2"></i>
                                                     <span>{{ child.label }}</span>
@@ -1021,7 +1021,7 @@ onMounted(fetchNotifications);
                                         :class="{ active: item.route ? isActive(item.route) : false }"
                                         class="side-link">
                                         <button
-                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0 bg-transparent text-start"
+                                            class="d-flex align-items-center side-link px-3 py-2 w-100 border-0  text-start"
                                             @click="router.visit(route(item.route))" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="truncate-when-mini">{{ item.label }}</span>
@@ -1361,10 +1361,6 @@ onMounted(fetchNotifications);
     transition: all 0.2s ease;
 }
 
-.bg-transparent {
-    --bs-bg-opacity: 1;
-    background-color: none !important;
-}
 
 
 @media (max-width: 991px) {
