@@ -239,6 +239,73 @@ const getTotalPrice = (product) => {
     return variantPrice + addonsPrice;
 };
 // ================================================
+const modalRemovedIngredients = ref([]);
+// Get modal ingredients based on selected variant
+const getModalIngredients = () => {
+    if (!selectedItem.value) return [];
+
+    const variant = getModalSelectedVariant();
+    if (variant && variant.ingredients && variant.ingredients.length > 0) {
+        return variant.ingredients;
+    }
+
+    return selectedItem.value.ingredients || [];
+};
+
+// Check if an ingredient is removed
+const isIngredientRemoved = (ingredientId) => {
+    return modalRemovedIngredients.value.includes(ingredientId);
+};
+
+// Toggle ingredient removal
+const toggleIngredient = (ingredientId) => {
+    const index = modalRemovedIngredients.value.indexOf(ingredientId);
+    if (index > -1) {
+        modalRemovedIngredients.value.splice(index, 1);
+        toast.info('Ingredient added back');
+    } else {
+        modalRemovedIngredients.value.push(ingredientId);
+        toast.info('Ingredient removed');
+    }
+};
+
+// Get formatted text for removed ingredients
+const getRemovedIngredientsText = () => {
+    if (modalRemovedIngredients.value.length === 0) return null;
+
+    const ingredients = getModalIngredients();
+    const removedNames = modalRemovedIngredients.value
+        .map(id => {
+            const ing = ingredients.find(i =>
+                i.id === id || i.inventory_item_id === id
+            );
+            return ing ? (ing.product_name || ing.name) : null;
+        })
+        .filter(Boolean);
+
+    if (removedNames.length === 0) return null;
+    return `No ${removedNames.join(', ')}`;
+};
+
+// Display removed ingredients in cart (optional)
+const getCartItemRemovedIngredientsDisplay = (cartItem) => {
+    if (!cartItem.removed_ingredients || cartItem.removed_ingredients.length === 0) {
+        return null;
+    }
+
+    const ingredients = cartItem.ingredients || [];
+    const removedNames = cartItem.removed_ingredients
+        .map(id => {
+            const ing = ingredients.find(i =>
+                i.id === id || i.inventory_item_id === id
+            );
+            return ing ? (ing.product_name || ing.name) : null;
+        })
+        .filter(Boolean);
+
+    return removedNames.length > 0 ? `No ${removedNames.join(', ')}` : null;
+};
+
 const openDetailsModal = async (item) => {
     selectedItem.value = item;
     modalNote.value = "";
@@ -255,6 +322,7 @@ const openDetailsModal = async (item) => {
     const variantIngredients = getVariantIngredients(item, variantId);
     const availableToAdd = calculateAvailableStock(item, variantId, variantIngredients);
     modalQty.value = availableToAdd > 0 ? 1 : 0;
+    modalRemovedIngredients.value = [];
 
     // Get modal element
     const modalEl = document.getElementById("chooseItem");
@@ -271,15 +339,74 @@ const openDetailsModal = async (item) => {
 };
 
 // ✅ Calculate how many more items can be added (considering cart)
+// const calculateAvailableStock = (product, variantId, variantIngredients) => {
+//     if (!variantIngredients || variantIngredients.length === 0) return 999999;
+
+//     const ingredientUsage = {};
+
+//     // Track what's already used in the cart
+//     for (const item of orderItems.value) {
+//         const itemIngredients = getVariantIngredients(item, item.variant_id);
+//         itemIngredients.forEach(ing => {
+//             const id = ing.inventory_item_id;
+//             const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+
+//             if (!ingredientUsage[id]) {
+//                 ingredientUsage[id] = { totalStock: stock, used: 0 };
+//             }
+
+//             const required = Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
+//             ingredientUsage[id].used += required;
+//         });
+//     }
+
+//     // Calculate maximum possible for THIS item
+//     let maxPossible = 999999;
+
+//     for (const ing of variantIngredients) {
+//         const id = ing.inventory_item_id;
+//         const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+//         const requiredPerItem = Number(ing.quantity ?? ing.qty ?? 1);
+
+//         if (!ingredientUsage[id]) {
+//             // No other items using this ingredient
+//             const possible = Math.floor(stock / requiredPerItem);
+//             maxPossible = Math.min(maxPossible, possible);
+//         } else {
+//             // Some already used by cart
+//             const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+//             const possible = Math.floor(available / requiredPerItem);
+//             maxPossible = Math.min(maxPossible, possible);
+//         }
+//     }
+
+//     return maxPossible;
+// };
+
+
 const calculateAvailableStock = (product, variantId, variantIngredients) => {
-    if (!variantIngredients || variantIngredients.length === 0) return 999999;
+    // ✅ Filter out removed ingredients for stock calculation
+    const activeIngredients = variantIngredients.filter(ing =>
+        !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
+    );
+
+    if (!activeIngredients || activeIngredients.length === 0) return 999999;
 
     const ingredientUsage = {};
 
     // Track what's already used in the cart
     for (const item of orderItems.value) {
         const itemIngredients = getVariantIngredients(item, item.variant_id);
-        itemIngredients.forEach(ing => {
+
+        // ✅ Filter out ingredients that were removed from this cart item
+        const activeItemIngredients = itemIngredients.filter(ing => {
+            if (!item.removed_ingredients || item.removed_ingredients.length === 0) {
+                return true;
+            }
+            return !item.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+        });
+
+        activeItemIngredients.forEach(ing => {
             const id = ing.inventory_item_id;
             const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
 
@@ -292,20 +419,18 @@ const calculateAvailableStock = (product, variantId, variantIngredients) => {
         });
     }
 
-    // Calculate maximum possible for THIS item
+    // Calculate maximum possible
     let maxPossible = 999999;
 
-    for (const ing of variantIngredients) {
+    for (const ing of activeIngredients) {
         const id = ing.inventory_item_id;
         const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
         const requiredPerItem = Number(ing.quantity ?? ing.qty ?? 1);
 
         if (!ingredientUsage[id]) {
-            // No other items using this ingredient
             const possible = Math.floor(stock / requiredPerItem);
             maxPossible = Math.min(maxPossible, possible);
         } else {
-            // Some already used by cart
             const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
             const possible = Math.floor(available / requiredPerItem);
             maxPossible = Math.min(maxPossible, possible);
@@ -1098,6 +1223,9 @@ const confirmAdd = async () => {
         return;
     }
 
+    // ✅ NEW: Generate removed ingredients text for kitchen note
+    const removedIngredientsText = getRemovedIngredientsText();
+
     // Stock validation...
     const ingredientStock = {};
     for (const item of orderItems.value) {
@@ -1146,17 +1274,37 @@ const confirmAdd = async () => {
             // Update total discount
             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
 
+            // ✅ UPDATED: Combine kitchen notes with removed ingredients
             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
-                if (existingNote && existingNote !== modalItemKitchenNote.value.trim()) {
-                    orderItems.value[idx].item_kitchen_note = existingNote + '; ' + modalItemKitchenNote.value.trim();
-                } else {
-                    orderItems.value[idx].item_kitchen_note = modalItemKitchenNote.value.trim();
-                }
+                const newNote = modalItemKitchenNote.value.trim();
+
+                // Combine: existing note + new note + removed ingredients
+                const noteParts = [existingNote, newNote, removedIngredientsText]
+                    .filter(Boolean)
+                    .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+
+                orderItems.value[idx].item_kitchen_note = noteParts.join('; ');
+            } else if (removedIngredientsText) {
+                // Only removed ingredients, append to existing
+                const existingNote = orderItems.value[idx].item_kitchen_note || '';
+                orderItems.value[idx].item_kitchen_note = [existingNote, removedIngredientsText]
+                    .filter(Boolean)
+                    .join('; ');
+            }
+
+            // ✅ NEW: Update removed ingredients list
+            if (modalRemovedIngredients.value.length > 0) {
+                orderItems.value[idx].removed_ingredients = [...modalRemovedIngredients.value];
             }
 
             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
         } else {
+            // ✅ UPDATED: Combine kitchen note with removed ingredients
+            const finalKitchenNote = [modalItemKitchenNote.value.trim(), removedIngredientsText]
+                .filter(Boolean)
+                .join('. ');
+
             orderItems.value.push({
                 id: selectedItem.value.id,
                 title: selectedItem.value.title,
@@ -1165,12 +1313,13 @@ const confirmAdd = async () => {
                 unit_price: Number(totalItemPrice), // Original price
                 qty: modalQty.value,
                 note: modalNote.value || "",
-                item_kitchen_note: modalItemKitchenNote.value.trim() || "",
+                item_kitchen_note: finalKitchenNote, // ✅ Updated with removed ingredients
                 stock: menuStock,
                 ingredients: variantIngredients,
                 variant_id: variantId,
                 variant_name: variantName,
                 addons: selectedAddons,
+                removed_ingredients: [...modalRemovedIngredients.value], // ✅ NEW: Store removed ingredient IDs
 
                 // NEW: Store resale discount info
                 resale_discount_per_item: resaleDiscountPerItem,
@@ -1185,11 +1334,13 @@ const confirmAdd = async () => {
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
 
+        // ✅ NEW: Reset modal state including removed ingredients
         modalQty.value = 0;
         modalNote.value = "";
         modalItemKitchenNote.value = "";
         modalSelectedVariant.value = null;
         modalSelectedAddons.value = {};
+        modalRemovedIngredients.value = []; // ✅ Reset removed ingredients
 
     } catch (err) {
         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
@@ -1759,6 +1910,7 @@ const confirmOrder = async ({
                     variant_name: it.variant_name || null,
                     addons: it.addons || [],
                     sale_discount_per_item: resaleDiscount,
+                    removed_ingredients: it.removed_ingredients || [],
                 };
             }),
         };
@@ -3633,10 +3785,47 @@ const getModalTotalPriceWithResale = () => {
                                             </option>
                                         </select>
                                     </div>
+                                    <!-- Ingredients Customization -->
+                                    <div v-if="getModalIngredients().length > 0" class="mb-3">
+                                        <label class="form-label small fw-semibold mb-2 d-flex align-items-center">
+                                            <i class="bi bi-egg-fried me-2 text-warning"></i>
+                                            Remove Ingredients
+                                        </label>
+
+                                        <div class="border rounded-3 p-3 bg-light"
+                                            style="max-height: 180px; overflow-y: auto;">
+                                            <div v-for="ingredient in getModalIngredients()"
+                                                :key="ingredient.id || ingredient.inventory_item_id"
+                                                class="form-check d-flex align-items-center justify-content-between py-2 px-2 mb-1 rounded hover-bg-white"
+                                                style="cursor: pointer;">
+
+                                                <div class="d-flex align-items-center flex-grow-1 gap-3">
+                                                    <input type="checkbox" class="form-check-input"
+                                                        :id="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
+                                                        :checked="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id)"
+                                                        @change="toggleIngredient(ingredient.id || ingredient.inventory_item_id)"
+                                                        style="cursor: pointer; width: 20px; height: 20px; margin: 0; flex-shrink: 0;">
+
+                                                    <label
+                                                        :for="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
+                                                        class="form-check-label mb-0 flex-grow-1" :class="{
+                                                            'text-decoration-line-through text-muted opacity-50': isIngredientRemoved(ingredient.id || ingredient.inventory_item_id)
+                                                        }" style="cursor: pointer;">
+                                                        {{ ingredient.product_name || ingredient.name || 'Ingredient' }}
+                                                    </label>
+                                                </div>
+
+                                                <span class="badge ms-2"
+                                                    :class="isIngredientRemoved(ingredient.id || ingredient.inventory_item_id) ? 'bg-secondary' : 'bg-primary'">
+                                                    {{ ingredient.quantity || 1 }} {{ ingredient.unit || 'unit' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     <!-- Addons Selection -->
                                     <div v-if="selectedItem?.addon_groups && selectedItem.addon_groups.length > 0">
-                                        <h6>DEBUG: Found {{ selectedItem.addon_groups.length }} addon groups</h6>
+
 
                                         <div v-for="group in selectedItem.addon_groups" :key="group.group_id"
                                             class="mb-3">
