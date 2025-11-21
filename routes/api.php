@@ -32,7 +32,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);
 Route::get('/geo', [GeoController::class, 'info']);
-
+// In routes/api.php
+Route::post('/pos/orders/{order}/cancel', [PosOrderController::class, 'cancel']);
+Route::post('/pos/orders/{order}/refund', [PosOrderController::class, 'refund']);
 Route::get('/test-api', function () {
     return response()->json(['status' => 'API file is loading']);
 });

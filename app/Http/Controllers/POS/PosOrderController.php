@@ -292,7 +292,215 @@ class PosOrderController extends Controller
             ]);
     }
 
+    public function cancel(Request $request, $orderId)
+    {
+        try {
+            $order = \App\Models\PosOrder::with(['items.menuItem.ingredients.inventoryItem.category'])
+                ->findOrFail($orderId);
 
+            if ($order->status === 'cancelled') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order is already cancelled'
+                ], 422);
+            }
+
+            \DB::beginTransaction();
+
+            // Restore inventory stock
+            foreach ($order->items as $item) {
+                $menuItem = $item->menuItem;
+                if (!$menuItem) continue;
+
+                $ingredients = [];
+                if ($item->variant_id && $menuItem->variants) {
+                    $variant = $menuItem->variants->find($item->variant_id);
+                    if ($variant && $variant->ingredients) {
+                        $ingredients = $variant->ingredients;
+                    }
+                } else {
+                    $ingredients = $menuItem->ingredients ?? [];
+                }
+
+                foreach ($ingredients as $ingredient) {
+                    $inventoryItem = $ingredient->inventoryItem;
+                    if (!$inventoryItem) continue; // Skip if inventory item not found
+
+                    $requiredQty = ($ingredient->quantity ?? 1) * $item->quantity;
+
+                    \App\Models\StockEntry::create([
+                        'product_id' => $inventoryItem->id,
+                        'name' => $ingredient->product_name ?? $inventoryItem->name,
+                        'category_id' => $inventoryItem->category_id, // Get from InventoryItem
+                        'supplier_id' => $inventoryItem->supplier_id ?? null,
+                        'available_quantity' => $inventoryItem->stock ?? 0,
+                        'quantity' => $requiredQty,
+                        'price' => $ingredient->cost ?? 0,
+                        'value' => ($ingredient->cost ?? 0) * $requiredQty,
+                        'operation_type' => 'pos_cancel_return',
+                        'stock_type' => 'stockin',
+                        'description' => "Stock restored from cancelled order #{$order->id}",
+                        'user_id' => auth()->id(),
+                    ]);
+                }
+            }
+
+            $order->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancelled_by' => auth()->id(),
+                'cancellation_reason' => $request->input('reason', 'Cancelled by admin')
+            ]);
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order cancelled and inventory restored',
+                'order' => $order->fresh(['payment', 'items'])
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Order cancellation failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function refund(Request $request, $orderId)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'reason' => 'nullable|string|max:500',
+            'payment_type' => 'required|in:card,split'
+        ]);
+
+        try {
+            $order = \App\Models\PosOrder::with(['payment'])->findOrFail($orderId);
+
+            if (!$order->payment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No payment record found for this order'
+                ], 422);
+            }
+
+            $paymentType = strtolower($order->payment->payment_type);
+
+            if (!in_array($paymentType, ['card', 'split'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only card and split payments can be refunded'
+                ], 422);
+            }
+
+            if ($order->payment->refund_status === 'refunded') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This payment has already been refunded'
+                ], 422);
+            }
+
+            $maxRefundAmount = $paymentType === 'split'
+                ? $order->payment->card_amount
+                : $order->payment->amount_received;
+
+            if ($request->amount > $maxRefundAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund amount exceeds maximum refundable amount'
+                ], 422);
+            }
+
+            \DB::beginTransaction();
+
+            // Process Stripe refund if available
+            if ($order->payment->stripe_payment_intent_id) {
+                try {
+                    $stripe = new \Stripe\StripeClient(config('app.stripe_secret_key'));
+
+                    $refund = $stripe->refunds->create([
+                        'payment_intent' => $order->payment->stripe_payment_intent_id,
+                        'amount' => (int)round($request->amount * 100),
+                        'reason' => 'requested_by_customer',
+                        'metadata' => [
+                            'order_id' => $order->id,
+                            'refund_reason' => $request->reason ?? 'Customer requested refund',
+                            'refunded_by' => auth()->id()
+                        ]
+                    ]);
+
+                    $order->payment->update([
+                        'refund_status' => 'refunded',
+                        'refund_amount' => $request->amount,
+                        'refund_date' => now(),
+                        'refund_id' => $refund->id,
+                        'refund_reason' => $request->reason,
+                        'refunded_by' => auth()->id()
+                    ]);
+
+                    $order->update([
+                        'status' => 'refunded',
+                        'refund_amount' => $request->amount
+                    ]);
+
+                    \DB::commit();
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Refund processed successfully',
+                        'order' => $order->fresh(['payment']),
+                        'refund' => [
+                            'id' => $refund->id,
+                            'amount' => $request->amount,
+                            'status' => $refund->status
+                        ]
+                    ]);
+                } catch (\Stripe\Exception\ApiErrorException $e) {
+                    \DB::rollBack();
+                    \Log::error('Stripe refund failed: ' . $e->getMessage());
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Stripe refund failed: ' . $e->getMessage()
+                    ], 500);
+                }
+            } else {
+                // Manual refund recording
+                $order->payment->update([
+                    'refund_status' => 'refunded',
+                    'refund_amount' => $request->amount,
+                    'refund_date' => now(),
+                    'refund_reason' => $request->reason,
+                    'refunded_by' => auth()->id()
+                ]);
+
+                $order->update([
+                    'status' => 'refunded',
+                    'refund_amount' => $request->amount
+                ]);
+
+                \DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Refund recorded successfully',
+                    'order' => $order->fresh(['payment'])
+                ]);
+            }
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Refund processing failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process refund: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
     public function broadcastCart(Request $request)
     {
