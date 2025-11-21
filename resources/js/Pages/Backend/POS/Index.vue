@@ -3618,7 +3618,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3669,7 +3669,7 @@ const getModalTotalPriceWithResale = () => {
                                             </div>
 
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
 
                                     </div>
@@ -3789,7 +3789,7 @@ const getModalTotalPriceWithResale = () => {
                                     <div v-if="getModalIngredients().length > 0" class="mb-3">
                                         <label class="form-label small fw-semibold mb-2 d-flex align-items-center">
                                             <i class="bi bi-egg-fried me-2 text-warning"></i>
-                                            Customize Ingredients
+                                            Remove Ingredients
                                         </label>
 
                                         <div class="border rounded-3 p-3 bg-light"
@@ -3799,12 +3799,12 @@ const getModalTotalPriceWithResale = () => {
                                                 class="form-check d-flex align-items-center justify-content-between py-2 px-2 mb-1 rounded hover-bg-white"
                                                 style="cursor: pointer;">
 
-                                                <div class="d-flex align-items-center flex-grow-1">
-                                                    <input type="checkbox" class="form-check-input me-3"
+                                                <div class="d-flex align-items-center flex-grow-1 gap-3">
+                                                    <input type="checkbox" class="form-check-input"
                                                         :id="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
                                                         :checked="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id)"
                                                         @change="toggleIngredient(ingredient.id || ingredient.inventory_item_id)"
-                                                        style="cursor: pointer; width: 20px; height: 20px;">
+                                                        style="cursor: pointer; width: 20px; height: 20px; margin: 0; flex-shrink: 0;">
 
                                                     <label
                                                         :for="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
@@ -3820,13 +3820,6 @@ const getModalTotalPriceWithResale = () => {
                                                     {{ ingredient.quantity || 1 }} {{ ingredient.unit || 'unit' }}
                                                 </span>
                                             </div>
-                                        </div>
-
-                                        <div class="alert alert-info d-flex align-items-center py-2 px-3 mt-2 mb-0"
-                                            style="font-size: 0.85rem;">
-                                            <i class="bi bi-lightbulb me-2"></i>
-                                            <small>Uncheck ingredients you don't want. <strong>Won't affect
-                                                    stock.</strong></small>
                                         </div>
                                     </div>
 

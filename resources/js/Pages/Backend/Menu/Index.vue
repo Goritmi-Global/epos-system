@@ -2012,17 +2012,14 @@ const handleImport = (data) => {
     console.log("rows data", rows);
 
     const itemsToImport = rows.map((row) => {
-        // Parse nutrition string: "calories: 210.00; protein: 120.00; fat: 210.00; carbs: 330.00"
+        // Parse nutrition
         let calories = 0, protein = 0, fat = 0, carbs = 0;
-
-        if (row[4]) { // Nutrition column
+        if (row[4]) {
             const nutritionStr = row[4];
             const parts = nutritionStr.split(';').map(s => s.trim());
-
             parts.forEach(part => {
                 const [key, value] = part.split(':').map(s => s.trim());
                 const numValue = parseFloat(value) || 0;
-
                 if (key === 'calories') calories = numValue;
                 else if (key === 'protein') protein = numValue;
                 else if (key === 'fat') fat = numValue;
@@ -2030,24 +2027,41 @@ const handleImport = (data) => {
             });
         }
 
-        return {
-            name: row[0] || "",              // Item Name
-            category: row[1] || "",          // Category
-            description: row[2] || "",       // Description
-            price: parseFloat(row[3]) || 0,  // Price (lowercase 'p')
+        const item = {
+            name: row[0] || "",
+            category: row[1] || "",
+            description: row[2] || "",
+            price: row[3] ? parseFloat(row[3]) : 0,
             calories: calories,
             protein: protein,
             fat: fat,
             carbs: carbs,
-            allergies: row[5] ? row[5].trim() : "",  // Allergies (comma-separated)
-            tags: row[6] ? row[6].trim() : "",       // Tags (comma-separated)
-            active: 1,  // Default to active since it's not in CSV
+            allergies: row[5] ? row[5].trim() : "",
+            tags: row[6] ? row[6].trim() : "",
+            label_color: row[7] || null,
+            is_taxable: row[8] ? parseInt(row[8]) : 0,
+            is_saleable: row[9] ? parseInt(row[9]) : 0,
+            resale_type: row[10] || null,
+            resale_value: row[11] ? parseFloat(row[11]) : null,
+            status: 1,
         };
+
+        // Check if this is a variant menu (row 12 contains variant data)
+        if (row[12] && row[12].trim() !== '') {
+            try {
+                item.variant_data = JSON.parse(row[12]);
+            } catch (e) {
+                console.error("Error parsing variant data:", e);
+                item.variant_data = null;
+            }
+        }
+
+        return item;
     });
 
     console.log("Items to import:", itemsToImport);
 
-    // Check for duplicate item names within the CSV
+    // Check for duplicate item names
     const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
     const duplicatesInCSV = itemNames.filter((name, index) => itemNames.indexOf(name) !== index);
 
@@ -2056,7 +2070,7 @@ const handleImport = (data) => {
         return;
     }
 
-    // Check for duplicate item names in the existing menu items table
+    // Check for duplicates in existing menu
     const existingMenuItemNames = menuItems.value.map(item => item.name.trim().toLowerCase());
     const duplicatesInTable = itemsToImport.filter(importItem =>
         existingMenuItemNames.includes(importItem.name.trim().toLowerCase())
@@ -2077,7 +2091,7 @@ const handleImport = (data) => {
         })
         .catch((err) => {
             console.error(err);
-            toast.error("Import failed");
+            toast.error(err.response?.data?.message || "Import failed");
         });
 };
 
@@ -2316,6 +2330,86 @@ const deleteVariantIngredients = (variantId) => {
         toast.success("Variant ingredients deleted");
     }
 };
+
+const sampleMenuHeaders = [
+    'Item Name',
+    'Category',
+    'Description',
+    'Price',
+    'Nutrition',
+    'Allergies',
+    'Tags',
+    'Label Color',
+    'Is Taxable',
+    'Is Saleable',
+    'Resale Type',
+    'Resale Value',
+    'Variant Data'
+];
+
+const sampleMenuData = [
+    [
+        'Chicken Burger',
+        'Burgers',
+        'Delicious chicken burger',
+        '150',
+        'calories: 250.00; protein: 20.00; fat: 10.00; carbs: 30.00',
+        'Gluten',
+        'Halal',
+        '#E74C3C',
+        '1',
+        '0',
+        '',
+        '',
+        ''
+    ],
+    [
+        'Grilled Chicken',
+        'Main Course',
+        'Grilled chicken with spices',
+        '0',
+        'calories: 300.00; protein: 35.00; fat: 15.00; carbs: 0.00',
+        'None',
+        'Halal',
+        '#27AE60',
+        '1',
+        '1',
+        'flat',
+        '50',
+        JSON.stringify([
+            {
+                name: 'Small',
+                price: 200,
+                is_saleable: 1,
+                resale_type: 'flat',
+                resale_value: 40,
+                ingredients: [
+                    {
+                        inventory_item_id: 1,
+                        product_name: 'Chicken Breast',
+                        quantity: 0.5,
+                        cost: 100
+                    }
+                ]
+            },
+            {
+                name: 'Large',
+                price: 300,
+                is_saleable: 1,
+                resale_type: 'percentage',
+                resale_value: 20,
+                ingredients: [
+                    {
+                        inventory_item_id: 1,
+                        product_name: 'Chicken Breast',
+                        quantity: 0.75,
+                        cost: 150
+                    }
+                ]
+            }
+        ])
+    ]
+];
 </script>
 
 <template>
@@ -2386,34 +2480,8 @@ const deleteVariantIngredients = (variantId) => {
                                 <Plus class="w-4 h-4" /> Add Menu
                             </button>
 
-                            <ImportFile label="Import" :sampleHeaders="[
-                                'Item Name',
-                                'Category',
-                                'Description',
-                                'price',
-                                'Nutrition',
-                                'Allergies',
-                                'Tags'
-                            ]" :sampleData="[
-                                [
-                                    'Chicken',
-                                    'Spices & Herbs',
-                                    'Test',
-                                    '100',
-                                    'calories: 99.00; protein: 69.00; fat: 132.00; carbs: 93.00',
-                                    'Gluten',
-                                    'Gluten-Free'
-                                ],
-                                [
-                                    'Aalo',
-                                    'Spices & Herbs',
-                                    'xzc',
-                                    '100',
-                                    'calories: 66.00; protein: 46.00; fat: 88.00; carbs: 62.00',
-                                    'Gluten',
-                                    'Gluten-Free'
-                                ]
-                            ]" @on-import="handleImport" />
+                            <ImportFile label="Import" :sampleHeaders="sampleMenuHeaders" :sampleData="sampleMenuData"
+                                @on-import="handleImport" />
 
                             <!-- Download all -->
                             <div class="dropdown">
@@ -2595,14 +2663,16 @@ const deleteVariantIngredients = (variantId) => {
                                             <div class="d-flex gap-3">
                                                 <div class="form-check">
                                                     <input v-model="form.is_saleable" :value="true" type="radio"
-                                                        class="form-check-input" id="saleable_yes" name="is_saleable"  :checked="form.is_saleable === true" />
+                                                        class="form-check-input" id="saleable_yes" name="is_saleable"
+                                                        :checked="form.is_saleable === true" />
                                                     <label class="form-check-label" for="saleable_yes">
                                                         Yes
                                                     </label>
                                                 </div>
                                                 <div class="form-check">
                                                     <input v-model="form.is_saleable" :value="false" type="radio"
-                                                        class="form-check-input" id="saleable_no" name="is_saleable" :checked="form.is_saleable === false" />
+                                                        class="form-check-input" id="saleable_no" name="is_saleable"
+                                                        :checked="form.is_saleable === false" />
                                                     <label class="form-check-label" for="saleable_no">
                                                         No
                                                     </label>
@@ -3218,7 +3288,8 @@ const deleteVariantIngredients = (variantId) => {
                                                                         type="radio" class="form-check-input"
                                                                         :value="true"
                                                                         :name="`variant_saleable_${variantId}`"
-                                                                        v-model="variantResaleConfig[variantId].is_saleable"  :checked="variantResaleConfig[variantId].is_saleable === true"/>
+                                                                        v-model="variantResaleConfig[variantId].is_saleable"
+                                                                        :checked="variantResaleConfig[variantId].is_saleable === true" />
                                                                     <label class="form-check-label small"
                                                                         :for="`variant_saleable_yes_${variantId}`">
                                                                         Yes
@@ -3229,7 +3300,8 @@ const deleteVariantIngredients = (variantId) => {
                                                                         type="radio" class="form-check-input"
                                                                         :value="false"
                                                                         :name="`variant_saleable_${variantId}`"
-                                                                        v-model="variantResaleConfig[variantId].is_saleable"  :checked="variantResaleConfig[variantId].is_saleable === false" />
+                                                                        v-model="variantResaleConfig[variantId].is_saleable"
+                                                                        :checked="variantResaleConfig[variantId].is_saleable === false" />
                                                                     <label class="form-check-label small"
                                                                         :for="`variant_saleable_no_${variantId}`">
                                                                         No
