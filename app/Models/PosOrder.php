@@ -23,6 +23,11 @@ class PosOrder extends Model
         'kitchen_note',
         'order_date',
         'order_time',
+
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
+        'refund_amount',
     ];
 
     public function user(): BelongsTo

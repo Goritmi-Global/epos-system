@@ -12,4 +12,8 @@ class PosOrderItem extends Model
     {
         return $this->belongsTo(PosOrder::class, 'pos_order_id');
     }
+    public function menuItem()
+    {
+        return $this->belongsTo(MenuItem::class, 'menu_item_id');
+    }
 }

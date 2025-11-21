@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('pos_orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            
+
             $table->string('customer_name')->nullable();
             $table->decimal('sub_total', 10, 2)->default(0);
             $table->decimal('total_amount', 10, 2)->default(0);
@@ -33,6 +33,14 @@ return new class extends Migration
 
             $table->date('order_date')->nullable();
             $table->time('order_time')->nullable();
+
+            // reference code for the order
+            $table->timestamp('cancelled_at')->nullable();
+            $table->unsignedBigInteger('cancelled_by')->nullable();
+            $table->text('cancellation_reason')->nullable();
+            $table->decimal('refund_amount', 10, 2)->nullable();
+
+            $table->foreign('cancelled_by')->references('id')->on('users')->nullOnDelete();
             $table->timestamps();
         });
     }

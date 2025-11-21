@@ -3832,8 +3832,6 @@ const getModalTotalPriceWithResale = () => {
 
                                     <!-- Addons Selection -->
                                     <div v-if="selectedItem?.addon_groups && selectedItem.addon_groups.length > 0">
-                                        
-
                                         <div v-for="group in selectedItem.addon_groups" :key="group.group_id"
                                             class="mb-3">
 
