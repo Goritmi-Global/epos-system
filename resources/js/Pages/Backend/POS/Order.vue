@@ -1,15 +1,23 @@
-
 <script setup>
 import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
-import { Pencil, Eye } from "lucide-vue-next";
+import { Pencil, Eye, XCircle } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
+import { toast } from 'vue3-toastify';
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
+
+// Cancel & Refund states
+const cancellingOrderId = ref(null);
+const refundingOrderId = ref(null);
+const showRefundModal = ref(false);
+const refundAmount = ref(0);
+const refundReason = ref('');
+const selectedOrderForRefund = ref(null);
 
 const orders = ref([]);
 
@@ -61,47 +69,6 @@ const paymentTypeFilter = ref("All"); // <-- renamed
 
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway"]);
 const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]); // <-- new
-
-// const filtered = computed(() => {
-//     const term = q.value.trim().toLowerCase();
-
-//     return (
-//         orders.value
-//             // Order Type (Dine In / Delivery / Takeaway)
-//             .filter((o) =>
-//                 orderTypeFilter.value === "All"
-//                     ? true
-//                     : (o.type?.order_type ?? "").toLowerCase() ===
-//                     orderTypeFilter.value.toLowerCase()
-//             )
-//             // Payment Type (Cash / Card / Split)
-//             .filter((o) =>
-//                 paymentTypeFilter.value === "All"
-//                     ? true
-//                     : (o.payment?.payment_type ?? "").toLowerCase() ===
-//                     paymentTypeFilter.value.toLowerCase()
-//             )
-//             // Search
-//             .filter((o) => {
-//                 if (!term) return true;
-//                 return [
-//                     String(o.id),
-//                     o.type?.table_number ?? "",
-//                     o.type?.order_type ?? "",
-//                     o.customer_name ?? "",
-//                     o.payment?.payment_type ?? "",
-//                     o.status ?? "",
-//                     String(o.total_amount ?? ""),
-//                     formatDate(o.created_at),
-//                     timeAgo(o.created_at),
-//                 ]
-//                     .join(" ")
-//                     .toLowerCase()
-//                     .includes(term);
-//             })
-//     );
-// });
-
 
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
@@ -533,6 +500,168 @@ const fetchPrinters = async () => {
 
 // 🔹 Fetch once on mount
 onMounted(fetchPrinters);
+
+
+// ================================================
+// handle Refund
+// ===============================================
+// Check if order can be refunded
+const canRefund = (order) => {
+    if (!order || !order.payment) return false;
+
+    const paymentType = order.payment.payment_type?.toLowerCase();
+    const status = order.status?.toLowerCase();
+    const refundStatus = order.payment.refund_status?.toLowerCase();
+
+    // Can refund if:
+    // 1. Status is 'paid' or 'cancelled'
+    // 2. Payment type is 'card' or 'split'
+    // 3. Not already refunded
+    return (
+        (status === 'paid' || status === 'cancelled') &&
+        (paymentType === 'card' || paymentType === 'split') &&
+        (!refundStatus || refundStatus === 'none')
+    );
+};
+
+// Handle Cancel Order
+const handleCancelOrder = async (order) => {
+    if (!order) return;
+
+    if (!confirm(`Cancel order #${order.id}?\n\nThis will:\n• Cancel the order\n• Restore inventory stock\n• This action cannot be undone`)) {
+        return;
+    }
+
+    cancellingOrderId.value = order.id;
+
+    try {
+        const response = await axios.post(`/api/pos/orders/${order.id}/cancel`, {
+            reason: 'Cancelled by admin from orders page'
+        });
+
+        if (response.data.success) {
+            toast.success('Order cancelled and stock restored successfully');
+
+            // Update local order
+            const index = orders.value.findIndex(o => o.id === order.id);
+            if (index !== -1) {
+                orders.value[index] = response.data.order;
+            }
+
+            // If payment can be refunded, ask user
+            if (canRefund(response.data.order)) {
+                setTimeout(() => {
+                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+                        handleRefundPayment(response.data.order);
+                    }
+                }, 500);
+            }
+        }
+    } catch (error) {
+        console.error('Error cancelling order:', error);
+        toast.error(error.response?.data?.message || 'Failed to cancel order');
+    } finally {
+        cancellingOrderId.value = null;
+    }
+};
+
+// Handle Refund Payment
+const handleRefundPayment = async (order) => {
+    if (!order) return;
+
+    const paymentType = order.payment?.payment_type?.toLowerCase();
+    const totalAmount = order.total_amount;
+    const cardAmount = order.payment?.card_amount || totalAmount;
+
+    // Set refund details
+    selectedOrderForRefund.value = order;
+    refundAmount.value = Number(cardAmount).toFixed(2);
+    refundReason.value = '';
+
+    // Show refund modal
+    const modalEl = document.getElementById('refundModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+};
+
+// Process the refund
+const processRefund = async () => {
+    if (!selectedOrderForRefund.value) return;
+
+    const amount = Number(refundAmount.value);
+
+    if (amount <= 0) {
+        toast.error('Refund amount must be greater than 0');
+        return;
+    }
+
+    const paymentType = selectedOrderForRefund.value.payment?.payment_type?.toLowerCase();
+    const maxAmount = selectedOrderForRefund.value.payment?.card_amount || selectedOrderForRefund.value.total_amount;
+
+    if (amount > maxAmount) {
+        toast.error(`Refund amount cannot exceed ${formatCurrencySymbol(maxAmount)}`);
+        return;
+    }
+
+    if (!confirm(`Refund ${formatCurrencySymbol(amount)} to customer?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+
+    refundingOrderId.value = selectedOrderForRefund.value.id;
+
+    try {
+        const response = await axios.post(
+            `/api/pos/orders/${selectedOrderForRefund.value.id}/refund`,
+            {
+                amount: amount,
+                reason: refundReason.value || 'Refund requested by admin',
+                payment_type: paymentType
+            }
+        );
+
+        if (response.data.success) {
+            toast.success(`Refund of ${formatCurrencySymbol(amount)} processed successfully`);
+
+            // Update local order
+            const index = orders.value.findIndex(o => o.id === selectedOrderForRefund.value.id);
+            if (index !== -1) {
+                orders.value[index] = response.data.order;
+            }
+
+            // Close modal
+            const modalEl = document.getElementById('refundModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+
+            // Clear selection
+            selectedOrderForRefund.value = null;
+            refundAmount.value = 0;
+            refundReason.value = '';
+        }
+    } catch (error) {
+        console.error('Error processing refund:', error);
+        toast.error(error.response?.data?.message || 'Failed to process refund');
+    } finally {
+        refundingOrderId.value = null;
+    }
+};
+
+// Close refund modal
+const closeRefundModal = () => {
+    const modalEl = document.getElementById('refundModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+    selectedOrderForRefund.value = null;
+    refundAmount.value = 0;
+    refundReason.value = '';
+};
+
 </script>
 
 <template>
@@ -739,7 +868,7 @@ onMounted(fetchPrinters);
 
                                     <!-- Promo discount -->
                                     <td class="text-success">
-                                        -{{ formatCurrencySymbol(o.promo[0]?.discount_amount ?? 0) }}
+                                        -{{ formatCurrencySymbol(o?.promo[0]?.discount_amount ?? 0) }}
                                     </td>
                                     <td class="text-success">
                                         -{{ formatCurrencySymbol(o.sales_discount ?? 0) }}
@@ -758,12 +887,30 @@ onMounted(fetchPrinters);
                                     <!-- Total after discount -->
                                     <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
 
+                                    <!-- In your orders table, replace the actions cell -->
                                     <td class="text-center">
-                                        <button @click="openOrderDetails(o)" data-bs-toggle="modal"
-                                            data-bs-target="#viewItemModal" title="View Item"
-                                            class="p-2 rounded-full text-primary hover:bg-gray-100">
-                                            <Eye class="w-4 h-4" />
-                                        </button>
+                                        <div class="d-flex gap-2 justify-content-center align-items-center">
+                                            <!-- View Button -->
+                                            <button @click="openOrderDetails(o)" title="View Details"
+                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                <Eye class="w-4 h-4" />
+                                            </button>
+
+                                            <!-- Cancel Button (only if not already cancelled/refunded) -->
+                                            <button v-if="o.status !== 'cancelled' && o.status !== 'refunded'"
+                                                @click="handleCancelOrder(o)" title="Cancel Order"
+                                                :disabled="cancellingOrderId === o.id"
+                                                class="p-2 rounded-full text-danger hover:bg-gray-100">
+                                                <XCircle class="w-4 h-4" />
+                                            </button>
+
+                                            <!-- Refund Button (only for card/split payments that aren't refunded) -->
+                                            <button v-if="canRefund(o)" @click="handleRefundPayment(o)"
+                                                title="Refund Payment" :disabled="refundingOrderId === o.id"
+                                                class="p-2 rounded-full text-warning hover:bg-gray-100">
+                                                <i class="bi bi-arrow-counterclockwise" style="font-size: 1rem;"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
 
@@ -1054,10 +1201,11 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted text-adjusting">Promo Discount</td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Promo
+                                                    Discount</td>
                                                 <td class="text-success fw-semibold" colspan="3">
                                                     -{{ formatCurrencySymbol(selectedOrder.promo[0]?.discount_amount ??
-                                                    0) }}
+                                                        0) }}
                                                 </td>
                                             </tr>
 
@@ -1077,7 +1225,8 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted text-adjusting">Service Charges</td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Service
+                                                    Charges</td>
                                                 <td class="text-success fw-semibold" colspan="3">
                                                     +{{ formatCurrencySymbol(selectedOrder.service_charges ?? 0) }}
                                                 </td>
@@ -1088,7 +1237,8 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted text-adjusting">Delivery Charges</td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Delivery
+                                                    Charges</td>
                                                 <td class="text-success fw-semibold" colspan="3">
                                                     +{{ formatCurrencySymbol(selectedOrder.delivery_charges ?? 0) }}
                                                 </td>
@@ -1098,7 +1248,8 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted text-adjusting">Sales Discount</td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Sales
+                                                    Discount</td>
                                                 <td class="text-success fw-semibold" colspan="3">
                                                     +{{ formatCurrencySymbol(selectedOrder.sales_discount ?? 0) }}
                                                 </td>
@@ -1109,7 +1260,8 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted text-adjusting">Approved Discounts</td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Approved
+                                                    Discounts</td>
                                                 <td class="text-success fw-semibold" colspan="3">
                                                     +{{ formatCurrencySymbol(selectedOrder.approved_discounts ?? 0) }}
                                                 </td>
@@ -1120,7 +1272,8 @@ onMounted(fetchPrinters);
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td colspan="3" class="text-end text-muted text-adjusting">Grand Total</td>
+                                                <td colspan="3" class="text-end text-muted text-adjusting">Grand Total
+                                                </td>
                                                 <td class="fw-bold text-success">
                                                     {{ formatCurrencySymbol(selectedOrder.total_amount) }}
                                                 </td>
@@ -1152,6 +1305,118 @@ onMounted(fetchPrinters);
                 </div>
             </div>
         </div>
+
+        <!-- Refund Modal -->
+        <div class="modal fade" id="refundModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content rounded-4 shadow border-0">
+                    <!-- Header -->
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">
+                            <i class="bi bi-arrow-counterclockwise text-warning me-2"></i>
+                            Process Refund
+                        </h5>
+                        <button type="button" class="btn-close" @click="closeRefundModal"></button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body">
+                        <div class="alert alert-warning d-flex align-items-start gap-2">
+                            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+                            <div>
+                                <strong>Important:</strong> This will process a refund to the customer's card. This
+                                action
+                                cannot be undone.
+                            </div>
+                        </div>
+
+                        <!-- Order Details -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Order Details</label>
+                            <div class="bg-light p-3 rounded-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Order #:</span>
+                                    <span class="fw-semibold">{{ selectedOrderForRefund?.id }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Customer:</span>
+                                    <span class="fw-semibold">{{ selectedOrderForRefund?.customer_name || 'Walk In'
+                                        }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Amount:</span>
+                                    <span class="fw-semibold">{{
+                                        formatCurrencySymbol(selectedOrderForRefund?.total_amount)
+                                        }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Payment Type:</span>
+                                    <span class="fw-semibold text-capitalize">{{
+                                        selectedOrderForRefund?.payment?.payment_type
+                                        }}</span>
+                                </div>
+                                <div v-if="selectedOrderForRefund?.payment?.payment_type?.toLowerCase() === 'split'"
+                                    class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Card Amount:</span>
+                                    <span class="fw-semibold text-success">{{
+                                        formatCurrencySymbol(selectedOrderForRefund?.payment?.card_amount) }}</span>
+                                </div>
+                                <div v-if="selectedOrderForRefund?.payment?.brand"
+                                    class="d-flex justify-content-between">
+                                    <span class="text-muted">Card:</span>
+                                    <span class="fw-semibold">
+                                        {{ selectedOrderForRefund.payment.brand }} •••• {{
+                                        selectedOrderForRefund.payment.last_digits }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Refund Amount -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Refund Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">£</span>
+                                <input v-model.number="refundAmount" type="number" class="form-control"
+                                    :max="selectedOrderForRefund?.payment?.card_amount || selectedOrderForRefund?.total_amount"
+                                    step="0.01" min="0.01" required />
+                            </div>
+                            <small class="text-muted">
+                                Maximum: {{ formatCurrencySymbol(selectedOrderForRefund?.payment?.card_amount ||
+                                selectedOrderForRefund?.total_amount) }}
+                            </small>
+                        </div>
+
+                        <!-- Refund Reason -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Refund Reason (Optional)</label>
+                            <textarea v-model="refundReason" class="form-control" rows="3"
+                                placeholder="Enter reason for refund..." maxlength="500"></textarea>
+                            <small class="text-muted">{{ refundReason.length }}/500 characters</small>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary" @click="closeRefundModal"
+                            :disabled="refundingOrderId !== null">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-warning" @click="processRefund"
+                            :disabled="refundingOrderId !== null || !refundAmount || refundAmount <= 0">
+                            <span v-if="refundingOrderId">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Processing...
+                            </span>
+                            <span v-else>
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                Process Refund
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </Master>
 </template>
 
@@ -1165,7 +1430,8 @@ onMounted(fetchPrinters);
     border-bottom: none !important;
     text-align: left;
 }
-.text-adjusting{
+
+.text-adjusting {
     text-align: left !important;
 }
 

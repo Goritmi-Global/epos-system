@@ -36,6 +36,16 @@ return new class extends Migration
             $table->unsignedTinyInteger('exp_month')->nullable();
             $table->unsignedSmallInteger('exp_year')->nullable();
 
+            // refunds can be negative payments
+            $table->enum('refund_status', ['none', 'partial', 'refunded'])->default('none');
+            $table->decimal('refund_amount', 10, 2)->nullable();
+            $table->timestamp('refund_date')->nullable();
+            $table->string('refund_id')->nullable();
+            $table->text('refund_reason')->nullable();
+            $table->unsignedBigInteger('refunded_by')->nullable();
+
+            $table->foreign('refunded_by')->references('id')->on('users')->nullOnDelete();
+
             $table->timestamps();
         });
     }
