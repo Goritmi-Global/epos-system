@@ -8,6 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 import { toast } from 'vue3-toastify';
+import OrderCancellationModal from "@/Components/OrderCancellationModal.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -525,45 +526,45 @@ const canRefund = (order) => {
 };
 
 // Handle Cancel Order
-const handleCancelOrder = async (order) => {
-    if (!order) return;
+// const handleCancelOrder = async (order) => {
+//     if (!order) return;
 
-    if (!confirm(`Cancel order #${order.id}?\n\nThis will:\n• Cancel the order\n• Restore inventory stock\n• This action cannot be undone`)) {
-        return;
-    }
+//     if (!confirm(`Cancel order #${order.id}?\n\nThis will:\n• Cancel the order\n• Restore inventory stock\n• This action cannot be undone`)) {
+//         return;
+//     }
 
-    cancellingOrderId.value = order.id;
+//     cancellingOrderId.value = order.id;
 
-    try {
-        const response = await axios.post(`/api/pos/orders/${order.id}/cancel`, {
-            reason: 'Cancelled by admin from orders page'
-        });
+//     try {
+//         const response = await axios.post(`/api/pos/orders/${order.id}/cancel`, {
+//             reason: 'Cancelled by admin from orders page'
+//         });
 
-        if (response.data.success) {
-            toast.success('Order cancelled and stock restored successfully');
+//         if (response.data.success) {
+//             toast.success('Order cancelled and stock restored successfully');
 
-            // Update local order
-            const index = orders.value.findIndex(o => o.id === order.id);
-            if (index !== -1) {
-                orders.value[index] = response.data.order;
-            }
+//             // Update local order
+//             const index = orders.value.findIndex(o => o.id === order.id);
+//             if (index !== -1) {
+//                 orders.value[index] = response.data.order;
+//             }
 
-            // If payment can be refunded, ask user
-            if (canRefund(response.data.order)) {
-                setTimeout(() => {
-                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
-                        handleRefundPayment(response.data.order);
-                    }
-                }, 500);
-            }
-        }
-    } catch (error) {
-        console.error('Error cancelling order:', error);
-        toast.error(error.response?.data?.message || 'Failed to cancel order');
-    } finally {
-        cancellingOrderId.value = null;
-    }
-};
+//             // If payment can be refunded, ask user
+//             if (canRefund(response.data.order)) {
+//                 setTimeout(() => {
+//                     if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+//                         handleRefundPayment(response.data.order);
+//                     }
+//                 }, 500);
+//             }
+//         }
+//     } catch (error) {
+//         console.error('Error cancelling order:', error);
+//         toast.error(error.response?.data?.message || 'Failed to cancel order');
+//     } finally {
+//         cancellingOrderId.value = null;
+//     }
+// };
 
 // Handle Refund Payment
 const handleRefundPayment = async (order) => {
@@ -656,6 +657,69 @@ const closeRefundModal = () => {
     selectedOrderForRefund.value = null;
     refundAmount.value = 0;
     refundReason.value = '';
+};
+
+
+
+
+
+
+
+
+const showCancelModal = ref(false);
+const selectedOrderForCancel = ref(null);
+
+// REPLACE the handleCancelOrder function with this:
+const handleCancelOrder = (order) => {
+    if (!order) return;
+    selectedOrderForCancel.value = order;
+    showCancelModal.value = true;
+};
+
+// Add this new function to close the modal
+const closeCancelModal = () => {
+    showCancelModal.value = false;
+    selectedOrderForCancel.value = null;
+};
+
+// Add this new function to confirm cancellation
+const confirmCancelOrder = async (reason) => {
+    if (!selectedOrderForCancel.value) return;
+
+    cancellingOrderId.value = selectedOrderForCancel.value.id;
+
+    try {
+        const response = await axios.post(`/api/pos/orders/${selectedOrderForCancel.value.id}/cancel`, {
+            reason: reason
+        });
+
+        if (response.data.success) {
+            toast.success('Order cancelled and stock restored successfully');
+
+            // Update local order
+            const index = orders.value.findIndex(o => o.id === selectedOrderForCancel.value.id);
+            if (index !== -1) {
+                orders.value[index] = response.data.order;
+            }
+
+            // Close the cancel modal
+            closeCancelModal();
+
+            // If payment can be refunded, ask user
+            if (canRefund(response.data.order)) {
+                setTimeout(() => {
+                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+                        handleRefundPayment(response.data.order);
+                    }
+                }, 500);
+            }
+        }
+    } catch (error) {
+        console.error('Error cancelling order:', error);
+        toast.error(error.response?.data?.message || 'Failed to cancel order');
+    } finally {
+        cancellingOrderId.value = null;
+    }
 };
 
 </script>
@@ -1431,6 +1495,15 @@ const closeRefundModal = () => {
                 </div>
             </div>
         </div>
+
+
+        <OrderCancellationModal
+        :show="showCancelModal"
+        :order="selectedOrderForCancel"
+        :loading="cancellingOrderId === selectedOrderForCancel?.id"
+        @confirm="confirmCancelOrder"
+        @cancel="closeCancelModal"
+    />
     </Master>
 </template>
 
