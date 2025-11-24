@@ -38,6 +38,7 @@ class PurchaseOrderController extends Controller
 
     public function store(StorePurchaseOrderRequest $request)
     {
+       
         $order = $this->service->store($request->validated());
 
         return response()->json(['message' => 'Purchase order created successfully', 'data' => $order], 201);

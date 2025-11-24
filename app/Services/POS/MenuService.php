@@ -148,8 +148,6 @@ class MenuService
 
     public function update(MenuItem $menu, array $data, Request $request): MenuItem
     {
-
-        
         // Handle image upload
         if (isset($data['image']) && $data['image']) {
             // Delete old image if exists

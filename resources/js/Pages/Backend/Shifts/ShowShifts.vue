@@ -72,8 +72,8 @@
             <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-3 bg-gray-50">
                 <button @click="startShift" :disabled="loadingStart || !isFormValid"
                     class="btn btn-primary py-2 px-4 rounded-pill flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span v-if="loadingStart" class="spinner-border spinner-border-sm"></span>
-                    <span>{{ loadingStart ? "Starting..." : "Start Shift" }}</span>
+                    <span v-if="loadingStart" class="spinner-border spinner-border-sm mx-1"></span>
+                    <span>{{ loadingStart ? " Starting..." : "Start Shift" }}</span>
                 </button>
             </div>
         </div>

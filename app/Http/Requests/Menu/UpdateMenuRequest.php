@@ -49,6 +49,11 @@ class UpdateMenuRequest extends FormRequest
             'meals' => 'nullable|array',
             'meals.*' => 'exists:meals,id',
 
+            'is_saleable' => 'nullable|boolean',
+            'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
+            'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
+
+
             // 'is_saleable' => 'nullable|boolean',
             // 'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
             // 'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',

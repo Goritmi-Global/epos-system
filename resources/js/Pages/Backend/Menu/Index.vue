@@ -2682,7 +2682,7 @@ const sampleMenuData = [
 
                                         <!-- Resale Type Dropdown - Shows when "Yes" is selected -->
                                         <div v-if="form.is_saleable" class="col-md-6">
-                                            <label class="form-label">Resale Type</label>
+                                            <label class="form-label">Sale Type</label>
                                             <Select v-model="form.resale_type" :options="resaleTypeOptions"
                                                 optionLabel="label" optionValue="value" placeholder="Select Resale Type"
                                                 class="w-100" appendTo="self" :autoZIndex="true" :baseZIndex="2000"
@@ -3281,7 +3281,7 @@ const sampleMenuData = [
                                                         <!-- Is Saleable Radio -->
                                                         <div class="mb-3">
                                                             <label class="form-label small fw-semibold">Enable
-                                                                Resale?</label>
+                                                                Sale?</label>
                                                             <div class="d-flex gap-3">
                                                                 <div class="form-check">
                                                                     <input :id="`variant_saleable_yes_${variantId}`"
@@ -3315,7 +3315,7 @@ const sampleMenuData = [
                                                             class="row g-2">
                                                             <!-- Resale Type -->
                                                             <div class="col-6">
-                                                                <label class="form-label small">Resale Type</label>
+                                                                <label class="form-label small">Sale Type</label>
                                                                 <Select
                                                                     v-model="variantResaleConfig[variantId].resale_type"
                                                                     :options="resaleTypeOptions" optionLabel="label"

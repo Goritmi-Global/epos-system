@@ -56,6 +56,7 @@ class MenuController extends Controller
 
     public function store(StoreMenuRequest $request)
     {
+       
         try {
             $menu = $this->service->create($request->validated(), $request);
 

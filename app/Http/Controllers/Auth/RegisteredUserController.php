@@ -122,6 +122,7 @@ class RegisteredUserController extends Controller
             \Database\Seeders\SupplierSeeder::class,
             \Database\Seeders\InventoryCategorySeeder::class,
             \Database\Seeders\MenuCategorySeeder::class,
+            \Database\Seeders\ShiftChecklistItemsSeeder::class,
         ];
 
         foreach ($seeders as $seederClass) {

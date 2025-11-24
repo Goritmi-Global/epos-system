@@ -21,6 +21,7 @@ class PosOrderController extends Controller
 
     public function store(StorePosOrderRequest $request)
     {
+        
         $result = $this->service->create($request->validated());
 
         // ✅ Check if this is an array with logout flag (cashier auto-logout)
