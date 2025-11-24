@@ -19,7 +19,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'status'           => ['nullable', 'string', 'in:pending,completed,cancelled'],
             'items'            => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:inventory_items,id'],
-            'items.*.quantity'  => ['required', 'numeric', 'min:1'], // match your service array
+            'items.*.quantity'  => ['required', 'numeric', 'gt:0'], // match your service array
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.expiry'    => ['nullable', 'date'],
         ];

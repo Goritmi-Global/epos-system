@@ -12,6 +12,7 @@ use App\Models\Supplier;
 use App\Models\Tag;
 use App\Models\Unit;
 use App\Services\POS\InventoryService;
+use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -95,6 +96,7 @@ class InventoryController extends Controller
 
     public function import(Request $request): JsonResponse
     {
+
         $items = $request->input('items', []);
     
         foreach ($items as $row) {
@@ -141,6 +143,8 @@ class InventoryController extends Controller
                 'sale_price' => $row['sale_price'] ?? null,
                 'stock' => $row['available_stock'] ?? 0,
                 'active' => $row['active'] ?? 1,
+                'user_id' => auth()->id()
+
             ]);
 
             // 6. Insert nutrition info
