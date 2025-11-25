@@ -55,4 +55,8 @@ class PosOrder extends Model
     {
         return $this->hasMany(OrderPromo::class, 'order_id');
     }
+    public function deliveryDetail()
+    {
+        return $this->hasOne(PosOrderDeliveryDetail::class, 'pos_order_id');
+    }
 }

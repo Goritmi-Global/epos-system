@@ -33,6 +33,8 @@ const props = defineProps({
 
   show: Boolean,
   customer: String,
+  phone: String,
+  deliveryLocation: String,
   orderType: String,
   selectedTable: Object,
   orderItems: Array,
@@ -222,9 +224,14 @@ async function pay() {
   const params = new URLSearchParams({
     order_code: props.order_code ?? "",
     customer_name: props.customer ?? "",
+    phone_number: props.phone ?? "",
+    delivery_location: props.deliveryLocation ?? "",
     sub_total: String(props.subTotal ?? props.grandTotal ?? 0),
     total_amount: String(props.grandTotal ?? 0),
 
+    // Split payment handling
+    type: String(props.type ?? 'full-payment'),
+    cardCharge: String(props.cardCharge ?? props.grandTotal ?? 0),
     // Add promo fields
     promo_discount: String(props.promoDiscount ?? 0),
     promo_id: String(props.promoId ?? ''),
@@ -264,8 +271,8 @@ async function pay() {
     table_number: props.selectedTable?.name ?? "",
     payment_method: props.paymentMethod ?? "Stripe",
     payment_type: props.paymentType ?? props.paymentMethod,
-    cash_received: String(props.cashReceived ?? props.grandTotal ?? 0),
-    card_payment: String(props.cardPayment ?? 0),
+    cash_received: String(props.cashReceived ?? 0),
+    card_payment: String(props.cardPayment ?? props.grandTotal ?? 0),
     change: String(props.change ?? 0),
     items: JSON.stringify(
       (props.orderItems ?? []).map((it) => ({

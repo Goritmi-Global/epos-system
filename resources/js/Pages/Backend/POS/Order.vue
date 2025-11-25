@@ -525,47 +525,6 @@ const canRefund = (order) => {
     );
 };
 
-// Handle Cancel Order
-// const handleCancelOrder = async (order) => {
-//     if (!order) return;
-
-//     if (!confirm(`Cancel order #${order.id}?\n\nThis will:\n• Cancel the order\n• Restore inventory stock\n• This action cannot be undone`)) {
-//         return;
-//     }
-
-//     cancellingOrderId.value = order.id;
-
-//     try {
-//         const response = await axios.post(`/api/pos/orders/${order.id}/cancel`, {
-//             reason: 'Cancelled by admin from orders page'
-//         });
-
-//         if (response.data.success) {
-//             toast.success('Order cancelled and stock restored successfully');
-
-//             // Update local order
-//             const index = orders.value.findIndex(o => o.id === order.id);
-//             if (index !== -1) {
-//                 orders.value[index] = response.data.order;
-//             }
-
-//             // If payment can be refunded, ask user
-//             if (canRefund(response.data.order)) {
-//                 setTimeout(() => {
-//                     if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
-//                         handleRefundPayment(response.data.order);
-//                     }
-//                 }, 500);
-//             }
-//         }
-//     } catch (error) {
-//         console.error('Error cancelling order:', error);
-//         toast.error(error.response?.data?.message || 'Failed to cancel order');
-//     } finally {
-//         cancellingOrderId.value = null;
-//     }
-// };
-
 // Handle Refund Payment
 const handleRefundPayment = async (order) => {
     if (!order) return;
@@ -658,11 +617,6 @@ const closeRefundModal = () => {
     refundAmount.value = 0;
     refundReason.value = '';
 };
-
-
-
-
-
 
 
 
@@ -929,7 +883,7 @@ const confirmCancelOrder = async (reason) => {
 
                                     <!-- Promo discount -->
                                     <td class="text-success">
-                                        -{{ formatCurrencySymbol(o?.promo[0]?.discount_amount ?? 0) }}
+                                        -{{ formatCurrencySymbol(o?.promo?.[0]?.discount_amount ?? 0) }}
                                     </td>
                                     <td class="text-success">
                                         -{{ formatCurrencySymbol(o.sales_discount ?? 0) }}
@@ -941,7 +895,7 @@ const confirmCancelOrder = async (reason) => {
                                     <td>{{ o.service_charges ?? "-" }}</td>
                                     <td>{{ o.delivery_charges ?? "-" }}</td>
                                     <td>
-                                        {{ o.promo[0]?.promo_name || '-' }}
+                                        {{ o.promo?.[0]?.promo_name || '-' }}
                                     </td>
 
 
@@ -986,7 +940,7 @@ const confirmCancelOrder = async (reason) => {
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="17" class="text-center text-muted py-4">
+                                    <td colspan="18" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>
