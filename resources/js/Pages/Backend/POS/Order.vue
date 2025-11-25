@@ -8,6 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 import { toast } from 'vue3-toastify';
+import OrderCancellationModal from "@/Components/OrderCancellationModal.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -525,45 +526,45 @@ const canRefund = (order) => {
 };
 
 // Handle Cancel Order
-const handleCancelOrder = async (order) => {
-    if (!order) return;
+// const handleCancelOrder = async (order) => {
+//     if (!order) return;
 
-    if (!confirm(`Cancel order #${order.id}?\n\nThis will:\n• Cancel the order\n• Restore inventory stock\n• This action cannot be undone`)) {
-        return;
-    }
+//     if (!confirm(`Cancel order #${order.id}?\n\nThis will:\n• Cancel the order\n• Restore inventory stock\n• This action cannot be undone`)) {
+//         return;
+//     }
 
-    cancellingOrderId.value = order.id;
+//     cancellingOrderId.value = order.id;
 
-    try {
-        const response = await axios.post(`/api/pos/orders/${order.id}/cancel`, {
-            reason: 'Cancelled by admin from orders page'
-        });
+//     try {
+//         const response = await axios.post(`/api/pos/orders/${order.id}/cancel`, {
+//             reason: 'Cancelled by admin from orders page'
+//         });
 
-        if (response.data.success) {
-            toast.success('Order cancelled and stock restored successfully');
+//         if (response.data.success) {
+//             toast.success('Order cancelled and stock restored successfully');
 
-            // Update local order
-            const index = orders.value.findIndex(o => o.id === order.id);
-            if (index !== -1) {
-                orders.value[index] = response.data.order;
-            }
+//             // Update local order
+//             const index = orders.value.findIndex(o => o.id === order.id);
+//             if (index !== -1) {
+//                 orders.value[index] = response.data.order;
+//             }
 
-            // If payment can be refunded, ask user
-            if (canRefund(response.data.order)) {
-                setTimeout(() => {
-                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
-                        handleRefundPayment(response.data.order);
-                    }
-                }, 500);
-            }
-        }
-    } catch (error) {
-        console.error('Error cancelling order:', error);
-        toast.error(error.response?.data?.message || 'Failed to cancel order');
-    } finally {
-        cancellingOrderId.value = null;
-    }
-};
+//             // If payment can be refunded, ask user
+//             if (canRefund(response.data.order)) {
+//                 setTimeout(() => {
+//                     if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+//                         handleRefundPayment(response.data.order);
+//                     }
+//                 }, 500);
+//             }
+//         }
+//     } catch (error) {
+//         console.error('Error cancelling order:', error);
+//         toast.error(error.response?.data?.message || 'Failed to cancel order');
+//     } finally {
+//         cancellingOrderId.value = null;
+//     }
+// };
 
 // Handle Refund Payment
 const handleRefundPayment = async (order) => {
@@ -602,10 +603,6 @@ const processRefund = async () => {
 
     if (amount > maxAmount) {
         toast.error(`Refund amount cannot exceed ${formatCurrencySymbol(maxAmount)}`);
-        return;
-    }
-
-    if (!confirm(`Refund ${formatCurrencySymbol(amount)} to customer?\n\nThis action cannot be undone.`)) {
         return;
     }
 
@@ -660,6 +657,69 @@ const closeRefundModal = () => {
     selectedOrderForRefund.value = null;
     refundAmount.value = 0;
     refundReason.value = '';
+};
+
+
+
+
+
+
+
+
+const showCancelModal = ref(false);
+const selectedOrderForCancel = ref(null);
+
+// REPLACE the handleCancelOrder function with this:
+const handleCancelOrder = (order) => {
+    if (!order) return;
+    selectedOrderForCancel.value = order;
+    showCancelModal.value = true;
+};
+
+// Add this new function to close the modal
+const closeCancelModal = () => {
+    showCancelModal.value = false;
+    selectedOrderForCancel.value = null;
+};
+
+// Add this new function to confirm cancellation
+const confirmCancelOrder = async (reason) => {
+    if (!selectedOrderForCancel.value) return;
+
+    cancellingOrderId.value = selectedOrderForCancel.value.id;
+
+    try {
+        const response = await axios.post(`/api/pos/orders/${selectedOrderForCancel.value.id}/cancel`, {
+            reason: reason
+        });
+
+        if (response.data.success) {
+            toast.success('Order cancelled and stock restored successfully');
+
+            // Update local order
+            const index = orders.value.findIndex(o => o.id === selectedOrderForCancel.value.id);
+            if (index !== -1) {
+                orders.value[index] = response.data.order;
+            }
+
+            // Close the cancel modal
+            closeCancelModal();
+
+            // If payment can be refunded, ask user
+            if (canRefund(response.data.order)) {
+                setTimeout(() => {
+                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+                        handleRefundPayment(response.data.order);
+                    }
+                }, 500);
+            }
+        }
+    } catch (error) {
+        console.error('Error cancelling order:', error);
+        toast.error(error.response?.data?.message || 'Failed to cancel order');
+    } finally {
+        cancellingOrderId.value = null;
+    }
 };
 
 </script>
@@ -845,6 +905,7 @@ const closeRefundModal = () => {
                                     <th>Delivery Charges</th>
                                     <th>Promo Name</th>
                                     <th>Total</th>
+                                    <th>Status</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -886,9 +947,19 @@ const closeRefundModal = () => {
 
                                     <!-- Total after discount -->
                                     <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
+                                    <td>
+                                        <span class="badge px-2 py-2 rounded-pill" :class="{
+                                            'bg-danger': o?.status === 'cancelled',
+                                            'bg-warning text-dark': o?.status === 'refunded',
+                                            'bg-success': o?.status === 'paid'
+                                        }">
+                                             {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
+                                        </span>
+                                    </td>
+
 
                                     <!-- In your orders table, replace the actions cell -->
-                                    <td class="text-center">
+                                    <td class="text-left">
                                         <div class="d-flex gap-2 justify-content-center align-items-center">
                                             <!-- View Button -->
                                             <button @click="openOrderDetails(o)" title="View Details"
@@ -1316,7 +1387,14 @@ const closeRefundModal = () => {
                             <i class="bi bi-arrow-counterclockwise text-warning me-2"></i>
                             Process Refund
                         </h5>
-                        <button type="button" class="btn-close" @click="closeRefundModal"></button>
+                        <button @click="closeRefundModal"
+                            class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                            data-bs-dismiss="modal" aria-label="Close" title="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
 
                     <!-- Body -->
@@ -1366,7 +1444,7 @@ const closeRefundModal = () => {
                                     <span class="text-muted">Card:</span>
                                     <span class="fw-semibold">
                                         {{ selectedOrderForRefund.payment.brand }} •••• {{
-                                        selectedOrderForRefund.payment.last_digits }}
+                                            selectedOrderForRefund.payment.last_digits }}
                                     </span>
                                 </div>
                             </div>
@@ -1383,7 +1461,7 @@ const closeRefundModal = () => {
                             </div>
                             <small class="text-muted">
                                 Maximum: {{ formatCurrencySymbol(selectedOrderForRefund?.payment?.card_amount ||
-                                selectedOrderForRefund?.total_amount) }}
+                                    selectedOrderForRefund?.total_amount) }}
                             </small>
                         </div>
 
@@ -1398,11 +1476,11 @@ const closeRefundModal = () => {
 
                     <!-- Footer -->
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-secondary" @click="closeRefundModal"
+                        <button type="button" class="btn btn-secondary px-2 py-2" @click="closeRefundModal"
                             :disabled="refundingOrderId !== null">
                             Cancel
                         </button>
-                        <button type="button" class="btn btn-warning" @click="processRefund"
+                        <button type="button" class="btn btn-primary px-2 py-2" @click="processRefund"
                             :disabled="refundingOrderId !== null || !refundAmount || refundAmount <= 0">
                             <span v-if="refundingOrderId">
                                 <span class="spinner-border spinner-border-sm me-2"></span>
@@ -1417,12 +1495,27 @@ const closeRefundModal = () => {
                 </div>
             </div>
         </div>
+
+
+        <OrderCancellationModal
+        :show="showCancelModal"
+        :order="selectedOrderForCancel"
+        :loading="cancellingOrderId === selectedOrderForCancel?.id"
+        @confirm="confirmCancelOrder"
+        @cancel="closeCancelModal"
+    />
     </Master>
 </template>
 
 <style scoped>
 .dark h4 {
     color: white;
+}
+
+.dark .bg-light,
+.input-group-text {
+    background-color: #212121 !important;
+    color: #fff !important;
 }
 
 .no-border td {
