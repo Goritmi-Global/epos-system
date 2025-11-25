@@ -2,21 +2,17 @@
 
 namespace App\Services\Shifts;
 
-use App\Models\Shift;
 use App\Models\PosOrder;
+use App\Models\Shift;
 use App\Models\ShiftDetail;
 use App\Models\ShiftInventorySnapshot;
 use App\Models\ShiftInventorySnapshotDetail;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class ShiftReportService
 {
     /**
      * Generate X Report (Mid-Shift Report for OPEN shifts)
-     * 
-     * @param Shift $shift
-     * @return array
      */
     public function generateXReport(Shift $shift): array
     {
@@ -61,11 +57,8 @@ class ShiftReportService
 
     /**
      * Generate Z Report (End-of-Shift Report for CLOSED shifts)
-     * 
-     * @param Shift $shift
-     * @return array
      */
-  public function generateZReport(Shift $shift): array
+    public function generateZReport(Shift $shift): array
     {
         if ($shift->status !== 'closed') {
             throw new \Exception('Z Report can only be generated for closed shifts');
@@ -87,7 +80,7 @@ class ShiftReportService
         $salesByUser = $this->getSalesByUser($shift);
         $topItems = $this->getTopSellingItems($orders, 10);
         $stockMovement = $this->getStockMovement($shift);
-        
+
         // New sections matching client template
         $venueSales = $this->getVenueSales($orders);
         $dispatchSales = $this->getDispatchSales($orders);
@@ -132,7 +125,7 @@ class ShiftReportService
         $totalDiscount = $orders->sum('sales_discount');
         $totalSales = $orders->sum('total_amount');
         $totalOrders = $orders->count();
-        
+
         // Calculate charges (delivery + service)
         $totalCharges = $orders->sum(function ($order) {
             return ($order->delivery_charge ?? 0) + ($order->service_charge ?? 0);
@@ -155,17 +148,17 @@ class ShiftReportService
     private function calculateCashReconciliation(Shift $shift, array $salesSummary): array
     {
         $openingCash = $shift->opening_cash;
-        
+
         // Only count cash sales
         $cashSales = PosOrder::where('shift_id', $shift->id)
             ->where('status', 'paid')
             ->sum('total_amount');
-        
+
         $cashExpenses = $shift->cash_expenses ?? 0;
         $cashTransfers = $shift->cash_transfers ?? 0;
         $cashChanged = $shift->cash_changed ?? 0;
         $cashRefunds = $shift->cash_refunds ?? 0;
-        
+
         $expectedCash = $openingCash + $cashSales - $cashExpenses - $cashTransfers - $cashChanged + $cashRefunds;
         $actualCash = $shift->closing_cash ?? $expectedCash;
         $variance = $actualCash - $expectedCash;
@@ -185,16 +178,31 @@ class ShiftReportService
         ];
     }
 
-    /**
-     * Get payment methods breakdown
-     */
+  
+    private function calculateCashSummary(Shift $shift, array $salesSummary): array
+    {
+        $openingCash = $shift->opening_cash;
+
+        // Use total sales from the sales summary (all payment methods)
+        $cashSales = $salesSummary['total_sales'];
+
+        $expectedCash = $openingCash + $cashSales;
+
+        return [
+            'opening_cash' => $openingCash,
+            'cash_sales' => $cashSales,
+            'expected_cash' => $expectedCash,
+        ];
+    }
+
+   
     private function getPaymentMethods(Collection $orders): array
     {
         return $orders->groupBy('payment_method')
             ->map(function ($group, $method) {
                 $receipts = $group->sum('total_amount');
                 $refunds = $group->sum('refund_amount') ?? 0;
-                
+
                 return [
                     'method' => ucfirst($method),
                     'receipts' => $receipts,
@@ -216,15 +224,15 @@ class ShiftReportService
             // Assuming you have a 'source' or 'venue' field
             return $order->source ?? $order->venue ?? 'Property';
         })
-        ->map(function ($group, $venue) {
-            return [
-                'venue' => $venue,
-                'count' => $group->count(),
-                'amount' => $group->sum('total_amount'),
-            ];
-        })
-        ->values()
-        ->toArray();
+            ->map(function ($group, $venue) {
+                return [
+                    'venue' => $venue,
+                    'count' => $group->count(),
+                    'amount' => $group->sum('total_amount'),
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     /**
@@ -250,29 +258,29 @@ class ShiftReportService
     private function getMenuCategorySummary(Collection $orders): array
     {
         $categorySales = [];
-        
+
         foreach ($orders as $order) {
             $items = $order->items ?? [];
-            
+
             foreach ($items as $item) {
                 // Assuming item has category relationship or category field
                 $category = $item->menuItem->category->name ?? $item->category ?? 'Uncategorized';
                 $quantity = $item->quantity ?? 1;
                 $amount = ($item->price ?? 0) * $quantity;
-                
-                if (!isset($categorySales[$category])) {
+
+                if (! isset($categorySales[$category])) {
                     $categorySales[$category] = [
                         'category' => $category,
                         'count' => 0,
                         'amount' => 0,
                     ];
                 }
-                
+
                 $categorySales[$category]['count'] += $quantity;
                 $categorySales[$category]['amount'] += $amount;
             }
         }
-        
+
         return array_values($categorySales);
     }
 
@@ -283,11 +291,11 @@ class ShiftReportService
     {
         $totalCovers = $orders->sum('covers') ?? $orders->sum('guest_count') ?? 0;
         $ordersWithCovers = $orders->where('covers', '>', 0)->count();
-        
+
         return [
             'total_covers' => $totalCovers,
-            'avg_revenue_per_cover' => $totalCovers > 0 
-                ? $orders->sum('total_amount') / $totalCovers 
+            'avg_revenue_per_cover' => $totalCovers > 0
+                ? $orders->sum('total_amount') / $totalCovers
                 : 0,
         ];
     }
@@ -300,16 +308,16 @@ class ShiftReportService
         return $orders->filter(function ($order) {
             return ($order->discount_amount ?? 0) > 0;
         })
-        ->groupBy('discount_type')
-        ->map(function ($group, $type) {
-            return [
-                'type' => $type ?: 'General Discount',
-                'count' => $group->count(),
-                'amount' => $group->sum('discount_amount'),
-            ];
-        })
-        ->values()
-        ->toArray();
+            ->groupBy('discount_type')
+            ->map(function ($group, $type) {
+                return [
+                    'type' => $type ?: 'General Discount',
+                    'count' => $group->count(),
+                    'amount' => $group->sum('discount_amount'),
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     /**
@@ -318,9 +326,9 @@ class ShiftReportService
     private function getChargesSummary(Collection $orders): array
     {
         $charges = [];
-        
+
         // Delivery charges
-        $deliveryOrders = $orders->filter(fn($o) => ($o->delivery_charge ?? 0) > 0);
+        $deliveryOrders = $orders->filter(fn ($o) => ($o->delivery_charge ?? 0) > 0);
         if ($deliveryOrders->count() > 0) {
             $charges[] = [
                 'scheme' => 'Delivery.Charge',
@@ -329,9 +337,9 @@ class ShiftReportService
                 'tax' => $deliveryOrders->sum('delivery_tax') ?? 0,
             ];
         }
-        
+
         // Service charges
-        $serviceOrders = $orders->filter(fn($o) => ($o->service_charge ?? 0) > 0);
+        $serviceOrders = $orders->filter(fn ($o) => ($o->service_charge ?? 0) > 0);
         if ($serviceOrders->count() > 0) {
             $charges[] = [
                 'scheme' => 'Service.Charge',
@@ -340,7 +348,7 @@ class ShiftReportService
                 'tax' => $serviceOrders->sum('service_tax') ?? 0,
             ];
         }
-        
+
         return $charges;
     }
 
@@ -354,13 +362,13 @@ class ShiftReportService
             ->where('status', 'cancelled')
             ->with('items')
             ->get();
-        
+
         if ($cancelledOrders->isEmpty()) {
             return [];
         }
-        
+
         $cancelledData = [];
-        
+
         foreach ($cancelledOrders as $order) {
             foreach ($order->items as $item) {
                 $cancelledData[] = [
@@ -371,7 +379,7 @@ class ShiftReportService
                 ];
             }
         }
-        
+
         return $cancelledData;
     }
 
@@ -421,7 +429,7 @@ class ShiftReportService
                 $price = $item->price ?? 0;
                 $revenue = $quantity * $price;
 
-                if (!isset($itemSales[$itemId])) {
+                if (! isset($itemSales[$itemId])) {
                     $itemSales[$itemId] = [
                         'id' => $itemId,
                         'name' => $itemName,
@@ -455,7 +463,7 @@ class ShiftReportService
             ->where('type', 'ended')
             ->first();
 
-        if (!$startSnapshot || !$endSnapshot) {
+        if (! $startSnapshot || ! $endSnapshot) {
             return [];
         }
 
@@ -493,7 +501,7 @@ class ShiftReportService
      */
     private function calculateDuration($startTime, $endTime): string
     {
-        if (!$startTime || !$endTime) {
+        if (! $startTime || ! $endTime) {
             return 'N/A';
         }
 
