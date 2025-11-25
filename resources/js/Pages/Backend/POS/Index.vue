@@ -1487,6 +1487,7 @@ const resetCart = () => {
     selectedPromos.value = [];
     selectedDiscounts.value = [];
     pendingDiscountApprovals.value = [];
+    rejectedDiscounts.value = [];
     stopApprovalPolling();
 };
 watch(orderType, () => (formErrors.value = {}));
@@ -1653,13 +1654,28 @@ async function printKot(order) {
 const pendingDiscountApprovals = ref([]);
 const approvalCheckInterval = ref(null);
 const showApprovalWaitingModal = ref(false);
-const selectedDiscounts = ref([]); // Store approved discounts with percentage
+const selectedDiscounts = ref([]);
+const rejectedDiscounts = ref([]);
 
 // Handle discount application (request approval) - PERCENTAGE ONLY
 const handleApplyDiscount = async (appliedDiscounts) => {
     if (!appliedDiscounts || appliedDiscounts.length === 0) {
         toast.warning("No discounts selected.");
         return;
+    }
+
+    // ✅ ADD: Filter out rejected discounts
+    const rejectedIds = rejectedDiscounts.value.map(d => d.id);
+    const allowedDiscounts = appliedDiscounts.filter(d => !rejectedIds.includes(d.id));
+
+    if (allowedDiscounts.length === 0) {
+        toast.error("All selected discounts have been rejected for this order.");
+        return;
+    }
+
+    if (allowedDiscounts.length < appliedDiscounts.length) {
+        const rejectedCount = appliedDiscounts.length - allowedDiscounts.length;
+        toast.warning(`${rejectedCount} discount(s) were previously rejected and cannot be requested again.`);
     }
 
     try {
@@ -1741,7 +1757,7 @@ const checkApprovalStatus = async () => {
                             const approvedDiscount = {
                                 id: approval.discount_id,
                                 name: approval.discount_name || approval.discount?.name,
-                                percentage: parseFloat(approval.discount_percentage), // Store percentage
+                                percentage: parseFloat(approval.discount_percentage),
                                 approval_id: approval.id
                             };
 
@@ -1752,6 +1768,14 @@ const checkApprovalStatus = async () => {
                                 `Discount "${approvedDiscount.name}" (${approvedDiscount.percentage}%) approved!`
                             );
                         } else if (approval.status === 'rejected') {
+                            // ✅ ADD: Track rejected discount
+                            rejectedDiscounts.value.push({
+                                id: approval.discount_id,
+                                name: approval.discount_name,
+                                percentage: parseFloat(approval.discount_percentage),
+                                rejection_reason: approval.approval_note
+                            });
+
                             toast.error(
                                 `Discount "${approval.discount_name}" rejected.` +
                                 (approval.approval_note ? ` Reason: ${approval.approval_note}` : '')
@@ -1842,6 +1866,7 @@ const getDiscountAmount = (percentage) => {
 const clearDiscounts = () => {
     selectedDiscounts.value = [];
     pendingDiscountApprovals.value = [];
+    rejectedDiscounts.value = [];
     stopApprovalPolling();
 };
 
@@ -4160,12 +4185,12 @@ const getModalTotalPriceWithResale = () => {
                 @close="showReceiptModal = false" />
 
 
-            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :delivery-location="deliveryLocation" :phone="phoneNumber" :order-type="orderType"
-                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
-                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
-                :sub-total="subTotal" :tax="totalTax" :service-charges="serviceCharges"
-                :delivery-charges="deliveryCharges" :promo-discount="promoDiscount" :promo-id="selectedPromos?.id"
-                :promo-name="selectedPromos?.name" :promo-type="selectedPromos?.type"
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :delivery-location="deliveryLocation"
+                :phone="phoneNumber" :order-type="orderType" :selected-table="selectedTable" :order-items="orderItems"
+                :grand-total="grandTotal" :money="money" v-model:cashReceived="cashReceived"
+                :client_secret="client_secret" :order_code="order_code" :sub-total="subTotal" :tax="totalTax"
+                :service-charges="serviceCharges" :delivery-charges="deliveryCharges" :promo-discount="promoDiscount"
+                :promo-id="selectedPromos?.id" :promo-name="selectedPromos?.name" :promo-type="selectedPromos?.type"
                 :promo-discount-amount="promoDiscount" :note="note" :kitchen-note="kitchenNote"
                 :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
@@ -4185,7 +4210,8 @@ const getModalTotalPriceWithResale = () => {
             <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData" :order-items="orderItems"
                 @apply-promo="handleApplyPromo" @close="showPromoModal = false" />
             <DiscountModal :show="showDiscountModal" :discounts="discountsData" :order-items="orderItems"
-                :loading="loadingDiscounts" :applied-discounts="selectedDiscounts" @close="showDiscountModal = false"
+                :loading="loadingDiscounts" :applied-discounts="selectedDiscounts"
+                :rejected-discounts="rejectedDiscounts" @close="showDiscountModal = false"
                 @apply-discount="handleApplyDiscount" @clear-discount="clearDiscounts" />
 
         </div>
