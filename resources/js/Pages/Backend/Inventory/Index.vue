@@ -60,30 +60,43 @@ const fetchInventories = async () => {
 
         if (apiItems.length === 0) {
             inventories.value = [];
-            loading.value = false; // stop loader when no data
+            loading.value = false;
             return;
         }
 
         inventories.value = await Promise.all(
             apiItems.map(async (item) => {
-                const stockRes = await axios.get(
-                    `/stock_entries/total/${item.id}`
-                );
-                const stockData = stockRes.data.total?.original || {};
-                return {
-                    ...item,
-                    availableStock: stockData.available || 0,
-                  stockValue: parseFloat(stockData.stockValue || 0).toFixed(2),
-                    minAlert: stockData.minAlert || 0,
-                    expiry_date: stockData.expiry_date || null,
-                    status: stockData.status || null,
-                };
+                try {
+                    const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
+                    const stockData = stockRes.data || {}; // ✅ FIXED
+
+                    console.log(`✅ Stock for ${item.name} (ID: ${item.id}):`, stockData);
+
+                    return {
+                        ...item,
+                        availableStock: stockData.available || 0,
+                        stockValue: parseFloat(stockData.stockValue || 0).toFixed(2),
+                        minAlert: stockData.minAlert || 0,
+                        expiry_date: stockData.expiry_date || null,
+                        status: stockData.status || null,
+                    };
+                } catch (err) {
+                    console.error(`❌ Error fetching stock for item ${item.id}:`, err);
+                    return {
+                        ...item,
+                        availableStock: 0,
+                        stockValue: '0.00',
+                        minAlert: 0,
+                        expiry_date: null,
+                        status: null,
+                    };
+                }
             })
         );
 
         loading.value = false;
     } catch (err) {
-        console.error(err);
+        console.error('❌ Fetch inventories error:', err);
         loading.value = false;
     }
 };
@@ -320,6 +333,7 @@ const handleFilterClear = () => {
 /* ===================== KPIs ===================== */
 const totalItems = computed(() => items.value.length);
 const stockitems = ref([]);
+
 const fetchStockForCounting = async () => {
     try {
         const response = await axios.get("/stock_entries");
@@ -329,39 +343,58 @@ const fetchStockForCounting = async () => {
         console.error("Failed to fetch stock entries:", error);
     }
 };
+
 const lowStockCount = computed(
     () =>
         items.value.filter(
             (i) => i.availableStock > 0 && i.availableStock < (i.minAlert || 5)
         ).length
 );
+
 const outOfStockCount = computed(
     () => items.value.filter((i) => i.availableStock <= 0).length
 );
 
-const expiredCount = computed(
-    () =>
-        stockitems.value.filter((i) => {
-            if (!i.expiry_date) return false;
-            const expiry = new Date(i.expiry_date);
-            const today = new Date();
-            // reset hours to ignore time
-            expiry.setHours(0, 0, 0, 0);
-            today.setHours(0, 0, 0, 0);
-            return expiry < today;
-        }).length
-);
+// ✅ Only count STOCKIN entries that are expired AND still have available stock
+const expiredCount = computed(() => {
+    return stockitems.value.filter((i) => {
+        // ✅ Exclude stockout entries
+        if (i.stock_type !== 'stockin') return false;
+        
+        if (!i.expiry_date) return false;
+        
+        const expiry = new Date(i.expiry_date);
+        const today = new Date();
+        expiry.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        
+        // ✅ Only count if expired AND has remaining stock
+        const isExpired = expiry < today;
+        const hasStock = (i.quantity || 0) > (i.allocated_quantity || 0);
+        
+        return isExpired && hasStock;
+    }).length;
+});
 
-const nearExpireCount = computed(
-    () =>
-        stockitems.value.filter((i) => {
-            if (!i.expiry_date) return false;
-            const expiry = new Date(i.expiry_date);
-            const today = new Date();
-            const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
-            return diffDays > 0 && diffDays <= 15;
-        }).length
-);
+// ✅ Only count STOCKIN entries that are near expiry AND still have available stock
+const nearExpireCount = computed(() => {
+    return stockitems.value.filter((i) => {
+        // ✅ Exclude stockout entries
+        if (i.stock_type !== 'stockin') return false;
+        
+        if (!i.expiry_date) return false;
+        
+        const expiry = new Date(i.expiry_date);
+        const today = new Date();
+        const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
+        
+        // ✅ Only count if near expiry AND has remaining stock
+        const isNearExpiry = diffDays > 0 && diffDays <= 15;
+        const hasStock = (i.quantity || 0) > (i.allocated_quantity || 0);
+        
+        return isNearExpiry && hasStock;
+    }).length;
+});
 
 const kpis = computed(() => [
     {
@@ -387,14 +420,14 @@ const kpis = computed(() => [
     },
     {
         label: "Expired Stock",
-        value: expiredCount ?? 0,
+        value: expiredCount.value ?? 0, // ✅ Added .value
         icon: CalendarX2,
         iconBg: "bg-soft-danger",
         iconColor: "text-danger",
     },
     {
         label: "Near Expire Stock",
-        value: nearExpireCount ?? 0,
+        value: nearExpireCount.value ?? 0, // ✅ Added .value
         icon: CalendarClock,
         iconBg: "bg-soft-info",
         iconColor: "text-info",
@@ -667,14 +700,17 @@ function openStockModal(item) {
     resetErrors();
     const supplierObj = props.suppliers.find((s) => s.name === item.supplier);
     stockInItemCategory.value = item.category.name;
+
     axios.get(`/stock_entries/total/${item.id}`).then((res) => {
-        const totalStock = res.data.total?.original || {};
+        const stockData = res.data || {}; // ✅ FIXED
+        console.log('✅ Stock In modal data:', stockData);
+
         stockForm.value = {
             product_id: item.id,
             name: item.name,
             category_id: item.category.id,
             supplier_id: supplierObj ? supplierObj.id : null,
-            available_quantity: totalStock.available || 0,
+            available_quantity: stockData.available || 0, // ✅ FIXED
             quantity: 0,
             price: 0,
             value: 0,
@@ -685,7 +721,8 @@ function openStockModal(item) {
             purchase_date: new Date().toISOString().slice(0, 10),
             user_id: 1,
         };
-        console.log("Stock In form:", stockForm.value);
+    }).catch(err => {
+        console.error('❌ Error opening stock modal:', err);
     });
 }
 
@@ -768,23 +805,41 @@ const openConfirmModal = (item) => {
 
 const handleStockOut = () => {
     showConfirm.value = false
-
+    
+    if (!selectedItem.value) {
+        console.error('❌ No item selected for stock out');
+        toast.error('No item selected');
+        return;
+    }
+    
     // Call your stock-out function here
     confirmStockOut(selectedItem.value)
 }
 
 
+
 async function confirmStockOut(item) {
-    openConfirmModal();
-    if (!item) return;
+    if (!item) {
+        console.error('❌ No item provided to confirmStockOut');
+        return;
+    }
 
     try {
+        console.log(`✅ Attempting stock out for item:`, item);
+
         const res = await axios.get(`/stock_entries/total/${item.id}`);
-        const totalStock = res.data.total?.original || {};
-        const availableQty = totalStock.available || 0;
+        const stockData = res.data || {}; // ✅ FIXED
+        const availableQty = stockData.available || 0;
+
+        console.log('✅ Stock data received:', stockData);
+        console.log('✅ Available quantity:', availableQty);
 
         if (availableQty <= 0) {
-            toast.warning("No available stock to stock out.");
+            toast.warning(
+                `No available stock for "${item.name}". Current stock: ${availableQty}`,
+                { autoClose: 4000 }
+            );
+            showConfirm.value = false;
             return;
         }
 
@@ -793,7 +848,7 @@ async function confirmStockOut(item) {
             name: item.name,
             category_id: item.category?.id,
             available_quantity: availableQty,
-            quantity: availableQty, // 👈 stock-out all
+            quantity: availableQty,
             price: 0,
             value: 0,
             description: "Auto full stock-out",
@@ -803,17 +858,31 @@ async function confirmStockOut(item) {
             user_id: 1,
         };
 
+        console.log('✅ Submitting stock out payload:', payload);
+
         await axios.post("/stock_entries", payload);
-        toast.success(`All ${availableQty} items of "${item.name}" stock-out successfully.`);
+
+        toast.success(
+            `Successfully stocked out ${availableQty} units of "${item.name}"`,
+            { autoClose: 3000 }
+        );
+
         await fetchInventories();
         await fetchStockForCounting();
     } catch (err) {
-        toast.error("Stock out failed. Please try again.");
-        console.error(err);
+        console.error("❌ Stock out error:", err);
+        console.error("❌ Error response:", err.response?.data);
+
+        if (err?.response?.data?.errors?.quantity) {
+            toast.error(err.response.data.errors.quantity[0]);
+        } else {
+            toast.error("Stock out failed. Please try again.");
+        }
     } finally {
         showConfirm.value = false;
     }
 }
+
 
 async function openStockOutModal(item) {
     try {
@@ -1215,18 +1284,20 @@ function fmtDate(d) {
 // function money(n)        { return (Number(n ?? 0)).toFixed(2); }
 
 // totals for the stock-in table footer
+// totals for the stock-in table footer
 const totals = computed(() => {
     const rows = stockedInItems.value || [];
     let totalQty = 0,
         totalPrice = 0,
         totalValue = 0,
-        notExpiredQty = 0; // 👈 new
+        notExpiredQty = 0,
+        availableQty = 0; // ✅ NEW: Track actually available qty
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     for (const r of rows) {
-        const qty = r?.quantity ?? 0;
+        const qty = parseFloat(r?.quantity ?? 0);
 
         totalQty += qty;
         totalPrice += Number(r?.price ?? 0);
@@ -1242,9 +1313,25 @@ const totals = computed(() => {
                 notExpiredQty += qty;
             }
         }
+
+        // ✅ Calculate available quantity (not allocated)
+        // This assumes your backend returns allocated_quantity for each stock-in record
+        const allocated = parseFloat(r?.allocated_quantity ?? 0);
+        const remaining = Math.max(0, qty - allocated);
+        
+        // Only count non-expired available stock
+        if (!r?.expiry_date || (new Date(r.expiry_date) >= today)) {
+            availableQty += remaining;
+        }
     }
 
-    return {totalQty: Number(totalQty.toFixed(2)), totalPrice, totalValue, notExpiredQty };
+    return { 
+        totalQty: Number(totalQty.toFixed(2)), 
+        totalPrice: Number(totalPrice.toFixed(2)), 
+        totalValue: Number(totalValue.toFixed(2)), 
+        notExpiredQty: Number(notExpiredQty.toFixed(2)),
+        availableQty: Number(availableQty.toFixed(2)) // ✅ NEW
+    };
 });
 
 const handleImport = (data) => {
@@ -1575,24 +1662,26 @@ const handleImport = (data) => {
 
                                             <StockOutConfirmationModal :show="showConfirm" title="Confirm Stock Out"
                                                 message="Are you sure you want to stock out this item?"
-                                                @confirm="confirmStockOut(item)" @close="showConfirm = false" />
+                                                @confirm="handleStockOut" 
+                                                @close="showConfirm = false"
+                                                />
 
 
-                                            <button @click="ViewItem(item)" data-bs-toggle="modal"
-                                                data-bs-target="#viewItemModal" title="View Item"
-                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
-                                                <Eye class="w-4 h-4" />
-                                            </button>
-                                            <button @click="
-                                                () => {
-                                                    editItem(item);
-                                                    formErrors = {};
-                                                    processStatus = 'Edit';
-                                                }
-                                            " data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                <Pencil class="w-4 h-4" />
-                                            </button>
+                                                <button @click="ViewItem(item)" data-bs-toggle="modal"
+                                                    data-bs-target="#viewItemModal" title="View Item"
+                                                    class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+                                                <button @click="
+                                                    () => {
+                                                        editItem(item);
+                                                        formErrors = {};
+                                                        processStatus = 'Edit';
+                                                    }
+                                                " data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit"
+                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                    <Pencil class="w-4 h-4" />
+                                                </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -1676,7 +1765,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1687,7 +1776,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1789,7 +1878,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -1965,7 +2054,7 @@ const handleImport = (data) => {
                                                 </div>
                                             </div>
 
-                                           
+
                                             <h6 class="fw-semibold">
                                                 Nutrition (per 100g)
                                             </h6>
@@ -2029,15 +2118,15 @@ const handleImport = (data) => {
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
-                                                totals.notExpiredQty
-                                            }}</span>
+                                                totals.availableQty 
+                                                }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                                }}</span>
+                                            }}</span>
                                         </div>
 
                                         <!-- <div
@@ -2086,14 +2175,14 @@ const handleImport = (data) => {
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0">Stock Details</h5>
+                                    <h5 class="mb-0">Stock History</h5>
                                 </div>
 
                                 <div class="table-responsive">
