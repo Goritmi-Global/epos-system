@@ -19,32 +19,38 @@ class UpdateInventoryRequest extends FormRequest
             : $this->route('inventory'); // works for id or model binding
 
         return [
-            'name'            => ['required','string','max:255'],
-            'category_id'     => ['required','integer','exists:inventory_categories,id'],
-            'subcategory_id'  => ['nullable','integer','exists:inventory_categories,id'],
-            'unit_id'         => ['required','integer','exists:units,id'],
-            'supplier_id'     => ['required','integer','exists:suppliers,id'],
-
-            'sku'             => [
-                'nullable','string','max:255',
-                Rule::unique('inventory_items','sku')->ignore($id),
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('inventory_items', 'name')->ignore($id),
             ],
 
-            'description'     => ['nullable','string'],
-            'minAlert'        => ['required','integer','min:0'],
+            'category_id' => ['required', 'integer', 'exists:inventory_categories,id'],
+            'subcategory_id' => ['nullable', 'integer', 'exists:inventory_categories,id'],
+            'unit_id' => ['required', 'integer', 'exists:units,id'],
+            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
 
-            'nutrition'               => ['required','array'],
-            'nutrition.calories'      => ['required','numeric'],
-            'nutrition.fat'           => ['required','numeric'],
-            'nutrition.protein'       => ['required','numeric'],
-            'nutrition.carbs'         => ['required','numeric'],
+            'sku' => [
+                'nullable', 'string', 'max:255',
+                Rule::unique('inventory_items', 'sku')->ignore($id),
+            ],
 
-            'allergies'       => ['nullable','array'],
-            'allergies.*'     => ['integer','distinct','exists:allergies,id'],
-            'tags'            => ['nullable','array'],
-            'tags.*'          => ['integer','distinct','exists:tags,id'],
+            'description' => ['nullable', 'string'],
+            'minAlert' => ['required', 'integer', 'min:0'],
 
-            'image'           => ['sometimes','nullable','image','max:2048'],
+            'nutrition' => ['required', 'array'],
+            'nutrition.calories' => ['required', 'numeric'],
+            'nutrition.fat' => ['required', 'numeric'],
+            'nutrition.protein' => ['required', 'numeric'],
+            'nutrition.carbs' => ['required', 'numeric'],
+
+            'allergies' => ['nullable', 'array'],
+            'allergies.*' => ['integer', 'distinct', 'exists:allergies,id'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['integer', 'distinct', 'exists:tags,id'],
+
+            'image' => ['sometimes', 'nullable', 'image', 'max:2048'],
         ];
     }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, onMounted, watch, onUpdated } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
 import { nextTick } from "vue";
@@ -49,7 +49,7 @@ onMounted(async () => {
     searchKey.value = Date.now();
     await nextTick();
 
-   
+
     setTimeout(() => {
         isReady.value = true;
 
@@ -300,15 +300,83 @@ const downloadExcel = (data) => {
 const form = ref({
     name: "",
     email: "",
-    phone: "",
+    phone_country: "GB",
+    phone_code: UK_COUNTRY_CODE,
+    phone_local: "",        // NEW: Local number without country code
+    phone: "",              // KEEP: Full number with country code
     address: "",
     preferred_items: "", // Preferred Items
 });
 
+const UK_COUNTRY_CODE = "+44";
+const UK_PHONE_LENGTH = 10; // UK local number length without country code
+const UK_AREA_CODES = {
+    "20": "London",
+    "121": "Birmingham",
+    "161": "Manchester",
+    "113": "Leeds",
+    "141": "Glasgow",
+    "151": "Liverpool",
+    "191": "Newcastle",
+    "118": "Reading",
+    "131": "Edinburgh",
+    "29": "Cardiff"
+};
+
 const phoneError = ref("");
 const isPhoneValid = ref(false);
+const phoneWarnings = ref([]);
 
+const validatePhone = () => {
+    phoneError.value = '';
+    phoneWarnings.value = [];
+    isPhoneValid.value = false;
 
+    const phoneLocal = String(form.value.phone_local || '').trim();
+
+    if (!phoneLocal) {
+        phoneError.value = 'Phone number is required';
+        return false;
+    }
+
+    // Remove any non-digit characters
+    let cleanPhone = phoneLocal.replace(/\D+/g, '');
+
+    // International UK format: 10 digits (without +44)
+    const UK_INTL_LENGTH = 10;
+
+    // Check length
+    if (cleanPhone.length < UK_INTL_LENGTH) {
+        phoneError.value = `UK phone number must be exactly ${UK_INTL_LENGTH} digits`;
+        return false;
+    }
+
+    if (cleanPhone.length > UK_INTL_LENGTH) {
+        phoneError.value = `UK phone number cannot exceed ${UK_INTL_LENGTH} digits. You entered ${cleanPhone.length} digits`;
+        return false;
+    }
+
+    // Check valid UK patterns (must start with valid number)
+    const validPatterns = /^[1-9]\d{9}$/;
+    if (!validPatterns.test(cleanPhone)) {
+        phoneError.value = 'Invalid UK phone number format';
+        return false;
+    }
+
+    isPhoneValid.value = true;
+    return true;
+};
+
+function buildFullPhone() {
+    const local = String(form.value.phone_local || "").replace(/\D+/g, "");
+    form.value.phone = UK_COUNTRY_CODE + local;
+}
+
+// Watch phone_local changes
+watch(() => form.value.phone_local, (val) => {
+    buildFullPhone();
+    validatePhone();
+});
 // const checkPhone = ({ valid, number, country }) => {
 //     if (!valid) {
 //         phoneError.value =
@@ -442,7 +510,10 @@ const onEdit = (row) => {
     form.value = {
         name: row.name || "",
         email: row.email || "",
-        phone: row.phone ?? row.contact ?? "",
+        phone_country: "GB",
+        phone_code: UK_COUNTRY_CODE,
+        phone_local: row.phone ? row.phone.replace(UK_COUNTRY_CODE, '').trim() : (row.contact ? row.contact.replace(UK_COUNTRY_CODE, '').trim() : ""),
+        phone: row.phone || row.contact || "",
         address: row.address || "",
         preferred_items: row.preferred_items ?? row.preferred_items ?? "",
     };
@@ -557,7 +628,8 @@ const handleImport = (data) => {
 </script>
 
 <template>
-      <Head title="Supplier" />
+
+    <Head title="Supplier" />
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -588,10 +660,10 @@ const handleImport = (data) => {
                         class="d-flex align-items-center gap-1 px-4 btn-sm py-2 rounded-pill btn-sm btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Supplier
                     </button>
-                    <ImportFile label="Import"
-                        :sampleHeaders="['Name', 'Email', 'Phone', 'Address', 'Preferred Items']" :sampleData="[
-                            ['Ali Khan', 'ali@example.com', '03001234567', 'Lahore', 'Steel'],
-                            ['Ahmed Raza', 'ahmed@example.com', '03111234567', 'Karachi', 'Cement']
+                    <ImportFile label="Import" :sampleHeaders="['Name', 'Email', 'Phone', 'Address', 'Preferred Items']"
+                        :sampleData="[
+                            ['Ali Khan', 'ali@example.com', '+44 3721232321', 'Lahore', 'Steel'],
+                            ['Ahmed Raza', 'ahmed@example.com', '+44 5676576576', 'Karachi', 'Cement']
                         ]" @on-import="handleImport" />
 
                     <!-- Download all -->
@@ -739,29 +811,36 @@ const handleImport = (data) => {
 
                         <!-- Phone (vue-tel-input) -->
                         <div class="col-lg-6">
-                            <label class="form-label">Phone</label>
+                            <label class="form-label">Phone*</label>
+                            <div class="input-group">
+                                <!-- UK Country Code (readonly) -->
+                                <span class="input-group-text p-0">
+                                    <input type="text" class="form-control text-center border-0 country-code bg-light fw-semibold"
+                                        value="+44" readonly style="width: 70px;" />
+                                </span>
 
-                            <vue-tel-input v-model="form.phone" :default-country="onboarding" :key="onboarding"
-                                mode="international" class="phone" @validate="checkPhone" :auto-format="true"
-                                :enable-formatting="true" :disabled-fetching-country="true" :dropdown-options="{
-                                    showFlags: false,
-                                    showDialCodeInSelection: true,
-                                    disabled: true
-                                }" :input-options="{ showDialCode: true }" :class="{
-                                    'is-invalid': formErrors.contact || phoneError,
-                                    'is-valid': isPhoneValid && form.phone
-                                }" />
+                                <!-- Phone Input - UK International Format -->
+                                <input class="form-control phone-input" inputmode="numeric" placeholder="7311865859"
+                                    v-model="form.phone_local" @blur="validatePhone" :class="{
+                                        'is-invalid': phoneError,
+                                        'is-valid': isPhoneValid && form.phone_local
+                                    }" maxlength="10" />
+                            </div>
 
-
-                            <!-- Show validation messages -->
-                            <small v-if="formErrors.contact" class="text-danger">
+                            <!-- Validation messages -->
+                            <small v-if="phoneError" class="text-danger d-block mt-1">
+                                <i class="bi bi-exclamation-circle me-1"></i>{{ phoneError }}
+                            </small>
+                            <small v-else-if="formErrors.contact" class="text-danger d-block mt-1">
                                 {{ formErrors.contact[0] }}
                             </small>
-                            <small v-else-if="phoneError" class="text-danger">
-                                {{ phoneError }}
+                            <small v-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
+                                <i class="bi bi-check-circle me-1"></i>✓ Valid UK phone number
                             </small>
-                            <small v-else-if="isPhoneValid && form.phone" class="text-success">
-                                ✓ Valid phone number
+
+                            <!-- Warnings (area code, mobile type) -->
+                            <small v-for="(warning, idx) in phoneWarnings" :key="idx" class="text-info d-block mt-1">
+                                <i class="bi bi-info-circle me-1"></i>{{ warning }}
                             </small>
                         </div>
 
@@ -811,22 +890,30 @@ const handleImport = (data) => {
     border-color: var(--brand);
 }
 
-:global(.dark .vti__dropdown.disabled){
+:global(.dark .vti__dropdown.disabled) {
     background-color: #212121 !important;
 }
+
+.dark .form-control[readonly]{
+    background-color: #212121 !important;
+    color: #fff !important;
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
 }
 
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
+.side-link {
+    border-radius: 55%;
+    background-color: #fff !important;
 }
 
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
+.dark .side-link {
+    border-radius: 55%;
+    background-color: #181818 !important;
 }
 
 .form-control[readonly] {

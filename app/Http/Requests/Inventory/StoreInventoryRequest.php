@@ -14,7 +14,7 @@ class StoreInventoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'            => ['required', 'string', 'max:255'],
+           'name'            => ['required', 'string', 'max:255', 'unique:inventory_items,name'],
             'category_id'     => ['required', 'integer', 'exists:inventory_categories,id'],
             'subcategory_id'  => ['nullable', 'integer', 'exists:inventory_categories,id'],
             'unit_id'         => ['required', 'integer', 'exists:units,id'],

@@ -73,7 +73,7 @@ const fetchInventories = async () => {
                 return {
                     ...item,
                     availableStock: stockData.available || 0,
-                    stockValue: stockData.stockValue || 0,
+                  stockValue: parseFloat(stockData.stockValue || 0).toFixed(2),
                     minAlert: stockData.minAlert || 0,
                     expiry_date: stockData.expiry_date || null,
                     status: stockData.status || null,
@@ -1244,7 +1244,7 @@ const totals = computed(() => {
         }
     }
 
-    return { totalQty, totalPrice, totalValue, notExpiredQty };
+    return {totalQty: Number(totalQty.toFixed(2)), totalPrice, totalValue, notExpiredQty };
 });
 
 const handleImport = (data) => {
@@ -1261,23 +1261,22 @@ const handleImport = (data) => {
 
     const itemsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",                    // name
-            sku: row[1] || "",                     // sku
-            category: row[2] || "",                // category
-            min_alert: row[3] || "",               // min_alert
-            unit: row[4] || "",                    // unit
-            preferred_supplier: row[5] || "",      // preferred_supplier
-            // row[6] is min_stock_alert (duplicate of min_alert)
-            stock: parseInt(row[7]) || 0,          // available_stock
-            active: 1,                             // Not in CSV, default to 1
-            calories: parseFloat(row[8]) || 0,     // calories
-            protein: parseFloat(row[9]) || 0,      // protein (was at index 9 in download)
-            fat: parseFloat(row[10]) || 0,         // fat (was at index 10 in download)
-            carbs: parseFloat(row[11]) || 0,       // carbs
-            allergies: row[12] || "",
-            tags: row[13] || "",       // tags
-            purchase_price: 0,                     // Not in CSV, default to 0
-            sale_price: 0,                         // Not in CSV, default to 0
+            name: row[0] || "",                    // 0: name
+            sku: row[1] || "",                     // 1: sku
+            description: row[2] || "",                     // 1: sku
+            category: row[3] || "",                // 2: category
+            min_alert: row[4] || "",               // 3: min_alert
+            unit: row[5] || "",                    // 4: unit
+            preferred_supplier: row[6] || "",      // 5: preferred_supplier
+            purchase_price: row[7] || "",          // 6: purchase_price
+            stock: parseInt(row[8]) || 0,          // 7: stock
+            active: row[9] || 1,                   // 8: active
+            calories: parseFloat(row[10]) || 0,     // 9: calories
+            fat: parseFloat(row[11]) || 0,         // 10: fat
+            protein: parseFloat(row[12]) || 0,     // 11: protein
+            carbs: parseFloat(row[13]) || 0,       // 12: carbs
+            allergies: row[14] || "",              // 13: allergies
+            tags: row[15] || "",                   // 14: tags
         };
     });
 
@@ -1403,12 +1402,12 @@ const handleImport = (data) => {
                             <ImportFile label="Import" :sampleHeaders="[
                                 'name',
                                 'sku',
+                                'description',
                                 'category',
                                 'min_alert',
                                 'unit',
                                 'preferred_supplier',
                                 'purchase_price',
-                                'sale_price',
                                 'stock',
                                 'active',
                                 'calories',
@@ -1419,38 +1418,38 @@ const handleImport = (data) => {
                                 'tags'
                             ]" :sampleData="[
                                 [
-                                    'Black Tea',
+                                    'Milk',
                                     'SKU-001',
+                                    'Sample one Description',
                                     'Dairy',
                                     5,
                                     'Kilogram (kg)',
                                     'Fresh Fruits Co.',
-                                    '200',
-                                    '350',
-                                    '150',
-                                    '1',
+                                    200,
+                                    350,
+                                    1,
+                                    150,
                                     33,
                                     23,
                                     44,
-                                    31,
                                     'Eggs',
                                     'Fairtrade'
                                 ],
                                 [
-                                    'Sugar',
+                                    'Honey',
                                     'SKU-002',
+                                    'Sample Two Description',
                                     'Sweets',
                                     5,
                                     'Kilogram (kg)',
                                     'Green Veggies Ltd.',
-                                    '159',
-                                    '100',
-                                    '150',
-                                    '1',
+                                    159,
+                                    100,
+                                    1,
+                                    150,
                                     33,
                                     23,
                                     44,
-                                    31,
                                     'Eggs',
                                     'Fairtrade'
                                 ]
@@ -1537,7 +1536,7 @@ const handleImport = (data) => {
                                     <td>
                                         {{
                                             item.availableStock
-                                                ? item.availableStock.toFixed(1)
+                                                ? item.availableStock.toFixed(2)
                                                 : 0
                                         }}
                                     </td>
@@ -1966,7 +1965,7 @@ const handleImport = (data) => {
                                                 </div>
                                             </div>
 
-                                            <hr />
+                                           
                                             <h6 class="fw-semibold">
                                                 Nutrition (per 100g)
                                             </h6>
@@ -2916,7 +2915,7 @@ row, i
     }
 
     .kpi-cards {
-       border-bottom: 1px !important;
+        border-bottom: 1px !important;
     }
 
     table.table th,

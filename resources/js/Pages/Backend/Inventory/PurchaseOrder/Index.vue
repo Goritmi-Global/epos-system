@@ -971,7 +971,7 @@ const downloadInvoice = async (order) => {
                                             <!-- Quantity -->
                                             <td>
                                                 <span v-if="!isEditing">{{
-                                                    item.quantity
+                                                    formatCurrencySymbol(item.quantity)
                                                 }}</span>
                                                 <input v-else v-model.number="item.quantity
                                                     " type="number" class="form-control" @input="

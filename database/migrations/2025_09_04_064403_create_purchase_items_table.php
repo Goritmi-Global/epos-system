@@ -24,7 +24,7 @@ return new class extends Migration
                 ->on('inventory_items')
                 ->cascadeOnDelete();
 
-            $table->integer('quantity');
+            $table->decimal('quantity', 10, 2);
             $table->decimal('unit_price', 12, 2);
             $table->decimal('sub_total', 12, 2);
             $table->date('expiry_date')->nullable();
