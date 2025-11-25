@@ -615,6 +615,8 @@ const calculateMenuStock = (item) => {
 const searchQuery = ref("");
 const orderType = ref("dine");
 const customer = ref("Walk In");
+const phoneNumber = ref(" ");
+const deliveryLocation = ref(" ");
 const deliveryPercent = ref(10);
 
 const activeCat = ref(null);
@@ -1475,6 +1477,8 @@ const formErrors = ref({});
 const resetCart = () => {
     orderItems.value = [];
     customer.value = "Walk In";
+    deliveryLocation.value = "";
+    phoneNumber.value = "";
     selectedTable.value = null;
     orderType.value = orderTypes.value[0] || "dine_in";
     note.value = "";
@@ -1483,6 +1487,7 @@ const resetCart = () => {
     selectedPromos.value = [];
     selectedDiscounts.value = [];
     pendingDiscountApprovals.value = [];
+    rejectedDiscounts.value = [];
     stopApprovalPolling();
 };
 watch(orderType, () => (formErrors.value = {}));
@@ -1564,6 +1569,8 @@ const openConfirmModal = () => {
         toast.error("Please add at least one item to the cart.");
         return;
     }
+
+    // Dine-in requires table
     if (orderType.value === "Dine_in" && !selectedTable.value) {
         formErrors.value.table_number = [
             "Table number is required for dine-in orders.",
@@ -1571,21 +1578,43 @@ const openConfirmModal = () => {
         toast.error("Please select a table number for Dine In orders.");
         return;
     }
+
+    // Delivery + Takeaway require customer name
     if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
         formErrors.value.customer = [
-            "Customer name is required for delivery.",
+            "Customer name is required.",
         ];
-        toast.error("Customer name is required for delivery.");
+        toast.error("Customer name is required.");
         return;
     }
+
+    // Delivery requires phone number
+    if (orderType.value === "Delivery" && !phoneNumber.value) {
+        formErrors.value.phoneNumber = [
+            "Phone number is required for delivery.",
+        ];
+        toast.error("Phone number is required for delivery.");
+        return;
+    }
+
+    // Delivery requires delivery location
+    if (orderType.value === "Delivery" && !deliveryLocation.value) {
+        formErrors.value.deliveryLocation = [
+            "Delivery location is required.",
+        ];
+        toast.error("Delivery location is required.");
+        return;
+    }
+
+    // Stock check
     if (!hasEnoughStockForOrder()) {
-        // Stop the process if not enough stock
         return;
     }
 
     cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
     showConfirmModal.value = true;
 };
+
 
 async function printReceipt(order) {
     try {
@@ -1625,13 +1654,28 @@ async function printKot(order) {
 const pendingDiscountApprovals = ref([]);
 const approvalCheckInterval = ref(null);
 const showApprovalWaitingModal = ref(false);
-const selectedDiscounts = ref([]); // Store approved discounts with percentage
+const selectedDiscounts = ref([]);
+const rejectedDiscounts = ref([]);
 
 // Handle discount application (request approval) - PERCENTAGE ONLY
 const handleApplyDiscount = async (appliedDiscounts) => {
     if (!appliedDiscounts || appliedDiscounts.length === 0) {
         toast.warning("No discounts selected.");
         return;
+    }
+
+    // ✅ ADD: Filter out rejected discounts
+    const rejectedIds = rejectedDiscounts.value.map(d => d.id);
+    const allowedDiscounts = appliedDiscounts.filter(d => !rejectedIds.includes(d.id));
+
+    if (allowedDiscounts.length === 0) {
+        toast.error("All selected discounts have been rejected for this order.");
+        return;
+    }
+
+    if (allowedDiscounts.length < appliedDiscounts.length) {
+        const rejectedCount = appliedDiscounts.length - allowedDiscounts.length;
+        toast.warning(`${rejectedCount} discount(s) were previously rejected and cannot be requested again.`);
     }
 
     try {
@@ -1713,7 +1757,7 @@ const checkApprovalStatus = async () => {
                             const approvedDiscount = {
                                 id: approval.discount_id,
                                 name: approval.discount_name || approval.discount?.name,
-                                percentage: parseFloat(approval.discount_percentage), // Store percentage
+                                percentage: parseFloat(approval.discount_percentage),
                                 approval_id: approval.id
                             };
 
@@ -1724,6 +1768,14 @@ const checkApprovalStatus = async () => {
                                 `Discount "${approvedDiscount.name}" (${approvedDiscount.percentage}%) approved!`
                             );
                         } else if (approval.status === 'rejected') {
+                            // ✅ ADD: Track rejected discount
+                            rejectedDiscounts.value.push({
+                                id: approval.discount_id,
+                                name: approval.discount_name,
+                                percentage: parseFloat(approval.discount_percentage),
+                                rejection_reason: approval.approval_note
+                            });
+
                             toast.error(
                                 `Discount "${approval.discount_name}" rejected.` +
                                 (approval.approval_note ? ` Reason: ${approval.approval_note}` : '')
@@ -1814,6 +1866,7 @@ const getDiscountAmount = (percentage) => {
 const clearDiscounts = () => {
     selectedDiscounts.value = [];
     pendingDiscountApprovals.value = [];
+    rejectedDiscounts.value = [];
     stopApprovalPolling();
 };
 
@@ -1831,6 +1884,8 @@ const confirmOrder = async ({
     try {
         const payload = {
             customer_name: customer.value,
+            phone_number: phoneNumber.value,
+            delivery_location: deliveryLocation.value,
             sub_total: subTotal.value,
             tax: totalTax.value,
             service_charges: serviceCharges.value,
@@ -2870,6 +2925,8 @@ watch(
     () => ({
         items: orderItems.value,
         customer: customer.value,
+        phone_number: phoneNumber.value,
+        delivery_location: deliveryLocation.value,
         orderType: orderType.value,
         table: selectedTable.value,
         subtotal: subTotal.value,
@@ -3503,6 +3560,22 @@ const getModalTotalPriceWithResale = () => {
                                             {{ formErrors.customer[0] }}
                                         </div>
                                     </div>
+
+                                    <!-- if delivery then show location and phone no  -->
+                                    <div v-if="orderType === 'Delivery'" class="mt-2">
+                                        <label class="form-label small">Delivery Location</label>
+                                        <input v-model="deliveryLocation" class="form-control form-control-sm"
+                                            placeholder="Enter delivery location" />
+                                        <div v-if="formErrors.delivery_location" class="invalid-feedback d-block">
+                                            {{ formErrors.delivery_location[0] }}
+                                        </div>
+                                        <label class="form-label small mt-2">Phone Number</label>
+                                        <input v-model="phoneNumber" class="form-control form-control-sm"
+                                            placeholder="Enter phone number" />
+                                        <div v-if="formErrors.phone_number" class="invalid-feedback d-block">
+                                            {{ formErrors.phone_number[0] }}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Line items -->
@@ -4115,12 +4188,12 @@ const getModalTotalPriceWithResale = () => {
                 @close="showReceiptModal = false" />
 
 
-            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
-                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
-                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
-                :sub-total="subTotal" :tax="totalTax" :service-charges="serviceCharges"
-                :delivery-charges="deliveryCharges" :promo-discount="promoDiscount" :promo-id="selectedPromos?.id"
-                :promo-name="selectedPromos?.name" :promo-type="selectedPromos?.type"
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :delivery-location="deliveryLocation"
+                :phone="phoneNumber" :order-type="orderType" :selected-table="selectedTable" :order-items="orderItems"
+                :grand-total="grandTotal" :money="money" v-model:cashReceived="cashReceived"
+                :client_secret="client_secret" :order_code="order_code" :sub-total="subTotal" :tax="totalTax"
+                :service-charges="serviceCharges" :delivery-charges="deliveryCharges" :promo-discount="promoDiscount"
+                :promo-id="selectedPromos?.id" :promo-name="selectedPromos?.name" :promo-type="selectedPromos?.type"
                 :promo-discount-amount="promoDiscount" :note="note" :kitchen-note="kitchenNote"
                 :order-date="new Date().toISOString().split('T')[0]"
                 :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
@@ -4140,7 +4213,8 @@ const getModalTotalPriceWithResale = () => {
             <PromoModal :show="showPromoModal" :loading="loadingPromos" :promos="promosData" :order-items="orderItems"
                 @apply-promo="handleApplyPromo" @close="showPromoModal = false" />
             <DiscountModal :show="showDiscountModal" :discounts="discountsData" :order-items="orderItems"
-                :loading="loadingDiscounts" :applied-discounts="selectedDiscounts" @close="showDiscountModal = false"
+                :loading="loadingDiscounts" :applied-discounts="selectedDiscounts"
+                :rejected-discounts="rejectedDiscounts" @close="showDiscountModal = false"
                 @apply-discount="handleApplyDiscount" @clear-discount="clearDiscounts" />
 
         </div>

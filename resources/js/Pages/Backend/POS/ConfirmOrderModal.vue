@@ -9,6 +9,8 @@ const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatte
 const props = defineProps({
     show: Boolean,
     customer: String,
+    deliveryLocation: String,
+    phone: String,
     orderType: String,
     selectedTable: Object,
     orderItems: Array,
@@ -195,6 +197,27 @@ function handleCardConfirm(payload) {
                                                         "N/A"
                                                         }}</span>
                                                 </div>
+                                            </div>
+
+                                            <!-- Delivery Location (if delivery) -->
+                                            <div v-if="orderType === 'Delivery'" class="col-12 col-sm-6">
+                                                <div class="p-3 rounded-3 bg-light d-flex flex-column">
+                                                    <span class="text-muted small">Delivery Location</span>
+                                                    <span class="fw-semibold">{{
+                                                        deliveryLocation ||
+                                                        "N/A"
+                                                        }}</span>
+                                                </div>
+                                                
+                                            </div>
+                                            <div v-if="orderType === 'Delivery'" class="col-12 col-sm-6">
+                                                <div class="p-3 rounded-3 bg-light d-flex flex-column">
+                                                    <span class="text-muted small">Phone No</span>
+                                                    <span class="fw-semibold">{{
+                                                        phone ||
+                                                        "N/A"
+                                                        }}</span>
+                                                </div>  
                                             </div>
 
                                             <div class="table-responsive compact-table">
@@ -387,7 +410,8 @@ function handleCardConfirm(payload) {
 
                                         <!-- Card -->
                                         <div v-if="paymentMethod === 'Card'" class="pt-3 border-top">
-                                            <StripePayment :order_code="order_code" :show="show" :customer="customer"
+                                            <StripePayment :order_code="order_code" :show="show" :customer="customer" 
+                                                :phone="phone" :delivery-location="deliveryLocation"
                                                 :orderType="orderType" :selectedTable="selectedTable"
                                                 :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
                                                 :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"
@@ -441,6 +465,7 @@ function handleCardConfirm(payload) {
                                             /> -->
 
                                             <SplitPayment :order_code="order_code" :show="show" :customer="customer"
+                                                :phone="phone" :delivery-location="deliveryLocation"
                                                 :orderType="orderType" :selectedTable="selectedTable"
                                                 :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
                                                 :cashReceived="cashReceived" :subTotal="subTotal" :tax="tax ?? 0"

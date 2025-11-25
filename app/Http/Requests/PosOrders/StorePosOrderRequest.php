@@ -15,6 +15,8 @@ class StorePosOrderRequest extends FormRequest
     {
         return [
             'customer_name'    => 'nullable|string|max:255',
+            'phone_number'            => 'nullable|string|max:20',
+            'delivery_location'=> 'nullable|string|max:255',
             'sub_total'        => 'required|numeric|min:0',
             'total_amount'     => 'required|numeric|min:0',
             'tax'              => 'nullable|numeric|min:0',

@@ -21,7 +21,6 @@ class PosOrderController extends Controller
 
     public function store(StorePosOrderRequest $request)
     {
-        
         $result = $this->service->create($request->validated());
 
         // ✅ Check if this is an array with logout flag (cashier auto-logout)
@@ -203,6 +202,8 @@ class PosOrderController extends Controller
 
         $data = [
             'customer_name' => $request->query('customer_name'),
+            'phone_number' => $request->query('phone_number'),
+            'delivery_location' => $request->query('delivery_location'),
             'sub_total' => (float) $request->query('sub_total', 0),
             'total_amount' => (float) $request->query('total_amount', 0),
             'tax' => (float) $request->query('tax', 0),
@@ -222,10 +223,15 @@ class PosOrderController extends Controller
             'items' => $items,
 
             // Payment block
+            // Payment block
             'payment_method' => 'Stripe',
             'payment_status' => $pi->status ?? 'succeeded',
-            'cash_received' => (float) $request->query('cash_received', $request->query('total_amount', 0)),
+            'cash_received' => (float) $request->query('cash_received', 0),
             'card_payment' => (float) $request->query('card_payment', 0),
+
+            // Split payment amounts
+            'cash_amount' => (float) $request->query('cash_received', 0),
+            'card_amount' => (float) $request->query('card_payment', 0),
 
             // Tracking
             'order_code' => $code,
@@ -256,6 +262,8 @@ class PosOrderController extends Controller
         $printPayload = [
             'id' => $order->id,
             'customer_name' => $data['customer_name'] ?? null,
+            'phone_number' => $data['phone_number'] ?? null,
+            'delivery_location' => $data['delivery_location'] ?? null,
             'order_type' => $data['order_type'] ?? null,
             'payment_method' => 'Card', // display text for receipt
             'card_brand' => $data['brand'] ?? null,
@@ -308,7 +316,7 @@ class PosOrderController extends Controller
 
             \DB::beginTransaction();
 
-            // Restore inventory stock
+            // Restore inventory stock WITH expiry dates
             foreach ($order->items as $item) {
                 $menuItem = $item->menuItem;
                 if (!$menuItem) continue;
@@ -325,24 +333,60 @@ class PosOrderController extends Controller
 
                 foreach ($ingredients as $ingredient) {
                     $inventoryItem = $ingredient->inventoryItem;
-                    if (!$inventoryItem) continue; // Skip if inventory item not found
+                    if (!$inventoryItem) continue;
 
                     $requiredQty = ($ingredient->quantity ?? 1) * $item->quantity;
 
-                    \App\Models\StockEntry::create([
-                        'product_id' => $inventoryItem->id,
-                        'name' => $ingredient->product_name ?? $inventoryItem->name,
-                        'category_id' => $inventoryItem->category_id, // Get from InventoryItem
-                        'supplier_id' => $inventoryItem->supplier_id ?? null,
-                        'available_quantity' => $inventoryItem->stock ?? 0,
-                        'quantity' => $requiredQty,
-                        'price' => $ingredient->cost ?? 0,
-                        'value' => ($ingredient->cost ?? 0) * $requiredQty,
-                        'operation_type' => 'pos_cancel_return',
-                        'stock_type' => 'stockin',
-                        'description' => "Stock restored from cancelled order #{$order->id}",
-                        'user_id' => auth()->id(),
-                    ]);
+                    // ✅ Find the original stockout entry for this order
+                    $stockOutEntry = \App\Models\StockEntry::where('product_id', $inventoryItem->id)
+                        ->where('stock_type', 'stockout')
+                        ->where('operation_type', 'pos_stockout')
+                        ->where('description', 'like', "%Order #{$order->id}%")
+                        ->first();
+
+                    if ($stockOutEntry) {
+                        // ✅ Get allocations to find which batches were used (with expiry dates)
+                        $allocations = \App\Models\StockOutAllocation::where('stock_out_entry_id', $stockOutEntry->id)
+                            ->get();
+
+                        // ✅ Restore stock for each allocation (preserving expiry dates)
+                        foreach ($allocations as $allocation) {
+                            \App\Models\StockEntry::create([
+                                'product_id' => $inventoryItem->id,
+                                'name' => $ingredient->product_name ?? $inventoryItem->name,
+                                'category_id' => $inventoryItem->category_id,
+                                'supplier_id' => $inventoryItem->supplier_id ?? null,
+                                'quantity' => $allocation->quantity,
+                                'price' => $allocation->unit_price ?? $ingredient->cost ?? 0,
+                                'value' => $allocation->quantity * ($allocation->unit_price ?? $ingredient->cost ?? 0),
+                                'operation_type' => 'pos_cancel_return',
+                                'stock_type' => 'stockin',
+                                'expiry_date' => $allocation->expiry_date, // ✅ RESTORE ORIGINAL EXPIRY DATE
+                                'description' => "Stock restored from cancelled order #{$order->id} (Original batch expiry: {$allocation->expiry_date})",
+                                'user_id' => auth()->id(),
+                            ]);
+
+                            \Log::info("✅ Restored {$allocation->quantity} units of {$inventoryItem->name} with expiry: {$allocation->expiry_date}");
+                        }
+                    } else {
+                        // ✅ Fallback: If no stockout entry found, restore without expiry date
+                        \Log::warning("⚠️ No stockout entry found for Order #{$order->id}, Product ID: {$inventoryItem->id}. Restoring without expiry date.");
+
+                        \App\Models\StockEntry::create([
+                            'product_id' => $inventoryItem->id,
+                            'name' => $ingredient->product_name ?? $inventoryItem->name,
+                            'category_id' => $inventoryItem->category_id,
+                            'supplier_id' => $inventoryItem->supplier_id ?? null,
+                            'quantity' => $requiredQty,
+                            'price' => $ingredient->cost ?? 0,
+                            'value' => ($ingredient->cost ?? 0) * $requiredQty,
+                            'operation_type' => 'pos_cancel_return',
+                            'stock_type' => 'stockin',
+                            'expiry_date' => null, // No expiry date available
+                            'description' => "Stock restored from cancelled order #{$order->id} (Expiry date unknown)",
+                            'user_id' => auth()->id(),
+                        ]);
+                    }
                 }
             }
 
@@ -357,7 +401,7 @@ class PosOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order cancelled and inventory restored',
+                'message' => 'Order cancelled and inventory restored with original expiry dates',
                 'order' => $order->fresh(['payment', 'items'])
             ]);
         } catch (\Exception $e) {

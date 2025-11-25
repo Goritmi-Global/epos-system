@@ -11,6 +11,8 @@ const props = defineProps({
 
   show: Boolean,
   customer: String,
+  phone: String,
+  deliveryLocation: String,
   orderType: String,
   selectedTable: Object,
   orderItems: Array,
@@ -25,8 +27,8 @@ const props = defineProps({
   kitchenNote: [String, null],
   orderDate: String,
   orderTime: String,
-  paymentMethod: String,        
-  paymentType: String,        
+  paymentMethod: String,
+  paymentType: String,
   change: Number,
 
   // ✅ ADD PROMO PROPS HERE
@@ -64,7 +66,7 @@ if (card.value < 0.5) {
   cash.value = total.value - card.value;
 }
 
- 
+
 /** lock to avoid recursive watch loops */
 let guard = false;
 watch(cash, (v) => {
@@ -145,14 +147,7 @@ function confirmSplit() {
         <label class="form-label fw-semibold">Cash Portion</label>
         <div class="input-group">
           <span class="input-group-text">£</span>
-          <input
-            type="number"
-            min="0"
-            :max="total"
-            step="0.01"
-            v-model.number="cash"
-            class="form-control rounded-3"
-          />
+          <input type="number" min="0" :max="total" step="0.01" v-model.number="cash" class="form-control rounded-3" />
         </div>
         <div class="small text-muted mt-1">
           {{ money ? formatCurrencySymbol(cash || 0) : (cash || 0) }}
@@ -163,15 +158,7 @@ function confirmSplit() {
         <label class="form-label fw-semibold">Card Portion</label>
         <div class="input-group">
           <span class="input-group-text">£</span>
-          <input
-            type="number"
-            min="0"
-            :max="total"
-            step="0.01"
-            v-model.number="card"
-            class="form-control rounded-3"
-
-          />
+          <input type="number" min="0" :max="total" step="0.01" v-model.number="card" class="form-control rounded-3" />
         </div>
         <div class="small text-muted mt-1">
           {{ money ? formatCurrencySymbol(card || 0) : (card || 0) }}
@@ -185,10 +172,7 @@ function confirmSplit() {
         Total:
         <span class="text-success">{{ money ? formatCurrencySymbol(total) : total }}</span>
       </div>
-      <div
-        class="small"
-        :class="cents(cash) + cents(card) === cents(total) ? 'text-success' : 'text-danger'"
-      >
+      <div class="small" :class="cents(cash) + cents(card) === cents(total) ? 'text-success' : 'text-danger'">
         Cash + Card =
         {{
           money
@@ -210,53 +194,23 @@ function confirmSplit() {
       <label class="form-label fw-semibold">Pay Card Portion</label>
 
       <!-- We pass card as grandTotal for Stripe; include split metadata -->
-        
-      <StripePayment
-        :order_code="order_code"
-        :show="show"
-        :customer="customer"
-        :orderType="orderType"
-        :selectedTable="selectedTable"
-        :orderItems="orderItems"
 
-        :grandTotal="grandTotal"           
-
-        :money="money"
-        :cashReceived="cash"           
-        :cardPayment="card"           
-        :subTotal="subTotalToSend"
-        :tax="tax ?? 0"
-        :serviceCharges="serviceCharges ?? 0"
-        :deliveryCharges="deliveryCharges ?? 0"
-        :note="note"
-        :kitchen-note="kitchenNote"
+      <StripePayment :order_code="order_code" :show="show" :customer="customer" :phone="phone"
+        :deliveryLocation="deliveryLocation" :orderType="orderType" :selectedTable="selectedTable"
+        :orderItems="orderItems" :grandTotal="card" :money="money" :cashReceived="cash" :cardPayment="card"
+        :subTotal="subTotalToSend" :tax="tax ?? 0" :serviceCharges="serviceCharges ?? 0"
+        :deliveryCharges="deliveryCharges ?? 0" :note="note" :kitchen-note="kitchenNote"
         :orderDate="orderDate ?? new Date().toISOString().split('T')[0]"
-        :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]"
-
-        :paymentMethod="paymentMethod"       
-        :change="changeAmount"
-
-        :paymentType="paymentType"
-        :cardCharge="cardCharge"
-
-        :promo-discount="promoDiscount"
-        :promo-id="promoId"
-        :promo-name="promoName"
-        :promo-type="promoType"
-        :promo-discount-amount="promoDiscountAmount"
-        :applied-promos="appliedPromos"
-        :approved-discounts="approvedDiscounts"
-        :approved-discount-details="approvedDiscountDetails"
-      />
+        :orderTime="orderTime ?? new Date().toTimeString().split(' ')[0]" :paymentMethod="'Card'" :change="changeAmount"
+        :paymentType="'split'" type="split-payment" :cardCharge="card" :promo-discount="promoDiscount"
+        :promo-id="promoId" :promo-name="promoName" :promo-type="promoType" :promo-discount-amount="promoDiscountAmount"
+        :applied-promos="appliedPromos" :approved-discounts="approvedDiscounts"
+        :approved-discount-details="approvedDiscountDetails" />
     </div>
 
     <!-- Actions -->
     <div class="d-flex gap-2 mt-3">
-      <button
-        class="btn brand-btn rounded-pill px-3 py-2"
-        :disabled="!canConfirm"
-        @click="confirmSplit"
-      >
+      <button class="btn brand-btn rounded-pill px-3 py-2" :disabled="!canConfirm" @click="confirmSplit">
         <i class="bi bi-check2-circle me-1"></i>
         Confirm Split
       </button>
@@ -265,19 +219,21 @@ function confirmSplit() {
 </template>
 
 <style scoped>
-.pay-header i { color: var(--brand); }
+.pay-header i {
+  color: var(--brand);
+}
 
-.dark .input-group-text{
+.dark .input-group-text {
   color: #fff !important;
   background-color: #212121 !important;
 
 }
 
-.dark .bi-check2-circle{
+.dark .bi-check2-circle {
   color: #fff !important;
 }
 
-.dark .brand-btn{
+.dark .brand-btn {
   color: #fff !important;
 }
 </style>

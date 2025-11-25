@@ -58,6 +58,14 @@ class PosOrderService
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
 
+            if (($data['order_type'] ?? '') === 'Delivery') {
+                $order->deliveryDetail()->create([
+                    'phone_number' => $data['phone_number'] ?? null,
+                    'delivery_location' => $data['delivery_location'] ?? null,
+                ]);
+            }
+
+
             // Create order type
             $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
