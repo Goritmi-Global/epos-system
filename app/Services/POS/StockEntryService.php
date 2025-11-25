@@ -28,7 +28,7 @@ class StockEntryService
             unset($data['price']);
 
             $productId  = (int) $data['product_id'];
-            $needQty    = (int) $data['quantity'];
+            $needQty    = (float) $data['quantity'];  // ✅ Changed to float
 
             // 1) create the stock-out entry
             $stockOut = StockEntry::create($data);
@@ -47,8 +47,8 @@ class StockEntryService
 
             foreach ($batches as $batch) {
                 // remaining = in_qty - allocations already recorded
-                $allocated = (int) StockOutAllocation::where('stock_in_entry_id', $batch->id)->sum('quantity');
-                $remaining = max(0, (int)$batch->quantity - $allocated);
+                $allocated = (float) StockOutAllocation::where('stock_in_entry_id', $batch->id)->sum('quantity');  // ✅ Changed to float
+                $remaining = max(0, (float)$batch->quantity - $allocated);  // ✅ Changed to float
                 if ($remaining <= 0) continue;
 
                 $use = min($left, $remaining);
@@ -58,7 +58,7 @@ class StockEntryService
                     'stock_out_entry_id' => $stockOut->id,
                     'stock_in_entry_id'  => $batch->id,
                     'product_id'         => $productId,
-                    'quantity'           => $use,
+                    'quantity'           => $use,  // ✅ This will now be 2.22 instead of 2
                     'unit_price'         => $batch->price,
                     'expiry_date'        => $batch->expiry_date,
                 ]);
@@ -66,22 +66,21 @@ class StockEntryService
                 $totalCost += ((float)$batch->price) * $use;
                 $left -= $use;
 
-                if ($left === 0) break;
+                if ($left <= 0.001) break;  // ✅ Use small epsilon for float comparison
             }
 
-            if ($left > 0) {
+            if ($left > 0.001) {  // ✅ Use small epsilon for float comparison
                 throw ValidationException::withMessages([
-                    'quantity' => ["Insufficient stock to fulfill request (short by {$left})."],
+                    'quantity' => ["Insufficient stock to fulfill request (short by " . round($left, 2) . ")."],
                 ]);
             }
 
-            // Optional: capture weighted cost on the OUT row; remove if you want 0.
+            // Optional: capture weighted cost on the OUT row
             $stockOut->update(['value' => $totalCost]);
 
             $inventoryItem = InventoryItem::find($productId);
-            $inventoryItem->refresh(); // ensures latest relations & computed attributes
+            $inventoryItem->refresh();
 
-            // Optionally, attach updated stock to the returned object
             $stockOut->updated_stock = $inventoryItem->stock;
 
             return $stockOut;
@@ -96,7 +95,27 @@ class StockEntryService
             $query->where('name', 'like', '%' . $filters['q'] . '%');
         }
 
-        return $query->paginate(20);
+        // Get paginated results
+        $paginated = $query->paginate(20);
+
+        // ✅ Transform the data to include allocated quantities
+        $paginated->getCollection()->transform(function ($entry) {
+            $allocatedQty = 0;
+
+            // If it's a stock-in entry, calculate how much has been allocated
+            if ($entry->stock_type === 'stockin') {
+                $allocatedQty = (float) StockOutAllocation::where('stock_in_entry_id', $entry->id)
+                    ->sum('quantity');
+            }
+
+            // Add the new fields to the entry object
+            $entry->allocated_quantity = $allocatedQty;
+            $entry->available_quantity = max(0, $entry->quantity - $allocatedQty);
+
+            return $entry;
+        });
+
+        return $paginated;
     }
 
     /**
@@ -104,65 +123,93 @@ class StockEntryService
      * Sum(IN) - Sum(allocations).
      */
 
-    public function availableQuantity(int $productId): int
+    public function availableQuantity(int $productId): float  // ✅ Changed return type to float
     {
-        $in = (int) StockEntry::where('product_id', $productId)
-            ->where('stock_type', 'stockin')->sum('quantity');
+        $in = (float) StockEntry::where('product_id', $productId)
+            ->where('stock_type', 'stockin')->sum('quantity');  // ✅ Changed to float
 
-        $allocated = (int) StockOutAllocation::where('product_id', $productId)
-            ->sum('quantity');
+        $allocated = (float) StockOutAllocation::where('product_id', $productId)
+            ->sum('quantity');  // ✅ Changed to float
 
         return max(0, $in - $allocated);
     }
 
     // New method to get total stock for a product
-    public function totalStock(int $product): \Illuminate\Http\JsonResponse
+    public function totalStock(int $product): array
     {
-        $totalIn = StockEntry::where('product_id', $product)
+        \Log::info("=== TOTAL STOCK CALCULATION FOR PRODUCT {$product} ===");
+
+        // ✅ Use float instead of int to preserve decimals
+        $totalIn = (float) StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockin')
             ->sum('quantity');
 
-        $totalOut = StockEntry::where('product_id', $product)
-            ->where('stock_type', 'stockout')
+        \Log::info("Total Stock In: {$totalIn}");
+
+        $totalAllocated = (float) StockOutAllocation::where('product_id', $product)
             ->sum('quantity');
 
-        $available = $totalIn - $totalOut;
+        \Log::info("Total Allocated: {$totalAllocated}");
 
-        // total stock-in value
-        $totalInValue = StockEntry::where('product_id', $product)
+        $available = max(0, $totalIn - $totalAllocated);
+
+        \Log::info("Available: {$available}");
+
+        // Stock value calculation
+        $totalInValue = (float) StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockin')
-            ->sum(\DB::raw('quantity * price'));
+            ->sum(DB::raw('quantity * price'));
 
-        $totalOutValue = StockEntry::where('product_id', $product)
-            ->where('stock_type', 'stockout')
-            ->sum('value');
+        \Log::info("Total In Value: {$totalInValue}");
 
-        $stockValue = $totalInValue - $totalOutValue;
+        $totalOutValue = (float) StockOutAllocation::where('product_id', $product)
+            ->sum(DB::raw('quantity * unit_price'));
+
+        \Log::info("Total Out Value: {$totalOutValue}");
+
+        $stockValue = max(0, $totalInValue - $totalOutValue);
+
+        \Log::info("Stock Value: {$stockValue}");
 
         $inventory = InventoryItem::find($product);
         $minAlert = $inventory?->minAlert ?? 0;
 
-        // 🧠 Fetch the earliest expiry date (first batch to expire)
+        // ✅ Get earliest expiry from AVAILABLE (not allocated) batches
         $earliestStockIn = StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockin')
             ->whereNotNull('expiry_date')
+            ->whereRaw('quantity > (
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM stock_out_allocations 
+            WHERE stock_in_entry_id = stock_entries.id
+        )')
             ->orderBy('expiry_date', 'asc')
             ->first();
 
         $expiryDate = $earliestStockIn?->expiry_date;
-        $status = null; // ✅ initialize
+        $status = null;
 
-        // Check for expired and near-expiry batches
+        // ✅ Check only AVAILABLE batches for expiry status
         $hasExpired = StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockin')
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<', now())
+            ->whereRaw('quantity > (
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM stock_out_allocations 
+            WHERE stock_in_entry_id = stock_entries.id
+        )')
             ->exists();
 
         $nearExpiry = StockEntry::where('product_id', $product)
             ->where('stock_type', 'stockin')
             ->whereNotNull('expiry_date')
             ->whereBetween('expiry_date', [now(), now()->addDays(15)])
+            ->whereRaw('quantity > (
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM stock_out_allocations 
+            WHERE stock_in_entry_id = stock_entries.id
+        )')
             ->exists();
 
         if ($hasExpired) {
@@ -171,15 +218,18 @@ class StockEntryService
             $status = 'near_expiry';
         }
 
-        return response()->json([
+        $result = [
             'available'   => $available,
             'stockValue'  => $stockValue,
             'minAlert'    => $minAlert,
             'expiry_date' => $expiryDate,
             'status'      => $status,
-        ]);
-    }
+        ];
 
+        \Log::info("Final Result:", $result);
+
+        return $result;
+    }
 
 
 

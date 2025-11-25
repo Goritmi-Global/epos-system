@@ -123,6 +123,7 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
+        Route::get('/debug/{product}', [StockEntryController::class, 'debugStock']);
     });
 
     /* -------- Inventory Categories -------- */

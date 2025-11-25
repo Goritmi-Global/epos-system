@@ -8,25 +8,16 @@ return new class extends Migration {
     {
         Schema::create('stock_out_allocations', function (Blueprint $table) {
             $table->id();
-
-            // FK to stock_entries row that is the *stock-out* entry
-            $table->foreignId('stock_out_entry_id')
-                  ->constrained('stock_entries')
-                  ->cascadeOnDelete();
-
-            // FK to stock_entries row that is the *stock-in* batch consumed
-            $table->foreignId('stock_in_entry_id')
-                  ->constrained('stock_entries')
-                  ->cascadeOnDelete();
+            $table->foreignId('stock_out_entry_id')->constrained('stock_entries')->cascadeOnDelete();
+            $table->foreignId('stock_in_entry_id')->constrained('stock_entries')->cascadeOnDelete();
 
             // denormalized helpers
             $table->foreignId('product_id')->constrained('inventory_items');
-            $table->unsignedInteger('quantity');              // allocated from that batch
-            $table->decimal('unit_price', 10, 2)->nullable(); // snapshot of IN price
-            $table->date('expiry_date')->nullable();          // snapshot of IN expiry
+            $table->decimal('quantity', 10, 2);
+            $table->decimal('unit_price', 10, 2)->nullable(); 
+            $table->date('expiry_date')->nullable();          
 
             $table->timestamps();
-
             $table->index(['product_id', 'stock_in_entry_id']);
         });
     }
