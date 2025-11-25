@@ -291,22 +291,45 @@ function removeIngredient(idx) {
     }
 }
 
+// const i_totalNutrition = computed(() => {
+//     return i_cart.value.reduce(
+//         (totals, ing) => {
+//             const qty = Number(ing.qty) || 0;
+
+//             totals.calories += Number(ing.nutrition?.calories || 0) * qty;
+//             totals.protein += Number(ing.nutrition?.protein || 0) * qty;
+//             totals.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+//             totals.fat += Number(ing.nutrition?.fat || 0) * qty;
+
+//             return totals;
+//         },
+//         { calories: 0, protein: 0, carbs: 0, fat: 0 }
+//     );
+// });
+
 const i_totalNutrition = computed(() => {
-    return i_cart.value.reduce(
-        (totals, ing) => {
+    const totals = i_cart.value.reduce(
+        (acc, ing) => {
             const qty = Number(ing.qty) || 0;
 
-            totals.calories += Number(ing.nutrition?.calories || 0) * qty;
-            totals.protein += Number(ing.nutrition?.protein || 0) * qty;
-            totals.carbs += Number(ing.nutrition?.carbs || 0) * qty;
-            totals.fat += Number(ing.nutrition?.fat || 0) * qty;
+            acc.calories += Number(ing.nutrition?.calories || 0) * qty;
+            acc.protein += Number(ing.nutrition?.protein || 0) * qty;
+            acc.carbs += Number(ing.nutrition?.carbs || 0) * qty;
+            acc.fat += Number(ing.nutrition?.fat || 0) * qty;
 
-            return totals;
+            return acc;
         },
         { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
-});
 
+    // Round all values to 2 decimal places
+    return {
+        calories: round2(totals.calories),
+        protein: round2(totals.protein),
+        carbs: round2(totals.carbs),
+        fat: round2(totals.fat)
+    };
+});
 
 
 const showMenuModal = () => {
@@ -2410,6 +2433,10 @@ const sampleMenuData = [
         ])
     ]
 ];
+
+const format = (val) => {
+    return Number(val || 0).toFixed(2);
+};
 </script>
 
 <template>

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePromoRequest extends FormRequest
 {
@@ -19,10 +20,15 @@ class StorePromoRequest extends FormRequest
             'status' => 'required|in:active,inactive',
             'start_date' => 'required',
             'end_date' => 'required|date|after:start_date',
-            'min_purchase' => 'required|numeric|min:0',
-            'max_discount' => 'nullable|numeric|min:0',
+            'min_purchase' => 'required|numeric|min:0|lt:max_discount',
+            'max_discount' => 'required|numeric|min:0|gt:min_purchase',
             'description' => 'nullable|string|max:1000',
-            'discount_amount' => 'required|numeric|min:0',
+            'discount_amount' => [
+                'required',
+                'numeric',
+                'min:0',
+                Rule::when($this->type === 'percent', ['max:100']),
+            ],
         ];
     }
 
@@ -41,6 +47,9 @@ class StorePromoRequest extends FormRequest
             'min_purchase.required' => 'Minimum purchase amount is required',
             'min_purchase.min' => 'Minimum purchase must be at least 0',
             'max_discount.min' => 'Maximum discount must be at least 0',
+            'max_discount.max' => 'Maximum discount percentage cannot exceed 100%.',
+            'min_purchase.lt' => 'Minimum purchase must be less than maximum discount.',
+            'max_discount.gt' => 'Maximum discount must be greater than minimum purchase.',
         ];
     }
 }

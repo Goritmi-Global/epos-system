@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Menu;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreMenuRequest extends FormRequest
 {
@@ -17,7 +18,7 @@ class StoreMenuRequest extends FormRequest
         $isVariantMenu = is_array($this->variant_metadata) && count($this->variant_metadata) > 0;
 
         return [
-            'name' => 'required|string|max:255',
+           'name' => 'required|string|max:255|unique:menu_items,name',
 
             // Price is required only for simple menus
             'price' => $isVariantMenu ? 'nullable|numeric|min:0' : 'required|numeric|min:0',
@@ -51,7 +52,14 @@ class StoreMenuRequest extends FormRequest
 
             'is_saleable' => 'nullable|boolean',
             'resale_type' => 'required_if:is_saleable,true|nullable|in:flat,percentage',
-            'resale_value' => 'required_if:is_saleable,true|nullable|numeric|min:0',
+            'resale_value' => [
+                'required_if:is_saleable,true',
+                'nullable',
+                'numeric',
+                'min:0',
+                // If percentage → must be <= 100
+                Rule::when($this->resale_type === 'percentage', ['max:100']),
+            ],
 
             // Addons
             'addon_group_id' => 'nullable|exists:addon_groups,id',
@@ -70,7 +78,17 @@ class StoreMenuRequest extends FormRequest
             'variant_metadata.*.price' => 'required_with:variant_metadata|numeric|min:0',
             'variant_metadata.*.is_saleable' => 'nullable|boolean',
             'variant_metadata.*.resale_type' => 'nullable|in:flat,percentage',
-            'variant_metadata.*.resale_value' => 'nullable|numeric|min:0',
+            'variant_metadata.*.resale_value' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                Rule::when(
+                    isset($this->variant_metadata) &&
+                    is_array($this->variant_metadata) &&
+                    ($this->variant_metadata[array_key_first($this->variant_metadata)]['resale_type'] ?? null) === 'percentage',
+                    ['max:100']
+                ),
+            ],
 
             // Variant Menu Ingredients
             'variant_ingredients' => 'nullable|array',
@@ -84,6 +102,7 @@ class StoreMenuRequest extends FormRequest
     {
         return [
             'name.required' => 'Menu name is required.',
+            'name.unique' => 'A menu with this name already exists.',
             'price.required' => 'Price is required for simple menus.',
             'category_id.required' => 'Please select a category.',
             'ingredients.required' => 'At least one ingredient is required for simple menus.',
@@ -107,6 +126,9 @@ class StoreMenuRequest extends FormRequest
             'resale_value.required_if' => 'Resale value is required when menu is saleable',
             'resale_value.numeric' => 'Resale value must be a number',
             'resale_value.min' => 'Resale value must be at least 0',
+            'resale_value.max' => 'Percentage resale cannot exceed 100.',
+            'variant_metadata.*.resale_value.max' => 'Variant percentage resale cannot exceed 100.',
+
         ];
     }
 

@@ -64,7 +64,7 @@ const promos = ref([]);
 const editingPromo = ref(null);
 const submitting = ref(false);
 const promoFormErrors = ref({});
-
+const confirmModalKey = ref(0);
 // Promo Scope
 const promoScopes = ref([]);
 const editingPromoScope = ref(null);
@@ -99,7 +99,7 @@ watch(() => promoScopeForm.value.menu_items, (newVal) => {
 
 /* ============= IMPORT CONFIGURATION ============= */
 const sampleHeaders = [
-    "Promo Name", "Type", "Discount Amount", "Start Date", 
+    "Promo Name", "Type", "Discount Amount", "Start Date",
     "End Date", "Min Purchase", "Max Discount", "Status", "Description"
 ];
 
@@ -122,12 +122,12 @@ const handleImport = (data) => {
         // Normalize dates to YYYY-MM-DD format
         const normalizeDate = (dateStr) => {
             if (!dateStr) return "";
-            
+
             const dateObj = new Date(dateStr);
             if (isNaN(dateObj.getTime())) {
                 return dateStr; // Return as-is if can't parse
             }
-            
+
             // Return in YYYY-MM-DD format
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -203,7 +203,7 @@ const handleImport = (data) => {
             console.error("Import error:", err);
             const errorMessage = err.response?.data?.message || "Import failed";
             const errors = err.response?.data?.errors || [];
-            
+
             if (errors.length > 0) {
                 console.error("Detailed errors:", errors);
                 toast.error(`${errorMessage}: ${errors.join(", ")}`);
@@ -525,8 +525,8 @@ const editRow = (row) => {
         name: row.name,
         type: row.type,
         status: row.status,
-        start_date: row.start_date ? new Date(row.start_date) : null, 
-        end_date: row.end_date ? new Date(row.end_date) : null, 
+        start_date: row.start_date ? new Date(row.start_date) : null,
+        end_date: row.end_date ? new Date(row.end_date) : null,
         min_purchase: row.min_purchase,
         max_discount: row.max_discount,
         description: row.description || "",
@@ -562,6 +562,7 @@ const toggleStatus = async (row) => {
         });
         row.status = newStatus;
         toast.success(`Promo status updated to ${newStatus}`);
+        confirmModalKey.value++;
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -847,10 +848,10 @@ const downloadExcel = (data) => {
                                                         { value: 'discount_desc', label: 'Discount: High to Low' },
                                                         { value: 'date_asc', label: 'Start Date: Oldest First' },
                                                         { value: 'date_desc', label: 'Start Date: Newest First' },
-                                                    ]" :categories="promoTypesForFilter" categoryLabel="Promo Type" statusLabel="Promo Status"
-                                                    :showPriceRange="true" priceRangeLabel="Discount Amount Range"
-                                                    :showDateRange="true" @apply="handleFilterApply"
-                                                    @clear="handleFilterClear" />
+                                                    ]" :categories="promoTypesForFilter" categoryLabel="Promo Type"
+                                                    statusLabel="Promo Status" :showPriceRange="true"
+                                                    priceRangeLabel="Discount Amount Range" :showDateRange="true"
+                                                    @apply="handleFilterApply" @clear="handleFilterClear" />
 
                                                 <div class="search-wrap">
                                                     <i class="bi bi-search"></i>
@@ -954,7 +955,9 @@ const downloadExcel = (data) => {
                                                                     <Pencil class="w-4 h-4" />
                                                                 </button>
 
-                                                                <ConfirmModal :title="'Confirm Status Change'"
+                                                                <ConfirmModal
+                                                                    :key="`confirm-${row.id}-${confirmModalKey}`"
+                                                                    :title="'Confirm Status Change'"
                                                                     :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
                                                                     :showStatusButton="true" confirmText="Yes, Change"
                                                                     cancelText="Cancel" :status="row.status"
