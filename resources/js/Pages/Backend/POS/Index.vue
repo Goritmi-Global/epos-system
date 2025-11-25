@@ -615,6 +615,8 @@ const calculateMenuStock = (item) => {
 const searchQuery = ref("");
 const orderType = ref("dine");
 const customer = ref("Walk In");
+const phoneNumber = ref(" ");
+const deliveryLocation = ref(" ");
 const deliveryPercent = ref(10);
 
 const activeCat = ref(null);
@@ -1475,6 +1477,8 @@ const formErrors = ref({});
 const resetCart = () => {
     orderItems.value = [];
     customer.value = "Walk In";
+    deliveryLocation.value = "";
+    phoneNumber.value = "";
     selectedTable.value = null;
     orderType.value = orderTypes.value[0] || "dine_in";
     note.value = "";
@@ -1564,6 +1568,8 @@ const openConfirmModal = () => {
         toast.error("Please add at least one item to the cart.");
         return;
     }
+
+    // Dine-in requires table
     if (orderType.value === "Dine_in" && !selectedTable.value) {
         formErrors.value.table_number = [
             "Table number is required for dine-in orders.",
@@ -1571,21 +1577,43 @@ const openConfirmModal = () => {
         toast.error("Please select a table number for Dine In orders.");
         return;
     }
+
+    // Delivery + Takeaway require customer name
     if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
         formErrors.value.customer = [
-            "Customer name is required for delivery.",
+            "Customer name is required.",
         ];
-        toast.error("Customer name is required for delivery.");
+        toast.error("Customer name is required.");
         return;
     }
+
+    // Delivery requires phone number
+    if (orderType.value === "Delivery" && !phoneNumber.value) {
+        formErrors.value.phoneNumber = [
+            "Phone number is required for delivery.",
+        ];
+        toast.error("Phone number is required for delivery.");
+        return;
+    }
+
+    // Delivery requires delivery location
+    if (orderType.value === "Delivery" && !deliveryLocation.value) {
+        formErrors.value.deliveryLocation = [
+            "Delivery location is required.",
+        ];
+        toast.error("Delivery location is required.");
+        return;
+    }
+
+    // Stock check
     if (!hasEnoughStockForOrder()) {
-        // Stop the process if not enough stock
         return;
     }
 
     cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
     showConfirmModal.value = true;
 };
+
 
 async function printReceipt(order) {
     try {
@@ -1831,6 +1859,8 @@ const confirmOrder = async ({
     try {
         const payload = {
             customer_name: customer.value,
+            phone_number: phoneNumber.value,
+            delivery_location: deliveryLocation.value,
             sub_total: subTotal.value,
             tax: totalTax.value,
             service_charges: serviceCharges.value,
@@ -2870,6 +2900,8 @@ watch(
     () => ({
         items: orderItems.value,
         customer: customer.value,
+        phone_number: phoneNumber.value,
+        delivery_location: deliveryLocation.value,
         orderType: orderType.value,
         table: selectedTable.value,
         subtotal: subTotal.value,
@@ -3502,6 +3534,22 @@ const getModalTotalPriceWithResale = () => {
                                             {{ formErrors.customer[0] }}
                                         </div>
                                     </div>
+
+                                    <!-- if delivery then show location and phone no  -->
+                                    <div v-if="orderType === 'Delivery'" class="mt-2">
+                                        <label class="form-label small">Delivery Location</label>
+                                        <input v-model="deliveryLocation" class="form-control form-control-sm"
+                                            placeholder="Enter delivery location" />
+                                        <div v-if="formErrors.delivery_location" class="invalid-feedback d-block">
+                                            {{ formErrors.delivery_location[0] }}
+                                        </div>
+                                        <label class="form-label small mt-2">Phone Number</label>
+                                        <input v-model="phoneNumber" class="form-control form-control-sm"
+                                            placeholder="Enter phone number" />
+                                        <div v-if="formErrors.phone_number" class="invalid-feedback d-block">
+                                            {{ formErrors.phone_number[0] }}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Line items -->
@@ -4112,7 +4160,7 @@ const getModalTotalPriceWithResale = () => {
                 @close="showReceiptModal = false" />
 
 
-            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
+            <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :delivery-location="deliveryLocation" :phone="phoneNumber" :order-type="orderType"
                 :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
                 v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
                 :sub-total="subTotal" :tax="totalTax" :service-charges="serviceCharges"
