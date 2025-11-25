@@ -8,6 +8,7 @@ use App\Http\Requests\Inventory\StoreStockEntryRequest;
 use App\Http\Requests\Inventory\UpdateStockEntryRequest;
 use App\Models\StockEntry;
 use App\Models\InventoryItem;
+use App\Models\StockOutAllocation;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -43,8 +44,13 @@ class StockEntryController extends Controller
 
     public function totalStock($productId)
     {
+        \Log::info("Controller: totalStock called for product {$productId}");
+
         $total = $this->service->totalStock($productId);
-        return response()->json(['total' => $total]);
+
+        \Log::info("Controller: Service returned:", $total);
+
+        return response()->json($total); // ✅ No 'total' wrapper
     }
 
     public function stockLogs()
@@ -83,7 +89,15 @@ class StockEntryController extends Controller
             ->stockIn()
             ->orderBy('expiry_date', 'asc')
             ->get(['id', 'quantity', 'price', 'value', 'description', 'purchase_date', 'expiry_date', 'created_at']);
+
         $mapped = $rows->map(function ($r) use ($today, $cutoff) {
+            // ✅ Calculate how much has been allocated from this batch
+            $allocated = (float) StockOutAllocation::where('stock_in_entry_id', $r->id)
+                ->sum('quantity');
+
+            // ✅ Calculate remaining available quantity
+            $available = max(0, (float) $r->quantity - $allocated);
+
             $status = 'active';
             if ($r->expiry_date) {
                 if ($r->expiry_date->lt($today)) {
@@ -94,15 +108,17 @@ class StockEntryController extends Controller
             }
 
             return [
-                'id'            => $r->id,
-                'quantity'      => (float) $r->quantity,
-                'price'         => (float) $r->price,
-                'value'         => (float) $r->value,
-                'description'   => $r->description,
-                'purchase_date' => optional($r->purchase_date)->format('Y-m-d'),
-                'expiry_date'   => optional($r->expiry_date)->format('Y-m-d'),
-                'created_at'    => optional($r->created_at)->format('Y-m-d H:i'),
-                'status'        => $status, // active | near | expired
+                'id'                 => $r->id,
+                'quantity'           => (float) $r->quantity,
+                'allocated_quantity' => $allocated,              // ✅ NEW
+                'available_quantity' => $available,              // ✅ NEW
+                'price'              => (float) $r->price,
+                'value'              => (float) $r->value,
+                'description'        => $r->description,
+                'purchase_date'      => optional($r->purchase_date)->format('Y-m-d'),
+                'expiry_date'        => optional($r->expiry_date)->format('Y-m-d'),
+                'created_at'         => optional($r->created_at)->format('Y-m-d H:i'),
+                'status'             => $status, // active | near | expired
             ];
         });
 
@@ -111,9 +127,9 @@ class StockEntryController extends Controller
             'data' => [
                 'records'        => $mapped,
                 'near_count'     => $mapped->where('status', 'near')->count(),
-                'near_qty'       => $mapped->where('status', 'near')->sum('quantity'),
+                'near_qty'       => $mapped->where('status', 'near')->sum('available_quantity'), 
                 'expired_count'  => $mapped->where('status', 'expired')->count(),
-                'expired_qty'    => $mapped->where('status', 'expired')->sum('quantity'),
+                'expired_qty'    => $mapped->where('status', 'expired')->sum('available_quantity'), 
             ],
         ]);
     }
@@ -124,5 +140,78 @@ class StockEntryController extends Controller
         $allocations = $this->service->getAllocations((int) $id);
 
         return response()->json($allocations);
+    }
+
+
+    public function debugStock($productId)
+    {
+        \Log::info("=== DEBUG STOCK FOR PRODUCT {$productId} ===");
+
+        // 1. Check Stock In entries
+        $stockIns = StockEntry::where('product_id', $productId)
+            ->where('stock_type', 'stockin')
+            ->get(['id', 'quantity', 'price', 'expiry_date', 'created_at']);
+
+        \Log::info("Stock Ins:", $stockIns->toArray());
+
+        // 2. Check Allocations
+        $allocations = StockOutAllocation::where('product_id', $productId)
+            ->get(['id', 'stock_in_entry_id', 'stock_out_entry_id', 'quantity', 'unit_price']);
+
+        \Log::info("Allocations:", $allocations->toArray());
+
+        // 3. Check Stock Out entries
+        $stockOuts = StockEntry::where('product_id', $productId)
+            ->where('stock_type', 'stockout')
+            ->get(['id', 'quantity', 'value', 'created_at']);
+
+        \Log::info("Stock Outs:", $stockOuts->toArray());
+
+        // 4. Calculate totals
+        $totalIn = StockEntry::where('product_id', $productId)
+            ->where('stock_type', 'stockin')
+            ->sum('quantity');
+
+        $totalAllocated = StockOutAllocation::where('product_id', $productId)
+            ->sum('quantity');
+
+        $totalOut = StockEntry::where('product_id', $productId)
+            ->where('stock_type', 'stockout')
+            ->sum('quantity');
+
+        \Log::info("Calculations:", [
+            'total_in' => $totalIn,
+            'total_allocated' => $totalAllocated,
+            'total_out' => $totalOut,
+            'available_method_1' => $totalIn - $totalAllocated,
+            'available_method_2' => $totalIn - $totalOut,
+        ]);
+
+        // 5. Per-batch availability
+        $batchDetails = [];
+        foreach ($stockIns as $batch) {
+            $allocated = StockOutAllocation::where('stock_in_entry_id', $batch->id)->sum('quantity');
+            $batchDetails[] = [
+                'batch_id' => $batch->id,
+                'quantity' => $batch->quantity,
+                'allocated' => $allocated,
+                'remaining' => $batch->quantity - $allocated,
+            ];
+        }
+        \Log::info("Batch Details:", $batchDetails);
+
+        return response()->json([
+            'product_id' => $productId,
+            'stock_ins' => $stockIns,
+            'allocations' => $allocations,
+            'stock_outs' => $stockOuts,
+            'totals' => [
+                'total_in' => $totalIn,
+                'total_allocated' => $totalAllocated,
+                'total_out' => $totalOut,
+                'available' => $totalIn - $totalAllocated,
+            ],
+            'batch_details' => $batchDetails,
+        ]);
     }
 }
