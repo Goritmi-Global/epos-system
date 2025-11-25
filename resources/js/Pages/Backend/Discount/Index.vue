@@ -40,6 +40,7 @@ const processing = reactive({});
 const approvalNotes = reactive({});
 const showOrderItems = reactive({});
 const refreshInterval = ref(null);
+const confirmModalKey = ref(0);
 
 // Discount type and status options for dropdowns
 const discountOptions = [
@@ -179,15 +180,8 @@ const discountStats = computed(() => [
         iconColor: "text-success",
     },
     {
-        label: "Flat Discount",
-        value: discounts.value.filter((d) => d.type === "flat").length,
-        icon: AlertTriangle,
-        iconBg: "bg-light-warning",
-        iconColor: "text-warning",
-    },
-    {
-        label: "Percentage",
-        value: discounts.value.filter((d) => d.type === "percent").length,
+        label: "Inactive Discounts",
+        value: discounts.value.filter((d) => d.status === "inactive").length,
         icon: XCircle,
         iconBg: "bg-light-danger",
         iconColor: "text-danger",
@@ -432,6 +426,7 @@ const toggleStatus = async (row) => {
         });
         row.status = newStatus;
         toast.success(`Discount status updated to ${newStatus}`);
+        confirmModalKey.value++;
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -909,7 +904,7 @@ const downloadExcel = (data) => {
                                                     <th>S.#</th>
                                                     <th>Name</th>
                                                     <th>Type</th>
-                                                    <th>Amount</th>
+                                                    <th>Discount (%)</th>
                                                     <th>Start Date</th>
                                                     <th>End Date</th>
                                                     <th>Min Purchase</th>
@@ -963,7 +958,8 @@ const downloadExcel = (data) => {
                                                                 <Pencil class="w-4 h-4" />
                                                             </button>
 
-                                                            <ConfirmModal :title="'Confirm Status Change'"
+                                                            <ConfirmModal :key="`confirm-${row.id}-${confirmModalKey}`"
+                                                                :title="'Confirm Status Change'"
                                                                 :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
                                                                 :showStatusButton="true" confirmText="Yes, Change"
                                                                 cancelText="Cancel" :status="row.status"

@@ -43,6 +43,8 @@ const editingGroup = ref(null);
 const submitting = ref(false);
 const loading = ref(false);
 
+const confirmModalKey = ref(0);
+
 // Validation errors from backend
 const formErrors = ref({});
 
@@ -349,6 +351,10 @@ const toggleStatus = async (row) => {
         // Update local state immediately
         row.status = newStatus;
         toast.success(`Status changed to ${newStatus}`);
+
+        // Force re-render of ConfirmModal to close it
+        confirmModalKey.value++;
+
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -925,7 +931,8 @@ const handleImport = (data) => {
                                             </button>
 
                                             <!-- Toggle Status Switch -->
-                                            <ConfirmModal :title="'Confirm Status Change'"
+                                            <ConfirmModal :key="`confirm-${row.id}-${confirmModalKey}`"
+                                                :title="'Confirm Status Change'"
                                                 :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
                                                 :showStatusButton="true" confirmText="Yes, Change" cancelText="Cancel"
                                                 :status="row.status" @confirm="toggleStatus(row)">
@@ -935,8 +942,7 @@ const handleImport = (data) => {
                                                         :class="row.status === 'active'
                                                             ? 'bg-green-500 hover:bg-green-600'
                                                             : 'bg-red-400 hover:bg-red-500'
-                                                            "
-                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'">
+                                                            " :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
                                                             :class="row.status === 'active'

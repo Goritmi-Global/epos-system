@@ -551,13 +551,7 @@ class PromoController extends Controller
         }
     }
 
-    /**
-     * Parse date from various formats
-     */
-   /**
- * Parse date from various formats
- */
-private function parseDate($date)
+    private function parseDate($date)
 {
     if (empty($date)) {
         return null;
@@ -573,10 +567,11 @@ private function parseDate($date)
 
     // Try common date formats in order of specificity
     $formats = [
-        'Y-m-d',           // 2025-06-01 (ISO format - most specific)
+        'Y-m-d',           // 2025-06-01 (ISO format) - PRIMARY
+        'Y-m-d H:i:s',     // 2025-06-01 12:00:00 (with time)
         'Y/m/d',           // 2025/06/01
-        'd-m-Y',           // 01-06-2025 (day with leading zero)
-        'm-d-Y',           // 06-01-2025 (month with leading zero)
+        'd-m-Y',           // 01-06-2025
+        'm-d-Y',           // 06-01-2025
     ];
 
     foreach ($formats as $format) {
@@ -589,25 +584,25 @@ private function parseDate($date)
         }
     }
 
-    // Handle dates with single-digit month/day (e.g., 6/1/2025, 1/15/2025)
-    // Determine if it's m/d/Y or d/m/Y based on values
+    // Handle dates with slashes: m/d/Y or d/m/Y
     if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $date, $matches)) {
         $first = (int)$matches[1];
         $second = (int)$matches[2];
         $year = (int)$matches[3];
 
+        // Determine format based on values
+        $format = 'm/d/Y'; // Default to US format
+        
         // If first number > 12, it must be day (d/m/Y format)
         if ($first > 12) {
-            $dateObj = \DateTime::createFromFormat('d/m/Y', $date);
+            $format = 'd/m/Y';
         }
         // If second number > 12, it must be m/d/Y format
         elseif ($second > 12) {
-            $dateObj = \DateTime::createFromFormat('m/d/Y', $date);
+            $format = 'm/d/Y';
         }
-        // Default to m/d/Y (US format) when ambiguous
-        else {
-            $dateObj = \DateTime::createFromFormat('m/d/Y', $date);
-        }
+
+        $dateObj = \DateTime::createFromFormat($format, $date);
 
         if ($dateObj !== false) {
             $dateObj->setTime(0, 0, 0);
@@ -615,13 +610,39 @@ private function parseDate($date)
         }
     }
 
-    // Last resort: try strtotime (handles many formats automatically)
+    // Handle dates with dashes: m-d-Y or d-m-Y
+    if (preg_match('#^(\d{1,2})-(\d{1,2})-(\d{4})$#', $date, $matches)) {
+        $first = (int)$matches[1];
+        $second = (int)$matches[2];
+
+        $format = 'm-d-Y'; // Default to US format
+        
+        if ($first > 12) {
+            $format = 'd-m-Y';
+        } elseif ($second > 12) {
+            $format = 'm-d-Y';
+        }
+
+        $dateObj = \DateTime::createFromFormat($format, $date);
+
+        if ($dateObj !== false) {
+            $dateObj->setTime(0, 0, 0);
+            return $dateObj;
+        }
+    }
+
+    // Last resort: try strtotime ONLY as absolute last resort
+    // and validate the result makes sense
     $timestamp = strtotime($date);
     if ($timestamp !== false) {
         $dateObj = new \DateTime();
         $dateObj->setTimestamp($timestamp);
         $dateObj->setTime(0, 0, 0);
-        return $dateObj;
+        
+        // Sanity check: year should be reasonable (2000-2100)
+        if ($dateObj->format('Y') >= 2000 && $dateObj->format('Y') <= 2100) {
+            return $dateObj;
+        }
     }
 
     return null;

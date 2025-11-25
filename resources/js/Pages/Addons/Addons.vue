@@ -44,6 +44,8 @@ const loading = ref(false);
 // Validation errors from backend
 const formErrors = ref({});
 
+const confirmModalKey = ref(0);
+
 // Status options for dropdown
 const statusOptions = [
     { label: "Active", value: "active" },
@@ -422,6 +424,8 @@ const toggleStatus = async (row) => {
         // Update local state immediately
         row.status = newStatus;
         toast.success(`Status changed to ${newStatus}`);
+
+        confirmModalKey.value++;
     } catch (error) {
         console.error("Failed to update status:", error);
         toast.error("Failed to update status");
@@ -983,7 +987,8 @@ const handleImport = (data) => {
                                             </button>
 
                                             <!-- Toggle Status Switch -->
-                                            <ConfirmModal :title="'Confirm Status Change'"
+                                            <ConfirmModal :key="`confirm-${row.id}-${confirmModalKey}`"
+                                                :title="'Confirm Status Change'"
                                                 :message="`Are you sure you want to set ${row.name} to ${row.status === 'active' ? 'Inactive' : 'Active'}?`"
                                                 :showStatusButton="true" confirmText="Yes, Change" cancelText="Cancel"
                                                 :status="row.status" @confirm="toggleStatus(row)">
@@ -1164,18 +1169,18 @@ const handleImport = (data) => {
     color: #6c757d;
 }
 
-.dark .border-dark{
- border: 1px solid #fff !important;
- color: #fff !important;
+.dark .border-dark {
+    border: 1px solid #fff !important;
+    color: #fff !important;
 }
 
-.dark .custom-bg-color{
+.dark .custom-bg-color {
     background-color: #1C0D82 !important;
     color: #fff !important;
-   
+
 }
 
-.custom-bg-color{
+.custom-bg-color {
     background-color: #1C0D82 !important;
     color: #fff !important;
 }
