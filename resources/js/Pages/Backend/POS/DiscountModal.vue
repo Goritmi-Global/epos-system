@@ -108,29 +108,33 @@
                 class="discount-card"
                 :class="{ 
                   'selected': isDiscountSelected(discount),
-                  'already-applied': isDiscountAlreadyApplied(discount)
+                  'already-applied': isDiscountAlreadyApplied(discount),
+                  'rejected': isDiscountRejected(discount)
                 }" 
                 @click="toggleDiscount(discount)">
-                
-                <!-- Selection Checkbox -->
-                <div class="discount-checkbox">
-                  <input 
-                    type="checkbox" 
-                    :checked="isDiscountSelected(discount)"
-                    :disabled="isDiscountAlreadyApplied(discount)"
-                    @click.stop="toggleDiscount(discount)"
-                    class="form-check-input"
-                  >
-                </div>
+                              
+                              <!-- Selection Checkbox -->
+                              <div class="discount-checkbox">
+                <input 
+                  type="checkbox" 
+                  :checked="isDiscountSelected(discount)"
+                  :disabled="isDiscountAlreadyApplied(discount) || isDiscountRejected(discount)"
+                  @click.stop="toggleDiscount(discount)"
+                  class="form-check-input"
+                >
+              </div>
 
                 <div class="discount-header d-flex align-items-center justify-content-between">
                   <span class="fw-bold fs-6">{{ discount.name }}</span>
                   <div class="d-flex gap-2 align-items-center">
-                    <span class="badge bg-primary text-white small">{{ discount.type.toUpperCase() }}</span>
-                    <span v-if="isDiscountAlreadyApplied(discount)" class="badge bg-success text-white small">
-                      ✓ APPLIED
-                    </span>
-                  </div>
+                  <span class="badge bg-primary text-white small">{{ discount.type.toUpperCase() }}</span>
+                  <span v-if="isDiscountAlreadyApplied(discount)" class="badge bg-success text-white small">
+                    ✓ APPLIED
+                  </span>
+                  <span v-if="isDiscountRejected(discount)" class="badge bg-danger text-white small">
+                    ✗ REJECTED
+                  </span>
+                </div>
                 </div>
 
                 <p class="discount-desc">{{ discount.description || 'Special discount offer' }}</p>
@@ -212,7 +216,8 @@ const props = defineProps({
   },
   orderItems: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
-  appliedDiscounts: { type: Array, default: () => [] } // ✅ NEW: Already applied discounts
+  appliedDiscounts: { type: Array, default: () => [] },
+  rejectedDiscounts: { type: Array, default: () => [] }
 });
 
 const emit = defineEmits(['close', 'apply-discount', 'clear-discount']);
@@ -230,10 +235,15 @@ const isDiscountAlreadyApplied = (discount) => {
   return props.appliedDiscounts.some(d => d.id === discount.id);
 };
 
+// ✅ NEW: Check if discount was rejected
+const isDiscountRejected = (discount) => {
+  return props.rejectedDiscounts.some(d => d.id === discount.id);
+};
+
 // ✅ UPDATED: Toggle discount selection (prevent re-selection of applied discounts)
 const toggleDiscount = (discount) => {
-  // Prevent selecting already applied discounts
-  if (isDiscountAlreadyApplied(discount)) {
+  // Prevent selecting already applied or rejected discounts
+  if (isDiscountAlreadyApplied(discount) || isDiscountRejected(discount)) {
     return;
   }
   
@@ -639,5 +649,32 @@ const filteredDiscounts = computed(() => {
 .discount-card.selected .discount-checkbox .form-check-input {
   background-color: #fff;
   border-color: #fff;
+}
+
+
+/* Rejected discount styles */
+.discount-card.rejected {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #ffebee !important;
+  border-color: #f44336 !important;
+}
+
+.dark .discount-card.rejected {
+  background-color: #5d1f1f !important;
+  border-color: #f44336 !important;
+}
+
+.discount-card.rejected:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.discount-card.rejected .discount-checkbox .form-check-input {
+  cursor: not-allowed;
+}
+
+.discount-card.rejected .badge.bg-danger {
+  background-color: #f44336 !important;
 }
 </style>
