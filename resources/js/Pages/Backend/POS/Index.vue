@@ -3431,7 +3431,8 @@ const getModalTotalPriceWithResale = () => {
                     <!-- RIGHT: Cart -->
 
                     <div class="col-lg-4" v-if="!showCategories">
-                        <div class="col-lg-4 d-flex align-items-center gap-2 mb-2">
+
+                        <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
                             <!-- KOT Orders button -->
                             <!-- <button class="btn btn-primary rounded-pill d-flex align-items-center gap-2 px-4"
                                 @click="openOrderModal">
@@ -3515,7 +3516,9 @@ const getModalTotalPriceWithResale = () => {
                                             <img :src="it.img" alt="" />
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
-                                                    {{ it.title }}
+                                                    <!-- {{ it.title }} -->
+                                                    {{ it.title.length > 4 ? it.title.slice(0, 4) + '...' : it.title }}
+
 
                                                 </div>
                                                 <div v-if="it.resale_discount_per_item > 0" class="mt-1">
@@ -3618,7 +3621,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                    }}</b>
+                                                }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3669,7 +3672,7 @@ const getModalTotalPriceWithResale = () => {
                                             </div>
 
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                            }}</b>
+                                                }}</b>
                                         </div>
 
                                     </div>
@@ -4431,6 +4434,9 @@ const getModalTotalPriceWithResale = () => {
         margin: 0px -131px 0px -14px !important;
     }
 }
+
+
+
 
 .fade-enter-active,
 .fade-leave-active {
@@ -5198,4 +5204,6 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.2rem 0.4rem;
     line-height: 1.2;
 }
+
+
 </style>
