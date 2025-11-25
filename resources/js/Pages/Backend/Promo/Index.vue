@@ -119,12 +119,28 @@ const handleImport = (data) => {
     const rows = data.slice(1);
 
     const promosToImport = rows.map((row) => {
+        // Normalize dates to YYYY-MM-DD format
+        const normalizeDate = (dateStr) => {
+            if (!dateStr) return "";
+            
+            const dateObj = new Date(dateStr);
+            if (isNaN(dateObj.getTime())) {
+                return dateStr; // Return as-is if can't parse
+            }
+            
+            // Return in YYYY-MM-DD format
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
         return {
             name: row[0] || "",
             type: row[1] || "percent",
             discount_amount: row[2] || "",
-            start_date: row[3] || "",
-            end_date: row[4] || "",
+            start_date: normalizeDate(row[3]),
+            end_date: normalizeDate(row[4]),
             min_purchase: row[5] || "0",
             max_discount: row[6] || null,
             status: row[7] || "active",
@@ -186,7 +202,14 @@ const handleImport = (data) => {
         .catch((err) => {
             console.error("Import error:", err);
             const errorMessage = err.response?.data?.message || "Import failed";
-            toast.error(errorMessage);
+            const errors = err.response?.data?.errors || [];
+            
+            if (errors.length > 0) {
+                console.error("Detailed errors:", errors);
+                toast.error(`${errorMessage}: ${errors.join(", ")}`);
+            } else {
+                toast.error(errorMessage);
+            }
         });
 };
 

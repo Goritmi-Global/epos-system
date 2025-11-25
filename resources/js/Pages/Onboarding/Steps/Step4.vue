@@ -264,6 +264,9 @@ const taxTypeOptions = ref([
 </template>
 
 <style scoped>
+body {
+  overflow: hidden !important;
+}
 .dark input {
   background-color: #181818 !important;
   color: #ffffff;
