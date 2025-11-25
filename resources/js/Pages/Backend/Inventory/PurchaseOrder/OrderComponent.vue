@@ -54,6 +54,12 @@ watch(
 
 onMounted(() => {
     feather.replace();
+    const addOrderModal = document.getElementById("addOrderModal");
+    if (addOrderModal) {
+        addOrderModal.addEventListener("show.bs.modal", () => {
+            activeTab.value = "single"; // Reset to single order tab
+        });
+    }
 });
 
 const filteredItems = computed(() => {
@@ -108,6 +114,20 @@ function updateSubtotal(it) {
     }
 
     it.subtotal = qty * price;
+}
+
+function handleQtyInput(it) {
+    if (it.qty < 0) {
+        it.qty = 0;
+    }
+    updateSubtotal(it);
+}
+
+function handlePriceInput(it) {
+    if (it.unitPrice < 0) {
+        it.unitPrice = 0;
+    }
+    updateSubtotal(it);
 }
 
 function updateMultipleSubtotal(it) {
@@ -672,9 +692,9 @@ const formatDate = (date) => {
                                         <td>{{ it.stock }}</td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="updateSubtotal(it)" />
-                                            <small v-if="formErrors[it.id]?.qty" class="text-danger">
-                                                {{ formErrors[it.id].qty[0] }}
+                                                @input="handleQtyInput(it)" />
+                                            <small v-if="formErrors[idx]?.qty" class="text-danger">
+                                                {{ formErrors[idx].qty }}
                                             </small>
                                         </td>
                                         <td>
@@ -689,9 +709,9 @@ const formatDate = (date) => {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="updateSubtotal(it)" />
-                                            <small v-if="formErrors[it.id]?.unit_price" class="text-danger">
-                                                {{ formErrors[it.id].unit_price[0] }}
+                                                class="form-control" @input="handlePriceInput(it)" />
+                                            <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
+                                                {{ formErrors[idx].unitPrice }}
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol((it.subtotal || 0).toFixed(2)) }}</td>
@@ -763,9 +783,9 @@ const formatDate = (date) => {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="updateMultipleSubtotal(it)" />
-                                            <small v-if="m_formErrors[it.id]?.qty" class="text-danger">
-                                                {{ m_formErrors[it.id].qty[0] }}
+                                                @input="handleQtyInput(it)" />
+                                            <small v-if="formErrors[idx]?.qty" class="text-danger">
+                                                {{ formErrors[idx].qty }}
                                             </small>
                                         </td>
                                         <td>
@@ -780,9 +800,9 @@ const formatDate = (date) => {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="updateMultipleSubtotal(it)" />
-                                            <small v-if="m_formErrors[it.id]?.unit_price" class="text-danger">
-                                                {{ m_formErrors[it.id].unit_price[0] }}
+                                                class="form-control" @input="handlePriceInput(it)" />
+                                            <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
+                                                {{ formErrors[idx].unitPrice }}
                                             </small>
                                         </td>
                                         <td>{{ formatCurrencySymbol((it.subtotal || 0).toFixed(2)) }}</td>

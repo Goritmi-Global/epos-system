@@ -75,6 +75,7 @@ class SupplierController extends Controller
     // SupplierController.php
     public function import(Request $request): JsonResponse
     {
+        
         $suppliers = $request->input('suppliers', []);
         $imported = 0;
         $skipped = [];
@@ -84,13 +85,13 @@ class SupplierController extends Controller
             $validated = validator($data, [
                 'name' => 'required|string|max:100',
                 'email' => 'required|email|max:100',
-                'contact' => 'nullable|string|max:50',
+                'contact' => 'required',
                 'address' => 'required|string|max:255',
                 'preferred_items' => 'nullable|string|max:255',
             ])->validate();
 
             // Check if supplier already exists by email or contact
-            $exists = \App\Models\Supplier::where('email', $validated['email'])
+            $exists = Supplier::where('email', $validated['email'])
                 ->orWhere('contact', $validated['contact'])
                 ->exists();
 

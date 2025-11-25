@@ -65,12 +65,36 @@ watch(
 
 onMounted(() => {
     feather.replace();
+    const bulkOrderModal = document.getElementById("bulkOrderModal");
+    if (bulkOrderModal) {
+        bulkOrderModal.addEventListener("show.bs.modal", () => {
+            activeTab.value = "single";
+        });
+
+        bulkOrderModal.addEventListener("hide.bs.modal", () => {
+            activeTab.value = "single";
+        });
+    }
 });
 
 function updateSubtotal(it) {
     const qty = Number(it.qty) || 0;
     const price = Number(it.unitPrice) || 0;
     it.subtotal = qty * price;
+}
+
+function handleQtyInput(it) {
+    if (it.qty < 0) {
+        it.qty = 0;
+    }
+    updateSubtotal(it);
+}
+
+function handlePriceInput(it) {
+    if (it.unitPrice < 0) {
+        it.unitPrice = 0;
+    }
+    updateSubtotal(it);
 }
 
 function delRow(idx) {
@@ -354,14 +378,14 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="updateSubtotal(it)" />
+                                                @input="handleQtyInput(it)" />
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="updateSubtotal(it)" />
+                                                class="form-control" @input="handlePriceInput(it)" />
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
@@ -444,18 +468,22 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
 
+
+
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="updateSubtotal(it)" />
-                                            <small v-if="m_formErrors[idx]?.qty" class="text-danger">
-                                                {{ m_formErrors[idx].qty }}
+                                                @input="handleQtyInput(it)" />
+                                            <small v-if="formErrors[idx]?.qty" class="text-danger">
+                                                {{ formErrors[idx].qty }}
                                             </small>
                                         </td>
+
+
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="updateSubtotal(it)" />
-                                            <small v-if="m_formErrors[idx]?.unitPrice" class="text-danger">
-                                                {{ m_formErrors[idx].unitPrice }}
+                                                class="form-control" @input="handlePriceInput(it)" />
+                                            <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
+                                                {{ formErrors[idx].unitPrice }}
                                             </small>
                                         </td>
                                         <td>
@@ -542,7 +570,7 @@ async function multipleSubmit() {
     color: #fff !important;
 }
 
-.dark .form-select{
+.dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }

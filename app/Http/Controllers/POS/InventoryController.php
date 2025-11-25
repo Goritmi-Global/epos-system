@@ -96,7 +96,6 @@ class InventoryController extends Controller
 
     public function import(Request $request): JsonResponse
     {
-
         $items = $request->input('items', []);
     
         foreach ($items as $row) {
@@ -135,6 +134,7 @@ class InventoryController extends Controller
             $item = InventoryItem::create([
                 'name' => $row['name'],
                 'sku' => $row['sku'],
+                'description' => $row['description'],
                 'category_id' => $category?->id,
                 'minAlert' => $row['min_alert'],
                 'unit_id' => $unit?->id,
