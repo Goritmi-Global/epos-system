@@ -310,8 +310,7 @@ const iconOptions = [
     },
 ];
 
-
-const commonChips = [
+const commonChips = ref([
     {
         label: "Hot Drinks",
         value: "Hot Drinks",
@@ -372,7 +371,7 @@ const commonChips = [
         value: "Ice Cream",
         icon: "/assets/img/ice-cream.png",
     },
-];
+]);
 
 
 
@@ -969,18 +968,14 @@ const addCustomCategory = () => {
     const name = (filterText.value || "").trim();
     if (!name) return;
 
-    // Check if category already exists
-    if (
-        !commonChips.value.some(
-            (o) => o.label.toLowerCase() === name.toLowerCase()
-        )
-    ) {
+    // Check if category already exists in commonChips
+    if (!commonChips.value.some((o) => o.label.toLowerCase() === name.toLowerCase())) {
         commonChips.value.push({ label: name, value: name });
     }
 
-    // Add it to selected categories if not already selected
+    // Add just the VALUE (string) to manualCategories, not the object
     if (!manualCategories.value.includes(name)) {
-        manualCategories.value = [...manualCategories.value, name];
+        manualCategories.value = [...manualCategories.value, name]; // ✅ Push the string value
     }
 
     filterText.value = "";
