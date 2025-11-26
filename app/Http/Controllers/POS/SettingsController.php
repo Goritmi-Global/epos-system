@@ -198,7 +198,7 @@ class SettingsController extends Controller
         //  Step 6
         if ($step === 6 && $request->hasFile('receipt_logo_file')) {
             try {
-                $existingStep = \App\Models\ProfileStep6::where('user_id', $user->id)->first();
+                $existingStep = ProfileStep6::where('user_id', $user->id)->first();
                 $oldUploadId = $existingStep->upload_id ?? null;
 
                 $upload = UploadHelper::store(
@@ -208,15 +208,20 @@ class SettingsController extends Controller
                 );
 
                 $data['upload_id'] = $upload->id;
+                $data['receipt_logo_url'] = UploadHelper::url($upload->id, 'public');
 
                 if ($oldUploadId) {
-                    UploadHelper::delete($oldUploadId); //  FIXED
+                    UploadHelper::delete($oldUploadId);
                 }
 
                 unset($data['receipt_logo_file']);
             } catch (\Exception $e) {
                 return response()->json(['error' => 'Failed to upload receipt logo'], 500);
             }
+        } elseif ($step === 6 && ! empty($existingData['upload_id'])) {
+            // Keep existing receipt logo if no new file uploaded
+            $data['upload_id'] = $existingData['upload_id'];
+            $data['receipt_logo_url'] = $existingData['receipt_logo_url'] ?? UploadHelper::url($existingData['upload_id']);
         }
 
         if ($step === 8 && isset($data['hours'])) {
@@ -392,14 +397,30 @@ class SettingsController extends Controller
                 ]
             ),
 
+            // 6 => $request->validate([
+            //     'receipt_header' => 'required|string|max:2000',
+            //     'receipt_footer' => 'required|string|max:2000',
+            //     'receipt_logo' => 'nullable',
+            //     // FIXED: Check existing data properly
+            //     'receipt_logo_file' => (! empty($existingData['upload_id']) || ! empty($existingData['receipt_logo_url']))
+            //         ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
+            //         : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
+            //     'show_qr_on_receipt' => 'required|boolean',
+            //     'customer_printer' => 'nullable|string|max:255',
+            //     'kot_printer' => 'nullable|string|max:255',
+            //     'tax_breakdown_on_receipt' => 'required|boolean',
+            //     'printers' => 'nullable|array',
+            // ], [
+            //     'receipt_logo_file.required' => 'Please upload a receipt logo.',
+            // ]),
             6 => $request->validate([
-                'receipt_header' => 'required|string|max:2000',
-                'receipt_footer' => 'required|string|max:2000',
+                'receipt_header' => 'required|string|filled|max:2000',
+                'receipt_footer' => 'required|string|filled|max:2000',
                 'receipt_logo' => 'nullable',
-                // FIXED: Check existing data properly
+                // Check existing data - if already has logo, file is optional
                 'receipt_logo_file' => (! empty($existingData['upload_id']) || ! empty($existingData['receipt_logo_url']))
                     ? 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048'
-                    : 'required|file|mimes:jpeg,jpg,png,webp|max:2048',
+                    : 'nullable|file|mimes:jpeg,jpg,png,webp|max:2048', // CHANGED: Made nullable for settings
                 'show_qr_on_receipt' => 'required|boolean',
                 'customer_printer' => 'nullable|string|max:255',
                 'kot_printer' => 'nullable|string|max:255',
@@ -527,7 +548,7 @@ class SettingsController extends Controller
                 $stepData = $modelClass::where('user_id', $userId)->first();
                 $data["step{$i}"] = $stepData ? $stepData->toArray() : [];
 
-                //  Step 1: map country info
+                // Step 1: map country info
                 if ($i === 1 && ! empty($data['step1']['country_id'])) {
                     $country = \App\Models\Country::where('id', $data['step1']['country_id'])->first();
                     if ($country) {
@@ -536,6 +557,7 @@ class SettingsController extends Controller
                     }
                 }
 
+                // Step 2: Logo handling
                 if ($i === 2 && $stepData) {
                     $data['step2'] = $stepData->toArray();
 
@@ -567,6 +589,7 @@ class SettingsController extends Controller
                     $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
                 }
 
+                // Step 5: Table management
                 if ($i === 5 && $stepData) {
                     $data['step5'] = $stepData->toArray();
 
@@ -580,7 +603,30 @@ class SettingsController extends Controller
                     }
                 }
 
-                //  Special handling for step 8 (business hours)
+                // Step 6: Receipt Logo - FIXED
+                if ($i === 6 && $stepData) {
+                    $data['step6'] = $stepData->toArray();
+
+                    // Load receipt logo using UploadHelper
+                    $uploadId = $stepData->upload_id ?? null;
+                    $data['step6']['receipt_logo_url'] = UploadHelper::url($uploadId) ?? null;
+
+                    // Also set receipt_logo for backward compatibility
+                    $data['step6']['receipt_logo'] = $data['step6']['receipt_logo_url'];
+                }
+
+                // Step 7: Logout options
+                if ($i === 7 && $stepData) {
+                    $data['step7'] = $stepData->toArray();
+
+                    // Ensure all logout option booleans are properly cast
+                    $data['step7']['logout_after_order'] = (bool) ($data['step7']['logout_after_order'] ?? false);
+                    $data['step7']['logout_after_time'] = (bool) ($data['step7']['logout_after_time'] ?? false);
+                    $data['step7']['logout_manual_only'] = (bool) ($data['step7']['logout_manual_only'] ?? false);
+                    $data['step7']['logout_time_minutes'] = (int) ($data['step7']['logout_time_minutes'] ?? 30);
+                }
+
+                // Step 8: Business hours
                 if ($i === 8 && $stepData) {
                     $businessHours = BusinessHour::where('user_id', $userId)->get();
 
@@ -598,6 +644,7 @@ class SettingsController extends Controller
                     })->toArray();
                 }
 
+                // Step 9: Features mapping
                 if ($i === 9 && ! empty($data['step9'])) {
                     // Map database columns back to form fields
                     $data['step9']['feat_loyalty'] = ($data['step9']['enable_loyalty_system'] ?? false) ? 'yes' : 'no';
@@ -605,25 +652,6 @@ class SettingsController extends Controller
                     $data['step9']['feat_backup'] = ($data['step9']['enable_cloud_backup'] ?? false) ? 'yes' : 'no';
                     $data['step9']['feat_multilocation'] = ($data['step9']['enable_multi_location'] ?? false) ? 'yes' : 'no';
                     $data['step9']['feat_theme'] = ! empty($data['step9']['theme_preference']) ? 'yes' : 'no';
-                }
-
-                //  Step 2: Logo using UploadHelper
-                if ($i === 2 && $stepData) {
-                    $uploadId = $stepData->upload_id ?? null;
-                    $data['step2']['logo_url'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
-                }
-                if ($i === 7 && $stepData) {
-                    $data['step7'] = $stepData->toArray();
-
-                    // Ensure all logout option booleans are properly cast
-                    $data['step7']['logout_after_order'] = (bool) ($data['step7']['logout_after_order'] ?? false);
-                    $data['step7']['logout_after_time'] = (bool) ($data['step7']['logout_after_time'] ?? false);
-                    $data['step7']['logout_manual_only'] = (bool) ($data['step7']['logout_manual_only'] ?? false);
-                    $data['step7']['logout_time_minutes'] = (int) ($data['step7']['logout_time_minutes'] ?? 30);
-                }
-                if ($i === 6 && $stepData) {
-                    $uploadId = $stepData->upload_id ?? null;
-                    $data['step6']['receipt_logo'] = UploadHelper::url($uploadId) ?? asset('assets/img/default.png');
                 }
             }
         }

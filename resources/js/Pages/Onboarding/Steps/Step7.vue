@@ -70,7 +70,7 @@ watch(form, emitSave, { deep: true, immediate: true })
     <!-- Cashier Logout Section -->
     <div class="mb-5">
       <h6 class="fw-semibold mb-3"><i class="bi bi-door-open me-2"></i>Cashier Logout Options</h6>
-      <small class="text-muted d-block mb-3">Select when cashiers should be logged out automatically</small>
+      <small class="text-muted d-block mb-3 ">Select when cashiers should be logged out automatically</small>
 
       <!-- Option A: After Each Order -->
       <div class="mb-3 d-flex align-items-center justify-content-between">
@@ -191,5 +191,8 @@ watch(form, emitSave, { deep: true, immediate: true })
 
 .segmented__btn:active {
   transform: translateY(1px);
+}
+.dark .text-muted{
+  color: #fff !important;
 }
 </style>

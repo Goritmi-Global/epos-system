@@ -27,13 +27,6 @@ class UnitController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-
-        // Two supported request shapes:
-        // 1) Batch base units:
-        //    { units: [ { name: 'kg' }, { name: 'g' } ] }
-        // 2) Single derived unit:
-        //    { name: 'gram', base_unit_id: 1, conversion_factor: 0.001 }
-
         if ($request->has('units') && is_array($request->input('units'))) {
             $validator = Validator::make($request->all(), [
                 'units' => 'required|array|min:1',
@@ -51,7 +44,7 @@ class UnitController extends Controller
             return response()->json(['message' => 'Units created successfully', 'data' => $created], 201);
         }
 
-        // Single unit path (base or derived)
+   
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100|unique:units,name',
             'base_unit_id' => 'nullable|exists:units,id',

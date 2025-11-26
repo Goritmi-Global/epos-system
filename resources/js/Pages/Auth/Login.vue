@@ -176,8 +176,8 @@ const switchToPin = () => {
                 <div class="login-wrapper">
                     <div class="login-content">
                         <div class="login-userset">
-                            <div class="login-logo-wrapper">
-                                <div class="login-logo">
+                            <div class="login-logo-wrapper mx-auto">
+                                <div class="login-logo ">
                                     <img src="/assets/img/10x Global.png" alt="img" class="logo-img" />
                                 </div>
                             </div>
@@ -353,7 +353,7 @@ const switchToPin = () => {
 }
 
 .logo-img {
-    max-width: 400px;
+    max-width: 150px;
     height: auto;
     margin: 0 auto;
     display: block;
@@ -374,7 +374,7 @@ const switchToPin = () => {
 
 @media only screen and (min-width: 1024px) and (max-width: 1800px) {
     .logo-img {
-        max-width: 400px;
+        max-width: 140px
     }
 
     .login-logo-wrapper {

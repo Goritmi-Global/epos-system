@@ -9,12 +9,11 @@ const emit = defineEmits(["save"]);
 
 const { formatMoney, formatNumber, formatCurrencySymbol, dateFmt } = useFormatters()
 
-
 const form = reactive({
   receipt_header: props.model?.receipt_header ?? props.model?.business_name ?? "Enter store name",
   receipt_footer: props.model?.receipt_footer ?? "Thank You for Taste Us",
-  receipt_logo: props.model?.receipt_logo ?? null, // preview (URL or base64)
-  receipt_logo_file: null, // file for backend
+  receipt_logo: props.model?.receipt_logo_url ?? props.model?.logo_url ?? null, // Display URL
+  receipt_logo_file: null, // New file for upload
   show_qr: props.model?.show_qr ?? 1,
   tax_breakdown: props.model?.tax_breakdown ?? true,
   store_phone: props.model?.phone ?? "",
@@ -24,16 +23,20 @@ const form = reactive({
   kot_printer: props.model?.kot_printer ?? "",
 });
 
-watch(form, () => emit("save", { step: 6, data: toRaw(form) }), { deep: true });
+watch(form, () => emit("save", { step: 6, data: toRaw(form) }), { deep: true, immediate:true });
 
 /* --- Image crop/zoom like Step 2 --- */
 const showCropper = ref(false);
 
-function onCropped({ file }) {
-  form.receipt_logo_file = file;
-  form.receipt_logo = URL.createObjectURL(file);
+function openCropper() {
+  showCropper.value = true;
 }
 
+function onCropped({ file }) {
+  form.receipt_logo_file = file;
+  form.receipt_logo = URL.createObjectURL(file); // Update preview immediately
+  showCropper.value = false;
+}
 
 // Get All Connected Printers
 const printers = ref([]);
@@ -45,7 +48,6 @@ const fetchPrinters = async () => {
     const res = await axios.get("/api/printers");
     console.log("Printers:", res.data.data);
 
-    // ✅ Only show connected printers (status OK)
     printers.value = res.data.data
       .filter(p => p.is_connected === true || p.status === "OK")
       .map(p => ({
@@ -61,7 +63,6 @@ const fetchPrinters = async () => {
   }
 };
 
-// 🔹 Fetch once on mount
 onMounted(fetchPrinters);
 
 
@@ -87,10 +88,8 @@ onMounted(fetchPrinters);
           <div class="col-md-4">
             <small class="text-muted mt-2">Upload Receipt Logo</small>
             <div class="logo-card">
-              <div class="logo-frame" @click="
-                form.receipt_logo && openImageModal(form.receipt_logo)
-                ">
-                <img v-if="form.receipt_logo" :src="form.receipt_logo" alt="Logo" />
+              <div class="logo-frame" @click="openCropper()">
+                <img v-if="form.receipt_logo" :src="form.receipt_logo" alt="Receipt Logo" class="receipt-logo-preview" />
                 <div v-else class="placeholder">
                   <i class="bi bi-image"></i>
                 </div>
@@ -98,7 +97,7 @@ onMounted(fetchPrinters);
 
               <ImageCropperModal :show="showCropper" @close="showCropper = false" @cropped="onCropped" />
 
-
+              <small class="d-block text-center mt-2 text-muted">Click to upload/change logo</small>
             </div>
             <small v-if="formErrors?.receipt_logo_file" class="text-danger">
               {{ formErrors.receipt_logo_file[0] }}
@@ -122,10 +121,10 @@ onMounted(fetchPrinters);
               </label>
               <div class="segmented">
                 <input class="segmented__input" type="radio" id="qr-yes" :value="1"
-                  :class="{ 'is-invalid': formErrors?.show_qr }" v-model="form.show_qr" />
+                  :class="{ 'is-invalid': formErrors?.show_qr }" v-model.number="form.show_qr" />
                 <label class="segmented__btn" :class="{ 'is-active': form.show_qr === 1 }" for="qr-yes">YES</label>
 
-                <input class="segmented__input" type="radio" id="qr-no" :value="0" v-model="form.show_qr" />
+                <input class="segmented__input" type="radio" id="qr-no" :value="0" v-model.number="form.show_qr" />
                 <label class="segmented__btn" :class="{ 'is-active': form.show_qr === 0 }" for="qr-no">NO</label>
                 <small v-if="formErrors?.show_qr" class="text-danger">
                   {{ formErrors.show_qr[0] }}
@@ -189,8 +188,6 @@ onMounted(fetchPrinters);
               </div>
             </div>
 
-
-
             <!-- Printers error -->
             <small v-if="formErrors?.printers" class="text-danger">
               {{ formErrors.printers[0] }}
@@ -203,19 +200,17 @@ onMounted(fetchPrinters);
       <div class="col-lg-5">
         <div class="receipt-card">
           <div class="text-center">
-            <!-- <div class="text-center small"> {{ form.receipt_header }} </div> -->
-            <div v-if="props.model?.logo_url" class="mb-2 logo-container">
-              <img :src="props.model?.logo_url ?? ''" alt class="logo-preview rounded-circle" />
+            <!-- Receipt Logo Preview -->
+            <div v-if="form.receipt_logo" class="mb-3 receipt-logo-container">
+              <img :src="form.receipt_logo" alt="Receipt Logo" class="receipt-logo-display" />
             </div>
          
-
             <h6 class="mb-1">{{ form.receipt_header }}</h6>
             <div class="text-center my-2">
-              <!-- class="badge-pill" -->
-              <div>{{ form.store_phone }}</div>
+              <div class="text-muted small">{{ form.store_phone }}</div>
             </div>
             <div class="text-center my-2">
-              <div>{{ form.address }}</div>
+              <div class="text-muted small">{{ form.address }}</div>
             </div>
 
           </div>
@@ -272,7 +267,7 @@ onMounted(fetchPrinters);
   color: #fff !important;
 }
 
-/* -------- Match Step 5 segmented style -------- */
+/* -------- Segmented style -------- */
 .segmented {
   display: inline-flex;
   border-radius: 999px;
@@ -321,96 +316,13 @@ onMounted(fetchPrinters);
   transform: translateY(1px);
 }
 
-/* -------- Upload card -------- */
+/* -------- Logo Upload Card -------- */
 .logo-card {
   text-align: center;
 }
 
 .dark .logo-card {
   background-color: #121212 !important;
-}
-
-.logo-box {
-  width: 140px;
-  height: 140px;
-  border-radius: 16px;
-  border: 2px dashed #d9deea;
-  background: #fafbff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.logo-box:hover {
-  border-color: #c6cbe1;
-  background: #f7f8ff;
-}
-
-.logo-box img {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: 12px;
-}
-
-.logo-empty {
-  color: #9aa3b2;
-  font-size: 28px;
-}
-
-.logo-box--has {
-  border-style: solid;
-  border-color: #e7ebf5;
-  background: #fff;
-}
-
-/* -------- Receipt preview -------- */
-.receipt-card {
-  background: #fff;
-  border: 1px solid #edf0f6;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 6px 20px rgba(17, 38, 146, 0.06);
-}
-
-.dark .receipt-card {
-  background-color: #121212 !important;
-  color: #ffffff !important;
-}
-
-.dark input {
-  background-color: #121212 !important;
-  color: #ffffff !important;
-}
-
-.badge-pill {
-  border: 1px solid #e3e7f2;
-  border-radius: 999px;
-  padding: 0.35rem 0.9rem;
-  display: inline-block;
-}
-
-.logo-preview {
-  max-height: 48px;
-  width: auto;
-}
-
-/* Simple QR placeholder */
-.qr-box {
-  width: 84px;
-  height: 84px;
-  border: 4px solid #222;
-  background: repeating-linear-gradient(90deg,
-      #222 0 6px,
-      transparent 6px 12px),
-    repeating-linear-gradient(0deg, #222 0 6px, transparent 6px 12px);
-  background-blend-mode: multiply;
-}
-
-/* Compact labels */
-.form-label {
-  margin-bottom: 0.35rem;
 }
 
 .logo-frame {
@@ -424,34 +336,84 @@ onMounted(fetchPrinters);
   justify-content: center;
   overflow: hidden;
   cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0 auto;
 }
 
-.logo-frame img {
+.logo-frame:hover {
+  border-color: #1c0d82;
+  background: #f0f3ff;
+}
+
+.logo-frame .receipt-logo-preview {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  padding: 4px;
+  border-radius: 20px;
 }
 
 .logo-frame .placeholder {
   color: #8b97a7;
-  font-size: 28px;
+  font-size: 36px;
   line-height: 0;
+}
+
+/* -------- Receipt Preview Card -------- */
+.receipt-card {
+  background: #fff;
+  border: 1px solid #edf0f6;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(17, 38, 146, 0.06);
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.dark .receipt-card {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+}
+
+.dark input {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+}
+
+.receipt-logo-container {
+  text-align: center;
+}
+
+.receipt-logo-display {
+  max-width: 100px;
+  max-height: 80px;
+  object-fit: contain;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* -------- QR Box -------- */
+.qr-box {
+  width: 84px;
+  height: 84px;
+  border: 4px solid #222;
+  background: repeating-linear-gradient(90deg,
+      #222 0 6px,
+      transparent 6px 12px),
+    repeating-linear-gradient(0deg, #222 0 6px, transparent 6px 12px);
+  background-blend-mode: multiply;
+  margin: 0 auto;
+}
+
+/* -------- Form Elements -------- */
+.form-label {
+  margin-bottom: 0.35rem;
+  font-weight: 500;
 }
 
 .dial-select {
   min-width: 130px;
   border: 0;
-}
-
-.logo-container {
-  text-align: center;
-}
-
-.logo-preview {
-  max-width: 120px;
-  /* optional: keeps it small */
-  display: inline-block;
-  border-radius: 0.5rem;
 }
 
 :deep(.p-select) {
@@ -460,26 +422,21 @@ onMounted(fetchPrinters);
   border-color: #9b9c9c;
 }
 
-/* Options container */
 :deep(.p-select-list-container) {
   background-color: white !important;
   color: black !important;
 }
 
-/* Each option */
 :deep(.p-select-option) {
   background-color: transparent !important;
-  /* instead of 'none' */
   color: black !important;
 }
 
-/* Hovered option */
 :deep(.p-select-option:hover) {
   background-color: #f0f0f0 !important;
   color: black !important;
 }
 
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
   background-color: #f0f0f0 !important;
   color: black !important;
@@ -496,5 +453,13 @@ onMounted(fetchPrinters);
 .dark .form-control {
   background-color: #121212 !important;
   color: #fff !important;
+}
+
+.text-muted {
+  color: #6c757d;
+}
+
+.dark .text-muted {
+  color: #999 !important;
 }
 </style>
