@@ -73,7 +73,7 @@ const registeredEmail = ref("");
                     <div class="login-content">
                         <div class="login-userset">
                             <div
-                                class="login-logo d-flex justify-content-center"
+                                class="login-logo d-flex justify-content-center mx-auto"
                             >
                                 <img
                                     src="/assets/img/10x Global.png"

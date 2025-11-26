@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
-use Illuminate\Http\Request;
+use App\Models\InventoryItem;
+use App\Models\Payment;
+use App\Models\PosOrder;
+use App\Models\PosOrderItem;
 use App\Models\ProfileStep1;
 use App\Models\ProfileStep2;
 use App\Models\ProfileStep3;
@@ -13,29 +15,42 @@ use App\Models\ProfileStep6;
 use App\Models\ProfileStep7;
 use App\Models\ProfileStep8;
 use App\Models\ProfileStep9;
-use App\Models\InventoryItem;
-use App\Models\Payment;
-use App\Models\PosOrder;
-use App\Models\PosOrderItem;
 use App\Models\PurchaseOrder;
 use App\Models\StockEntry;
 use App\Models\Supplier;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    protected function getAvailableYears()
+    {
+        $posYears = PosOrder::selectRaw('YEAR(order_date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        $purchaseYears = PurchaseOrder::selectRaw('YEAR(purchase_date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        return $posYears->merge($purchaseYears)->unique()->sort()->values();
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login'); // or abort(403)
         }
-         $role = $user->getRoleNames()->first();
-    // ✅ Redirect cashier directly to POS and block dashboard access
-    if ($role === 'Cashier') {
-        return redirect()->route('pos.order');
-    }
+        $role = $user->getRoleNames()->first();
+        // ✅ Redirect cashier directly to POS and block dashboard access
+        if ($role === 'Cashier') {
+            return redirect()->route('pos.order');
+        }
 
         // // ✅ Step check for onboarding
         // if ($role === 'Super Admin') {
@@ -55,7 +70,6 @@ class DashboardController extends Controller
         //     }
         // }
 
-
         // ✅ Step check for onboarding only for first super admin
         if ($user->is_first_super_admin) {
             $stepsCompleted = ProfileStep1::where('user_id', $user->id)->exists()
@@ -68,8 +82,9 @@ class DashboardController extends Controller
                 && ProfileStep8::where('user_id', $user->id)->exists()
                 && ProfileStep9::where('user_id', $user->id)->exists();
 
-            if (!$stepsCompleted && $request->routeIs('dashboard')) {
+            if (! $stepsCompleted && $request->routeIs('dashboard')) {
                 session()->forget('url.intended');
+
                 return redirect()->route('onboarding.index');
             }
         }
@@ -89,14 +104,16 @@ class DashboardController extends Controller
 
             // Format: "Product Name (Current Stock: X)"
             if ($stock <= 0) {
-                $outOfStockItems[] = $item->name . ' (Stock: 0)';
+                $outOfStockItems[] = $item->name.' (Stock: 0)';
             } elseif ($stock < $minAlert) {
-                $lowStockItems[] = $item->name . ' (Stock: ' . $stock . ', Min: ' . $minAlert . ')';
+                $lowStockItems[] = $item->name.' (Stock: '.$stock.', Min: '.$minAlert.')';
             }
         }
 
         foreach ($stockEntries as $entry) {
-            if (!$entry->expiry_date) continue;
+            if (! $entry->expiry_date) {
+                continue;
+            }
 
             $expiry = Carbon::parse($entry->expiry_date);
             $today = Carbon::today();
@@ -106,10 +123,10 @@ class DashboardController extends Controller
             $batchNumber = $entry->batch_number ?? '';
 
             if ($expiry->lt($today)) {
-                $expiredItems[] = $itemName . ' (Expired: ' . $expiry->format('M d, Y') . ')' . ($batchNumber ? ' - Batch: ' . $batchNumber : '');
+                $expiredItems[] = $itemName.' (Expired: '.$expiry->format('M d, Y').')'.($batchNumber ? ' - Batch: '.$batchNumber : '');
             } elseif ($expiry->diffInDays($today) <= 15 && $expiry->gt($today)) {
                 $daysLeft = $expiry->diffInDays($today);
-                $nearExpiryItems[] = $itemName . ' (Expires in ' . $daysLeft . ' day' . ($daysLeft > 1 ? 's' : '') . ')' . ($batchNumber ? ' - Batch: ' . $batchNumber : '');
+                $nearExpiryItems[] = $itemName.' (Expires in '.$daysLeft.' day'.($daysLeft > 1 ? 's' : '').')'.($batchNumber ? ' - Batch: '.$batchNumber : '');
             }
         }
 
@@ -147,7 +164,44 @@ class DashboardController extends Controller
         // Get current month and year dynamically
         $now = Carbon::now();
         $currentMonth = $now->month;
-        $currentYear  = $now->year;
+        $currentYear = $now->year;
+
+        $selectedYear = $request->input('year', now()->year);
+
+        // Get available years
+        $availableYears = $this->getAvailableYears();
+
+        // Monthly data for selected year
+        // In the index method, update the monthly data section:
+
+        $monthlySales = PosOrder::where('status', 'paid')
+            ->whereYear('order_date', $selectedYear)
+            ->select(
+                DB::raw('MONTH(order_date) as month'),
+                DB::raw('CAST(SUM(total_amount) AS DECIMAL(10,2)) as total')
+            )
+            ->groupBy('month')
+            ->orderBy('month')
+            ->pluck('total', 'month');
+
+        $monthlyPurchases = PurchaseOrder::where('status', 'completed')
+            ->whereYear('purchase_date', $selectedYear)
+            ->select(
+                DB::raw('MONTH(purchase_date) as month'),
+                DB::raw('CAST(SUM(total_amount) AS DECIMAL(10,2)) as total')
+            )
+            ->groupBy('month')
+            ->orderBy('month')
+            ->pluck('total', 'month');
+
+        // Fill all 12 months with numeric 0
+        $monthlySalesArray = [];
+        $monthlyPurchasesArray = [];
+
+        for ($i = 1; $i <= 12; $i++) {
+            $monthlySalesArray[] = (float) ($monthlySales->get($i, 0));
+            $monthlyPurchasesArray[] = (float) ($monthlyPurchases->get($i, 0));
+        }
 
         $dailyPurchases = PurchaseOrder::where('status', 'completed')
             ->whereMonth('purchase_date', $currentMonth)
@@ -168,7 +222,6 @@ class DashboardController extends Controller
             $dailyPurchasesArray[] = $dailyPurchases->get($i, 0);
         }
 
-
         $dailySales = PosOrder::where('status', 'paid')
             ->whereMonth('order_date', $currentMonth)
             ->whereYear('order_date', $currentYear)
@@ -187,8 +240,6 @@ class DashboardController extends Controller
             $dailySalesArray[] = $dailySales->get($i, 0); // fill 0 if no sales
         }
 
-
-
         // Render the dashboard view with all calculated data
 
         return Inertia::render('Backend/Dashboard/Index', [
@@ -200,67 +251,72 @@ class DashboardController extends Controller
             'totalCard' => $totalCard,
 
             // Payments over different time frames
-            'totalPayments'      => $paymentSums['totalPayments'],
-            'todayPayments'      => $paymentSums['todayPayments'],
-            'threeDaysPayments'  => $paymentSums['threeDaysPayments'],
-            'sevenDaysPayments'  => $paymentSums['sevenDaysPayments'],
-            'monthPayments'      => $paymentSums['monthPayments'],
-            'yearPayments'       => $paymentSums['yearPayments'],
+            'totalPayments' => $paymentSums['totalPayments'],
+            'todayPayments' => $paymentSums['todayPayments'],
+            'threeDaysPayments' => $paymentSums['threeDaysPayments'],
+            'sevenDaysPayments' => $paymentSums['sevenDaysPayments'],
+            'monthPayments' => $paymentSums['monthPayments'],
+            'yearPayments' => $paymentSums['yearPayments'],
 
             // Average order values over different time frames
-            'totalOrderAverage'      => $averageOrders['totalAverage'],
-            'todayOrderAverage'      => $averageOrders['todayAverage'],
-            'threeDaysOrderAverage'  => $averageOrders['threeDaysAverage'],
-            'sevenDaysOrderAverage'  => $averageOrders['sevenDaysAverage'],
-            'monthOrderAverage'      => $averageOrders['monthAverage'],
-            'yearOrderAverage'       => $averageOrders['yearAverage'],
+            'totalOrderAverage' => $averageOrders['totalAverage'],
+            'todayOrderAverage' => $averageOrders['todayAverage'],
+            'threeDaysOrderAverage' => $averageOrders['threeDaysAverage'],
+            'sevenDaysOrderAverage' => $averageOrders['sevenDaysAverage'],
+            'monthOrderAverage' => $averageOrders['monthAverage'],
+            'yearOrderAverage' => $averageOrders['yearAverage'],
+
+            'availableYears' => $availableYears,
+            'selectedYear' => $selectedYear,
+            'monthlySales' => $monthlySalesArray,
+            'monthlyPurchases' => $monthlyPurchasesArray,
 
             // Orders over different time frames
-            'totalOrders'        => $orderCounts['totalOrders'],
-            'todayOrders'        => $orderCounts['todayOrders'],
-            'threeDaysOrders'    => $orderCounts['threeDaysOrders'],
-            'sevenDaysOrders'    => $orderCounts['sevenDaysOrders'],
-            'yearOrders'         => $orderCounts['yearOrders'],
+            'totalOrders' => $orderCounts['totalOrders'],
+            'todayOrders' => $orderCounts['todayOrders'],
+            'threeDaysOrders' => $orderCounts['threeDaysOrders'],
+            'sevenDaysOrders' => $orderCounts['sevenDaysOrders'],
+            'yearOrders' => $orderCounts['yearOrders'],
 
             // Completed purchase totals over different time frames
-            'totalPurchaseCompleted'    => $purchaseTotals['totalAmount'],
-            'todayPurchaseCompleted'    => $purchaseTotals['todayAmount'],
+            'totalPurchaseCompleted' => $purchaseTotals['totalAmount'],
+            'todayPurchaseCompleted' => $purchaseTotals['todayAmount'],
             'threeDaysPurchaseCompleted' => $purchaseTotals['threeDaysAmount'],
             'sevenDaysPurchaseCompleted' => $purchaseTotals['sevenDaysAmount'],
-            'monthPurchaseCompleted'    => $purchaseTotals['monthAmount'],
-            'yearPurchaseCompleted'     => $purchaseTotals['yearAmount'],
+            'monthPurchaseCompleted' => $purchaseTotals['monthAmount'],
+            'yearPurchaseCompleted' => $purchaseTotals['yearAmount'],
             // Suppliers over different time frames
-            'totalSuppliers'        => $supplierCounts['totalSuppliers'],
-            'todaySuppliers'        => $supplierCounts['todaySuppliers'],
-            'threeDaysSuppliers'    => $supplierCounts['threeDaysSuppliers'],
-            'sevenDaysSuppliers'    => $supplierCounts['sevenDaysSuppliers'],
-            'monthSuppliers'        => $supplierCounts['monthSuppliers'],
-            'yearSuppliers'         => $supplierCounts['yearSuppliers'],
+            'totalSuppliers' => $supplierCounts['totalSuppliers'],
+            'todaySuppliers' => $supplierCounts['todaySuppliers'],
+            'threeDaysSuppliers' => $supplierCounts['threeDaysSuppliers'],
+            'sevenDaysSuppliers' => $supplierCounts['sevenDaysSuppliers'],
+            'monthSuppliers' => $supplierCounts['monthSuppliers'],
+            'yearSuppliers' => $supplierCounts['yearSuppliers'],
 
             'recentItems' => $recentItems,
 
             // Daily Purchases & Sales for current month (chart)
             'dailyPurchases' => $dailyPurchasesArray,
-            'dailySales'     => $dailySalesArray,
+            'dailySales' => $dailySalesArray,
         ]);
     }
 
     protected function calculateOrderCounts()
     {
         return [
-            'totalOrders'     => PosOrder::count(),
-            'todayOrders'     => PosOrder::whereDate('order_date', today())->count(),
+            'totalOrders' => PosOrder::count(),
+            'todayOrders' => PosOrder::whereDate('order_date', today())->count(),
             'threeDaysOrders' => PosOrder::whereBetween('order_date', [
                 now()->subDays(2)->startOfDay(), // include today
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->count(),
             'sevenDaysOrders' => PosOrder::whereBetween('order_date', [
                 now()->subDays(6)->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->count(),
-            'yearOrders'      => PosOrder::whereBetween('order_date', [
+            'yearOrders' => PosOrder::whereBetween('order_date', [
                 now()->subYear()->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->count(),
         ];
     }
@@ -268,22 +324,22 @@ class DashboardController extends Controller
     protected function calculatePayments()
     {
         return [
-            'totalPayments'      => Payment::sum('amount_received'),
-            'todayPayments'      => Payment::whereDate('payment_date', today())->sum('amount_received'),
-            'threeDaysPayments'  => Payment::whereBetween('payment_date', [
+            'totalPayments' => Payment::sum('amount_received'),
+            'todayPayments' => Payment::whereDate('payment_date', today())->sum('amount_received'),
+            'threeDaysPayments' => Payment::whereBetween('payment_date', [
                 now()->subDays(2)->startOfDay(), // include today
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->sum('amount_received'),
-            'sevenDaysPayments'  => Payment::whereBetween('payment_date', [
+            'sevenDaysPayments' => Payment::whereBetween('payment_date', [
                 now()->subDays(6)->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->sum('amount_received'),
-            'monthPayments'      => Payment::whereMonth('payment_date', now()->month)
+            'monthPayments' => Payment::whereMonth('payment_date', now()->month)
                 ->whereYear('payment_date', now()->year)
                 ->sum('amount_received'),
-            'yearPayments'       => Payment::whereBetween('payment_date', [
+            'yearPayments' => Payment::whereBetween('payment_date', [
                 now()->subYear()->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->sum('amount_received'),
         ];
     }
@@ -291,35 +347,35 @@ class DashboardController extends Controller
     protected function calculateAverageOrders()
     {
         return [
-            'totalAverage'      => PosOrder::where('status', 'paid')->avg('total_amount'),
+            'totalAverage' => PosOrder::where('status', 'paid')->avg('total_amount'),
 
-            'todayAverage'      => PosOrder::where('status', 'paid')
+            'todayAverage' => PosOrder::where('status', 'paid')
                 ->whereDate('created_at', today())
                 ->avg('total_amount'),
 
-            'threeDaysAverage'  => PosOrder::where('status', 'paid')
+            'threeDaysAverage' => PosOrder::where('status', 'paid')
                 ->whereBetween('created_at', [
                     now()->subDays(2)->startOfDay(), // includes today
-                    now()->endOfDay()
+                    now()->endOfDay(),
                 ])
                 ->avg('total_amount'),
 
-            'sevenDaysAverage'  => PosOrder::where('status', 'paid')
+            'sevenDaysAverage' => PosOrder::where('status', 'paid')
                 ->whereBetween('created_at', [
                     now()->subDays(6)->startOfDay(),
-                    now()->endOfDay()
+                    now()->endOfDay(),
                 ])
                 ->avg('total_amount'),
 
-            'monthAverage'      => PosOrder::where('status', 'paid')
+            'monthAverage' => PosOrder::where('status', 'paid')
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
                 ->avg('total_amount'),
 
-            'yearAverage'       => PosOrder::where('status', 'paid')
+            'yearAverage' => PosOrder::where('status', 'paid')
                 ->whereBetween('created_at', [
                     now()->subYear()->startOfDay(),
-                    now()->endOfDay()
+                    now()->endOfDay(),
                 ])
                 ->avg('total_amount'),
         ];
@@ -338,14 +394,14 @@ class DashboardController extends Controller
             'threeDaysAmount' => PurchaseOrder::where('status', 'completed')
                 ->whereBetween('purchase_date', [
                     now()->subDays(2)->startOfDay(), // includes today
-                    now()->endOfDay()
+                    now()->endOfDay(),
                 ])
                 ->sum('total_amount'),
 
             'sevenDaysAmount' => PurchaseOrder::where('status', 'completed')
                 ->whereBetween('purchase_date', [
                     now()->subDays(6)->startOfDay(),
-                    now()->endOfDay()
+                    now()->endOfDay(),
                 ])
                 ->sum('total_amount'),
 
@@ -357,7 +413,7 @@ class DashboardController extends Controller
             'yearAmount' => PurchaseOrder::where('status', 'completed')
                 ->whereBetween('purchase_date', [
                     now()->subYear()->startOfDay(),
-                    now()->endOfDay()
+                    now()->endOfDay(),
                 ])
                 ->sum('total_amount'),
         ];
@@ -373,12 +429,12 @@ class DashboardController extends Controller
 
             'threeDaysSuppliers' => Supplier::whereBetween('created_at', [
                 now()->subDays(2)->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->count(),
 
             'sevenDaysSuppliers' => Supplier::whereBetween('created_at', [
                 now()->subDays(6)->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->count(),
 
             'monthSuppliers' => Supplier::whereMonth('created_at', now()->month)
@@ -387,7 +443,7 @@ class DashboardController extends Controller
 
             'yearSuppliers' => Supplier::whereBetween('created_at', [
                 now()->subYear()->startOfDay(),
-                now()->endOfDay()
+                now()->endOfDay(),
             ])->count(),
         ];
     }

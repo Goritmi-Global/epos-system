@@ -47,6 +47,7 @@ const isPhoneValid = ref(false);
 const phoneWarnings = ref([]);
 
 // Validate UK phone number (International format: 10 digits without +44)
+// Validate UK MOBILE phone number only
 const validatePhone = () => {
     phoneError.value = '';
     phoneWarnings.value = [];
@@ -62,25 +63,41 @@ const validatePhone = () => {
     // Remove any non-digit characters
     let cleanPhone = phoneLocal.replace(/\D+/g, '');
 
-    // International UK format: 10 digits (without +44)
-    // e.g., 7311865859
-    const UK_INTL_LENGTH = 10;
-
-    // Check length
-    if (cleanPhone.length < UK_INTL_LENGTH) {
-        phoneError.value = `UK phone number must be exactly ${UK_INTL_LENGTH} digits`;
+    // UK mobile must be exactly 10 digits
+    if (cleanPhone.length !== 10) {
+        phoneError.value = 'UK mobile number must be exactly 10 digits';
         return false;
     }
 
-    if (cleanPhone.length > UK_INTL_LENGTH) {
-        phoneError.value = `UK phone number cannot exceed ${UK_INTL_LENGTH} digits. You entered ${cleanPhone.length} digits`;
+    // UK mobile MUST start with 7
+    if (!cleanPhone.startsWith('7')) {
+        phoneError.value = 'UK mobile numbers must start with 7';
         return false;
     }
 
-    // Check valid UK patterns (must start with valid number)
-    const validPatterns = /^[1-9]\d{9}$/;
-    if (!validPatterns.test(cleanPhone)) {
-        phoneError.value = 'Invalid UK phone number format';
+    // Valid UK mobile pattern: 7 followed by valid operator code + remaining digits
+    const mobilePattern = /^7[0-9]{9}$/;
+    
+    if (!mobilePattern.test(cleanPhone)) {
+        phoneError.value = 'Invalid UK mobile number format';
+        return false;
+    }
+
+    // Validate mobile operator prefix (7 followed by valid operator code)
+    const operatorPrefix = cleanPhone.substring(1, 3);
+    const validMobileOperators = [
+        '11', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', // Various operators
+        '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', // Various operators
+        '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', // EE
+        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', // Vodafone
+        '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', // O2
+        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', // O2/Giffgaff
+        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', // Three
+        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'  // Virgin/TalkTalk
+    ];
+
+    if (!validMobileOperators.includes(operatorPrefix)) {
+        phoneError.value = 'Invalid UK mobile operator code';
         return false;
     }
 

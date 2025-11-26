@@ -3,7 +3,6 @@
 namespace App\Services\Reference;
 
 use App\Models\InventoryItem;
-use App\Models\PurchaseItem;
 use App\Models\Unit;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -11,13 +10,13 @@ use Illuminate\Support\Facades\DB;
 class UnitsService
 {
     /**
-     * List units with optional filters:
-     * - q: search text
      * - only_base: if truthy, return only base units (where base_unit_id IS NULL)
      */
     public function list(array $filters = []): LengthAwarePaginator
     {
-        $q = Unit::query();
+        $q = Unit::with([
+            'baseUnit:id,name,conversion_factor',
+        ]);
 
         if (! empty($filters['q'])) {
             $s = $filters['q'];
@@ -90,7 +89,6 @@ class UnitsService
         return $unit;
     }
 
-
     /**
      * Delete a unit
      */
@@ -102,7 +100,7 @@ class UnitsService
 
         if ($inUse) {
             // Throw exception to handle gracefully in controller
-            throw new \Exception("This unit is already in use and cannot be deleted.");
+            throw new \Exception('This unit is already in use and cannot be deleted.');
         }
 
         $unit->delete();
