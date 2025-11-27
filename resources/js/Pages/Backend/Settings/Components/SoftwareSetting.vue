@@ -188,96 +188,52 @@ function changeSection(sectionId) {
 <template>
     <div class="settings-wrapper">
         <!-- Page Header -->
-        <div class="settings-header mb-4 px-2">
+        <div class="settings-header mb-2 px-2">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h3 class="fw-bold mb-1">Restaurant Settings</h3>
-                    <!-- <p class="text-muted mb-0">
-                        Section {{ currentSection }} of {{ sections.length }} -
-                        {{ currentSectionInfo?.title }}
-                    </p> -->
+                    <h3 class="fw-bold mb-0">Restaurant Settings</h3>
                 </div>
-
-                <!-- Progress Bar (replacing Back to Dashboard button) -->
-                <!-- <div
-                    class="d-flex align-items-center gap-2"
-                    style="min-width: 220px"
-                >
-                    <div class="progress flex-grow-1" style="height: 6px">
-                        <div
-                            class="progress-bar progress-bar-striped"
-                            role="progressbar"
-                            :style="{ width: progressPercent + '%' }"
-                            :aria-valuenow="progressPercent"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                        ></div>
-                    </div>
-                    <small class="fw-semibold"
-                        >{{ currentSection }}/{{ sections.length }}</small
-                    >
-                </div> -->
             </div>
         </div>
 
-        <div class="row g-4">
-            <!-- Left Sidebar Navigation -->
-            <div class="col-lg-3">
-                <div class="settings-sidebar">
-                    <div class="settings-nav shadow-sm rounded-4 p-3">
-                        <div
-                            class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom"
-                        >
-                            <h6
-                                class="text-muted text-uppercase small fw-bold mb-0"
-                            >
-                                <i class="bi bi-gear-fill me-2"></i>
-                                Settings
-                            </h6>
-                        </div>
+        <!-- Horizontal Sidebar Navigation (Above Main Content) -->
+        <div class="settings-sidebar-horizontal mb-3">
+            <div class="settings-nav-horizontal shadow-sm rounded-4 p-3">
+                <div class="mb-3">
+                    <h6 class="text-muted text-uppercase small fw-bold mb-3">
+                        <i class="bi bi-gear-fill me-2"></i>
+                        Settings
+                    </h6>
+                </div>
 
-                        <ul class="nav nav-pills flex-column gap-1">
-                            <li
-                                v-for="section in sections"
-                                :key="section.id"
-                                class="nav-item"
+                <div class="nav-horizontal-container">
+                    <ul class="nav nav-pills nav-horizontal gap-2">
+                        <li class="nav-item" v-for="section in sections" :key="section.id">
+                            <a
+                                class="nav-link-horizontal d-flex align-items-center gap-2 py-2 px-4"
+                                :class="{ active: currentSection === section.id }"
+                                @click.prevent="changeSection(section.id)"
+                                href="#"
+                                role="button"
                             >
-                                <a
-                                    class="nav-link d-flex align-items-center gap-2 py-2 px-3"
-                                    :class="{
-                                        active: currentSection === section.id,
-                                    }"
-                                    @click.prevent="changeSection(section.id)"
-                                    href="#"
-                                    role="button"
-                                >
-                                    <i :class="section.icon"></i>
-                                    <div class="flex-grow-1">
-                                        <div class="fw-semibold small">
-                                            {{ section.title }}
-                                        </div>
-                                    </div>
-                                    <i
-                                        class="bi bi-chevron-right small opacity-50"
-                                    ></i>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                                <i :class="section.icon"></i>
+                                <span class="fw-semibold small">{{ section.title }}</span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </div>
+        </div>
 
-            <!-- Main Content Area -->
-            <div class="col-lg-9">
+        <!-- Main Content Area (Full Width Below) -->
+        <div class="row g-0">
+            <div class="col-12">
                 <div class="card shadow-sm border-0 rounded-4">
                     <!-- Section Header -->
                     <div class="card-header border-0 p-4">
                         <div class="d-flex align-items-start gap-3">
                             <div class="icon-wrapper">
-                                <i
-                                    :class="currentSectionInfo?.icon"
-                                    class="fs-3"
-                                ></i>
+                                <i :class="currentSectionInfo?.icon" class="fs-3"></i>
                             </div>
                             <div class="flex-grow-1">
                                 <h5 class="mb-1 fw-bold">
@@ -303,9 +259,7 @@ function changeSection(sectionId) {
 
                     <!-- Footer Actions -->
                     <div class="card-footer bg-light border-0 p-4">
-                        <div
-                            class="d-flex justify-content-between align-items-center"
-                        >
+                        <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
                                 Changes will be saved immediately
@@ -316,9 +270,7 @@ function changeSection(sectionId) {
                                 :disabled="isSaving"
                             >
                                 <span v-if="isSaving">
-                                    <span
-                                        class="spinner-border spinner-border-sm me-2"
-                                    ></span>
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
                                     Saving...
                                 </span>
                                 <span v-else>
@@ -329,26 +281,6 @@ function changeSection(sectionId) {
                         </div>
                     </div>
                 </div>
-
-                <!-- Quick Navigation -->
-                <!-- <div class="quick-nav mt-3 d-flex justify-content-between">
-                    <button
-                        class="btn btn-outline-secondary rounded-pill"
-                        :disabled="currentSection === 1"
-                        @click.prevent="changeSection(currentSection - 1)"
-                    >
-                        <i class="bi bi-chevron-left me-2"></i>
-                        Previous
-                    </button>
-                    <button
-                        class="btn btn-outline-secondary rounded-pill"
-                        :disabled="currentSection === sections.length"
-                        @click.prevent="changeSection(currentSection + 1)"
-                    >
-                        Next
-                        <i class="bi bi-chevron-right ms-2"></i>
-                    </button>
-                </div> -->
             </div>
         </div>
     </div>
@@ -358,11 +290,12 @@ function changeSection(sectionId) {
 .settings-wrapper {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     min-height: 100vh;
-    padding: 30px 20px;
+    padding: 5px 20px;
 }
 
 .settings-header {
-    padding: 10px 0 20px;
+    padding: 0px;
+    padding-bottom: 4px;
 }
 
 /* Dark mode */
@@ -373,75 +306,49 @@ function changeSection(sectionId) {
 .dark .card-header {
     background: linear-gradient(135deg, #181818 0%, #181818 100%);
 }
-.dark .logo-card {
-    background: #212121;
+
+/* ===== Horizontal Sidebar Navigation ===== */
+.settings-sidebar-horizontal {
+    width: 100%;
 }
 
-/* ===== Progress ===== */
-.progress {
-    background-color: rgba(28, 13, 130, 0.1);
-    border-radius: 10px;
-    overflow: hidden;
-}
-.progress-bar {
-    background: linear-gradient(90deg, #1c0d82 0%, #2d1ba8 50%, #1c0d82 100%);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-    transition: width 0.4s ease;
-    border-radius: 10px;
-}
-@keyframes shimmer {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-/* ===== Sidebar ===== */
-.settings-sidebar {
-    position: sticky;
-    top: 20px;
-}
-
-.settings-nav {
+.settings-nav-horizontal {
     background-color: #fff;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(250, 250, 250, 0.3);
 }
-.dark .settings-nav {
+.dark .settings-nav-horizontal {
     background: #181818;
     color: #fff !important;
     border-color: #181818;
 }
 
-.nav-link {
-    color: #495057;
-    border-radius: 10px;
-    transition: all 0.25s ease;
-    cursor: pointer;
-    border: 1px solid transparent;
+.nav-horizontal-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
-.dark .nav-link {
+
+.dark .nav-link-horizontal {
     color: #fff;
 }
 
-.nav-link:hover {
+.nav-link-horizontal:hover {
     background-color: rgba(28, 13, 130, 0.06);
     color: #1c0d82;
+    border-radius: 7px;
     border-color: rgba(28, 13, 130, 0.1);
-    transform: translateX(4px);
 }
-.nav-link.active {
-    /* background: linear-gradient(135deg, #1c0d82 0%, #2d1ba8 100%); */
+
+.nav-link-horizontal.active {
     background-color: #1C0D82;
     color: #fff;
     box-shadow: 0 4px 12px rgba(28, 13, 130, 0.3);
+     border-radius: 7px;
     border-color: #1c0d82;
 }
-.nav-link.active:hover {
-    transform: translateX(0);
+
+.nav-link-horizontal.active:hover {
+    background-color: #1C0D82;
 }
 
 /* ===== Cards ===== */
@@ -474,7 +381,7 @@ function changeSection(sectionId) {
 
 .settings-content {
     min-height: 400px;
-    max-height: 600px;
+    max-height: 800px;
     overflow-y: auto;
 }
 .settings-content::-webkit-scrollbar {
@@ -504,16 +411,18 @@ function changeSection(sectionId) {
     background: linear-gradient(180deg, #181818 0%, #181818 100%);
 }
 
-/* ===== Quick Nav ===== */
-.quick-nav {
-    padding: 0 10px;
+/* ===== Animations ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
-.quick-nav .btn {
-    min-width: 130px;
-}
-.dark .p-select-header{
-    background-color: #121212 !important;
-}
+
 /* ===== PrimeVue dark overrides ===== */
 :global(.dark .p-multiselect-header),
 :global(.dark .p-multiselect-label),
@@ -563,79 +472,61 @@ function changeSection(sectionId) {
     color: #aaa !important;
 }
 
-/* ===== Animations ===== */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 /* ===== Responsive ===== */
 @media (max-width: 991.98px) {
-    .settings-sidebar {
-        position: static;
-        margin-bottom: 20px;
+    .nav-horizontal {
+        gap: 8px;
+    }
+    .nav-link-horizontal {
+        padding: 8px 12px !important;
+        font-size: 0.85rem;
     }
     .settings-content {
-        max-height: none;
-    }
-    .quick-nav {
-        flex-direction: column;
-        gap: 10px;
-    }
-    .quick-nav .btn {
-        width: 100%;
+        min-height: 300px;
+        max-height: 600px;
     }
 }
 
-@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {
+@media (max-width: 576px) {
     .settings-wrapper {
-        padding-left: 20px;
-        padding-right: 15px;
+        padding: 20px 15px;
     }
     .settings-header h3 {
-        font-size: 1.4rem;
+        font-size: 1.3rem;
     }
-    .card {
-        margin-bottom: 15px;
+    .nav-link-horizontal {
+        padding: 7px 10px !important;
+        font-size: 0.8rem;
     }
-    .card-body,
-    .card-header,
-    .card-footer {
-        padding: 15px !important;
+    .nav-link-horizontal i {
+        display: none;
     }
-    .quick-nav .btn {
-        padding: 6px 14px;
-        font-size: 0.9rem;
-        min-width: 110px;
-    }
-}
-
-@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: landscape) {
-    .settings-wrapper {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-    .settings-header h3 {
+    .icon-wrapper {
+        width: 40px;
+        height: 40px;
         font-size: 1.5rem;
     }
-    .card {
-        margin-bottom: 18px;
-    }
     .card-body,
     .card-header,
     .card-footer {
-        padding: 18px !important;
+        padding: 12px !important;
     }
-    .quick-nav .btn {
-        padding: 7px 16px;
-        font-size: 0.95rem;
-        min-width: 120px;
+}
+
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
+    .settings-wrapper {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+    .settings-header h3 {
+        font-size: 1.3rem;
+    }
+    .nav-link-horizontal {
+        padding: 8px 16px !important;
+        font-size: 0.9rem;
+    }
+    .settings-content {
+        max-height: 700px;
     }
 }
 </style>

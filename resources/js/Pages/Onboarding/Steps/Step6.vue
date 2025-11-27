@@ -85,7 +85,7 @@ onMounted(fetchPrinters);
 
         <div class="row g-3 align-items-start mt-2">
           <!-- Upload / crop card -->
-          <div class="col-md-4">
+          <div class="col-md-4 upload-image-area">
             <small class="text-muted mt-2">Upload Receipt Logo</small>
             <div class="logo-card">
               <div class="logo-frame" @click="openCropper()">
@@ -105,7 +105,7 @@ onMounted(fetchPrinters);
           </div>
 
           <!-- Text fields + radios -->
-          <div class="col-md-8">
+          <div class="col-md-8 right-side-receipt-area">
             <!-- Receipt footer -->
             <label class="form-label">Receipt Footer</label>
             <input class="form-control" v-model="form.receipt_footer"
@@ -462,4 +462,15 @@ onMounted(fetchPrinters);
 .dark .text-muted {
   color: #999 !important;
 }
+
+
+/* For screens between 1024px and 1366px */
+@media only screen and (min-width: 1024px) and (max-width: 1366px) {
+    .upload-image-area,
+    .right-side-receipt-area {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+    }
+}
+
 </style>
