@@ -3322,8 +3322,8 @@ const getModalTotalPriceWithResale = () => {
 
                                             <!-- ✅ Dynamic Price Badge with Resale -->
                                             <span
-                                                class="position-absolute top-0 start-0 m-2 px-2 py-1 rounded-pill text-white fw-semibold"
-                                                :style="{ background: p.label_color || '#1B1670', fontSize: '0.78rem', letterSpacing: '0.3px' }">
+                                                class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded-pill text-white fw-semibold"
+                                                :style="{ background: p.label_color || '#1B1670', fontSize: '0.58rem', letterSpacing: '0.3px' }">
                                                 <template
                                                     v-if="getResaleBadgeInfo(getSelectedVariant(p) || p, !!p.variants?.length)">
                                                     <span class="text-decoration-line-through opacity-75 me-1">
@@ -3367,9 +3367,10 @@ const getModalTotalPriceWithResale = () => {
 
 
                                             <div>
-                                                <div class="h5 fw-bold mb-2"
+                                                <div class="h5 fw-bold mb-2 menu-name"
                                                     :style="{ color: p.label_color || '#1B1670' }">
-                                                    {{ p.title }}
+                                                    {{ p.title.length > 17 ? p.title.slice(0, 15) + '...' : p.title }}
+
                                                 </div>
                                                 <!-- Variant Dropdown -->
                                                 <div v-if="p.variants && p.variants.length > 0" class="mb-3">
@@ -3448,7 +3449,7 @@ const getModalTotalPriceWithResale = () => {
                                                 </div>
 
                                                 <!-- View Details Button -->
-                                                <button class="btn btn-primary btn-sm mb-2"
+                                                <button class="btn btn-primary btn-sm mb-2 view-details-btn"
                                                     @click="openDetailsModal(p)">
                                                     View Details
                                                 </button>
@@ -3463,7 +3464,7 @@ const getModalTotalPriceWithResale = () => {
                                                     :disabled="getCardQty(p) <= 0">
                                                     <strong>−</strong>
                                                 </button>
-                                                <div class="qty-box border rounded-pill px-2 py-2 text-center fw-semibold"
+                                                <div class="qty-box border rounded-pill px-2 py-2 text-center fw-semibold left-card-cntrl-btn"
                                                     style="min-width: 55px;">
                                                     {{ getCardQty(p) }}
                                                 </div>
@@ -3503,10 +3504,11 @@ const getModalTotalPriceWithResale = () => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             < </button> -->
-                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openPromoModal">
+                            <button class="btn btn-warning rounded-pill px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
-                            <button class="btn btn-warning rounded-pill px-3 py-2" @click="openDiscountModal">
+                            <button class="btn btn-warning rounded-pill px-3 py-2 discount-btn"
+                                @click="openDiscountModal">
                                 Discounts
                             </button>
                         </div>
@@ -3516,8 +3518,9 @@ const getModalTotalPriceWithResale = () => {
                             <div class="cart-header">
 
                                 <div class="order-type">
-                                    <button v-for="(type, i) in orderTypes" :key="i" class="ot-pill btn"
-                                        :class="{ active: orderType === type }" @click="orderType = type">
+                                    <button v-for="(type, i) in orderTypes" :key="i"
+                                        class="ot-pill btn cart-header-buttons" :class="{ active: orderType === type }"
+                                        @click="orderType = type">
                                         {{ type.replace(/_/g, " ") }}
                                     </button>
                                     <div class="d-flex justify-content-between mb-3">
@@ -3530,8 +3533,8 @@ const getModalTotalPriceWithResale = () => {
                                 <!-- Dine-in table / customer -->
                                 <div class="mb-3">
 
-                                    <div v-if="orderType === 'Dine_in'" class="row g-2">
-                                        <div class="col-6">
+                                    <div v-if="orderType === 'Dine_in'" class="row g-2 ">
+                                        <div class="col-6 table-dropdown">
                                             <label class="form-label small">Table</label>
                                             <select v-model="selectedTable" class="form-select form-select-sm">
                                                 <option :value="null">Select Table</option>
@@ -3544,7 +3547,7 @@ const getModalTotalPriceWithResale = () => {
                                                 {{ formErrors.table_number[0] }}
                                             </div>
                                         </div>
-                                        <div class="col-6">
+                                        <div class="col-6 table-dropdown">
                                             <label class="form-label small">Customer</label>
                                             <input v-model="customer" class="form-control form-control-sm"
                                                 placeholder="Walk In" />
@@ -3578,30 +3581,27 @@ const getModalTotalPriceWithResale = () => {
                                     </div>
                                 </div>
 
-                                <!-- Line items -->
                                 <div class="cart-lines">
                                     <div v-if="orderItems.length === 0" class="empty">
                                         Add items from the left
                                     </div>
 
                                     <div v-for="(it, i) in orderItems" :key="it.title" class="line">
+                                        <!-- Left: Image + Meta -->
                                         <div class="line-left">
                                             <img :src="it.img" alt="" />
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
-                                                    <!-- {{ it.title }} -->
-                                                    {{ it.title.length > 4 ? it.title.slice(0, 4) + '...' : it.title }}
-
-
+                                                    {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }}
                                                 </div>
-                                                <div v-if="it.resale_discount_per_item > 0" class="mt-1">
+                                                <div v-if="it.resale_discount_per_item > 0">
                                                     <span class="badge bg-success" style="font-size: 0.65rem;">
                                                         <i class="bi bi-tag-fill"></i>
                                                         Save {{ formatCurrencySymbol(it.resale_discount_per_item) }}
-                                                        each
+
                                                     </span>
                                                 </div>
-                                                <!-- ✅ Addon Icons (clickable) -->
+                                                <!-- Addon Icons (clickable) -->
                                                 <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
                                                     <button class="btn-link p-0 py-0 text-decoration-none"
                                                         @click="openAddonModal(it, i)" :title="getAddonTooltip(it)">
@@ -3610,12 +3610,12 @@ const getModalTotalPriceWithResale = () => {
                                                         <span class="text-muted small">{{ it.addons.length }}
                                                             addon(s)</span>
                                                     </button>
-                                                    <!-- ✅ Show variant name badge -->
+                                                    <!-- Show variant name badge -->
                                                     <span v-if="it.variant_name" class="badge ms-1"
                                                         style="font-size: 0.65rem; background: #1B1670; color: white;">
                                                         {{ it.variant_name }}
                                                     </span>
-                                                    <!-- ✅ NEW: Show if promo applies to this item -->
+                                                    <!-- Show if promo applies to this item -->
                                                     <span v-if="isItemEligibleForPromo(it)"
                                                         class="badge bg-success ms-1" style="font-size: 0.65rem;">
                                                         <i class="bi bi-tag-fill"></i>
@@ -3628,24 +3628,28 @@ const getModalTotalPriceWithResale = () => {
                                             </div>
                                         </div>
 
-                                        <div class="line-mid">
-                                            <button class="qty-btn" @click="decCart(i)">−</button>
-                                            <div class="qty">{{ it.qty }}</div>
-
-                                            <button class="qty-btn" @click="incCart(i)"
-                                                :disabled="it.outOfStock || !canIncCartItem(it)"
-                                                :class="{ 'bg-secondary text-white cursor-not-allowed opacity-70': it.outOfStock || !canIncCartItem(it) }">
-                                                +
-                                            </button>
-                                        </div>
-
+                                        <!-- Right: Controls + Price (Stacked Vertically) -->
                                         <div class="line-right">
-                                            <div class="price">
-                                                {{ formatCurrencySymbol(it.price) }}
+                                            <!-- Quantity Controls on Top -->
+                                            <div class="qty-controls">
+                                                <button class="qty-btn" @click="decCart(i)">−</button>
+                                                <div class="qty">{{ it.qty }}</div>
+                                                <button class="qty-btn" @click="incCart(i)"
+                                                    :disabled="it.outOfStock || !canIncCartItem(it)"
+                                                    :class="{ 'bg-secondary text-white cursor-not-allowed opacity-70': it.outOfStock || !canIncCartItem(it) }">
+                                                    +
+                                                </button>
                                             </div>
-                                            <button class="del" @click="removeCart(i)">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+
+                                            <!-- Price and Delete Below -->
+                                            <div class="price-delete">
+                                                <div class="price">
+                                                    {{ formatCurrencySymbol(it.price) }}
+                                                </div>
+                                                <button class="del" @click="removeCart(i)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -3682,7 +3686,7 @@ const getModalTotalPriceWithResale = () => {
                                     <!-- Sale Discount -->
                                     <div v-if="totalResaleSavings > 0" class="trow">
                                         <span class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-tag text-danger"></i>
+                                            <!-- <i class="bi bi-tag text-danger"></i> -->
                                             <span class="text-danger">Sale Discount:</span>
                                         </span>
                                         <b class="text-danger">-{{ formatCurrencySymbol(totalResaleSavings) }}</b>
@@ -3694,7 +3698,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3745,7 +3749,7 @@ const getModalTotalPriceWithResale = () => {
                                             </div>
 
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
 
                                     </div>
@@ -4480,13 +4484,13 @@ const getModalTotalPriceWithResale = () => {
 .col-lg-4:has(.cart) {
     position: fixed;
     right: 0;
-    top: 85px;
+    top: 65px;
     width: 28%;
     /* lg-4 column width */
     padding-right: 15px;
     padding-left: 15px;
-    max-height: calc(100vh - 40px);
-    overflow: hidden;
+    max-height: calc(100vh - 140px);
+    overflow: auto;
     z-index: 100;
 }
 
@@ -4539,7 +4543,7 @@ const getModalTotalPriceWithResale = () => {
 
 /* Make the cart itself scrollable if content is too long */
 .cart {
-    max-height: calc(70vh);
+    max-height: calc(85vh);
     display: flex;
     flex-direction: column;
 }
@@ -4930,10 +4934,10 @@ const getModalTotalPriceWithResale = () => {
 
 .line {
     display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.45rem 0.35rem;
+    grid-template-columns: 1fr auto;
+    align-items: flex-start;
+    gap: 0.8rem;
+    padding: 0.6rem 0.35rem;
     border-bottom: 1px solid #f1f2f6;
 }
 
@@ -4944,15 +4948,23 @@ const getModalTotalPriceWithResale = () => {
 .line-left {
     display: flex;
     gap: 0.6rem;
-    align-items: center;
+    align-items: flex-start;
     min-width: 0;
 }
 
 .line-left img {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
     object-fit: cover;
     border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
 }
 
 .meta .name {
@@ -4968,55 +4980,160 @@ const getModalTotalPriceWithResale = () => {
     color: #8a8fa7;
 }
 
-.line-mid {
+/* Right Section: Controls + Price Stacked Vertically */
+.line-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+/* Quantity Controls */
+.qty-controls {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.25rem;
+    background: #f1f2f6;
+    border-radius: 8px;
+    padding: 0.2rem;
 }
 
 .qty-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     border: 0;
     background: #1b1670;
     color: #fff;
     font-weight: 800;
     line-height: 1.5;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.dark .qty {
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    border: 0;
-    background: #1b1670;
-    color: #fff;
-    font-weight: 800;
-    line-height: 1.5;
+.qty-btn:hover {
+    background: #0f0d4d;
 }
 
-.dark .del {
-    background-color: #212121 !important;
-}
-
-.qty-btn.disabled {
+.qty-btn:disabled {
     background: #b9bdd4;
+    cursor: not-allowed;
 }
 
 .qty {
-    min-width: 30px;
+    min-width: 28px;
     text-align: center;
     font-weight: 700;
-    background: #f1f2f6;
-    border-radius: 999px;
-    padding: 0.15rem 0.4rem;
+    font-size: 0.9rem;
 }
 
-.line-right {
+/* Price and Delete Row */
+.price-delete {
     display: flex;
     align-items: center;
     gap: 0.4rem;
+}
+
+.price {
+    font-weight: 700;
+    font-size: 0.95rem;
+    min-width: 64px;
+    text-align: right;
+}
+
+.del {
+    border: 0;
+    background: #ffeded;
+    color: #c0392b;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.del:hover {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+/* Dark Mode Support */
+.dark .qty-controls {
+    background: #212121;
+}
+
+.dark .qty {
+    color: #fff;
+}
+
+.dark .price {
+    color: #fff;
+}
+
+.dark .del {
+    background: #3a3a3a;
+    color: #ff6b6b;
+}
+
+.dark .del:hover {
+    background: #c0392b;
+    color: #fff;
+}
+
+/* Tablet/Laptop Screen Adjustments */
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
+    .line {
+        gap: 0.6rem;
+        padding: 0.5rem 0.3rem;
+    }
+
+    .line-left img {
+        width: 40px;
+        height: 40px;
+    }
+
+    .meta .name {
+        font-size: 0.88rem;
+    }
+
+    .qty-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 0.85rem;
+    }
+
+    .qty {
+        min-width: 26px;
+        font-size: 0.85rem;
+    }
+
+    .price {
+        font-size: 0.9rem;
+    }
+
+    .del {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+/* Mobile adjustments */
+@media only screen and (max-width: 768px) {
+    .line {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .line-right {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
 }
 
 .price {
@@ -5279,5 +5396,47 @@ const getModalTotalPriceWithResale = () => {
     line-height: 1.2;
 }
 
+/* Laptop screen style for right cart  */
 
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
+    .cart-header {
+        padding: 0.7rem;
+    }
+
+    .cart-header-buttons {
+        font-size: 14px !important;
+        height: 30px !important;
+    }
+
+    .promos-btn,
+    .discount-btn {
+        height: 30px !important;
+        padding-top: 0.19rem !important;
+
+    }
+
+    .table-dropdown {
+        margin-top: 0px !important;
+    }
+
+    .view-details-btn {
+        height: 30px !important;
+        font-size: 14px !important;
+    }
+
+    .left-card-cntrl-btn {
+        height: 30px !important;
+    }
+
+    .menu-name {
+        margin-top: 15px !important;
+        font-size: 16px !important;
+    }
+    .cart {
+    max-height: calc(70vh);
+    display: flex;
+    flex-direction: column;
+}
+
+}
 </style>

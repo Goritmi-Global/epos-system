@@ -1182,7 +1182,7 @@ onMounted(fetchNotifications);
         </main>
     </div>
 
-    <footer class="footer bg-white dark:bg-gray-800 border-top">
+    <footer class="footer bg-white dark:bg-gray-800 border-top sticky bottom-0">
         <div class="container-fluid">
             <div class="row align-items-center py-3">
                 <!-- Left: Empty or additional content -->
