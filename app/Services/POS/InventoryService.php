@@ -30,7 +30,7 @@ class InventoryService
                 });
             })
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate(200)
             ->through(function (InventoryItem $item) {
                 return [
                     'id'            => $item->id,
