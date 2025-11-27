@@ -155,7 +155,25 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  availableYears: {
+    type: Array,
+    default: () => []
+  },
+  selectedYear: {
+    type: Number,
+    default: new Date().getFullYear()
+  },
+  monthlySales: {
+    type: Array,
+    default: () => []
+  },
+  monthlyPurchases: {
+    type: Array,
+    default: () => []
+  },
 })
+
+const currentYear = ref(props.selectedYear);
 
 
 // =========================================
@@ -169,59 +187,87 @@ const dailyPurchasesArray = props.dailyPurchases.length
   ? props.dailyPurchases
   : Array(31).fill(0);
 
-const series = computed(() => [
-  {
-    name: "Sales",
-    data: dailySalesArray,
-  },
-  {
-    name: "Purchases",
-    data: dailyPurchasesArray,
-  },
-]);
-
+const series = computed(() => {
+  // Ensure all values are numbers
+  const salesData = props.monthlySales.map(val => parseFloat(val) || 0);
+  const purchasesData = props.monthlyPurchases.map(val => parseFloat(val) || 0);
+  
+  return [
+    {
+      name: "Sales",
+      data: salesData,
+    },
+    {
+      name: "Purchases",
+      data: purchasesData,
+    },
+  ];
+});
 const chartOptions = {
   chart: {
-    type: "line", // change from 'bar' to 'line'
+    type: "line",
     height: 350,
     toolbar: { show: true },
     zoom: { enabled: false },
   },
   stroke: {
-    curve: "smooth", // makes the lines curved
+    curve: "smooth",
     width: 3,
   },
   colors: ["#65FA9E", "#EA5455"],
   dataLabels: {
-    enabled: false, // optional: remove labels for cleaner look
+    enabled: false,
   },
   markers: {
     size: 4,
     hover: { sizeOffset: 3 },
   },
   xaxis: {
-    categories: Array.from({ length: dailySalesArray.length }, (_, i) => `${i + 1}`),
-    title: { text: "Day of Month" },
-    axisBorder: { show: false },
-    axisTicks: { show: false },
+    categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    title: { text: "Month" },
+    axisBorder: { show: true },
+    axisTicks: { show: true },
+    labels: {
+      rotate: 0,
+      style: {
+        fontSize: '12px'
+      }
+    }
   },
   yaxis: {
     title: { text: "Amount" },
-    labels: { formatter: (val) => val.toFixed(0) },
+    labels: { 
+      formatter: (val) => {
+        return val ? val.toFixed(0) : '0';
+      }
+    },
+    min: 0
   },
   tooltip: {
     shared: true,
     intersect: false,
-    y: { formatter: (val) => `$${val}` },
+    y: { 
+      formatter: (val) => val ? `${formatCurrencySymbol(val.toFixed(2))}` : '0'
+    },
   },
   legend: {
     position: "top",
     horizontalAlign: "left",
-    markers: { radius: 12 },
+    markers: { 
+      radius: 12,
+      width: 12,
+      height: 12
+    },
   },
-  grid: { borderColor: "#e0e0e0", strokeDashArray: 4 },
+  grid: { 
+    borderColor: "#e0e0e0", 
+    strokeDashArray: 4,
+    row: {
+      colors: ['transparent', 'transparent'],
+      opacity: 0.5
+    },
+  },
 };
-
 
 
 
@@ -473,6 +519,13 @@ const suppliersCount = computed(() => {
   }
 });
 
+const changeYear = (year) => {
+  router.get(route('dashboard'), { year: year }, {
+    preserveState: true,
+    preserveScroll: true,
+  });
+};
+
 </script>
 
 <template>
@@ -610,18 +663,25 @@ const suppliersCount = computed(() => {
                 <div class="dropdown">
                   <button class="btn btn-white btn-sm dropdown-toggle" type="button" id="dropdownMenuButton"
                     data-bs-toggle="dropdown" aria-expanded="false">
-                    2022 <img src="assets/img/icons/dropdown.svg" alt="img" class="ms-2" />
+                    {{ selectedYear }}
+                    <img src="assets/img/icons/dropdown.svg" alt="img" class="ms-2" />
                   </button>
                   <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                    <li><a href="javascript:void(0);" class="dropdown-item">2022</a></li>
-                    <li><a href="javascript:void(0);" class="dropdown-item">2021</a></li>
-                    <li><a href="javascript:void(0);" class="dropdown-item">2020</a></li>
+                    <li v-for="year in availableYears" :key="year">
+                      <a href="javascript:void(0);" class="dropdown-item" :class="{ 'active': year === selectedYear }"
+                        @click="changeYear(year)">
+                        {{ year }}
+                      </a>
+                    </li>
+                    <li v-if="!availableYears.length">
+                      <span class="dropdown-item text-muted">No data available</span>
+                    </li>
                   </ul>
                 </div>
               </div>
             </div>
             <div class="card-body">
-              <VueApexCharts type="bar" height="350" :options="chartOptions" :series="series" />
+              <VueApexCharts type="line" height="350" :options="chartOptions" :series="series" />
             </div>
           </div>
         </div>
@@ -986,5 +1046,52 @@ const suppliersCount = computed(() => {
 
 .dark .near-expire {
   color: #181818 !important;
+}
+:deep(.apexcharts-tooltip) {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  color: #f9fafb !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+:deep(.apexcharts-tooltip-title) {
+  background: #111827 !important;
+  border-bottom: 1px solid #374151 !important;
+  color: #f9fafb !important;
+  padding: 8px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.apexcharts-tooltip-series-group) {
+  background: transparent !important;
+  color: #f9fafb !important;
+  padding: 4px 8px !important;
+}
+
+:deep(.apexcharts-tooltip-text-y-label),
+:deep(.apexcharts-tooltip-text-y-value) {
+  color: #f9fafb !important;
+}
+
+:deep(.apexcharts-tooltip-marker) {
+  margin-right: 8px !important;
+}
+
+/* Light mode - keep default styles */
+:deep(.light .apexcharts-tooltip) {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  color: #1f2937 !important;
+}
+
+:deep(.light .apexcharts-tooltip-title) {
+  background: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #1f2937 !important;
+}
+
+:deep(.light .apexcharts-tooltip-text-y-label),
+:deep(.light .apexcharts-tooltip-text-y-value) {
+  color: #1f2937 !important;
 }
 </style>

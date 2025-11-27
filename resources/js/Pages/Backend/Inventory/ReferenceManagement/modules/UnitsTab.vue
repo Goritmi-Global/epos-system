@@ -510,7 +510,8 @@ const handleImport = (data) => {
 </script>
 
 <template>
-      <Head title="Unit" />
+
+    <Head title="Unit" />
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -566,6 +567,8 @@ const handleImport = (data) => {
                         <tr>
                             <th>S. #</th>
                             <th>Unit Name</th>
+                            <th>Derived From</th>
+                            <th>Conversion Factor</th>
                             <th class="text-center">Action</th>
                         </tr>
                     </thead>
@@ -573,6 +576,11 @@ const handleImport = (data) => {
                         <tr v-for="(r, i) in filteredUnits" :key="r.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ r.name }}</td>
+                            <td class="fw-semibold">{{ r?.base_unit?.name }}</td>
+                            <td class="fw-semibold">
+                                {{ r.base_unit_id ? r.conversion_factor : '-' }}
+                            </td>
+
 
                             <td class="text-center">
                                 <div class="d-inline-flex align-items-center gap-3">
@@ -597,7 +605,7 @@ const handleImport = (data) => {
                         </tr>
 
                         <tr v-if="filteredUnits.length === 0">
-                            <td colspan="3" class="text-center text-muted py-4">
+                            <td colspan="5" class="text-center text-muted py-4">
                                 {{
                                     q.trim()
                                         ? "No units found matching your search."

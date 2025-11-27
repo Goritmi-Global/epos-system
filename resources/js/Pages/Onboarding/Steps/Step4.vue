@@ -154,9 +154,7 @@ const taxTypeOptions = ref([
       </div>
     </div>
 
-    <!-- ============================================ -->
-    <!-- ADD THIS ENTIRE SECTION BELOW (Service Charges) -->
-    <!-- ============================================ -->
+    <!-- Service Charges -->
     <div class="mt-4">
       <label class="form-label d-block mb-2">Is there any Service Charges?</label>
       <div class="segmented">
@@ -207,9 +205,7 @@ const taxTypeOptions = ref([
       </div>
     </div>
 
-    <!-- ============================================ -->
-    <!-- ADD THIS ENTIRE SECTION BELOW (Delivery Charges) -->
-    <!-- ============================================ -->
+    <!-- Delivery Charges -->
     <div class="mt-4">
       <label class="form-label d-block mb-2">Is there any Delivery Charges?</label>
       <div class="segmented">
@@ -264,9 +260,16 @@ const taxTypeOptions = ref([
 </template>
 
 <style scoped>
-body {
-  overflow: hidden !important;
+/* Force parent containers to auto height */
+:deep(.account-page),
+:deep(.main-wrapper),
+:deep(.account-content),
+:deep(.row),
+:deep(.form-container) {
+  height: auto !important;
+  min-height: auto !important;
 }
+
 .dark input {
   background-color: #181818 !important;
   color: #ffffff;
@@ -284,6 +287,7 @@ body {
   border: 1px solid #e3e8f2;
   box-shadow: 0 4px 10px rgba(25, 28, 90, 0.05);
   overflow: hidden;
+  position: relative;
 }
 
 .dark .segmented {
@@ -295,6 +299,12 @@ body {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  top: 0;
+  left: 0;
 }
 
 .segmented__btn {
@@ -340,13 +350,7 @@ body {
 /* Each option */
 :deep(.p-select-option) {
   background-color: transparent !important;
-  /* instead of 'none' */
   color: black !important;
-}
-
-.dark input {
-  background-color: #181818 !important;
-  color: #ffffff;
 }
 
 .dark .p-select {
@@ -356,11 +360,6 @@ body {
 
 .dark .p-select-label {
   color: #fff !important;
-}
-
-.dark textarea {
-  background-color: #181818 !important;
-  color: #ffffff;
 }
 
 /* Hovered option */
@@ -458,10 +457,8 @@ body {
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
   color: #f87171 !important;
-  /* lighter red */
 }
 
-/* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
   background-color: #181818 !important;
   color: #fff !important;
