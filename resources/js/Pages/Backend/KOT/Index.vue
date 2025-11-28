@@ -52,8 +52,6 @@ const fetchOrders = async () => {
                 orderIndex: ko.id
             };
         });
-
-        console.log("Transformed orders:", orders.value);
     } catch (error) {
         console.error("Error fetching orders:", error);
         orders.value = [];
@@ -252,15 +250,6 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-const handleFilterApply = (appliedFilters) => {
-    console.log("Filters applied:", appliedFilters);
-};
-
-const handleFilterClear = () => {
-    console.log("Filters cleared");
-};
-
-
 /* ===================== KPIs ===================== */
 const totalTables = computed(() => {
     const tables = new Set(
@@ -270,36 +259,13 @@ const totalTables = computed(() => {
     );
     return tables.size;
 });
-
 const totalItems = computed(() => allItems.value.length);
-
 const pendingOrders = computed(
     () => orders.value.filter((o) => o.status === "Waiting").length
 );
-
 const cancelledOrders = computed(
     () => orders.value.filter((o) => o.status === "Cancelled").length
 );
-
-/* ===================== Helpers ===================== */
-function formatDate(d) {
-    const dt = new Date(d);
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, "0");
-    const dd = String(dt.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-}
-
-function timeAgo(d) {
-    const diff = Date.now() - new Date(d).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-}
-
 const getStatusBadge = (status) => {
     switch (status) {
         case 'Done':
@@ -312,24 +278,15 @@ const getStatusBadge = (status) => {
             return 'bg-secondary';
     }
 };
-
-
-
-
-// ✅ STEP 2: Update function to modify the item status in orders.value
 const updateKotStatus = async (item, status) => {
     try {
         console.log(`Updating KOT item ID ${item.id} -> ${status}`);
         const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
-
-        // ✅ Find the order in orders.value and update the item's status
         const order = orders.value.find(o => o.id === item.order.id);
         if (order && order.items) {
             const kotItem = order.items.find(i => i.id === item.id);
             if (kotItem) {
                 kotItem.status = response.data.status || status;
-
-                // Force reactivity by creating a new items array
                 order.items = [...order.items];
             }
         }
@@ -340,26 +297,17 @@ const updateKotStatus = async (item, status) => {
         toast.error(err.response?.data?.message || 'Failed to update status');
     }
 };
-
-
-
 const printOrder = (order) => {
     const plainOrder = JSON.parse(JSON.stringify(order));
-
-    // Access order data directly from the order object
     const customerName = plainOrder?.customer_name || 'Walk-in Customer';
     const orderType = plainOrder?.type?.order_type || 'Dine In';
     const tableNumber = plainOrder?.type?.table_number;
     const payment = plainOrder?.payment;
     const posOrderItems = plainOrder?.items || [];
-
-    // Calculate totals from items
     const subTotal = posOrderItems.reduce((sum, item) =>
         sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0
     );
     const totalAmount = plainOrder?.total_amount || subTotal;
-
-    // Format date and time
     const createdDate = plainOrder?.created_at ? new Date(plainOrder.created_at) : new Date();
     const orderDate = createdDate.toISOString().split('T')[0];
     const orderTime = createdDate.toTimeString().split(' ')[0];
@@ -373,18 +321,6 @@ const printOrder = (order) => {
     } else {
         payLine = `Payment Type: ${payment?.payment_method || "Cash"}`;
     }
-
-    const itemsWithPrices = (plainOrder.items || []).map(kotItem => {
-        const matchingPosItem = posOrderItems.find(posItem =>
-            posItem.title === kotItem.item_name ||
-            posItem.product_id === kotItem.product_id
-        );
-        return {
-            ...kotItem,
-            price: matchingPosItem?.price || 0
-        };
-    });
-
     const html = `
     <html>
     <head>
@@ -483,9 +419,6 @@ const printOrder = (order) => {
     };
 };
 
-
-
-// Get All Connected Printers
 const printers = ref([]);
 const loadingPrinters = ref(false);
 
@@ -510,8 +443,6 @@ const fetchPrinters = async () => {
         loadingPrinters.value = false;
     }
 };
-
-// 🔹 Fetch once on mount
 onMounted(fetchPrinters);
 </script>
 
@@ -556,8 +487,6 @@ onMounted(fetchPrinters);
                         </div>
                     </div>
                 </div>
-
-                <!-- Pending Orders -->
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
@@ -572,8 +501,6 @@ onMounted(fetchPrinters);
                         </div>
                     </div>
                 </div>
-
-                <!-- Cancelled Orders -->
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
@@ -589,12 +516,8 @@ onMounted(fetchPrinters);
                     </div>
                 </div>
             </div>
-
-
-            <!-- Orders Table -->
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-body">
-                    <!-- Toolbar -->
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 fw-semibold">Kitchen Orders</h5>
 
@@ -646,29 +569,6 @@ onMounted(fetchPrinters);
                                     </div>
                                 </template>
                             </FilterModal>
-                            <!-- Order Type filter -->
-                            <!-- <div style="min-width: 170px">
-                                <Select v-model="orderTypeFilter" :options="orderTypeOptions" placeholder="Order Type"
-                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span>
-                                        <span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div> -->
-
-                            <!-- Status filter -->
-                            <!-- <div style="min-width: 160px">
-                                <Select v-model="statusFilter" :options="statusOptions" placeholder="Status"
-                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span>
-                                        <span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div> -->
-
-                            <!-- Download -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
@@ -806,20 +706,14 @@ onMounted(fetchPrinters);
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Header area (filter + select all) */
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
-
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
-
-/* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
@@ -829,7 +723,6 @@ onMounted(fetchPrinters);
     color: #fff !important;
 }
 
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -842,7 +735,6 @@ onMounted(fetchPrinters);
     color: #000 !important;
 }
 
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
@@ -850,11 +742,8 @@ onMounted(fetchPrinters);
 
 :deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
     background: #007bff !important;
-    /* blue when checked */
     border-color: #007bff !important;
 }
-
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
@@ -865,71 +754,48 @@ onMounted(fetchPrinters);
     background-color: #212121 !important;
     color: #fff !important;
 }
-
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
-
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
-    /* light gray, like Bootstrap badge */
     color: #000 !important;
     border-radius: 12px !important;
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -942,10 +808,6 @@ onMounted(fetchPrinters);
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
-
-
-/* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -960,25 +822,18 @@ onMounted(fetchPrinters);
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
     color: #fff !important;
 }
-
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -986,26 +841,18 @@ onMounted(fetchPrinters);
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -1013,37 +860,26 @@ onMounted(fetchPrinters);
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
-
-/* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
-
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

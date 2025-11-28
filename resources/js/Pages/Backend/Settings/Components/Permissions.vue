@@ -11,10 +11,8 @@ const form = ref({ name: "", description: "" });
 const formErrors = ref({});
 const saving = ref(false);
 
-// Search
 const searchTerm = ref("");
 
-// Fetch list
 const baseUrl = "/permissions";
 async function fetchAllPermissions() {
     const { data } = await axios.get(baseUrl);
@@ -32,12 +30,10 @@ const filteredPermissions = computed(() => {
     });
 });
 
-// ESC clears search
 function handleKeydown(e) {
     if (e.key === "Escape" && searchTerm.value) searchTerm.value = "";
 }
 
-// Modal open helpers
 function openCreate() {
     editingId.value = null;
     form.value = { name: "", description: "" };
@@ -51,8 +47,6 @@ function openEdit(p) {
     formErrors.value = {};
     show.value = true;
 }
-
-// Save (create/update)
 async function save() {
     try {
         saving.value = true;
@@ -84,8 +78,6 @@ async function save() {
         saving.value = false;
     }
 }
-
-// Lifecycle
 onMounted(() => {
     fetchAllPermissions();
     window.addEventListener("keydown", handleKeydown);

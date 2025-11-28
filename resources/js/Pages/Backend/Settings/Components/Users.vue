@@ -4,23 +4,15 @@ import axios from "axios";
 import { toast } from "vue3-toastify";
 import Select from "primevue/select";
 import { Pencil, Plus } from "lucide-vue-next";
-
-
-
 const rows = ref([]);
 const roles = ref([]);
-
 const loading = ref(false);
-
 const show = ref(false);
 const editingId = ref(null);
-
-// visibility toggles
 const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
 const showPin = ref(false);
 
-// form
 const form = ref({
   name: "",
   email: "",
@@ -31,8 +23,6 @@ const form = ref({
   role_id: null,
 });
 const formErrors = ref({});
-
-// cannot delete Super Admin/Admin users
 const canDelete = (row) => !["Super Admin", "Admin"].includes(row.role ?? "");
 
 function openCreate() {
@@ -75,15 +65,13 @@ const userRoles = ref([]);
 async function fetchAll() {
   try {
     loading.value = true;
-    const { data } = await axios.get("/users"); // expects { users: [...], roles: [...] }
+    const { data } = await axios.get("/users");
     rows.value = data.users || [];
     roles.value = data.roles || [];
     userRoles.value = (data.roles || []).map(role => ({
       name: role.name,
-      value: role.id, // 👈 better: use ID as value
+      value: role.id,
     }));
-
-    // console.log("Label Colors:", labelColors);
   } catch (e) {
     console.error(e);
     toast.error("Failed to load users");
@@ -91,14 +79,7 @@ async function fetchAll() {
     loading.value = false;
   }
 }
-
-
-const roleOptions = computed(() =>
-  (roles.value || []).map(r => ({ label: r.name, value: r.id }))
-);
-
 const isSaving = ref(false);
-
 async function save() {
   try {
    isSaving.value = true;
@@ -126,7 +107,6 @@ async function save() {
     isSaving.value = false;
   }
 }
-
 async function remove(row) {
   if (!canDelete(row)) return;
  
@@ -138,7 +118,6 @@ async function remove(row) {
     toast.error(e?.response?.data?.message || "Delete failed");
   }
 }
-
 onMounted(fetchAll);
 </script>
 
@@ -345,18 +324,12 @@ onMounted(fetchAll);
   transition: none !important;
 }
 
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
   z-index: 2000 !important;
 }
 
-/* ====================================================== */
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
   background-color: white !important;
   color: black !important;
@@ -397,8 +370,6 @@ onMounted(fetchAll);
   color: #80878e !important;
 }
 
-
-/* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
   background-color: #181818 !important;
   color: #fff !important;
@@ -414,12 +385,9 @@ onMounted(fetchAll);
   border-bottom: 1px solid #555 !important;
 }
 
-/* Options list container */
 :global(.dark .p-multiselect-list) {
   background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
   background: #181818 !important;
   color: #fff !important;
@@ -440,25 +408,21 @@ onMounted(fetchAll);
   border-color: #555 !important;
 }
 
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
   background: #181818 !important;
   border: 1px solid #555 !important;
 }
 
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
   background: #181818 !important;
   color: #fff !important;
   border: 1px solid #555 !important;
 }
 
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
   background: #181818 !important;
 }
 
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
   background: #181818 !important;
   color: #fff !important;

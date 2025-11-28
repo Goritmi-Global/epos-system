@@ -110,13 +110,11 @@ const current = computed(
     padding: 8px 12px;
 }
 
-/* ===== Underline Tabs ===== */
 .tabs-underline {
     display: flex;
     gap: 28px;
     align-items: center;
     padding: 6px 6px 0;
-    /* border-bottom: 1px solid rgba(0,0,0,0.06); */
     background: transparent;
 }
 
@@ -125,9 +123,9 @@ const current = computed(
     appearance: none;
     border: 0;
     background: none;
-    padding: 10px 2px 14px; /* extra bottom for underline space */
+    padding: 10px 2px 14px; 
     font-weight: 600;
-    color: #5b6470; /* inactive text */
+    color: #5b6470; 
     cursor: pointer;
     transition: color 0.2s ease;
     outline: none;
@@ -135,10 +133,9 @@ const current = computed(
 
 .tablink:hover,
 .tablink:focus-visible {
-    color: #1c0d82; /* brand hover */
+    color: #1c0d82; 
 }
 
-/* underline */
 .tablink::after {
     content: "";
     position: absolute;
@@ -146,28 +143,21 @@ const current = computed(
     right: 0;
     bottom: -1px;
     height: 2px;
-    background: #1c0d82; /* brand color */
+    background: #1c0d82; 
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.25s ease;
     border-radius: 2px;
 }
 
-/* active state */
 .tablink.active {
     color: #1C0D82;
 }
 .tablink.active::after {
     transform: scaleX(1);
 }
-
-/* ---- Dark mode ---- */
-.dark .tabs-underline {
-    /* border-bottom-color: rgba(255,255,255,0.08); */
-}
-
 .dark .tablink {
-    color: #cfd5df; /* inactive text in dark */
+    color: #cfd5df; 
 }
 
 .dark .tablink:hover,
@@ -177,10 +167,9 @@ const current = computed(
 }
 
 .dark .tablink::after {
-    background: #8ea2ff; /* softer brand for dark */
+    background: #8ea2ff;
 }
 
-/* small screens */
 @media (max-width: 768px) {
     .tabs-underline {
         gap: 18px;

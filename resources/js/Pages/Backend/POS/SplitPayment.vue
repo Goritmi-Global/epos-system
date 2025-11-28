@@ -16,9 +16,9 @@ const props = defineProps({
   orderType: String,
   selectedTable: Object,
   orderItems: Array,
-  grandTotal: Number,          // total to be paid (cash + card)
+  grandTotal: Number,         
   money: Function,
-  cashReceived: Number,        // optional initial cash
+  cashReceived: Number,      
   subTotal: Number,
   tax: Number,
   serviceCharges: Number,
@@ -30,8 +30,6 @@ const props = defineProps({
   paymentMethod: String,
   paymentType: String,
   change: Number,
-
-  // ✅ ADD PROMO PROPS HERE
   promoDiscount: { type: Number, default: 0 },
   promoId: { type: [Number, String, null], default: null },
   promoName: { type: [String, null], default: null },
@@ -47,10 +45,8 @@ const props = defineProps({
 
 const emit = defineEmits(["confirm"]);
 
-// ---------- helpers ----------
 const total = computed(() => Number(props.grandTotal ?? 0));
-
-// Split state (default: 50/50 integer amounts)
+ss
 const half = Math.floor(total.value / 2);
 
 // Cash = floor half

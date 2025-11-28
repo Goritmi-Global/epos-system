@@ -230,17 +230,15 @@ const filters = ref({
   minDiscount: null
 });
 
-// ✅ NEW: Check if discount is already applied to current order
+//  NEW: Check if discount is already applied to current order
 const isDiscountAlreadyApplied = (discount) => {
   return props.appliedDiscounts.some(d => d.id === discount.id);
 };
-
-// ✅ NEW: Check if discount was rejected
 const isDiscountRejected = (discount) => {
   return props.rejectedDiscounts.some(d => d.id === discount.id);
 };
 
-// ✅ UPDATED: Toggle discount selection (prevent re-selection of applied discounts)
+//  UPDATED: Toggle discount selection (prevent re-selection of applied discounts)
 const toggleDiscount = (discount) => {
   // Prevent selecting already applied or rejected discounts
   if (isDiscountAlreadyApplied(discount) || isDiscountRejected(discount)) {
@@ -524,7 +522,7 @@ const filteredDiscounts = computed(() => {
   color: #fff !important;
 }
 
-/* ✅ NEW: Already Applied Styles */
+/*  NEW: Already Applied Styles */
 .discount-card.already-applied {
   opacity: 0.6;
   cursor: not-allowed;

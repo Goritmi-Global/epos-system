@@ -7,22 +7,7 @@ const props = defineProps({ model: Object, formErrors: Object, isOnboarding: { t
 
 const emit = defineEmits(["save"]);
 
-/* UK Phone Configuration */
 const UK_COUNTRY_CODE = "+44";
-const UK_PHONE_LENGTH = 10; // UK local number length without country code
-const UK_AREA_CODES = {
-    "20": "London",
-    "121": "Birmingham",
-    "161": "Manchester",
-    "113": "Leeds",
-    "141": "Glasgow",
-    "151": "Liverpool",
-    "191": "Newcastle",
-    "118": "Reading",
-    "131": "Edinburgh",
-    "29": "Cardiff"
-};
-
 /* ------------------ FORM ------------------ */
 const form = reactive({
     business_name: props.model?.business_name ?? "",
@@ -46,8 +31,6 @@ const phoneError = ref('');
 const isPhoneValid = ref(false);
 const phoneWarnings = ref([]);
 
-// Validate UK phone number (International format: 10 digits without +44)
-// Validate UK MOBILE phone number only
 const validatePhone = () => {
     phoneError.value = '';
     phoneWarnings.value = [];
@@ -60,10 +43,8 @@ const validatePhone = () => {
         return false;
     }
 
-    // Remove any non-digit characters
     let cleanPhone = phoneLocal.replace(/\D+/g, '');
 
-    // UK mobile must be exactly 10 digits
     if (cleanPhone.length !== 10) {
         phoneError.value = 'UK mobile number must be exactly 10 digits';
         return false;
@@ -83,17 +64,16 @@ const validatePhone = () => {
         return false;
     }
 
-    // Validate mobile operator prefix (7 followed by valid operator code)
     const operatorPrefix = cleanPhone.substring(1, 3);
     const validMobileOperators = [
-        '11', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', // Various operators
-        '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', // Various operators
-        '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', // EE
-        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', // Vodafone
-        '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', // O2
-        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', // O2/Giffgaff
-        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', // Three
-        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'  // Virgin/TalkTalk
+        '11', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', 
+        '30', '31', '32', '33', '34', '35', '36', '37', '38', '39',
+        '40', '41', '42', '43', '44', '45', '46', '47', '48', '49',
+        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59',
+        '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', 
+        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', 
+        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', 
+        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'  
     ];
 
     if (!validMobileOperators.includes(operatorPrefix)) {
@@ -462,7 +442,6 @@ function emitSave() {
     color: #ffffff;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {

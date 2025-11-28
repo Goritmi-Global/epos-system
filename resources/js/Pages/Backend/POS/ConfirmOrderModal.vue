@@ -101,30 +101,12 @@ const handleConfirm = async () => {
         },
     });
 };
-
-
 const formattedOrderType = computed(() => {
     if (!props.orderType) return "";
     return props.orderType
         .replace(/_/g, " ")
         .replace(/\b\w/g, (char) => char.toUpperCase());
 });
-
-// Payment confirm handler
-function handleSplitConfirm(payload) {
-    // bubble up to the parent exactly like other flows
-    // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
-    // You can also create the order here if that’s your pattern.
-    // Keep your original event name:
-    emit("confirm", payload);
-}
-function handleCardConfirm(payload) {
-    // bubble up to the parent exactly like other flows
-    // payload = { paymentMethod: 'Split', cashReceived, cardAmount, changeAmount: 0 }
-    // You can also create the order here if that’s your pattern.
-    // Keep your original event name:
-    emit("confirm", payload);
-}
 </script>
 
 <template>
@@ -137,7 +119,6 @@ function handleCardConfirm(payload) {
                         <i class="bi bi-receipt-cutoff"></i>
                         Confirm Order
                     </h5>
-
                     <button
                         class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                         @click="$emit('close')" data-bs-dismiss="modal" aria-label="Close" title="Close">
@@ -146,9 +127,7 @@ function handleCardConfirm(payload) {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
-
                 </div>
-
                 <!-- Body -->
                 <div class="modal-body p-3 p-md-4 body-scroll">
                     <div class="row g-3">
@@ -442,28 +421,6 @@ function handleCardConfirm(payload) {
 
                                         <!-- Split (placeholder to be wired up later if needed) -->
                                         <div v-if="paymentMethod === 'Split'" class="pt-3 border-top">
-                                            <!-- <SplitPayment
-                                                :total="grandTotal"
-                                                 
-                                                :order_code="order_code"
-                                                :customer="customer"
-                                                :orderType="orderType"
-                                                :selectedTable="selectedTable"
-                                                :orderItems="orderItems"
-                                                :money="money"
-                                                :note="note"
-                                                :orderDate="orderDate"
-                                                :orderTime="orderTime"
-                                                :tax="tax ?? 0"
-                                                :serviceCharges="
-                                                    serviceCharges ?? 0
-                                                "
-                                                :deliveryCharges="
-                                                    deliveryCharges ?? 0
-                                                "
-                                                @confirm="handleSplitConfirm"
-                                            /> -->
-
                                             <SplitPayment :order_code="order_code" :show="show" :customer="customer"
                                                 :phone="phone" :delivery-location="deliveryLocation"
                                                 :orderType="orderType" :selectedTable="selectedTable"

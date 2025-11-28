@@ -85,12 +85,7 @@
                                                 class="p-2 rounded-full text-danger hover:bg-gray-100">
                                                 <XCircle class="w-5 h-5" />
                                             </button>
-                                            <!-- ✅ Only show if printers are available -->
-                                            <!-- <button v-if="printers.length > 0"
-                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
-                                                @click.prevent="printOrder(item.order)" title="Print">
-                                                <Printer class="w-5 h-5" />
-                                            </button> -->
+                                          
                                             <button
                                                 class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
                                                 @click.prevent="printOrder(item.order)" title="Print">
@@ -133,9 +128,6 @@ const props = defineProps({
 const kotCount = computed(() => props.kot?.length || 0);
 const emit = defineEmits(['close', 'status-updated']);
 
-
-// Flatten all items into one array
-// In your KOT modal component
 const allItems = computed(() => {
 
     if (!props.kot || props.kot.length === 0) {
@@ -154,11 +146,7 @@ const allItems = computed(() => {
 
     return flattened;
 });
-
-
 const searchQuery = ref('');
-
-// Filtered items based on search
 const filteredItems = computed(() => {
     if (!searchQuery.value) return allItems.value;
 
@@ -170,13 +158,9 @@ const filteredItems = computed(() => {
         item.status.toLowerCase().includes(query)
     );
 });
-
-
 const updateKotStatus = async (item, status) => {
   try {
     const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
-
-    // ✅ Find the real item in props.kot and update its status
     const order = props.kot.find(o => o.id === item.order.id);
     if (order) {
       const kotItem = order.items.find(i => i.id === item.id);
@@ -184,30 +168,23 @@ const updateKotStatus = async (item, status) => {
         kotItem.status = response.data.status || status;
       }
     }
-
     toast.success(`"${item.item_name}" marked as ${status}`);
-
-    // Optional: notify parent
     emit('status-updated', { id: item.id, status });
   } catch (err) {
     console.error(err);
     toast.error(err.response?.data?.message || "Failed to update status");
   }
 };
-
-
-
-
 const getStatusBadge = (status) => {
     switch (status) {
         case 'Done':
-            return 'bg-success';       // green badge
+            return 'bg-success';      
         case 'Cancelled':
-            return 'bg-danger';        // red badge
+            return 'bg-danger';        
         case 'Waiting':
-            return 'bg-warning text-dark'; // yellow badge with dark text
+            return 'bg-warning text-dark'; 
         default:
-            return 'bg-secondary';     // gray badge for unknown
+            return 'bg-secondary';    
     }
 };
 
@@ -233,56 +210,17 @@ watch(
     }
 );
 
-
-// Get All Connected Printers
-// const printers = ref([]);
-// const loadingPrinters = ref(false);
-
-// const fetchPrinters = async () => {
-//     loadingPrinters.value = true;
-//     try {
-//         const res = await axios.get("/api/printers");
-//         console.log("Printers:", res.data.data);
-
-//         // ✅ Only show connected printers (status OK)
-//         printers.value = res.data.data
-//             .filter(p => p.is_connected === true || p.status === "OK")
-//             .map(p => ({
-//                 label: `${p.name}`,
-//                 value: p.name,
-//                 driver: p.driver,
-//                 port: p.port,
-//             }));
-//     } catch (err) {
-//         console.error("Failed to fetch printers:", err);
-//     } finally {
-//         loadingPrinters.value = false;
-//     }
-// };
-
-// // 🔹 Fetch once on mount
-// onMounted(fetchPrinters);
-
-
-// Print function for individual orders
 const printOrder = (order) => {
-    console.log(order);
-    // Convert reactive object to plain object
     const plainOrder = JSON.parse(JSON.stringify(order));
-
-    // Get data from related models
     const posOrder = plainOrder?.pos_order_type?.order;
     const posOrderType = plainOrder?.pos_order_type;
     const payment = posOrder?.payment;
     const posOrderItems = posOrder?.items || [];
-
     const customerName = posOrder?.customer_name || 'Walk-in Customer';
     const orderType = posOrderType?.order_type || 'Dine In';
     const tableNumber = posOrderType?.table_number;
     const subTotal = posOrder?.sub_total || 0;
     const totalAmount = posOrder?.total_amount || 0;
-
-    // Payment method from payment table
     const type = (payment?.payment_method || "cash").toLowerCase();
     let payLine = "";
     if (type === "split") {
@@ -296,8 +234,6 @@ const printOrder = (order) => {
     } else {
         payLine = `Payment Type: ${payment?.payment_method || "Cash"}`;
     }
-
-    // Match KOT items with POS items to get prices
     const itemsWithPrices = (plainOrder.items || []).map(kotItem => {
         const matchingPosItem = posOrderItems.find(posItem =>
             posItem.title === kotItem.item_name ||
@@ -368,7 +304,6 @@ const printOrder = (order) => {
          ${itemsWithPrices.map(item => {
         const qty = Number(item.quantity) || 1;
         const price = Number(item.price) || 0;
-        // Show price per item, not total
         return `
       <tr>
         <td>${item.item_name || 'Unknown Item'}</td>

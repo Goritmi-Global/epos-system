@@ -66,7 +66,6 @@ const filteredItems = computed(() => {
     const term = o_search.value.trim().toLowerCase();
 
     if (!term) {
-        // Ensure all items have reactive properties
         props.items.forEach(item => {
             if (!('qty' in item)) item.qty = 0;
             if (!('unitPrice' in item)) item.unitPrice = 0;
@@ -80,7 +79,6 @@ const filteredItems = computed(() => {
     }
 
     return props.items.filter((i) => {
-        // Ensure filtered items also have reactive properties
         if (!('qty' in i)) i.qty = 0;
         if (!('unitPrice' in i)) i.unitPrice = 0;
         if (!('expiry' in i)) i.expiry = null;
@@ -106,8 +104,6 @@ const filteredItems = computed(() => {
 function updateSubtotal(it) {
     let qty = Number(it.qty) || 0;
     const price = Number(it.unitPrice) || 0;
-
-    // Apply conversion if derived unit is selected
     if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
         const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
         qty = qty * conversionFactor;
@@ -219,15 +215,11 @@ const setMultipleItemError = (item, field, message) => {
     m_formErrors.value[item.id][field] = [message];
 };
 
-
-// function for fetcing the derived units
 async function loadDerivedUnits(item) {
     try {
-        // try typical key names used in many codebases; adapt if your item uses different key
         const baseUnitId = item.unit_id ?? item.unitId ?? null;
 
         if (!baseUnitId) {
-            // fallback: no base id available => set empty array
             item.derived_units = [];
             return;
         }
@@ -237,17 +229,11 @@ async function loadDerivedUnits(item) {
             item.derived_units = derivedUnitsCache.value[baseUnitId];
             return;
         }
-
-        // request units (request big per_page so we can filter on client; adjust per_page if needed)
         const res = await axios.get("/units", { params: { per_page: 200 } });
         const list = res.data?.data ?? res.data ?? [];
-
-        // filter derived units where base_unit_id matches this item's base unit id
         const derived = list.filter(
             (u) => u.base_unit_id !== null && Number(u.base_unit_id) === Number(baseUnitId)
         );
-
-        // cache + attach to item for use in template
         derivedUnitsCache.value[baseUnitId] = derived;
         item.derived_units = derived;
     } catch (err) {
@@ -255,12 +241,9 @@ async function loadDerivedUnits(item) {
         item.derived_units = [];
     }
 }
-
-
-// handle unit change (base or derived)
 function onUnitChange(it) {
     if (!it.selected_derived_unit_id) {
-        it.selectedDerivedUnitInfo = null // reset if base unit selected
+        it.selectedDerivedUnitInfo = null 
     } else {
         it.selectedDerivedUnitInfo = it.derived_units.find(
             du => du.id === it.selected_derived_unit_id
@@ -280,11 +263,6 @@ function onMultipleUnitChange(it) {
     updateMultipleSubtotal(it);
 }
 
-
-
-
-
-// clear either a specific field error for an item, or all errors for that item
 const clearItemErrors = (item, field = null) => {
     if (!formErrors.value) return;
     if (!item || !item.id) return;
@@ -326,14 +304,11 @@ async function addOrderItem(item) {
         toast.error("Enter a valid quantity.");
         return;
     }
-
-    // determine final qty (in base units)
-    let qty = inputQty; // will become quantity in base unit if conversion applies
+    let qty = inputQty;
     let selectedDerived = null;
-    let conversionFactor = 1; // default to 1 for base unit
+    let conversionFactor = 1;
 
     if (item.selected_derived_unit_id) {
-        // make sure derived units are loaded
         await loadDerivedUnits(item);
         selectedDerived = (item.derived_units || []).find(
             (u) => Number(u.id) === Number(item.selected_derived_unit_id)
@@ -341,22 +316,15 @@ async function addOrderItem(item) {
 
         if (selectedDerived && selectedDerived.conversion_factor) {
             conversionFactor = Number(selectedDerived.conversion_factor);
-            // convert from selected derived unit to base unit
             qty = Number(inputQty) * conversionFactor;
         }
     }
-
-    // Get the entered price
     const enteredPrice = item.unitPrice !== "" ? Number(item.unitPrice) : Number(item.defaultPrice || 0);
-
-    // Convert price to base unit price if derived unit is selected
     const baseUnitPrice = selectedDerived
         ? round2(enteredPrice / conversionFactor)
         : enteredPrice;
 
     const expiry = item.expiry || null;
-
-    // Validations
     if (!qty || qty <= 0) {
         setItemError(item, "qty", "Enter a valid quantity.");
         toast.error("Enter a valid quantity.");
@@ -368,8 +336,6 @@ async function addOrderItem(item) {
         toast.error("Enter a valid unit price.");
         return;
     }
-
-    // MERGE: same product + same baseUnitPrice + same expiry
     const found = o_cart.value.find(
         (r) => r.id === item.id && r.unitPrice === baseUnitPrice && r.expiry === expiry
     );
@@ -382,25 +348,17 @@ async function addOrderItem(item) {
             id: item.id,
             name: item.name,
             category: item.category,
-            // qty is in base units (after conversion)
             qty,
-            // unitPrice is ALWAYS in base unit price
             unitPrice: baseUnitPrice,
             expiry,
             cost: round2(qty * baseUnitPrice),
-
-            // helpful metadata:
             derived_unit_id: selectedDerived ? selectedDerived.id : null,
             derived_unit_name: selectedDerived ? selectedDerived.name : null,
             base_unit_name: item.unit_name || null,
-
-            // Store the entered price for reference
             entered_price: enteredPrice,
             entered_unit: selectedDerived ? selectedDerived.name : item.unit_name,
         });
     }
-
-    // reset only this item's fields
     item.qty = null;
     item.unitPrice = null;
     item.expiry = null;
@@ -853,26 +811,19 @@ const formatDate = (date) => {
 <style scoped>
 .dark .modal-body {
     background-color: #181818 !important;
-    /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .modal-header {
     background-color: #181818 !important;
-    /* gray-800 */
     color: #f9fafb !important;
 }
 
 .dark .table {
     background-color: #181818 !important;
-    /* gray-900 */
     color: #f9fafb !important;
 }
 
-/* .dark .btn-primary{
-    background-color: #181818 !important;
-    border: #181818 !important;
-} */
 .dark .table thead {
     background-color: #181818;
     color: #f9fafb;
@@ -908,34 +859,24 @@ const formatDate = (date) => {
     color: #f9fafb;
 }
 
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c
 }
 
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;

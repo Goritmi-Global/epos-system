@@ -8,13 +8,12 @@ import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
-const orders = ref([]); // rename from payment -> orders for clarity
+const orders = ref([]);
 
 const fetchOrdersWithPayment = async () => {
     try {
         const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
-        console.log("orders.value", orders.value);
     } catch (error) {
         console.error("Error fetching orders:", error);
     }
@@ -23,12 +22,8 @@ onMounted(async () => {
     q.value = "";
     searchKey.value = Date.now();
     await nextTick();
-
-    // Delay to prevent autofill
     setTimeout(() => {
         isReady.value = true;
-
-        // Force clear any autofill that happened
         const input = document.getElementById(inputId);
         if (input) {
             input.value = '';
@@ -48,16 +43,11 @@ const filters = ref({
     paymentType: "",
     dateFrom: "",
     dateTo: "",
-    priceMin: null,  // Changed from amountMin
-    priceMax: null,  // Changed from amountMax
+    priceMin: null, 
+    priceMax: null, 
 })
-const typeFilter = ref("All"); // 'All' | 'Cash' | 'Card' | 'QR' | 'Bank'
-const typeOptions = ref(["All", "Cash", "Card", "QR", "Bank"]);
-
-// Map orders → payments shape for easier UI handling
 const payments = computed(() =>
     orders.value.map((o) => {
-        // handle promo array safely
         const promo = Array.isArray(o.promo) && o.promo.length > 0 ? o.promo[0] : null;
 
         return {
@@ -80,32 +70,6 @@ const payments = computed(() =>
     })
 );
 
-
-
-// const filtered = computed(() => {
-//     const term = q.value.trim().toLowerCase();
-//     return payments.value
-//         .filter((p) =>
-//             typeFilter.value === "All"
-//                 ? true
-//                 : p.type.toLowerCase() === typeFilter.value.toLowerCase()
-//         )
-//         .filter((p) => {
-//             if (!term) return true;
-//             return [
-//                 String(p.orderId),
-//                 p.customer || "",
-//                 p.user || "",
-//                 p.type || "",
-//                 String(p.amount),
-//                 formatDateTime(p.paidAt),
-//             ]
-//                 .join(" ")
-//                 .toLowerCase()
-//                 .includes(term);
-//         });
-// });
-
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
     let result = [...payments.value];
@@ -127,7 +91,6 @@ const filtered = computed(() => {
         );
     }
 
-    // Payment Type filter
     if (filters.value.paymentType) {
         result = result.filter(
             (p) =>
@@ -135,10 +98,6 @@ const filtered = computed(() => {
                 filters.value.paymentType.toLowerCase()
         );
     }
-
-    // Amount range filter
-    // ========== USE THIS INSTEAD ==========
-    // Amount range filter
     if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
         result = result.filter((p) => {
             const amount = Number(p.amount) || 0;  // Ensure it's a number
@@ -168,31 +127,6 @@ const filtered = computed(() => {
 
     return result;
 });
-
-const sortedPayments = computed(() => {
-    const arr = [...filtered.value];
-    const sortBy = filters.value.sortBy;
-
-    switch (sortBy) {
-        case "date_desc":
-            return arr.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
-        case "date_asc":
-            return arr.sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
-        case "amount_desc":
-            return arr.sort((a, b) => (b.amount || 0) - (a.amount || 0));
-        case "amount_asc":
-            return arr.sort((a, b) => (a.amount || 0) - (b.amount || 0));
-        case "order_asc":
-            return arr.sort((a, b) => (a.orderId || 0) - (b.orderId || 0));
-        case "order_desc":
-            return arr.sort((a, b) => (b.orderId || 0) - (a.orderId || 0));
-        default:
-            return arr.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
-    }
-});
-// =================================================
-
-// ========== ADD filterOptions COMPUTED ==========
 const filterOptions = computed(() => ({
     sortOptions: [
         { value: "date_desc", label: "Date: Newest First" },
@@ -210,16 +144,7 @@ const filterOptions = computed(() => ({
         { value: "Bank", label: "Bank" },
     ],
 }));
-// ================================================
 
-// ========== ADD FILTER HANDLERS ==========
-const handleFilterApply = (appliedFilters) => {
-    console.log("Filters applied:", appliedFilters);
-};
-
-const handleFilterClear = () => {
-    console.log("Filters cleared");
-};
 /* ===================== KPIs ===================== */
 const totalPayments = computed(() => payments.value.length);
 
@@ -238,11 +163,6 @@ const todaysPayments = computed(() => {
 const totalAmount = computed(() =>
     payments.value.reduce((sum, p) => sum + Number(p.amount || 0), 0)
 );
-
-/* ===================== Helpers ===================== */
-const money = (n, currency = "PKR") =>
-    new Intl.NumberFormat("en-PK", { style: "currency", currency }).format(n);
-
 function formatDateTime(d) {
     if (!d) return "—";
     const dt = new Date(d);
@@ -255,10 +175,6 @@ function formatDateTime(d) {
         hour12: true,
     });
 }
-
-/* ===================== Stubs ===================== */
-const onDownload = (type) => console.log("Download:", type);
-
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 </script>
@@ -325,8 +241,6 @@ onUpdated(() => window.feather?.replace());
                 </div>
             </div>
 
-
-            <!-- Payments Table -->
             <div class="card border-0 shadow-lg rounded-4 mt-3">
                 <div class="card-body">
                     <!-- Toolbar -->
@@ -369,18 +283,6 @@ onUpdated(() => window.feather?.replace());
                                     </div>
                                 </template>
                             </FilterModal>
-
-                            <!-- Payment type filter -->
-                            <!-- <div style="min-width: 180px">
-                                <Select v-model="typeFilter" :options="typeOptions" placeholder="Payment Type"
-                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span>
-                                        <span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div> -->
-
                             <!-- Download all -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
@@ -468,14 +370,11 @@ onUpdated(() => window.feather?.replace());
 
 .dark .card {
     background-color: #181818 !important;
-    /* gray-800 */
     color: #ffffff !important;
-    /* gray-50 */
 }
 
 .dark .table {
     background-color: #181818 !important;
-    /* gray-900 */
     color: #f9fafb !important;
 }
 
@@ -509,7 +408,6 @@ onUpdated(() => window.feather?.replace());
     color: #181818;
 }
 
-/* Search pill */
 .search-wrap {
     position: relative;
     width: clamp(260px, 36vw, 420px);
@@ -530,7 +428,6 @@ onUpdated(() => window.feather?.replace());
     background: #fff;
 }
 
-/* Buttons theme */
 .btn-primary {
     background-color: var(--brand);
     border-color: var(--brand);
@@ -540,7 +437,6 @@ onUpdated(() => window.feather?.replace());
     filter: brightness(1.05);
 }
 
-/* Table polish */
 .table thead th {
     font-weight: 600;
 }
@@ -562,26 +458,18 @@ onUpdated(() => window.feather?.replace());
     background-color: #212121 !important;
     color: #fff !important;
 }
-
-/* Header area (filter + select all) */
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
-
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
-
-/* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -593,8 +481,6 @@ onUpdated(() => window.feather?.replace());
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
@@ -602,43 +488,30 @@ onUpdated(() => window.feather?.replace());
 
 :deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
     background: #007bff !important;
-    /* blue when checked */
     border-color: #007bff !important;
 }
-
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
-
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
-
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
-    /* light gray, like Bootstrap badge */
     color: #000 !important;
     border-radius: 12px !important;
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
@@ -648,35 +521,23 @@ onUpdated(() => window.feather?.replace());
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -689,10 +550,6 @@ onUpdated(() => window.feather?.replace());
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
-
-
-/* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -707,19 +564,13 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -733,26 +584,18 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -760,37 +603,29 @@ onUpdated(() => window.feather?.replace());
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
 
-/* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

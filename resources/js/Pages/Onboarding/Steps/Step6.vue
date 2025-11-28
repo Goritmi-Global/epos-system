@@ -46,8 +46,6 @@ const fetchPrinters = async () => {
   loadingPrinters.value = true;
   try {
     const res = await axios.get("/api/printers");
-    console.log("Printers:", res.data.data);
-
     printers.value = res.data.data
       .filter(p => p.is_connected === true || p.status === "OK")
       .map(p => ({

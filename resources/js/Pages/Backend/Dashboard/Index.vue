@@ -173,20 +173,6 @@ const props = defineProps({
   },
 })
 
-const currentYear = ref(props.selectedYear);
-
-
-// =========================================
-// Purchase and Sales Graph Overview
-// =========================================
-const dailySalesArray = props.dailySales.length
-  ? props.dailySales
-  : Array(31).fill(0);
-
-const dailyPurchasesArray = props.dailyPurchases.length
-  ? props.dailyPurchases
-  : Array(31).fill(0);
-
 const series = computed(() => {
   // Ensure all values are numbers
   const salesData = props.monthlySales.map(val => parseFloat(val) || 0);
@@ -310,30 +296,15 @@ const checkReminder = () => {
     }
   }
 }
-
-const closeModal = () => {
-  showModal.value = false
-  showReminderPicker.value = false
-}
-
 const goToInventory = () => {
   localStorage.removeItem('inventory_reminder')
   window.location.href = '/inventory'
 }
-
-
-// compute whether to use 24-hour or 12-hour
 const is24Hour = computed(() => page?.props?.onboarding?.currency_and_locale?.time_format === '24-hour')
-
-// adjust display format accordingly
 const timeFormat = computed(() => (is24Hour.value ? 'HH:mm' : 'hh:mm a'))
-
 const openReminderPicker = () => {
   showReminderPicker.value = true
-
   const now = new Date()
-
-  // VueDatePicker expects Date objects, not strings
   reminderDate.value = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   reminderTime.value = {
     hours: now.getHours(),
@@ -342,43 +313,25 @@ const openReminderPicker = () => {
 }
 
 const setReminder = () => {
-  console.log('setReminder called')
-  console.log('Date:', reminderDate.value)
-  console.log('Time:', reminderTime.value)
-
   if (!reminderDate.value || !reminderTime.value) {
     alert('Please select both date and time')
     return
   }
 
   try {
-    // Extract date components from the Date object
     const date = new Date(reminderDate.value)
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
-
-    // Extract time components (VueDatePicker time-picker returns an object)
     const hours = String(reminderTime.value.hours).padStart(2, '0')
     const minutes = String(reminderTime.value.minutes).padStart(2, '0')
-
-    // Create datetime string in ISO format
     const datetimeString = `${year}-${month}-${day}T${hours}:${minutes}:00`
-    console.log('DateTime string:', datetimeString)
-
     const datetime = new Date(datetimeString)
     const now = new Date()
-
-    console.log('Selected datetime:', datetime)
-    console.log('Current datetime:', now)
-    console.log('Is valid date:', !isNaN(datetime.getTime()))
-
-    // Check if date is valid
     if (isNaN(datetime.getTime())) {
       alert('Invalid date or time selected. Please try again.')
       return
     }
-
     if (datetime <= now) {
       alert('Please select a future date and time')
       return
@@ -389,11 +342,7 @@ const setReminder = () => {
       dismissed: false,
       alerts: inventoryDetails.value
     }
-
-    console.log('Saving reminder data:', reminderData)
     localStorage.setItem('inventory_reminder', JSON.stringify(reminderData))
-    console.log('Reminder saved successfully')
-
     toast.success(`Reminder set for ${datetime.toLocaleString()}`)
     showModal.value = false
     showReminderPicker.value = false
@@ -415,9 +364,6 @@ const dismissReminder = () => {
   showModal.value = false
   showReminderPicker.value = false
 }
-
-
-// Add after your existing refs
 const selectedTimeFilter = ref('all');
 
 const timeFilters = [
@@ -430,11 +376,6 @@ const timeFilters = [
 
 const setTimeFilter = (filter) => {
   selectedTimeFilter.value = filter;
-  console.log('Filter changed to:', filter);
-
-  // You can add API call here to fetch filtered data
-  // Example:
-  // fetchDashboardData(filter);
 };
 const filteredPayments = computed(() => {
   switch (selectedTimeFilter.value) {
@@ -761,12 +702,7 @@ const changeYear = (year) => {
           </div>
         </div>
       </div>
-
-
-
     </div>
-
-    <!-- Inventory Alert Modal -->
     <div v-if="showModal"
       class="inventory-stock-alert fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
