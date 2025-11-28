@@ -128,7 +128,6 @@ const periodLabel = computed(() => {
 });
 
 /* ============= Chart Building ============= */
-/* ============= Chart Building ============= */
 function buildLine(series, W, H, m = { l: 50, r: 20, t: 40, b: 50 }) {
     if (!series?.length) return { paths: [], xLabels: [], yLabels: [] };
 
@@ -167,7 +166,6 @@ function buildLine(series, W, H, m = { l: 50, r: 20, t: 40, b: 50 }) {
     }
 
     // X-axis labels (dates)
-    // X-axis labels (dates)
     const xLabels = series.map((d, i) => {
         let label;
         if (d.date) {
@@ -204,9 +202,6 @@ function buildLine(series, W, H, m = { l: 50, r: 20, t: 40, b: 50 }) {
 }
 
 const chartPaths = computed(() => buildLine(chartData.value, 840, 280));
-
-const bigLinePath = computed(() => buildLine(chartData.value, 840, 280));
-
 /* ============= Table Filtering ============= */
 const tableDataFiltered = computed(() => {
     const t = searchQuery.value.trim().toLowerCase();
@@ -244,13 +239,10 @@ const handleTimeRangeChange = () => {
 };
 
 const fetchAnalytics = async () => {
-    // Validate required fields
     if (filters.value.timeRange === 'daily' && !filters.value.selectedDate) {
         errorMsg.value = "Please select a date";
         return;
     }
-
-    // UPDATE: For monthly validation - now requires both month AND year
     if (filters.value.timeRange === 'monthly' && (!filters.value.selectedMonth || !filters.value.selectedYear)) {
         errorMsg.value = "Please select both month and year";
         return;
@@ -285,10 +277,6 @@ const fetchAnalytics = async () => {
                 paymentType: filters.value.paymentType,
             },
         });
-
-        console.log("Analytics data:", data);
-
-        // Update state from response
         kpi.value = data.kpi || {};
         chartData.value = data.chartData || [];
         tableData.value = data.tableData || [];
@@ -303,8 +291,6 @@ const fetchAnalytics = async () => {
         loading.value = false;
     }
 };
-
-/* ============= Watchers ============= */
 watch(
     () => [
         filters.value.type,
@@ -334,8 +320,6 @@ watch(
         }
     }
 );
-
-/* ============= Lifecycle ============= */
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 
@@ -353,17 +337,12 @@ onMounted(async () => {
         }
     }, 100);
 });
-
-
-/* ============= Download Methods ============= */
 const downloadPDF = () => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); // Landscape for more columns
-
+        const doc = new jsPDF("l", "mm", "a4");
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text(`${chartTitle.value}`, 14, 20);
-
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
@@ -373,7 +352,6 @@ const downloadPDF = () => {
 
         let tableColumns = [];
         let tableRows = [];
-
         if (filters.value.type === 'sales') {
             tableColumns = ["S.#", "Order ID", "Customer", "Items", "Qty", "Sub Total", "Tax",
                 "Service", "Delivery", "Sales Disc.", "Approved Disc.", "Promo Disc.",
@@ -417,7 +395,6 @@ const downloadPDF = () => {
                 ]);
             }
         }
-
         else if (filters.value.type === 'purchase') {
             tableColumns = ["S.#", "Purchase ID", "Supplier", "Product", "Quantity",
                 "Unit Price", "Sub Total", "Expiry", "Purchase Date", "Status"];
@@ -522,18 +499,11 @@ const downloadPDF = () => {
                 );
             },
         });
-
         const fileName = `${filters.value.type}_Analytics_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
-
-        // Optional: Show success message if you have toast
-        // toast.success("PDF downloaded successfully");
-
     } catch (error) {
         console.error("PDF generation error:", error);
         errorMsg.value = `PDF generation failed: ${error.message}`;
-        // Optional: Show error message if you have toast
-        // toast.error(`PDF generation failed: ${error.message}`);
     }
 };
 const downloadExcel = () => {
@@ -694,13 +664,9 @@ const downloadExcel = () => {
             </div>
 
             <!-- KPIs - Dynamic based on Analytics Type -->
-
-
-            <!-- Main Filter Section -->
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-body">
                     <div class="row g-3">
-                        <!-- Analytics Type Selector - PrimeVue Select -->
                         <div class="col-md-3">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-chart-bar me-2 text-muted"></i>Analytics Type
@@ -708,8 +674,6 @@ const downloadExcel = () => {
                             <Select v-model="filters.type" :options="analyticsTypeOptions" optionLabel="label"
                                 optionValue="value" placeholder="Select Analytics Type" class="w-100" />
                         </div>
-
-                        <!-- Time Range Selector - PrimeVue Select -->
                         <div class="col-md-3">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar-alt me-2 text-muted"></i>Time Range
@@ -718,9 +682,6 @@ const downloadExcel = () => {
                                 optionValue="value" placeholder="Select Time Range" @change="handleTimeRangeChange"
                                 class="w-100" />
                         </div>
-
-                        <!-- DAILY: Date Picker for Daily Time Range -->
-                        <!-- NEW: Add this block for daily date selection -->
                         <div v-if="filters.timeRange === 'daily'" class="col-md-3">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Select Date
@@ -728,8 +689,6 @@ const downloadExcel = () => {
                             <VueDatePicker v-model="filters.selectedDate" placeholder="Choose Date" format="yyyy-MM-dd"
                                 :enable-time-picker="false" single-calendar />
                         </div>
-
-                        <!-- MONTHLY: Month Selector -->
                         <div v-if="filters.timeRange === 'monthly'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Select Month
@@ -737,9 +696,6 @@ const downloadExcel = () => {
                             <Select v-model="filters.selectedMonth" :options="monthsList" optionLabel="label"
                                 optionValue="value" placeholder="Choose Month" class="w-100" />
                         </div>
-
-                        <!-- MONTHLY: Year Selector (NEW) -->
-                        <!-- NEW: Add this block for year selection in monthly view -->
                         <div v-if="filters.timeRange === 'monthly'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Select Year
@@ -747,8 +703,6 @@ const downloadExcel = () => {
                             <Select v-model="filters.selectedYear" :options="yearsList" placeholder="Choose Year"
                                 class="w-100" />
                         </div>
-
-                        <!-- YEARLY: Year Selector -->
                         <div v-if="filters.timeRange === 'yearly'" class="col-md-3">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Select Year
@@ -756,8 +710,6 @@ const downloadExcel = () => {
                             <Select v-model="filters.selectedYear" :options="yearsList" placeholder="Choose Year"
                                 class="w-100" />
                         </div>
-
-                        <!-- CUSTOM: Start Date - VueDatepicker -->
                         <div v-if="filters.timeRange === 'custom'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>Start Date
@@ -765,21 +717,12 @@ const downloadExcel = () => {
                             <VueDatePicker v-model="filters.dateFrom" placeholder="Select Start Date"
                                 format="yyyy-MM-dd" />
                         </div>
-
-                        <!-- CUSTOM: End Date - VueDatepicker -->
                         <div v-if="filters.timeRange === 'custom'" class="col-md-2">
                             <label class="form-label fw-semibold text-dark">
                                 <i class="fas fa-calendar me-2 text-muted"></i>End Date
                             </label>
                             <VueDatePicker v-model="filters.dateTo" placeholder="Select End Date" format="yyyy-MM-dd" />
                         </div>
-
-                        <!-- Apply Button - Optional (can keep commented as auto-fetch works) -->
-                        <!-- <div class="col-md-2 d-flex gap-2 align-items-end">
-                <button @click="fetchAnalytics" class="btn btn-primary w-100" :disabled="loading">
-                    <i class="fas fa-search me-2"></i>{{ loading ? 'Loading...' : 'Apply' }}
-                </button>
-            </div> -->
                     </div>
                 </div>
             </div>
@@ -1495,81 +1438,64 @@ const downloadExcel = () => {
 .dark h4 {
     color: white;
 }
-
 .dark .card {
     background-color: #181818 !important;
     color: #ffffff !important;
 }
-
 .chart svg text {
     fill: #9ca3af;
 }
-
 .dark .chart svg text {
     fill: #ffffff;
 }
-
 .dark .chart svg line {
     stroke: #6b7280;
 }
-
 .dark .chart svg line.grid {
     stroke: #4b5563;
 }
-
 .dark .table {
     background-color: #181818 !important;
     color: #f9fafb !important;
 }
-
 .dark .table thead {
     background-color: #181818 !important;
     color: #ffffff;
 }
-
 .dark .form-label {
     color: #fff !important;
 }
-
 .dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }
-
 :root {
     --brand: #1c0d82;
 }
-
 .chart {
     width: 100%;
 }
-
 .axis {
     stroke: #0f172a;
     stroke-width: 1.5;
 }
-
 .grid {
     stroke: #e5e7eb;
     stroke-width: 1;
 }
-
 .line {
     fill: none;
     stroke: #1c0d82;
     stroke-width: 2.5;
 }
-
 .muted {
     fill: #6b7280;
     font-size: 12px;
 }
-
 .progress.thin {
     height: 8px;
     background: #eef2ff;
 }
-
 .stack-row {
     display: flex;
     align-items: center;
@@ -1577,16 +1503,13 @@ const downloadExcel = () => {
     font-size: 0.875rem;
     margin-bottom: 0.25rem;
 }
-
 .stack-val {
     color: #6b7280;
 }
-
 .search-wrap {
     position: relative;
     width: clamp(220px, 30vw, 360px);
 }
-
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -1594,56 +1517,46 @@ const downloadExcel = () => {
     transform: translateY(-50%);
     color: #6b7280;
 }
-
 .search-input {
     padding-left: 36px;
     border-radius: 9999px;
 }
-
 .table thead th {
     font-weight: 600;
 }
-
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
 /* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
 }
-
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
-
 :deep(.p-select .p-component .p-inputwrapper) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
-
 /* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
-
 /* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
-
 /* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
 }
-
 :deep(.p-multiselect),
 :deep(.p-multiselect-panel),
 :deep(.p-multiselect-token) {
@@ -1651,14 +1564,12 @@ const downloadExcel = () => {
     color: #000 !important;
     border-color: #a4a7aa;
 }
-
 /* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
     color: #fff !important;
 }
-
 /* .dark svg{
     color: #fff !important;
 } */
@@ -1670,12 +1581,10 @@ const downloadExcel = () => {
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
-
 /* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
-
 /* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
@@ -1684,102 +1593,81 @@ const downloadExcel = () => {
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
-
 /* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
-
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
     /* red on hover */
 }
-
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
-/* ====================================================== */
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
-
 /* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
 /* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
     /* instead of 'none' */
     color: black !important;
 }
-
 /* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
 :deep(.p-select-label) {
     color: #000 !important;
 }
-
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
 
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
 }
-
 :global(.dark .p-multiselect-label) {
     color: #fff !important;
 }
-
 :global(.dark .p-select .p-component .p-inputwrapper) {
     background: #000 !important;
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
 /* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
 /* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
     color: #fff !important;
 }
-
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -1787,25 +1675,21 @@ const downloadExcel = () => {
     color: #fff !important;
     border-color: #555 !important;
 }
-
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
 /* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
@@ -1814,61 +1698,47 @@ const downloadExcel = () => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-
-
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }
-
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
     /* lighter red */
 }
-
 /* ==================== Dark Mode Select Styling ====================== */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c
 }
-
 /* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
 /* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
     /* instead of 'none' */
     color: black !important;
 }
-
 /* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
 :deep(.p-select-label) {
     color: #000 !important;
 }
-
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
-
-
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
@@ -1945,7 +1815,6 @@ const downloadExcel = () => {
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -1954,44 +1823,31 @@ const downloadExcel = () => {
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
-
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
     color: #fff !important;
 }
-
 :global(.dark .p-select-label) {
     color: #fff !important;
 }
-
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
-
-
 .dark .logo-card {
     background-color: #181818 !important;
 }
-
 .dark .logo-frame {
     background-color: #181818 !important;
 }
-
-
 @media (max-width: 576px) {
     .search-wrap {
         width: 100%;

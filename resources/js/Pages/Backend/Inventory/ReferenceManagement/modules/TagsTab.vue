@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { toast } from "vue3-toastify";
-import MultiSelect from "primevue/multiselect";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -34,8 +33,8 @@ const options = ref([
 
 
 const selected = ref([]);
-const commonTags = ref([]); // array of values
-const filterText = ref(""); // Fixed: Added missing filterText ref
+const commonTags = ref([]);
+const filterText = ref("");
 
 const isEditing = ref(false);
 const editingRow = ref(null);
@@ -48,8 +47,6 @@ const resetForm = () => {
     commonTags.value = [];
     formErrors.value = {};
 };
-
-// Fixed: Create filtered computed property that works with tags array
 const filteredTags = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
     return searchTerm
@@ -58,22 +55,6 @@ const filteredTags = computed(() => {
         )
         : tags.value;
 });
-
-const selectAll = () => (commonTags.value = availableOptions.value.map(o => o.value));
-
-
-const addCustom = () => {
-    const name = (filterText.value || "").trim();
-    if (!name) return;
-    if (
-        !options.value.some((o) => o.label.toLowerCase() === name.toLowerCase())
-    ) {
-        options.value.push({ label: name, value: name });
-    }
-    if (!commonTags.value.includes(name))
-        commonTags.value = [...commonTags.value, name];
-    filterText.value = "";
-};
 
 const openAdd = () => {
     isEditing.value = false;
@@ -94,9 +75,6 @@ const openEdit = (row) => {
     editingRow.value = row;
     customTag.value = row.name;
 };
-
-// const removeRow = (row) => (rows.value = rows.value.filter((r) => r !== row));
-
 const deleteTag = async (row) => {
     try {
         await axios.delete(`/tags/${row.id}`);
@@ -119,121 +97,6 @@ const runQuery = async (payload) => {
     }
 };
 const isSubmitting = ref(false);
-// const onSubmit = async () => {
-//     if (isEditing.value) {
-//         if (!customTag.value.trim()) {
-//             toast.error("Please fill out the field can't save an empty field.");
-//             formErrors.value = {
-//                 customTag: [
-//                     "Please fill out the field can't save an empty field",
-//                 ],
-//             };
-//             return;
-//         }
-//         try {
-//             isSubmitting.value = true;
-//             const { data } = await axios.put(`/tags/${editingRow.value.id}`, {
-//                 name: customTag.value.trim(),
-//             });
-
-//             const idx = tags.value.findIndex(
-//                 (t) => t.id === editingRow.value.id
-//             );
-//             if (idx !== -1) tags.value[idx] = data;
-
-//             toast.success("Tag updated Successfully");
-//             await fetchTags();
-//             // Hide the modal after successful update
-//             resetForm();
-//             closeModal("modalTagForm");
-//         } catch (e) {
-//             if (e.response?.data?.errors) {
-//                 // Reset errors object
-//                 formErrors.value = {};
-//                 // Loop through backend errors
-//                 Object.entries(e.response.data.errors).forEach(
-//                     ([field, msgs]) => {
-//                         // Show toast(s)
-//                         msgs.forEach((m) => toast.error(m));
-
-//                         // Attach to formErrors so it shows below inputs
-//                         formErrors.value = { customTag: msgs };
-//                     }
-//                 );
-//             } else {
-//                 toast.error("Update failed");
-//             }
-//         }
-//         finally {
-//             isSubmitting.value = false;
-//         }
-//     } else {
-//         if (commonTags.value.length === 0) {
-//             formErrors.value = { tags: ["Please select at least one Tag"] };
-//             toast.error("Please select at least one Tag", {
-//                 autoClose: 3000,
-//             });
-//             return;
-//         }
-//         // create
-//         const newTags = commonTags.value
-//             .filter((v) => !tags.value.some((t) => t.name === v))
-//             .map((v) => ({ name: v }));
-
-//         // Filter new tags and detect duplicates
-//         const existingTags = commonTags.value.filter((v) =>
-//             tags.value.some((t) => t.name === v)
-//         );
-
-//         if (newTags.length === 0) {
-//             // Show which tags already exist
-//             const msg = `Tag${existingTags.length > 1 ? "s" : ""
-//                 } already exist: ${existingTags.join(", ")}`;
-
-//             toast.error(msg);
-//             formErrors.value = { tags: [msg] };
-
-//             // closeModal("modalTagForm");
-//             return;
-//         }
-
-//         try {
-//             isSubmitting.value = true;
-//             const response = await axios.post("/tags", { tags: newTags });
-
-//             // If backend returns array directly
-//             const createdTags = response.data?.tags ?? response.data;
-
-//             if (Array.isArray(createdTags) && createdTags.length) {
-//                 tags.value = [...tags.value, ...createdTags];
-//             }
-
-//             toast.success("Tags added successfully");
-
-//             resetForm();
-//             closeModal("modalTagForm");
-
-//             // Hide the modal after successful creation
-
-//             await fetchTags();
-//         } catch (e) {
-//             // Only show create failed if there is a real error
-//             if (e.response?.data?.errors) {
-//                 Object.values(e.response.data.errors).forEach((msgs) =>
-//                     msgs.forEach((m) => toast.error(m))
-//                 );
-//             } else {
-//                 console.error(e); // log actual error for debugging
-//                 toast.error("Create failed");
-//             }
-//         }
-//         finally {
-//             isSubmitting.value = false;
-//         }
-//     }
-// };
-
-
 const onSubmit = async () => {
     const tagName = customTag.value.trim();
 
@@ -247,14 +110,12 @@ const onSubmit = async () => {
         isSubmitting.value = true;
 
         if (isEditing.value) {
-            // Update tag
             const { data } = await axios.put(`/tags/${editingRow.value.id}`, { name: tagName });
             const idx = tags.value.findIndex(t => t.id === editingRow.value.id);
             if (idx !== -1) tags.value[idx] = data;
 
             toast.success("Tag updated successfully");
         } else {
-            // Check if tag already exists
             const exists = tags.value.some(t => t.name.toLowerCase() === tagName.toLowerCase());
             if (exists) {
                 const msg = `Tag "${tagName}" already exists.`;
@@ -262,23 +123,18 @@ const onSubmit = async () => {
                 formErrors.value = { customTag: [msg] };
                 return;
             }
-
-            // Create new tag
             const { data } = await axios.post("/tags", { tags: [{ name: tagName }] });
             const createdTag = Array.isArray(data) ? data[0] : data;
             tags.value.push(createdTag);
 
             toast.success("Tag added successfully");
         }
-
-        // Reset and close
         resetForm();
         closeModal("modalTagForm");
         await fetchTags();
 
     } catch (e) {
         if (e.response?.data?.errors) {
-            // Backend validation errors
             formErrors.value = {};
             Object.entries(e.response.data.errors).forEach(([field, msgs]) => {
                 msgs.forEach(m => toast.error(m));
@@ -292,10 +148,6 @@ const onSubmit = async () => {
         isSubmitting.value = false;
     }
 };
-
-
-
-// Function to properly hide modal and clean up backdrop
 const closeModal = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -320,8 +172,6 @@ const fetchTags = async () => {
         });
 
         tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
-
-        // wait for DOM update before replacing icons
         await nextTick();
         window.feather?.replace();
     } catch (err) {
@@ -336,8 +186,6 @@ const onDownload = (type) => {
         toast.error("No Tags data to download");
         return;
     }
-
-    // Use filtered data if there's a search query, otherwise use all suppliers
     const dataToExport = q.value.trim() ? filtered.value : tags.value;
 
     if (dataToExport.length === 0) {
@@ -363,27 +211,18 @@ const onDownload = (type) => {
 
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = ["Name"];
-
-        // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
         ]);
-
-        // Combine into CSV string
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
-
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -405,9 +244,7 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4"); // Portrait A4 layout
-
-        // 🧾 Title & Metadata
+        const doc = new jsPDF("p", "mm", "a4");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.text("Tags Report", 80, 20);
@@ -417,14 +254,8 @@ const downloadPDF = (data) => {
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 30);
         doc.text(`Total Tags: ${data.length}`, 14, 36);
-
-        // 🧱 Table Header (same as CSV)
         const headers = ["Name"];
-
-        // 🧱 Table Data
         const rows = data.map((tag) => [tag.name || ""]);
-
-        // 📊 Styled Table
         autoTable(doc, {
             head: [headers],
             body: rows,
@@ -455,8 +286,6 @@ const downloadPDF = (data) => {
                 );
             },
         });
-
-        // 💾 Save File
         const fileName = `tags_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
@@ -475,23 +304,13 @@ const downloadExcel = (data) => {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
-
-        // 🧱 Prepare worksheet data (same as CSV)
         const worksheetData = data.map((tag) => ({
             Name: tag.name || "",
         }));
-
-        // 📘 Create workbook & worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // ✨ Set appropriate column width
-        worksheet["!cols"] = [{ wch: 25 }]; // Only Name column
-
-        // Add main worksheet
+        worksheet["!cols"] = [{ wch: 25 }];
         XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
-
-        // 📄 Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -542,8 +361,6 @@ const handleImport = (data) => {
 
     const headers = data[0];
     const rows = data.slice(1);
-
-    // ✅ Use lowercase key "name" to match backend validation
     const tagsToImport = rows.map((row) => ({
         name: row[0]?.trim() || "",
     }));
@@ -571,7 +388,8 @@ const handleImport = (data) => {
 </script>
 
 <template>
-      <Head title="Tag" />
+
+    <Head title="Tag" />
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -591,7 +409,6 @@ const handleImport = (data) => {
                     " class="d-flex align-items-center gap-1 btn-sm px-4 py-2 rounded-pill btn btn-primary text-white">
                         <Plus class="w-4 h-4" /> Add Tag
                     </button>
-                    <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
                     <ImportFile label="Import" :sampleHeaders="['Name']" :sampleData="[
                         ['Vegan'],
                         ['Gluten-Free'],
@@ -702,38 +519,8 @@ const handleImport = (data) => {
                             :class="{ 'is-invalid': formErrors.customTag }" />
                         <span class="text-danger" v-if="formErrors.customTag">{{
                             formErrors.customTag[0]
-                            }}</span>
+                        }}</span>
                     </div>
-                    <!-- <div v-else>
-                        <MultiSelect v-model="commonTags" :options="availableOptions" optionLabel="label"
-                            optionValue="value" :multiple="true" showClear :filter="true" display="chip"
-                            placeholder="Choose common  tags or add new one" class="w-100 select" appendTo="self"
-                            @filter="(e) => (filterText = e.value || '')" :class="{ 'is-invalid': formErrors.tags }"
-                            :invalid="formErrors.tags?.length">
-                            <template #header>
-                                <div class="w-100 d-flex header justify-content-end">
-                                    <button type="button" class="btn btn-sm btn-link text-primary"
-                                        @click.stop="selectAll">
-                                        Select All
-                                    </button>
-                                </div>
-                            </template>
-
-                            <template #footer>
-                                <div v-if="filterText?.trim()"
-                                    class="p-2 border-top d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">Not found in the list? Add it as a
-                                        custom tag</small>
-                                    <button type="button" class="btn btn-primary rounded-pill" @click="addCustom">
-                                        Add "{{ filterText.trim() }}"
-                                    </button>
-                                </div>
-                            </template>
-                        </MultiSelect>
-                        <span class="text-danger" v-if="formErrors.tags">{{
-                            formErrors.tags[0]
-                            }}</span>
-                    </div> -->
 
                     <div v-else>
                         <label class="form-label">Tag Name</label>
@@ -779,9 +566,10 @@ const handleImport = (data) => {
 }
 
 
-.dark .text-danger{
+.dark .text-danger {
     color: #dc3545 !important;
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -944,14 +732,14 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-.side-link{
-  border-radius: 55%;
-  background-color: #fff !important;
+.side-link {
+    border-radius: 55%;
+    background-color: #fff !important;
 }
 
-.dark .side-link{
-  border-radius: 55%;
-  background-color: #181818 !important;
+.dark .side-link {
+    border-radius: 55%;
+    background-color: #181818 !important;
 }
 
 /* ======================== Dark Mode MultiSelect ============================= */
@@ -1008,7 +796,7 @@ const handleImport = (data) => {
     border: 1px solid #555 !important;
 }
 
-:global(.dark .p-multiselect-empty-message){
+:global(.dark .p-multiselect-empty-message) {
     color: #fff !important;
 }
 
@@ -1020,7 +808,7 @@ const handleImport = (data) => {
     border: 1px solid #555 !important;
 }
 
-:global(.dark .p-multiselect-filter){
+:global(.dark .p-multiselect-filter) {
     background-color: #212121 !important;
 }
 

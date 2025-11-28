@@ -9,7 +9,6 @@ import PromoModal from "./PromoModal.vue";
 import KotModal from "./KotModal.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import PosOrdersModal from "./PosOrdersModal.vue";
-import { Package, ShoppingCart } from "lucide-vue-next";
 import FilterModal from "@/Components/FilterModal.vue";
 import MultiSelect from 'primevue/multiselect';
 
@@ -69,7 +68,6 @@ const fetchMenuItems = async () => {
     try {
         const response = await axios.get("/api/pos/fetch-menu-items");
         menuItems.value = response.data.data;
-        console.log("menuItems.value", menuItems.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -101,7 +99,7 @@ const productsByCat = computed(() => {
             variants: item.variants ?? [],
             addon_groups: item.addon_groups ?? [],
 
-            // ✅ ADD THESE THREE FIELDS:
+            //  ADD THESE THREE FIELDS:
             is_saleable: item.is_saleable,
             resale_type: item.resale_type,
             resale_value: item.resale_value,
@@ -111,11 +109,9 @@ const productsByCat = computed(() => {
     });
     return grouped;
 });
-
-// ✅ Add this ref to track selected variants for each product
 const selectedCardVariant = ref({});
 
-// ✅ Initialize variants when products load
+//  Initialize variants when products load
 watch(() => menuItems.value, (items) => {
     if (items && items.length > 0) {
         items.forEach(item => {
@@ -129,7 +125,7 @@ watch(() => menuItems.value, (items) => {
     }
 }, { immediate: true, deep: true });
 
-// ✅ Get selected variant price for display
+//  Get selected variant price for display
 const getSelectedVariantPrice = (product) => {
     if (!product.variants || product.variants.length === 0) {
         return product.price;
@@ -144,7 +140,7 @@ const getSelectedVariantPrice = (product) => {
     return variant ? parseFloat(variant.price) : product.price;
 };
 
-// ✅ Get selected variant object
+//  Get selected variant object
 const getSelectedVariant = (product) => {
     if (!product.variants || product.variants.length === 0) {
         return null;
@@ -157,9 +153,6 @@ const getSelectedVariant = (product) => {
 
     return product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
 };
-
-
-
 // ============================================
 //  Handle variant change to revalidate stock
 // ============================================
@@ -197,7 +190,7 @@ const handleAddonChange = (product, addonGroupId, selectedAddons) => {
     selectedCardAddons.value[productKey][addonGroupId] = selectedAddons;
 };
 
-// ✅ Get total addon price for a product
+//  Get total addon price for a product
 const getAddonsPrice = (product) => {
     const productKey = product.id;
     if (!selectedCardAddons.value[productKey]) return 0;
@@ -212,7 +205,7 @@ const getAddonsPrice = (product) => {
     return total;
 };
 
-// ✅ Get selected addons for a product (format for backend)
+//  Get selected addons for a product (format for backend)
 const getSelectedAddons = (product) => {
     const productKey = product.id;
     if (!selectedCardAddons.value[productKey]) return [];
@@ -232,7 +225,7 @@ const getSelectedAddons = (product) => {
     return allAddons;
 };
 
-// ✅ Get total price (variant + addons)
+//  Get total price (variant + addons)
 const getTotalPrice = (product) => {
     const variantPrice = getSelectedVariantPrice(product);
     const addonsPrice = getAddonsPrice(product);
@@ -287,25 +280,6 @@ const getRemovedIngredientsText = () => {
     return `No ${removedNames.join(', ')}`;
 };
 
-// Display removed ingredients in cart (optional)
-const getCartItemRemovedIngredientsDisplay = (cartItem) => {
-    if (!cartItem.removed_ingredients || cartItem.removed_ingredients.length === 0) {
-        return null;
-    }
-
-    const ingredients = cartItem.ingredients || [];
-    const removedNames = cartItem.removed_ingredients
-        .map(id => {
-            const ing = ingredients.find(i =>
-                i.id === id || i.inventory_item_id === id
-            );
-            return ing ? (ing.product_name || ing.name) : null;
-        })
-        .filter(Boolean);
-
-    return removedNames.length > 0 ? `No ${removedNames.join(', ')}` : null;
-};
-
 const openDetailsModal = async (item) => {
     selectedItem.value = item;
     modalNote.value = "";
@@ -323,69 +297,19 @@ const openDetailsModal = async (item) => {
     const availableToAdd = calculateAvailableStock(item, variantId, variantIngredients);
     modalQty.value = availableToAdd > 0 ? 1 : 0;
     modalRemovedIngredients.value = [];
-
-    // Get modal element
     const modalEl = document.getElementById("chooseItem");
     const modal = new bootstrap.Modal(modalEl);
 
     // Wait for modal to be shown before initializing PrimeVue components
     modalEl.addEventListener('shown.bs.modal', async () => {
-        // Force Vue to re-render the MultiSelect components
         await nextTick();
-        console.log('Modal fully shown, MultiSelect should be visible now');
     }, { once: true });
 
     modal.show();
 };
 
-// ✅ Calculate how many more items can be added (considering cart)
-// const calculateAvailableStock = (product, variantId, variantIngredients) => {
-//     if (!variantIngredients || variantIngredients.length === 0) return 999999;
-
-//     const ingredientUsage = {};
-
-//     // Track what's already used in the cart
-//     for (const item of orderItems.value) {
-//         const itemIngredients = getVariantIngredients(item, item.variant_id);
-//         itemIngredients.forEach(ing => {
-//             const id = ing.inventory_item_id;
-//             const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
-
-//             if (!ingredientUsage[id]) {
-//                 ingredientUsage[id] = { totalStock: stock, used: 0 };
-//             }
-
-//             const required = Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
-//             ingredientUsage[id].used += required;
-//         });
-//     }
-
-//     // Calculate maximum possible for THIS item
-//     let maxPossible = 999999;
-
-//     for (const ing of variantIngredients) {
-//         const id = ing.inventory_item_id;
-//         const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
-//         const requiredPerItem = Number(ing.quantity ?? ing.qty ?? 1);
-
-//         if (!ingredientUsage[id]) {
-//             // No other items using this ingredient
-//             const possible = Math.floor(stock / requiredPerItem);
-//             maxPossible = Math.min(maxPossible, possible);
-//         } else {
-//             // Some already used by cart
-//             const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
-//             const possible = Math.floor(available / requiredPerItem);
-//             maxPossible = Math.min(maxPossible, possible);
-//         }
-//     }
-
-//     return maxPossible;
-// };
-
 
 const calculateAvailableStock = (product, variantId, variantIngredients) => {
-    // ✅ Filter out removed ingredients for stock calculation
     const activeIngredients = variantIngredients.filter(ing =>
         !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
     );
@@ -393,12 +317,10 @@ const calculateAvailableStock = (product, variantId, variantIngredients) => {
     if (!activeIngredients || activeIngredients.length === 0) return 999999;
 
     const ingredientUsage = {};
-
-    // Track what's already used in the cart
     for (const item of orderItems.value) {
         const itemIngredients = getVariantIngredients(item, item.variant_id);
 
-        // ✅ Filter out ingredients that were removed from this cart item
+        //  Filter out ingredients that were removed from this cart item
         const activeItemIngredients = itemIngredients.filter(ing => {
             if (!item.removed_ingredients || item.removed_ingredients.length === 0) {
                 return true;
@@ -418,8 +340,6 @@ const calculateAvailableStock = (product, variantId, variantIngredients) => {
             ingredientUsage[id].used += required;
         });
     }
-
-    // Calculate maximum possible
     let maxPossible = 999999;
 
     for (const ing of activeIngredients) {
@@ -440,11 +360,9 @@ const calculateAvailableStock = (product, variantId, variantIngredients) => {
     return maxPossible;
 };
 
-// ✅ ADD ALL THESE NEW FUNCTIONS
-
 // Handle Modal Variant Change
 const onModalVariantChange = () => {
-    // ✅ Recheck stock when variant changes
+    //  Recheck stock when variant changes
     const variant = getModalSelectedVariant();
     const variantId = variant ? variant.id : null;
     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
@@ -456,10 +374,7 @@ const onModalVariantChange = () => {
         modalQty.value = 0;
         return;
     }
-
-    // Reset to 1 or keep current qty if still available
     modalQty.value = Math.min(1, availableToAdd);
-    console.log("Variant changed in modal:", modalSelectedVariant.value, "Available:", availableToAdd);
 };
 
 // Handle Modal Addon Change
@@ -566,7 +481,6 @@ const getModalSelectedAddons = () => {
     return allAddons;
 };
 
-// ===================================================================
 const getAllIngredients = (item) => {
     let allIngredients = item.ingredients ?? [];
 
@@ -695,7 +609,7 @@ const filteredProducts = computed(() => {
 
     // 3. Sorting
     if (filters.value.sortBy) {
-        products = [...products]; // Create a copy to avoid mutating original
+        products = [...products]; 
 
         switch (filters.value.sortBy) {
             case 'name_asc':
@@ -721,8 +635,6 @@ const filteredProducts = computed(() => {
 
     return products;
 });
-
-console.log("Filtered Products:", filteredProducts.value);
 /* ----------------------------
    Filter Handlers
 -----------------------------*/
@@ -743,103 +655,6 @@ const handleClearFilters = () => {
    Order cart
 -----------------------------*/
 const orderItems = ref([]);
-const addToOrder = (baseItem, qty = 1, note = "") => {
-    console.log(baseItem);
-    const menuStock = calculateMenuStock(baseItem);
-
-    const variant = getSelectedVariant(baseItem);
-    const variantId = variant ? variant.id : null;
-    const variantName = variant ? variant.name : null;
-
-    // ✅ CHANGED: Use ORIGINAL prices (not discounted)
-    const variantPrice = variant
-        ? parseFloat(variant.price)  // ✅ Original price
-        : parseFloat(baseItem.price); // ✅ Original price
-
-    const selectedAddons = getSelectedAddons(baseItem);
-    const addonsPrice = getAddonsPrice(baseItem);
-    const totalItemPrice = variantPrice + addonsPrice;
-
-    // ✅ NEW: Calculate resale discount per item
-    const resaleDiscountPerItem = variant
-        ? calculateResalePrice(variant, true)
-        : calculateResalePrice(baseItem, false);
-
-    const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
-
-    const idx = orderItems.value.findIndex((i) => {
-        if (i.variant_id !== variantId) return false;
-        const itemAddonIds = (i.addons || [])
-            .map(a => a.id)
-            .sort((a, b) => a - b)
-            .join('-');
-        return i.id === baseItem.id && itemAddonIds === addonIds;
-    });
-
-    if (idx >= 0) {
-        const newQty = orderItems.value[idx].qty + qty;
-        if (newQty <= orderItems.value[idx].stock) {
-            orderItems.value[idx].qty = newQty;
-            orderItems.value[idx].price = orderItems.value[idx].unit_price * newQty;
-
-            // ✅ Update total discount
-            orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * newQty;
-
-            if (note && note.trim()) {
-                orderItems.value[idx].note = note;
-            }
-
-            toast.success(`Quantity updated to ${newQty}`);
-        } else {
-            toast.error("Not enough Ingredients stock available for this Menu.");
-        }
-    } else {
-        if (qty > menuStock) {
-            toast.error("Not enough Ingredients stock available for this Menu.");
-            return;
-        }
-
-        orderItems.value.push({
-            id: baseItem.id,
-            title: baseItem.title,
-            img: baseItem.img,
-            price: totalItemPrice * qty, // ✅ Original price * qty
-            unit_price: Number(totalItemPrice), // ✅ Original price
-            qty: qty,
-            note: note || "",
-            stock: menuStock,
-            ingredients: baseItem.ingredients ?? [],
-            variant_id: variantId,
-            variant_name: variantName,
-            addons: selectedAddons,
-
-            // ✅ NEW: Store resale discount info
-            resale_discount_per_item: resaleDiscountPerItem,
-            total_resale_discount: resaleDiscountPerItem * qty,
-        });
-
-        toast.success(`${baseItem.title} added to cart`);
-    }
-};
-
-// const incCart = async (i) => {
-//     const it = orderItems.value[i];
-//     if (!it) return;
-//     if ((it.stock ?? 0) <= 0) {
-//         toast.error("Item out of stock.");
-//         return;
-//     }
-//     if (it.qty >= (it.stock ?? 0)) {
-//         toast.error("Not enough stock to add more of this item.");
-//         return;
-//     }
-//     try {
-//         // await updateStock(it, 1, "stockout");
-//         it.qty++;
-//     } catch (err) {
-//         toast.error("Failed to add item. Please try again.");
-//     }
-// };
 
 // ========================================
 // Fixed: Increment cart item (in cart sidebar)
@@ -870,8 +685,6 @@ const incCart = async (i) => {
     }
 };
 
-
-
 // ========================================
 // Fixed: Decrement cart item (in cart sidebar)
 // ========================================
@@ -892,15 +705,10 @@ const decCart = async (i) => {
 
     it.outOfStock = false;
 };
-// const removeCart = (i) => orderItems.value.splice(i, 1);
 
 const removeCart = (index) => {
     const removedItem = orderItems.value[index];
-
-    // 1️⃣ Remove the item
     orderItems.value.splice(index, 1);
-
-    // 2️⃣ If NO items left, clear all discounts + promos
     if (orderItems.value.length === 0) {
         selectedDiscounts.value = [];
         selectedPromos.value = [];
@@ -908,8 +716,6 @@ const removeCart = (index) => {
         stopApprovalPolling();
         return;
     }
-
-    // 3️⃣ Remove promos that no longer apply
     if (selectedPromos.value.length > 0) {
         selectedPromos.value = selectedPromos.value.filter((promo) => {
             if (!promo.menu_items || promo.menu_items.length === 0) {
@@ -925,30 +731,21 @@ const removeCart = (index) => {
             return stillApplicable;
         });
     }
-
-    // 4️⃣ Re-check approved discount conditions
     const discountsToKeep = [];
 
     selectedDiscounts.value.forEach(discount => {
-        // If subtotal < min_purchase → remove the discount
         if (discount.min_purchase && subTotal.value < discount.min_purchase) {
 
             toast.info(
                 `Discount "${discount.name}" removed — subtotal is lower than minimum required (${formatCurrencySymbol(discount.min_purchase)}).`
             );
-
-            // ❌ Do NOT add it to `discountsToKeep`
         } else {
-            // ✔ Keep the discount
             discountsToKeep.push(discount);
         }
     });
 
     selectedDiscounts.value = discountsToKeep;
 };
-
-
-
 
 const subTotal = computed(() =>
     orderItems.value.reduce((s, i) => s + i.price, 0)
@@ -958,16 +755,10 @@ const deliveryCharges = computed(() => {
     if (orderType.value !== "Delivery") return 0;
 
     const config = page.props.onboarding.tax_and_vat;
-
-    // Check if delivery charges are enabled
     if (!config.has_delivery_charges) return 0;
-
-    // Flat rate takes precedence
     if (config.delivery_charge_flat) {
         return parseFloat(config.delivery_charge_flat);
     }
-
-    // Otherwise use percentage
     if (config.delivery_charge_percentage) {
         return (subTotal.value * parseFloat(config.delivery_charge_percentage)) / 100;
     }
@@ -978,28 +769,16 @@ const deliveryCharges = computed(() => {
 
 const serviceCharges = computed(() => {
     const config = page.props.onboarding.tax_and_vat;
-
-    // Check if service charges are enabled
     if (!config.has_service_charges) return 0;
-
-    // Flat rate takes precedence
     if (config.service_charge_flat) {
         return parseFloat(config.service_charge_flat);
     }
-
-    // Otherwise use percentage
     if (config.service_charge_percentage) {
         return (subTotal.value * parseFloat(config.service_charge_percentage)) / 100;
     }
 
     return 0;
 });
-
-// const grandTotal = computed(() => {
-//     const total = subTotal.value + deliveryCharges.value - promoDiscount.value;
-//     return Math.max(0, total);
-// });
-
 const money = (n) => `£${(Math.round(n * 100) / 100).toFixed(2)}`;
 
 /* ----------------------------
@@ -1019,169 +798,7 @@ const openItem = (p) => {
     if (chooseItemModal) chooseItemModal.show();
 };
 
-const menuStockForSelected = computed(() =>
-    calculateMenuStock(selectedItem.value)
-);
-
-// const confirmAdd = async () => {
-//     if (!selectedItem.value) return;
-//     try {
-//         addToOrder(selectedItem.value, modalQty.value, modalNote.value);
-//         console.log(selectedItem.value.ingredients);
-
-//         //  2) Stockout each ingredient
-//         // if (
-//         //     selectedItem.value.ingredients &&
-//         //     selectedItem.value.ingredients.length
-//         // ) {
-//         //     for (const ingredient of selectedItem.value.ingredients) {
-//         //         const requiredQty = ingredient.pivot?.qty
-//         //             ? ingredient.pivot.qty * modalQty.value
-//         //             : modalQty.value;
-
-//         //         //Payload matching your request rules
-//         //         await axios.post("/stock_entries", {
-//         //             product_id: ingredient.inventory_item_id,
-//         //             name: ingredient.product_name,
-//         //             category_id: ingredient.category_id,
-//         //             supplier_id: ingredient.supplier_id,
-//         //             available_quantity: ingredient.inventory_stock,
-//         //             quantity: ingredient.quantity * modalQty.value,
-//         //             price: null,
-//         //             value: 0,
-//         //             operation_type: "pos_stockout",
-//         //             stock_type: "stockout",
-//         //             expiry_date: null,
-//         //             description: null,
-//         //             purchase_date: null,
-//         //             user_id: ingredient.user_id,
-//         //         });
-//         //     }
-//         // }
-
-//         //  3) Close modal
-//         if (chooseItemModal) chooseItemModal.hide();
-//     } catch (err) {
-//         alert(
-//             "Stockout failed: " + (err.response?.data?.message || err.message)
-//         );
-//     }
-// };
-
-// const confirmAdd = async () => {
-//     if (!selectedItem.value) return;
-
-//     const variant = getModalSelectedVariant();
-//     const variantId = variant ? variant.id : null;
-//     const variantText = variant ? ` (${variant.name})` : '';
-
-//     // ✅ Check if quantity is 0 or less
-//     if (modalQty.value <= 0) {
-//         toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
-//         return;
-//     }
-
-//     const variantName = variant ? variant.name : null;
-//     const variantPrice = variant ? parseFloat(variant.price) : selectedItem.value.price;
-//     const selectedAddons = getModalSelectedAddons();
-//     const addonsPrice = getModalAddonsPrice();
-//     const totalItemPrice = variantPrice + addonsPrice;
-
-//     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
-
-//     // ✅ DOUBLE CHECK available stock before confirming
-//     const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
-
-//     if (modalQty.value > availableToAdd) {
-//         if (availableToAdd <= 0) {
-//             toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
-//         } else {
-//             toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
-//             modalQty.value = availableToAdd; // Auto-adjust to max available
-//         }
-//         return;
-//     }
-
-//     const ingredientStock = {};
-
-//     // Check stock from current cart
-//     for (const item of orderItems.value) {
-//         const itemIngredients = getVariantIngredients(item, item.variant_id);
-//         itemIngredients.forEach(ing => {
-//             const ingredientId = ing.inventory_item_id;
-//             if (!ingredientStock[ingredientId]) {
-//                 ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
-//             }
-//             ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
-//         });
-//     }
-
-//     // Check stock for selected item
-//     if (variantIngredients.length > 0) {
-//         for (const ing of variantIngredients) {
-//             const ingredientId = ing.inventory_item_id;
-//             const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
-//             const requiredQty = parseFloat(ing.quantity) * modalQty.value;
-
-//             if (availableStock < requiredQty) {
-//                 toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
-//                 return;
-//             }
-//         }
-//     }
-
-//     try {
-//         // Add to cart with modal selections
-//         const addonIds = selectedAddons.map(a => a.id).sort().join('-');
-//         const menuStock = variantIngredients.length > 0
-//             ? calculateStockForIngredients(variantIngredients)
-//             : 999999;
-
-//         const idx = orderItems.value.findIndex((i) => {
-//             const itemAddonIds = (i.addons || []).map(a => a.id).sort().join('-');
-//             return i.id === selectedItem.value.id &&
-//                 i.variant_id === variantId &&
-//                 itemAddonIds === addonIds;
-//         });
-
-//         if (idx >= 0) {
-//             orderItems.value[idx].qty += modalQty.value;
-//             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
-//         } else {
-//             orderItems.value.push({
-//                 id: selectedItem.value.id,
-//                 title: selectedItem.value.title,
-//                 img: selectedItem.value.img,
-//                 price: totalItemPrice * modalQty.value,
-//                 unit_price: Number(totalItemPrice),
-//                 qty: modalQty.value,
-//                 note: modalNote.value || "",
-//                 stock: menuStock,
-//                 ingredients: variantIngredients,
-//                 variant_id: variantId,
-//                 variant_name: variantName,
-//                 addons: selectedAddons,
-//             });
-//         }
-
-//         await openPromoModal(selectedItem.value);
-
-//         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
-//         modal.hide();
-
-//         // ✅ Reset modal state after successful add
-//         modalQty.value = 0;
-//         modalNote.value = "";
-//         modalSelectedVariant.value = null;
-//         modalSelectedAddons.value = {};
-
-//     } catch (err) {
-//         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
-//     }
-// };
-
-
-// ✅ Add this reactive variable at the top with your other modal variables
+//  Add this reactive variable at the top with your other modal variables
 const modalItemKitchenNote = ref('');
 
 const confirmAdd = async () => {
@@ -1197,17 +814,13 @@ const confirmAdd = async () => {
     }
 
     const variantName = variant ? variant.name : null;
-
-    // CHANGED: Use ORIGINAL prices
     const variantPrice = variant
-        ? parseFloat(variant.price)  // Original price
-        : parseFloat(selectedItem.value.price); // Original price
+        ? parseFloat(variant.price)  
+        : parseFloat(selectedItem.value.price); 
 
     const selectedAddons = getModalSelectedAddons();
     const addonsPrice = getModalAddonsPrice();
     const totalItemPrice = variantPrice + addonsPrice;
-
-    // NEW: Calculate resale discount
     const resaleDiscountPerItem = variant
         ? calculateResalePrice(variant, true)
         : calculateResalePrice(selectedItem.value, false);
@@ -1224,11 +837,7 @@ const confirmAdd = async () => {
         }
         return;
     }
-
-    // ✅ NEW: Generate removed ingredients text for kitchen note
     const removedIngredientsText = getRemovedIngredientsText();
-
-    // Stock validation...
     const ingredientStock = {};
     for (const item of orderItems.value) {
         const itemIngredients = getVariantIngredients(item, item.variant_id);
@@ -1272,37 +881,27 @@ const confirmAdd = async () => {
         if (idx >= 0) {
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
-
-            // Update total discount
             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
-
-            // ✅ UPDATED: Combine kitchen notes with removed ingredients
             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
                 const newNote = modalItemKitchenNote.value.trim();
-
-                // Combine: existing note + new note + removed ingredients
                 const noteParts = [existingNote, newNote, removedIngredientsText]
                     .filter(Boolean)
-                    .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+                    .filter((v, i, a) => a.indexOf(v) === i);
 
                 orderItems.value[idx].item_kitchen_note = noteParts.join('; ');
             } else if (removedIngredientsText) {
-                // Only removed ingredients, append to existing
                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
                 orderItems.value[idx].item_kitchen_note = [existingNote, removedIngredientsText]
                     .filter(Boolean)
                     .join('; ');
             }
-
-            // ✅ NEW: Update removed ingredients list
             if (modalRemovedIngredients.value.length > 0) {
                 orderItems.value[idx].removed_ingredients = [...modalRemovedIngredients.value];
             }
 
             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
         } else {
-            // ✅ UPDATED: Combine kitchen note with removed ingredients
             const finalKitchenNote = [modalItemKitchenNote.value.trim(), removedIngredientsText]
                 .filter(Boolean)
                 .join('. ');
@@ -1311,19 +910,17 @@ const confirmAdd = async () => {
                 id: selectedItem.value.id,
                 title: selectedItem.value.title,
                 img: selectedItem.value.img,
-                price: totalItemPrice * modalQty.value, // Original price * qty
-                unit_price: Number(totalItemPrice), // Original price
+                price: totalItemPrice * modalQty.value, 
+                unit_price: Number(totalItemPrice),
                 qty: modalQty.value,
                 note: modalNote.value || "",
-                item_kitchen_note: finalKitchenNote, // ✅ Updated with removed ingredients
+                item_kitchen_note: finalKitchenNote, 
                 stock: menuStock,
                 ingredients: variantIngredients,
                 variant_id: variantId,
                 variant_name: variantName,
                 addons: selectedAddons,
-                removed_ingredients: [...modalRemovedIngredients.value], // ✅ NEW: Store removed ingredient IDs
-
-                // NEW: Store resale discount info
+                removed_ingredients: [...modalRemovedIngredients.value], 
                 resale_discount_per_item: resaleDiscountPerItem,
                 total_resale_discount: resaleDiscountPerItem * modalQty.value,
             });
@@ -1335,22 +932,17 @@ const confirmAdd = async () => {
 
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
-
-        // ✅ NEW: Reset modal state including removed ingredients
         modalQty.value = 0;
         modalNote.value = "";
         modalItemKitchenNote.value = "";
         modalSelectedVariant.value = null;
         modalSelectedAddons.value = {};
-        modalRemovedIngredients.value = []; // ✅ Reset removed ingredients
+        modalRemovedIngredients.value = [];
 
     } catch (err) {
         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
     }
 };
-
-
-// Helper function
 const calculateStockForIngredients = (ingredients) => {
     if (!ingredients || ingredients.length === 0) return 999999;
 
@@ -1406,40 +998,13 @@ const updateStock = async (item, qty, type = "stockout") => {
         throw err;
     }
 };
-
-// const incQty = async () => {
-//     if (modalQty.value < menuStockForSelected.value) {
-//         modalQty.value++;
-//         // Add .value here
-//         // try {
-//         //     await updateStock(selectedItem.value, 1, "stockout");
-//         //     modalQty.value++; // Only increment after successful stock update
-//         //     console.log(
-//         //         "Stock updated successfully, new modalQty:",
-//         //         modalQty.value
-//         //     );
-//         // } catch (error) {
-//         //     console.error("Failed to update stock:", error);
-//         //     // Don't increment modalQty if stock update failed
-//         // }
-//     } else {
-//         console.log("Cannot increment: reached maximum stock limit");
-//     }
-// };
-
-// Check if we can increment modal quantity
 const canIncModalQty = () => {
     if (!selectedItem.value) return false;
-
     const variant = getModalSelectedVariant();
     const variantId = variant ? variant.id : null;
     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
-
     if (!variantIngredients.length) return true;
-
-    // ✅ Check if we can add ONE MORE based on current cart + modal quantity
     const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
-
     return (modalQty.value + 1) <= availableToAdd;
 };
 
@@ -1447,12 +1012,9 @@ const incQty = () => {
     if (!canIncModalQty()) {
         const variant = getModalSelectedVariant();
         const variantText = variant ? ` (${variant.name})` : '';
-
-        // ✅ Check if it's because there's NO stock at all
         const variantId = variant ? variant.id : null;
         const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
         const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
-
         if (availableToAdd <= 0) {
             toast.error(`No more stock available for "${selectedItem.value?.title}${variantText}". Please remove some from cart first.`);
         } else {
@@ -1473,7 +1035,6 @@ const decQty = () => {
    Order + Receipt
 -----------------------------*/
 const formErrors = ref({});
-// Update resetCart to clear promo
 const resetCart = () => {
     orderItems.value = [];
     customer.value = "Walk In";
@@ -1503,23 +1064,12 @@ const cashReceived = ref(0);
    Helper Function to calculate Stock
 ---------------------------------------*/
 const hasEnoughStockForOrder = () => {
-    console.log("=== Checking Stock for Order ===");
-    console.log("Cart items:", orderItems.value);
-
     const ingredientUsage = {};
 
     // Calculate total usage
     for (const item of orderItems.value) {
-        // Use the ingredients that were stored when item was added to cart
-        // These are already variant-specific
         const itemIngredients = item.ingredients || [];
-
-        console.log(`Item: ${item.title} (${item.variant_name || 'no variant'}), Qty: ${item.qty}`);
-        console.log("Item ingredients:", itemIngredients);
-
-        // If item has no ingredients, skip stock checking for this item
         if (itemIngredients.length === 0) {
-            console.log(`  - No ingredients to track for ${item.title}`);
             continue;
         }
 
@@ -1527,8 +1077,6 @@ const hasEnoughStockForOrder = () => {
             const ingredientId = ing.inventory_item_id;
             const availableStock = parseFloat(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
             const requiredQty = parseFloat(ing.quantity ?? ing.qty ?? 1) * item.qty;
-
-            console.log(`  - Ingredient: ${ing.product_name}, Required: ${requiredQty}, Available: ${availableStock}`);
 
             if (!ingredientUsage[ingredientId]) {
                 ingredientUsage[ingredientId] = {
@@ -1541,12 +1089,7 @@ const hasEnoughStockForOrder = () => {
             ingredientUsage[ingredientId].totalUsed += requiredQty;
         });
     }
-
-    console.log("Ingredient Usage Summary:", ingredientUsage);
-
-    // Check for over-allocation
     for (const [ingredientId, usage] of Object.entries(ingredientUsage)) {
-        console.log(`Checking ${usage.name}: Used ${usage.totalUsed} / Available ${usage.totalStock}`);
 
         if (usage.totalUsed > usage.totalStock) {
             toast.error(
@@ -1556,21 +1099,14 @@ const hasEnoughStockForOrder = () => {
             return false;
         }
     }
-
-    console.log("✅ All stock checks passed!");
     return true;
 };
-
-
-
 
 const openConfirmModal = () => {
     if (orderItems.value.length === 0) {
         toast.error("Please add at least one item to the cart.");
         return;
     }
-
-    // Dine-in requires table
     if (orderType.value === "Dine_in" && !selectedTable.value) {
         formErrors.value.table_number = [
             "Table number is required for dine-in orders.",
@@ -1578,8 +1114,6 @@ const openConfirmModal = () => {
         toast.error("Please select a table number for Dine In orders.");
         return;
     }
-
-    // Delivery + Takeaway require customer name
     if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
         formErrors.value.customer = [
             "Customer name is required.",
@@ -1587,8 +1121,6 @@ const openConfirmModal = () => {
         toast.error("Customer name is required.");
         return;
     }
-
-    // Delivery requires phone number
     if (orderType.value === "Delivery" && !phoneNumber.value) {
         formErrors.value.phoneNumber = [
             "Phone number is required for delivery.",
@@ -1596,8 +1128,6 @@ const openConfirmModal = () => {
         toast.error("Phone number is required for delivery.");
         return;
     }
-
-    // Delivery requires delivery location
     if (orderType.value === "Delivery" && !deliveryLocation.value) {
         formErrors.value.deliveryLocation = [
             "Delivery location is required.",
@@ -1605,8 +1135,6 @@ const openConfirmModal = () => {
         toast.error("Delivery location is required.");
         return;
     }
-
-    // Stock check
     if (!hasEnoughStockForOrder()) {
         return;
     }
@@ -1664,7 +1192,7 @@ const handleApplyDiscount = async (appliedDiscounts) => {
         return;
     }
 
-    // ✅ ADD: Filter out rejected discounts
+    //  ADD: Filter out rejected discounts
     const rejectedIds = rejectedDiscounts.value.map(d => d.id);
     const allowedDiscounts = appliedDiscounts.filter(d => !rejectedIds.includes(d.id));
 
@@ -1717,8 +1245,6 @@ const handleApplyDiscount = async (appliedDiscounts) => {
         toast.error(error.response?.data?.message || 'Failed to request discount approval');
     }
 };
-
-// Start polling for approval status
 const startApprovalPolling = () => {
     if (approvalCheckInterval.value) {
         clearInterval(approvalCheckInterval.value);
@@ -1728,8 +1254,6 @@ const startApprovalPolling = () => {
         await checkApprovalStatus();
     }, 3000);
 };
-
-// Check approval status
 const checkApprovalStatus = async () => {
     if (pendingDiscountApprovals.value.length === 0) {
         stopApprovalPolling();
@@ -1768,7 +1292,7 @@ const checkApprovalStatus = async () => {
                                 `Discount "${approvedDiscount.name}" (${approvedDiscount.percentage}%) approved!`
                             );
                         } else if (approval.status === 'rejected') {
-                            // ✅ ADD: Track rejected discount
+                            //  ADD: Track rejected discount
                             rejectedDiscounts.value.push({
                                 id: approval.discount_id,
                                 name: approval.discount_name,
@@ -1811,13 +1335,6 @@ const applyApprovedDiscount = (discountData) => {
     selectedDiscounts.value.push(discountData);
 };
 
-// Cancel approval request
-const cancelApprovalRequest = () => {
-    pendingDiscountApprovals.value = [];
-    showApprovalWaitingModal.value = false;
-    stopApprovalPolling();
-    toast.info('Discount approval request cancelled');
-};
 
 // Cleanup on component unmount
 onUnmounted(() => {
@@ -1829,21 +1346,9 @@ onMounted(() => {
     if (window.Echo) {
         window.Echo.channel('discount-approvals')
             .listen('.approval.responded', (event) => {
-                console.log('Approval response received:', event.approval);
                 checkApprovalStatus();
             });
     }
-});
-
-// Calculate pending discount dynamically based on current subtotal
-const pendingDiscountTotal = computed(() => {
-    if (!pendingDiscountApprovals.value || pendingDiscountApprovals.value.length === 0) return 0;
-
-    return pendingDiscountApprovals.value.reduce((total, approval) => {
-        const percentage = parseFloat(approval.percentage || 0);
-        const discountAmount = (subTotal.value * percentage) / 100;
-        return total + discountAmount;
-    }, 0);
 });
 
 // Calculate approved discount dynamically based on current subtotal
@@ -2050,8 +1555,6 @@ onMounted(async () => {
 });
 
 const page = usePage();
-
-console.log("page data", page.props);
 function bumpToasts() {
     const s = page.props.flash?.success;
     const e = page.props.flash?.error;
@@ -2093,10 +1596,9 @@ const kotData = ref([]);
 const kotLoading = ref(false);
 
 const openOrderModal = async () => {
-    showKotModal.value = true;   // show modal immediately
-    kotData.value = [];           // clear old data
-    kotLoading.value = true;      // start loading
-
+    showKotModal.value = true;  
+    kotData.value = [];           
+    kotLoading.value = true;      
     try {
         const res = await axios.get(`/api/pos/orders/today`);
         kotData.value = res.data.orders;
@@ -2107,15 +1609,11 @@ const openOrderModal = async () => {
         );
         kotData.value = [];
     } finally {
-        kotLoading.value = false;  // stop loading
+        kotLoading.value = false; 
     }
 };
-
-
 const showPosOrdersModal = ref(false);
 const posOrdersData = ref([]);
-
-
 const loading = ref(false);
 
 const openPosOrdersModal = async () => {
@@ -2126,7 +1624,6 @@ const openPosOrdersModal = async () => {
     try {
         const res = await axios.get(`/api/pos/orders/today`);
         posOrdersData.value = res.data.orders;
-        console.log("posOrdersData.value", posOrdersData.value);
     } catch (err) {
         console.error("Failed to fetch POS orders:", err);
         toast.error(
@@ -2140,7 +1637,6 @@ const openPosOrdersModal = async () => {
 /* ----------------------------
    Promo Handling
 -----------------------------*/
-
 const showPromoModal = ref(false);
 const showDiscountModal = ref(false);
 const loadingPromos = ref(true);
@@ -2148,7 +1644,6 @@ const loadingDiscounts = ref(true);
 const promosData = ref([]);
 const discountsData = ref([]);
 const selectedPromos = ref([]);
-
 
 // 2. Update handleApplyPromo to support multiple promos
 const handleApplyPromo = (promoDataArray) => {
@@ -2197,27 +1692,8 @@ const getPromoMatchingItems = () => {
     return Array.from(allMatchingItems);
 };
 
-// Helper: Get items this promo applies to from cart
-const getPromoAppliedItems = (promo) => {
-    if (!promo.menu_items || promo.menu_items.length === 0) {
-        return orderItems.value;
-    }
-
-    const promoMenuIds = promo.menu_items.map(item => item.id);
-    return orderItems.value.filter(item => promoMenuIds.includes(item.id));
-};
-
-
-// 3. Update handleClearPromo
-const handleClearPromo = () => {
-    selectedPromos.value = [];
-    toast.info("All promos cleared.");
-};
-
-
 // REPLACE THIS ENTIRE FUNCTION
 const openPromoModal = async () => {
-    console.log("Fetching promos for current meal...");
     loadingPromos.value = true;
     showPromoModal.value = true;
 
@@ -2225,7 +1701,6 @@ const openPromoModal = async () => {
         const response = await axios.get('/api/promos/current');
         if (response.data?.success) {
             promosData.value = response.data.data || [];
-            console.log("Promos loaded:", promosData.value.length);
         } else {
             console.warn("Failed to fetch promos:", response.data);
             promosData.value = [];
@@ -2251,7 +1726,6 @@ const openDiscountModal = async () => {
         const response = await axios.get('/api/discounts/all');
         if (response.data?.success) {
             discountsData.value = response.data.data || [];
-            console.log("Discounts loaded:", discountsData.value.length);
         } else {
             console.warn("Failed to fetch discounts:", response.data);
             discountsData.value = [];
@@ -2278,40 +1752,11 @@ const isItemEligibleForPromo = (cartItem) => {
         return promoMenuIds.includes(cartItem.id);
     });
 };
-
-// 8. Update getPromoBreakdown
-const getPromoBreakdown = computed(() => {
-    if (!selectedPromos.value || selectedPromos.value.length === 0) return null;
-
-    const allMatchingItems = getPromoMatchingItems();
-    const totalDiscount = promoDiscount.value;
-
-    const subtotal = allMatchingItems.reduce((sum, item) => {
-        return sum + (item.unit_price * item.qty);
-    }, 0);
-
-    return {
-        itemCount: allMatchingItems.length,
-        totalItems: orderItems.value.length,
-        subtotal: subtotal,
-        discount: totalDiscount,
-        promoCount: selectedPromos.value.length,
-        items: allMatchingItems.map(item => ({
-            title: item.title,
-            qty: item.qty,
-            price: item.unit_price * item.qty
-        }))
-    };
-});
-
-
 const handleViewOrderDetails = (order) => {
     lastOrder.value = order;
     showReceiptModal.value = true;
     showPosOrdersModal.value = false;
 };
-
-
 
 // 4. Update promoDiscount to calculate total from all promos
 const promoDiscount = computed(() => {
@@ -2346,8 +1791,6 @@ const promoDiscount = computed(() => {
         return total;
     }, 0);
 });
-
-// 5. Helper function for individual promo subtotal
 const getPromoSubtotalForPromo = (promo) => {
     if (!promo.menu_items || promo.menu_items.length === 0) {
         return orderItems.value.reduce((total, item) => {
@@ -2362,8 +1805,6 @@ const getPromoSubtotalForPromo = (promo) => {
             return total + (item.unit_price * item.qty);
         }, 0);
 };
-
-// NEW: Helper to get applied promos data for payment
 const getAppliedPromosData = computed(() => {
     if (!selectedPromos.value || selectedPromos.value.length === 0) return [];
 
@@ -2375,12 +1816,6 @@ const getAppliedPromosData = computed(() => {
         applied_to_items: promo.applied_to_items || []
     }));
 });
-
-
-/* ----------------------------
-   End Prmomo Calculations
------------------------------*/
-
 
 /* ----------------------------
    Tax Calculation
@@ -2418,10 +1853,6 @@ const grandTotal = computed(() => {
     return Math.max(0, total);
 });
 
-console.log("Grand Total computed:", approvedDiscountTotal.value);
-
-
-// Helper function to get tax amount for a specific item
 const getItemTax = (item) => {
     const menuItem = menuItems.value.find(m => m.id === item.id);
     if (menuItem && menuItem.is_taxable && menuItem.tax_percentage) {
@@ -2438,8 +1869,6 @@ const getItemTaxPercentage = (item) => {
         ? parseFloat(menuItem.tax_percentage)
         : 0;
 };
-
-
 // ========================================
 // Fixed: Get quantity for a product in the cart
 // ========================================
@@ -2536,35 +1965,6 @@ const canAddMore = (product) => {
 
     return true;
 };
-
-// Check if ingredients are available for a specific quantity
-const checkIngredientAvailability = (product, targetQty) => {
-    const allIngredients = getAllIngredients(product);
-    if (!allIngredients.length) return true;
-
-    const ingredientStock = {};
-
-    // Reduce stock for items already in cart
-    for (const item of orderItems.value) {
-        const itemIngredients = getAllIngredients(item);
-        itemIngredients.forEach(ing => {
-            const id = ing.inventory_item_id;
-            if (!ingredientStock[id]) ingredientStock[id] = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
-            ingredientStock[id] -= Number(ing.quantity ?? ing.qty ?? 1) * item.qty;
-        });
-    }
-
-    // Check if enough stock for targetQty
-    for (const ing of allIngredients) {
-        const id = ing.inventory_item_id;
-        const available = ingredientStock[id] ?? Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
-        const required = Number(ing.quantity ?? ing.qty ?? 1) * targetQty;
-        if (available < required) return false;
-    }
-
-    return true;
-};
-
 
 // ========================================
 // Fixed: Increment quantity from card with proper validation
@@ -2736,13 +2136,6 @@ const canIncCartItem = (cartItem) => {
 };
 
 
-
-
-
-
-
-
-
 /* ----------------------------
    Addon Management Modal
 -----------------------------*/
@@ -2832,16 +2225,6 @@ const getCartItemAddonsTotal = (cartItem) => {
         }
         return total;
     }, 0);
-};
-
-const calculateUpdatedItemPrice = () => {
-    if (!selectedCartItem.value) return 0;
-
-    const basePrice = selectedCartItem.value.unit_price - getCartItemAddonsTotal(orderItems.value[selectedCartItemIndex.value]);
-    const addonsTotal = getCartItemAddonsTotal(selectedCartItem.value);
-    const unitPrice = basePrice + addonsTotal;
-
-    return unitPrice * selectedCartItem.value.qty;
 };
 
 const saveAddonChanges = () => {
@@ -2940,7 +2323,6 @@ watch(
         saleDiscount: totalResaleSavings.value,
     }),
     (newCart) => {
-        console.log('Cart changed, broadcasting...', newCart);
         debouncedBroadcast(newCart);
     },
     { deep: true, immediate: false }
@@ -2958,7 +2340,6 @@ watch(
         selectedCardAddons: selectedCardAddons.value,
     }),
     (newUI) => {
-        console.log('UI state changed, broadcasting...', newUI);
         debouncedUIBroadcast(newUI);
     },
     { deep: true, immediate: true }
@@ -2988,33 +2369,14 @@ const openCustomerDisplay = () => {
         return;
     }
 
-    console.log('🔗 Opening Customer Display for terminal:', terminalId.value);
-
     const url = route('customer-display.index', { terminal: terminalId.value });
     window.open(url, '_blank', 'width=1920,height=1080');
 };
-
-const getVariantPriceRange = (product) => {
-    if (!product.variants || product.variants.length === 0) return null;
-
-    const prices = product.variants.map(v => Number(v.price || 0));
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-
-    return {
-        min: minPrice,
-        max: maxPrice
-    };
-};
-
 
 // ============================================
 // RESALE PRICE CALCULATION HELPERS
 // ============================================
 
-/**
- * Calculate resale price for a menu item or variant
- */
 const calculateResalePrice = (item, isVariant = false) => {
     if (!item) return 0;
 
@@ -3038,22 +2400,15 @@ const calculateResalePrice = (item, isVariant = false) => {
 
     return 0;
 };
-/**
- * Get the final price after resale discount
- */
+
 const getFinalPrice = (item, isVariant = false) => {
     const basePrice = parseFloat(item.price || 0);
     const resalePrice = calculateResalePrice(item, isVariant);
     return Math.max(0, basePrice - resalePrice);
 };
 
-/**
- * Get resale badge info for display
- */
 const getResaleBadgeInfo = (item, isVariant = false) => {
     if (!item) return null;
-
-    // 🧠 Same safe extraction here
     const isSaleable = item.is_saleable ?? item?.menu_item?.is_saleable;
     const resaleType = item.resale_type ?? item?.menu_item?.resale_type;
     const resaleValue = item.resale_value ?? item?.menu_item?.resale_value;
@@ -3074,31 +2429,18 @@ const getResaleBadgeInfo = (item, isVariant = false) => {
                 : `${resaleValue}% OFF`
     };
 };
-
-/**
- * Get total price including variant and addons with resale
- */
 const getTotalPriceWithResale = (product) => {
     const variant = getSelectedVariant(product);
-
-    // Get base price after resale
     let basePrice;
     if (variant) {
         basePrice = getFinalPrice(variant, true);
     } else {
         basePrice = getFinalPrice(product, false);
     }
-
-    // Add addons (addons don't have resale)
     const addonsPrice = getAddonsPrice(product);
 
     return basePrice + addonsPrice;
 };
-
-
-/**
- * Get variant price range with resale (only strike-through if there's a sale)
- */
 const getVariantPriceRangeWithResale = (product) => {
     if (!product.variants || product.variants.length === 0) {
         const hasSale = calculateResalePrice(product, false) > 0;
@@ -3122,28 +2464,6 @@ const getVariantPriceRangeWithResale = (product) => {
     };
 };
 
-
-
-/**
- * Get selected variant price with resale for display
- */
-const getSelectedVariantPriceWithResale = (product) => {
-    if (!product.variants || product.variants.length === 0) {
-        return getFinalPrice(product, false);
-    }
-
-    const selectedVariantId = selectedCardVariant.value[product.id];
-    if (!selectedVariantId) {
-        return getFinalPrice(product.variants[0], true);
-    }
-
-    const variant = product.variants.find(v => v.id === selectedVariantId);
-    return variant ? getFinalPrice(variant, true) : getFinalPrice(product, false);
-};
-
-/**
- * Get modal variant price with resale
- */
 const getModalVariantPriceWithResale = () => {
     if (!selectedItem.value) return 0;
 
@@ -3154,15 +2474,9 @@ const getModalVariantPriceWithResale = () => {
 
     return getFinalPrice(selectedItem.value, false);
 };
-
-/**
- * Get modal total price with resale
- */
 const getModalTotalPriceWithResale = () => {
     return getModalVariantPriceWithResale() + getModalAddonsPrice();
 };
-
-
 
 </script>
 
@@ -3186,10 +2500,7 @@ const getModalTotalPriceWithResale = () => {
                                     <i class="bi bi-tv"></i>
                                     <span>Customer View</span>
                                 </button>
-
-                                <!-- ✅ REPLACE THIS: Category search with autofill prevention -->
                                 <div style="width: 250px; position: relative;">
-                                    <!-- Hidden decoy input to catch autofill -->
                                     <input type="email" name="email" autocomplete="email"
                                         style="position: absolute; left: -9999px; width: 1px; height: 1px;"
                                         tabindex="-1" aria-hidden="true" />
@@ -3211,8 +2522,6 @@ const getModalTotalPriceWithResale = () => {
                                     style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;"></div>
                                 <div class="mt-2 fw-semibold text-muted">Loading...</div>
                             </div>
-
-
                             <!-- Categories List -->
                             <template v-else>
                                 <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-4">
@@ -3230,8 +2539,6 @@ const getModalTotalPriceWithResale = () => {
                                         </div>
                                     </div>
                                 </div>
-
-
                                 <!-- No Categories Found -->
                                 <div v-if="!menuCategoriesLoading && filteredCategories.length === 0" class="col-12">
                                     <div class="alert alert-light border text-center rounded-4">
@@ -3240,8 +2547,6 @@ const getModalTotalPriceWithResale = () => {
                                 </div>
                             </template>
                         </div>
-
-
                         <!-- Items in selected category -->
                         <div v-else>
                             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
@@ -3256,7 +2561,6 @@ const getModalTotalPriceWithResale = () => {
                                         )?.name || "Items"
                                     }}
                                 </h5>
-
                                 <!-- Search & Filter Section -->
                                 <div class="d-flex gap-2 ms-auto align-items-center">
                                     <!-- Filter Button -->
@@ -3285,16 +2589,13 @@ const getModalTotalPriceWithResale = () => {
                                     :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
-
                                         <!-- Left Side (Image + Price Badge) - 40% -->
                                         <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
                                             <img :src="p.img" alt="" class="w-100 h-100" style="object-fit: cover;" />
-
-                                            <!-- ✅ Show Variant Price Range with Resale -->
+                                            <!--  Show Variant Price Range with Resale -->
                                             <div v-if="p.variants && p.variants.length > 0"
                                                 class="position-absolute bottom-0 start-0 end-0 text-center bg-light bg-opacity-75 fw-semibold"
                                                 style="font-size: 0.6rem !important; padding: 2px 4px;">
-
                                                 <!-- Minimum price -->
                                                 <span v-if="getVariantPriceRangeWithResale(p).minOriginal !== null"
                                                     class="text-muted text-decoration-line-through me-1">
@@ -3318,9 +2619,7 @@ const getModalTotalPriceWithResale = () => {
                                                 </span>
                                             </div>
 
-
-
-                                            <!-- ✅ Dynamic Price Badge with Resale -->
+                                            <!--  Dynamic Price Badge with Resale -->
                                             <span
                                                 class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded-pill text-white fw-semibold"
                                                 :style="{ background: p.label_color || '#1B1670', fontSize: '0.58rem', letterSpacing: '0.3px' }">
@@ -3392,18 +2691,7 @@ const getModalTotalPriceWithResale = () => {
                                                             </template>
                                                         </option>
                                                     </select>
-
                                                 </div>
-
-                                                <!-- Show selected variant's resale badge -->
-                                                <!-- <div v-if="getSelectedVariant(p) && getResaleBadgeInfo(getSelectedVariant(p), true)"
-                                                    class="mb-2">
-                                                    <span class="badge bg-success">
-                                                        🏷️ {{ getResaleBadgeInfo(getSelectedVariant(p), true).display
-                                                        }}
-                                                    </span>
-                                                </div> -->
-
                                                 <!-- Addons Selection -->
                                                 <div v-if="p.addon_groups && p.addon_groups.length > 0">
                                                     <div v-for="group in p.addon_groups" :key="group.group_id"
@@ -3454,8 +2742,7 @@ const getModalTotalPriceWithResale = () => {
                                                     View Details
                                                 </button>
                                             </div>
-
-                                            <!-- ✅ Quantity Controls (ALWAYS SHOW, but disable when out of stock) -->
+                                            <!--  Quantity Controls (ALWAYS SHOW, but disable when out of stock) -->
                                             <div class="mt-2 d-flex align-items-center justify-content-start gap-2"
                                                 @click.stop>
                                                 <button
@@ -3476,18 +2763,14 @@ const getModalTotalPriceWithResale = () => {
                                                     <strong>+</strong>
                                                 </button>
                                             </div>
-
-
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
 
                     <!-- RIGHT: Cart -->
-
                     <div class="col-lg-4" v-if="!showCategories">
 
                         <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
@@ -3703,7 +2986,7 @@ const getModalTotalPriceWithResale = () => {
                                         </div>
                                     </div>
 
-                                    <!-- ✅ Pending Percentage Discounts (NOT deducted yet) -->
+                                    <!--  Pending Percentage Discounts (NOT deducted yet) -->
                                     <div v-if="pendingDiscountApprovals.length > 0"
                                         class="pending-discounts-section mb-3">
                                         <div class="alert alert-warning py-2 px-3 mb-2">
@@ -3728,11 +3011,8 @@ const getModalTotalPriceWithResale = () => {
                                             Will apply after Super Admin approval
                                         </small>
                                     </div>
-
-                                    <!-- ✅ Approved Percentage Discounts (Dynamically calculated) -->
+                                    <!--  Approved Percentage Discounts (Dynamically calculated) -->
                                     <div v-if="selectedDiscounts.length > 0" class="approved-discounts-section mb-3">
-
-
                                         <!-- Total Approved Discount -->
                                         <div class="trow border-top pt-2 mt-2">
                                             <div class="d-flex align-items-center text-success gap-2">
@@ -3745,41 +3025,30 @@ const getModalTotalPriceWithResale = () => {
                                                     data-bs-placement="top" data-bs-container="body"
                                                     data-bs-content="Auto-updates with cart changes<br>Approved Discounts">
                                                 </i>
-
                                             </div>
-
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
                                             }}</b>
                                         </div>
-
                                     </div>
-
                                     <!-- Total After All Discounts -->
                                     <div class="trow total">
                                         <span>Total</span>
                                         <b>{{ formatCurrencySymbol(grandTotal) }}</b>
                                     </div>
                                 </div>
-
-                                <!-- <textarea v-model="note" rows="3" class="form-control form-control-sm rounded-3"
-                                    placeholder="Note"></textarea> -->
-
                                 <div class="mb-3">
                                     <label for="frontNote" class="form-label small fw-semibold">Front Note</label>
                                     <textarea id="frontNote" v-model="note" rows="3"
                                         class="form-control form-control-sm rounded-3"
                                         placeholder="Enter front note..."></textarea>
                                 </div>
-
                                 <div class="mb-3">
                                     <label for="kitchenNote" class="form-label small fw-semibold">Kitchen Note</label>
                                     <textarea id="kitchenNote" v-model="kitchenNote" rows="3"
                                         class="form-control form-control-sm rounded-3"
                                         placeholder="Enter kitchen note..."></textarea>
                                 </div>
-
                             </div>
-
                             <div class="cart-footer">
                                 <button class="btn btn-secondary btn-clear" @click="resetCart()">
                                     Clear
@@ -3824,7 +3093,6 @@ const getModalTotalPriceWithResale = () => {
                                     <div class="h4 mb-3">
                                         <div class="h4 d-flex align-items-center gap-2 flex-wrap">
                                             <span>{{ formatCurrencySymbol(getModalTotalPriceWithResale()) }}</span>
-
                                             <!-- Show original price if there's resale discount (for variants) -->
                                             <template
                                                 v-if="getModalSelectedVariant() && getResaleBadgeInfo(getModalSelectedVariant(), true)">
@@ -3836,7 +3104,6 @@ const getModalTotalPriceWithResale = () => {
                                                     {{ getResaleBadgeInfo(getModalSelectedVariant(), true).display }}
                                                 </span>
                                             </template>
-
                                             <!-- Show original price if there's resale discount (for simple items) -->
                                             <template
                                                 v-else-if="selectedItem && (!selectedItem.variants || selectedItem.variants.length === 0) && getResaleBadgeInfo(selectedItem, false)">
@@ -3850,8 +3117,6 @@ const getModalTotalPriceWithResale = () => {
                                             </template>
                                         </div>
                                     </div>
-
-
                                     <!-- Variant Dropdown -->
                                     <div v-if="selectedItem?.variants && selectedItem.variants.length > 0" class="mb-3">
                                         <label class="form-label small fw-semibold mb-1">
@@ -3946,9 +3211,6 @@ const getModalTotalPriceWithResale = () => {
                                         </div>
                                     </div>
 
-
-
-
                                     <!-- Nutrition, Allergies, Tags (Dynamic based on variant) -->
                                     <div class="chips mb-3">
                                         <div class="mb-1">
@@ -4008,7 +3270,6 @@ const getModalTotalPriceWithResale = () => {
                                 </div>
                             </div>
                         </div>
-
                         <div class="modal-footer border-0">
                             <button class="btn btn-primary btn-sm py-2 rounded-pill px-4" @click="confirmAdd">
                                 Add to Cart
@@ -4018,7 +3279,7 @@ const getModalTotalPriceWithResale = () => {
                 </div>
             </div>
 
-            <!-- ✅ Addon Management Modal -->
+            <!--  Addon Management Modal -->
             <div class="modal fade" id="addonManagementModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -4161,14 +3422,11 @@ const getModalTotalPriceWithResale = () => {
                                 </div>
                             </div>
                         </div>
-
                         <div class="modal-footer border-0 pt-0 bg-light">
                             <button type="button" class="btn btn-secondary px-2 py-2" data-bs-dismiss="modal">
-
                                 Cancel
                             </button>
                             <button type="button" class="btn btn-primary px-2 py-2" @click="saveAddonChanges">
-
                                 Save
                             </button>
                         </div>
@@ -4178,20 +3436,8 @@ const getModalTotalPriceWithResale = () => {
 
             <KotModal :show="showKotModal" :kot="kotData" :loading="kotLoading" @close="showKotModal = false"
                 @status-updated="handleKotStatusUpdated" />
-
-
-            <!-- Confirm / Receipt (unchanged props) -->
-            <!-- <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :order-type="orderType"
-                :selected-table="selectedTable" :order-items="orderItems" :grand-total="grandTotal" :money="money"
-                v-model:cashReceived="cashReceived" :client_secret="client_secret" :order_code="order_code"
-                :sub-total="subTotal" :tax="0" :service-charges="0" :delivery-charges="0" :note="note"
-                :order-date="new Date().toISOString().split('T')[0]"
-                :order-time="new Date().toTimeString().split(' ')[0]" :payment-method="paymentMethod"
-                :change="changeAmount" @close="showConfirmModal = false" @confirm="confirmOrder" /> -->
             <ReceiptModal :show="showReceiptModal" :order="lastOrder" :money="money"
                 @close="showReceiptModal = false" />
-
-
             <ConfirmOrderModal :show="showConfirmModal" :customer="customer" :delivery-location="deliveryLocation"
                 :phone="phoneNumber" :order-type="orderType" :selected-table="selectedTable" :order-items="orderItems"
                 :grand-total="grandTotal" :money="money" v-model:cashReceived="cashReceived"
@@ -4210,7 +3456,6 @@ const getModalTotalPriceWithResale = () => {
                     discount_amount: getDiscountAmount(d.percentage),
                     approval_id: d.approval_id
                 }))" />
-
             <PosOrdersModal :show="showPosOrdersModal" :orders="posOrdersData" @close="showPosOrdersModal = false"
                 @view-details="handleViewOrderDetails" :loading="loading" />
 
@@ -4220,7 +3465,6 @@ const getModalTotalPriceWithResale = () => {
                 :loading="loadingDiscounts" :applied-discounts="selectedDiscounts"
                 :rejected-discounts="rejectedDiscounts" @close="showDiscountModal = false"
                 @apply-discount="handleApplyDiscount" @clear-discount="clearDiscounts" />
-
         </div>
     </Master>
 </template>
@@ -4230,146 +3474,99 @@ const getModalTotalPriceWithResale = () => {
     background-color: #181818;
     color: #fff;
 }
-
 .bg-light {
     font-size: 1.2rem !important;
 }
-
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Header area (filter + select all) */
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
-
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
-
-/* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
 }
-
 :deep(.p-multiselect),
 :deep(.p-multiselect-panel),
 :deep(.p-multiselect-token) {
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
 }
-
 :deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
     background: #007bff !important;
-    /* blue when checked */
     border-color: #007bff !important;
 }
-
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
-
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
-
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
-    /* light gray, like Bootstrap badge */
     color: #000 !important;
     border-radius: 12px !important;
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
-
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
 :deep(.p-select-label) {
     color: #000 !important;
 }
-
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
-
-
-/* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -4384,19 +3581,13 @@ const getModalTotalPriceWithResale = () => {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -4410,26 +3601,18 @@ const getModalTotalPriceWithResale = () => {
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -4437,102 +3620,71 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
-
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
-
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
-
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
     color: #fff !important;
 }
-
 :global(.dark .p-select-label) {
     color: #fff !important;
 }
-
-/* Add this CSS to make the cart fixed on scroll */
-
-/* Make the cart column fixed */
 .col-lg-4:has(.cart) {
     position: fixed;
     right: 0;
     top: 65px;
     width: 28%;
-    /* lg-4 column width */
     padding-right: 15px;
     padding-left: 15px;
     max-height: calc(100vh - 140px);
     overflow: auto;
     z-index: 100;
 }
-
-
 @media only screen and (max-width: 1024px) {
     .col-md-6 {
         width: 51% !important;
         flex: 0 0 100% !important;
         max-width: 51% !important;
     }
-
     .col-lg-4 {
         margin-top: 35px;
         width: 40% !important;
         max-width: 40% !important;
     }
-
     .tablet-screen {
         margin: 0px -131px 0px -14px !important;
     }
 }
-
-
-
-
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.3s ease;
 }
-
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
 }
-
-
-
 .dark .fw-bold {
     color: #fff !important;
 }
-
-/* Add padding to the left column to prevent overlap */
 .col-lg-8:not(:has(+ .col-lg-4:has(.cart))) {
     margin-right: 0;
 }
@@ -4540,22 +3692,16 @@ const getModalTotalPriceWithResale = () => {
 .row:has(.col-lg-4:has(.cart)) .col-lg-8 {
     padding-right: 15px;
 }
-
-/* Make the cart itself scrollable if content is too long */
 .cart {
     max-height: calc(85vh);
     display: flex;
     flex-direction: column;
 }
-
-/* Make cart body scrollable */
 .cart-body {
     overflow-y: auto;
     flex: 1;
     min-height: 0;
 }
-
-/* Ensure cart header and footer stay fixed within the card */
 .cart-header {
     flex-shrink: 0;
 }
@@ -4563,102 +3709,76 @@ const getModalTotalPriceWithResale = () => {
 .cart-footer {
     flex-shrink: 0;
 }
-
-/* Custom scrollbar for cart body (optional) */
 .cart-body::-webkit-scrollbar {
     width: 6px;
 }
-
 .cart-body::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 10px;
 }
-
 .cart-body::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 10px;
 }
-
 .cart-body::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
-
 .dark .cart-body {
     background-color: #181818;
 }
-
 .dark .item-title {
     color: #fff !important;
 }
-
 .dark .bg-light {
     background-color: #181818 !important;
 }
-
 .dark b {
     color: #fff !important;
 }
-
 .dark .item-sub {
     color: #fff !important;
 }
-
 .dark .cart-footer {
     background-color: #181818;
 }
-
 .dark .sub-total {
     color: #fff !important;
 }
-
 .dark .form-control {
     background-color: #181818;
     color: white;
 }
-
 .dark .item-card {
     background-color: #181818 !important;
     color: white !important;
 }
-
 .dark .cart-lines {
     background-color: #181818;
 }
-
 .dark .chip-orange {
     color: #0000;
 }
-
 .dark .modal-footer {
     background-color: #121212 !important;
 }
-
 .dark .alert {
     background-color: #181818;
 }
-
 .dark .table {
     background-color: #181818 !important;
-    /* gray-900 */
     color: #f9fafb !important;
 }
-
 .dark .table thead {
     background-color: #181818 !important;
     color: #ffffff;
 }
-
 .dark .table thead th {
     background-color: #212121 !important;
     color: #ffffff;
 }
-
-/* ========== Page Base ========== */
 .page-wrapper {
     background: #f5f7fb;
 }
-
-/* ========== Categories Grid ========== */
 .cat-card {
     display: flex;
     flex-direction: column;
@@ -4673,40 +3793,28 @@ const getModalTotalPriceWithResale = () => {
     box-shadow: 0 6px 16px rgba(17, 23, 31, 0.06);
     transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-
 .cat-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 10px 24px rgba(17, 23, 31, 0.1);
 }
-
-/* circular gray icon holder */
 .cat-icon-wrap {
     width: 80px;
     height: 80px;
     border-radius: 50%;
     background: #eee;
-    /* light gray like the screen */
     display: grid;
     place-items: center;
     margin-bottom: 0.25rem;
 }
-
-/* the actual icon (emoji/text/svg) */
 .cat-icon {
     font-size: 1.35rem;
-    /* tweak to match your cup size */
     line-height: 1;
 }
-
-/* title */
 .cat-name {
     font-weight: 700;
     font-size: 1rem;
     color: #141414;
-    /* per your dark accent preference */
 }
-
-/* little purple pill with count */
 .cat-pill {
     display: inline-block;
     font-size: 0.72rem;
@@ -4717,15 +3825,10 @@ const getModalTotalPriceWithResale = () => {
     background: #1b1670;
     box-shadow: 0 2px 6px rgba(75, 43, 183, 0.25);
 }
-
-
-
-/* ========== Search Pill ========== */
 .search-wrap {
     position: relative;
     min-width: 220px;
 }
-
 .search-wrap .bi-search {
     position: absolute;
     left: 10px;
@@ -4733,14 +3836,11 @@ const getModalTotalPriceWithResale = () => {
     transform: translateY(-50%);
     color: #6b7280;
 }
-
 .search-input {
     padding-left: 34px;
     border-radius: 999px;
     background: #fff;
 }
-
-/* ========== Items Grid ========== */
 .item-card {
     background: #fff;
     border-radius: 16px;
@@ -4752,77 +3852,54 @@ const getModalTotalPriceWithResale = () => {
     display: flex;
     flex-direction: column;
     border: 2px solid #1b1670;
-    /* fallback if no inline style */
 }
-
 .item-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 22px rgba(17, 23, 31, 0.1);
 }
-
 .item-img {
     position: relative;
     aspect-ratio: 1/1;
     overflow: hidden;
 }
-
 .item-img img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
-
-/* out-of-stock look */
 .item-card.out-of-stock {
     cursor: not-allowed;
     opacity: 0.9;
     position: relative;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }
-
-/* overlay background */
 .item-card.out-of-stock::after {
     content: "";
     position: absolute;
     inset: 0;
-    /* cover whole card */
     background: rgba(90, 85, 85, 0.192);
-    /* semi-transparent dark overlay */
     border-radius: 16px;
-    /* match card radius */
     z-index: 2;
-    /* sit above content */
 }
-
-/* make text & badge still visible above overlay */
-/* .item-card.out-of-stock .item-body,
-.item-card.out-of-stock .item-badge {
-    position: relative;
-    z-index: 3;
-} */
 .dark .form-select {
     background-color: #212121;
     color: #fff;
 }
-
 .item-price {
     position: absolute;
     top: 10px;
     right: 10px;
     background: #1b1670;
-    /* theme purple */
     color: #fff;
     padding: 0.25rem 0.75rem;
     font-weight: 600;
     font-size: 0.8rem;
     border-radius: 999px;
-    /* pill shape */
     line-height: 1;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     z-index: 2;
 }
-
 .item-badge {
     position: absolute;
     left: 10px;
@@ -4834,11 +3911,9 @@ const getModalTotalPriceWithResale = () => {
     font-weight: 700;
     font-size: 0.75rem;
 }
-
 .item-body {
     padding: 0.6rem 0.75rem 0.8rem;
 }
-
 .item-title {
     font-weight: 700;
     font-size: 0.98rem;
@@ -4847,20 +3922,16 @@ const getModalTotalPriceWithResale = () => {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .item-sub {
     color: #8a8fa7;
     font-size: 0.8rem;
 }
-
-/* ========== Cart Panel ========== */
 .cart {
     display: flex;
     flex-direction: column;
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
 }
-
 .cart-header {
     background: #1b1670;
     color: #fff;
@@ -4871,17 +3942,14 @@ const getModalTotalPriceWithResale = () => {
     align-items: center;
     justify-content: space-between;
 }
-
 .cart-title {
     font-weight: 800;
     letter-spacing: 0.3px;
 }
-
 .order-type {
     display: flex;
     gap: 0.4rem;
 }
-
 .ot-pill {
     background: rgba(255, 255, 255, 0.18);
     color: #fff;
@@ -4890,7 +3958,6 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.25rem 0.65rem;
     font-size: 0.8rem;
 }
-
 .dark .ot-pill {
     background: rgba(255, 255, 255, 0.18);
     color: #fff;
@@ -4899,24 +3966,20 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.25rem 0.65rem;
     font-size: 0.8rem;
 }
-
 .ot-pill.active {
     background: #fff;
     color: #1b1670;
     font-weight: 700;
 }
-
 .dark .ot-pill.active {
     background-color: #181818;
     color: #fff;
     font-weight: 700;
 }
-
 .cart-body {
     padding: 1rem;
     background: #fff;
 }
-
 .cart-lines {
     background: #fff;
     border: 1px dashed #e8e9ef;
@@ -4925,13 +3988,11 @@ const getModalTotalPriceWithResale = () => {
     max-height: 360px;
     overflow: auto;
 }
-
 .empty {
     color: #9aa0b6;
     text-align: center;
     padding: 1.25rem 0;
 }
-
 .line {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -4940,18 +4001,15 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem 0.35rem;
     border-bottom: 1px solid #f1f2f6;
 }
-
 .line:last-child {
     border-bottom: 0;
 }
-
 .line-left {
     display: flex;
     gap: 0.6rem;
     align-items: flex-start;
     min-width: 0;
 }
-
 .line-left img {
     width: 42px;
     height: 42px;
@@ -4959,14 +4017,12 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 8px;
     flex-shrink: 0;
 }
-
 .meta {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
     min-width: 0;
 }
-
 .meta .name {
     font-weight: 700;
     font-size: 0.92rem;
@@ -4974,21 +4030,16 @@ const getModalTotalPriceWithResale = () => {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .meta .note {
     font-size: 0.75rem;
     color: #8a8fa7;
 }
-
-/* Right Section: Controls + Price Stacked Vertically */
 .line-right {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-end;
 }
-
-/* Quantity Controls */
 .qty-controls {
     display: flex;
     align-items: center;
@@ -4997,7 +4048,6 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 8px;
     padding: 0.2rem;
 }
-
 .qty-btn {
     width: 26px;
     height: 26px;
@@ -5011,37 +4061,30 @@ const getModalTotalPriceWithResale = () => {
     cursor: pointer;
     transition: all 0.2s ease;
 }
-
 .qty-btn:hover {
     background: #0f0d4d;
 }
-
 .qty-btn:disabled {
     background: #b9bdd4;
     cursor: not-allowed;
 }
-
 .qty {
     min-width: 28px;
     text-align: center;
     font-weight: 700;
     font-size: 0.9rem;
 }
-
-/* Price and Delete Row */
 .price-delete {
     display: flex;
     align-items: center;
     gap: 0.4rem;
 }
-
 .price {
     font-weight: 700;
     font-size: 0.95rem;
     min-width: 64px;
     text-align: right;
 }
-
 .del {
     border: 0;
     background: #ffeded;
@@ -5060,74 +4103,58 @@ const getModalTotalPriceWithResale = () => {
     background: #ff6b6b;
     color: #fff;
 }
-
-/* Dark Mode Support */
 .dark .qty-controls {
     background: #212121;
 }
-
 .dark .qty {
     color: #fff;
 }
-
 .dark .price {
     color: #fff;
 }
-
 .dark .del {
     background: #3a3a3a;
     color: #ff6b6b;
 }
-
 .dark .del:hover {
     background: #c0392b;
     color: #fff;
 }
-
-/* Tablet/Laptop Screen Adjustments */
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
     .line {
         gap: 0.6rem;
         padding: 0.5rem 0.3rem;
     }
-
     .line-left img {
         width: 40px;
         height: 40px;
     }
-
     .meta .name {
         font-size: 0.88rem;
     }
-
     .qty-btn {
         width: 24px;
         height: 24px;
         font-size: 0.85rem;
     }
-
     .qty {
         min-width: 26px;
         font-size: 0.85rem;
     }
-
     .price {
         font-size: 0.9rem;
     }
-
     .del {
         width: 26px;
         height: 26px;
     }
 }
-
 /* Mobile adjustments */
 @media only screen and (max-width: 768px) {
     .line {
         grid-template-columns: 1fr;
         gap: 0.5rem;
     }
-
     .line-right {
         flex-direction: row;
         justify-content: space-between;
@@ -5135,13 +4162,11 @@ const getModalTotalPriceWithResale = () => {
         width: 100%;
     }
 }
-
 .price {
     font-weight: 700;
     min-width: 64px;
     text-align: right;
 }
-
 .del {
     border: 0;
     background: #ffeded;
@@ -5150,18 +4175,15 @@ const getModalTotalPriceWithResale = () => {
     height: 30px;
     border-radius: 8px;
 }
-
 .totals {
     padding: 0.75rem 0 0.25rem;
 }
-
 .trow {
     display: flex;
     justify-content: space-between;
     padding: 0.25rem 0;
     color: #4b5563;
 }
-
 .trow.total {
     border-top: 1px solid #eef0f6;
     margin-top: 0.25rem;
@@ -5170,7 +4192,6 @@ const getModalTotalPriceWithResale = () => {
     font-size: 16px;
     font-weight: 800;
 }
-
 .cart-footer {
     background: #f7f8ff;
     padding: 0.75rem;
@@ -5179,7 +4200,6 @@ const getModalTotalPriceWithResale = () => {
     border-bottom-left-radius: 1rem;
     border-bottom-right-radius: 1rem;
 }
-
 .btn-clear {
     flex: 1;
     border: 0;
@@ -5189,7 +4209,6 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem;
     border-radius: 999px;
 }
-
 .dark .btn-clear {
     flex: 1;
     border: 0;
@@ -5199,7 +4218,6 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem;
     border-radius: 999px;
 }
-
 .btn-place {
     flex: 1;
     border: 0;
@@ -5209,14 +4227,11 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem;
     border-radius: 999px;
 }
-
-/* ========== Chips & Qty in Modal ========== */
 .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
 }
-
 .chip {
     font-size: 0.75rem;
     padding: 0.25rem 0.55rem;
@@ -5224,7 +4239,6 @@ const getModalTotalPriceWithResale = () => {
     background: #f5f6fb;
     border: 1px solid #eceef7;
 }
-
 .dark .chip {
     font-size: 0.75rem;
     padding: 0.25rem 0.55rem;
@@ -5232,44 +4246,35 @@ const getModalTotalPriceWithResale = () => {
     background: #181818;
     border: 1px solid #eceef7;
 }
-
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
 }
-
 .chip-blue {
     background: #e8f3ff;
     border-color: #d2e6ff;
 }
-
 .chip-purple {
     background: #f1e9ff;
     border-color: #e1d2ff;
 }
-
 .chip-orange {
     background: #fff3e6;
     border-color: #ffe1bf;
 }
-
 .chip-red {
     background: #ffe9ea;
     border-color: #ffd3d6;
 }
-
 .chip-teal {
     background: #e8fffb;
     border-color: #c9f4ee;
 }
-
 .qty-group {
     display: inline-flex;
-    /* border: 1px solid #d0cfd7; */
     border-radius: 12px;
     overflow: hidden;
 }
-
 .qty-box {
     min-width: 60px;
     display: flex;
@@ -5279,13 +4284,10 @@ const getModalTotalPriceWithResale = () => {
     color: #fff;
     font-weight: 800;
 }
-
 .qty-group .qty-btn {
     width: 38px;
     height: 38px;
 }
-
-/* Variant dropdown styling */
 .variant-select {
     border: 2px solid #e5e7eb;
     border-radius: 8px;
@@ -5295,139 +4297,105 @@ const getModalTotalPriceWithResale = () => {
     transition: all 0.2s ease;
     cursor: pointer;
 }
-
 .variant-select:hover {
     border-color: #1B1670;
 }
-
 .variant-select:focus {
     border-color: #1B1670;
     box-shadow: 0 0 0 3px rgba(27, 22, 112, 0.1);
 }
-
 .dark .variant-select {
     background-color: #212121;
     color: #fff;
     border-color: #4b5563;
 }
-
-
-
-
-/* ========== PrimeVue MultiSelect Styling ========== */
 .addon-multiselect {
     font-size: 0.875rem;
 }
-
 .addon-multiselect :deep(.p-multiselect) {
     border: 2px solid #e5e7eb;
     border-radius: 8px;
     transition: all 0.2s ease;
 }
-
 .addon-multiselect :deep(.p-multiselect:hover) {
     border-color: #1B1670;
 }
-
 .addon-multiselect :deep(.p-multiselect.p-focus) {
     border-color: #1B1670;
     box-shadow: 0 0 0 3px rgba(27, 22, 112, 0.1);
 }
-
 .addon-multiselect :deep(.p-multiselect-label) {
     padding: 0.5rem 0.75rem;
 }
-
 .addon-multiselect :deep(.p-multiselect-panel) {
     border-radius: 8px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
-
 .addon-multiselect :deep(.p-multiselect-item) {
     padding: 0.5rem 0.75rem;
     transition: background-color 0.2s ease;
 }
-
 .addon-multiselect :deep(.p-multiselect-item:hover) {
     background-color: #f3f4f6;
 }
-
 .addon-multiselect :deep(.p-multiselect-item.p-highlight) {
     background-color: #1B1670;
     color: white;
 }
-
-/* Dark mode for MultiSelect */
 .dark .addon-multiselect :deep(.p-multiselect) {
     background-color: #212121;
     border-color: #4b5563;
     color: #fff;
 }
-
 .dark .addon-multiselect :deep(.p-multiselect-panel) {
     background-color: #212121;
     border-color: #4b5563;
 }
-
 .dark .addon-multiselect :deep(.p-multiselect-item) {
     color: #fff;
 }
-
 .dark .addon-multiselect :deep(.p-multiselect-item:hover) {
     background-color: #374151;
 }
-
 .dark .addon-multiselect :deep(.p-multiselect-item.p-highlight) {
     background-color: #1B1670;
     color: white;
 }
-
-/* Addon badges in cart */
 .addons-list {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
     margin-top: 0.25rem;
 }
-
 .addons-list .badge {
     font-weight: 500;
     padding: 0.2rem 0.4rem;
     line-height: 1.2;
 }
-
-/* Laptop screen style for right cart  */
-
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
     .cart-header {
         padding: 0.7rem;
     }
-
     .cart-header-buttons {
         font-size: 14px !important;
         height: 30px !important;
     }
-
     .promos-btn,
     .discount-btn {
         height: 30px !important;
         padding-top: 0.19rem !important;
 
     }
-
     .table-dropdown {
         margin-top: 0px !important;
     }
-
     .view-details-btn {
         height: 30px !important;
         font-size: 14px !important;
     }
-
     .left-card-cntrl-btn {
         height: 30px !important;
     }
-
     .menu-name {
         margin-top: 15px !important;
         font-size: 16px !important;

@@ -4,10 +4,8 @@ import axios from "axios"
 import Select from "primevue/select"
 import { toast } from "vue3-toastify"
 
-
 const emit = defineEmits(["save"])
 const props = defineProps({ model: Object, formErrors: Object,  isOnboarding: { type: Boolean, default: false }  })
-
 const selectedCountry = ref(null)
 const selectedLanguage = ref(null)
 const countries = ref([])
@@ -50,32 +48,15 @@ const fetchCountries = async () => {
   }
 }
 
-// Fetch timezone_id for selected country
-// const fetchCountryDetails = async (code) => {
-//   if (!code) return
-//   try {
-//     const { data } = await axios.get(`/api/country/${code}`)
-//     form.timezone_id = data.timezone_id
-//     emitSave()
-//   } catch (error) {
-//     console.error("fetchCountryDetails error:", error)
-//     toast.warning(error.response?.data?.message || "Failed to fetch country details")
-//   }
-// }
-
 const fetchCountryDetails = async (code) => {
   if (!code) return
   try {
     const { data } = await axios.get(`/api/country/${code}`)
-
-    // populate timezones dropdown
     timezonesOptions.value = data.timezones.map(tz => ({
-      label: `${tz.gmt}`,  // show name + GMT offset
-      value: tz.id,                     // ✅ send ID to backend
+      label: `${tz.gmt}`, 
+      value: tz.id,                    
       is_default: tz.is_default
     }))
-
-    // set selected timezone_id to default if exists
     const defaultTz = timezonesOptions.value.find(t => t.is_default)
     form.timezone_id = defaultTz ? defaultTz.value : ''
 
@@ -86,9 +67,6 @@ const fetchCountryDetails = async (code) => {
   }
 }
 
-
-
-// Detect user country from geo API
 const detectCountry = async () => {
   try {
     const { data } = await axios.get("/api/geo")
@@ -102,7 +80,6 @@ const detectCountry = async () => {
   }
 }
 
-// Sync selected country with profile/model
 const syncSelectedCountry = () => {
   if (!countries.value.length) return
   const code = props.model?.country_code || form.country_code
@@ -115,14 +92,12 @@ const syncSelectedCountry = () => {
   }
 }
 
-// Sync selected language with profile/model
 const syncSelectedLanguage = () => {
   const code = props.model?.language || form.language
   selectedLanguage.value =
     languagesOptions.value.find(l => l.code === code) || languagesOptions.value[0]
 }
 
-// Initialize on mount
 onMounted(async () => {
   await fetchCountries()
   // await detectCountry()
@@ -130,12 +105,10 @@ onMounted(async () => {
   syncSelectedLanguage()
 })
 
-// Watch for changes in countries or profile to resync selected country
 watch([countries, () => props.model?.country_code], () => {
   syncSelectedCountry()
 })
 
-// Watch selected country changes
 watch(selectedCountry, (opt) => {
   if (!opt || !opt.code) return
   form.country_code = opt.code
@@ -144,7 +117,6 @@ watch(selectedCountry, (opt) => {
   emitSave()
 })
 
-// Watch selected language changes
 watch(selectedLanguage, (opt) => {
   if (!opt) return
   form.language = opt.code
@@ -155,15 +127,11 @@ watch(selectedLanguage, (opt) => {
 <template>
   <div>
     <h5 class="fw-bold mb-3" v-if="props.isOnboarding">Step 1 of 9 - Welcome & Language Selection</h5>
-
     <div class="section p-3 p-md-4">
       <div class="row g-3">
         <!-- Country -->
         <div class="col-12">
           <label class="form-label d-flex align-items-center gap-2">Country</label>
-
-
-
           <Select v-model="selectedCountry" :options="countries" optionLabel="name" :filter="true" :pt="{
             root: { class: 'bg-white' },
             listContainer: { class: 'bg-white text-black' },
@@ -197,18 +165,6 @@ watch(selectedLanguage, (opt) => {
             {{ formErrors.country_name?.[0] || formErrors.country_code?.[0] }}
           </small>
         </div>
-
-
-        <!-- Timezone -->
-        <!-- <div class="col-md-6">
-          <label class="form-label d-flex align-items-center gap-2">Time Zone</label>
-          <input type="text" class="form-control" v-model="form.timezone"
-            :class="{ 'is-invalid': formErrors.timezone }" />
-          <small v-if="formErrors?.timezone" class="text-danger">
-            {{ formErrors.timezone[0] }}
-          </small>
-        </div> -->
-
         <div class="col-md-6">
           <label class="form-label d-flex align-items-center gap-2">Time Zone</label>
 
@@ -287,8 +243,8 @@ watch(selectedLanguage, (opt) => {
 .p-select-option:hover,
 .p-select-option.p-highlight,
 .p-select-option.p-focus {
-  background-color: transparent !important; /* no background */
-  color: inherit !important; /* keep text color same */
+  background-color: transparent !important; 
+  color: inherit !important;
 }
 
 .dark .section {
@@ -301,7 +257,6 @@ watch(selectedLanguage, (opt) => {
   background-color: white;
 }
 
-/* Section wrapper to match other steps */
 .section {
   border: 1px solid #edf0f6;
   border-radius: 12px;
@@ -309,7 +264,6 @@ watch(selectedLanguage, (opt) => {
   box-shadow: 0 6px 18px rgba(17, 38, 146, .06);
 }
 
-/* Label icon chip (same style you’ve used elsewhere) */
 .fi {
   display: inline-flex;
   align-items: center;
@@ -321,14 +275,12 @@ watch(selectedLanguage, (opt) => {
   color: var(--brand);
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
   z-index: 2000 !important;
 }
 
-/* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
   background-color: white !important;
   color: black !important;
@@ -344,12 +296,10 @@ watch(selectedLanguage, (opt) => {
   border-bottom: 1px solid #ddd;
 }
 
-/* Options list container */
 :deep(.p-multiselect-list) {
   background: #fff !important;
 }
 
-/* Each option */
 :deep(.p-multiselect-option) {
   background: #fff !important;
   color: #181818 !important;
@@ -360,7 +310,6 @@ watch(selectedLanguage, (opt) => {
   color: #fff !important;
 }
 
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
   background: #f0f0f0 !important;
   color: #181818 !important;
@@ -374,27 +323,21 @@ watch(selectedLanguage, (opt) => {
   border-color: #a4a7aa;
 }
 
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
   background: #fff !important;
   border: 1px solid #ccc !important;
 }
 
-
-
-/* Search filter input */
 :deep(.p-multiselect-filter) {
   background: #fff !important;
   color: #181818 !important;
   border: 1px solid #ccc !important;
 }
 
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
   background: #fff !important;
 }
 
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
   background: #e9ecef !important;
   color: #181818 !important;
@@ -403,7 +346,6 @@ watch(selectedLanguage, (opt) => {
   padding: 0.25rem 0.5rem !important;
 }
 
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
   color: #555 !important;
 }
@@ -413,41 +355,28 @@ watch(selectedLanguage, (opt) => {
   /* red on hover */
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
   z-index: 2000 !important;
 }
 
-/* ====================================================== */
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
   background-color: white !important;
   color: black !important;
   border-color: #9b9c9c;
 }
 
-/* Options container */
-
-
-
-
 :deep(.p-select-option) {
   background-color: #fff !;
-  /* instead of 'none' */
   color: black !important;
 }
 
-/* Hovered option */
 :deep(.p-select-option:hover) {
   background-color: #f0f0f0 !important;
   color: black !important;
 }
 
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
   background-color: #f0f0f0 !important;
   color: black !important;
@@ -469,7 +398,6 @@ watch(selectedLanguage, (opt) => {
 /* ======================== Dark Mode MultiSelect ============================= */
 
 .dark .bg-white {
-  /* background-color: #000000 !important; */
   color: #fff !important;
 }
 
@@ -496,18 +424,15 @@ watch(selectedLanguage, (opt) => {
   border-bottom: 1px solid #555 !important;
 }
 
-/* Options list container */
 :global(.dark .p-multiselect-list) {
   background: #181818 !important;
 }
 
-/* Each option */
 :global(.dark .p-multiselect-option) {
   background: #181818 !important;
   color: #fff !important;
 }
 
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
   background: #222 !important;
@@ -522,25 +447,21 @@ watch(selectedLanguage, (opt) => {
   border-color: #555 !important;
 }
 
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
   background: #181818 !important;
   border: 1px solid #555 !important;
 }
 
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
   background: #181818 !important;
   color: #fff !important;
   border: 1px solid #555 !important;
 }
 
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
   background: #181818 !important;
 }
 
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
   background: #111 !important;
   color: #fff !important;
@@ -549,14 +470,12 @@ watch(selectedLanguage, (opt) => {
   padding: 0.25rem 0.5rem !important;
 }
 
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
   color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
   color: #f87171 !important;
-  /* lighter red */
 }
 
 

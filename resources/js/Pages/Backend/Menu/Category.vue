@@ -44,7 +44,6 @@ const fetchCategories = async () => {
     try {
         const res = await axios.get("/api/menu-categories/parents/list");
         categories.value = res.data.data;
-        console.log("Fetched categories:", categories.value);
     } catch (err) {
         console.error("Failed to fetch categories:", err);
     }
@@ -218,11 +217,6 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-const handleFilterApply = (appliedFilters) => {
-    console.log("Filters applied:", appliedFilters);
-    // Additional logic if needed
-};
-
 const handleFilterClear = () => {
     filters.value = { ...defaultCategoryFilters };
 };
@@ -373,26 +367,6 @@ const commonChips = ref([
     },
 ]);
 
-
-
-
-
-// const resetModal = () => {
-//     isSub.value = false;
-//     manualCategories.value = [];
-//     manualActive.value = true;
-//     selectedParentId.value = null;
-//     manualName.value = "";
-//     manualIcon.value = iconOptions[0];
-//     commonChips.value = commonChips.value.map((c) => ({
-//         ...c,
-//         selected: false,
-//     }));
-//     editingCategory.value = null;
-// };
-
-
-
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
 const catFormErrors = ref({});
@@ -416,180 +390,11 @@ const resetFields = () => {
     manualSubcategoriesInput.value = "";
     editingCategory.value = null;
 };
-// const submitCategory = async () => {
-//     if (isSub.value && !selectedParentId.value) {
-//         catFormErrors.value.parent_id = ["Please select a parent category"];
-//         toast.error("Please filled all the required fields");
-//         submitting.value = false;
-//         return;
-//     }
 
-//     resetErrors();
-//     submitting.value = true;
-
-//     try {
-//         if (editingCategory.value) {
-//             // UPDATE MODE
-//             const updatePayload = {
-//                 name: isSub.value
-//                     ? manualName.value?.trim()
-//                     : manualCategories.value[0]?.label?.trim(),
-//                 icon: manualIcon.value.value,
-//                 active: manualActive.value,
-//                 parent_id: selectedParentId.value || null,
-
-//             };
-
-//             //  Handle subcategories only if it's a MAIN CATEGORY
-//             if (!updatePayload.parent_id) {
-//                 if (manualSubcategoriesInput.value) {
-//                     updatePayload.subcategories = manualSubcategoriesInput.value
-//                         .split(",")
-//                         .map((s) => s.trim())
-//                         .filter((s) => s.length > 0)
-//                         .map((name) => {
-//                             // try to match existing subcategories by name
-//                             const existingSub =
-//                                 editingCategory.value.subcategories?.find(
-//                                     (sub) =>
-//                                         sub.name.toLowerCase() ===
-//                                         name.toLowerCase()
-//                                 );
-//                             return {
-//                                 id: existingSub ? existingSub.id : null,
-//                                 name,
-//                                 active: existingSub ? existingSub.active : true,
-//                             };
-//                         });
-//                 } else {
-//                     updatePayload.subcategories = [];
-//                 }
-//             }
-
-//             if (!updatePayload.name) {
-//                 catFormErrors.value.name = ["Category name cannot be empty"];
-//                 toast.error("Please filled all the required fields");
-//                 submitting.value = false;
-//                 return;
-//             }
-
-//             console.log("Update payload:", updatePayload);
-
-//             await axios.put(
-//                 `/menu-categories/${editingCategory.value.id}`,
-//                 updatePayload
-//             );
-//             toast.success("Category updated successfully");
-
-//             // 👇 Close modal after successful update
-//             const m = bootstrap.Modal.getInstance(
-//                 document.getElementById("addCatModal")
-//             );
-//             m?.hide();
-
-//             // 👇 Now reset state AFTER closing
-//             resetModal();
-//             editingCategory.value = null;
-//             await fetchCategories();
-//         } else {
-//             // CREATE MODE - Use the existing structure
-//             let categoriesPayload = [];
-
-//             if (isSub.value) {
-//                 if (isSub.value && manualSubcategories.value.length === 0) {
-//                     catFormErrors.value.subcategories = [
-//                         "Please add at least one subcategory",
-//                     ];
-//                     toast.error("Please filled all the required fields");
-//                     submitting.value = false;
-//                     return;
-//                 }
-
-//                 categoriesPayload = manualSubcategories.value.map((cat) => ({
-//                     id: undefined,
-//                     name: typeof cat === "string" ? cat : cat.label,
-//                     icon: manualIcon.value.value,
-//                     active: manualActive.value,
-//                     parent_id: selectedParentId.value,
-//                 }));
-//             } else {
-//                 if (!isSub.value && manualCategories.value.length === 0) {
-//                     catFormErrors.value.name = [
-//                         "Please add at least one category",
-//                     ];
-//                     toast.error("Please filled all the required fields");
-//                     submitting.value = false;
-//                     return;
-//                 }
-
-//                 categoriesPayload = manualCategories.value.map((cat) => ({
-//                     id: undefined,
-//                     name: typeof cat === "string" ? cat : cat.label,
-//                     icon: manualIcon.value.value,
-//                     active: manualActive.value,
-//                     parent_id: null,
-
-//                 }));
-//             }
-
-//             const createPayload = {
-//                 isSubCategory: isSub.value,
-//                 categories: categoriesPayload,
-
-//             };
-
-//             console.log("Creating categories with payload:", createPayload);
-//             await axios.post("/menu-categories", createPayload);
-//             submitting.value = false;
-
-//             const m = bootstrap.Modal.getInstance(
-//                 document.getElementById("addCatModal")
-//             );
-//             m?.hide();
-//             toast.success("Category created successfully");
-//         }
-
-//         resetModal();
-//         editingCategory.value = null;
-//         await fetchCategories();
-//     } catch (err) {
-//         console.error("❌ Error:", err.response?.data || err.message);
-
-//         if (err.response?.status === 422 && err.response?.data?.errors) {
-//             const errors = err.response.data.errors;
-//             let errorMessages = [];
-//             catFormErrors.value = {};
-
-//             Object.keys(errors).forEach((key) => {
-//                 let normalizedKey = key.replace(/^categories\.\d+\./, "");
-//                 catFormErrors.value[normalizedKey] = errors[key];
-
-//                 if (Array.isArray(errors[key])) {
-//                     errors[key].forEach((message) => {
-//                         errorMessages.push(message);
-//                     });
-//                 }
-//             });
-
-//             if (errorMessages.length > 0) {
-//                 toast.error(errorMessages.join("\n"));
-//             } else {
-//                 toast.error("Validation failed. Please check your input.");
-//             }
-//         } else {
-//             const errorMessage =
-//                 err.response?.data?.message || "Failed to save category";
-//             toast.error(errorMessage + " ❌");
-//         }
-//     } finally {
-//         submitting.value = false;
-//     }
-// };
 
 // ============= Helper function to convert URL to File =============
 const urlToFile = async (url, filename) => {
     try {
-        console.log('🔄 Converting URL to File:', url);
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -600,11 +405,6 @@ const urlToFile = async (url, filename) => {
         const blob = await response.blob();
         const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
 
-        console.log('✅ File created:', {
-            name: file.name,
-            size: file.size,
-            type: file.type
-        });
 
         return file;
     } catch (error) {
@@ -615,9 +415,6 @@ const urlToFile = async (url, filename) => {
 
 // ============= Icon Selection Handler =============
 const selectIcon = async (opt) => {
-    console.log('🎨 Icon selected:', opt.label);
-
-    // Set the icon immediately (for UI display)
     manualIcon.value = {
         label: opt.label,
         value: opt.value,
@@ -631,7 +428,6 @@ const selectIcon = async (opt) => {
 
     if (file) {
         manualIcon.value.file = file;
-        console.log('✅ Icon file ready:', file.name);
     } else {
         console.error('❌ Failed to convert icon to file');
         toast.error('Failed to load icon. Please try again.');
@@ -652,9 +448,7 @@ const submitCategory = async () => {
     submitting.value = true;
 
     try {
-        // 🔥 ENSURE ICON FILE IS READY
         if (manualIcon.value.icon && !manualIcon.value.file) {
-            console.log('⏳ Icon file not ready, converting now...');
             const filename = manualIcon.value.label
                 .toLowerCase()
                 .replace(/[^a-z0-9]/g, "-") + ".jpg";
@@ -662,7 +456,6 @@ const submitCategory = async () => {
             
             if (file) {
                 manualIcon.value.file = file;
-                console.log('✅ Icon converted just in time');
             } else {
                 console.warn('⚠️ Could not convert icon to file');
             }
@@ -696,15 +489,8 @@ const submitCategory = async () => {
             formData.append("active", manualActive.value ? "1" : "0");
             formData.append("parent_id", selectedParentId.value || "");
             formData.append("_method", "PUT");
-
-            // 🔥 Attach icon file if available
             if (manualIcon.value.file && manualIcon.value.file instanceof File) {
                 formData.append("icon", manualIcon.value.file);
-                console.log('📎 Icon attached to FormData:', {
-                    name: manualIcon.value.file.name,
-                    size: manualIcon.value.file.size,
-                    type: manualIcon.value.file.type
-                });
             } else {
                 console.warn('⚠️ No icon file to attach');
             }
@@ -735,14 +521,9 @@ const submitCategory = async () => {
                     }
                 });
             }
-
-            // 🔍 Debug: Log all FormData entries
-            console.log('📦 FormData contents (UPDATE):');
             for (let pair of formData.entries()) {
                 if (pair[1] instanceof File) {
-                    console.log(`  ${pair[0]}: [FILE] ${pair[1].name} (${pair[1].size} bytes)`);
                 } else {
-                    console.log(`  ${pair[0]}: ${pair[1]}`);
                 }
             }
 
@@ -811,23 +592,13 @@ const submitCategory = async () => {
                 }
             });
 
-            // 🔥 Attach icon file
             if (manualIcon.value.file && manualIcon.value.file instanceof File) {
                 formData.append("icon", manualIcon.value.file);
-                console.log('📎 Icon attached to FormData:', {
-                    name: manualIcon.value.file.name,
-                    size: manualIcon.value.file.size,
-                    type: manualIcon.value.file.type
-                });
             } else {
                 console.warn('⚠️ No icon file to attach');
             }
-
-            // 🔍 Debug: Log all FormData entries
-            console.log('📦 FormData contents (CREATE):');
             for (let pair of formData.entries()) {
                 if (pair[1] instanceof File) {
-                    console.log(`  ${pair[0]}: [FILE] ${pair[1].name} (${pair[1].size} bytes)`);
                 } else {
                     console.log(`  ${pair[0]}: ${pair[1]}`);
                 }
@@ -1147,14 +918,10 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
-    console.log("Data are", data);
     try {
         // Define headers
         const headers = ["category", "subcategory", "active"];
-
-        // Build CSV rows - one row per parent category with subcategories joined
         const rows = data.map((category) => {
-            // Get all subcategory names and join them
             const subcategoryNames = category.subcategories && category.subcategories.length > 0
                 ? category.subcategories.map(sub => sub.name).join(", ")
                 : "";

@@ -14,8 +14,6 @@ import { Head, usePage } from "@inertiajs/vue3";
 const pageProps = usePage();
 
 const onboarding = computed(() => pageProps.props.onboarding.language_and_location?.country_id ?? "PK");
-console.log("🌍 Onboarding Country:", onboarding.value);
-
 const suppliers = ref([]);
 const page = ref(1);
 const perPage = ref(15);
@@ -74,17 +72,12 @@ const handleFocus = (e) => {
 const filtered = computed(() => {
     const query = q.value.trim().toLowerCase();
     if (!query) return suppliers.value;
-
-    // Extract only digits from the query for phone/contact comparison
     const queryDigits = query.replace(/\D/g, "");
 
     return suppliers.value.filter((s) => {
-        // Text fields (name, email, address, etc.)
         const textMatch = [s.name, s.email, s.address, s.preferred_items].some((v) =>
             (v || "").toLowerCase().includes(query)
         );
-
-        // Numeric match for phone/contact
         const phoneDigits = (s.phone || "").replace(/\D/g, "");
         const contactDigits = (s.contact || "").replace(/\D/g, "");
         const numberMatch =
@@ -102,7 +95,6 @@ const onDownload = (type) => {
         return;
     }
 
-    // Use filtered data if there's a search query, otherwise use all suppliers
     const dataToExport = q.value.trim() ? filtered.value : suppliers.value;
 
     if (dataToExport.length === 0) {
@@ -128,7 +120,6 @@ const onDownload = (type) => {
 
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = [
             "Name",
             "Email",
@@ -136,8 +127,6 @@ const downloadCSV = (data) => {
             "Address",
             "Preferred Items",
         ];
-
-        // Build CSV rows
         const rows = data.map((s) => [
             `"${s.name || ""}"`,
             `"${s.email || ""}"`,
@@ -145,20 +134,14 @@ const downloadCSV = (data) => {
             `"${s.address || ""}"`,
             `"${s.preferred_items || ""}"`,
         ]);
-
-        // Combine into CSV string
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","), 
+            ...rows.map((r) => r.join(",")), 
         ].join("\n");
-
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -180,7 +163,7 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4"); // Portrait mode, A4 size
+        const doc = new jsPDF("p", "mm", "a4");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.text("Suppliers Report", 70, 20);
@@ -224,7 +207,7 @@ const downloadPDF = (data) => {
             alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (data) => {
-                // Footer
+ 
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
@@ -266,11 +249,11 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 20 }, // Name
-            { wch: 25 }, // Email
-            { wch: 18 }, // Phone
-            { wch: 30 }, // Address
-            { wch: 25 }, // Preferred Items
+            { wch: 20 }, 
+            { wch: 25 }, 
+            { wch: 18 }, 
+            { wch: 30 }, 
+            { wch: 25 }, 
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Suppliers");
@@ -302,14 +285,14 @@ const form = ref({
     email: "",
     phone_country: "GB",
     phone_code: UK_COUNTRY_CODE,
-    phone_local: "",        // NEW: Local number without country code
-    phone: "",              // KEEP: Full number with country code
+    phone_local: "",        
+    phone: "",              
     address: "",
-    preferred_items: "", // Preferred Items
+    preferred_items: "", 
 });
 
 const UK_COUNTRY_CODE = "+44";
-const UK_PHONE_LENGTH = 10; // UK local number length without country code
+const UK_PHONE_LENGTH = 10; 
 const UK_AREA_CODES = {
     "20": "London",
     "121": "Birmingham",
@@ -326,8 +309,6 @@ const UK_AREA_CODES = {
 const phoneError = ref("");
 const isPhoneValid = ref(false);
 const phoneWarnings = ref([]);
-
-// UK Mobile-Only Phone Validation
 const validatePhone = () => {
     phoneError.value = '';
     phoneWarnings.value = [];
@@ -339,41 +320,31 @@ const validatePhone = () => {
         phoneError.value = 'Phone number is required';
         return false;
     }
-
-    // Remove any non-digit characters
     let cleanPhone = phoneLocal.replace(/\D+/g, '');
-
-    // UK mobile must be exactly 10 digits
     if (cleanPhone.length !== 10) {
         phoneError.value = 'UK mobile number must be exactly 10 digits';
         return false;
     }
-
-    // UK mobile MUST start with 7
     if (!cleanPhone.startsWith('7')) {
         phoneError.value = 'UK mobile numbers must start with 7';
         return false;
     }
-
-    // Valid UK mobile pattern: 7 followed by valid operator code + remaining digits
     const mobilePattern = /^7[0-9]{9}$/;
     
     if (!mobilePattern.test(cleanPhone)) {
         phoneError.value = 'Invalid UK mobile number format';
         return false;
     }
-
-    // Validate mobile operator prefix (7 followed by valid operator code)
     const operatorPrefix = cleanPhone.substring(1, 3);
     const validMobileOperators = [
-        '11', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', // Various operators
-        '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', // Various operators
-        '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', // EE
-        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', // Vodafone
-        '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', // O2
-        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', // O2/Giffgaff
-        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', // Three
-        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'  // Virgin/TalkTalk
+        '11', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29',
+        '30', '31', '32', '33', '34', '35', '36', '37', '38', '39',
+        '40', '41', '42', '43', '44', '45', '46', '47', '48', '49',
+        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', 
+        '60', '61', '62', '63', '64', '65', '66', '67', '68', '69',
+        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', 
+        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', 
+        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'  
     ];
 
     if (!validMobileOperators.includes(operatorPrefix)) {
@@ -389,23 +360,11 @@ function buildFullPhone() {
     const local = String(form.value.phone_local || "").replace(/\D+/g, "");
     form.value.phone = UK_COUNTRY_CODE + local;
 }
-
-// Watch phone_local changes
 watch(() => form.value.phone_local, (val) => {
     buildFullPhone();
     validatePhone();
 });
-// const checkPhone = ({ valid, number, country }) => {
-//     if (!valid) {
-//         phoneError.value =
-//             "Invalid number for " + (country?.name || "selected country");
-//     } else {
-//         phoneError.value = ""; // clear error if valid
-//     }
-// };
-
 const checkPhone = ({ number, country }) => {
-    // Don't validate until user starts typing something
     if (!number || number.trim() === "") {
         phoneError.value = "";
         isPhoneValid.value = false;
@@ -424,14 +383,6 @@ const checkPhone = ({ number, country }) => {
         }
 
         const parsed = parsePhoneNumber(number, country?.iso2 || "PK");
-
-        console.log("📞 Parsed Phone:", {
-            formatted: parsed.formatInternational(),
-            national: parsed.nationalNumber,
-            country: parsed.country,
-            type: parsed.getType(),
-        });
-
         isPhoneValid.value = true;
     } catch (err) {
         console.error("Phone validation error:", err);
@@ -442,8 +393,6 @@ const checkPhone = ({ number, country }) => {
 
 const loading = ref(false);
 const formErrors = ref({});
-
-// helper to close a Bootstrap modal by id
 const closeModal = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -452,8 +401,6 @@ const closeModal = (id) => {
         new window.bootstrap.Modal(el);
     modal.hide();
 };
-
-// reset form after submit or when needed
 const resetForm = () => {
     form.value = {
         name: "",
@@ -480,8 +427,6 @@ const submit = () => {
     axios
         .post("/suppliers", payload)
         .then((res) => {
-            // console.log(res, form.value);
-
             fetchSuppliers();
             toast.success("Supplier added successfully.", {
                 autoClose: 1500,
@@ -491,11 +436,9 @@ const submit = () => {
         })
         .catch((err) => {
             if (err?.response?.status === 422 && err.response.data?.errors) {
-                // store errors if you still want to show them near inputs
                 formErrors.value = err.response.data.errors;
                 toast.error("Please fill in all required fields correctly.");
             } else {
-                // toast.dismiss();
                 toast.error("Something went wrong. Please try again.", {
                     autoClose: 3000,
                 });
@@ -507,10 +450,6 @@ const submit = () => {
         });
 };
 
-
-
-// code for other functionalities
-// helpers (you already have closeModal)
 const openModal = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -519,12 +458,10 @@ const openModal = (id) => {
 };
 
 const processStatus = ref();
-// Editing supplier record
 const selectedSupplier = ref(null);
 const onEdit = (row) => {
     processStatus.value = "Edit";
     selectedSupplier.value = row;
-    // map backend -> form fields
     form.value = {
         name: row.name || "",
         email: row.email || "",
@@ -560,7 +497,6 @@ const updateSupplier = () => {
                 autoClose: 500,
             });
             resetForm();
-            // close modal
             closeModal("modalAddSupplier");
             return nextTick();
         })
@@ -581,8 +517,6 @@ const updateSupplier = () => {
             loading.value = false;
         });
 };
-
-// ---- Deleting the supplier record----
 const deleteSupplier = (id) => {
     loading.value = true;
     axios
@@ -603,16 +537,12 @@ const deleteSupplier = (id) => {
 };
 
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
-
     if (!data || data.length <= 1) {
         toast.error("The file is empty", {
             autoClose: 3000,
         });
         return;
     }
-
-    // data is 2D array: [ [col1, col2, ...], [val1, val2, ...] ]
     const headers = data[0];
     const rows = data.slice(1);
 
@@ -656,8 +586,6 @@ const handleImport = (data) => {
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <div class="search-wrap">
                         <i class="bi bi-search"></i>
-
-                        <!-- Hidden decoy input to catch autofill -->
                         <input type="email" name="email" autocomplete="email"
                             style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"
                             aria-hidden="true" />
@@ -683,8 +611,6 @@ const handleImport = (data) => {
                             ['Ali Khan', 'ali@example.com', '+44 3721232321', 'Lahore', 'Steel'],
                             ['Ahmed Raza', 'ahmed@example.com', '+44 5676576576', 'Karachi', 'Cement']
                         ]" @on-import="handleImport" />
-
-                    <!-- Download all -->
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm rounded-pill py-2 px-4 dropdown-toggle"
                             data-bs-toggle="dropdown">
@@ -726,7 +652,6 @@ const handleImport = (data) => {
                     </thead>
 
                     <tbody>
-                        <!-- ⏳ Loading -->
                         <tr v-if="loading">
                             <td colspan="7" class="text-center py-5 text-muted">
                                 <div class="d-flex justify-content-center align-items-center gap-2">
@@ -738,16 +663,11 @@ const handleImport = (data) => {
                                 </div>
                             </td>
                         </tr>
-
-
-                        <!-- ❌ No suppliers -->
                         <tr v-else-if="filtered.length === 0">
                             <td colspan="7" class="text-center text-muted py-4">
                                 No suppliers found.
                             </td>
                         </tr>
-
-                        <!-- ✅ Supplier rows -->
                         <tr v-else v-for="(s, i) in filtered" :key="s.id">
                             <td>{{ i + 1 }}</td>
                             <td class="fw-semibold">{{ s.name }}</td>
@@ -826,26 +746,19 @@ const handleImport = (data) => {
                                 {{ formErrors.email[0] }}
                             </small>
                         </div>
-
-                        <!-- Phone (vue-tel-input) -->
                         <div class="col-lg-6">
                             <label class="form-label">Phone*</label>
                             <div class="input-group">
-                                <!-- UK Country Code (readonly) -->
                                 <span class="input-group-text p-0">
                                     <input type="text" class="form-control text-center border-0 country-code bg-light fw-semibold"
                                         value="+44" readonly style="width: 70px;" />
                                 </span>
-
-                                <!-- Phone Input - UK International Format -->
                                 <input class="form-control phone-input" inputmode="numeric" placeholder="7311865859"
                                     v-model="form.phone_local" @blur="validatePhone" :class="{
                                         'is-invalid': phoneError,
                                         'is-valid': isPhoneValid && form.phone_local
                                     }" maxlength="10" />
                             </div>
-
-                            <!-- Validation messages -->
                             <small v-if="phoneError" class="text-danger d-block mt-1">
                                 <i class="bi bi-exclamation-circle me-1"></i>{{ phoneError }}
                             </small>
@@ -855,20 +768,14 @@ const handleImport = (data) => {
                             <small v-if="isPhoneValid && form.phone_local" class="text-success d-block mt-1">
                                 <i class="bi bi-check-circle me-1"></i>✓ Valid UK phone number
                             </small>
-
-                            <!-- Warnings (area code, mobile type) -->
                             <small v-for="(warning, idx) in phoneWarnings" :key="idx" class="text-info d-block mt-1">
                                 <i class="bi bi-info-circle me-1"></i>{{ warning }}
                             </small>
                         </div>
-
-                        <!-- Preferred Items -->
                         <div class="col-lg-6">
                             <label class="form-label">Preferred Items</label>
                             <input class="form-control" v-model="form.preferred_items" />
                         </div>
-
-                        <!-- Address -->
                         <div class="col-lg-12">
                             <label class="form-label">Address</label>
                             <textarea class="form-control" rows="4" v-model="form.address"
@@ -968,12 +875,9 @@ const handleImport = (data) => {
     z-index: 1050 !important;
 }
 
-/* Ensure the table container doesn't clip the dropdown */
 .table-container {
     overflow: visible !important;
 }
-
-
 
 @media (min-width: 768px) and (max-width: 992px) {
     .search-wrap {

@@ -473,7 +473,6 @@ watch(customUnit, (newVal) => {
 });
 
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
 
     if (!data || data.length <= 1) {
         toast.error("The file is empty", {
@@ -484,8 +483,6 @@ const handleImport = (data) => {
 
     const headers = data[0];
     const rows = data.slice(1);
-    console.log(rows);
-
     const unitsToImport = rows.map((row) => {
         return {
             name: row[0] || "",

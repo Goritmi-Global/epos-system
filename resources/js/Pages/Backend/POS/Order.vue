@@ -11,22 +11,17 @@ import { toast } from 'vue3-toastify';
 import OrderCancellationModal from "@/Components/OrderCancellationModal.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
-
-// Cancel & Refund states
 const cancellingOrderId = ref(null);
 const refundingOrderId = ref(null);
-const showRefundModal = ref(false);
 const refundAmount = ref(0);
 const refundReason = ref('');
 const selectedOrderForRefund = ref(null);
-
 const orders = ref([]);
 
 const fetchOrders = async () => {
     try {
         const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
-        console.log("Fetched orders:", orders.value);
     } catch (error) {
         console.error("Error fetching inventory:", error);
     }
@@ -65,17 +60,13 @@ const filters = ref({
     dateFrom: "",
     dateTo: "",
 });
-const orderTypeFilter = ref("All");
-const paymentTypeFilter = ref("All"); // <-- renamed
 
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway"]);
-const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]); // <-- new
+const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]); 
 
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
     let result = [...orders.value];
-
-    // Text search
     if (term) {
         result = result.filter((o) =>
             [
@@ -94,8 +85,6 @@ const filtered = computed(() => {
                 .includes(term)
         );
     }
-
-    // Order Type filter
     if (filters.value.orderType) {
         result = result.filter(
             (o) =>
@@ -103,8 +92,6 @@ const filtered = computed(() => {
                 filters.value.orderType.toLowerCase()
         );
     }
-
-    // Payment Type filter
     if (filters.value.paymentType) {
         result = result.filter(
             (o) =>
@@ -112,15 +99,11 @@ const filtered = computed(() => {
                 filters.value.paymentType.toLowerCase()
         );
     }
-
-    // Status filter
     if (filters.value.status) {
         result = result.filter((o) => {
             return o.status?.toLowerCase() === filters.value.status.toLowerCase();
         });
     }
-
-    // Price range filter
     if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
         result = result.filter((o) => {
             const price = o.total_amount || 0;
@@ -129,8 +112,6 @@ const filtered = computed(() => {
             return price >= min && price <= max;
         });
     }
-
-    // Date range filter
     if (filters.value.dateFrom) {
         result = result.filter((o) => {
             const orderDate = new Date(o.created_at);
@@ -204,15 +185,6 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-const handleFilterApply = (appliedFilters) => {
-    console.log("Filters applied:", appliedFilters);
-    // Additional logic if needed
-};
-
-const handleFilterClear = () => {
-    console.log("Filters cleared");
-    // Additional logic if needed
-};
 /* ===================== KPIs ===================== */
 const totalOrders = computed(() => orders.value.length);
 const completedOrders = computed(
@@ -481,9 +453,6 @@ const fetchPrinters = async () => {
     loadingPrinters.value = true;
     try {
         const res = await axios.get("/api/printers");
-        console.log("Printers:", res.data.data);
-
-        // ✅ Only show connected printers (status OK)
         printers.value = res.data.data
             .filter(p => p.is_connected === true || p.status === "OK")
             .map(p => ({
@@ -502,51 +471,33 @@ const fetchPrinters = async () => {
 // 🔹 Fetch once on mount
 onMounted(fetchPrinters);
 
-
-// ================================================
-// handle Refund
-// ===============================================
-// Check if order can be refunded
 const canRefund = (order) => {
     if (!order || !order.payment) return false;
 
     const paymentType = order.payment.payment_type?.toLowerCase();
     const status = order.status?.toLowerCase();
     const refundStatus = order.payment.refund_status?.toLowerCase();
-
-    // Can refund if:
-    // 1. Status is 'paid' or 'cancelled'
-    // 2. Payment type is 'card' or 'split'
-    // 3. Not already refunded
     return (
         (status === 'paid' || status === 'cancelled') &&
         (paymentType === 'card' || paymentType === 'split') &&
         (!refundStatus || refundStatus === 'none')
     );
 };
-
-// Handle Refund Payment
 const handleRefundPayment = async (order) => {
     if (!order) return;
 
     const paymentType = order.payment?.payment_type?.toLowerCase();
     const totalAmount = order.total_amount;
     const cardAmount = order.payment?.card_amount || totalAmount;
-
-    // Set refund details
     selectedOrderForRefund.value = order;
     refundAmount.value = Number(cardAmount).toFixed(2);
     refundReason.value = '';
-
-    // Show refund modal
     const modalEl = document.getElementById('refundModal');
     if (modalEl) {
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
 };
-
-// Process the refund
 const processRefund = async () => {
     if (!selectedOrderForRefund.value) return;
 
@@ -795,31 +746,6 @@ const confirmCancelOrder = async (reason) => {
                                     </div>
                                 </template>
                             </FilterModal>
-
-
-                            <!-- Order Type filter -->
-                            <!-- <div style="min-width: 170px">
-                                <Select v-model="orderTypeFilter" :options="orderTypeOptions" placeholder="Order Type"
-                                    class="w-100" :appendTo="'body'" :autoZIndex="true" :baseZIndex="2000">
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span>
-                                        <span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div> -->
-
-                            <!-- Payment Type filter (replaces Status) -->
-                            <!-- <div style="min-width: 160px">
-                                <Select v-model="paymentTypeFilter" :options="paymentTypeOptions"
-                                    placeholder="Payment Type" class="w-100" :appendTo="'body'" :autoZIndex="true"
-                                    :baseZIndex="2000">
-                                    <template #value="{ value, placeholder }">
-                                        <span v-if="value">{{ value }}</span>
-                                        <span v-else>{{ placeholder }}</span>
-                                    </template>
-                                </Select>
-                            </div> -->
-
                             <!-- Download -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
@@ -985,23 +911,6 @@ const confirmCancelOrder = async (reason) => {
                                             }}</span>
                                         </div>
                                     </div>
-
-                                    <!-- Status -->
-                                    <!-- <div class="col-6">
-                                            <div class="info-card">
-                                                <span class="label">Status</span>
-                                                <span
-                                                    class="badge rounded-pill fw-semibold py-2 d-inline-block small w-1/2 text-uppercase"
-                                                    :class="{
-                                                        'bg-success text-light': selectedPayment?.payment_status === 'succeeded',
-                                                        'bg-danger text-light': selectedPayment?.payment_status === 'failed',
-                                                        'bg-warning text-dark': selectedPayment?.payment_status === 'pending',
-                                                        'bg-secondary text-light': !['succeeded', 'failed', 'pending'].includes(selectedPayment?.payment_status)
-                                                    }">
-                                                    {{ selectedPayment?.payment_status ?? '-' }}
-                                                </span>
-                                            </div>
-                                        </div> -->
 
                                     <!-- Amount -->
                                     <div class="col-6">
@@ -1169,23 +1078,6 @@ const confirmCancelOrder = async (reason) => {
                                                 )
                                             }}
                                         </div>
-                                        <!-- <div class="col-md-4 mb-2">
-                                                <span
-                                                    class="fw-semibold text-dark"
-                                                    >Status:
-                                                </span>
-                                                <span
-                                                    class="badge rounded-pill"
-                                                    :class="
-                                                        selectedOrder?.status ===
-                                                        'paid'
-                                                            ? 'bg-success px-4 py-1 !text-xs uppercase'
-                                                            : 'bg-warning text-dark'
-                                                    "
-                                                >
-                                                    {{ selectedOrder?.status }}
-                                                </span>
-                                            </div> -->
                                     </div>
                                 </div>
 
@@ -1482,26 +1374,21 @@ const confirmCancelOrder = async (reason) => {
     text-align: left !important;
 }
 
-/* Optional: Add a thick border before Grand Total */
 .border-top-thick td {
     border-top: 2px solid #dee2e6 !important;
 }
 
-/* Optional: Make the table striped only for item rows */
 tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     background-color: rgba(0, 0, 0, 0.02);
 }
 
 .dark .card {
     background-color: #181818 !important;
-    /* gray-800 */
     color: #ffffff !important;
-    /* gray-50 */
 }
 
 .dark .table {
     background-color: #181818 !important;
-    /* gray-900 */
     color: #f9fafb !important;
 }
 
@@ -1523,8 +1410,6 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :root {
     --brand: #1c0d82;
 }
-
-/* KPI cards */
 .icon-wrap {
     font-size: 2rem;
     color: var(--brand);
@@ -1543,8 +1428,6 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .kpi-value {
     color: #fff !important;
 }
-
-/* Search pill */
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
@@ -1564,8 +1447,6 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     border-radius: 9999px;
     background: #fff;
 }
-
-/* Buttons theme */
 .btn-primary {
     background-color: var(--brand);
     border-color: var(--brand);
@@ -1579,8 +1460,6 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .form-label {
     color: #fff !important;
 }
-
-/* Table polish */
 .table thead th {
     font-weight: 600;
     border: 0 !important;
@@ -1590,8 +1469,6 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     vertical-align: middle;
     border-color: #eee;
 }
-
-/* Modern Modal Styling */
 .info-card {
     background: #f9fafb;
     border-radius: 10px;
@@ -1624,16 +1501,11 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .paid-text {
     font-size: 12px;
 }
-
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
-/* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
@@ -1648,19 +1520,13 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
-
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
-
-/* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
-
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -1673,30 +1539,19 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #000 !important;
     border-color: #a4a7aa;
 }
-
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
     color: #fff !important;
 }
-
-
-
-
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
-
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
-
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -1704,54 +1559,35 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
-/* ====================================================== */
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -1764,9 +1600,6 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
-
-/* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -1781,25 +1614,18 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
     color: #fff !important;
 }
-
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -1807,26 +1633,18 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
     color: #fff !important;
@@ -1851,15 +1669,12 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .p-component {
     color: #fff !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */

@@ -146,7 +146,6 @@ const filtered = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
-    console.log("Filters applied:", filters.value);
 };
 
 
@@ -160,7 +159,6 @@ const handleFilterClear = () => {
         dateFrom: null,
         dateTo: null
     };
-    console.log("Filters cleared");
 };
 
 
@@ -199,7 +197,6 @@ const fetchDiscounts = async () => {
     try {
         const res = await axios.get("/api/discounts/all");
         discounts.value = res.data.data;
-        console.log('Fetched discounts:', discounts.value);
     } catch (err) {
         console.error("Failed to fetch discounts:", err);
         toast.error("Failed to load discounts");
@@ -433,9 +430,6 @@ const toggleStatus = async (row) => {
     }
 };
 
-/**
- * Delete a discount
- */
 const deleteDiscount = async (row) => {
     try {
         await axios.delete(`/discounts/${row.id}`);
@@ -447,13 +441,6 @@ const deleteDiscount = async (row) => {
     }
 };
 
-/* ============================================================
-   DISCOUNT APPROVAL HANDLERS
-   ============================================================ */
-
-/**
- * Respond to approval request (Approve/Reject)
- */
 const respondToRequest = async (requestId, status) => {
     processing[requestId] = true;
 
@@ -479,17 +466,6 @@ const respondToRequest = async (requestId, status) => {
         processing[requestId] = false;
     }
 };
-
-/**
- * Toggle order items visibility
- */
-const toggleOrderItems = (requestId) => {
-    showOrderItems[requestId] = !showOrderItems[requestId];
-};
-
-/**
- * Format date time
- */
 const formatDateTime = (timestamp) => {
     if (!timestamp) return '-';
     const date = new Date(timestamp);
@@ -502,19 +478,14 @@ const formatDateTime = (timestamp) => {
     });
 };
 
-/**
- * Auto-refresh approval requests
- */
 const startAutoRefresh = () => {
-    // Clear any existing interval
     if (refreshInterval.value) {
         clearInterval(refreshInterval.value);
     }
 
     refreshInterval.value = setInterval(() => {
-        // Use silent mode for background refresh (no loading spinner)
         fetchPendingRequests(true);
-    }, 30000); // Every 30 seconds instead of 10
+    }, 30000); 
 };
 
 const stopAutoRefresh = () => {
@@ -543,15 +514,12 @@ onMounted(async () => {
     }, 100);
 
     await fetchDiscounts();
-    await fetchPendingRequests(); // Initial load with spinner
-    startAutoRefresh(); // Start background refresh
-
-    // Listen for real-time updates
+    await fetchPendingRequests(); 
+    startAutoRefresh(); 
     if (window.Echo) {
         window.Echo.channel('discount-approvals')
             .listen('.approval.requested', (event) => {
-                console.log('New approval request received:', event.approvals);
-                fetchPendingRequests(true); // Silent refresh
+                fetchPendingRequests(true);
                 toast.info('New discount approval request received!');
             });
     }
@@ -863,10 +831,6 @@ const downloadExcel = (data) => {
                                                 <input v-else class="form-control search-input"
                                                     placeholder="Search discounts" disabled type="text" />
                                             </div>
-
-
-
-
                                             <!-- Add New Button -->
                                             <button data-bs-toggle="modal" data-bs-target="#discountModal"
                                                 @click="resetModal"
@@ -1060,11 +1024,6 @@ const downloadExcel = (data) => {
                                                                 }}%
                                                             </div>
                                                             <small class="text-muted d-block">Discount Rate</small>
-                                                            <!-- <div class="small text-success mt-1">
-                                                                Will save: -£{{ ((parseFloat(request.order_subtotal) *
-                                                                parseFloat(request.discount_percentage)) /
-                                                                100).toFixed(2) }}
-                                                            </div> -->
                                                         </div>
                                                     </div>
 
@@ -1083,39 +1042,7 @@ const downloadExcel = (data) => {
                                                                 {{ formatDateTime(request.requested_at) }}
                                                             </small>
                                                         </div>
-                                                        <!-- <div class="d-flex align-items-center gap-2">
-                                                            <i class="bi bi-cart text-muted"></i>
-                                                            <small class="text-muted">
-                                                                Order Subtotal: <span class="fw-semibold">£{{
-                                                                    parseFloat(request.order_subtotal).toFixed(2)
-                                                                }}</span>
-                                                            </small>
-                                                        </div> -->
                                                     </div>
-
-
-                                                    <!-- Order Items Preview -->
-                                                    <!-- <div class="mb-3">
-
-                                                        <div class="text-muted small mb-1">
-                                                            Order Items ({{ request.order_items?.length || 0 }})
-                                                        </div>
-
-                                                        <div class="mt-2">
-                                                            <div class="list-group list-group-flush small">
-                                                                <div v-for="item in request.order_items" :key="item.id"
-                                                                    class="list-group-item px-0 py-2 d-flex justify-content-between">
-                                                                    <span>{{ item.title }} × {{ item.qty }}</span>
-                                                                    <span class="fw-semibold">£{{
-                                                                        parseFloat(item.price).toFixed(2)
-                                                                        }}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                    </div> -->
-
-                                                    <!-- Approval Note Input -->
                                                     <div class="mb-3">
                                                         <label class="form-label small fw-semibold">Response Note
                                                             (Optional)</label>
@@ -1299,7 +1226,6 @@ const downloadExcel = (data) => {
 </template>
 
 <style scoped>
-/* Search Input Styling */
 .search-wrap {
     position: relative;
 }
@@ -1335,35 +1261,26 @@ const downloadExcel = (data) => {
     background-color: #fff !important;
 }
 
-
-
 .dark .p-tabpanels {
     background-color: #212121 !important;
     color: #fff !important;
 }
 
-/* ======================== PrimeVue Select Styling ======================== */
-
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
 
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
 
-/* Hovered/focused option */
 :deep(.p-select-option:hover),
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
@@ -1377,8 +1294,6 @@ const downloadExcel = (data) => {
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
-
-/* Keep PrimeVue overlays above Bootstrap modal */
 :deep(.p-select-panel) {
     z-index: 2000 !important;
 }

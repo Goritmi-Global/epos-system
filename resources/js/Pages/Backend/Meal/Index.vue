@@ -9,19 +9,15 @@ import { Head } from "@inertiajs/vue3";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-
-
 import { usePage } from "@inertiajs/vue3";
 import ImportFile from "@/Components/importFile.vue";
 const page = usePage()
 
-/* ---------------- Data ---------------- */
 const meals = ref([]);
 const editingMeal = ref(null);
 const submitting = ref(false);
 const mealFormErrors = ref({});
 
-/* ---------------- Fetch Meals ---------------- */
 const fetchMeals = async () => {
     try {
         const res = await axios.get("api/meals/all");
@@ -62,7 +58,6 @@ const mealStats = computed(() => [
     },
 ]);
 
-/* ---------------- Search ---------------- */
 const q = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
@@ -96,20 +91,15 @@ const resetModal = () => {
 };
 const formatTime = (date) => {
     if (!date) return null;
-
-    // Handle if it's already a string in HH:mm format
     if (typeof date === 'string' && /^\d{2}:\d{2}$/.test(date)) {
         return date;
     }
-
-    // Handle Date object
     const d = new Date(date);
     const hours = d.getHours().toString().padStart(2, '0');
     const minutes = d.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`; // Returns "09:30" format
 };
 
-/* ---------------- Submit (Create/Update) ---------------- */
 const submitMeal = async () => {
     submitting.value = true;
     mealFormErrors.value = {};
@@ -149,23 +139,12 @@ const submitMeal = async () => {
     }
 };
 
-/* ---------------- Edit ---------------- */
-const parseTime = (timeStr) => {
-    if (!timeStr) return null;
-    const [hours, minutes] = timeStr.split(":");
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes);
-    date.setSeconds(0);
-    return date;
-};
-
 const editRow = (row) => {
     editingMeal.value = row;
     mealForm.value = {
         name: row.name,
-        start_time: row.start_time, // ✅ Direct string assignment (already in HH:mm format)
-        end_time: row.end_time,     // ✅ Direct string assignment (already in HH:mm format)
+        start_time: row.start_time, 
+        end_time: row.end_time,     
     };
 
     const modalEl = document.getElementById("mealModal");
@@ -194,18 +173,13 @@ const onDownload = (type) => {
         toast.error("No Meals data to download");
         return;
     }
-
-    // Use filtered data if search query exists, otherwise use all meals
     const dataToExport = q.value.trim() ? filtered.value : meals.value;
-
-    // Validate that there's data to export after filtering
     if (dataToExport.length === 0) {
         toast.error("No Meals found to download");
         return;
     }
 
     try {
-        // Route to appropriate export function based on type
         if (type === "pdf") {
             downloadPDF(dataToExport);
         } else if (type === "excel") {
@@ -222,42 +196,30 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
-    console.log("Data to export:", data);
     try {
-        // Define CSV column headers
         const headers = ["ID", "Meal Name", "Start Time", "End Time"];
-
-        // Map meals data to CSV rows
         const rows = data.map((meal) => {
             return [
-                `${meal.id || ""}`,                                    // ID
-                `"${meal.name || ""}"`,                                // Meal Name
-                `"${meal.start_time || ""}"`,                          // Start Time
-                `"${meal.end_time || ""}"`,                            // End Time
+                `${meal.id || ""}`,                                
+                `"${meal.name || ""}"`,                            
+                `"${meal.start_time || ""}"`,                      
+                `"${meal.end_time || ""}"`,                        
             ];
         });
-
-        // Build CSV content: headers + data rows
         const csvContent = [
-            headers.join(","),                    // Header row
-            ...rows.map((r) => r.join(",")),      // Data rows
+            headers.join(","),                   
+            ...rows.map((r) => r.join(",")),     
         ].join("\n");
-
-        // Create blob from CSV content
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create temporary download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
             "download",
             `Meals_${new Date().toISOString().split("T")[0]}.csv`
         );
-
-        // Trigger download
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -273,35 +235,24 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        // Initialize PDF document (Portrait, millimeters, A4 size)
         const doc = new jsPDF("p", "mm", "a4");
-
-        // Add title
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("Meals Report", 14, 20);
-
-        // Add metadata (generation date and total records)
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Meals: ${data.length}`, 14, 34);
-
-        // Define table columns
         const tableColumns = ["ID", "Meal Name", "Start Time", "End Time"];
-
-        // Map meals data to table rows
         const tableRows = data.map((meal) => {
             return [
-                meal.id || "",                           // ID
-                meal.name || "",                         // Meal Name
-                meal.start_time || "",                   // Start Time
-                meal.end_time || "",                     // End Time
+                meal.id || "",                           
+                meal.name || "",                     
+                meal.start_time || "",               
+                meal.end_time || "",                 
             ];
         });
-
-        // Create styled table using autoTable plugin
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
@@ -314,16 +265,14 @@ const downloadPDF = (data) => {
                 lineWidth: 0.1,
             },
             headStyles: {
-                fillColor: [41, 128, 185],    // Blue header background
-                textColor: 255,                // White text
+                fillColor: [41, 128, 185],    
+                textColor: 255,              
                 fontStyle: "bold",
             },
             alternateRowStyles: {
-                fillColor: [245, 245, 245]    // Light gray alternate rows
+                fillColor: [245, 245, 245]  
             },
             margin: { left: 14, right: 14 },
-
-            // Add page numbers at bottom
             didDrawPage: (tableData) => {
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
@@ -335,8 +284,6 @@ const downloadPDF = (data) => {
                 );
             },
         });
-
-        // Save PDF file with timestamp
         const fileName = `Meals_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
@@ -349,12 +296,9 @@ const downloadPDF = (data) => {
 
 const downloadExcel = (data) => {
     try {
-        // Validate XLSX library is available
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
-
-        // Prepare worksheet data
         const worksheetData = data.map((meal) => {
             return {
                 "ID": meal.id || "",
@@ -363,23 +307,15 @@ const downloadExcel = (data) => {
                 "End Time": meal.end_time || "",
             };
         });
-
-        // Create workbook and first worksheet (Data sheet)
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // Set column widths for better readability
         worksheet["!cols"] = [
-            { wch: 8 },  // ID
-            { wch: 25 }, // Meal Name
-            { wch: 15 }, // Start Time
-            { wch: 15 }, // End Time
+            { wch: 8 }, 
+            { wch: 25 }, 
+            { wch: 15 }, 
+            { wch: 15 },
         ];
-
-        // Add data sheet to workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, "Meals");
-
-        // Create metadata sheet with report info
         const metaData = [
             { Info: "Report", Value: "Meals Export" },
             { Info: "Generated On", Value: new Date().toLocaleString() },
@@ -387,30 +323,21 @@ const downloadExcel = (data) => {
             { Info: "Exported By", Value: "Inventory Management System" },
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
-
-        // Add metadata sheet to workbook
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
-
-        // Save Excel file with timestamp
         const fileName = `Meals_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
-
         toast.success("Excel file downloaded successfully", { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
-
-/* ============= IMPORT CONFIGURATION ============= */
 const sampleHeaders = ["Meal Name", "Start Time", "End Time"];
 const sampleData = [
     ["Breakfast", "06:00", "10:00"],
     ["Lunch", "12:00", "14:00"],
     ["Dinner", "18:00", "21:00"],
 ];
-
-/* ============= IMPORT HANDLER ============= */
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
@@ -422,50 +349,38 @@ const handleImport = (data) => {
 
     const mealsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",           // Meal Name
-            start_time: row[1] || "",     // Start Time (HH:mm format)
-            end_time: row[2] || "",       // End Time (HH:mm format)
+            name: row[0] || "",           
+            start_time: row[1] || "",     
+            end_time: row[2] || "",     
         };
-    }).filter(meal => meal.name.trim()); // Filter out empty rows
-
+    }).filter(meal => meal.name.trim());
     if (mealsToImport.length === 0) {
         toast.error("No valid meals found in the file.");
         return;
     }
-
-    // Check for duplicate meal names within the CSV
     const mealNames = mealsToImport.map(m => m.name.trim().toLowerCase());
     const duplicatesInCSV = mealNames.filter((name, index) => mealNames.indexOf(name) !== index);
-
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate meal names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
         return;
     }
-
-    // Check for duplicate meal names in existing table
     const existingMealNames = meals.value.map(m => m.name.trim().toLowerCase());
     const duplicatesInTable = mealsToImport.filter(importMeal =>
         existingMealNames.includes(importMeal.name.trim().toLowerCase())
     );
-
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(m => m.name).join(", ");
         toast.error(`Meals already exist in the table: ${duplicateNamesList}`);
         return;
     }
-
-    // Validate time format (HH:mm)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     const invalidTimes = mealsToImport.filter(m =>
         !timeRegex.test(m.start_time) || !timeRegex.test(m.end_time)
     );
-
     if (invalidTimes.length > 0) {
         toast.error("Invalid time format. Times must be in HH:mm format (e.g., 09:30).");
         return;
     }
-
-    // Send to API
     axios
         .post("/api/meals/import", { meals: mealsToImport })
         .then(() => {
@@ -734,16 +649,12 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
 
-
-
-/* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
@@ -760,7 +671,6 @@ const handleImport = (data) => {
     border-bottom: 1px solid #ddd;
 }
 
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
@@ -771,7 +681,6 @@ const handleImport = (data) => {
     color: #000 !important;
 }
 
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -785,25 +694,21 @@ const handleImport = (data) => {
     border-color: #a4a7aa;
 }
 
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
 }
 
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
 
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
 
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -812,54 +717,38 @@ const handleImport = (data) => {
     padding: 0.25rem 0.5rem !important;
 }
 
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
 
-/* ====================================================== */
-
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
 
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
 
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -888,18 +777,15 @@ const handleImport = (data) => {
     border-bottom: 1px solid #555 !important;
 }
 
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
 
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
 
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -914,25 +800,21 @@ const handleImport = (data) => {
     border-color: #555 !important;
 }
 
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
 
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
 
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
 
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -940,37 +822,29 @@ const handleImport = (data) => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
 
-/* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
 
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

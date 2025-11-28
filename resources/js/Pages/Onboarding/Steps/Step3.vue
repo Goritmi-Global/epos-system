@@ -120,46 +120,27 @@ const lastDetectedCountry = ref(null);
 // 🎯 Auto-detect currency from country
 const detectCurrencyFromCountry = (forceUpdate = false) => {
     const countryCode = props.model?.country_code;
-    console.log("💱 [CURRENCY] Detecting for country:", countryCode, "| Force:", forceUpdate);
     
     if (!countryCode) {
-        console.log("⚠️ [CURRENCY] No country code found");
         return;
     }
     
     const detectedCurrency = countryCurrencyMap[countryCode.toUpperCase()];
     
     if (detectedCurrency) {
-        console.log("💱 [CURRENCY] Detected currency:", detectedCurrency);
-        console.log("💱 [CURRENCY] userChangedCurrency:", userChangedCurrency.value);
-        console.log("💱 [CURRENCY] lastDetectedCountry:", lastDetectedCountry.value);
-        
-        // Update currency if:
-        // 1. Force update (country changed)
-        // 2. User hasn't manually changed it
-        // 3. Country is different from last detection
         if (forceUpdate || !userChangedCurrency.value || lastDetectedCountry.value !== countryCode) {
             form.currency = detectedCurrency;
             lastDetectedCountry.value = countryCode;
-            console.log("✅ [CURRENCY] Auto-set to:", detectedCurrency);
-        } else {
-            console.log("ℹ️ [CURRENCY] User manually selected currency, skipping auto-detect");
         }
-    } else {
-        console.log("⚠️ [CURRENCY] No mapping found for:", countryCode);
-    }
 };
 
 onMounted(() => {
-    console.log("🚀 [STEP 3] Mounted with model:", props.model);
     detectCurrencyFromCountry(true);
 });
 
 // Watch for country changes from Step 1
 watch(() => props.model?.country_code, (newCountry, oldCountry) => {
-    console.log("👀 [CURRENCY] Country changed:", oldCountry, "→", newCountry);
     if (newCountry) {
-        // When country changes, reset the manual change flag and force update
         userChangedCurrency.value = false;
         detectCurrencyFromCountry(true);
     }
@@ -167,15 +148,10 @@ watch(() => props.model?.country_code, (newCountry, oldCountry) => {
 
 // Watch for manual currency changes (only when user clicks the dropdown)
 watch(() => form.currency, (newCurrency, oldCurrency) => {
-    // Only mark as manual change if:
-    // 1. There was an old value
-    // 2. The new value is different
-    // 3. It's not the initial auto-detection
+
     if (oldCurrency && newCurrency !== oldCurrency && lastDetectedCountry.value) {
         const expectedCurrency = countryCurrencyMap[props.model?.country_code?.toUpperCase()];
-        // Only set flag if user chose something different from auto-detected
         if (newCurrency !== expectedCurrency) {
-            console.log("👤 [CURRENCY] User manually changed currency to:", newCurrency);
             userChangedCurrency.value = true;
         }
     }
@@ -322,7 +298,6 @@ watch(form, emitSave, { deep: true, immediate: true });
 </template>
 
 <style>
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {

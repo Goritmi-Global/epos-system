@@ -93,7 +93,7 @@ const typeTextClass = (v) =>
 
 /* --------- View / Edit --------- */
 const selectedLog = ref(null);
-const selectedAllocations = ref([]); // allocation rows for stockout
+const selectedAllocations = ref([]);
 const formErrors = ref({});
 const editForm = ref({
     id: null,
@@ -109,7 +109,6 @@ const fetchAllocations = async (logId) => {
         const { data } = await axios.get(
             `stock_entries/stock-logs/${logId}/allocations`
         );
-        console.log(data);
         selectedAllocations.value = data || [];
     } catch (e) {
         selectedAllocations.value = [];
@@ -143,7 +142,6 @@ async function updateLog() {
     isUpdating.value = true;
     formErrors.value = {};
     try {
-        // For stockout, there is no unitPrice/expiryDate field to edit.
         await axios.put(
             `stock_entries/stock-logs/${editForm.value.id}`,
             editForm.value
@@ -190,11 +188,8 @@ onUpdated(() => window.feather?.replace());
                     <tr>
                         <th>Item name</th>
                         <th>Quantity</th>
-                        <!-- <th>Unit Price</th>
-                        <th>Total Price</th> -->
                         <th>Category</th>
                         <th>Date &amp; Time</th>
-                        <!-- <th>Expiry Date</th> -->
                         <th>Operation Type</th>
                         <th class="text-end">Action</th>
                     </tr>
@@ -206,13 +201,8 @@ onUpdated(() => window.feather?.replace());
                                 {{ row.itemName }}
                             </td>
                             <td>{{ row.quantity }}</td>
-                            <!-- <td><span class="text-muted">—</span></td>
-                            <td>{{ money(row.totalPrice) }}</td> -->
                             <td>{{ row.category?.name || row.category }}</td>
-                            <!-- Unit Price hidden for stockout -->
                             <td>{{ dateFmt(row.dateTime) }}</td>
-                            <!-- Expiry hidden for stockout -->
-                            <!-- <td><span class="text-muted">—</span></td> -->
 
                             
                             <td class="text-break">
@@ -341,14 +331,6 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </div>
-                                            <!-- <div class="col-md-6">
-                                                <small class="text-muted d-block">Operation</small>
-                                                <div class="fw-semibold">{{ selectedLog.operationType ?? "—" }}</div>
-                                            </div> -->
-                                            <!-- <div class="col-md-6">
-                                                <small class="text-muted d-block">Stock Out Quantity</small>
-                                                <div class="fw-semibold">{{ selectedLog.quantity ?? "—" }}</div>
-                                            </div> -->
                                             <div class="col-md-6">
                                                 <small
                                                     class="text-muted d-block"
@@ -367,12 +349,6 @@ onUpdated(() => window.feather?.replace());
                                         <hr class="my-4" />
 
                                         <div class="row g-3 text-center">
-                                            <!-- <div class="col-md-6">
-                                                <div class="p-3 bg-light rounded-3">
-                                                    <small class="text-muted d-block">Total Price</small>
-                                                    <div class="fs-6 fw-semibold">{{ money(selectedLog.totalPrice ?? 0) }}</div>
-                                                </div>
-                                            </div> -->
                                             <div class="col-md-12">
                                                 <div
                                                     class="p-3 bg-light rounded-3"
@@ -406,8 +382,6 @@ onUpdated(() => window.feather?.replace());
                                                 <thead class="small text-muted">
                                                     <tr>
                                                         <th>#</th>
-                                                        <!-- <th>Batch (IN) ID</th> -->
-                                                        <!-- <th>Product</th> -->
                                                         <th>Expiry Date</th>
                                                         <th>Unit Price</th>
                                                         <th>Allocated Qty</th>
@@ -418,8 +392,6 @@ onUpdated(() => window.feather?.replace());
                                                         v-for="(a, idx) in selectedAllocations" :key="a.id"
                                                     >
                                                         <td>{{ idx + 1 }}</td>
-                                                        <!-- <td>{{ a.stock_in_entry_id }}</td> -->
-                                                        <!-- <td>{{ a.product_name }}</td> -->
                                                         <td>
                                                             {{
                                                                dateFmt( a.expiry_date
@@ -463,7 +435,7 @@ onUpdated(() => window.feather?.replace());
                                                 </tbody>
                                             </table>
                                         </div>
-                                        <!-- /Allocation table -->
+                                    
                                     </div>
                                 </div>
                             </div>
@@ -536,8 +508,6 @@ onUpdated(() => window.feather?.replace());
                                     >{{ formErrors.quantity[0] }}</small
                                 >
                             </div>
-
-                            <!-- No unit price, no expiry date for stockout -->
                             <div class="col-md-6 col-md-12">
                                 <label class="form-label">Value</label>
                                 <input

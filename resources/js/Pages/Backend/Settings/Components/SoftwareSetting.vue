@@ -21,8 +21,6 @@ const props = defineProps({
 const currentSection = ref(1);
 const formErrors = ref({});
 const isSaving = ref(false);
-
-// Merge all step data into a single profile object
 const profile = ref({
     ...props.profileData.step1,
     ...props.profileData.step2,
@@ -34,8 +32,6 @@ const profile = ref({
     ...props.profileData.step8,
     ...props.profileData.step9,
 });
-
-console.log("Merged profile on init:", profile.value);
 
 const sections = [
     {
@@ -107,8 +103,6 @@ const components = {
 };
 
 const currentComponent = computed(() => {
-    console.log("Current section:", currentSection.value);
-    console.log("Component name:", components[currentSection.value]?.__name);
     return components[currentSection.value];
 });
 
@@ -178,16 +172,13 @@ async function updateSection() {
 }
 
 function changeSection(sectionId) {
-    console.log("Changing to section:", sectionId);
-    formErrors.value = {}; // Clear errors when changing sections
+    formErrors.value = {}; 
     currentSection.value = sectionId;
-    console.log("Current section after change:", currentSection.value);
 }
 </script>
 
 <template>
     <div class="settings-wrapper">
-        <!-- Page Header -->
         <div class="settings-header mb-2 px-2">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -195,8 +186,6 @@ function changeSection(sectionId) {
                 </div>
             </div>
         </div>
-
-        <!-- Horizontal Sidebar Navigation (Above Main Content) -->
         <div class="settings-sidebar-horizontal mb-3">
             <div class="settings-nav-horizontal shadow-sm rounded-4 p-3">
                 <div class="mb-3">
@@ -224,12 +213,9 @@ function changeSection(sectionId) {
                 </div>
             </div>
         </div>
-
-        <!-- Main Content Area (Full Width Below) -->
         <div class="row g-0">
             <div class="col-12">
                 <div class="card shadow-sm border-0 rounded-4">
-                    <!-- Section Header -->
                     <div class="card-header border-0 p-4">
                         <div class="d-flex align-items-start gap-3">
                             <div class="icon-wrapper">
@@ -245,8 +231,6 @@ function changeSection(sectionId) {
                             </div>
                         </div>
                     </div>
-
-                    <!-- Section Content (Step Component) -->
                     <div class="card-body p-4 settings-content">
                         <component
                             :is="currentComponent"
@@ -256,8 +240,6 @@ function changeSection(sectionId) {
                             @save="saveStep"
                         />
                     </div>
-
-                    <!-- Footer Actions -->
                     <div class="card-footer bg-light border-0 p-4">
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">
@@ -307,7 +289,6 @@ function changeSection(sectionId) {
     background: linear-gradient(135deg, #181818 0%, #181818 100%);
 }
 
-/* ===== Horizontal Sidebar Navigation ===== */
 .settings-sidebar-horizontal {
     width: 100%;
 }
@@ -423,7 +404,6 @@ function changeSection(sectionId) {
     }
 }
 
-/* ===== PrimeVue dark overrides ===== */
 :global(.dark .p-multiselect-header),
 :global(.dark .p-multiselect-label),
 :global(.dark .p-multiselect),

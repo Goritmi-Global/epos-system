@@ -89,11 +89,9 @@ const promoScopeForm = ref({
 
 // Debug: Watch the form values
 watch(() => promoScopeForm.value.meals, (newVal) => {
-    console.log('Selected meals changed:', newVal);
 }, { deep: true });
 
 watch(() => promoScopeForm.value.menu_items, (newVal) => {
-    console.log('Selected menu items changed:', newVal);
 }, { deep: true });
 
 
@@ -218,7 +216,6 @@ const fetchPromos = async () => {
     try {
         const res = await axios.get("/api/promos/all");
         promos.value = res.data.data;
-        console.log('Fetched promos:', promos.value);
     } catch (err) {
         console.error("Failed to fetch promos:", err);
         toast.error("Failed to load promos");
@@ -230,7 +227,6 @@ const fetchPromoScopes = async () => {
     try {
         const res = await axios.get("/promo-scopes");
         promoScopes.value = res.data.data || [];
-        console.log('Fetched promo scopes:', promoScopes.value);
     } catch (err) {
         console.error("Failed to fetch promo scopes:", err);
         toast.error("Failed to load promo scopes");
@@ -256,11 +252,6 @@ onMounted(async () => {
 
     await fetchPromos();
     await fetchPromoScopes();
-
-    // Debug log
-    console.log('Props meals on mount:', props.meals);
-    console.log('Computed mealsData:', mealsData.value);
-    console.log('Computed menuItemsData:', menuItemsData.value);
 });
 
 /* ---------------- KPI Cards ---------------- */
@@ -383,7 +374,6 @@ const filtered = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
-    console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
@@ -396,9 +386,7 @@ const handleFilterClear = () => {
         dateFrom: null,
         dateTo: null
     };
-    console.log("Filters cleared");
 };
-
 /* ---------------- Form State ---------------- */
 const promoForm = ref({
     name: "",
@@ -569,14 +557,6 @@ const toggleStatus = async (row) => {
     }
 };
 
-/* ---------------- Helpers ---------------- */
-const money = (n, currency = "GBP") =>
-    new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
-
-const formatDate = (date) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("en-GB");
-};
 
 onUpdated(() => window.feather?.replace());
 
@@ -585,11 +565,7 @@ const onDownload = (type) => {
         toast.error("No Promos data to download");
         return;
     }
-
-    // Use filtered data if search query exists, otherwise use all promos
     const dataToExport = q.value.trim() ? filtered.value : promos.value;
-
-    // Validate that there's data to export after filtering
     if (dataToExport.length === 0) {
         toast.error("No Promos found to download");
         return;
@@ -660,7 +636,7 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); // Landscape for more columns
+        const doc = new jsPDF("l", "mm", "a4"); 
 
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
@@ -755,20 +731,19 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 8 },  // ID
-            { wch: 25 }, // Promo Name
-            { wch: 12 }, // Type
-            { wch: 15 }, // Discount Amount
-            { wch: 15 }, // Start Date
-            { wch: 15 }, // End Date
-            { wch: 15 }, // Min Purchase
-            { wch: 15 }, // Max Discount
-            { wch: 12 }, // Status
-            { wch: 30 }, // Description
+            { wch: 8 },  
+            { wch: 25 }, 
+            { wch: 12 }, 
+            { wch: 15 }, 
+            { wch: 15 }, 
+            { wch: 15 }, 
+            { wch: 15 }, 
+            { wch: 15 }, 
+            { wch: 12 }, 
+            { wch: 30 },
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Promos");
-
         const metaData = [
             { Info: "Report", Value: "Promos Export" },
             { Info: "Generated On", Value: new Date().toLocaleString() },
@@ -1372,16 +1347,12 @@ const downloadExcel = (data) => {
     color: #fff !important;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
 
-
-
-/* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
@@ -1459,19 +1430,11 @@ const downloadExcel = (data) => {
     color: #dc3545 !important;
     /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
-/* ====================================================== */
-
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;

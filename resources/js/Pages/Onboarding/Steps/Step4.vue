@@ -12,11 +12,9 @@ const form = reactive({
   price_includes_tax: props.model.price_includes_tax ? 1 : 0,
   tax_id: props.model.tax_id ?? null,
   extra_tax_rates: props.model.extra_tax_rates ?? "",
-
   has_service_charges: props.model.has_service_charges ? 1 : 0,
   service_charge_flat: props.model.service_charge_flat ?? null,
   service_charge_percentage: props.model.service_charge_percentage ?? null,
-
   has_delivery_charges: props.model.has_delivery_charges ? 1 : 0,
   delivery_charge_flat: props.model.delivery_charge_flat ?? null,
   delivery_charge_percentage: props.model.delivery_charge_percentage ?? null,

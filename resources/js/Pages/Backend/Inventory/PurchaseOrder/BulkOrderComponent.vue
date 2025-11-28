@@ -23,22 +23,17 @@ const activeTab = ref("single");
 const b_supplier = ref(null);
 const b_submitting = ref(false);
 const formErrors = ref({});
-// reactive table rows
 const bulkItems = ref([]);
-
-// Multiple Purchase
 const m_submitting = ref(false);
 const m_formErrors = ref({});
 const multipleItems = ref([]);
-
-// 👇 Build bulkItems whenever items change
 watch(
     () => props.items,
     (newItems) => {
         bulkItems.value = newItems.map((it) => ({
             ...it,
-            qty: 0,           // 👈 start as 0 instead of null
-            unitPrice: 0,     // 👈 start as 0 instead of null
+            qty: 0,           
+            unitPrice: 0,     
             expiry: null,
             subtotal: 0,
         }));
@@ -152,7 +147,6 @@ async function bulkSubmit() {
             if (Object.keys(errors).length > 0) {
                 formErrors.value[idx] = errors;
             } else {
-                // ✅ Only push if fully valid
                 validItems.push({
                     product_id: it.id,
                     quantity: it.qty,
@@ -167,14 +161,10 @@ async function bulkSubmit() {
         toast.error("Please select a supplier");
         return;
     }
-
-    // If no valid items to submit
     if (validItems.length === 0) {
         toast.error("No valid items to submit");
         return;
     }
-
-    // Stop if there are any row-level errors
     if (Object.keys(formErrors.value).length > 0) {
         toast.error("Please fix the highlighted errors");
         return;
@@ -272,7 +262,6 @@ async function multipleSubmit() {
 
     m_submitting.value = true;
     try {
-        // Create separate purchase order for each supplier
         for (const [supplierId, items] of Object.entries(groupedBySupplier)) {
             const payload = {
                 supplier_id: parseInt(supplierId),
@@ -543,7 +532,6 @@ async function multipleSubmit() {
 
 
 <style scoped>
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
@@ -575,8 +563,6 @@ async function multipleSubmit() {
     color: #fff !important;
 }
 
-/* ====================================================== */
-
 /* ====================Select Styling===================== */
 /* Entire select container */
 :deep(.p-select) {
@@ -584,27 +570,18 @@ async function multipleSubmit() {
     color: black !important;
     border-color: #9b9c9c;
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -634,19 +611,13 @@ async function multipleSubmit() {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
@@ -660,26 +631,18 @@ async function multipleSubmit() {
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
     color: #fff !important;
@@ -704,15 +667,12 @@ async function multipleSubmit() {
 .dark .p-component {
     color: #fff !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -721,20 +681,14 @@ async function multipleSubmit() {
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #000 !important;
     color: #fff !important;
 }
-
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

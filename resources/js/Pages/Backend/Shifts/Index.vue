@@ -7,7 +7,6 @@ import axios from "axios";
 import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
 import { Head } from "@inertiajs/vue3";
-import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -15,14 +14,13 @@ import CloseShiftModal from "@/Components/CloseShiftModal.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
-/* ---------------- Data ---------------- */
 const shifts = ref([]);
 const showShiftDetailsModal = ref(false);
 const selectedShiftDetails = ref([]);
 const selectedShiftId = ref(null);
-const showXReportModal = ref(false);  // Controls X Report Modal visibility
-const showZReportModal = ref(false);  // Controls Z Report Modal visibility
-const xReportData = ref(null);        // Stores X Report data
+const showXReportModal = ref(false);  
+const showZReportModal = ref(false);  
+const xReportData = ref(null);       
 const zReportData = ref(null);
 
 
@@ -96,12 +94,8 @@ onMounted(async () => {
     q.value = "";
     searchKey.value = Date.now();
     await nextTick();
-
-    // Delay to prevent autofill
     setTimeout(() => {
         isReady.value = true;
-
-        // Force clear any autofill that happened
         const input = document.getElementById(inputId);
         if (input) {
             input.value = '';
@@ -184,90 +178,22 @@ const formatTime = (date) => {
         second: "2-digit",
     });
 };
-
-
 onUpdated(() => window.feather?.replace());
-
-
-// Open or closed shift 
-
-// const toggleShiftStatus = async (shift) => {
-//     const newStatus = shift.status === "open" ? "closed" : "open";
-//     const url = newStatus === "closed"
-//         ? `/api/shift/${shift.id}/close`
-//         : `/api/shift/${shift.id}/reopen`; // assuming you have reopen endpoint
-
-//     try {
-//         const response = await axios.patch(url, { status: newStatus });
-
-//         if (response.data.success) {
-//             toast.success(response.data.message || `Shift ${newStatus} successfully.`);
-//             shift.status = newStatus;
-//             if (response.data.redirect) {
-//                 window.location.href = response.data.redirect;
-//             }
-//         } else {
-//             toast.error("Unexpected response from server.");
-//         }
-//     } catch (error) {
-//         console.error("Failed to change shift status:", error);
-//         toast.error("Failed to change shift status.");
-//     }
-// };
-
-// const toggleShiftStatus = async (shift) => {
-//     const newStatus = shift.status === "open" ? "closed" : "open";
-
-//     if (newStatus === "closed") {
-//         // Show close shift modal instead of direct close
-//         selectedShiftForClose.value = shift;
-//         showCloseShiftModal.value = true;
-//     } else {
-//         // Reopen shift logic
-//         const url = `/api/shift/${shift.id}/reopen`;
-
-//         try {
-//             const response = await axios.patch(url, { status: newStatus });
-
-//             if (response.data.success) {
-//                 toast.success(response.data.message || 'Shift reopened successfully.');
-//                 shift.status = newStatus;
-//                 if (response.data.redirect) {
-//                     window.location.href = response.data.redirect;
-//                 }
-//             } else {
-//                 toast.error("Unexpected response from server.");
-//             }
-//         } catch (error) {
-//             console.error("Failed to reopen shift:", error);
-//             toast.error("Failed to reopen shift.");
-//         }
-//     }
-// };
-
-
 const onShiftClosed = (data) => {
     showCloseShiftModal.value = false;
     selectedShiftForClose.value = null;
-
-    // Refresh shifts list
     fetchShifts();
 };
-
-// Handle modal cancel
 const onCloseModalCancel = () => {
     showCloseShiftModal.value = false;
     selectedShiftForClose.value = null;
 };
-
-
 const calculateExpectedClosingCash = (shift) => {
     return parseFloat(shift.opening_cash || 0) + parseFloat(shift.sales_total || 0);
 };
 
 const onDownload = (type) => {
 
-    // ✅ HANDLE X REPORT - Find latest OPEN shift and generate report
     if (type === 'x-report') {
         const openShift = shifts.value.find(s => s.status === 'open');
 
@@ -275,13 +201,9 @@ const onDownload = (type) => {
             toast.warning('No open shift found. X Report can only be generated for open shifts.');
             return;
         }
-
-        // Call function to generate X Report
         generateXReport(openShift);
         return;
     }
-
-    // ✅ HANDLE Z REPORT - Find latest CLOSED shift and generate report
     if (type === 'z-report') {
         const closedShift = shifts.value.find(s => s.status === 'closed');
 
@@ -289,8 +211,6 @@ const onDownload = (type) => {
             toast.warning('No closed shift found. Z Report can only be generated for closed shifts.');
             return;
         }
-
-        // Call function to generate Z Report
         generateZReport(closedShift);
         return;
     }
@@ -299,8 +219,6 @@ const onDownload = (type) => {
         toast.error("No Shifts data to download");
         return;
     }
-
-    // Use filtered data if there's a search query, otherwise use all shifts
     const dataToExport = q.value.trim() ? filtered.value : shifts.value;
 
     if (dataToExport.length === 0) {
@@ -325,9 +243,7 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
-    console.log("Shifts", data);
     try {
-        // Define headers
         const headers = [
             "Shift ID",
             "Started By",
@@ -338,14 +254,10 @@ const downloadCSV = (data) => {
             "Sales Total",
         ];
 
-        // Build CSV rows
         const rows = data.map((s) => {
-            // Format start time
             const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
-
-            // Format end time
             const endTime = s.end_time
                 ? new Date(s.end_time).toLocaleString("en-GB")
                 : "N/A";
@@ -366,19 +278,15 @@ const downloadCSV = (data) => {
             ];
         });
 
-        // Combine into CSV string
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","),
+            ...rows.map((r) => r.join(",")), 
         ].join("\n");
 
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -402,19 +310,16 @@ const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
 
-        // 🌟 Title
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("Shifts Report", 75, 20);
 
-        // 🗓️ Metadata
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Shifts: ${data.length}`, 14, 34);
 
-        // 📋 Table Columns
         const tableColumns = [
             "Shift ID",
             "Started By",
@@ -425,9 +330,7 @@ const downloadPDF = (data) => {
             "Sales Total",
         ];
 
-        // 📊 Build table rows
         const tableRows = data.map((s) => {
-            // Format start time
             const startTime = s.start_time
                 ? new Date(s.start_time).toLocaleString("en-GB")
                 : "N/A";
@@ -552,9 +455,7 @@ const downloadExcel = (data) => {
     }
 };
 
-// ✅ GENERATE X REPORT (Mid-Shift Report for OPEN shifts)
 const generateXReport = async (shift) => {
-    // Check if shift is open
     if (shift.status !== 'open') {
         toast.warning('X Report can only be generated for open shifts');
         return;
@@ -565,9 +466,7 @@ const generateXReport = async (shift) => {
         const res = await axios.get(`/api/shift/${shift.id}/x-report`);
 
         if (res.data.success) {
-            console.log(res.data.data);
             xReportData.value = res.data.data;
-            // Show modal
             showXReportModal.value = true;
             toast.success('X Report generated successfully');
         }
@@ -577,7 +476,6 @@ const generateXReport = async (shift) => {
     }
 };
 
-// ✅ CLOSE X REPORT MODAL
 const closeXReportModal = () => {
     showXReportModal.value = false;
     xReportData.value = null;
@@ -790,8 +688,6 @@ const downloadXReportPdf = async (shiftId) => {
         toast.error(error.response?.data?.message || 'Failed to download X Report PDF');
     }
 };
-
-// ✅ GENERATE Z REPORT (End of Shift Report for CLOSED shifts)
 const generateZReport = async (shift) => {
     // Check if shift is closed
     if (shift.status !== 'closed') {
@@ -815,14 +711,11 @@ const generateZReport = async (shift) => {
         toast.error(error.response?.data?.message || 'Failed to generate Z Report');
     }
 };
-
-// ✅ CLOSE Z REPORT MODAL
 const closeZReportModal = () => {
     showZReportModal.value = false;
     zReportData.value = null;
 };
 
-// ✅ DOWNLOAD Z REPORT AS PDF
 const downloadZReportPdf = async (shiftId) => {
     try {
         const res = await axios.get(`/api/shift/${shiftId}/z-report/pdf`);
@@ -1297,7 +1190,6 @@ const downloadZReportPdf = async (shiftId) => {
     }
 };
 
-// Add this function alongside your downloadZReportPdf function
 const printZReport = async (shiftId) => {
     try {
         const res = await axios.post(`/api/printers/${shiftId}/z-report/print`);
@@ -1385,21 +1277,15 @@ const printZReport = async (shiftId) => {
                                             Export as CSV
                                         </a>
                                     </li>
-
-                                    <!-- DIVIDER -->
                                     <li>
                                         <hr class="dropdown-divider">
                                     </li>
-
-                                    <!-- NEW: X Report Option -->
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
                                             @click="onDownload('x-report')">
                                             Generate X Report
                                         </a>
                                     </li>
-
-                                    <!-- NEW: Z Report Option -->
                                     <li>
                                         <a class="dropdown-item py-2" href="javascript:;"
                                             @click="onDownload('z-report')">
@@ -1440,7 +1326,6 @@ const printZReport = async (shiftId) => {
                                     <td>{{ formatCurrencySymbol(shift.sales_total) }}</td>
                                     <td>{{ shift.ended_by || 'N/A' }}</td>
 
-                                    <!-- Status -->
                                     <td class="text-center">
                                         <span :class="shift.status === 'open'
                                             ? 'badge bg-success px-4 py-2 rounded-pill'
@@ -1449,7 +1334,6 @@ const printZReport = async (shiftId) => {
                                         </span>
                                     </td>
 
-                                    <!-- Actions -->
                                     <td class="text-center">
                                         <div class="d-inline-flex align-items-center gap-3">
                                             <!-- View Shift -->
@@ -1457,8 +1341,6 @@ const printZReport = async (shiftId) => {
                                                 class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                 <Eye class="w-4 h-4" />
                                             </button>
-
-                                            <!-- Toggle Shift Status Button (NO ConfirmModal wrapper) -->
                                             <button @click="handleToggleShift(shift)"
                                                 class="relative inline-flex items-center w-10 h-5 rounded-full transition-colors duration-300 focus:outline-none"
                                                 :class="shift.status === 'open'
@@ -1571,9 +1453,6 @@ const printZReport = async (shiftId) => {
                     </div>
                 </div>
             </div>
-
-
-            <!-- ✅ X REPORT MODAL -->
             <div v-if="showXReportModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 ">
                 <div
@@ -1604,11 +1483,9 @@ const printZReport = async (shiftId) => {
                         </button>
                     </div>
 
-                    <!-- Body -->
                     <div class="modal-body p-4 bg-light overflow-y-auto" v-if="xReportData">
                         <div class="row g-4">
 
-                            <!-- Shift Information -->
                             <div class="col-lg-12">
                                 <div class="card border-0 shadow-sm rounded-4 h-100">
                                     <div class="card-body">
@@ -1814,8 +1691,6 @@ const printZReport = async (shiftId) => {
                     </div>
                 </div>
             </div>
-
-            <!-- ✅ Z REPORT MODAL -->
             <div v-if="showZReportModal"
                 class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div
@@ -1849,8 +1724,6 @@ const printZReport = async (shiftId) => {
                     <!-- Body -->
                     <div class="modal-body p-4 bg-light overflow-y-auto max-h-[70vh]" v-if="zReportData">
                         <div class="row g-4">
-
-                            <!-- Shift Information -->
                             <div class="col-lg-12">
                                 <div class="card border-0 shadow-sm rounded-4 h-100">
                                     <div class="card-body">
@@ -1878,7 +1751,6 @@ const printZReport = async (shiftId) => {
                                 </div>
                             </div>
 
-                            <!-- Sales Summary -->
                             <div class="col-md-6">
                                 <div class="card border-0 shadow-sm rounded-4 h-100">
                                     <div class="card-body">
@@ -2156,16 +2028,12 @@ const printZReport = async (shiftId) => {
     color: #fff !important;
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
 
-
-
-/* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
@@ -2182,18 +2050,15 @@ const printZReport = async (shiftId) => {
     border-bottom: 1px solid #ddd;
 }
 
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
 
-/* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
 
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -2207,25 +2072,19 @@ const printZReport = async (shiftId) => {
     border-color: #a4a7aa;
 }
 
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
 }
 
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
-
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
-
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -2234,54 +2093,35 @@ const printZReport = async (shiftId) => {
     padding: 0.25rem 0.5rem !important;
 }
 
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
 }
-
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
-
-/* ====================================================== */
-
-
-/* ====================Select Styling===================== */
-/* Entire select container */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c
 }
-
-/* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
-
-/* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
-    /* instead of 'none' */
     color: black !important;
 }
-
-/* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-
-/* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -2309,19 +2149,13 @@ const printZReport = async (shiftId) => {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
-
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
-
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
-
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -2335,26 +2169,18 @@ const printZReport = async (shiftId) => {
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
-
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
-
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
-
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -2362,37 +2188,27 @@ const printZReport = async (shiftId) => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
-
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
 }
 
-/* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
-
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
-
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
-
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

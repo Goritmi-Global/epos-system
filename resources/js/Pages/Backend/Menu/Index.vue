@@ -19,15 +19,10 @@ const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatte
 import {
     Package,
     XCircle,
-    AlertTriangle,
-    CalendarX2,
-    CalendarClock,
     Plus,
-    Menu,
     Pencil,
     CheckCircle,
-    Eye,
-    EyeOff,
+  
 } from "lucide-vue-next";
 
 const props = defineProps({
@@ -67,57 +62,12 @@ const selectedVariants = ref([])
 
 const addons = ref([])
 const selectedAddonGroup = ref(null)
-
-// ==================== NEW: Tab Management ====================
-const activeTab = ref('simple'); // 'simple' or 'variant'
+const activeTab = ref('simple');
 const isVariantMode = ref(false);
-
-// Variant-specific ingredient management
 const selectedVariantForIngredients = ref(null);
-const variantIngredients = ref({}); // { variantId: [ingredients] }
+const variantIngredients = ref({});
 
 const variantResaleConfig = ref({});
-
-
-const calculateVariantResalePrice = (variantId) => {
-    const config = variantResaleConfig.value[variantId];
-    const variantPrice = variantMetadata.value[variantId]?.price || 0;
-
-    if (!config || !config.is_saleable || !config.resale_type || !config.resale_value) {
-        return 0;
-    }
-
-    if (config.resale_type === 'flat') {
-        return parseFloat(config.resale_value) || 0;
-    }
-
-    if (config.resale_type === 'percentage') {
-        const price = parseFloat(variantPrice) || 0;
-        const percentage = parseFloat(config.resale_value) || 0;
-        return (price * percentage) / 100;
-    }
-
-    return 0;
-};
-
-const loadVariants = () => {
-    if (form.value.variant_group_id) {
-        const group = props.variantGroups?.find(g => g.id === form.value.variant_group_id);
-        variants.value = group ? group.variants : [];
-        const newPrices = {};
-        if (variants.value.length > 0) {
-            variants.value.forEach(variant => {
-                newPrices[variant.id] = form.value.variant_prices?.[variant.id] ?? '';
-            });
-        }
-        form.value.variant_prices = newPrices;
-    } else {
-        // Clearing the variant group
-        variants.value = [];
-        form.value.variant_prices = {};
-    }
-}
-
 const loadAddons = () => {
     if (form.value.addon_group_id) {
         const group = props.addonGroups?.find(g => g.id === form.value.addon_group_id);
@@ -150,8 +100,6 @@ const labelColors = [
 ]
 
 const inventoryItems = ref([]);
-const showStatusModal = ref(false);
-const statusTargetItem = ref(null);
 const showAllergyModal = ref(false);
 const selectedTypes = ref({});
 const selectedAllergies = ref([]);
@@ -226,10 +174,6 @@ function round2(x) {
     return Math.round(x * 100) / 100;
 }
 
-const i_total = computed(() =>
-    round2(i_cart.value.reduce((s, r) => s + Number(r.cost || 0), 0))
-);
-
 function addIngredient(item) {
     const qty = Number(item.qty || 0);
     const price =
@@ -240,7 +184,6 @@ function addIngredient(item) {
     formErrors.value[item.id] = {};
 
     if (!qty || qty <= 0) formErrors.value[item.id].qty = "Enter a valid quantity.";
-    // if (!price || price <= 0) formErrors.value[item.id].unitPrice = "Enter a valid unit price.";
 
     if (Object.keys(formErrors.value[item.id]).length > 0) {
         const messages = Object.values(formErrors.value[item.id]).join("\n");
@@ -291,21 +234,6 @@ function removeIngredient(idx) {
     }
 }
 
-// const i_totalNutrition = computed(() => {
-//     return i_cart.value.reduce(
-//         (totals, ing) => {
-//             const qty = Number(ing.qty) || 0;
-
-//             totals.calories += Number(ing.nutrition?.calories || 0) * qty;
-//             totals.protein += Number(ing.nutrition?.protein || 0) * qty;
-//             totals.carbs += Number(ing.nutrition?.carbs || 0) * qty;
-//             totals.fat += Number(ing.nutrition?.fat || 0) * qty;
-
-//             return totals;
-//         },
-//         { calories: 0, protein: 0, carbs: 0, fat: 0 }
-//     );
-// });
 
 const i_totalNutrition = computed(() => {
     const totals = i_cart.value.reduce(
@@ -355,9 +283,6 @@ onMounted(async () => {
     }, 100);
     fetchInventory();
 });
-
-const expiredCount = 7;
-const nearExpireCount = 3;
 
 const inventories = ref(props.inventories?.data || []);
 const items = computed(() => inventories.value);
@@ -506,19 +431,13 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-const handleFilterApply = (appliedFilters) => {
-    console.log("Filters applied:", appliedFilters);
-};
 
 const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
 };
 
 /* ===================== KPIs ===================== */
-const categoriesCount = computed(
-    () => new Set(items.value.map((i) => i.category)).size
-);
-const totalItems = computed(() => items.value.length);
+
 const totalMenuItems = computed(() => menuItems.value.length);
 const activeMenuItems = computed(
     () => menuItems.value.filter((item) => item.status === 1).length
@@ -527,15 +446,7 @@ const activeMenuItems = computed(
 const deactiveMenuItems = computed(
     () => menuItems.value.filter((item) => item.status === 0).length
 );
-const lowStockCount = computed(
-    () =>
-        items.value.filter(
-            (i) => i.availableStock > 0 && i.availableStock < (i.minAlert || 5)
-        ).length
-);
-const outOfStockCount = computed(
-    () => items.value.filter((i) => i.availableStock <= 0).length
-);
+
 const kpis = computed(() => [
     {
         label: "Total Menus",
@@ -563,11 +474,7 @@ const kpis = computed(() => [
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
 
-/* ===================== Helpers ===================== */
-const money = (amount, currency = "GBP") =>
-    new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
-        amount
-    );
+
 
 const subcatMap = ref({
     Poultry: ["Chicken", "Broiler", "Wings", "Breast"],
@@ -583,9 +490,7 @@ const subcatOptions = computed(() =>
         value: s,
     }))
 );
-const categoryOptions = computed(() =>
-    Object.keys(subcatMap.value).map((c) => ({ name: c, value: c }))
-);
+
 const formErrors = ref({});
 function resetErrors() {
     formErrors.value = {};
@@ -624,24 +529,6 @@ const resaleTypeOptions = ref([
     { label: "Percentage", value: "percentage" },
 ]);
 
-const resalePrice = computed(() => {
-    if (!form.value.is_saleable || !form.value.resale_type || !form.value.resale_value) {
-        return 0;
-    }
-
-    if (form.value.resale_type === 'flat') {
-        return parseFloat(form.value.resale_value) || 0;
-    }
-
-    if (form.value.resale_type === 'percentage') {
-        const price = parseFloat(form.value.price) || 0;
-        const percentage = parseFloat(form.value.resale_value) || 0;
-        return (price * percentage) / 100;
-    }
-
-    return 0;
-});
-
 const showCropper = ref(false);
 const showImageModal = ref(false);
 const previewImage = ref(null);
@@ -660,7 +547,7 @@ function onCropped({ file }) {
 const submitting = ref(false);
 
 // ==================== UPDATED: Submit Product ====================
-// ==================== UPDATED submitProduct FUNCTION ====================
+
 const submitProduct = async () => {
     submitting.value = true;
     formErrors.value = {};
@@ -679,10 +566,7 @@ const submitProduct = async () => {
 
         formData.append("description", form.value.description || "");
         formData.append("is_taxable", String(form.value.is_taxable ?? 0));
-
-        // Check if we're in variant mode
         if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
-            // ✅ VARIANT MENU SECTION
             const totalNutrition = Object.values(variantIngredients.value)
                 .flat()
                 .reduce(
@@ -701,21 +585,14 @@ const submitProduct = async () => {
             formData.append("nutrition[fat]", totalNutrition.fat);
             formData.append("nutrition[protein]", totalNutrition.protein);
             formData.append("nutrition[carbs]", totalNutrition.carbs);
-
-            // ✅ Send variant_metadata with PROPERLY FORMATTED resale data
             let metadataIndex = 0;
             Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
                 formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
                 formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
-
-                // ✅ FIX: Get resale config and send only if is_saleable is true
                 const resaleConfig = variantResaleConfig.value[variantId];
 
                 if (resaleConfig && resaleConfig.is_saleable) {
-                    // Send as 1 for boolean
                     formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 1);
-
-                    // Only send resale_type and resale_value if they have valid values
                     if (resaleConfig.resale_type && resaleConfig.resale_type !== 'null') {
                         formData.append(`variant_metadata[${metadataIndex}][resale_type]`, resaleConfig.resale_type);
                     }
@@ -723,11 +600,8 @@ const submitProduct = async () => {
                         formData.append(`variant_metadata[${metadataIndex}][resale_value]`, parseFloat(resaleConfig.resale_value));
                     }
                 } else {
-                    // Not saleable
                     formData.append(`variant_metadata[${metadataIndex}][is_saleable]`, 0);
                 }
-
-                // Add ingredients for this variant
                 const ingredients = variantIngredients.value[variantId] || [];
                 ingredients.forEach((ing, ingIndex) => {
                     formData.append(`variant_ingredients[${metadataIndex}][${ingIndex}][inventory_item_id]`, ing.id);
@@ -739,9 +613,8 @@ const submitProduct = async () => {
                 metadataIndex++;
             });
 
-            formData.append("price", 0); // Don't need base price for variants
+            formData.append("price", 0);
         } else {
-            // ✅ SIMPLE MENU SECTION
             formData.append("nutrition[calories]", i_totalNutrition.value.calories);
             formData.append("nutrition[fat]", i_totalNutrition.value.fat);
             formData.append("nutrition[protein]", i_totalNutrition.value.protein);
@@ -750,8 +623,6 @@ const submitProduct = async () => {
             if (form.value.price !== "" && form.value.price !== null) {
                 formData.append("price", form.value.price);
             }
-
-            // Simple menu resale
             if (form.value.is_saleable) {
                 formData.append("is_saleable", 1);
 
@@ -764,8 +635,6 @@ const submitProduct = async () => {
             } else {
                 formData.append("is_saleable", 0);
             }
-
-            // Simple ingredients
             i_cart.value.forEach((ing, i) => {
                 formData.append(`ingredients[${i}][inventory_item_id]`, ing.id);
                 formData.append(`ingredients[${i}][qty]`, ing.qty);
@@ -773,8 +642,6 @@ const submitProduct = async () => {
                 formData.append(`ingredients[${i}][cost]`, ing.cost);
             });
         }
-
-        // Allergies + Tags
         form.value.allergies.forEach((a, i) => {
             formData.append(`allergies[${i}]`, a.id);
             formData.append(`allergy_types[${i}]`, a.type === 'Contain' ? 1 : 0);
@@ -785,8 +652,6 @@ const submitProduct = async () => {
         });
 
         form.value.tags.forEach((id, i) => formData.append(`tags[${i}]`, id));
-
-        // Image
         if (form.value.imageFile) {
             formData.append("image", form.value.imageFile);
         }
@@ -801,7 +666,6 @@ const submitProduct = async () => {
         }
 
         try {
-            console.log('➡️ Submitting menu item...');
             const response = await axios.post("/menu", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
@@ -895,25 +759,18 @@ const i_displayInv = computed(() => {
 });
 
 const editItem = (item) => {
-    console.log("Checking item which one is this", item);
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
 
     isEditMode.value = true;
     const itemData = toRaw(item);
-    console.log("Item data", itemData);
-
-    // ✅ FIX: Better detection for variant menu
     const hasVariants = itemData.variants &&
         Array.isArray(itemData.variants) &&
         itemData.variants.length > 0;
 
     // Set the active tab based on menu type
     activeTab.value = hasVariants ? 'variant' : 'simple';
-
-    console.log("Has variants:", hasVariants);
-    console.log("Variants data:", itemData.variants);
 
     form.value = {
         id: itemData.id,
@@ -936,21 +793,15 @@ const editItem = (item) => {
         resale_type: itemData.resale_type || null,
         resale_value: itemData.resale_value || null,
     };
-
-    // ✅ Load variant data if this is a variant menu
     if (hasVariants) {
         variantIngredients.value = {};
         variantMetadata.value = {};
         variantResaleConfig.value = {};
-
-        // Find the highest variant ID to continue counter from there
         let maxVariantId = 0;
 
         itemData.variants.forEach(variant => {
             const variantId = variant.id;
             maxVariantId = Math.max(maxVariantId, variantId);
-
-            // Store variant metadata (name and price)
             variantMetadata.value[variantId] = {
                 name: variant.name,
                 price: parseFloat(variant.price || 0)
@@ -961,8 +812,6 @@ const editItem = (item) => {
                 resale_type: variant.resale_type || null,
                 resale_value: variant.resale_value ? parseFloat(variant.resale_value) : null
             };
-
-            // Store variant ingredients
             if (variant.ingredients && Array.isArray(variant.ingredients)) {
                 variantIngredients.value[variantId] = variant.ingredients.map(ing => {
                     const quantity = parseFloat(ing.quantity || ing.qty || 0);
@@ -992,13 +841,7 @@ const editItem = (item) => {
                 variantIngredients.value[variantId] = [];
             }
         });
-
-        // Set variant counter to continue from max ID + 1
         variantIdCounter.value = maxVariantId + 1;
-
-        console.log("Loaded variant metadata:", variantMetadata.value);
-        console.log("Loaded variant ingredients:", variantIngredients.value);
-        console.log("Variant counter set to:", variantIdCounter.value);
     }
 
     if (itemData.addon_group_id) {
@@ -1031,8 +874,6 @@ const editItem = (item) => {
         selectedAllergies.value = [];
         selectedTypes.value = {};
     }
-
-    // Build i_cart only for simple menus
     if (!hasVariants) {
         i_cart.value = (itemData.ingredients || []).map((ing) => {
             const quantity = parseFloat(ing.quantity || ing.qty || 0);
@@ -1066,14 +907,9 @@ const editItem = (item) => {
         i_cart.value = [];
     }
 
-    console.log("Edit mode - Active tab:", activeTab.value);
-    console.log("Edit mode - Has variants:", hasVariants);
-
     const modal = new bootstrap.Modal(document.getElementById("addItemModal"));
     modal.show();
 };
-
-// ✅ UPDATE submitEdit to handle variant metadata properly
 // ==================== UPDATED submitEdit FUNCTION ====================
 const submitEdit = async () => {
     submitting.value = true;
@@ -1094,7 +930,6 @@ const submitEdit = async () => {
 
         // Handle nutrition and ingredients based on active tab
         if (activeTab.value === 'variant' && Object.keys(variantIngredients.value).length > 0) {
-            // ✅ VARIANT MENU SECTION
             const totalNutrition = Object.values(variantIngredients.value)
                 .flat()
                 .reduce(
@@ -1113,15 +948,13 @@ const submitEdit = async () => {
             formData.append("nutrition[fat]", totalNutrition.fat);
             formData.append("nutrition[protein]", totalNutrition.protein);
             formData.append("nutrition[carbs]", totalNutrition.carbs);
-
-            // ✅ Send variant_metadata with PROPERLY FORMATTED resale data
             let metadataIndex = 0;
             Object.entries(variantMetadata.value).forEach(([variantId, meta]) => {
                 formData.append(`variant_metadata[${metadataIndex}][id]`, variantId);
                 formData.append(`variant_metadata[${metadataIndex}][name]`, meta.name);
                 formData.append(`variant_metadata[${metadataIndex}][price]`, meta.price);
 
-                // ✅ FIX: Get resale config and send only if is_saleable is true
+                // FIX: Get resale config and send only if is_saleable is true
                 const resaleConfig = variantResaleConfig.value[variantId];
 
                 if (resaleConfig && resaleConfig.is_saleable) {
@@ -1154,7 +987,7 @@ const submitEdit = async () => {
 
             formData.append("price", 0); // Don't need base price for variants
         } else {
-            // ✅ SIMPLE MENU SECTION
+            //  SIMPLE MENU SECTION
             formData.append("price", form.value.price || 0);
 
             formData.append("nutrition[calories]", i_totalNutrition.value.calories);
@@ -1216,7 +1049,6 @@ const submitEdit = async () => {
         formData.append("_method", "PUT");
 
         try {
-            console.log('➡️ Updating menu item...');
             const response = await axios.post(`/menu/${form.value.id}`, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
@@ -1321,12 +1153,12 @@ function resetForm() {
     variants.value = [];
     addons.value = [];
 }
-// ⭐ Also add this function to be called when "Add Menu" button is clicked
 const openAddMenuModal = () => {
-    resetForm(); // This will set activeTab to 'simple'
+    resetForm(); 
     resetErrors();
 };
-// code fo download files like  PDF, Excel and CSV
+
+
 
 const onDownload = (type) => {
     if (!menuItems.value || menuItems.value.length === 0) {
@@ -1334,7 +1166,6 @@ const onDownload = (type) => {
         return;
     }
 
-    // Use filtered data if there's a search query, otherwise use all suppliers
     const dataToExport = q.value.trim() ? filtered.value : menuItems.value;
 
     if (dataToExport.length === 0) {
@@ -1362,9 +1193,7 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
-    console.log("menu Items", data);
     try {
-        // Define headers
         const headers = [
             "Item Name",
             "Category",
@@ -1374,10 +1203,7 @@ const downloadCSV = (data) => {
             "Allergies",
             "Tags",
         ];
-
-        // Build CSV rows
         const rows = data.map((s) => {
-            //  Format Nutrition (only calories, protein, fat, carbs)
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 const wantedKeys = ["calories", "protein", "fat", "carbs"];
@@ -1392,14 +1218,10 @@ const downloadCSV = (data) => {
             } else if (typeof s.nutrition === "string") {
                 nutritionStr = s.nutrition;
             }
-
-            //  Handle Category (object or string)
             const category =
                 typeof s.category === "object"
                     ? s.category?.name || ""
                     : s.category || "";
-
-            //  Handle Allergies (array of objects or strings)
             const allergies = Array.isArray(s.allergies)
                 ? s.allergies
                     .map((a) => {
@@ -1417,8 +1239,6 @@ const downloadCSV = (data) => {
                     })
                     .join(", ")
                 : s.allergies || "";
-
-            //  Handle Tags (array of objects or strings)
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
                 : s.tags || "";
@@ -1433,20 +1253,14 @@ const downloadCSV = (data) => {
                 `"${tags}"`,
             ];
         });
-
-        // Combine into CSV string
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","), 
+            ...rows.map((r) => r.join(",")), 
         ].join("\n");
-
-        // Create blob
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -1469,20 +1283,14 @@ const downloadCSV = (data) => {
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
-
-        // 🌟 Title
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("Menu Items Report", 65, 20);
-
-        // 🗓️ Metadata
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Menu Items: ${data.length}`, 14, 34);
-
-        // 📋 Table Columns
         const tableColumns = [
             "Item Name",
             "Category",
@@ -1492,8 +1300,6 @@ const downloadPDF = (data) => {
             "Allergies",
             "Tags",
         ];
-
-        // 🧠 Helper function for nutrition formatting
         const formatNutrition = (nutri) => {
             if (!nutri) return "";
             if (typeof nutri === "string") {
@@ -1514,8 +1320,6 @@ const downloadPDF = (data) => {
             }
             return String(nutri ?? "");
         };
-
-        // 📊 Build table rows
         const tableRows = data.map((s) => {
             const category =
                 typeof s.category === "object"
@@ -1558,8 +1362,6 @@ const downloadPDF = (data) => {
                 tags,
             ];
         });
-
-        // 📑 Render Table
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
@@ -1589,8 +1391,6 @@ const downloadPDF = (data) => {
                 );
             },
         });
-
-        // 💾 Save File
         const fileName = `menu_items_${new Date()
             .toISOString()
             .split("T")[0]}.pdf`;
@@ -1603,31 +1403,20 @@ const downloadPDF = (data) => {
         });
     }
 };
-
-
-// Helper function for safe JSON parsing
 const downloadAllergen = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); // Landscape orientation
-
-        // 🌟 Title
+        const doc = new jsPDF("l", "mm", "a4"); 
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
         doc.text("allergen", 14, 15);
         doc.setFontSize(16);
         doc.text("information", 14, 22);
-
-        // 🔷 Logo - 10XGLOBAL in blue (same row as "information", with space)
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 102, 204); // Blue color
-        doc.text("10XGLOBAL", 65, 22); // Positioned after "information" with spacing
-        doc.setTextColor(0, 0, 0); // Reset to black
-
-        // 🗓️ Metadata (top right) - Fixed alignment
+        doc.setTextColor(0, 102, 204);
+        doc.text("10XGLOBAL", 65, 22);
+        doc.setTextColor(0, 0, 0);
         const pageWidth = doc.internal.pageSize.width;
-
-        // Legend box - with background
         const legendX = pageWidth - 125;
         const legendY = 8;
 
@@ -1661,8 +1450,6 @@ const downloadAllergen = (data) => {
         doc.text("• Items are prepared in the same kitchen,", infoX, legendY + 7);
         doc.text("  therefore we cannot guarantee that products are", infoX, legendY + 10);
         doc.text("  free from allergen and cross-contamination", infoX, legendY + 13);
-
-        // Group data by category
         const groupedData = {};
         data.forEach(item => {
             const category = typeof item.category === "object"
@@ -1674,8 +1461,6 @@ const downloadAllergen = (data) => {
             }
             groupedData[category].push(item);
         });
-
-        // Get all unique allergens
         const allergenSet = new Set();
         data.forEach(item => {
             if (Array.isArray(item.allergies)) {
@@ -1694,31 +1479,21 @@ const downloadAllergen = (data) => {
         const categoryColWidth = 30;
         const itemNameColWidth = 45;
         const fixedColumnsWidth = categoryColWidth + itemNameColWidth;
-
-        // Calculate remaining width for allergen columns
         const allergenColumnsWidth = availableWidth - fixedColumnsWidth;
         const allergenColWidth = allergenColumnsWidth / allAllergens.length;
-
-        // Set minimum and maximum widths for allergen columns
-        const minAllergenColWidth = 6; // Minimum width to keep readable
-        const maxAllergenColWidth = 12; // Maximum width to prevent too wide columns
+        const minAllergenColWidth = 6; 
+        const maxAllergenColWidth = 12; 
         const finalAllergenColWidth = Math.max(minAllergenColWidth, Math.min(allergenColWidth, maxAllergenColWidth));
 
-        // Adjust font size based on column width
+      
         const allergenFontSize = finalAllergenColWidth < 8 ? 6 : 7;
         const headerFontSize = finalAllergenColWidth < 8 ? 5 : 6;
-
-        // 📋 Build table structure with CATEGORY COLUMN
         const tableData = [];
 
         Object.keys(groupedData).sort().forEach((category, categoryIndex) => {
             const items = groupedData[category];
-
-            // Add each item with category in first column
             items.forEach((item, itemIndex) => {
                 const row = [];
-
-                // First item shows category name, others get empty string
                 if (itemIndex === 0) {
                     row.push({
                         content: category.toLowerCase(),
@@ -1732,8 +1507,6 @@ const downloadAllergen = (data) => {
                         }
                     });
                 }
-
-                // Item name - Now with bold and larger font
                 row.push({
                     content: item.name || '',
                     styles: {
@@ -1741,8 +1514,6 @@ const downloadAllergen = (data) => {
                         fontSize: 9
                     }
                 });
-
-                // Allergen symbols - Use markers that will be replaced with custom drawings
                 allAllergens.forEach(allergen => {
                     let symbol = '';
                     if (Array.isArray(item.allergies)) {
@@ -1766,11 +1537,7 @@ const downloadAllergen = (data) => {
                 tableData.push(row);
             });
         });
-
-        // Create header row: Category | Item Name | Allergens
         const headerRow = ['', '', ...allAllergens];
-
-        // 📑 Render Table
         autoTable(doc, {
             head: [headerRow],
             body: tableData,
@@ -1793,13 +1560,13 @@ const downloadAllergen = (data) => {
                 1: {
                     halign: 'left',
                     cellWidth: itemNameColWidth,
-                    fontStyle: 'bold', // Made bold
-                    fontSize: 9 // Increased from default
+                    fontStyle: 'bold',
+                    fontSize: 9
                 },
-                // Dynamically set allergen column widths
+            
                 ...Object.fromEntries(
                     allAllergens.map((_, index) => [
-                        index + 2, // Column indices start from 2 (after category and item name)
+                        index + 2, 
                         { cellWidth: finalAllergenColWidth }
                     ])
                 )
@@ -1816,57 +1583,44 @@ const downloadAllergen = (data) => {
             },
             margin: { left: marginLeft, right: marginRight, top: 28 },
             didParseCell: function (data) {
-                // Rotate allergen headers (starting from column 2)
+               
                 if (data.section === 'head' && data.column.index > 1) {
                     data.cell.styles.minCellHeight = 45;
-                    // Clear text here to prevent default horizontal rendering
+                  
                     data.cell.text = [];
                 }
-
-                // Hide first two header cells (category and item name columns)
                 if (data.section === 'head' && (data.column.index === 0 || data.column.index === 1)) {
                     data.cell.text = [];
                 }
-
-                // Clear the text for TICK and STAR markers to prevent text rendering
                 if (data.section === 'body' && (data.cell.raw === 'TICK' || data.cell.raw === 'STAR')) {
                     data.cell.text = [];
                 }
             },
             didDrawCell: function (data) {
-                // Draw custom tick mark
+                
                 if (data.section === 'body' && data.cell.raw === 'TICK') {
                     const { x, y, width, height } = data.cell;
                     const centerX = x + width / 2;
                     const centerY = y + height / 2;
-
-                    // Smaller tick dimensions
                     const tickX = centerX - 1.5;
                     const tickY = centerY - 0.5;
 
-                    doc.setDrawColor(0, 0, 0);  // Black color
+                    doc.setDrawColor(0, 0, 0); 
                     doc.setLineWidth(0.4);
-
-                    // Draw checkmark (smaller size)
-                    doc.line(tickX, tickY, tickX + 0.8, tickY + 1.2);      // Short line down-right
-                    doc.line(tickX + 0.8, tickY + 1.2, tickX + 2.5, tickY - 1); // Longer line up-right
+                    doc.line(tickX, tickY, tickX + 0.8, tickY + 1.2);    
+                    doc.line(tickX + 0.8, tickY + 1.2, tickX + 2.5, tickY - 1);
                 }
-
-                // Draw larger asterisk
                 if (data.section === 'body' && data.cell.raw === 'STAR') {
                     const { x, y, width, height } = data.cell;
                     const centerX = x + width / 2;
                     const centerY = y + height / 2;
 
-                    doc.setFontSize(10); // Larger asterisk
+                    doc.setFontSize(10); 
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(0, 0, 0);
                     doc.text('*', centerX, centerY + 1, { align: 'center' });
                 }
-
-                // Draw rotated text for allergen headers ONLY ONCE
                 if (data.section === 'head' && data.column.index > 1) {
-                    // Get the original allergen name from headerRow
                     const allergenName = allAllergens[data.column.index - 2];
                     if (allergenName) {
                         const x = data.cell.x + data.cell.width / 2;
@@ -1894,8 +1648,6 @@ const downloadAllergen = (data) => {
                 );
             },
         });
-
-        // 💾 Save File
         const fileName = `allergen_information_${new Date()
             .toISOString()
             .split("T")[0]}.pdf`;
@@ -1908,22 +1660,11 @@ const downloadAllergen = (data) => {
         });
     }
 };
-
-function safeParse(value) {
-    try {
-        return typeof value === "string" ? JSON.parse(value) : value;
-    } catch (e) {
-        return value;
-    }
-}
-
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
-
-        // 🧠 Format data same as CSV
         const worksheetData = data.map((s) => {
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
@@ -1978,26 +1719,18 @@ const downloadExcel = (data) => {
                 Tags: tags,
             };
         });
-
-        // 📘 Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-
-        // 📏 Set column widths
         worksheet["!cols"] = [
-            { wch: 20 }, // Item Name
-            { wch: 20 }, // Category
-            { wch: 30 }, // Description
-            { wch: 10 }, // Price
-            { wch: 30 }, // Nutrition
-            { wch: 25 }, // Allergies
-            { wch: 25 }, // Tags
+            { wch: 20 }, 
+            { wch: 20 }, 
+            { wch: 30 }, 
+            { wch: 10 }, 
+            { wch: 30 }, 
+            { wch: 25 }, 
+            { wch: 25 }, 
         ];
-
-        // Add worksheet to workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Items");
-
-        // 🗂️ Metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Menu Items", Value: data.length },
@@ -2005,8 +1738,6 @@ const downloadExcel = (data) => {
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
-
-        // 💾 Save Excel File
         const fileName = `menu_items_${new Date()
             .toISOString()
             .split("T")[0]}.xlsx`;
@@ -2020,8 +1751,6 @@ const downloadExcel = (data) => {
         });
     }
 };
-
-// handle import function for menu items
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
@@ -2029,13 +1758,10 @@ const handleImport = (data) => {
     }
 
     const headers = data[0];
-    console.log("headers are ", headers);
 
     const rows = data.slice(1);
-    console.log("rows data", rows);
 
     const itemsToImport = rows.map((row) => {
-        // Parse nutrition
         let calories = 0, protein = 0, fat = 0, carbs = 0;
         if (row[4]) {
             const nutritionStr = row[4];
@@ -2068,8 +1794,6 @@ const handleImport = (data) => {
             resale_value: row[11] ? parseFloat(row[11]) : null,
             status: 1,
         };
-
-        // Check if this is a variant menu (row 12 contains variant data)
         if (row[12] && row[12].trim() !== '') {
             try {
                 item.variant_data = JSON.parse(row[12]);
@@ -2081,10 +1805,6 @@ const handleImport = (data) => {
 
         return item;
     });
-
-    console.log("Items to import:", itemsToImport);
-
-    // Check for duplicate item names
     const itemNames = itemsToImport.map(item => item.name.trim().toLowerCase());
     const duplicatesInCSV = itemNames.filter((name, index) => itemNames.indexOf(name) !== index);
 
@@ -2092,8 +1812,6 @@ const handleImport = (data) => {
         toast.error(`Duplicate item names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
         return;
     }
-
-    // Check for duplicates in existing menu
     const existingMenuItemNames = menuItems.value.map(item => item.name.trim().toLowerCase());
     const duplicatesInTable = itemsToImport.filter(importItem =>
         existingMenuItemNames.includes(importItem.name.trim().toLowerCase())
@@ -2124,16 +1842,12 @@ const handleImport = (data) => {
 // ============================================
 // COMPLETE VARIANT MANAGEMENT CODE - REPLACE YOUR EXISTING CODE
 // ============================================
-
-// 1. Add these refs at the top (after other refs)
 const variantForm = ref({
     name: '',
     price: null
 });
 const variantMetadata = ref({});
-const variantIdCounter = ref(1); // ✅ NEW: Counter for unique variant IDs
-
-// 2. REPLACE saveIngredients function
+const variantIdCounter = ref(1); 
 function saveIngredients() {
     resetErrors();
 
@@ -2151,21 +1865,13 @@ function saveIngredients() {
             toast.error("Please add at least one ingredient");
             return;
         }
-
-        // ✅ FIX: Generate unique ID for new variants, or use existing ID for edits
         let variantId;
         if (selectedVariantForIngredients.value !== null) {
-            // Editing existing variant
             variantId = selectedVariantForIngredients.value;
         } else {
-            // Creating new variant - use counter and increment
             variantId = variantIdCounter.value++;
         }
-
-        // Save ingredients
         variantIngredients.value[variantId] = [...i_cart.value];
-
-        // Store variant metadata
         if (!variantMetadata.value) {
             variantMetadata.value = {};
         }
@@ -2184,30 +1890,21 @@ function saveIngredients() {
         }
 
         toast.success(`Variant "${variantForm.value.name}" ingredients saved!`);
-
-        // Clear cart and form
         i_cart.value = [];
         variantForm.value = { name: '', price: null };
         selectedVariantForIngredients.value = null;
     } else {
-        // Save to regular form ingredients
         form.value.ingredients = [...i_cart.value];
     }
-
-    // Close ingredient modal
     const ingModal = bootstrap.Modal.getInstance(
         document.getElementById("addIngredientModal")
     );
     ingModal.hide();
-
-    // Reopen parent menu modal
     setTimeout(() => {
         const menuModal = new bootstrap.Modal(document.getElementById("addItemModal"));
         menuModal.show();
     }, 300);
 }
-
-// 3. REPLACE openIngredientModal function
 const openIngredientModal = (variantMode = false) => {
     isVariantMode.value = variantMode;
 
@@ -2220,11 +1917,8 @@ const openIngredientModal = (variantMode = false) => {
             };
             i_cart.value = [];
         }
-        // If editing, data is already loaded by editVariantIngredients
     } else {
-        // ✅ FIX: For simple menu mode, load from form.ingredients properly
         if (isEditMode.value && form.value.ingredients && form.value.ingredients.length > 0) {
-            // Load existing ingredients from form
             i_cart.value = form.value.ingredients.map((ing) => {
                 const quantity = parseFloat(ing.quantity || ing.qty || 0);
                 const cost = parseFloat(ing.cost || 0);
@@ -2250,70 +1944,46 @@ const openIngredientModal = (variantMode = false) => {
                 };
             });
         } else {
-            // New menu - start with empty cart
             i_cart.value = [];
         }
     }
-
-    // Close menu modal
     const menuModal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
     if (menuModal) menuModal.hide();
-
-    // Open ingredient modal
     setTimeout(() => {
         const ingModal = new bootstrap.Modal(document.getElementById("addIngredientModal"));
         ingModal.show();
     }, 300);
 };
-
-// 4. REPLACE editVariantIngredients function
 const editVariantIngredients = (variantId) => {
-    // Set the variant ID being edited
     selectedVariantForIngredients.value = variantId;
-
-    // Load existing ingredients
     if (variantIngredients.value[variantId]) {
         i_cart.value = [...variantIngredients.value[variantId]];
     } else {
         i_cart.value = [];
     }
-
-    // Load variant metadata
     if (variantMetadata.value[variantId]) {
         variantForm.value = {
             name: variantMetadata.value[variantId].name || '',
             price: variantMetadata.value[variantId].price || null
         };
     } else {
-        // Fallback for non-custom variants
         variantForm.value = {
             name: getVariantName(variantId),
             price: getVariantPrice(variantId)
         };
     }
-
-    // Set variant mode
     isVariantMode.value = true;
-
-    // Close menu modal
     const menuModal = bootstrap.Modal.getInstance(document.getElementById("addItemModal"));
     if (menuModal) menuModal.hide();
-
-    // Open ingredient modal with data loaded
     setTimeout(() => {
         const ingModal = new bootstrap.Modal(document.getElementById("addIngredientModal"));
         ingModal.show();
     }, 300);
 };
-
-// 5. REPLACE getVariantName function
 const getVariantName = (variantId) => {
-    // First check in variantMetadata
     if (variantMetadata.value[variantId]) {
         return variantMetadata.value[variantId].name;
     }
-
-    // Then check if it's in the variants array
     const variant = variants.value.find(v => v.id === variantId);
     if (variant) {
         return variant.name;
@@ -2321,31 +1991,21 @@ const getVariantName = (variantId) => {
 
     return 'Unknown Variant';
 };
-
-// 6. REPLACE getVariantPrice function
 const getVariantPrice = (variantId) => {
-    // First check in variantMetadata
     if (variantMetadata.value[variantId]) {
         return variantMetadata.value[variantId].price || 0;
     }
-
-    // Then check in form variant prices
     if (form.value.variant_prices && form.value.variant_prices[variantId]) {
         return form.value.variant_prices[variantId];
     }
 
     return 0;
 };
-
-// 7. REPLACE deleteVariantIngredients function
 const deleteVariantIngredients = (variantId) => {
     const variantName = getVariantName(variantId);
 
     if (confirm(`Are you sure you want to delete ingredients for "${variantName}"?`)) {
-        // Delete from variantIngredients
         delete variantIngredients.value[variantId];
-
-        // Delete from variantMetadata
         if (variantMetadata.value[variantId]) {
             delete variantMetadata.value[variantId];
         }
@@ -2953,29 +2613,22 @@ const format = (val) => {
                                                                 <tr>
                                                                     <th>Name</th>
                                                                     <th>Qty</th>
-                                                                    <!-- <th>Unit Price</th> -->
-                                                                    <!-- <th>Cost</th> -->
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 <tr v-for="(ing, idx) in i_cart" :key="idx">
                                                                     <td>{{ ing.name }}</td>
                                                                     <td>{{ ing.qty }}</td>
-                                                                    <!-- <td>{{ formatCurrencySymbol(ing.unitPrice) }}</td> -->
-                                                                    <!-- <td>{{ formatCurrencySymbol(ing.cost) }}</td> -->
                                                                 </tr>
                                                             </tbody>
                                                         </table>
                                                     </div>
-                                                    <!-- <div class="p-3 fw-semibold text-end">
-                                                        Total Cost: {{ formatCurrencySymbol(i_total) }}
-                                                    </div> -->
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <!-- END SIMPLE MENU TAB -->
+                               
 
                                 <!-- ======================================================== -->
                                 <!--                       VARIANT MENU TAB                                           -->
@@ -3228,8 +2881,6 @@ const format = (val) => {
                                                                         <tr>
                                                                             <th class="small">Name</th>
                                                                             <th class="small">Qty</th>
-                                                                            <!-- <th class="small">Price</th> -->
-                                                                            <!-- <th class="small">Cost</th> -->
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -3237,26 +2888,11 @@ const format = (val) => {
                                                                             :key="idx">
                                                                             <td class="small">{{ ing.name }}</td>
                                                                             <td class="small">{{ ing.qty }}</td>
-                                                                            <!-- <td class="small">{{
-                                                                                formatCurrencySymbol(ing.unitPrice) }}
-                                                                            </td>
-                                                                            <td class="small">{{
-                                                                                formatCurrencySymbol(ing.cost) }}</td> -->
                                                                         </tr>
                                                                     </tbody>
                                                                 </table>
                                                             </div>
                                                         </div>
-                                                        <!-- <div class="card-footer bg-light custom-card-cost">
-                                                            <div class="fw-semibold text-end">
-                                                                Total Cost: {{
-                                                                    formatCurrencySymbol(
-                                                                        ingredients.reduce((sum, ing) => sum + Number(ing.cost
-                                                                            || 0), 0)
-                                                                    )
-                                                                }}
-                                                            </div>
-                                                        </div> -->
                                                     </div>
                                                 </div>
                                             </div>
@@ -3555,14 +3191,6 @@ const format = (val) => {
                                                         {{ formErrors[it.id].qty }}
                                                     </small>
                                                 </div>
-                                                <!-- <div class="col-4">
-                                                    <label class="small text-muted">Unit Price</label>
-                                                    <input v-model.number="it.unitPrice" type="number" min="0"
-                                                        class="form-control form-control-sm" />
-                                                    <small v-if="formErrors[it.id]?.unitPrice" class="text-danger">
-                                                        {{ formErrors[it.id].unitPrice }}
-                                                    </small>
-                                                </div> -->
                                             </div>
                                         </div>
                                     </div>
@@ -3587,8 +3215,6 @@ const format = (val) => {
                                                     <tr>
                                                         <th>Name</th>
                                                         <th>Qty</th>
-                                                        <!-- <th>Unit Price</th> -->
-                                                        <!-- <th>Cost</th> -->
                                                         <th class="text-end">Action</th>
                                                     </tr>
                                                 </thead>
@@ -3596,8 +3222,6 @@ const format = (val) => {
                                                     <tr v-for="(ing, idx) in i_cart" :key="idx">
                                                         <td>{{ ing.name }}</td>
                                                         <td>{{ ing.qty }}</td>
-                                                        <!-- <td>{{ ing.unitPrice }}</td> -->
-                                                        <!-- <td>{{ ing.cost }}</td> -->
                                                         <td class="text-end">
                                                             <button class="btn btn-sm btn-danger"
                                                                 @click="removeIngredient(idx)">
@@ -3613,9 +3237,6 @@ const format = (val) => {
                                                 </tbody>
                                             </table>
                                         </div>
-                                        <!-- <div class="p-3 fw-semibold text-end">
-                                            Total Cost: {{ formatCurrencySymbol(i_total) }}
-                                        </div> -->
                                     </div>
 
                                     <div class="mt-3 text-center">

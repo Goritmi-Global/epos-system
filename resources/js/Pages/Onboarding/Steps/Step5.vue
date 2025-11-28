@@ -13,10 +13,6 @@ const form = reactive({
   table_details: props.model.table_details ?? [],
 });
 
-console.log("props.model.table_management_enabled", props.model.table_management_enabled);
-console.log("table_management_enabled", form.table_management_enabled);
-
-
 const submitting = ref(false);
 
 const saveTableDetails = () => {
@@ -203,9 +199,6 @@ const hasTableDetailsError = computed(() => {
             Please Enter Tables Details. Click on Enter Names.
           </small>
         </div>
-      <!-- <small v-if="formErrors?.number_of_tables" class="text-danger">
-          {{ formErrors.number_of_tables[0] }}
-        </small> -->
       <small v-if="formErrors?.tables" class="text-danger">
         {{ formErrors.tables[0] }}
       </small>
@@ -260,9 +253,6 @@ const hasTableDetailsError = computed(() => {
         </div>
       </div>
     </div>
-
-
-
     <!-- Online ordering -->
     <div class="mb-3">
       <label class="form-label d-block mb-2">Enable Online Ordering Integration</label>

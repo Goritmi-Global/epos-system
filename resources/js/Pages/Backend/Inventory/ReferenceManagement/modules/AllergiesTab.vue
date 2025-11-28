@@ -358,7 +358,6 @@ watch(customAllergy, (newVal) => {
 });
 
 const handleImport = (data) => {
-    console.log("Imported Data:", data);
 
     if (!Array.isArray(data) || data.length === 0) {
         toast.error("File is empty.");

@@ -18,6 +18,9 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useFormatters } from '@/composables/useFormatters'
 import { nextTick } from "vue";
+import axios from "axios";
+import ImportFile from "@/Components/importFile.vue";
+import { Head } from "@inertiajs/vue3";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -40,12 +43,8 @@ onMounted(async () => {
     q.value = "";
     searchKey.value = Date.now();
     await nextTick();
-
-    // Delay to prevent autofill
     setTimeout(() => {
         isReady.value = true;
-
-        // Force clear any autofill that happened
         const input = document.getElementById(inputId);
         if (input) {
             input.value = '';
@@ -66,29 +65,29 @@ const CategoriesDetails = computed(() => [
         label: "Categories",
         value: parentCategories.value.length,
         icon: Shapes,
-        iconBg: "bg-light-primary", // lighter background
-        iconColor: "text-primary", // main blue
+        iconBg: "bg-light-primary",
+        iconColor: "text-primary",
     },
     {
         label: "Total Active",
         value: parentCategories.value.filter((c) => c.active).length,
-        icon: Package, // box/package icon
+        icon: Package,
         iconBg: "bg-light-success",
-        iconColor: "text-success", // green
+        iconColor: "text-success",
     },
     {
         label: "Low Stock",
         value: parentCategories.value.filter((c) => !c.active).length,
-        icon: AlertTriangle, // warning triangle
+        icon: AlertTriangle,
         iconBg: "bg-light-warning",
-        iconColor: "text-warning", // yellow
+        iconColor: "text-warning",
     },
     {
         label: "Out of Stock",
         value: parentCategories.value.filter((c) => !c.parent_id).length,
-        icon: XCircle, // cross circle
+        icon: XCircle,
         iconBg: "bg-light-danger",
-        iconColor: "text-danger", // red
+        iconColor: "text-danger",
     },
 ]);
 
@@ -100,13 +99,8 @@ const isReady = ref(false);
 
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
-    // First, get only parent categories
     const parents = categories.value.filter((c) => c.parent_id === null);
-
-    // If no search term, return all parent categories
     if (!t) return parents;
-
-    // Otherwise, filter parents by search term
     return parents.filter((c) => c.name.toLowerCase().includes(t));
 });
 
@@ -121,19 +115,7 @@ onUpdated(() => window.feather?.replace());
 const isSub = ref(false);
 const manualName = ref("");
 const manualActive = ref(true);
-const selectedParentId = ref(null); // Changed to null instead of empty string
-// const manualIcon = ref({ label: "Produce (Veg/Fruit)", value: "🥬" });
-
-// const iconOptions = [
-//     { label: "Produce (Veg/Fruit)", value: "🥬" },
-//     { label: "Dairy", value: "🧀" },
-//     { label: "Grains & Rice", value: "🌾" },
-//     { label: "Spices & Herbs", value: "🧂" },
-//     { label: "Oils & Fats", value: "🫒" },
-//     { label: "Sauces & Condiments", value: "🍶" },
-//     { label: "Nuts & Seeds", value: "🥜" },
-//     { label: "Other", value: "🧰" },
-// ];
+const selectedParentId = ref(null);
 
 const manualIcon = ref({
     label: "Produce (Veg/Fruit)",
@@ -146,7 +128,7 @@ const iconOptions = [
         label: "Produce (Veg/Fruit)",
         value: "/assets/img/vegetable.png",
     },
-     {
+    {
         label: "Meat",
         value: "/assets/img/meat.png",
     },
@@ -257,11 +239,8 @@ const commonChips = ref([
 // Images for Categories
 // =================================================
 
-// Helper function to convert image URL to File object
-// Helper function to convert image URL to File object
 const urlToFile = async (url, filename) => {
     try {
-        console.log('🔄 Fetching image from:', url);
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -270,11 +249,7 @@ const urlToFile = async (url, filename) => {
         }
 
         const blob = await response.blob();
-        console.log('✅ Blob created:', blob.size, 'bytes, type:', blob.type);
-
         const file = new File([blob], filename, { type: blob.type });
-        console.log('✅ File created:', file.name, file.size, 'bytes');
-
         return file;
     } catch (error) {
         console.error('❌ Error converting URL to File:', error);
@@ -282,20 +257,6 @@ const urlToFile = async (url, filename) => {
     }
 };
 
-
-// const resetModal = () => {
-//     isSub.value = false;
-//     manualCategories.value = [];
-//     manualActive.value = true;
-//     selectedParentId.value = null;
-//     manualName.value = "";
-//     manualIcon.value = iconOptions[0];
-//     commonChips.value = commonChips.value.map((c) => ({
-//         ...c,
-//         selected: false,
-//     }));
-//     editingCategory.value = null;
-// };
 
 const resetModal = () => {
     isSub.value = false;
@@ -318,178 +279,6 @@ const resetModal = () => {
 /* ---------------- Submit (console + Promise then/catch) ---------------- */
 const submitting = ref(false);
 const catFormErrors = ref({});
-import axios from "axios";
-import ImportFile from "@/Components/importFile.vue";
-import { Head } from "@inertiajs/vue3";
-
-// const submitCategory = async () => {
-//     if (isSub.value && !selectedParentId.value) {
-//         catFormErrors.value.parent_id = ["Please select a parent category"];
-//         toast.error(catFormErrors.value.parent_id[0]);
-//         submitting.value = false;
-//         return;
-//     }
-
-
-//     resetErrors();
-//     submitting.value = true;
-
-//     try {
-//         if (editingCategory.value) {
-//             // UPDATE MODE
-//             const updatePayload = {
-//                 name: isSub.value
-//                     ? manualName.value?.trim()
-//                     : manualCategories.value[0]?.label?.trim(),
-//                 icon: manualIcon.value.value,
-//                 active: manualActive.value,
-//                 parent_id: selectedParentId.value || null,
-//             };
-
-//             //  Handle subcategories only if it's a MAIN CATEGORY
-//             if (!updatePayload.parent_id) {
-//                 if (manualSubcategoriesInput.value) {
-//                     updatePayload.subcategories = manualSubcategoriesInput.value
-//                         .split(",")
-//                         .map((s) => s.trim())
-//                         .filter((s) => s.length > 0)
-//                         .map((name) => {
-//                             // try to match existing subcategories by name
-//                             const existingSub =
-//                                 editingCategory.value.subcategories?.find(
-//                                     (sub) =>
-//                                         sub.name.toLowerCase() ===
-//                                         name.toLowerCase()
-//                                 );
-//                             return {
-//                                 id: existingSub ? existingSub.id : null,
-//                                 name,
-//                                 active: existingSub ? existingSub.active : true,
-//                             };
-//                         });
-//                 } else {
-//                     updatePayload.subcategories = [];
-//                 }
-//             }
-
-//             if (!updatePayload.name) {
-//                 catFormErrors.value.name = ["Category name cannot be empty"];
-//                 toast.error("Category name cannot be empty");
-//                 submitting.value = false;
-//                 return;
-//             }
-
-//             console.log("Update payload:", updatePayload);
-
-//             await axios.put(
-//                 `/categories/${editingCategory.value.id}`,
-//                 updatePayload
-//             );
-//             toast.success("Category updated successfully");
-
-//             // 👇 Close modal after successful update
-//             const m = bootstrap.Modal.getInstance(
-//                 document.getElementById("addCatModal")
-//             );
-//             m?.hide();
-
-//             // 👇 Now reset state AFTER closing
-//             resetModal();
-//             editingCategory.value = null;
-//             await fetchCategories();
-//         } else {
-//             // CREATE MODE - Use the existing structure
-//             let categoriesPayload = [];
-//             if (isSub.value) {
-//                 if (isSub.value && manualSubcategories.value.length === 0) {
-//                     catFormErrors.value.subcategories = [
-//                         "Please add at least one subcategory",
-//                     ];
-//                     toast.error("Please add at least one subcategory");
-//                     submitting.value = false;
-//                     return;
-//                 }
-
-//                 categoriesPayload = manualSubcategories.value.map((cat) => ({
-//                     id: undefined,
-//                     name: typeof cat === "string" ? cat : cat.label,
-//                     icon: manualIcon.value.value,
-//                     active: manualActive.value,
-//                     parent_id: selectedParentId.value,
-//                 }));
-//             } else {
-//                 if (!isSub.value && manualCategories.value.length === 0) {
-//                     catFormErrors.value.name = [
-//                         "Please add at least one category",
-//                     ];
-
-//                     toast.error("Please add at least one category");
-//                     submitting.value = false;
-//                     return;
-//                 }
-
-//                 categoriesPayload = manualCategories.value.map((cat) => ({
-//                     id: undefined,
-//                     name: typeof cat === "string" ? cat : cat.label,
-//                     icon: manualIcon.value.value,
-//                     active: manualActive.value,
-//                     parent_id: null,
-//                 }));
-//             }
-
-//             const createPayload = {
-//                 isSubCategory: isSub.value,
-//                 categories: categoriesPayload,
-//             };
-
-//             console.log("Creating categories with payload:", createPayload);
-//             await axios.post("/categories", createPayload);
-//             submitting.value = false;
-
-//             const m = bootstrap.Modal.getInstance(
-//                 document.getElementById("addCatModal")
-//             );
-//             m?.hide();
-//             toast.success("Category created successfully");
-//         }
-
-//         resetModal();
-//         editingCategory.value = null;
-//         await fetchCategories();
-//     } catch (err) {
-//         console.error("❌ Error:", err.response?.data || err.message);
-
-//         if (err.response?.status === 422 && err.response?.data?.errors) {
-//             const errors = err.response.data.errors;
-//             let errorMessages = [];
-//             catFormErrors.value = {};
-
-//             Object.keys(errors).forEach((key) => {
-//                 let normalizedKey = key.replace(/^categories\.\d+\./, "");
-//                 catFormErrors.value[normalizedKey] = errors[key];
-
-//                 if (Array.isArray(errors[key])) {
-//                     errors[key].forEach((message) => {
-//                         errorMessages.push(message);
-//                     });
-//                 }
-//             });
-
-//             if (errorMessages.length > 0) {
-//                 toast.error(errorMessages.join("\n"));
-//             } else {
-//                 toast.error("Validation failed. Please check your input.");
-//             }
-//         } else {
-//             const errorMessage =
-//                 err.response?.data?.message || "Failed to save category";
-//             toast.error(errorMessage + " ❌");
-//         }
-//     } finally {
-//         submitting.value = false;
-//     }
-// };
-
 
 
 const submitCategory = async () => {
@@ -667,8 +456,6 @@ const resetErrors = () => {
 };
 
 const manualSubcategoriesInput = ref("");
-
-// Also update your editRow function to better handle subcategory IDs
 const editRow = (row) => {
     resetErrors();
     editingCategory.value = row;
@@ -759,54 +546,25 @@ const deleteCategory = async (row) => {
 
 // =================== View category ====================
 const viewingCategory = ref(null);
-
-// const viewCategory = async (row) => {
-//     viewingCategory.value = null;
-
-//     try {
-//         const { data } = await axios.get(`/categories/${row.id}`);
-//         if (data.success) {
-//             viewingCategory.value = data.data;
-
-//             // Show modal
-//             const modalEl = document.getElementById("viewCatModal");
-//             const bsModal = new bootstrap.Modal(modalEl);
-//             bsModal.show();
-//         }
-//     } catch (err) {
-//         console.error("Failed to fetch category:", err);
-//     }
-// };
-
-const options = ref([]); // all subcategory options
+const options = ref([]);
 const currentFilterValue = ref("");
-
-// Add custom subcategory
 const addCustomSubcategory = () => {
     const name = currentFilterValue.value?.trim();
     if (!name) return;
-
-    // Add to options if it doesn't exist
     if (
         !options.value.some((o) => o.value.toLowerCase() === name.toLowerCase())
     ) {
         options.value.push({ label: name, value: name });
     }
-
-    // Add to selected if not already
     if (!manualSubcategories.value.includes(name)) {
         manualSubcategories.value.push(name);
     }
 
     currentFilterValue.value = "";
 };
-
-// Select all
 const selectAllSubcategories = () => {
     manualSubcategories.value = options.value.map((o) => o.value);
 };
-
-// Clear all
 const removeAllSubcategories = () => {
     manualSubcategories.value = [];
 };
@@ -905,8 +663,6 @@ const onDownload = (type) => {
         toast.error("No Units data to download");
         return;
     }
-
-    // Use filtered data if there's a search query, otherwise use all suppliers
     const dataToExport = q.value.trim()
         ? filtered.value
         : parentCategories.value;
@@ -933,13 +689,12 @@ const onDownload = (type) => {
 };
 
 const downloadCSV = (data) => {
-    console.log("Data are", data);
     try {
         // Define headers
         const headers = ["category", "subcategory", "active"];
 
         const rows = data.map((category) => {
-        
+
             const subcategoryNames = category.subcategories && category.subcategories.length > 0
                 ? category.subcategories.map(sub => sub.name).join(", ")
                 : "";
@@ -951,7 +706,7 @@ const downloadCSV = (data) => {
             ];
         });
 
-      
+
         const csvContent = [
             headers.join(","), // header row
             ...rows.map((r) => r.join(",")), // data rows
@@ -1077,20 +832,18 @@ const downloadExcel = (data) => {
             };
         });
 
-        // 📘 Create workbook & worksheet
+
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // 📏 Adjust column widths for readability
         worksheet["!cols"] = [
-            { wch: 25 }, // Category
-            { wch: 40 }, // Subcategory
-            { wch: 10 }, // Active
+            { wch: 25 },
+            { wch: 40 },
+            { wch: 10 },
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Categories");
 
-        // 🗂️ Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -1098,8 +851,6 @@ const downloadExcel = (data) => {
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
-
-        // 💾 Save the Excel file
         const fileName = `Categories_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
@@ -1115,10 +866,10 @@ const downloadExcel = (data) => {
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
-        return; // Stop execution
+        return;
     }
 
-    const headers = data[0]; // ["category","subcategory","active"]
+    const headers = data[0];
     const rows = data.slice(1);
 
     const categoriesToImport = rows.map((row) => {
@@ -1128,16 +879,14 @@ const handleImport = (data) => {
             active: row[2] == "0" ? 0 : 1,
         };
     });
-
-    // Check for duplicate category names within the CSV
     const categoryNames = categoriesToImport
-        .filter(cat => cat.category) // Only check parent categories
+        .filter(cat => cat.category)
         .map(cat => cat.category.trim().toLowerCase());
     const duplicatesInCSV = categoryNames.filter((name, index) => categoryNames.indexOf(name) !== index);
 
     if (duplicatesInCSV.length > 0) {
         toast.error(`Duplicate category names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
-        return; // Stop execution
+        return;
     }
 
     // Check for duplicate category names in the existing table
@@ -1149,7 +898,7 @@ const handleImport = (data) => {
     if (duplicatesInTable.length > 0) {
         const duplicateNamesList = duplicatesInTable.map(cat => cat.category).join(", ");
         toast.error(`Categories already exist in the table: ${duplicateNamesList}`);
-        return; // Stop execution
+        return;
     }
 
     axios
@@ -1167,7 +916,8 @@ const handleImport = (data) => {
 
 <template>
     <Master>
-          <Head title="Inventory Category" />
+
+        <Head title="Inventory Category" />
         <div class="page-wrapper">
             <h4 class="mb-3">Inventory Categories</h4>
 
@@ -1225,11 +975,12 @@ const handleImport = (data) => {
                                     if (editingCategory) editingCategory.value = null;
                                     resetModal?.();
                                 }
-                            " class="d-flex align-items-center gap-1 px-4 py-2 btn-sm rounded-pill btn btn-primary text-white">
+                            "
+                                class="d-flex align-items-center gap-1 px-4 py-2 btn-sm rounded-pill btn btn-primary text-white">
                                 <Plus class="w-4 h-4" /> Add Category
                             </button>
 
-                            <!-- <ImportFile label="Import" @on-import="handleImport" /> -->
+
                             <ImportFile label="Import" :sampleHeaders="['category', 'subcategory', 'active']"
                                 :sampleData="[
                                     ['Dairy', 'TestSubCat', 1],
@@ -1391,7 +1142,7 @@ const handleImport = (data) => {
                                 <strong>Icon:</strong>
                                 <span class="fs-4">{{
                                     viewingCategory.icon
-                                }}</span>
+                                    }}</span>
                             </p>
                             <p>
                                 <strong>Status:</strong>
@@ -1496,39 +1247,7 @@ const handleImport = (data) => {
                                             {{ catFormErrors.parent_id[0] }}
                                         </small>
                                     </div>
-                                    <!-- <small v-if="catFormErrors?.parent_id" class="text-danger text-right">
-                                            {{ catFormErrors.parent_id[0] }}
-                                        </small> -->
                                 </template>
-
-                                <!-- Manual Icon (always show) -->
-                                <!-- <div class="col-lg-6">
-                                    <label class="form-label d-block mb-2">Manual Icon</label>
-                                    <div class="dropdown w-100">
-                                        <button
-                                            class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center rounded-3"
-                                            data-bs-toggle="dropdown">
-                                            <span>
-                                                <span class="me-2">{{
-                                                    manualIcon.value
-                                                    }}</span>
-                                                {{ manualIcon.label }}
-                                            </span>
-                                            <i class="bi bi-caret-down-fill"></i>
-                                        </button>
-                                        <ul class="dropdown-menu w-100 shadow rounded-3">
-                                            <li v-for="opt in iconOptions" :key="opt.label">
-                                                <a class="dropdown-item" href="javascript:void(0)"
-                                                    @click="manualIcon = opt">
-                                                    <span class="me-2">{{
-                                                        opt.value
-                                                        }}</span>
-                                                    {{ opt.label }}
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div> -->
 
                                 <div class="col-lg-6">
                                     <label class="form-label d-block mb-2">Manual Icon</label>
@@ -1561,14 +1280,11 @@ const handleImport = (data) => {
                                 <!-- Category Name -->
                                 <div class="col-12" v-if="!isSub || editingCategory">
                                     <label class="form-label">Category Name</label>
-
-                                    <!-- Single input when editing -->
                                     <input v-if="editingCategory" type="text" v-model="manualCategories[0].label"
                                         class="form-control" :class="{
                                             'is-invalid': catFormErrors.name,
                                         }" placeholder="Enter category name" />
 
-                                    <!-- MultiSelect when creating -->
                                     <MultiSelect v-else v-model="manualCategories" :options="commonChips"
                                         optionLabel="label" optionValue="value" :filter="true" display="chip" :class="{
                                             'is-invalid': catFormErrors.name,
@@ -1714,7 +1430,7 @@ const handleImport = (data) => {
                                     v-model="editingSubCategory.name" :disabled="submittingSub" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                }}</small>
+                                    }}</small>
                             </div>
                             <button type="button"
                                 class="px-4 py-2 rounded-pill btn btn-primary text-white text-center d-flex align-items-center justify-content-center gap-2"
@@ -1763,7 +1479,6 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-/* Search pill */
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
@@ -1787,7 +1502,6 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-/* Buttons */
 .btn-primary {
     background-color: var(--brand);
     border-color: var(--brand);
@@ -1797,7 +1511,6 @@ const handleImport = (data) => {
     filter: brightness(1.05);
 }
 
-/* Table */
 .table thead th {
     font-weight: 600;
 }
@@ -1809,7 +1522,6 @@ const handleImport = (data) => {
     color: #000 !important;
 }
 
-/* Chips */
 .chip {
     padding: 8px 14px;
     font-weight: 600;
@@ -1819,20 +1531,20 @@ const handleImport = (data) => {
     position: absolute !important;
     z-index: 1050 !important;
 }
-.dark .dropdown-menu{
+
+.dark .dropdown-menu {
     background-color: #181818 !important;
     border: 1px solid #555 !important;
 }
-.dark .dropdown-menu li:hover{
+
+.dark .dropdown-menu li:hover {
     background-color: #555 !important;
 }
 
-/* Ensure the table container doesn't clip the dropdown */
 .table-container {
     overflow: visible !important;
 }
 
-/* Whole dropdown overlay */
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
     color: #000 !important;
@@ -1843,25 +1555,21 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
-/* Header area (filter + select all) */
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
 
-/* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
 
-/* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
 
-/* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -1874,7 +1582,6 @@ const handleImport = (data) => {
     color: #000 !important;
 }
 
-/* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
@@ -1882,43 +1589,36 @@ const handleImport = (data) => {
 
 :deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
     background: #007bff !important;
-    /* blue when checked */
     border-color: #007bff !important;
 }
 
-/* Search filter input */
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
 
-/* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
 
-/* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
-    /* light gray, like Bootstrap badge */
     color: #000 !important;
     border-radius: 12px !important;
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
 
-/* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
 
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
-    /* red on hover */
+
 }
 
-/* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
@@ -1942,18 +1642,15 @@ const handleImport = (data) => {
     border-bottom: 1px solid #555 !important;
 }
 
-/* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
 
-/* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
 
-/* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -1968,25 +1665,21 @@ const handleImport = (data) => {
     border-color: #555 !important;
 }
 
-/* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
 
-/* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
 
-/* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
 
-/* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -1995,14 +1688,13 @@ const handleImport = (data) => {
     padding: 0.25rem 0.5rem !important;
 }
 
-/* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
 
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
-    /* lighter red */
+
 }
 
 /* ==================== Dark Mode Select Styling ====================== */
@@ -2012,19 +1704,16 @@ const handleImport = (data) => {
     border-color: #555 !important;
 }
 
-/* Options container */
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
 
-/* Each option */
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
 
-/* Hovered option */
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
@@ -2072,7 +1761,7 @@ const handleImport = (data) => {
     }
 
     .kpi-cards {
-       border-bottom: 1px !important;
+        border-bottom: 1px !important;
     }
 
     table.table th,
@@ -2117,6 +1806,4 @@ const handleImport = (data) => {
         font-size: 15px;
     }
 }
-
-
 </style>

@@ -219,8 +219,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'apply-promo', 'clear-promo']);
-
-// ✅ Changed to array for multiple selection
 const selectedPromos = ref([]);
 const searchQuery = ref('');
 const filters = ref({
@@ -230,7 +228,6 @@ const filters = ref({
   applicability: ''
 });
 
-// ✅ Toggle promo selection
 const togglePromo = (promo) => {
   const index = selectedPromos.value.findIndex(p => p.id === promo.id);
   
@@ -240,21 +237,15 @@ const togglePromo = (promo) => {
     selectedPromos.value.push(promo);
   }
 };
-
-// ✅ Check if promo is selected
 const isPromoSelected = (promo) => {
   return selectedPromos.value.some(p => p.id === promo.id);
 };
-
-// ✅ Apply all selected promos
 const applyPromos = () => {
   const eligiblePromos = selectedPromos.value.filter(promo => isPromoEligible(promo));
   
   if (eligiblePromos.length === 0) {
     return;
   }
-
-  // Calculate discount for each promo and attach metadata
   const promosWithDiscounts = eligiblePromos.map(promo => {
     const discountAmount = parseFloat(calculateDiscount(promo));
     const matchingItems = getMatchingCartItems(promo);
@@ -269,8 +260,6 @@ const applyPromos = () => {
 
   emit('apply-promo', promosWithDiscounts);
 };
-
-// ✅ Clear all selections
 const clearPromos = () => {
   selectedPromos.value = [];
   emit('clear-promo');
@@ -293,15 +282,11 @@ const hasActiveFilters = computed(() => {
          filters.value.minDiscount !== null || 
          filters.value.applicability;
 });
-
-// ✅ Calculate total discount from all selected promos
 const totalDiscount = computed(() => {
   return selectedPromos.value.reduce((sum, promo) => {
     return sum + parseFloat(calculateDiscount(promo));
   }, 0);
 });
-
-// ✅ Get count of unique items affected by selected promos
 const affectedItemsCount = computed(() => {
   const uniqueItemIds = new Set();
   

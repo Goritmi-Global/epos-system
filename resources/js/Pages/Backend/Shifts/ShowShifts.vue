@@ -1,5 +1,4 @@
 <template>
-    <!-- Show Shift Management Modal -->
     <div v-if="showShiftModal"
         class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div
@@ -14,7 +13,6 @@
 
             <!-- Body - Scrollable -->
             <div class="px-6 py-4 overflow-y-auto check-list-body flex-1">
-                <!-- ✅ Checklists Section (Moved to Top) -->
                 <div class="mb-6">
                     <h3 class="text-sm font-semibold text-white mb-3">
                         Daily Safety Checklist
@@ -23,11 +21,8 @@
                         Complete all required checks before opening. You can add your own
                         checks too.
                     </p>
-
-                    <!-- Grid Layout: Two per row -->
                     <div
                         class="space-y-3 bg-gray-50 p-4 check-list-item rounded-lg max-h-64 overflow-y-auto grid grid-cols-2 gap-4">
-                        <!-- Default Checklist Items -->
                         <div v-for="(item, index) in checklistItems" :key="'item-' + index"
                             class="flex items-start gap-2">
                             <Checkbox v-model="selectedChecklists[item.id]" :inputId="'check-' + index" binary
@@ -121,13 +116,10 @@ const checklistItems = ref([]);
 const selectedChecklists = ref({});
 const customChecklistName = ref('');
 
-// Fetch checklist items on component mount
 onMounted(async () => {
     try {
         const response = await axios.get('/shift/checklist-items', {params: { type: 'start' }});
         checklistItems.value = response.data.data;
-
-        // Initialize selected checklists object
         checklistItems.value.forEach(item => {
             selectedChecklists.value[item.id] = false;
         });
@@ -136,34 +128,22 @@ onMounted(async () => {
         toast.error('Failed to load checklist items');
     }
 });
-
-// Form validation
 const isFormValid = computed(() => {
     return openingCash.value !== '' && Object.values(selectedChecklists.value).some(val => val === true);
 });
-
-// Add custom checklist
 const addCustomChecklist = async () => {
     if (customChecklistName.value.trim()) {
         try {
-            // ✅ Save to database first
             const response = await axios.post('/shift/checklist-items/custom', {
                 name: customChecklistName.value,
-                type: 'start', // for opening shift
+                type: 'start', 
             });
 
             if (response.data.success) {
                 const newItem = response.data.data;
-                
-                // Add to local list
                 checklistItems.value.push(newItem);
-                
-                // Auto-select it
                 selectedChecklists.value[newItem.id] = true;
-                
-                // Clear input
                 customChecklistName.value = '';
-                
                 toast.success('Custom checklist added successfully');
             }
         } catch (error) {
@@ -175,8 +155,6 @@ const addCustomChecklist = async () => {
 const startShift = async () => {
     try {
         loadingStart.value = true;
-
-        // Collect selected checklist IDs
         const selectedChecklistIds = Object.keys(selectedChecklists.value)
             .filter(id => selectedChecklists.value[id] === true);
 
@@ -198,7 +176,6 @@ const startShift = async () => {
     }
 };
 
-// Retry check for other users
 const retryCheck = async () => {
     try {
         loadingRetry.value = true;
@@ -237,11 +214,8 @@ const retryCheck = async () => {
 .check-list-item input[type="checkbox"] {
     accent-color: #f5f5f5 !important;
     background-color: #3d3d3d !important;
-    /* White background for checkbox */
     border: 1px solid #ccc !important;
 }
-
-
 .fixed {
     background-color: #181818 !important;
 }

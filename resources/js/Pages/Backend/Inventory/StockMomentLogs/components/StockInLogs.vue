@@ -372,10 +372,7 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </div>
-                                            <!-- <div class="col-md-6">
-                                                <small class="text-muted d-block">Type</small>
-                                                <span class="badge rounded-pill bg-success">{{ selectedLog.type ?? "—" }}</span>
-                                            </div> -->
+                                        
                                         </div>
 
                                         <hr class="my-4" />
