@@ -132,33 +132,45 @@ class CategoryService
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllCategories()
-    {
-        return InventoryCategory::with([
-            'subcategories' => function ($query) {
-                $query->withCount('primaryInventoryItems');
-            },
-        ])
-            ->withCount('primaryInventoryItems')
-            ->whereNull('parent_id')
-            ->get()
-            ->map(function ($category) {
-                // Add total count for parent
-                $category->total_inventory_items = $category->primary_inventory_items_count;
+   public function getAllCategories(array $filters = [])
+{
+    $query = InventoryCategory::with([
+        'subcategories' => function ($query) {
+            $query->withCount('primaryInventoryItems');
+        },
+    ])
+        ->withCount('primaryInventoryItems')
+        ->whereNull('parent_id');
 
-                // Add image URL
-                $category->image_url = UploadHelper::url($category->upload_id);
-
-                // Add image URL for subcategories too
-                if ($category->subcategories) {
-                    $category->subcategories->each(function ($sub) {
-                        $sub->image_url = UploadHelper::url($sub->upload_id);
-                    });
-                }
-
-                return $category;
-            });
+    // Apply search filter if provided
+    if (!empty($filters['q'])) {
+        $s = $filters['q'];
+        $query->where('name', 'like', "%{$s}%");
     }
+
+    // Get paginated results
+    $paginatedResults = $query->latest()->paginate($filters['per_page'] ?? 15);
+
+    // Transform the data
+    $paginatedResults->getCollection()->transform(function ($category) {
+        // Add total count for parent
+        $category->total_inventory_items = $category->primary_inventory_items_count;
+
+        // Add image URL
+        $category->image_url = UploadHelper::url($category->upload_id);
+
+        // Add image URL for subcategories too
+        if ($category->subcategories) {
+            $category->subcategories->each(function ($sub) {
+                $sub->image_url = UploadHelper::url($sub->upload_id);
+            });
+        }
+
+        return $category;
+    });
+
+    return $paginatedResults;
+}
 
 
 
@@ -367,13 +379,14 @@ class CategoryService
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function searchCategories(string $query)
-    {
-        return InventoryCategory::with(['subcategories', 'parent'])
-            ->where('name', 'like', '%' . $query . '%')
-            ->orderBy('name')
-            ->get();
-    }
+  public function searchCategories(string $query, array $filters = [])
+{
+    $queryBuilder = InventoryCategory::with(['subcategories', 'parent'])
+        ->where('name', 'like', '%' . $query . '%')
+        ->orderBy('name');
+
+    return $queryBuilder->paginate($filters['per_page'] ?? 15);
+}
 
     /**
      * Get category statistics
