@@ -102,8 +102,8 @@ const sampleHeaders = [
 ];
 
 const sampleData = [
-    ["Summer Sale", "percent", "20", "2025-06-01", "2025-08-31", "50", "100", "active", "Summer discount"],
-    ["Flat Discount", "flat", "10", "2025-01-01", "2025-12-31", "30", "", "active", "Flat 10 off"],
+    ["Summer Sale", "percent", "20", '2025-06-01', "2025-08-31", "50", "100", "active", "Summer discount"],
+    ["Flat Discount", "flat", "10", '2025-01-01', "2025-12-31", "30", "", "active", "Flat 10 off"],
 ];
 
 /* ============= IMPORT HANDLER ============= */
@@ -117,21 +117,40 @@ const handleImport = (data) => {
     const rows = data.slice(1);
 
     const promosToImport = rows.map((row) => {
-        // Normalize dates to YYYY-MM-DD format
-        const normalizeDate = (dateStr) => {
-            if (!dateStr) return "";
 
-            const dateObj = new Date(dateStr);
-            if (isNaN(dateObj.getTime())) {
-                return dateStr; // Return as-is if can't parse
+        const normalizeDate = (value) => {
+            if (!value) return "";
+
+            // CASE 1: Excel serial number (e.g., 45502)
+            if (!isNaN(value) && Number(value) > 30000) {
+                const excelDate = Number(value);
+                const dateObj = new Date((excelDate - 25569) * 86400 * 1000);
+
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+                const d = String(dateObj.getDate()).padStart(2, "0");
+
+                return `${y}-${m}-${d}`;
             }
 
-            // Return in YYYY-MM-DD format
-            const year = dateObj.getFullYear();
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            // CASE 2: Already in YYYY-MM-DD format
+            if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                return value;
+            }
+
+            // CASE 3: Try to parse normal JS date string formats
+            const dateObj = new Date(value);
+            if (!isNaN(dateObj.getTime())) {
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+                const d = String(dateObj.getDate()).padStart(2, "0");
+
+                return `${y}-${m}-${d}`;
+            }
+
+            return ""; // If everything fails
         };
+
 
         return {
             name: row[0] || "",
@@ -636,7 +655,7 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); 
+        const doc = new jsPDF("l", "mm", "a4");
 
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
@@ -731,15 +750,15 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 8 },  
-            { wch: 25 }, 
-            { wch: 12 }, 
-            { wch: 15 }, 
-            { wch: 15 }, 
-            { wch: 15 }, 
-            { wch: 15 }, 
-            { wch: 15 }, 
-            { wch: 12 }, 
+            { wch: 8 },
+            { wch: 25 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 12 },
             { wch: 30 },
         ];
 
@@ -1430,11 +1449,13 @@ const downloadExcel = (data) => {
     color: #dc3545 !important;
     /* red on hover */
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;

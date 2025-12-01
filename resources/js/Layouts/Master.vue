@@ -362,7 +362,7 @@ const verifyCredentials = async () => {
         if (error.response?.status === 422) {
             // Validation errors - show first error in toast
             verificationErrors.value = error.response.data.errors || {};
-            
+
             // 👇 Get first error message and show in toast
             const firstError = Object.values(verificationErrors.value)[0];
             if (Array.isArray(firstError)) {
@@ -454,7 +454,7 @@ const sidebarMenus = ref([
                 route: "meals.index",
             },
 
-             {
+            {
                 label: "Discount",
                 icon: "percent",
                 route: "discounts.index",
@@ -972,8 +972,7 @@ onMounted(fetchNotifications);
                             <!-- Simple top item -->
                             <li v-if="!block.section && hasPermission(block.route)"
                                 :class="{ active: isActive(block.route) }">
-                                <button
-                                    class="d-flex align-items-center side-link px-3 py-2 w-100 border-0  text-start"
+                                <button class="d-flex align-items-center side-link px-3 py-2 w-100 border-0  text-start"
                                     @click="router.visit(route(block.route))">
                                     <i :data-feather="block.icon" class="me-2 icons"></i>
                                     <span class="truncate-when-mini">{{ block.label }}</span>
@@ -996,7 +995,7 @@ onMounted(fetchNotifications);
                                             @click="toggleGroup(item.label)" type="button" :title="item.label">
                                             <i :data-feather="item.icon" class="me-2"></i>
                                             <span class="flex-grow-1 text-start truncate-when-mini">{{ item.label
-                                                }}</span>
+                                            }}</span>
                                             <i class="chevron-icon"
                                                 :data-feather="openGroups.has(item.label) || isAnyChildActive(item.children) ? 'chevron-up' : 'chevron-down'"></i>
                                         </button>
@@ -1053,7 +1052,7 @@ onMounted(fetchNotifications);
                             <img :src="businessInfo.image_url" alt="logo" width="40" height="40"
                                 class="rounded-full border shadow" />
                             <span class="font-bold text-lg text-black dark:text-white">{{ businessInfo.business_name
-                            }}</span>
+                                }}</span>
                         </div>
 
 
@@ -1153,11 +1152,11 @@ onMounted(fetchNotifications);
         <!-- Confirm Modal (keep outside sidebar) -->
         <RestoreSystemModal v-if="showRestoreModal" :show="showRestoreModal" title="Confirm System Restore"
             message="Are you sure you want to restore the system? This will reset all data to default settings. This action cannot be undone."
-            @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
+            confirmLabel="Yes, Restore" @confirm="handleSystemRestore" @cancel="showRestoreModal = false" />
 
         <RestoreSystemModal v-if="showBackupModal" :show="showBackupModal" title="Confirm Database Backup"
             message="Are you sure you want to create a database backup? The backup file will be downloaded to your computer."
-            @confirm="handleDatabaseBackup" @cancel="showBackupModal = false" />
+            confirmLabel="Yes, Backup" @confirm="handleDatabaseBackup" @cancel="showBackupModal = false" />
 
         <LogoutModal v-if="showLogoutModal" :show="showLogoutModal" :loading="isLoggingOut" @confirm="handleLogout"
             @cancel="showLogoutModal = false" />

@@ -24,6 +24,7 @@ class PurchaseOrderService
                 'purchasedAt' => $order->purchase_date,
                 'status'      => $order->status,
                 'total'       => $order->total_amount,
+                'create_at'       => $order->created_at,
             ];
         });
 }
