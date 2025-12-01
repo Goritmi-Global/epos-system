@@ -103,6 +103,7 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('index');
         Route::get('/api-inventories', [InventoryController::class, 'apiList'])->name('api');
+        Route::get('/kpi-stats', [InventoryController::class, 'kpiStats']);
         Route::get('/create', [InventoryController::class, 'create'])->name('create');
         Route::post('/', [InventoryController::class, 'store'])->name('store');
         Route::get('/{inventory}', [InventoryController::class, 'show'])->name('show');
@@ -120,11 +121,11 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
         Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
+        Route::post('/bulk-total', [StockEntryController::class, 'bulkTotalStock'])->name('bulkTotal');
         Route::get('/stock-logs/{id}/allocations', [StockEntryController::class, 'allocations'])->name('stock.logs.allocations');
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
-        Route::get('/debug/{product}', [StockEntryController::class, 'debugStock']);
     });
 
     /* -------- Inventory Categories -------- */

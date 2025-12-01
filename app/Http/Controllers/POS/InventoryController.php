@@ -45,11 +45,14 @@ class InventoryController extends Controller
 
     public function apiList(Request $request)
     {
-
-        $inventories = $this->service->list($request->only('q'));
-
-        // dd($inventories);
+        $inventories = $this->service->list($request->only(['q', 'per_page']));
         return response()->json($inventories);
+    }
+    
+    public function kpiStats()
+    {
+        $stats = $this->service->getKpiStats();
+        return response()->json($stats);
     }
 
     public function create()
@@ -97,7 +100,7 @@ class InventoryController extends Controller
     public function import(Request $request): JsonResponse
     {
         $items = $request->input('items', []);
-    
+
         foreach ($items as $row) {
 
             // 1. Handle category

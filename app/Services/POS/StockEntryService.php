@@ -231,7 +231,107 @@ class StockEntryService
         return $result;
     }
 
+    /**
+     * Calculate stock for multiple products at once (OPTIMIZED)
+     */
+    public function bulkTotalStock(array $productIds): array
+    {
+        if (empty($productIds)) {
+            return [];
+        }
 
+        \Log::info("=== BULK STOCK CALCULATION FOR " . count($productIds) . " PRODUCTS ===");
+
+        // ✅ Get all stock-ins for these products in ONE query
+        $stockIns = StockEntry::whereIn('product_id', $productIds)
+            ->where('stock_type', 'stockin')
+            ->select('product_id', 'id', 'quantity', 'price', 'expiry_date')
+            ->get()
+            ->groupBy('product_id');
+
+        // ✅ Get all allocations in ONE query
+        $allocations = StockOutAllocation::whereIn('product_id', $productIds)
+            ->select('product_id', 'stock_in_entry_id', 'quantity', 'unit_price')
+            ->get()
+            ->groupBy('product_id');
+
+        // ✅ Get all inventory items with minAlert in ONE query
+        $inventories = InventoryItem::whereIn('id', $productIds)
+            ->select('id', 'minAlert')
+            ->get()
+            ->keyBy('id');
+
+        $results = [];
+        $today = now()->startOfDay();
+
+        foreach ($productIds as $productId) {
+            $productStockIns = $stockIns->get($productId, collect());
+            $productAllocations = $allocations->get($productId, collect());
+
+            // Calculate totals
+            $totalIn = $productStockIns->sum('quantity');
+            $totalAllocated = $productAllocations->sum('quantity');
+            $available = max(0, $totalIn - $totalAllocated);
+
+            // Calculate values
+            $totalInValue = $productStockIns->sum(fn($s) => $s->quantity * $s->price);
+            $totalOutValue = $productAllocations->sum(fn($a) => $a->quantity * $a->unit_price);
+            $stockValue = max(0, $totalInValue - $totalOutValue);
+
+            // Get minAlert
+            $minAlert = $inventories->get($productId)?->minAlert ?? 0;
+
+            // Calculate allocated quantity per stock-in entry
+            $allocatedByEntry = $productAllocations->groupBy('stock_in_entry_id')
+                ->map(fn($group) => $group->sum('quantity'));
+
+            // Find earliest expiry from AVAILABLE batches
+            $availableBatches = $productStockIns->filter(function ($entry) use ($allocatedByEntry) {
+                $allocated = $allocatedByEntry->get($entry->id, 0);
+                return ($entry->quantity - $allocated) > 0;
+            });
+
+            $expiryDate = null;
+            $status = null;
+            $hasExpired = false;
+            $nearExpiry = false;
+
+            foreach ($availableBatches as $batch) {
+                if ($batch->expiry_date) {
+                    $expiry = \Carbon\Carbon::parse($batch->expiry_date)->startOfDay();
+                    $diffDays = $today->diffInDays($expiry, false);
+
+                    if (!$expiryDate || $expiry->lt(\Carbon\Carbon::parse($expiryDate))) {
+                        $expiryDate = $batch->expiry_date;
+                    }
+
+                    if ($diffDays < 0) {
+                        $hasExpired = true;
+                    } elseif ($diffDays >= 0 && $diffDays <= 15) {
+                        $nearExpiry = true;
+                    }
+                }
+            }
+
+            if ($hasExpired) {
+                $status = 'expired';
+            } elseif ($nearExpiry) {
+                $status = 'near_expiry';
+            }
+
+            $results[$productId] = [
+                'available'   => $available,
+                'stockValue'  => number_format($stockValue, 2, '.', ''),
+                'minAlert'    => $minAlert,
+                'expiry_date' => $expiryDate,
+                'status'      => $status,
+            ];
+        }
+
+        \Log::info("Bulk calculation completed for " . count($results) . " products");
+
+        return $results;
+    }
 
     // Get stock logs
     public function getStockLogs(): array
