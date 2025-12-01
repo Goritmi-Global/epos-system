@@ -11,20 +11,20 @@ class AllergiesService
     {
         $q = Allergy::query();
 
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $s = $filters['q'];
             $q->where('name', 'like', "%{$s}%");
         }
 
-        return $q->latest()->paginate(15);
+        return $q->latest()->paginate($filters['per_page'] ?? 15);
     }
 
     public function create(array $data)
-    { 
-      
+    {
+
         // Loop through each allergy name
-        foreach ($data['allergies'] as $name) { 
-            $allergy = new Allergy();
+        foreach ($data['allergies'] as $name) {
+            $allergy = new Allergy;
             $allergy->name = $name['name'];
             $allergy->save();
         }

@@ -17,12 +17,12 @@ class SupplierController extends Controller
 {
     public function __construct(private SupplierService $service) {}
 
-    public function index(Request $request)
-    {
-        $suppliers = $this->service->list($request->only('q'));
+   public function index(Request $request)
+{
+    $suppliers = $this->service->list($request->only(['q', 'per_page']));
 
-        return $suppliers;
-    }
+    return response()->json($suppliers);
+}
 
     // SupplierService.php
     public function pluck(array $filters = [])
