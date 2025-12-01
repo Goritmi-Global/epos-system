@@ -51,7 +51,8 @@ use Inertia\Inertia;
 
 Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
 Route::get('/login', fn () => Inertia::render('Auth/Login'))->name('login');
-Route::get('/', [ProfileController::class, 'frontPage'])->name('front-page');
+Route::get('/', fn () => Inertia::render('Auth/Login'))->name('login');
+// Route::get('/', [ProfileController::class, 'frontPage'])->name('front-page');
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
 Route::post('/forgot-password', [CustomPasswordResetController::class, 'requestReset'])
