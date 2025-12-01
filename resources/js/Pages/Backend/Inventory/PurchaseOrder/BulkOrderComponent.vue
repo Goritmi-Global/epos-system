@@ -32,8 +32,8 @@ watch(
     (newItems) => {
         bulkItems.value = newItems.map((it) => ({
             ...it,
-            qty: 0,           
-            unitPrice: 0,     
+            qty: 0,
+            unitPrice: 0,
             expiry: null,
             subtotal: 0,
         }));
@@ -117,8 +117,7 @@ const m_total = computed(() =>
 );
 
 async function bulkSubmit() {
-    formErrors.value = {}; // reset
-
+    formErrors.value = {};
     if (!b_supplier.value) {
         formErrors.value.supplier = "Please select a supplier";
     }
@@ -287,6 +286,13 @@ async function multipleSubmit() {
             document.getElementById("bulkOrderModal")
         );
         m?.hide();
+        setTimeout(() => {
+            document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+            document.body.classList.remove("modal-open");
+            document.body.style.removeProperty("overflow");
+            document.body.style.removeProperty("padding-right");
+        }, 100);
+
     } catch (err) {
         console.error(err);
         toast.error("Failed to save multiple orders");
@@ -477,7 +483,7 @@ async function multipleSubmit() {
                                         </td>
                                         <td>
                                             <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="true" placeholder="Select date"
+                                                :enableTimePicker="false" :teleport="false" placeholder="Select date"
                                                 :class="{
                                                     'is-invalid': m_formErrors[idx]?.expiry
                                                 }" />
@@ -570,18 +576,22 @@ async function multipleSubmit() {
     color: black !important;
     border-color: #9b9c9c;
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -611,13 +621,16 @@ async function multipleSubmit() {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
@@ -631,18 +644,22 @@ async function multipleSubmit() {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
     color: #fff !important;
@@ -667,6 +684,7 @@ async function multipleSubmit() {
 .dark .p-component {
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }
@@ -681,14 +699,17 @@ async function multipleSubmit() {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-select-list-container) {
     background-color: #000 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

@@ -44,13 +44,8 @@ class StockEntryController extends Controller
 
     public function totalStock($productId)
     {
-        \Log::info("Controller: totalStock called for product {$productId}");
-
         $total = $this->service->totalStock($productId);
-
-        \Log::info("Controller: Service returned:", $total);
-
-        return response()->json($total); // ✅ No 'total' wrapper
+        return response()->json($total);
     }
 
     public function bulkTotalStock(Request $request)
