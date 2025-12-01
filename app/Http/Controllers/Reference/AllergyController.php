@@ -16,11 +16,11 @@ class AllergyController extends Controller
     public function __construct(private AllergiesService $service) {}
 
     public function index(Request $request)
-    {
-        $allergies = $this->service->list($request->only('q'));
+{
+    $allergies = $this->service->list($request->only(['q', 'per_page']));
 
-        return $allergies;
-    }
+    return response()->json($allergies);
+}
 
     public function store(StoreAllergyRequest $request): JsonResponse
     {

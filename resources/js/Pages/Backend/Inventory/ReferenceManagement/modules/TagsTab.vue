@@ -9,6 +9,7 @@ import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { Head } from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 
 
 const options = ref([
@@ -49,11 +50,11 @@ const resetForm = () => {
 };
 const filteredTags = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
-    return searchTerm
-        ? tags.value.filter((tag) =>
-            tag.name.toLowerCase().includes(searchTerm)
-        )
-        : tags.value;
+    if (!searchTerm) return tags.value;
+
+    return tags.value.filter((tag) =>
+        tag.name.toLowerCase().includes(searchTerm)
+    );
 });
 
 const openAdd = () => {
@@ -80,8 +81,10 @@ const deleteTag = async (row) => {
         await axios.delete(`/tags/${row.id}`);
         tags.value = tags.value.filter((t) => t.id !== row.id);
         toast.success("Tag deleted successfully");
+        await fetchTags();
     } catch (e) {
-        toast.error("Delete failed ❌");
+        toast.error("Delete failed");
+        console.error(e);
     }
 };
 
@@ -159,25 +162,56 @@ const closeModal = (id) => {
 
 // show Index page
 const tags = ref([]);
-const page = ref(1);
-const perPage = ref(15);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 15,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
 const loading = ref(false);
 const formErrors = ref({});
 
-const fetchTags = async () => {
+const fetchTags = async (page = null) => {
     loading.value = true;
     try {
         const { data } = await axios.get("/tags", {
-            params: { q: q.value, page: page.value, per_page: perPage.value },
+            params: {
+                q: q.value,
+                page: page || pagination.value.current_page,
+                per_page: pagination.value.per_page
+            },
         });
+        tags.value = data.data || [];
+        pagination.value = {
+            current_page: data.current_page,
+            last_page: data.last_page,
+            per_page: data.per_page,
+            total: data.total,
+            from: data.from,
+            to: data.to,
+            links: data.links
+        };
 
-        tags.value = data?.data ?? data?.tags?.data ?? data ?? [];
         await nextTick();
         window.feather?.replace();
     } catch (err) {
         console.error("Failed to fetch tags", err);
+        toast.error("Failed to load tags");
     } finally {
         loading.value = false;
+    }
+};
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchTags(parseInt(page));
     }
 };
 
@@ -345,6 +379,15 @@ watch(customTag, (newVal) => {
     }
 });
 
+let searchTimeout = null;
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchTags(1);
+    }, 500);
+});
+
 
 watch(commonTags, (newVal) => {
     if (newVal.length > 0 && formErrors.value.tags) {
@@ -451,45 +494,56 @@ const handleImport = (data) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Fixed: Use filteredTags instead of tags for proper filtering -->
-                        <tr v-for="(r, i) in filteredTags" :key="r.id">
-                            <td>{{ i + 1 }}</td>
-                            <td class="fw-semibold">{{ r.name }}</td>
-
-                            <td class="text-center">
-                                <div class="d-inline-flex align-items-center gap-3">
-                                    <button data-bs-toggle="modal" data-bs-target="#modalTagForm" @click="
-                                        () => {
-                                            openEdit(r);
-                                            formErrors = {};
-                                        }
-                                    " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                        <Pencil class="w-4 h-4" />
-                                    </button>
-
-                                    <ConfirmModal :title="'Confirm Delete'"
-                                        :message="`Are you sure you want to delete ${r.name}?`" :showDeleteButton="true"
-                                        @confirm="
-                                            () => {
-                                                deleteTag(r);
-                                            }
-                                        " @cancel="() => { }" />
+                        <!-- Loading State -->
+                        <tr v-if="loading">
+                            <td colspan="3" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
                                 </div>
+                                <p class="text-muted mt-2 mb-0">Loading tags...</p>
                             </td>
                         </tr>
 
-                        <!-- Fixed: Check filteredTags length instead of tags -->
-                        <tr v-if="filteredTags.length === 0">
-                            <td colspan="3" class="text-center text-muted py-4">
-                                {{
-                                    q.trim()
-                                        ? "No tags found matching your search."
-                                        : "No tags found."
-                                }}
-                            </td>
-                        </tr>
+                        <!-- Data Rows -->
+                        <template v-else>
+                            <tr v-for="(r, i) in filteredTags" :key="r.id">
+                                <td>{{ pagination.from + i }}</td>
+                                <td class="fw-semibold">{{ r.name }}</td>
+
+                                <td class="text-center">
+                                    <div class="d-inline-flex align-items-center gap-3">
+                                        <button data-bs-toggle="modal" data-bs-target="#modalTagForm"
+                                            @click="() => { openEdit(r); formErrors = {}; }" title="Edit"
+                                            class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                            <Pencil class="w-4 h-4" />
+                                        </button>
+
+                                        <ConfirmModal :title="'Confirm Delete'"
+                                            :message="`Are you sure you want to delete ${r.name}?`"
+                                            :showDeleteButton="true" @confirm="() => { deleteTag(r); }"
+                                            @cancel="() => { }" />
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr v-if="filteredTags.length === 0">
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    {{ q.trim() ? "No tags found matching your search." : "No tags found." }}
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="!loading && pagination.last_page > 1"
+                class="mt-4 d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                </div>
+
+                <Pagination :pagination="pagination.links" :isApiDriven="true" @page-changed="handlePageChange" />
             </div>
         </div>
     </div>
