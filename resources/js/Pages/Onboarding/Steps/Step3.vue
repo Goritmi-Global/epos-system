@@ -132,6 +132,7 @@ const detectCurrencyFromCountry = (forceUpdate = false) => {
             form.currency = detectedCurrency;
             lastDetectedCountry.value = countryCode;
         }
+    }
 };
 
 onMounted(() => {

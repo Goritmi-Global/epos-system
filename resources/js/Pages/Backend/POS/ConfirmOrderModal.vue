@@ -4,6 +4,9 @@ import StripePayment from "./StripePayment.vue";
 import SplitPayment from "./SplitPayment.vue";
 import { useFormatters } from '@/composables/useFormatters'
 import { toast } from "vue3-toastify";
+import { usePage } from "@inertiajs/vue3";
+
+const page = usePage();
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const props = defineProps({
@@ -40,7 +43,7 @@ const props = defineProps({
 });
 const autoPrintKot = ref(false);
 const formErrors = ref({});
-
+console.log("ConfirmOrderModal props:", page.props);
 
 const emit = defineEmits(["close", "confirm", "update:cashReceived"]);
 
@@ -149,7 +152,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -174,7 +177,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -185,9 +188,9 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         deliveryLocation ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
-                                                
+
                                             </div>
                                             <div v-if="orderType === 'Delivery'" class="col-12 col-sm-6">
                                                 <div class="p-3 rounded-3 bg-light d-flex flex-column">
@@ -195,8 +198,8 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         phone ||
                                                         "N/A"
-                                                        }}</span>
-                                                </div>  
+                                                    }}</span>
+                                                </div>
                                             </div>
 
                                             <div class="table-responsive compact-table">
@@ -319,19 +322,21 @@ const formattedOrderType = computed(() => {
                                                 Cash
                                             </label>
 
-                                            <input class="segmented-input" type="radio" id="paymentCard"
-                                                :name="'payMethod'" value="Card" v-model="paymentMethod" />
-                                            <label class="segmented-label" for="paymentCard">
-                                                <i class="bi bi-credit-card-2-front me-1"></i>
-                                                Card
-                                            </label>
+                                            <template v-if="page.props?.onboarding?.payment_methods?.card_enabled">
+                                                <input class="segmented-input" type="radio" id="paymentCard"
+                                                    :name="'payMethod'" value="Card" v-model="paymentMethod" />
+                                                <label class="segmented-label" for="paymentCard">
+                                                    <i class="bi bi-credit-card-2-front me-1"></i>
+                                                    Card
+                                                </label>
 
-                                            <input class="segmented-input" type="radio" id="paymentSplit"
-                                                :name="'payMethod'" value="Split" v-model="paymentMethod" />
-                                            <label class="segmented-label" for="paymentSplit">
-                                                <i class="bi bi-columns-gap me-1"></i>
-                                                Split
-                                            </label>
+                                                <input class="segmented-input" type="radio" id="paymentSplit"
+                                                    :name="'payMethod'" value="Split" v-model="paymentMethod" />
+                                                <label class="segmented-label" for="paymentSplit">
+                                                    <i class="bi bi-columns-gap me-1"></i>
+                                                    Split
+                                                </label>
+                                            </template>
                                         </div>
 
                                         <!-- Cash -->
@@ -389,7 +394,7 @@ const formattedOrderType = computed(() => {
 
                                         <!-- Card -->
                                         <div v-if="paymentMethod === 'Card'" class="pt-3 border-top">
-                                            <StripePayment :order_code="order_code" :show="show" :customer="customer" 
+                                            <StripePayment :order_code="order_code" :show="show" :customer="customer"
                                                 :phone="phone" :delivery-location="deliveryLocation"
                                                 :orderType="orderType" :selectedTable="selectedTable"
                                                 :orderItems="orderItems" :grandTotal="grandTotal" :money="money"
@@ -403,10 +408,8 @@ const formattedOrderType = computed(() => {
                                                 :promo-discount="promoDiscount" :promo-id="promoId"
                                                 :promo-name="promoName" :promo-type="promoType"
                                                 :promo-discount-amount="promoDiscountAmount"
-                                                :applied-promos="appliedPromos"
-                                                :approved-discounts="approvedDiscounts"
-                                                :approved-discount-details="approvedDiscountDetails"
-                                             />
+                                                :applied-promos="appliedPromos" :approved-discounts="approvedDiscounts"
+                                                :approved-discount-details="approvedDiscountDetails" />
 
                                             <div class="mt-2">
                                                 <strong>Change:</strong>
@@ -435,10 +438,8 @@ const formattedOrderType = computed(() => {
                                                 :paymentType="paymentMethod" :promo-discount="promoDiscount"
                                                 :promo-id="promoId" :promo-name="promoName" :promo-type="promoType"
                                                 :promo-discount-amount="promoDiscountAmount"
-                                                :applied-promos="appliedPromos"
-                                                :approved-discounts="approvedDiscounts"
-                                                :approved-discount-details="approvedDiscountDetails"
-                                                 />
+                                                :applied-promos="appliedPromos" :approved-discounts="approvedDiscounts"
+                                                :approved-discount-details="approvedDiscountDetails" />
                                         </div>
 
                                         <div class="mt-auto small text-muted pt-2">
