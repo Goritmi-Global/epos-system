@@ -22,8 +22,9 @@ import {
     Plus,
     Pencil,
     CheckCircle,
-  
+
 } from "lucide-vue-next";
+import Pagination from "@/Components/Pagination.vue";
 
 const props = defineProps({
     allergies: {
@@ -287,38 +288,93 @@ onMounted(async () => {
 const inventories = ref(props.inventories?.data || []);
 const items = computed(() => inventories.value);
 
+// const fetchInventories = async () => {
+//     try {
+//         const res = await axios.get("inventory/api-inventories");
+
+//         const apiItems = res.data.data || [];
+
+//         inventories.value = await Promise.all(
+//             apiItems.map(async (item) => {
+//                 const stockRes = await axios.get(
+//                     `/stock_entries/total/${item.id}`
+//                 );
+//                 const stockData = stockRes.data.total?.original || {};
+//                 return {
+//                     ...item,
+//                     availableStock: stockData.available || 0,
+//                     stockValue: stockData.stockValue || 0,
+//                     minAlert: stockData.minAlert || 0,
+//                 };
+//             })
+//         );
+//     } catch (err) {
+//         console.error(err);
+//     }
+// };
+
 const fetchInventories = async () => {
     try {
         const res = await axios.get("inventory/api-inventories");
-
-        const apiItems = res.data.data || [];
-
-        inventories.value = await Promise.all(
-            apiItems.map(async (item) => {
-                const stockRes = await axios.get(
-                    `/stock_entries/total/${item.id}`
-                );
-                const stockData = stockRes.data.total?.original || {};
-                return {
-                    ...item,
-                    availableStock: stockData.available || 0,
-                    stockValue: stockData.stockValue || 0,
-                    minAlert: stockData.minAlert || 0,
-                };
-            })
-        );
+        inventories.value = res.data.data;
     } catch (err) {
         console.error(err);
     }
 };
 
+
 const menuItems = ref([]);
-const fetchMenus = async () => {
+const currentPage = ref(1);
+const perPage = ref(10);
+const totalItems = ref(0);
+const paginationLinks = ref([]);
+const isLoading = ref(false);
+const counts = ref({
+    total: 0,
+    active: 0,
+    inactive: 0,
+});
+
+
+const fetchMenus = async (page = 1) => {
+    isLoading.value = true;
     try {
-        const res = await axios.get("/api/menu/items");
+        const res = await axios.get("/api/menu/items", {
+            params: {
+                page: page,
+                per_page: perPage.value
+            }
+        });
+
         menuItems.value = res.data.data || [];
+
+        if (res.data.pagination) {
+            currentPage.value = res.data.pagination.current_page;
+            totalItems.value = res.data.pagination.total;
+            paginationLinks.value = res.data.pagination.links;
+        }
+
+        // ✅ Load global counts from backend
+        if (res.data.counts) {
+            counts.value = res.data.counts;
+        }
+
     } catch (err) {
         console.error("❌ Error fetching menus:", err);
+        toast.error("Failed to fetch menu items");
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePageChange = (url) => {
+    if (!url || isLoading.value) return;
+
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchMenus(parseInt(page));
     }
 };
 
@@ -399,6 +455,10 @@ const filteredItems = computed(() => {
     return filtered;
 });
 
+watch([filters, q], () => {
+    fetchMenus(1);
+}, { deep: true });
+
 const sortedItems = computed(() => {
     const arr = [...filteredItems.value];
     const sortBy = filters.value.sortBy;
@@ -437,15 +497,10 @@ const handleFilterClear = () => {
 };
 
 /* ===================== KPIs ===================== */
+const totalMenuItems = computed(() => counts.value.total);
+const activeMenuItems = computed(() => counts.value.active);
+const deactiveMenuItems = computed(() => counts.value.inactive);
 
-const totalMenuItems = computed(() => menuItems.value.length);
-const activeMenuItems = computed(
-    () => menuItems.value.filter((item) => item.status === 1).length
-);
-
-const deactiveMenuItems = computed(
-    () => menuItems.value.filter((item) => item.status === 0).length
-);
 
 const kpis = computed(() => [
     {
@@ -1154,7 +1209,7 @@ function resetForm() {
     addons.value = [];
 }
 const openAddMenuModal = () => {
-    resetForm(); 
+    resetForm();
     resetErrors();
 };
 
@@ -1254,8 +1309,8 @@ const downloadCSV = (data) => {
             ];
         });
         const csvContent = [
-            headers.join(","), 
-            ...rows.map((r) => r.join(",")), 
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
@@ -1405,7 +1460,7 @@ const downloadPDF = (data) => {
 };
 const downloadAllergen = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); 
+        const doc = new jsPDF("l", "mm", "a4");
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
         doc.text("allergen", 14, 15);
@@ -1481,11 +1536,11 @@ const downloadAllergen = (data) => {
         const fixedColumnsWidth = categoryColWidth + itemNameColWidth;
         const allergenColumnsWidth = availableWidth - fixedColumnsWidth;
         const allergenColWidth = allergenColumnsWidth / allAllergens.length;
-        const minAllergenColWidth = 6; 
-        const maxAllergenColWidth = 12; 
+        const minAllergenColWidth = 6;
+        const maxAllergenColWidth = 12;
         const finalAllergenColWidth = Math.max(minAllergenColWidth, Math.min(allergenColWidth, maxAllergenColWidth));
 
-      
+
         const allergenFontSize = finalAllergenColWidth < 8 ? 6 : 7;
         const headerFontSize = finalAllergenColWidth < 8 ? 5 : 6;
         const tableData = [];
@@ -1563,10 +1618,10 @@ const downloadAllergen = (data) => {
                     fontStyle: 'bold',
                     fontSize: 9
                 },
-            
+
                 ...Object.fromEntries(
                     allAllergens.map((_, index) => [
-                        index + 2, 
+                        index + 2,
                         { cellWidth: finalAllergenColWidth }
                     ])
                 )
@@ -1583,10 +1638,10 @@ const downloadAllergen = (data) => {
             },
             margin: { left: marginLeft, right: marginRight, top: 28 },
             didParseCell: function (data) {
-               
+
                 if (data.section === 'head' && data.column.index > 1) {
                     data.cell.styles.minCellHeight = 45;
-                  
+
                     data.cell.text = [];
                 }
                 if (data.section === 'head' && (data.column.index === 0 || data.column.index === 1)) {
@@ -1597,7 +1652,7 @@ const downloadAllergen = (data) => {
                 }
             },
             didDrawCell: function (data) {
-                
+
                 if (data.section === 'body' && data.cell.raw === 'TICK') {
                     const { x, y, width, height } = data.cell;
                     const centerX = x + width / 2;
@@ -1605,9 +1660,9 @@ const downloadAllergen = (data) => {
                     const tickX = centerX - 1.5;
                     const tickY = centerY - 0.5;
 
-                    doc.setDrawColor(0, 0, 0); 
+                    doc.setDrawColor(0, 0, 0);
                     doc.setLineWidth(0.4);
-                    doc.line(tickX, tickY, tickX + 0.8, tickY + 1.2);    
+                    doc.line(tickX, tickY, tickX + 0.8, tickY + 1.2);
                     doc.line(tickX + 0.8, tickY + 1.2, tickX + 2.5, tickY - 1);
                 }
                 if (data.section === 'body' && data.cell.raw === 'STAR') {
@@ -1615,7 +1670,7 @@ const downloadAllergen = (data) => {
                     const centerX = x + width / 2;
                     const centerY = y + height / 2;
 
-                    doc.setFontSize(10); 
+                    doc.setFontSize(10);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(0, 0, 0);
                     doc.text('*', centerX, centerY + 1, { align: 'center' });
@@ -1722,13 +1777,13 @@ const downloadExcel = (data) => {
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
         worksheet["!cols"] = [
-            { wch: 20 }, 
-            { wch: 20 }, 
-            { wch: 30 }, 
-            { wch: 10 }, 
-            { wch: 30 }, 
-            { wch: 25 }, 
-            { wch: 25 }, 
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 30 },
+            { wch: 10 },
+            { wch: 30 },
+            { wch: 25 },
+            { wch: 25 },
         ];
         XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Items");
         const metaData = [
@@ -1847,7 +1902,7 @@ const variantForm = ref({
     price: null
 });
 const variantMetadata = ref({});
-const variantIdCounter = ref(1); 
+const variantIdCounter = ref(1);
 function saveIngredients() {
     resetErrors();
 
@@ -2215,61 +2270,94 @@ const format = (val) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(item, idx) in sortedItems" :key="item.id">
-                                    <td>{{ idx + 1 }}</td>
-                                    <td>
-                                        <ImageZoomModal v-if="item.image_url" :file="item.image_url" :alt="item.name"
-                                            :width="50" :height="50" :custom_class="'cursor-pointer'" />
-                                    </td>
-                                    <td class="fw-semibold">
-                                        {{ item.name }}
-                                    </td>
-                                    <td class="text-truncate" style="max-width: 260px">
-                                        {{ item.category?.name || "—" }}
-                                    </td>
-                                    <td>
-                                        {{ formatCurrencySymbol(item.price || 0, "GBP") }}
-                                    </td>
-                                    <td>
-                                        <span v-if="item.status === 0"
-                                            class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">Inactive</span>
-                                        <span v-else
-                                            class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">Active</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="d-inline-flex align-items-center gap-3">
-                                            <button @click="editItem(item)" data-bs-toggle="modal" title="Edit"
-                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                <Pencil class="w-4 h-4" />
-                                            </button>
-                                            <ConfirmModal :title="'Confirm Status Change'"
-                                                :message="`Are you sure you want to ${item.status === 1 ? 'deactivate' : 'activate'} this item?`"
-                                                :showStatusButton="true"
-                                                :status="item.status === 1 ? 'active' : 'inactive'"
-                                                @confirm="() => toggleStatus(item)">
-                                                <template #trigger>
-                                                    <button
-                                                        class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
-                                                        :class="item.status === 1 ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500'"
-                                                        :title="item.status === 1 ? 'Set Inactive' : 'Set Active'">
-                                                        <span
-                                                            class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
-                                                            :class="item.status === 1 ? 'translate-x-4' : 'translate-x-0'"></span>
-                                                    </button>
-                                                </template>
-                                            </ConfirmModal>
+                                <!-- ✅ Loading State -->
+                                <tr v-if="isLoading">
+                                    <td colspan="7" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center justify-content-center">
+                                            <div class="spinner-border text-primary mb-3" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p class="text-muted mb-0">Loading menu items...</p>
                                         </div>
                                     </td>
                                 </tr>
 
-                                <tr v-if="sortedItems.length === 0">
-                                    <td colspan="7" class="text-center text-muted py-4">
-                                        No Menu items found.
-                                    </td>
-                                </tr>
+                                <!-- ✅ Data Rows (show only when not loading) -->
+                                <template v-else>
+                                    <tr v-for="(item, idx) in sortedItems" :key="item.id">
+                                        <td>
+                                            {{ (currentPage - 1) * perPage + idx + 1 }}
+                                        </td>
+                                        <td>
+                                            <ImageZoomModal v-if="item.image_url" :file="item.image_url"
+                                                :alt="item.name" :width="50" :height="50"
+                                                :custom_class="'cursor-pointer'" />
+                                        </td>
+                                        <td class="fw-semibold">
+                                            {{ item.name }}
+                                        </td>
+                                        <td class="text-truncate" style="max-width: 260px">
+                                            {{ item.category?.name || "—" }}
+                                        </td>
+                                        <td>
+                                            {{ formatCurrencySymbol(item.price || 0, "GBP") }}
+                                        </td>
+                                        <td>
+                                            <span v-if="item.status === 0"
+                                                class="badge bg-red-600 rounded-pill d-inline-block text-center px-3 py-1">Inactive</span>
+                                            <span v-else
+                                                class="badge bg-success rounded-pill d-inline-block text-center px-3 py-1">Active</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="d-inline-flex align-items-center gap-3">
+                                                <button @click="editItem(item)" data-bs-toggle="modal" title="Edit"
+                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                    <Pencil class="w-4 h-4" />
+                                                </button>
+                                                <ConfirmModal :title="'Confirm Status Change'"
+                                                    :message="`Are you sure you want to ${item.status === 1 ? 'deactivate' : 'activate'} this item?`"
+                                                    :showStatusButton="true"
+                                                    :status="item.status === 1 ? 'active' : 'inactive'"
+                                                    @confirm="() => toggleStatus(item)">
+                                                    <template #trigger>
+                                                        <button
+                                                            class="relative inline-flex items-center w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none"
+                                                            :class="item.status === 1 ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500'"
+                                                            :title="item.status === 1 ? 'Set Inactive' : 'Set Active'">
+                                                            <span
+                                                                class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
+                                                                :class="item.status === 1 ? 'translate-x-4' : 'translate-x-0'"></span>
+                                                        </button>
+                                                    </template>
+                                                </ConfirmModal>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- ✅ Empty State (show only when not loading) -->
+                                    <tr v-if="sortedItems.length === 0">
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            No Menu items found.
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- ✅ Pagination with Loading State -->
+                    <div v-if="paginationLinks.length > 0 && !isLoading" class="mt-4">
+                        <Pagination :pagination="paginationLinks" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
+
+                        <!-- Optional: Show results count -->
+                        <div class="text-center mt-3 text-sm text-gray-600">
+                            Showing {{ (currentPage - 1) * perPage + 1 }} to
+                            {{ Math.min(currentPage * perPage, totalItems) }} of
+                            {{ totalItems }} results
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -2628,7 +2716,7 @@ const format = (val) => {
                                         </div>
                                     </div>
                                 </div>
-                               
+
 
                                 <!-- ======================================================== -->
                                 <!--                       VARIANT MENU TAB                                           -->

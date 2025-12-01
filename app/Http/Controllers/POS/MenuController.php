@@ -56,7 +56,7 @@ class MenuController extends Controller
 
     public function store(StoreMenuRequest $request)
     {
-       
+
         try {
             $menu = $this->service->create($request->validated(), $request);
 
@@ -89,19 +89,22 @@ class MenuController extends Controller
         }
     }
 
-    public function apiIndex()
+    public function apiIndex(Request $request)
     {
+        $perPage = $request->get('per_page', 10); // Default 10 items per page
+
         $menus = MenuItem::with([
             'category',
             'ingredients',
-            'variants.ingredients', // ✅ Include variant ingredients
+            'variants.ingredients',
             'allergies',
             'tags',
             'nutrition',
             'addonGroupRelations.addonGroup',
+            'meals',
         ])
-            ->get()
-            ->map(function ($item) {
+            ->paginate($perPage)
+            ->through(function ($item) {
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -118,13 +121,11 @@ class MenuController extends Controller
                     'tags' => $item->tags,
                     'image_url' => UploadHelper::url($item->upload_id),
                     'addon_group_id' => $item->addonGroupRelations->first()?->addon_group_id,
-
                     'is_saleable' => $item->is_saleable,
                     'resale_type' => $item->resale_type,
                     'resale_value' => $item->resale_value,
                     'resale_price' => $item->resale_price,
-
-                    // ✅ Include variant info with ingredients and prices
+                    'created_at' => $item->created_at,
                     'variants' => $item->variants->map(function ($variant) {
                         return [
                             'id' => $variant->id,
@@ -148,9 +149,27 @@ class MenuController extends Controller
                 ];
             });
 
+        $totalCount = MenuItem::count();
+        $activeCount = MenuItem::where('status', 1)->count();
+        $inactiveCount = MenuItem::where('status', 0)->count();
+
         return response()->json([
             'message' => 'Menu items fetched successfully',
-            'data' => $menus,
+            'data' => $menus->items(),
+            'pagination' => [
+                'current_page' => $menus->currentPage(),
+                'last_page' => $menus->lastPage(),
+                'per_page' => $menus->perPage(),
+                'total' => $menus->total(),
+                'from' => $menus->firstItem(),
+                'to' => $menus->lastItem(),
+                'links' => $menus->linkCollection()->toArray(),
+            ],
+            'counts' => [
+            'total' => $totalCount,
+            'active' => $activeCount,
+            'inactive' => $inactiveCount,
+        ],
         ]);
     }
 
@@ -333,7 +352,7 @@ class MenuController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
+            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
         }
     }
 }
