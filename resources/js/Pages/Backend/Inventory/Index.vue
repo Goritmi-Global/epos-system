@@ -8,6 +8,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FilterModal from "@/Components/FilterModal.vue";
+import Pagination from "@/Components/Pagination.vue";
 
 
 import { useFormatters } from '@/composables/useFormatters'
@@ -31,11 +32,11 @@ import axios from "axios";
 // ===================== Props =====================
 const props = defineProps({
     inventories: Array,
-    allergies: Array, 
-    tags: Array, 
-    units: Array, 
-    suppliers: Array, 
-    categories: Array, 
+    allergies: Array,
+    tags: Array,
+    units: Array,
+    suppliers: Array,
+    categories: Array,
 });
 
 // ===================== Category helpers (parent/children) =====================
@@ -47,56 +48,61 @@ const subcatOptions = computed(() =>
 );
 
 // ===================== Data & fetching =====================
-
+const loading = ref(false);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
 const inventories = ref(props.inventories?.data || []);
 const items = computed(() => inventories.value);
-const loading = ref(false);
 
-const fetchInventories = async () => {
+const fetchInventories = async (page = null) => {
+    loading.value = true;
     try {
-        loading.value = true;
-        const res = await axios.get("inventory/api-inventories");
-        const apiItems = res.data.data || [];
+        const res = await axios.get("inventory/api-inventories", {
+            params: {
+                q: q.value,
+                page: page || pagination.value.current_page,
+                per_page: pagination.value.per_page
+            }
+        });
 
-        if (apiItems.length === 0) {
-            inventories.value = [];
-            loading.value = false;
-            return;
-        }
-
-        inventories.value = await Promise.all(
-            apiItems.map(async (item) => {
-                try {
-                    const stockRes = await axios.get(`/stock_entries/total/${item.id}`);
-                    const stockData = stockRes.data || {};
-                    return {
-                        ...item,
-                        availableStock: stockData.available || 0,
-                        stockValue: parseFloat(stockData.stockValue || 0).toFixed(2),
-                        minAlert: stockData.minAlert || 0,
-                        expiry_date: stockData.expiry_date || null,
-                        status: stockData.status || null,
-                    };
-                } catch (err) {
-                    console.error(`❌ Error fetching stock for item ${item.id}:`, err);
-                    return {
-                        ...item,
-                        availableStock: 0,
-                        stockValue: '0.00',
-                        minAlert: 0,
-                        expiry_date: null,
-                        status: null,
-                    };
-                }
-            })
-        );
+        // ✅ Everything is already calculated on the backend!
+        inventories.value = res.data.data || [];
+        
+        pagination.value = {
+            current_page: res.data.current_page,
+            last_page: res.data.last_page,
+            per_page: res.data.per_page,
+            total: res.data.total,
+            from: res.data.from,
+            to: res.data.to,
+            links: res.data.links
+        };
 
         loading.value = false;
     } catch (err) {
         console.error('❌ Fetch inventories error:', err);
+        toast.error("Failed to load inventories");
         loading.value = false;
     }
 };
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+    if (page) {
+        fetchInventories(parseInt(page));
+    }
+};
+
+
 
 onMounted(async () => {
     q.value = "";
@@ -111,7 +117,7 @@ onMounted(async () => {
         }
     }, 100);
     fetchInventories();
-    fetchStockForCounting();
+    fetchKpiStats(); 
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -121,7 +127,7 @@ const q = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
-const sortBy = ref(""); 
+const sortBy = ref("");
 const components = {
     FilterModal,
 
@@ -246,6 +252,15 @@ const sortedItems = computed(() => {
     }
 });
 
+let searchTimeout = null;
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchInventories(1);
+    }, 500);
+});
+
 // Filter options for the modal
 const filterOptions = computed(() => ({
     sortOptions: [
@@ -270,13 +285,19 @@ const filterOptions = computed(() => ({
 const totalItems = computed(() => items.value.length);
 const stockitems = ref([]);
 
-const fetchStockForCounting = async () => {
+const kpiData = ref({
+    total_items: 0,
+    out_of_stock: 0,
+    low_stock: 0,
+    expired: 0,
+    near_expiry: 0,
+});
+const fetchKpiStats = async () => {
     try {
-        const response = await axios.get("/stock_entries");
-        stockitems.value = response.data.data;
-        console.log(stockitems.value);
-    } catch (error) {
-        console.error("Failed to fetch stock entries:", error);
+        const res = await axios.get('/inventory/kpi-stats');
+        kpiData.value = res.data;
+    } catch (err) {
+        console.error('❌ Failed to fetch KPI stats:', err);
     }
 };
 
@@ -296,18 +317,18 @@ const expiredCount = computed(() => {
     return stockitems.value.filter((i) => {
         //  Exclude stockout entries
         if (i.stock_type !== 'stockin') return false;
-        
+
         if (!i.expiry_date) return false;
-        
+
         const expiry = new Date(i.expiry_date);
         const today = new Date();
         expiry.setHours(0, 0, 0, 0);
         today.setHours(0, 0, 0, 0);
-        
+
         //  Only count if expired AND has remaining stock
         const isExpired = expiry < today;
         const hasStock = (i.quantity || 0) > (i.allocated_quantity || 0);
-        
+
         return isExpired && hasStock;
     }).length;
 });
@@ -317,17 +338,17 @@ const nearExpireCount = computed(() => {
     return stockitems.value.filter((i) => {
         //  Exclude stockout entries
         if (i.stock_type !== 'stockin') return false;
-        
+
         if (!i.expiry_date) return false;
-        
+
         const expiry = new Date(i.expiry_date);
         const today = new Date();
         const diffDays = (expiry - today) / (1000 * 60 * 60 * 24);
-        
+
         //  Only count if near expiry AND has remaining stock
         const isNearExpiry = diffDays > 0 && diffDays <= 15;
         const hasStock = (i.quantity || 0) > (i.allocated_quantity || 0);
-        
+
         return isNearExpiry && hasStock;
     }).length;
 });
@@ -335,35 +356,35 @@ const nearExpireCount = computed(() => {
 const kpis = computed(() => [
     {
         label: "Total Items",
-        value: totalItems.value ?? 0,
+        value: kpiData.value.total_items ?? 0,
         icon: Package,
         iconBg: "bg-soft-success",
         iconColor: "text-success",
     },
     {
         label: "Out of Stock",
-        value: outOfStockCount.value ?? 0,
+        value: kpiData.value.out_of_stock ?? 0,
         icon: XCircle,
         iconBg: "bg-soft-danger",
         iconColor: "text-danger",
     },
     {
         label: "Low Stock",
-        value: lowStockCount.value ?? 0,
+        value: kpiData.value.low_stock ?? 0,
         icon: AlertTriangle,
         iconBg: "bg-soft-warning",
         iconColor: "text-warning",
     },
     {
         label: "Expired Stock",
-        value: expiredCount.value ?? 0, //  Added .value
+        value: kpiData.value.expired ?? 0,
         icon: CalendarX2,
         iconBg: "bg-soft-danger",
         iconColor: "text-danger",
     },
     {
         label: "Near Expire Stock",
-        value: nearExpireCount.value ?? 0, //  Added .value
+        value: kpiData.value.near_expiry ?? 0,
         icon: CalendarClock,
         iconBg: "bg-soft-info",
         iconColor: "text-info",
@@ -673,7 +694,7 @@ async function submitStockIn() {
             document.getElementById("stockInModal")
         )?.hide();
         await fetchInventories();
-        await fetchStockForCounting();
+        await fetchKpiStats();
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
@@ -729,13 +750,13 @@ const openConfirmModal = (item) => {
 
 const handleStockOut = () => {
     showConfirm.value = false
-    
+
     if (!selectedItem.value) {
         console.error('❌ No item selected for stock out');
         toast.error('No item selected');
         return;
     }
-    
+
     // Call your stock-out function here
     confirmStockOut(selectedItem.value)
 }
@@ -792,7 +813,7 @@ async function confirmStockOut(item) {
         );
 
         await fetchInventories();
-        await fetchStockForCounting();
+        await fetchKpiStats();
     } catch (err) {
         console.error("❌ Stock out error:", err);
         console.error("❌ Error response:", err.response?.data);
@@ -837,7 +858,7 @@ async function openStockOutModal(item) {
         await axios.post("/stock_entries", payload);
         toast.success(`All ${availableQty} items stock-out successfully.`);
         await fetchInventories();
-        await fetchStockForCounting();
+        await fetchKpiStats();
     } catch (err) {
         toast.error("Stock out failed. Please try again.");
         console.error(err);
@@ -868,7 +889,7 @@ async function submitStockOut() {
             document.getElementById("stockOutModal")
         )?.hide();
         await fetchInventories();
-        await fetchStockForCounting();
+        await fetchKpiStats();
     } catch (err) {
         if (err?.response?.status === 422 && err.response.data?.errors) {
             formErrors.value = err.response.data.errors;
@@ -1105,20 +1126,20 @@ const downloadExcel = (data) => {
 
         // 📏 Column widths for readability
         worksheet["!cols"] = [
-            { wch: 25 }, 
-            { wch: 15 }, 
-            { wch: 20 }, 
-            { wch: 12 }, 
-            { wch: 15 }, 
-            { wch: 25 }, 
-            { wch: 15 }, 
-            { wch: 18 }, 
-            { wch: 10 }, 
-            { wch: 10 }, 
-            { wch: 10 }, 
-            { wch: 10 }, 
-            { wch: 25 }, 
-            { wch: 25 }, 
+            { wch: 25 },
+            { wch: 15 },
+            { wch: 20 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 25 },
+            { wch: 15 },
+            { wch: 18 },
+            { wch: 10 },
+            { wch: 10 },
+            { wch: 10 },
+            { wch: 10 },
+            { wch: 25 },
+            { wch: 25 },
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Items");
@@ -1207,7 +1228,7 @@ const totals = computed(() => {
         totalPrice = 0,
         totalValue = 0,
         notExpiredQty = 0,
-        availableQty = 0; 
+        availableQty = 0;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1231,19 +1252,19 @@ const totals = computed(() => {
         }
         const allocated = parseFloat(r?.allocated_quantity ?? 0);
         const remaining = Math.max(0, qty - allocated);
-        
+
         // Only count non-expired available stock
         if (!r?.expiry_date || (new Date(r.expiry_date) >= today)) {
             availableQty += remaining;
         }
     }
 
-    return { 
-        totalQty: Number(totalQty.toFixed(2)), 
-        totalPrice: Number(totalPrice.toFixed(2)), 
-        totalValue: Number(totalValue.toFixed(2)), 
+    return {
+        totalQty: Number(totalQty.toFixed(2)),
+        totalPrice: Number(totalPrice.toFixed(2)),
+        totalValue: Number(totalValue.toFixed(2)),
         notExpiredQty: Number(notExpiredQty.toFixed(2)),
-        availableQty: Number(availableQty.toFixed(2)) //  NEW
+        availableQty: Number(availableQty.toFixed(2)) 
     };
 });
 
@@ -1261,22 +1282,22 @@ const handleImport = (data) => {
 
     const itemsToImport = rows.map((row) => {
         return {
-            name: row[0] || "",                   
-            sku: row[1] || "",                    
-            description: row[2] || "",            
-            category: row[3] || "",               
-            min_alert: row[4] || "",              
-            unit: row[5] || "",                   
-            preferred_supplier: row[6] || "",     
-            purchase_price: row[7] || "",         
-            stock: parseInt(row[8]) || 0,         
-            active: row[9] || 1,                  
-            calories: parseFloat(row[10]) || 0,   
-            fat: parseFloat(row[11]) || 0,        
-            protein: parseFloat(row[12]) || 0,    
-            carbs: parseFloat(row[13]) || 0,      
-            allergies: row[14] || "",             
-            tags: row[15] || "",                  
+            name: row[0] || "",
+            sku: row[1] || "",
+            description: row[2] || "",
+            category: row[3] || "",
+            min_alert: row[4] || "",
+            unit: row[5] || "",
+            preferred_supplier: row[6] || "",
+            purchase_price: row[7] || "",
+            stock: parseInt(row[8]) || 0,
+            active: row[9] || 1,
+            calories: parseFloat(row[10]) || 0,
+            fat: parseFloat(row[11]) || 0,
+            protein: parseFloat(row[12]) || 0,
+            carbs: parseFloat(row[13]) || 0,
+            allergies: row[14] || "",
+            tags: row[15] || "",
         };
     });
 
@@ -1306,6 +1327,7 @@ const handleImport = (data) => {
         .then(() => {
             toast.success("Items imported successfully");
             fetchInventories();
+            fetchKpiStats();
         })
         .catch((err) => {
             console.error(err);
@@ -1374,7 +1396,7 @@ const handleImport = (data) => {
                                     " :show-price-range="true" :show-date-range="false" @apply="handleFilterApply"
                                 @clear="handleFilterClear">
                                 <template #customFilters="{ filters }">
-                                   
+
                                     <div class="col-12">
                                         <label class="form-label fw-semibold text-dark">
                                             <i class="fas fa-star me-2 text-muted"></i>Custom Filter
@@ -1506,7 +1528,7 @@ const handleImport = (data) => {
                             <!-- Your existing rows -->
                             <tbody v-else>
                                 <tr v-for="(item, idx) in sortedItems" :key="item.id">
-                                    <td>{{ idx + 1 }}</td>
+                                    <td>{{ pagination.from + idx }}</td>
                                     <td class="fw-semibold">
                                         {{ item.name }}
                                     </td>
@@ -1551,26 +1573,24 @@ const handleImport = (data) => {
 
                                             <StockOutConfirmationModal :show="showConfirm" title="Confirm Stock Out"
                                                 message="Are you sure you want to stock out this item?"
-                                                @confirm="handleStockOut" 
-                                                @close="showConfirm = false"
-                                                />
+                                                @confirm="handleStockOut" @close="showConfirm = false" />
 
 
-                                                <button @click="ViewItem(item)" data-bs-toggle="modal"
-                                                    data-bs-target="#viewItemModal" title="View Item"
-                                                    class="p-2 rounded-full text-primary hover:bg-gray-100">
-                                                    <Eye class="w-4 h-4" />
-                                                </button>
-                                                <button @click="
-                                                    () => {
-                                                        editItem(item);
-                                                        formErrors = {};
-                                                        processStatus = 'Edit';
-                                                    }
-                                                " data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit"
-                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                    <Pencil class="w-4 h-4" />
-                                                </button>
+                                            <button @click="ViewItem(item)" data-bs-toggle="modal"
+                                                data-bs-target="#viewItemModal" title="View Item"
+                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                <Eye class="w-4 h-4" />
+                                            </button>
+                                            <button @click="
+                                                () => {
+                                                    editItem(item);
+                                                    formErrors = {};
+                                                    processStatus = 'Edit';
+                                                }
+                                            " data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit"
+                                                class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                                <Pencil class="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -1582,6 +1602,15 @@ const handleImport = (data) => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div v-if="!loading && pagination.last_page > 1"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                        </div>
+
+                        <Pagination :pagination="pagination.links" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
                     </div>
                 </div>
             </div>
@@ -1654,7 +1683,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1665,7 +1694,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1767,7 +1796,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                    }}</small>
+                                        }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -1887,7 +1916,7 @@ const handleImport = (data) => {
                                                         }}
                                                     </div>
                                                 </div>
-                                               
+
                                                 <div class="col-6">
                                                     <div class="text-muted">
                                                         Unit
@@ -1995,21 +2024,21 @@ const handleImport = (data) => {
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
-                                                totals.availableQty 
-                                                }}</span>
+                                                totals.availableQty
+                                            }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -2148,10 +2177,10 @@ row, i
 
                                 <div class="col-md-6">
                                     <label class="form-label">Category</label>
-                                   
+
                                     <input type="text" :value="stockInItemCategory" class="form-control" readonly />
 
-                                
+
                                     <small v-if="formErrors.category_id" class="text-danger">
                                         {{ formErrors.category_id[0] }}
                                     </small>

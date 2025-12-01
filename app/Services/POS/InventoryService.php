@@ -5,6 +5,7 @@ namespace App\Services\POS;
 use App\Models\InventoryItem;
 use App\Models\InventoryItemNutrition;
 use App\Helpers\UploadHelper;
+use App\Models\StockEntry;
 use Illuminate\Support\Facades\DB;
 
 class InventoryService
@@ -14,7 +15,7 @@ class InventoryService
      *  ---------------------------------------------------------------- */
     public function list(array $filters = [])
     {
-        return InventoryItem::query()
+        $paginator = InventoryItem::query()
             ->with([
                 'user:id,name',
                 'supplier:id,name',
@@ -26,53 +27,62 @@ class InventoryService
             ->when($filters['q'] ?? null, function ($q, $v) {
                 $q->where(function ($qq) use ($v) {
                     $qq->where('name', 'like', "%{$v}%")
-                       ->orWhere('sku', 'like', "%{$v}%");
+                        ->orWhere('sku', 'like', "%{$v}%");
                 });
             })
             ->orderByDesc('id')
-            ->paginate(200)
-            ->through(function (InventoryItem $item) {
-                return [
-                    'id'            => $item->id,
-                    'name'          => $item->name,
-                    'sku'           => $item->sku,
-                    'description'   => $item->description,
+            ->paginate($filters['per_page'] ?? 15);
 
-                    // keep if you use these columns on inventory_items
-                    'category'      => $item->category ?? null,
-                    'subcategory'   => $item->subcategory ?? null,
-                    'minAlert'      => $item->minAlert ?? null,
+        // ✅ Get all product IDs from current page
+        $productIds = $paginator->pluck('id')->toArray();
 
-                    // supplier / unit stored on inventory_items
-                    'supplier_id'   => $item->supplier_id,
-                    'supplier_name' => $item->supplier?->name,
-                    'unit_id'       => $item->unit_id,
-                    'unit_name'     => $item->unit?->name,
+        // ✅ Calculate stock for ALL products in ONE bulk operation
+        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
 
-                     'stock'         => $item->stock,
+        return $paginator->through(function (InventoryItem $item) use ($stockData) {
+            $stock = $stockData[$item->id] ?? [
+                'available' => 0,
+                'stockValue' => '0.00',
+                'minAlert' => 0,
+                'expiry_date' => null,
+                'status' => null,
+            ];
 
-                    // Pivots
-                    'allergies'     => $item->allergies->pluck('name')->values(),
-                    'allergy_ids'   => $item->allergies->pluck('id')->values(),
-                    'tags'          => $item->tags->pluck('name')->values(),
-                    'tag_ids'       => $item->tags->pluck('id')->values(),
+            return [
+                'id'            => $item->id,
+                'name'          => $item->name,
+                'sku'           => $item->sku,
+                'description'   => $item->description,
+                'category'      => $item->category ?? null,
+                'subcategory'   => $item->subcategory ?? null,
+                'minAlert'      => $stock['minAlert'],
+                'supplier_id'   => $item->supplier_id,
+                'supplier_name' => $item->supplier?->name,
+                'unit_id'       => $item->unit_id,
+                'unit_name'     => $item->unit?->name,
+                'stock'         => $item->stock,
 
-                    // Nutrition
-                    'nutrition'     => [
-                        'calories' => (float) ($item->nutrition->calories ?? 0),
-                        'protein'  => (float) ($item->nutrition->protein  ?? 0),
-                        'fat'      => (float) ($item->nutrition->fat      ?? 0),
-                        'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
-                    ],
+                // ✅ Stock data from bulk calculation
+                'availableStock' => $stock['available'],
+                'stockValue'     => $stock['stockValue'],
+                'expiry_date'    => $stock['expiry_date'],
+                'status'         => $stock['status'],
 
-                    'user'          => $item->user?->name,
-                    'image_url'     => UploadHelper::url($item->upload_id),
-                    'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
-                ];
-
-            });
-       
-            
+                'allergies'     => $item->allergies->pluck('name')->values(),
+                'allergy_ids'   => $item->allergies->pluck('id')->values(),
+                'tags'          => $item->tags->pluck('name')->values(),
+                'tag_ids'       => $item->tags->pluck('id')->values(),
+                'nutrition'     => [
+                    'calories' => (float) ($item->nutrition->calories ?? 0),
+                    'protein'  => (float) ($item->nutrition->protein  ?? 0),
+                    'fat'      => (float) ($item->nutrition->fat      ?? 0),
+                    'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+                ],
+                'user'          => $item->user?->name,
+                'image_url'     => UploadHelper::url($item->upload_id),
+                'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
+            ];
+        });
     }
 
     /** ----------------------------------------------------------------
@@ -95,7 +105,7 @@ class InventoryService
             // FKs
             $data['supplier_id'] = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
             $data['unit_id']     = isset($data['unit_id'])     ? (int) $data['unit_id']     : null;
-            
+
             // Resolve category_id from subcategory_id or category_id
             $data['category_id'] = $this->resolveCategoryId($data);
 
@@ -158,7 +168,7 @@ class InventoryService
                 unset($data['subcategory_id']);
             }
 
-                        // detect pivots + nutrition...
+            // detect pivots + nutrition...
             $pivotsProvided        = $this->pivotsProvided($data);
             [$allergyIds, $tagIds] = $this->extractPivots($data);
             $nutritionPayload      = $this->extractNutrition($data);
@@ -222,8 +232,8 @@ class InventoryService
         if (is_string($allergyIds)) $allergyIds = json_decode($allergyIds, true) ?: [];
         if (is_string($tagIds))     $tagIds     = json_decode($tagIds, true)     ?: [];
 
-        $allergyIds = collect($allergyIds)->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
-        $tagIds     = collect($tagIds)->map(fn ($v) => (int) $v)->filter()->unique()->values()->all();
+        $allergyIds = collect($allergyIds)->map(fn($v) => (int) $v)->filter()->unique()->values()->all();
+        $tagIds     = collect($tagIds)->map(fn($v) => (int) $v)->filter()->unique()->values()->all();
 
         unset($data['allergies'], $data['allergy_ids'], $data['tags'], $data['tag_ids']);
 
@@ -285,7 +295,7 @@ class InventoryService
             unset($data['nutrition']);
         } else {
             $touched = false;
-            foreach (['calories','protein','fat','carbs'] as $k) {
+            foreach (['calories', 'protein', 'fat', 'carbs'] as $k) {
                 $key = "nutrition_{$k}";
                 if (array_key_exists($key, $data)) {
                     $payload[$k] = (float) $data[$key];
@@ -294,7 +304,7 @@ class InventoryService
                 }
             }
             if ($touched) {
-                $payload = array_merge(['calories'=>0,'protein'=>0,'fat'=>0,'carbs'=>0], $payload);
+                $payload = array_merge(['calories' => 0, 'protein' => 0, 'fat' => 0, 'carbs' => 0], $payload);
             }
         }
 
@@ -361,7 +371,7 @@ class InventoryService
 
 
     // Edit data
-   public function editPayload(InventoryItem $item): array
+    public function editPayload(InventoryItem $item): array
     {
         $item->load([
             'user:id,name',
@@ -379,7 +389,7 @@ class InventoryService
 
         // If $cat has a parent_id => $cat IS a subcategory.
         $resolvedCategoryId   = $cat?->parent_id ? (int) $cat->parent_id : ($cat?->id ? (int) $cat->id : null);
-        $resolvedSubcategoryId= $cat?->parent_id ? (int) $cat->id : null;
+        $resolvedSubcategoryId = $cat?->parent_id ? (int) $cat->id : null;
 
         $categoryName         = $cat?->parent_id ? ($cat->parent?->name) : ($cat?->name);
         $subcategoryName      = $cat?->parent_id ? $cat->name : null;
@@ -426,5 +436,49 @@ class InventoryService
         ];
     }
 
+    /**
+     * Get KPI statistics for all inventory
+     */
+    public function getKpiStats(): array
+    {
+        $allItems = InventoryItem::select('id', 'minAlert')->get();
+        $productIds = $allItems->pluck('id')->toArray();
 
+        // Get bulk stock data for ALL products
+        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+
+        // Calculate KPIs
+        $totalItems = count($allItems);
+        $lowStockCount = 0;
+        $outOfStockCount = 0;
+        $expiredCount = 0;
+        $nearExpiryCount = 0;
+
+        foreach ($allItems as $item) {
+            $stock = $stockData[$item->id] ?? ['available' => 0, 'status' => null];
+            $available = $stock['available'];
+            $minAlert = $item->minAlert ?? 5;
+
+            if ($available <= 0) {
+                $outOfStockCount++;
+            } elseif ($available > 0 && $available <= $minAlert) {
+                $lowStockCount++;
+            }
+
+            // ✅ Count expiry status from already calculated data
+            if ($stock['status'] === 'expired') {
+                $expiredCount++;
+            } elseif ($stock['status'] === 'near_expiry') {
+                $nearExpiryCount++;
+            }
+        }
+
+        return [
+            'total_items' => $totalItems,
+            'out_of_stock' => $outOfStockCount,
+            'low_stock' => $lowStockCount,
+            'expired' => $expiredCount,
+            'near_expiry' => $nearExpiryCount,
+        ];
+    }
 }
