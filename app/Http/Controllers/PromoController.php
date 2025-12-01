@@ -552,99 +552,96 @@ class PromoController extends Controller
     }
 
     private function parseDate($date)
-{
-    if (empty($date)) {
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        // If already a DateTime object, return it
+        if ($date instanceof \DateTime) {
+            return $date;
+        }
+
+        // Clean up the date string
+        $date = trim($date);
+
+        // PRIMARY: Try ISO format first (YYYY-MM-DD) - this should match your frontend output
+        $dateObj = \DateTime::createFromFormat('Y-m-d', $date);
+        if ($dateObj !== false && $dateObj->format('Y-m-d') === $date) {
+            $dateObj->setTime(0, 0, 0);
+
+            return $dateObj;
+        }
+
+        // Try ISO format with time (YYYY-MM-DD HH:ii:ss)
+        $dateObj = \DateTime::createFromFormat('Y-m-d H:i:s', $date);
+        if ($dateObj !== false) {
+            $dateObj->setTime(0, 0, 0);
+
+            return $dateObj;
+        }
+
+        // Try other formats
+        $formats = [
+            'Y/m/d',           // 2025/06/01
+            'd/m/Y',           // 01/06/2025
+            'm/d/Y',           // 06/01/2025
+            'd-m-Y',           // 01-06-2025
+            'm-d-Y',           // 06-01-2025
+        ];
+
+        foreach ($formats as $format) {
+            $dateObj = \DateTime::createFromFormat($format, $date);
+            if ($dateObj !== false && $dateObj->format($format) === $date) {
+                $dateObj->setTime(0, 0, 0);
+
+                return $dateObj;
+            }
+        }
+
+        // Handle slash format with intelligent parsing
+        if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $date, $matches)) {
+            $first = (int) $matches[1];
+            $second = (int) $matches[2];
+            $year = (int) $matches[3];
+
+            $format = ($first > 12) ? 'd/m/Y' : 'm/d/Y';
+            $dateObj = \DateTime::createFromFormat($format, $date);
+
+            if ($dateObj !== false) {
+                $dateObj->setTime(0, 0, 0);
+
+                return $dateObj;
+            }
+        }
+
+        // Handle dash format with intelligent parsing
+        if (preg_match('#^(\d{1,2})-(\d{1,2})-(\d{4})$#', $date, $matches)) {
+            $first = (int) $matches[1];
+            $second = (int) $matches[2];
+
+            $format = ($first > 12) ? 'd-m-Y' : 'm-d-Y';
+            $dateObj = \DateTime::createFromFormat($format, $date);
+
+            if ($dateObj !== false) {
+                $dateObj->setTime(0, 0, 0);
+
+                return $dateObj;
+            }
+        }
+
+        // Last resort: strtotime with validation
+        $timestamp = strtotime($date);
+        if ($timestamp !== false) {
+            $dateObj = new \DateTime;
+            $dateObj->setTimestamp($timestamp);
+            $dateObj->setTime(0, 0, 0);
+
+            if ($dateObj->format('Y') >= 2000 && $dateObj->format('Y') <= 2100) {
+                return $dateObj;
+            }
+        }
+
         return null;
     }
-
-    // If already a DateTime object, return it
-    if ($date instanceof \DateTime) {
-        return $date;
-    }
-
-    // Clean up the date string
-    $date = trim($date);
-
-    // Try common date formats in order of specificity
-    $formats = [
-        'Y-m-d',           // 2025-06-01 (ISO format) - PRIMARY
-        'Y-m-d H:i:s',     // 2025-06-01 12:00:00 (with time)
-        'Y/m/d',           // 2025/06/01
-        'd-m-Y',           // 01-06-2025
-        'm-d-Y',           // 06-01-2025
-    ];
-
-    foreach ($formats as $format) {
-        $dateObj = \DateTime::createFromFormat($format, $date);
-        
-        // Check if parsing was successful AND no extra characters remain
-        if ($dateObj !== false && $dateObj->format($format) === $date) {
-            $dateObj->setTime(0, 0, 0);
-            return $dateObj;
-        }
-    }
-
-    // Handle dates with slashes: m/d/Y or d/m/Y
-    if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $date, $matches)) {
-        $first = (int)$matches[1];
-        $second = (int)$matches[2];
-        $year = (int)$matches[3];
-
-        // Determine format based on values
-        $format = 'm/d/Y'; // Default to US format
-        
-        // If first number > 12, it must be day (d/m/Y format)
-        if ($first > 12) {
-            $format = 'd/m/Y';
-        }
-        // If second number > 12, it must be m/d/Y format
-        elseif ($second > 12) {
-            $format = 'm/d/Y';
-        }
-
-        $dateObj = \DateTime::createFromFormat($format, $date);
-
-        if ($dateObj !== false) {
-            $dateObj->setTime(0, 0, 0);
-            return $dateObj;
-        }
-    }
-
-    // Handle dates with dashes: m-d-Y or d-m-Y
-    if (preg_match('#^(\d{1,2})-(\d{1,2})-(\d{4})$#', $date, $matches)) {
-        $first = (int)$matches[1];
-        $second = (int)$matches[2];
-
-        $format = 'm-d-Y'; // Default to US format
-        
-        if ($first > 12) {
-            $format = 'd-m-Y';
-        } elseif ($second > 12) {
-            $format = 'm-d-Y';
-        }
-
-        $dateObj = \DateTime::createFromFormat($format, $date);
-
-        if ($dateObj !== false) {
-            $dateObj->setTime(0, 0, 0);
-            return $dateObj;
-        }
-    }
-
-    // Last resort: try strtotime ONLY as absolute last resort
-    // and validate the result makes sense
-    $timestamp = strtotime($date);
-    if ($timestamp !== false) {
-        $dateObj = new \DateTime();
-        $dateObj->setTimestamp($timestamp);
-        $dateObj->setTime(0, 0, 0);
-        
-        // Sanity check: year should be reasonable (2000-2100)
-        if ($dateObj->format('Y') >= 2000 && $dateObj->format('Y') <= 2100) {
-            return $dateObj;
-        }
-    }
-
-    return null;
-}
 }

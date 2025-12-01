@@ -224,41 +224,44 @@ class DiscountController extends Controller
                 $name = $row['name'] ?? null;
                 $type = strtolower($row['type'] ?? 'percent');
                 $discountAmount = $row['discount_amount'] ?? null;
-                $startDate = $row['start_date'] ?? null;
-                $endDate = $row['end_date'] ?? null;
+
+                // Normalize dates
+                $startDate = $this->normalizeExcelDate($row['start_date'] ?? null);
+                $endDate = $this->normalizeExcelDate($row['end_date'] ?? null);
+
                 $minPurchase = $row['min_purchase'] ?? 0;
                 $maxDiscount = $row['max_discount'] ?? null;
                 $status = strtolower($row['status'] ?? 'active');
                 $description = $row['description'] ?? null;
 
-                // Validate required fields
+                // Required fields
                 if (! $name || ! $discountAmount || ! $startDate || ! $endDate) {
                     $errors[] = 'Row '.($index + 1).': Missing required fields';
 
                     continue;
                 }
 
-                // Validate type
+                // Type validation
                 if (! in_array($type, ['flat', 'percent'])) {
                     $errors[] = 'Row '.($index + 1).': Invalid type';
 
                     continue;
                 }
 
-                // Validate status
+                // Status validation
                 if (! in_array($status, ['active', 'inactive'])) {
                     $errors[] = 'Row '.($index + 1).': Invalid status';
 
                     continue;
                 }
 
-                // Validate dates using Carbon
+                // Date validation
                 try {
                     $startDateObj = Carbon::parse($startDate)->startOfDay();
                     $endDateObj = Carbon::parse($endDate)->startOfDay();
 
                     if ($endDateObj->lt($startDateObj)) {
-                        $errors[] = 'Row '.($index + 1).': End date must be after start date';
+                        $errors[] = 'Row '.($index + 1).': End date cannot be before start date';
 
                         continue;
                     }
@@ -268,14 +271,13 @@ class DiscountController extends Controller
                     continue;
                 }
 
-                // Validate discount amount
+                // Discount validation
                 if (! is_numeric($discountAmount) || $discountAmount <= 0) {
                     $errors[] = 'Row '.($index + 1).': Invalid discount amount';
 
                     continue;
                 }
 
-                // Validate percentage
                 if ($type === 'percent' && $discountAmount > 100) {
                     $errors[] = 'Row '.($index + 1).': Percentage cannot exceed 100%';
 
@@ -290,16 +292,15 @@ class DiscountController extends Controller
                         'start_date' => $startDateObj->format('Y-m-d'),
                         'end_date' => $endDateObj->format('Y-m-d'),
                         'min_purchase' => $minPurchase,
-                        'max_discount' => $maxDiscount && $maxDiscount !== '' ? $maxDiscount : null,
+                        'max_discount' => $maxDiscount ?: null,
                         'status' => $status,
                         'description' => $description,
                     ]);
 
                     $importedCount++;
+
                 } catch (\Exception $e) {
                     $errors[] = 'Row '.($index + 1).': '.$e->getMessage();
-
-                    continue;
                 }
             }
 
@@ -311,17 +312,12 @@ class DiscountController extends Controller
                 ], 422);
             }
 
-            $responseMessage = "Successfully imported {$importedCount} discount(s)";
-            if (! empty($errors)) {
-                $responseMessage .= ' with '.count($errors).' error(s)';
-            }
-
             return response()->json([
                 'success' => true,
-                'message' => $responseMessage,
+                'message' => "Imported {$importedCount} discount(s) with ".count($errors).' warning(s)',
                 'imported_count' => $importedCount,
                 'errors' => $errors,
-            ], 200);
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -331,4 +327,29 @@ class DiscountController extends Controller
         }
     }
 
+    private function normalizeExcelDate($value)
+    {
+        if (! $value) {
+            return null;
+        }
+
+        // Excel serial number (e.g., 45678)
+        if (is_numeric($value) && $value > 30000) {
+            $unixDate = ($value - 25569) * 86400;
+
+            return Carbon::createFromTimestamp($unixDate)->format('Y-m-d');
+        }
+
+        // Already in correct format
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return $value;
+        }
+
+        // Try normal parsing
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
 }

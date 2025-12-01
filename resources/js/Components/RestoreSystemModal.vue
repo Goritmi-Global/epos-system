@@ -6,8 +6,8 @@
                 <button
                     class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
                     @click="handleCancel" title="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
@@ -31,8 +31,9 @@
                 <div class="flex justify-center gap-3">
                     <button @click="handleConfirm"
                         class="btn btn-primary d-flex align-items-center gap-1 px-3 py-2 rounded-pill text-white">
-                        Yes, Restore
+                        {{ confirmLabel }}
                     </button>
+
                     <button @click="handleCancel"
                         class="btn btn-secondary d-flex align-items-center gap-1 px-3 py-2 rounded-pill text-white">
                         Cancel
@@ -58,8 +59,13 @@ const props = defineProps({
     message: {
         type: String,
         default: 'Are you sure you want to restore the system? This action cannot be undone.'
+    },
+    confirmLabel: {
+        type: String,
+        default: 'Yes, Restore'
     }
 });
+
 
 const emit = defineEmits(["confirm", "cancel"]);
 
@@ -96,6 +102,7 @@ const handleCancel = () => {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);

@@ -330,6 +330,41 @@ const sampleData = [
 
 
 const handleImport = (data) => {
+
+    const normalizeDate = (value) => {
+        if (!value) return "";
+
+        // CASE 1: Excel serial number (e.g., 45502)
+        if (!isNaN(value) && Number(value) > 30000) {
+            const excelDate = Number(value);
+            const dateObj = new Date((excelDate - 25569) * 86400 * 1000);
+
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+            const d = String(dateObj.getDate()).padStart(2, "0");
+
+            return `${y}-${m}-${d}`;
+        }
+
+        // CASE 2: Already in YYYY-MM-DD
+        if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return value;
+        }
+
+        // CASE 3: Try normal JS Date parsing
+        const dateObj = new Date(value);
+        if (!isNaN(dateObj.getTime())) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+            const d = String(dateObj.getDate()).padStart(2, "0");
+
+            return `${y}-${m}-${d}`;
+        }
+
+        return "";
+    };
+
+
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
         return;
@@ -343,8 +378,8 @@ const handleImport = (data) => {
             name: row[0] || "",
             type: row[1] || "percent",
             discount_amount: row[2] || "",
-            start_date: row[3] || "",
-            end_date: row[4] || "",
+            start_date: normalizeDate(row[3]),
+            end_date: normalizeDate(row[4]),
             min_purchase: row[5] || "0",
             max_discount: row[6] || null,
             status: row[7] || "active",
@@ -352,61 +387,69 @@ const handleImport = (data) => {
         };
     }).filter(discount => discount.name.trim());
 
+
+    // No valid rows
     if (discountsToImport.length === 0) {
         toast.error("No valid discounts found in the file.");
         return;
     }
 
-    // Check for duplicate discount names within the CSV
-    const discountNames = discountsToImport.map(d => d.name.trim().toLowerCase());
-    const duplicatesInCSV = discountNames.filter((name, index) => discountNames.indexOf(name) !== index);
+
+    // Duplicate names inside CSV
+    const names = discountsToImport.map(d => d.name.trim().toLowerCase());
+    const duplicatesInCSV = names.filter((name, i) => names.indexOf(name) !== i);
 
     if (duplicatesInCSV.length > 0) {
-        toast.error(`Duplicate discount names found in CSV: ${[...new Set(duplicatesInCSV)].join(", ")}`);
+        toast.error(`Duplicate discount names found: ${[...new Set(duplicatesInCSV)].join(", ")}`);
         return;
     }
 
-    // Check for duplicate discount names in existing table
-    const existingDiscountNames = discounts.value.map(d => d.name.trim().toLowerCase());
-    const duplicatesInTable = discountsToImport.filter(importDiscount =>
-        existingDiscountNames.includes(importDiscount.name.trim().toLowerCase())
+
+    // Duplicate names in DB
+    const existingNames = discounts.value.map(d => d.name.trim().toLowerCase());
+    const duplicatesInTable = discountsToImport.filter(
+        di => existingNames.includes(di.name.trim().toLowerCase())
     );
 
     if (duplicatesInTable.length > 0) {
-        const duplicateNamesList = duplicatesInTable.map(d => d.name).join(", ");
-        toast.error(`Discounts already exist in the table: ${duplicateNamesList}`);
+        toast.error(`Discounts already exist: ${duplicatesInTable.map(d => d.name).join(", ")}`);
         return;
     }
 
-    // Validate type values
+
+    // Validate type
     const validTypes = ["flat", "percent"];
-    const invalidTypes = discountsToImport.filter(d => !validTypes.includes(d.type.toLowerCase()));
+    const invalidTypes = discountsToImport.filter(
+        d => !validTypes.includes(d.type.toLowerCase())
+    );
 
     if (invalidTypes.length > 0) {
-        toast.error("Invalid type found. Type must be either 'flat' or 'percent'.");
+        toast.error("Invalid type detected. Allowed: flat, percent");
         return;
     }
 
-    // Validate status values
+
+    // Validate status
     const validStatuses = ["active", "inactive"];
-    const invalidStatuses = discountsToImport.filter(d => !validStatuses.includes(d.status.toLowerCase()));
+    const invalidStatuses = discountsToImport.filter(
+        d => !validStatuses.includes(d.status.toLowerCase())
+    );
 
     if (invalidStatuses.length > 0) {
-        toast.error("Invalid status found. Status must be either 'active' or 'inactive'.");
+        toast.error("Invalid status detected. Allowed: active, inactive");
         return;
     }
 
-    // Send to API
-    axios
-        .post("/api/discounts/import", { discounts: discountsToImport })
+
+    // Send data to backend
+    axios.post("/api/discounts/import", { discounts: discountsToImport })
         .then(() => {
             toast.success("Discounts imported successfully");
             fetchDiscounts();
         })
         .catch((err) => {
-            console.error("Import error:", err);
-            const errorMessage = err.response?.data?.message || "Import failed";
-            toast.error(errorMessage);
+            const msg = err.response?.data?.message || "Import failed";
+            toast.error(msg);
         });
 };
 

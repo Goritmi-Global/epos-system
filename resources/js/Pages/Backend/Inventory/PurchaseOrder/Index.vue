@@ -790,10 +790,12 @@ const downloadInvoice = async (order) => {
 
                                         <td class="text-nowrap">
                                             {{
-                                                dateFmt(
+                                                (
                                                     row.purchasedAt
-                                                ).split(",")[0]
+                                                )
                                             }},
+                                            {{ new Date(row.create_at).toLocaleTimeString([], { hour12: true }) }}
+
                                             <div class="small text-muted">
                                                 {{
                                                     dateFmt(row.purchasedAt)
@@ -964,7 +966,7 @@ const downloadInvoice = async (order) => {
                                                     item.product?.name ||
                                                     item.name ||
                                                     "Unknown Product"
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model="item.name" class="form-control" readonly />
                                             </td>
 
@@ -972,7 +974,7 @@ const downloadInvoice = async (order) => {
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.quantity)
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model.number="item.quantity
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -983,7 +985,7 @@ const downloadInvoice = async (order) => {
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.unit_price)
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model.number="item.unit_price
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -994,7 +996,7 @@ const downloadInvoice = async (order) => {
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.sub_total)
-                                                }}</span>
+                                                    }}</span>
                                                 <input v-else v-model="item.sub_total" class="form-control" readonly />
                                             </td>
 
