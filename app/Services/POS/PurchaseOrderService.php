@@ -4,40 +4,52 @@ namespace App\Services\POS;
 
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
-use App\Models\PurchaseOrder;
 use App\Models\PurchaseItem;
+use App\Models\PurchaseOrder;
 use App\Models\StockEntry;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderService
 {
-   public function list()
-{
-    return PurchaseOrder::with('supplier')
-        ->latest()
-        ->paginate(20)
-        ->through(function ($order) {
-            return [
-                'id'          => $order->id,
-                'supplier'    => $order->supplier->name ?? 'N/A',
-                'purchasedAt' => $order->purchase_date,
-                'status'      => $order->status,
-                'total'       => $order->total_amount,
-                'create_at'       => $order->created_at,
-            ];
-        });
-}
-
+    public function list(array $filters = [])
+    {
+        return PurchaseOrder::with('supplier')
+            ->when($filters['q'] ?? null, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('supplier', function ($sq) use ($search) {
+                        $sq->where('name', 'like', "%{$search}%");
+                    })
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhere('total_amount', 'like', "%{$search}%")
+                        ->orWhere('purchase_date', 'like', "%{$search}%");
+                });
+            })
+            ->when($filters['status'] ?? null, function ($query, $status) {
+                $query->where('status', $status);
+            })
+            ->latest()
+            ->paginate($filters['per_page'] ?? 10)
+            ->through(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'supplier' => $order->supplier->name ?? 'N/A',
+                    'purchasedAt' => $order->purchase_date,
+                    'status' => $order->status,
+                    'total' => $order->total_amount,
+                    'create_at' => $order->created_at,
+                ];
+            });
+    }
 
     public function store(array $data): PurchaseOrder
     {
         return DB::transaction(function () use ($data) {
             $order = PurchaseOrder::create([
-                'supplier_id'   => $data['supplier_id'],
+                'supplier_id' => $data['supplier_id'],
                 'purchase_date' => $data['purchase_date'] ?? now(),
-                'status'        => $data['status'] ?? 'pending', // <-- pending for orders
-                'total_amount'  => 0,
+                'status' => $data['status'] ?? 'pending', // <-- pending for orders
+                'total_amount' => 0,
             ]);
 
             $total = 0;
@@ -48,10 +60,10 @@ class PurchaseOrderService
 
                 PurchaseItem::create([
                     'purchase_id' => $order->id,
-                    'product_id'  => $item['product_id'],
-                    'quantity'    => $item['quantity'] ?? $item['qty'],
-                    'unit_price'  => $item['unit_price'],
-                    'sub_total'   => $sub_total,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'] ?? $item['qty'],
+                    'unit_price' => $item['unit_price'],
+                    'sub_total' => $sub_total,
                     'expiry_date' => $item['expiry'] ?? null,
                 ]);
 
@@ -62,17 +74,17 @@ class PurchaseOrderService
                     $categoryId = InventoryCategory::where('id', $inventory->category_id)->first()->id;
                     // dd($categoryId);
                     StockEntry::create([
-                        'product_id'     => $item['product_id'],
-                        'category_id'    => $categoryId,
-                        'supplier_id'    => $data['supplier_id'],
-                        'user_id'        => Auth::id(),
-                        'quantity'       => $item['quantity'] ?? $item['qty'],
-                        'price'          => $item['unit_price'],
-                        'value'          => $sub_total,
-                        'stock_type'     => 'stockin',
+                        'product_id' => $item['product_id'],
+                        'category_id' => $categoryId,
+                        'supplier_id' => $data['supplier_id'],
+                        'user_id' => Auth::id(),
+                        'quantity' => $item['quantity'] ?? $item['qty'],
+                        'price' => $item['unit_price'],
+                        'value' => $sub_total,
+                        'stock_type' => 'stockin',
                         'operation_type' => 'purchase',
-                        'expiry_date'    => $item['expiry'] ?? null,
-                        'purchase_date'  => $data['purchase_date'] ?? now(),
+                        'expiry_date' => $item['expiry'] ?? null,
+                        'purchase_date' => $data['purchase_date'] ?? now(),
                     ]);
                 }
             }
@@ -107,11 +119,11 @@ class PurchaseOrderService
                     $total += $cost;
                     PurchaseItem::create([
                         'purchase_id' => $order->id,
-                        'product_id'  => $item['product_id'],
-                        'quantity'    => $item['qty'] ?? $item['quantity'],
-                        'unit_price'  => $item['unit_price'],
-                        'expiry'      => $item['expiry'] ?? null,
-                        'sub_total'  => $cost,
+                        'product_id' => $item['product_id'],
+                        'quantity' => $item['qty'] ?? $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'expiry' => $item['expiry'] ?? null,
+                        'sub_total' => $cost,
                     ]);
                 }
                 $order->update(['total_amount' => $total]);
@@ -124,20 +136,19 @@ class PurchaseOrderService
                 $totalValue = $itemData['qty'] * $itemData['unit_price'];
 
                 StockEntry::create([
-                    'product_id'     => $itemData['product_id'],   
-                    'category_id'    => $categoryId,               
-                    'supplier_id'    => $order->supplier_id,       
-                    'user_id'        => Auth::id(),                
-                    'quantity'       => $itemData['qty'],          
-                    'price'          => $itemData['unit_price'],   
-                    'value'          => $totalValue,               
-                    'stock_type'     => 'stockin',                 
-                    'operation_type' => 'purchase',                
-                    'expiry_date'    => $itemData['expiry'] ?? null, 
-                    'purchase_date'  => $order->purchase_date ?? now(), 
+                    'product_id' => $itemData['product_id'],
+                    'category_id' => $categoryId,
+                    'supplier_id' => $order->supplier_id,
+                    'user_id' => Auth::id(),
+                    'quantity' => $itemData['qty'],
+                    'price' => $itemData['unit_price'],
+                    'value' => $totalValue,
+                    'stock_type' => 'stockin',
+                    'operation_type' => 'purchase',
+                    'expiry_date' => $itemData['expiry'] ?? null,
+                    'purchase_date' => $order->purchase_date ?? now(),
                 ]);
             }
-
 
             return $order;
         });
