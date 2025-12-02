@@ -79,6 +79,7 @@ import ImageZoomModal from "@/Components/ImageZoomModal.vue";
 import Paginator from "@/Components/Pagination.vue";
 import ImageCropperAppCanvas from "@/Components/ImageCropperAppCanvas.vue";
 
+
 const appName = import.meta.env.VITE_APP_NAME || "Laravel";
 
 createInertiaApp({

@@ -72,6 +72,11 @@ const subTotal = computed(() =>
 
 const isLoading = ref(false);
 
+const printConfirm = async () => {
+ await this.$refs.printer.printReceipt(this.orderData);
+}
+
+
 const handleConfirm = async () => {
 
     formErrors.value.cashReceived = null;
@@ -90,6 +95,8 @@ const handleConfirm = async () => {
     if (isLoading.value) return;
 
     isLoading.value = true;
+
+
 
     // emit the event
     emit("confirm", {
@@ -152,7 +159,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -177,7 +184,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -188,7 +195,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         deliveryLocation ||
                                                         "N/A"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
 
                                             </div>
@@ -198,7 +205,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         phone ||
                                                         "N/A"
-                                                    }}</span>
+                                                        }}</span>
                                                 </div>
                                             </div>
 
@@ -388,6 +395,9 @@ const formattedOrderType = computed(() => {
                                                     <i v-else class="bi bi-check2-circle"></i>
                                                     <span>{{ isLoading ? 'Processing...' : 'Confirm & Place' }}</span>
                                                 </button>
+
+                                               
+
 
                                             </div>
                                         </div>

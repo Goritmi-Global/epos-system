@@ -213,6 +213,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/import', [DiscountController::class, 'import'])->name('import');
     });
 
+    
+
     /*
     |--------------------------------------------------------------------------
     | Addon Routes

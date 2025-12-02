@@ -11,6 +11,14 @@ import { useFormatters } from "@/composables/useFormatters";
 import PosOrdersModal from "./PosOrdersModal.vue";
 import FilterModal from "@/Components/FilterModal.vue";
 import MultiSelect from 'primevue/multiselect';
+import { useThermalPrinter } from '@/composables/useThermalPrinter'
+
+// Initialize printer
+const { 
+    printReceipt: thermalPrintReceipt, 
+    printKOT: thermalPrintKOT,
+    autoReconnect 
+} = useThermalPrinter()
 
 
 
@@ -21,6 +29,7 @@ const props = defineProps(["client_secret", "order_code"]);
 import { Popover } from 'bootstrap';
 
 onMounted(() => {
+   // autoReconnect(),
     nextTick(() => {
         document.querySelectorAll('[data-bs-toggle="popover"]').forEach((el) => {
             new Popover(el);
@@ -1143,36 +1152,83 @@ const openConfirmModal = () => {
     showConfirmModal.value = true;
 };
 
+// Get your business data (adjust to match your app)
+const getBusinessData = () => ({
+    name:  'Business Name',
+    phone: '',
+    address: '',
+    footer:  'Thank you!',
+    currency: '£',
+    logo_url: null
+})
 
-async function printReceipt(order) {
-    try {
-        const response = await axios.post("/api/customer/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "Print failed");
-        }
-    } catch (error) {
-        console.error("Print failed:", error);
-        toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
-    }
+// NEW printReceipt function
+const printReceipt = async (order) => {
+    const business = getBusinessData()
+    await thermalPrintReceipt({
+        order_date: order.order_date,
+        order_time: order.order_time,
+        customer_name: order.customer_name || 'Walk In',
+        order_type: order.order_type,
+        payment_type: order.payment_type,
+        cash_received: order.cash_received || 0,
+        sub_total: order.sub_total,
+        total_amount: order.total_amount,
+        items: order.items.map(item => ({
+            title: item.title,
+            quantity: item.quantity || item.qty,
+            unit_price: item.unit_price
+        }))
+    }, business)
 }
+
+// NEW printKot function  
+const printKot = async (order) => {
+    const business = getBusinessData()
+    await thermalPrintKOT({
+        order_date: order.order_date,
+        order_time: order.order_time,
+        customer_name: order.customer_name || order.table_number,
+        order_type: order.order_type,
+        kitchen_note: order.kitchen_note,
+        items: order.items.map(item => ({
+            title: item.title,
+            quantity: item.quantity || item.qty,
+            item_kitchen_note: item.item_kitchen_note
+        }))
+    }, business)
+}
+
+
+// async function printReceipt(order) {
+//     try {
+//         const response = await axios.post("/api/customer/print-receipt", { order });
+//         if (response.data.success) {
+//         } else {
+//             toast.error(response.data.message || "Print failed");
+//         }
+//     } catch (error) {
+//         console.error("Print failed:", error);
+//         toast.error("Unable to connect to the customer printer. Please ensure it is properly connected.");
+//     }
+// }
 
 
 const paymentMethod = ref("cash");
 const changeAmount = ref(0);
 
-async function printKot(order) {
-    try {
-        const response = await axios.post("/api/kot/print-receipt", { order });
-        if (response.data.success) {
-        } else {
-            toast.error(response.data.message || "KOT print failed");
-        }
-    } catch (error) {
-        console.error("KOT print failed:", error);
-        toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
-    }
-}
+// async function printKot(order) {
+//     try {
+//         const response = await axios.post("/api/kot/print-receipt", { order });
+//         if (response.data.success) {
+//         } else {
+//             toast.error(response.data.message || "KOT print failed");
+//         }
+//     } catch (error) {
+//         console.error("KOT print failed:", error);
+//         toast.error("Unable to connect to the kitchen printer. Please ensure it is properly connected.");
+//     }
+// }
 
 
 // ================================================
