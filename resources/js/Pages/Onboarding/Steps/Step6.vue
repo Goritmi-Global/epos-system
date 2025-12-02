@@ -43,6 +43,11 @@ const printers = ref([]);
 const loadingPrinters = ref(false);
 
 const fetchPrinters = async () => {
+
+  qz.printers.find()
+    .then(printers => console.log("PRINTERS:", printers))
+    .catch(err => console.error(err));
+
   loadingPrinters.value = true;
   try {
     const res = await axios.get("/api/printers");
