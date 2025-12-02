@@ -17,6 +17,9 @@ const props = defineProps({
     },
 });
 
+
+// Add derived units cache and related refs (paste after line 16 - after multipleItems ref)
+const derivedUnitsCache = ref({});
 const emit = defineEmits(["refresh-data"]);
 const activeTab = ref("single");
 
@@ -27,6 +30,7 @@ const bulkItems = ref([]);
 const m_submitting = ref(false);
 const m_formErrors = ref({});
 const multipleItems = ref([]);
+
 watch(
     () => props.items,
     (newItems) => {
@@ -36,6 +40,9 @@ watch(
             unitPrice: 0,
             expiry: null,
             subtotal: 0,
+            selected_derived_unit_id: null,
+            selectedDerivedUnitInfo: null,
+            derived_units: [],
         }));
     },
     { immediate: true }
@@ -51,6 +58,9 @@ watch(
             expiry: null,
             subtotal: 0,
             supplier_id: null,
+            selected_derived_unit_id: null,
+            selectedDerivedUnitInfo: null,
+            derived_units: [],
         }));
     },
     { immediate: true }
@@ -72,9 +82,31 @@ onMounted(() => {
     }
 });
 
+// Replace existing updateSubtotal function (around line 51)
 function updateSubtotal(it) {
-    const qty = Number(it.qty) || 0;
+    let qty = Number(it.qty) || 0;
     const price = Number(it.unitPrice) || 0;
+
+    // Apply conversion factor if derived unit is selected
+    if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+        const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+        qty = qty;
+    }
+
+    it.subtotal = qty * price;
+}
+
+// Add this new function after updateSubtotal (around line 63)
+function updateMultipleSubtotal(it) {
+    let qty = Number(it.qty) || 0;
+    const price = Number(it.unitPrice) || 0;
+
+    // Apply conversion factor if derived unit is selected
+    if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+        const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+        qty = qty;
+    }
+
     it.subtotal = qty * price;
 }
 
@@ -86,9 +118,18 @@ function handleQtyInput(it) {
 }
 
 function handlePriceInput(it) {
+    // Don't reset to 0 if user clears the field temporarily
+    if (it.unitPrice === null || it.unitPrice === undefined || it.unitPrice === '') {
+        it.unitPrice = '';
+        it.subtotal = 0;
+        return;
+    }
+
+    // Prevent negative values
     if (it.unitPrice < 0) {
         it.unitPrice = 0;
     }
+
     updateSubtotal(it);
 }
 
@@ -97,6 +138,11 @@ function delRow(idx) {
     bulkItems.value[idx].unitPrice = 0;
     bulkItems.value[idx].expiry = null;
     bulkItems.value[idx].subtotal = 0;
+    bulkItems.value[idx].selected_derived_unit_id = null;
+    bulkItems.value[idx].selectedDerivedUnitInfo = null;
+    if (bulkItems.value[idx].derived_units) {
+        bulkItems.value[idx].derived_units = [];
+    }
 }
 
 function delMultipleRow(idx) {
@@ -105,8 +151,66 @@ function delMultipleRow(idx) {
     multipleItems.value[idx].expiry = null;
     multipleItems.value[idx].subtotal = 0;
     multipleItems.value[idx].supplier_id = null;
+    multipleItems.value[idx].selected_derived_unit_id = null;
+    multipleItems.value[idx].selectedDerivedUnitInfo = null;
+    if (multipleItems.value[idx].derived_units) {
+        multipleItems.value[idx].derived_units = [];
+    }
+
 }
 
+
+// Add this function after delMultipleRow (around line 100)
+async function loadDerivedUnits(item) {
+    try {
+        const baseUnitId = item.unit_id ?? item.unitId ?? null;
+
+        if (!baseUnitId) {
+            item.derived_units = [];
+            return;
+        }
+
+        // Return cached if present
+        if (derivedUnitsCache.value[baseUnitId]) {
+            item.derived_units = derivedUnitsCache.value[baseUnitId];
+            return;
+        }
+
+        const res = await axios.get("/units", { params: { per_page: 200 } });
+        const list = res.data?.data ?? res.data ?? [];
+        const derived = list.filter(
+            (u) => u.base_unit_id !== null && Number(u.base_unit_id) === Number(baseUnitId)
+        );
+        derivedUnitsCache.value[baseUnitId] = derived;
+        item.derived_units = derived;
+    } catch (err) {
+        console.error("loadDerivedUnits error:", err);
+        item.derived_units = [];
+    }
+}
+
+// Add these functions after loadDerivedUnits (around line 125)
+function onUnitChange(it) {
+    if (!it.selected_derived_unit_id) {
+        it.selectedDerivedUnitInfo = null;
+    } else {
+        it.selectedDerivedUnitInfo = it.derived_units.find(
+            du => du.id === it.selected_derived_unit_id
+        );
+    }
+    updateSubtotal(it);
+}
+
+function onMultipleUnitChange(it) {
+    if (!it.selected_derived_unit_id) {
+        it.selectedDerivedUnitInfo = null;
+    } else {
+        it.selectedDerivedUnitInfo = it.derived_units.find(
+            du => du.id === it.selected_derived_unit_id
+        );
+    }
+    updateMultipleSubtotal(it);
+}
 
 const b_total = computed(() =>
     bulkItems.value.reduce((sum, it) => sum + (Number(it.subtotal) || 0), 0)
@@ -125,16 +229,48 @@ async function bulkSubmit() {
     const today = new Date().toISOString().split("T")[0];
     const validItems = [];
 
+    // ✅ ADD THIS TO DEBUG
+    console.log('Raw bulkItems before processing:', JSON.parse(JSON.stringify(bulkItems.value)));
+
     bulkItems.value.forEach((it, idx) => {
+        console.log(`Processing item ${idx}:`, {
+            id: it.id,
+            name: it.name,
+            qty: it.qty,
+            unitPrice: it.unitPrice,
+            selected_derived_unit_id: it.selected_derived_unit_id,
+            selectedDerivedUnitInfo: it.selectedDerivedUnitInfo
+        });
+
         const hasAnyValue = it.qty || it.unitPrice || it.expiry;
         const errors = {};
 
-        // Only validate if the row has data
         if (hasAnyValue) {
-            if (!it.qty || it.qty <= 0) {
+            let qty = Number(it.qty) || 0;
+
+            if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+                const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+                qty = qty * conversionFactor;
+                console.log(`Applied conversion: ${it.qty} * ${conversionFactor} = ${qty}`);
+            }
+
+            const enteredPrice = it.unitPrice !== null && it.unitPrice !== undefined && it.unitPrice !== ''
+                ? Number(it.unitPrice)
+                : 0;
+
+            console.log('Entered Price:', enteredPrice, 'Type:', typeof it.unitPrice, 'Raw value:', it.unitPrice);
+
+            // ✅ FIX: Use proper rounding that preserves small decimals
+            const baseUnitPrice = it.selectedDerivedUnitInfo && enteredPrice > 0
+                ? Number((enteredPrice / Number(it.selectedDerivedUnitInfo.conversion_factor)).toFixed(4))
+                : enteredPrice;
+
+            console.log('Base Unit Price:', baseUnitPrice);
+
+            if (!qty || qty <= 0) {
                 errors.qty = "Quantity is required";
             }
-            if (!it.unitPrice || it.unitPrice <= 0) {
+            if (!enteredPrice || enteredPrice <= 0) {
                 errors.unitPrice = "Unit Price is required";
             }
             if (!it.expiry) {
@@ -146,15 +282,20 @@ async function bulkSubmit() {
             if (Object.keys(errors).length > 0) {
                 formErrors.value[idx] = errors;
             } else {
-                validItems.push({
+                const itemToPush = {
                     product_id: it.id,
-                    quantity: it.qty,
-                    unit_price: it.unitPrice,
+                    quantity: qty,
+                    unit_price: baseUnitPrice,
                     expiry: it.expiry,
-                });
+                };
+                console.log('Pushing item to validItems:', itemToPush);
+                validItems.push(itemToPush);
             }
         }
     });
+
+    // ✅ ADD THIS TO SEE FINAL PAYLOAD
+    console.log('Valid Items to submit:', validItems);
 
     if (!b_supplier.value) {
         toast.error("Please select a supplier");
@@ -176,22 +317,24 @@ async function bulkSubmit() {
         items: validItems,
     };
 
+    console.log('Final Payload:', payload);
+
     b_submitting.value = true;
     try {
         await axios.post("/purchase-orders", payload);
         toast.success("Bulk order created successfully!");
         emit("refresh-data");
 
-        // Reset form
         b_supplier.value = null;
         bulkItems.value.forEach((it) => {
             it.qty = 0;
             it.unitPrice = 0;
             it.expiry = null;
             it.subtotal = 0;
+            it.selected_derived_unit_id = null;
+            it.selectedDerivedUnitInfo = null;
         });
 
-        // Close modal
         const m = bootstrap.Modal.getInstance(
             document.getElementById("bulkOrderModal")
         );
@@ -212,6 +355,7 @@ async function multipleSubmit() {
     const validItems = [];
     const groupedBySupplier = {};
 
+    // Replace the multipleItems.forEach loop in multipleSubmit (around line 197-228)
     multipleItems.value.forEach((it, idx) => {
         const hasAnyValue = it.qty || it.unitPrice || it.expiry;
         const errors = {};
@@ -220,10 +364,27 @@ async function multipleSubmit() {
             if (!it.supplier_id) {
                 errors.supplier_id = "Supplier is required";
             }
-            if (!it.qty || it.qty <= 0) {
+
+            let qty = Number(it.qty) || 0;
+
+            if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
+                const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
+                qty = qty * conversionFactor;
+            }
+
+            const enteredPrice = it.unitPrice !== null && it.unitPrice !== undefined && it.unitPrice !== ''
+                ? Number(it.unitPrice)
+                : 0;
+
+            // ✅ FIX: Use proper rounding that preserves small decimals
+            const baseUnitPrice = it.selectedDerivedUnitInfo && enteredPrice > 0
+                ? Number((enteredPrice / Number(it.selectedDerivedUnitInfo.conversion_factor)).toFixed(4))
+                : enteredPrice;
+
+            if (!qty || qty <= 0) {
                 errors.qty = "Quantity is required";
             }
-            if (!it.unitPrice || it.unitPrice <= 0) {
+            if (!enteredPrice || enteredPrice <= 0) {
                 errors.unitPrice = "Unit Price is required";
             }
             if (!it.expiry) {
@@ -241,8 +402,8 @@ async function multipleSubmit() {
                 }
                 groupedBySupplier[supplierId].push({
                     product_id: it.id,
-                    quantity: it.qty,
-                    unit_price: it.unitPrice,
+                    quantity: qty,
+                    unit_price: baseUnitPrice,
                     expiry: it.expiry,
                 });
             }
@@ -280,6 +441,8 @@ async function multipleSubmit() {
             it.expiry = null;
             it.subtotal = 0;
             it.supplier_id = null;
+            it.selected_derived_unit_id = null;
+            it.selectedDerivedUnitInfo = null;
         });
 
         const m = bootstrap.Modal.getInstance(
@@ -359,6 +522,7 @@ async function multipleSubmit() {
                                         <th>Category</th>
                                         <th>Unit</th>
                                         <th>Qty</th>
+                                        <th>Unit</th>
                                         <th>Unit Price</th>
                                         <th>Expiry</th>
                                         <th>Subtotal</th>
@@ -377,6 +541,16 @@ async function multipleSubmit() {
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
+                                        </td>
+                                        <td>
+                                            <select class="form-select" v-model="it.selected_derived_unit_id"
+                                                @change="onUnitChange(it)" @focus="loadDerivedUnits(it)">
+                                                <option :value="null">Base ({{ it.unit_name }})</option>
+                                                <option v-for="du in it.derived_units || []" :key="du.id"
+                                                    :value="du.id">
+                                                    {{ du.name }}
+                                                </option>
+                                            </select>
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
@@ -433,6 +607,7 @@ async function multipleSubmit() {
                                         <th>Unit</th>
                                         <th>Supplier</th>
                                         <th>Qty</th>
+                                        <th>Unit</th>
                                         <th>Unit Price</th>
                                         <th>Expiry</th>
                                         <th>Subtotal</th>
@@ -472,7 +647,16 @@ async function multipleSubmit() {
                                                 {{ formErrors[idx].qty }}
                                             </small>
                                         </td>
-
+                                        <td>
+                                            <select class="form-select" v-model="it.selected_derived_unit_id"
+                                                @change="onMultipleUnitChange(it)" @focus="loadDerivedUnits(it)">
+                                                <option :value="null">Base ({{ it.unit_name }})</option>
+                                                <option v-for="du in it.derived_units || []" :key="du.id"
+                                                    :value="du.id">
+                                                    {{ du.name }}
+                                                </option>
+                                            </select>
+                                        </td>
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"

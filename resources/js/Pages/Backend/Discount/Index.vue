@@ -315,6 +315,14 @@ const submitDiscount = async () => {
     } finally {
         submitting.value = false;
     }
+
+    setTimeout(() => {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }, 100);
 };
 
 
@@ -324,8 +332,8 @@ const sampleHeaders = [
 ];
 
 const sampleData = [
-    ["Summer Sale", "percent", "20", "2025-06-01", "2025-08-31", "50", "100", "active", "Summer discount on all items"],
-    ["Flat Discount", "flat", "10", "2025-01-01", "2025-12-31", "30", "", "active", "Flat 10 off on purchase"],
+    ["Summer Sale", "flat", "20", "2025-06-01", "2025-08-31", "50", "100", "active", "Summer discount on all items"],
+    ["Winter Sale", "flat", "10", "2025-01-01", "2025-12-31", "30", "", "active", "Flat 10 off on purchase"],
 ];
 
 
@@ -450,6 +458,13 @@ const handleImport = (data) => {
         .catch((err) => {
             const msg = err.response?.data?.message || "Import failed";
             toast.error(msg);
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 
@@ -528,7 +543,7 @@ const startAutoRefresh = () => {
 
     refreshInterval.value = setInterval(() => {
         fetchPendingRequests(true);
-    }, 30000); 
+    }, 30000);
 };
 
 const stopAutoRefresh = () => {
@@ -557,8 +572,8 @@ onMounted(async () => {
     }, 100);
 
     await fetchDiscounts();
-    await fetchPendingRequests(); 
-    startAutoRefresh(); 
+    await fetchPendingRequests();
+    startAutoRefresh();
     if (window.Echo) {
         window.Echo.channel('discount-approvals')
             .listen('.approval.requested', (event) => {
@@ -854,7 +869,7 @@ const downloadExcel = (data) => {
                                                     { value: 'discount_desc', label: 'Discount: High to Low' },
                                                     { value: 'date_asc', label: 'Start Date: Oldest First' },
                                                     { value: 'date_desc', label: 'Start Date: Newest First' },
-                                                ]" :categories="discountTypesForFilter" categoryLabel="Discount Type"
+                                                ]" :showStockStatus="false" categoryLabel="Discount Type"
                                                 statusLabel="Discount Status" :showPriceRange="true"
                                                 priceRangeLabel="Discount Amount Range" :showDateRange="true"
                                                 @apply="handleFilterApply" @clear="handleFilterClear" />
@@ -1319,6 +1334,7 @@ const downloadExcel = (data) => {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
@@ -1337,6 +1353,7 @@ const downloadExcel = (data) => {
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 :deep(.p-select-panel) {
     z-index: 2000 !important;
 }

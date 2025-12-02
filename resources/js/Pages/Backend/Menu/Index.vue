@@ -1145,7 +1145,7 @@ const toggleStatus = async (item) => {
         toast.success(
             `Menu item is now ${newStatus === 1 ? "Active" : "Inactive"}`
         );
-        await fetchMenus();
+        await fetchMenus(currentPage.value);
     } catch (err) {
         console.error("Failed to toggle status", err);
         toast.error("Failed to update status");

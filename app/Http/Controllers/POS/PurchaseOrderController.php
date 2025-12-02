@@ -31,14 +31,14 @@ class PurchaseOrderController extends Controller
 
     public function fetchOrders(Request $request)
     {
-        $orders = $this->service->list($request->only(['q', 'status']));
+        $orders = $this->service->list($request->only(['q', 'status', 'per_page']));
 
-        return response()->json(['message' => 'Purchase order fetched successfully', 'data' => $orders], 201);
+        return response()->json($orders);
     }
 
     public function store(StorePurchaseOrderRequest $request)
     {
-       
+    
         $order = $this->service->store($request->validated());
 
         return response()->json(['message' => 'Purchase order created successfully', 'data' => $order], 201);

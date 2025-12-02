@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated } from "vue";
+import { ref, computed, onMounted, watch, onUpdated } from "vue";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -16,6 +16,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import BulkOrderComponent from "./BulkOrderComponent.vue";
 import { nextTick } from "vue";
 import { Head } from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
@@ -122,9 +123,11 @@ const paginator = ref({
     data: [],
     current_page: 1,
     last_page: 1,
-    per_page: 20,
+    per_page: 10,
     total: 0,
-    links: [],
+    from: 0,
+    to: 0,
+    links: []
 });
 
 const orderData = computed(() => paginator.value.data || []);
@@ -136,7 +139,7 @@ const meta = computed(() => ({
 }));
 const links = computed(() => paginator.value.links || []);
 
-const perPage = ref(20);
+
 
 /** Safely unwrap different paginator shapes */
 function normalizeFromFetchOrders(raw) {
@@ -207,39 +210,45 @@ function normalizeFromFetchOrders(raw) {
     };
 }
 
-// your original function name kept
-const fetchPurchaseOrders = async (page = 1) => {
+const fetchPurchaseOrders = async (page = null) => {
     loading.value = true;
     try {
-        const res = await axios.get("/api/purchase-orders/fetch-orders", {
-            params: { page, per_page: perPage.value },
+        const { data } = await axios.get("/api/purchase-orders/fetch-orders", {
+            params: {
+                q: q.value,
+                page: page || paginator.value.current_page,
+                per_page: paginator.value.per_page
+            },
         });
 
-        // your sample: res.data.data.data -> unwrap progressively
-        // try most useful node first (lvl under `.data`)
-        const node =
-            res?.data?.data ?? // common wrapper
-            res?.data ?? // plain
-            res; // last resort
-
-        const normalized = normalizeFromFetchOrders(node);
-        paginator.value = normalized;
-    } catch (e) {
-        console.error(e);
-        toast.error("Failed to fetch orders");
+        // Update paginator with the response data
         paginator.value = {
-            data: [],
-            current_page: 1,
-            last_page: 1,
-            per_page: perPage.value,
-            total: 0,
-            links: [],
+            data: data.data || [],
+            current_page: data.current_page,
+            last_page: data.last_page,
+            per_page: data.per_page,
+            total: data.total,
+            from: data.from,
+            to: data.to,
+            links: data.links
         };
+    } catch (err) {
+        console.error("Failed to fetch purchase orders:", err);
+        toast.error("Failed to load purchase orders");
     } finally {
         loading.value = false;
     }
 };
 
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchPurchaseOrders(parseInt(page));
+    }
+};
 // hooked up to the GLOBAL Paginator
 function onGo(label) {
     const p = Number(label);
@@ -265,6 +274,15 @@ const resetModal = () => {
 };
 const updating = ref(false);
 const isLoading = ref(false);
+
+let searchTimeout = null;
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        paginator.value.current_page = 1;
+        fetchPurchaseOrders(1);
+    }, 500);
+});
 
 
 async function openModal(order) {
@@ -769,75 +787,46 @@ const downloadInvoice = async (order) => {
                             </thead>
 
                             <tbody>
+                                <!-- Loading State -->
                                 <tr v-if="loading">
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        Loading…
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="text-muted mt-2 mb-0">Loading purchase orders...</p>
                                     </td>
                                 </tr>
 
-                                <template v-else v-for="(row, i) in filteredOrders" :key="row.id">
-                                    <tr>
-                                        <!-- S.# across pages -->
-                                        <td>
-                                            {{
-                                                (meta.current_page - 1) *
-                                                meta.per_page +
-                                                (i + 1)
-                                            }}
-                                        </td>
-
+                                <!-- Data Rows -->
+                                <template v-else>
+                                    <tr v-for="(row, i) in filteredOrders" :key="row.id">
+                                        <td>{{ paginator.from + i }}</td>
                                         <td>{{ row.supplier }}</td>
-
                                         <td class="text-nowrap">
-                                            {{
-                                                (
-                                                    row.purchasedAt
-                                                )
-                                            }},
-                                            {{ new Date(row.create_at).toLocaleTimeString([], { hour12: true }) }}
-
+                                            {{ row.purchasedAt }}
                                             <div class="small text-muted">
-                                                {{
-                                                    dateFmt(row.purchasedAt)
-                                                        .split(",")[1]
-                                                        ?.trim()
-                                                }}
+                                                {{ dateFmt(row.purchasedAt).split(",")[1]?.trim() }}
                                             </div>
                                         </td>
-
                                         <td class="text-start">
                                             <span :class="[
                                                 'badge rounded-pill',
                                                 row.status === 'pending'
                                                     ? 'bg-warning text-dark'
-                                                    : row.status ===
-                                                        'completed'
+                                                    : row.status === 'completed'
                                                         ? 'bg-success'
                                                         : 'bg-secondary',
                                             ]">
                                                 {{ row.status }}
                                             </span>
                                         </td>
-
                                         <td>{{ formatCurrencySymbol(row.total) }}</td>
-
-                                        <!-- <td class="text-end">
-                                            <button
-                                                class="p-2 rounded-pill text-primary hover:bg-gray-100 btn"
-                                                @click="openModal(row)" title="View Item">
-                                                <Eye class="w-4 h-4" />
-                                            </button>
-                                        </td> -->
-
                                         <td class="text-end">
                                             <div class="d-flex gap-2 justify-content-end">
-                                                <!-- View/Edit Button -->
                                                 <button class="p-2 rounded-pill text-primary hover:bg-gray-100 btn"
                                                     @click="openModal(row)" title="View Item">
                                                     <Eye class="w-4 h-4" />
                                                 </button>
-
-                                                <!-- Print Invoice Button -->
                                                 <button class="p-2 rounded-pill text-success hover:bg-gray-100 btn"
                                                     @click="downloadInvoice(row)" :disabled="loading"
                                                     title="Print Invoice">
@@ -845,19 +834,26 @@ const downloadInvoice = async (order) => {
                                                 </button>
                                             </div>
                                         </td>
+                                    </tr>
 
+                                    <tr v-if="filteredOrders.length === 0">
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            {{ q.trim() ? "No purchase orders found matching your search." : "No purchase orders found." }}
+                                        </td>
                                     </tr>
                                 </template>
-
-                                <tr v-if="
-                                    !loading && filteredOrders?.length === 0
-                                ">
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        No purchase orders found.
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div v-if="paginator.last_page > 1" class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ paginator.from }} to {{ paginator.to }} of {{ paginator.total }} entries
+                        </div>
+
+                        <Pagination :pagination="paginator.links" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
                     </div>
 
                     <!-- your GLOBAL Paginator component -->
@@ -966,7 +962,7 @@ const downloadInvoice = async (order) => {
                                                     item.product?.name ||
                                                     item.name ||
                                                     "Unknown Product"
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model="item.name" class="form-control" readonly />
                                             </td>
 
@@ -974,7 +970,7 @@ const downloadInvoice = async (order) => {
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.quantity)
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model.number="item.quantity
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -984,8 +980,8 @@ const downloadInvoice = async (order) => {
                                             <!-- Unit Price -->
                                             <td>
                                                 <span v-if="!isEditing">{{
-                                                    formatCurrencySymbol(item.unit_price)
-                                                    }}</span>
+                                                    (item.unit_price)
+                                                }}</span>
                                                 <input v-else v-model.number="item.unit_price
                                                     " type="number" class="form-control" @input="
                                                         calculateSubtotal(item)
@@ -996,7 +992,7 @@ const downloadInvoice = async (order) => {
                                             <td>
                                                 <span v-if="!isEditing">{{
                                                     formatCurrencySymbol(item.sub_total)
-                                                    }}</span>
+                                                }}</span>
                                                 <input v-else v-model="item.sub_total" class="form-control" readonly />
                                             </td>
 
