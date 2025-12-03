@@ -364,7 +364,7 @@ onUnmounted(() => {
 
                             <!-- Products Grid -->
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 col-xl-4" v-for="p in category.products" :key="p.id">
+                                <div class="col-12 col-md-6 col-xl-2" v-for="p in category.products" :key="p.id">
                                     <div class="product-card" :style="{ borderColor: p.label_color }">
                                         <div class="product-image">
                                             <img :src="p.img" :alt="p.title" />
@@ -629,6 +629,29 @@ onUnmounted(() => {
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.2s;
+    height: 230px;
+}
+
+@media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
+  .product-card{
+    height: 160px;
+  }
+  .product-card h6{
+    font-size: 12px;
+  }
+  .product-price {
+    position: absolute !important;
+    top: 7px !important;
+    left: 7px !important;
+    color: white !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
+    font-size: 0.7rem !important;
+}
+.product-meta{
+    font-size: 12px;
+}
 }
 
 .product-card:hover {
@@ -713,10 +736,11 @@ onUnmounted(() => {
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     overflow: hidden;
-    max-height: calc(100vh - 120px);
+    min-height: 90vh;
     display: flex;
     flex-direction: column;
 }
+
 
 .cart-header {
     background: #1b1670;
@@ -765,6 +789,22 @@ onUnmounted(() => {
     background: #cbd5e1;
     border-radius: 10px;
 }
+.cart-lines {
+    height: 100%;          
+    min-height: 350px;    
+    display: flex;
+    flex-direction: column;
+}
+
+.empty {
+    flex: 1;                         
+    display: flex;
+    flex-direction: column;
+    justify-content: center;         
+    align-items: center;             
+    text-align: center;
+}
+
 
 .empty {
     text-align: center;
