@@ -3253,9 +3253,9 @@ const format = (val) => {
                                                     class="rounded"
                                                     style="width: 56px; height: 56px; object-fit: cover;" />
                                                 <div class="flex-grow-1">
-                                                    <div class="fw-semibold">{{ it.name }}</div>
-                                                    <div class="text-muted small">Category: {{ it.category.name }}</div>
-                                                    <div class="text-muted small">Unit: {{ it.unit_name }}</div>
+                                                    <div class="fw-semibold">{{ it?.name }}</div>
+                                                    <div class="text-muted small">Category: {{ it.category?.name }}</div>
+                                                    <div class="text-muted small">Unit: {{ it?.unit_name }}</div>
                                                     <div class="small mt-2 text-muted">
                                                         Calories: {{ it.nutrition?.calories || 0 }},
                                                         Protein: {{ it.nutrition?.protein || 0 }},
