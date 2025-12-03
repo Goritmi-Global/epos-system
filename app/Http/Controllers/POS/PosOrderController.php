@@ -6,8 +6,10 @@ use App\Events\CartUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PosOrders\StorePosOrderRequest;
 use App\Models\KitchenOrderItem;
+use App\Models\TerminalState;
 use App\Services\POS\PosOrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 class PosOrderController extends Controller
@@ -547,33 +549,298 @@ class PosOrderController extends Controller
         }
     }
 
-    public function broadcastCart(Request $request)
+
+
+    /**
+     * ✅ OPTIMIZED: Lightweight version check endpoint
+     * Returns minimal JSON (~50 bytes)
+     */
+    public function getTerminalVersion(string $terminalId)
     {
-        $validated = $request->validate([
-            'terminal_id' => 'required|string',
+        try {
+            $version = TerminalState::getVersion($terminalId);
+
+            return response()->json([
+                'version' => $version,
+                'timestamp' => now()->toIso8601String()
+            ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to get terminal version', [
+                'terminal_id' => $terminalId,
+                'error' => $e->getMessage()
+            ]);
+
+            // Return 0 version instead of error to keep display functional
+            return response()->json([
+                'version' => 0,
+                'timestamp' => now()->toIso8601String()
+            ], 200);
+        }
+    }
+
+    /**
+     * ✅ IMPROVED: Update terminal cart state
+     */
+    public function updateTerminalCart(Request $request)
+    {
+        // ✅ Use manual validation for better performance
+        $validator = Validator::make($request->all(), [
+            'terminal_id' => 'required|string|max:255',
             'cart' => 'required|array',
         ]);
 
-        event(new CartUpdated(
-            $validated['terminal_id'],
-            $validated['cart']
-        ));
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        return response()->json(['success' => true]);
+        $validated = $validator->validated();
+
+        try {
+            // ✅ Use firstOrCreate with proper defaults
+            $terminal = TerminalState::firstOrCreate(
+                ['terminal_id' => $validated['terminal_id']],
+                [
+                    'user_id' => auth()->id(),
+                    'version' => 0,
+                    'cart_data' => [],
+                    'ui_data' => [],
+                    'last_updated' => now()
+                ]
+            );
+
+            $terminal->updateCartData($validated['cart']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart updated',
+                'version' => $terminal->version,
+                'timestamp' => now()->toIso8601String()
+            ])->header('Cache-Control', 'no-cache');
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to update terminal cart', [
+                'terminal_id' => $validated['terminal_id'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update cart'
+            ], 500);
+        }
     }
 
-    public function broadcastUI(Request $request)
+    /**
+     * ✅ IMPROVED: Update terminal UI state
+     */
+    public function updateTerminalUI(Request $request)
     {
-        $validated = $request->validate([
-            'terminal_id' => 'required|string',
+        $validator = Validator::make($request->all(), [
+            'terminal_id' => 'required|string|max:255',
             'ui' => 'required|array',
         ]);
 
-        event(new \App\Events\UIUpdated(
-            $validated['terminal_id'],
-            $validated['ui']
-        ));
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        return response()->json(['success' => true]);
+        $validated = $validator->validated();
+
+        try {
+            $terminal = TerminalState::firstOrCreate(
+                ['terminal_id' => $validated['terminal_id']],
+                [
+                    'user_id' => auth()->id(),
+                    'version' => 0,
+                    'cart_data' => [],
+                    'ui_data' => [],
+                    'last_updated' => now()
+                ]
+            );
+
+            $terminal->updateUIData($validated['ui']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'UI updated',
+                'version' => $terminal->version,
+                'timestamp' => now()->toIso8601String()
+            ])->header('Cache-Control', 'no-cache');
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to update terminal UI', [
+                'terminal_id' => $validated['terminal_id'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update UI'
+            ], 500);
+        }
+    }
+
+    /**
+     * ✅ NEW: Batch update both cart and UI (more efficient)
+     */
+    public function updateTerminalBoth(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'terminal_id' => 'required|string|max:255',
+            'cart' => 'required|array',
+            'ui' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+
+        try {
+            $terminal = TerminalState::firstOrCreate(
+                ['terminal_id' => $validated['terminal_id']],
+                [
+                    'user_id' => auth()->id(),
+                    'version' => 0,
+                    'cart_data' => [],
+                    'ui_data' => [],
+                    'last_updated' => now()
+                ]
+            );
+
+            // ✅ Update both in single transaction
+            $terminal->updateBothData($validated['cart'], $validated['ui']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'State updated',
+                'version' => $terminal->version,
+                'timestamp' => now()->toIso8601String()
+            ])->header('Cache-Control', 'no-cache');
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to update terminal state', [
+                'terminal_id' => $validated['terminal_id'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update state'
+            ], 500);
+        }
+    }
+
+    /**
+     * ✅ IMPROVED: Get terminal state (for customer display polling)
+     */
+    public function getTerminalState(string $terminalId)
+    {
+        try {
+            $state = TerminalState::getFullState($terminalId);
+
+            return response()->json([
+                'success' => true,
+                'cart' => $state['cart'] ?? $this->getDefaultCartData(),
+                'ui' => $state['ui'] ?? $this->getDefaultUIData(),
+                'version' => $state['version'],
+                'timestamp' => $state['timestamp']
+            ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to get terminal state', [
+                'terminal_id' => $terminalId,
+                'error' => $e->getMessage()
+            ]);
+
+            // Return default state instead of error
+            return response()->json([
+                'success' => false,
+                'cart' => $this->getDefaultCartData(),
+                'ui' => $this->getDefaultUIData(),
+                'version' => 0,
+                'timestamp' => now()->toIso8601String()
+            ], 200);
+        }
+    }
+
+    /**
+     * ✅ NEW: Clear terminal cache (useful for debugging)
+     */
+    public function clearTerminalCache(string $terminalId)
+    {
+        try {
+            TerminalState::clearCache($terminalId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cache cleared'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to clear terminal cache', [
+                'terminal_id' => $terminalId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clear cache'
+            ], 500);
+        }
+    }
+
+    /**
+     * Default cart data structure
+     */
+    private function getDefaultCartData(): array
+    {
+        return [
+            'items' => [],
+            'customer' => 'Walk In',
+            'orderType' => 'Dine In',
+            'table' => null,
+            'subtotal' => 0,
+            'tax' => 0,
+            'serviceCharges' => 0,
+            'deliveryCharges' => 0,
+            'saleDiscount' => 0,
+            'promoDiscount' => 0,
+            'total' => 0,
+            'note' => '',
+            'appliedPromos' => []
+        ];
+    }
+
+    /**
+     * Default UI data structure
+     */
+    private function getDefaultUIData(): array
+    {
+        return [
+            'showCategories' => true,
+            'activeCat' => null,
+            'menuCategories' => [],
+            'menuItems' => [],
+            'searchQuery' => '',
+            'selectedCardVariant' => [],
+            'selectedCardAddons' => []
+        ];
     }
 }
