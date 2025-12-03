@@ -150,15 +150,16 @@ const filteredItems = computed(() => {
     // Text search
     if (term) {
         filtered = filtered.filter((i) => {
-            const name = (i.name || "").toLowerCase();
+            console.log("data filter: ", i);
+            const name = (i?.name || "").toLowerCase();
             const categoryName =
                 typeof i.category === "object"
-                    ? (i.category.name || "").toLowerCase()
-                    : (i.category || "").toString().toLowerCase();
+                    ? (i?.category.name || "").toLowerCase()
+                    : (i?.category || "").toString().toLowerCase();
             const unitName =
                 typeof i.unit === "object"
-                    ? (i.unit.name || "").toLowerCase()
-                    : (i.unit || "").toString().toLowerCase();
+                    ? (i?.unit?.name || "").toLowerCase()
+                    : (i?.unit || "").toString().toLowerCase();
 
             return (
                 name.includes(term) ||
@@ -172,9 +173,9 @@ const filteredItems = computed(() => {
     if (filters.value.category) {
         filtered = filtered.filter((item) => {
             const categoryId =
-                typeof item.category === "object"
-                    ? item.category.id
-                    : item.category_id;
+                typeof item?.category === "object"
+                    ? item?.category?.id
+                    : item?.category_id;
             return categoryId == filters.value.category;
         });
     }
@@ -183,9 +184,9 @@ const filteredItems = computed(() => {
     if (filters.value.supplier) {
         filtered = filtered.filter((item) => {
             const supplierId =
-                typeof item.supplier === "object"
-                    ? item.supplier.id
-                    : item.supplier_id;
+                typeof item?.supplier === "object"
+                    ? item?.supplier?.id
+                    : item?.supplier_id;
             return supplierId == filters.value.supplier;
         });
     }
@@ -1396,13 +1397,6 @@ const handleImport = (data) => {
                                     " :show-price-range="true" :show-date-range="false" @apply="handleFilterApply"
                                 @clear="handleFilterClear">
                                 <template #customFilters="{ filters }">
-
-                                    <div class="col-12">
-                                        <label class="form-label fw-semibold text-dark">
-                                            <i class="fas fa-star me-2 text-muted"></i>Custom Filter
-                                        </label>
-                                        <!-- Your custom filter controls -->
-                                    </div>
                                 </template>
                             </FilterModal>
 

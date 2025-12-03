@@ -45,7 +45,7 @@ const fetchAllCategories = async () => {
     try {
         const { data } = await axios.get("/categories", {
             params: {
-                per_page: 1000 // Get all at once
+                per_page: 10000 // Get all at once
             },
         });
         allCategories.value = data.data || [];
@@ -112,7 +112,7 @@ const parentCategories = computed(() => {
 
 const CategoriesDetails = computed(() => {
     const parentCategoriesTotal = allCategories.value.filter((cat) => cat.parent_id === null);
-    
+
     return [
         {
             label: "Categories",
@@ -415,6 +415,8 @@ const submitCategory = async () => {
             });
 
             toast.success("Category updated successfully");
+            await fetchCategories();
+            await fetchAllCategories();
         } else {
             // ==================== CREATE MODE ====================
             const formData = new FormData();
@@ -467,6 +469,8 @@ const submitCategory = async () => {
             });
 
             toast.success("Category created successfully");
+            await fetchCategories();
+            await fetchAllCategories();
         }
 
         const m = bootstrap.Modal.getInstance(document.getElementById("addCatModal"));
@@ -594,6 +598,7 @@ const deleteCategory = async (row) => {
         await axios.delete(`/categories/${row.id}`);
         toast.success("Category deleted successfully");
         await fetchCategories();
+        await fetchAllCategories();
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
         toast.error("Failed to delete category ❌");
@@ -767,7 +772,7 @@ const downloadCSV = (data) => {
             return [
                 `"${category.name || ""}"`,
                 `"${subcategoryNames}"`,
-                `${category.active ? 1 : 0}`,
+                `${category.active ? 'Yes' : 'No'}`,
             ];
         });
 
@@ -830,7 +835,7 @@ const downloadPDF = (data) => {
             return [
                 category.name || "",
                 subcategoryNames,
-                category.active ? "1" : "0",
+                category.active ? "Yes" : "No",
             ];
         });
 
@@ -893,7 +898,7 @@ const downloadExcel = (data) => {
             return {
                 Category: category.name || "",
                 Subcategory: subcategoryNames,
-                Active: category.active ? 1 : 0,
+                Active: category.active ? 'Yes' : 'No',
             };
         });
 
@@ -941,7 +946,7 @@ const handleImport = (data) => {
         return {
             category: row[0] || "",
             subcategory: row[1] || null,
-            active: row[2] == "0" ? 0 : 1,
+            active: row[2] == "no" ? 0 : 1,
         };
     });
     const categoryNames = categoriesToImport
@@ -1048,9 +1053,9 @@ const handleImport = (data) => {
 
                             <ImportFile label="Import" :sampleHeaders="['category', 'subcategory', 'active']"
                                 :sampleData="[
-                                    ['Dairy', 'TestSubCat', 1],
-                                    ['Bakery', 'Bread', 1],
-                                    ['Beverages', 'Juices', 0]
+                                    ['Dairy', 'TestSubCat', 'yes'],
+                                    ['Bakery', 'Bread', 'yes'],
+                                    ['Beverages', 'Juices', 'no']
                                 ]" @on-import="handleImport" />
 
                             <div class="dropdown">
@@ -1171,17 +1176,14 @@ const handleImport = (data) => {
                             </tbody>
                         </table>
 
-                        
+
                     </div>
-                     <div v-if="pagination.last_page > 1"
-                        class="mt-4 d-flex justify-content-between align-items-center">
+                    <div v-if="pagination.last_page > 1" class="mt-4 d-flex justify-content-between align-items-center">
                         <div class="text-muted small">
                             Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
                         </div>
 
-                        <Pagination 
-                            :pagination="pagination.links" 
-                            :isApiDriven="true" 
+                        <Pagination :pagination="pagination.links" :isApiDriven="true"
                             @page-changed="handlePageChange" />
                     </div>
                 </div>
@@ -1211,7 +1213,7 @@ const handleImport = (data) => {
                                 <strong>Icon:</strong>
                                 <span class="fs-4">{{
                                     viewingCategory.icon
-                                }}</span>
+                                    }}</span>
                             </p>
                             <p>
                                 <strong>Status:</strong>
@@ -1499,7 +1501,7 @@ const handleImport = (data) => {
                                     v-model="editingSubCategory.name" :disabled="submittingSub" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                }}</small>
+                                    }}</small>
                             </div>
                             <button type="button"
                                 class="px-4 py-2 rounded-pill btn btn-primary text-white text-center d-flex align-items-center justify-content-center gap-2"
@@ -1538,6 +1540,10 @@ const handleImport = (data) => {
     background-color: #fff !important;
 }
 
+
+:global(.dark .p-multiselect-empty-message){
+    color: #fff !important;
+}
 .dark .side-link {
     border-radius: 55%;
     background-color: #181818 !important;
