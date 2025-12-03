@@ -1,10 +1,10 @@
 <?php
+
 // app/Services/Reference/TagService.php
 
 namespace App\Services\Reference;
 
 use App\Models\Tag;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class TagService
@@ -13,21 +13,21 @@ class TagService
     {
         $q = Tag::query();
 
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $s = $filters['q'];
             $q->where('name', 'like', "%{$s}%");
         }
 
-        return $q->latest()->paginate(20);
+        return $q->latest()->paginate($filters['per_page'] ?? 15);
     }
 
     public function create(array $data): array
     {
-  
+
         $tags = [];
 
         foreach ($data['tags'] as $tagData) {
-            $tag = new Tag();
+            $tag = new Tag;
             $tag->name = $tagData['name'];
             $tag->save();
 
@@ -36,7 +36,6 @@ class TagService
 
         return $tags;
     }
-
 
     // public function update(Tag $tag, array $data): Tag
     // {
@@ -47,10 +46,11 @@ class TagService
     // }
     public function update(Tag $tag, array $data)
     {
-        $tag->name        = $data['name']        ?? $tag->name;
+        $tag->name = $data['name'] ?? $tag->name;
         $tag->description = $data['description'] ?? $tag->description;
 
         $tag->save();
+
         return $tag;
     }
 

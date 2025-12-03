@@ -9,6 +9,7 @@ import { Pencil, Plus } from "lucide-vue-next";
 import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { Head } from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 
 const customAllergy = ref("");
 const isEditing = ref(false);
@@ -23,11 +24,11 @@ const resetForm = () => {
 
 const filteredAllergys = computed(() => {
     const searchTerm = q.value.trim().toLowerCase();
-    return searchTerm
-        ? allergies.value.filter((allergy) =>
-            allergy.name.toLowerCase().includes(searchTerm)
-        )
-        : allergies.value;
+    if (!searchTerm) return allergies.value;
+
+    return allergies.value.filter((allergy) =>
+        allergy.name.toLowerCase().includes(searchTerm)
+    );
 });
 
 const openAdd = () => {
@@ -46,15 +47,17 @@ const deleteAllergy = async (row) => {
         await axios.delete(`/allergies/${row.id}`);
         allergies.value = allergies.value.filter((t) => t.id !== row.id);
         toast.success("Allergy deleted successfully");
+        await fetchAllergies();
     } catch (e) {
         toast.error("Delete failed");
+        console.error(e);
     }
 };
 
 const isSubmitting = ref(false);
 const onSubmit = async () => {
     if (isSubmitting.value) return;
-    
+
     if (!customAllergy.value.trim()) {
         toast.error("Please enter an allergy name");
         formErrors.value = {
@@ -101,12 +104,12 @@ const onSubmit = async () => {
     } else {
         // Create new allergy
         const allergyName = customAllergy.value.trim();
-        
+
         // Check if already exists
         const exists = allergies.value.some(
             (a) => a.name.toLowerCase() === allergyName.toLowerCase()
         );
-        
+
         if (exists) {
             toast.error(`Allergy "${allergyName}" already exists`);
             formErrors.value = { customAllergy: ["This allergy already exists"] };
@@ -154,25 +157,60 @@ const closeModal = (id) => {
 };
 
 const allergies = ref([]);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 15,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
 const page = ref(1);
 const perPage = ref(15);
 const loading = ref(false);
 const formErrors = ref({});
 
-const fetchAllergies = async () => {
+const fetchAllergies = async (page = null) => {
     loading.value = true;
     try {
         const { data } = await axios.get("/allergies", {
-            params: { q: q.value, page: page.value, per_page: perPage.value },
+            params: {
+                q: q.value,
+                page: page || pagination.value.current_page,
+                per_page: pagination.value.per_page
+            },
         });
 
-        allergies.value = data?.data ?? data?.allergies?.data ?? data ?? [];
+        // Handle Laravel pagination response
+        allergies.value = data.data || [];
+        pagination.value = {
+            current_page: data.current_page,
+            last_page: data.last_page,
+            per_page: data.per_page,
+            total: data.total,
+            from: data.from,
+            to: data.to,
+            links: data.links
+        };
+
         await nextTick();
         window.feather?.replace();
     } catch (err) {
         console.error("Failed to fetch allergies", err);
+        toast.error("Failed to load allergies");
     } finally {
         loading.value = false;
+    }
+};
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchAllergies(parseInt(page));
     }
 };
 
@@ -356,6 +394,14 @@ watch(customAllergy, (newVal) => {
         delete formErrors.value.customAllergy;
     }
 });
+let searchTimeout = null;
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchAllergies(1);
+    }, 500);
+});
 
 const handleImport = (data) => {
 
@@ -397,7 +443,7 @@ const handleImport = (data) => {
     const duplicatesInDB = allergiesToImport.filter((a) =>
         existingNames.includes(a.name.toLowerCase())
     );
-    
+
     if (duplicatesInDB.length > 0) {
         const dupeNames = duplicatesInDB.map((a) => a.name).join(", ");
         toast.error(`These allergies already exist in the database: ${dupeNames}`);
@@ -426,7 +472,8 @@ const handleImport = (data) => {
 </script>
 
 <template>
-      <Head title="Allergy" />
+
+    <Head title="Allergy" />
     <div class="card border-0 shadow-lg rounded-4">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -460,13 +507,16 @@ const handleImport = (data) => {
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Export as PDF</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">Export as
+                                    PDF</a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Export as Excel</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">Export as
+                                    Excel</a>
                             </li>
                             <li>
-                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">Export as CSV</a>
+                                <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">Export as
+                                    CSV</a>
                             </li>
                         </ul>
                     </div>
@@ -483,42 +533,55 @@ const handleImport = (data) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(r, i) in filteredAllergys" :key="r.id">
-                            <td>{{ i + 1 }}</td>
-                            <td class="fw-semibold">{{ r.name }}</td>
-                            <td class="text-center">
-                                <div class="d-inline-flex align-items-center gap-3">
-                                    <button data-bs-toggle="modal" data-bs-target="#modalAllergyForm" @click="
-                                        () => {
-                                            openEdit(r);
-                                            formErrors = {};
-                                        }
-                                    " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                        <Pencil class="w-4 h-4" />
-                                    </button>
-
-                                    <ConfirmModal :title="'Confirm Delete'"
-                                        :message="`Are you sure you want to delete ${r.name}?`" :showDeleteButton="true"
-                                        @confirm="
-                                            () => {
-                                                deleteAllergy(r);
-                                            }
-                                        " @cancel="() => { }" />
+                        <!-- Loading State -->
+                        <tr v-if="loading">
+                            <td colspan="3" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
                                 </div>
+                                <p class="text-muted mt-2 mb-0">Loading allergies...</p>
                             </td>
                         </tr>
 
-                        <tr v-if="filteredAllergys.length === 0">
-                            <td colspan="3" class="text-center text-muted py-4">
-                                {{
-                                    q.trim()
-                                        ? "No allergies found matching your search."
-                                        : "No allergies found."
-                                }}
-                            </td>
-                        </tr>
+                        <!-- Data Rows -->
+                        <template v-else>
+                            <tr v-for="(r, i) in filteredAllergys" :key="r.id">
+                                <td>{{ pagination.from + i }}</td>
+                                <td class="fw-semibold">{{ r.name }}</td>
+                                <td class="text-center">
+                                    <div class="d-inline-flex align-items-center gap-3">
+                                        <button data-bs-toggle="modal" data-bs-target="#modalAllergyForm"
+                                            @click="() => { openEdit(r); formErrors = {}; }" title="Edit"
+                                            class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                            <Pencil class="w-4 h-4" />
+                                        </button>
+
+                                        <ConfirmModal :title="'Confirm Delete'"
+                                            :message="`Are you sure you want to delete ${r.name}?`"
+                                            :showDeleteButton="true" @confirm="() => { deleteAllergy(r); }"
+                                            @cancel="() => { }" />
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr v-if="filteredAllergys.length === 0">
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    {{ q.trim() ? "No allergies found matching your search." : "No allergies found." }}
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="!loading && pagination.last_page > 1"
+                class="mt-4 d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                </div>
+
+                <Pagination :pagination="pagination.links" :isApiDriven="true" @page-changed="handlePageChange" />
             </div>
         </div>
     </div>
@@ -544,13 +607,8 @@ const handleImport = (data) => {
                 <div class="modal-body">
                     <div>
                         <label class="form-label">Allergy Name</label>
-                        <input 
-                            v-model="customAllergy" 
-                            class="form-control" 
-                            placeholder="e.g., Vegan"
-                            :class="{ 'is-invalid': formErrors.customAllergy }"
-                            @keyup.enter="onSubmit"
-                        />
+                        <input v-model="customAllergy" class="form-control" placeholder="e.g., Vegan"
+                            :class="{ 'is-invalid': formErrors.customAllergy }" @keyup.enter="onSubmit" />
                         <span class="text-danger" v-if="formErrors.customAllergy">
                             {{ formErrors.customAllergy[0] }}
                         </span>

@@ -9,20 +9,20 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 class SupplierService
 {
     public function list(array $filters = []): LengthAwarePaginator
-    {
-        $q = Supplier::query();
+{
+    $q = Supplier::query();
 
-        if (!empty($filters['q'])) {
-            $s = $filters['q'];
-            $q->where(function ($qq) use ($s) {
-                $qq->where('name', 'like', "%{$s}%")
-                    ->orWhere('email', 'like', "%{$s}%")
-                    ->orWhere('contact', 'like', "%{$s}%");
-            });
-        }
-
-        return $q->latest()->paginate(15);
+    if (!empty($filters['q'])) {
+        $s = $filters['q'];
+        $q->where(function ($qq) use ($s) {
+            $qq->where('name', 'like', "%{$s}%")
+                ->orWhere('email', 'like', "%{$s}%")
+                ->orWhere('contact', 'like', "%{$s}%");
+        });
     }
+
+    return $q->latest()->paginate($filters['per_page'] ?? 15);
+}
 
     // public function create(array $data) {
     //     $data['user_id'] = auth()->id();

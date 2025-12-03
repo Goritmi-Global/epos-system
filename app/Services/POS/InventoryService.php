@@ -31,7 +31,7 @@ class InventoryService
                 });
             })
             ->orderByDesc('id')
-            ->paginate($filters['per_page'] ?? 15);
+            ->paginate($filters['per_page'] ?? 200);
 
         // ✅ Get all product IDs from current page
         $productIds = $paginator->pluck('id')->toArray();

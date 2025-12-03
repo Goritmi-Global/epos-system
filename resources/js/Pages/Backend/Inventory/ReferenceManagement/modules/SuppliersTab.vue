@@ -11,30 +11,67 @@ import ImportFile from "@/Components/importFile.vue";
 import ConfirmModal from "@/Components/ConfirmModal.vue";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
 import { Head, usePage } from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 const pageProps = usePage();
 
 const onboarding = computed(() => pageProps.props.onboarding.language_and_location?.country_id ?? "PK");
 const suppliers = ref([]);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
 const page = ref(1);
 const perPage = ref(15);
 
-const fetchSuppliers = () => {
+const fetchSuppliers = async (page = null) => {
     loading.value = true;
-
-    return axios
-        .get("/suppliers", {
-            params: { q: q.value, page: page.value, per_page: perPage.value },
-        })
-        .then(({ data }) => {
-            suppliers.value = data?.data ?? data?.suppliers?.data ?? data ?? [];
-        })
-
-        .catch((err) => {
-            console.error(err);
-        })
-        .finally(() => {
-            loading.value = false;
+    try {
+        const { data } = await axios.get("/suppliers", {
+            params: {
+                q: q.value,
+                page: page || pagination.value.current_page,
+                per_page: pagination.value.per_page
+            },
         });
+
+        // Handle Laravel pagination response
+        suppliers.value = data.data || [];
+        pagination.value = {
+            current_page: data.current_page,
+            last_page: data.last_page,
+            per_page: data.per_page,
+            total: data.total,
+            from: data.from,
+            to: data.to,
+            links: data.links
+        };
+
+        await nextTick();
+        window.feather?.replace();
+    } catch (err) {
+        console.error("Failed to fetch suppliers", err);
+        toast.error("Failed to load suppliers");
+    } finally {
+        loading.value = false;
+    }
+};
+
+// Handle pagination page change
+const handlePageChange = (url) => {
+    if (!url) return;
+
+    // Extract page number from URL
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchSuppliers(parseInt(page));
+    }
 };
 
 const q = ref("");
@@ -70,8 +107,10 @@ const handleFocus = (e) => {
 
 
 const filtered = computed(() => {
+    // When searching, show filtered results from current page
     const query = q.value.trim().toLowerCase();
     if (!query) return suppliers.value;
+
     const queryDigits = query.replace(/\D/g, "");
 
     return suppliers.value.filter((s) => {
@@ -135,8 +174,8 @@ const downloadCSV = (data) => {
             `"${s.preferred_items || ""}"`,
         ]);
         const csvContent = [
-            headers.join(","), 
-            ...rows.map((r) => r.join(",")), 
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
@@ -207,7 +246,7 @@ const downloadPDF = (data) => {
             alternateRowStyles: { fillColor: [245, 245, 245] },
             margin: { left: 14, right: 14 },
             didDrawPage: (data) => {
- 
+
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageHeight = doc.internal.pageSize.height;
                 doc.setFontSize(8);
@@ -249,11 +288,11 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 20 }, 
-            { wch: 25 }, 
-            { wch: 18 }, 
-            { wch: 30 }, 
-            { wch: 25 }, 
+            { wch: 20 },
+            { wch: 25 },
+            { wch: 18 },
+            { wch: 30 },
+            { wch: 25 },
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Suppliers");
@@ -285,14 +324,14 @@ const form = ref({
     email: "",
     phone_country: "GB",
     phone_code: UK_COUNTRY_CODE,
-    phone_local: "",        
-    phone: "",              
+    phone_local: "",
+    phone: "",
     address: "",
-    preferred_items: "", 
+    preferred_items: "",
 });
 
 const UK_COUNTRY_CODE = "+44";
-const UK_PHONE_LENGTH = 10; 
+const UK_PHONE_LENGTH = 10;
 const UK_AREA_CODES = {
     "20": "London",
     "121": "Birmingham",
@@ -330,7 +369,7 @@ const validatePhone = () => {
         return false;
     }
     const mobilePattern = /^7[0-9]{9}$/;
-    
+
     if (!mobilePattern.test(cleanPhone)) {
         phoneError.value = 'Invalid UK mobile number format';
         return false;
@@ -340,11 +379,11 @@ const validatePhone = () => {
         '11', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29',
         '30', '31', '32', '33', '34', '35', '36', '37', '38', '39',
         '40', '41', '42', '43', '44', '45', '46', '47', '48', '49',
-        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', 
+        '50', '51', '52', '53', '54', '55', '56', '57', '58', '59',
         '60', '61', '62', '63', '64', '65', '66', '67', '68', '69',
-        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', 
-        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', 
-        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'  
+        '70', '71', '72', '73', '74', '75', '76', '77', '78', '79',
+        '80', '81', '82', '83', '84', '85', '86', '87', '88', '89',
+        '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'
     ];
 
     if (!validMobileOperators.includes(operatorPrefix)) {
@@ -363,6 +402,15 @@ function buildFullPhone() {
 watch(() => form.value.phone_local, (val) => {
     buildFullPhone();
     validatePhone();
+});
+
+let searchTimeout = null;
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchSuppliers(1);
+    }, 500);
 });
 const checkPhone = ({ number, country }) => {
     if (!number || number.trim() === "") {
@@ -652,52 +700,64 @@ const handleImport = (data) => {
                     </thead>
 
                     <tbody>
+                        <!-- Loading State -->
                         <tr v-if="loading">
-                            <td colspan="7" class="text-center py-5 text-muted">
-                                <div class="d-flex justify-content-center align-items-center gap-2">
-                                    <div class="spinner-border" role="status"
-                                        style="width: 1.5rem; height: 1.5rem; border-color: #1c0d82; border-right-color: transparent;">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <span>Fetching suppliers...</span>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
                                 </div>
+                                <p class="text-muted mt-2 mb-0">Loading suppliers...</p>
                             </td>
                         </tr>
-                        <tr v-else-if="filtered.length === 0">
-                            <td colspan="7" class="text-center text-muted py-4">
-                                No suppliers found.
-                            </td>
-                        </tr>
-                        <tr v-else v-for="(s, i) in filtered" :key="s.id">
-                            <td>{{ i + 1 }}</td>
-                            <td class="fw-semibold">{{ s.name }}</td>
-                            <td>{{ s.contact }}</td>
-                            <td class="text-break" style="max-width: 240px">
-                                {{ s.email }}
-                            </td>
-                            <td class="text-truncate" style="max-width: 260px">
-                                {{ s.address }}
-                            </td>
-                            <td>{{ s.preferred_items }}</td>
-                            <td class="text-center">
-                                <div class="d-inline-flex align-items-center gap-3">
-                                    <button @click="
-                                        () => {
-                                            onEdit(s);
-                                            formErrors = {};
-                                        }
-                                    " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                        <Pencil class="w-4 h-4" />
-                                    </button>
 
-                                    <ConfirmModal :title="'Confirm Delete'"
-                                        :message="`Are you sure you want to delete ${s.name}?`" :showDeleteButton="true"
-                                        @confirm="() => deleteSupplier(s.id)" @cancel="() => { }" />
-                                </div>
-                            </td>
-                        </tr>
+                        <!-- Data Rows -->
+                        <template v-else>
+                            <tr v-for="(s, i) in filtered" :key="s.id">
+                                <td>{{ pagination.from + i }}</td>
+                                <td class="fw-semibold">{{ s.name }}</td>
+                                <td>{{ s.contact }}</td>
+                                <td class="text-break" style="max-width: 240px">
+                                    {{ s.email }}
+                                </td>
+                                <td class="text-truncate" style="max-width: 260px">
+                                    {{ s.address }}
+                                </td>
+                                <td>{{ s.preferred_items }}</td>
+                                <td class="text-center">
+                                    <div class="d-inline-flex align-items-center gap-3">
+                                        <button @click="() => { onEdit(s); formErrors = {}; }" title="Edit"
+                                            class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
+                                            <Pencil class="w-4 h-4" />
+                                        </button>
+
+                                        <ConfirmModal :title="'Confirm Delete'"
+                                            :message="`Are you sure you want to delete ${s.name}?`"
+                                            :showDeleteButton="true" @confirm="() => deleteSupplier(s.id)"
+                                            @cancel="() => { }" />
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr v-if="filtered.length === 0">
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    {{ q.trim() ? "No suppliers found matching your search." : "No suppliers found." }}
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
+            </div>
+
+            <div v-if="!loading && pagination.last_page > 1"
+                class="mt-4 d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                </div>
+
+                <Pagination 
+                    :pagination="pagination.links" 
+                    :isApiDriven="true" 
+                    @page-changed="handlePageChange" />
             </div>
 
         </div>
@@ -750,7 +810,8 @@ const handleImport = (data) => {
                             <label class="form-label">Phone*</label>
                             <div class="input-group">
                                 <span class="input-group-text p-0">
-                                    <input type="text" class="form-control text-center border-0 country-code bg-light fw-semibold"
+                                    <input type="text"
+                                        class="form-control text-center border-0 country-code bg-light fw-semibold"
                                         value="+44" readonly style="width: 70px;" />
                                 </span>
                                 <input class="form-control phone-input" inputmode="numeric" placeholder="7311865859"
@@ -819,7 +880,7 @@ const handleImport = (data) => {
     background-color: #212121 !important;
 }
 
-.dark .form-control[readonly]{
+.dark .form-control[readonly] {
     background-color: #212121 !important;
     color: #fff !important;
     border-top-right-radius: 0px !important;

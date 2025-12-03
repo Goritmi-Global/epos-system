@@ -22,28 +22,29 @@ class CategoryController extends Controller
     /**
      * Display a listing of the categories
      */
-    public function index(Request $request): JsonResponse
-    {
-        try {
-            if ($request->has('search')) {
-                $categories = $this->categoryService->searchCategories($request->search);
-            } else {
-                $categories = $this->categoryService->getAllCategories();
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $categories,
-                'message' => 'Categories retrieved successfully',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve categories',
-                'error' => $e->getMessage(),
-            ], 500);
+   public function index(Request $request): JsonResponse
+{
+    try {
+        if ($request->has('search')) {
+            $categories = $this->categoryService->searchCategories(
+                $request->search,
+                $request->only(['per_page'])
+            );
+        } else {
+            $categories = $this->categoryService->getAllCategories(
+                $request->only(['q', 'per_page'])
+            );
         }
+
+        return response()->json($categories);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to retrieve categories',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
     /**
      * Get parent categories for dropdown

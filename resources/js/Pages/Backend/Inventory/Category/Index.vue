@@ -1,6 +1,6 @@
 <script setup>
 import Master from "@/Layouts/Master.vue";
-import { ref, computed, onMounted, onUpdated, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onUpdated, onBeforeUnmount, watch } from "vue";
 import MultiSelect from "primevue/multiselect";
 import {
     Shapes,
@@ -21,21 +21,71 @@ import { nextTick } from "vue";
 import axios from "axios";
 import ImportFile from "@/Components/importFile.vue";
 import { Head } from "@inertiajs/vue3";
+import Pagination from "@/Components/Pagination.vue";
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 
 /* ---------------- Demo data (swap with API later) ---------------- */
 const manualCategories = ref([]);
 const categories = ref([]);
+const allCategories = ref([]);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
+});
 const editingCategory = ref(null);
 const manualSubcategories = ref([]);
 
-const fetchCategories = async () => {
+const fetchAllCategories = async () => {
     try {
-        const res = await axios.get("/categories");
-        categories.value = res.data.data;
+        const { data } = await axios.get("/categories", {
+            params: {
+                per_page: 1000 // Get all at once
+            },
+        });
+        allCategories.value = data.data || [];
+    } catch (err) {
+        console.error("Failed to fetch all categories:", err);
+    }
+};
+
+const fetchCategories = async (page = null) => {
+    try {
+        const { data } = await axios.get("/categories", {
+            params: {
+                q: q.value,
+                page: page || pagination.value.current_page,
+                per_page: pagination.value.per_page
+            },
+        });
+        categories.value = data.data || [];
+        pagination.value = {
+            current_page: data.current_page,
+            last_page: data.last_page,
+            per_page: data.per_page,
+            total: data.total,
+            from: data.from,
+            to: data.to,
+            links: data.links
+        };
     } catch (err) {
         console.error("Failed to fetch categories:", err);
+        toast.error("Failed to load categories");
+    }
+};
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+
+    if (page) {
+        fetchCategories(parseInt(page));
     }
 };
 
@@ -51,6 +101,7 @@ onMounted(async () => {
             q.value = '';
         }
     }, 100);
+    fetchAllCategories();
     fetchCategories();
 });
 
@@ -59,37 +110,40 @@ const parentCategories = computed(() => {
     return categories.value.filter((cat) => cat.parent_id === null);
 });
 
-/* ---------------- KPI (fake) ---------------- */
-const CategoriesDetails = computed(() => [
-    {
-        label: "Categories",
-        value: parentCategories.value.length,
-        icon: Shapes,
-        iconBg: "bg-light-primary",
-        iconColor: "text-primary",
-    },
-    {
-        label: "Total Active",
-        value: parentCategories.value.filter((c) => c.active).length,
-        icon: Package,
-        iconBg: "bg-light-success",
-        iconColor: "text-success",
-    },
-    {
-        label: "Low Stock",
-        value: parentCategories.value.filter((c) => !c.active).length,
-        icon: AlertTriangle,
-        iconBg: "bg-light-warning",
-        iconColor: "text-warning",
-    },
-    {
-        label: "Out of Stock",
-        value: parentCategories.value.filter((c) => !c.parent_id).length,
-        icon: XCircle,
-        iconBg: "bg-light-danger",
-        iconColor: "text-danger",
-    },
-]);
+const CategoriesDetails = computed(() => {
+    const parentCategoriesTotal = allCategories.value.filter((cat) => cat.parent_id === null);
+    
+    return [
+        {
+            label: "Categories",
+            value: parentCategoriesTotal.length,
+            icon: Shapes,
+            iconBg: "bg-light-primary",
+            iconColor: "text-primary",
+        },
+        {
+            label: "Total Active",
+            value: parentCategoriesTotal.filter((c) => c.active).length,
+            icon: Package,
+            iconBg: "bg-light-success",
+            iconColor: "text-success",
+        },
+        {
+            label: "Low Stock",
+            value: parentCategoriesTotal.filter((c) => !c.active).length,
+            icon: AlertTriangle,
+            iconBg: "bg-light-warning",
+            iconColor: "text-warning",
+        },
+        {
+            label: "Out of Stock",
+            value: parentCategoriesTotal.filter((c) => !c.parent_id).length,
+            icon: XCircle,
+            iconBg: "bg-light-danger",
+            iconColor: "text-danger",
+        },
+    ];
+});
 
 /* ---------------- Search ---------------- */
 const q = ref("");
@@ -99,9 +153,11 @@ const isReady = ref(false);
 
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
-    const parents = categories.value.filter((c) => c.parent_id === null);
-    if (!t) return parents;
-    return parents.filter((c) => c.name.toLowerCase().includes(t));
+    if (!t) return categories.value;
+
+    return categories.value.filter((c) =>
+        c.name.toLowerCase().includes(t)
+    );
 });
 
 /* ---------------- Helpers ---------------- */
@@ -537,7 +593,7 @@ const deleteCategory = async (row) => {
     try {
         await axios.delete(`/categories/${row.id}`);
         toast.success("Category deleted successfully");
-        await fetchCategories(); // refresh the table
+        await fetchCategories();
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
         toast.error("Failed to delete category ❌");
@@ -656,6 +712,15 @@ onBeforeUnmount(() => {
     if (modalEl) {
         modalEl.removeEventListener("hidden.bs.modal", () => { });
     }
+});
+
+let searchTimeout = null;
+watch(q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchCategories(1);
+    }, 500);
 });
 
 const onDownload = (type) => {
@@ -1031,89 +1096,93 @@ const handleImport = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(row, i) in filtered" :key="row.id">
-                                    <td>{{ i + 1 }}</td>
-                                    <td class="fw-semibold">
-                                        {{ row.name }}
+                                <!-- Loading State -->
+                                <tr v-if="!categories.length && pagination.total === 0">
+                                    <td colspan="11" class="text-center py-5">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="text-muted mt-2 mb-0">Loading categories...</p>
                                     </td>
-                                    <td class="text-truncate" style="max-width: 260px">
-                                        <div v-if="
-                                            row.subcategories &&
-                                            row.subcategories.length
-                                        ">
-                                            <div v-for="sub in row.subcategories" :key="sub.id"
-                                                class="d-flex justify-content-between align-items-center"
-                                                style="gap: 5px">
-                                                <span>{{ sub.name }}</span>
+                                </tr>
 
-                                                <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="
-                                                    editSubCategory(
-                                                        row,
-                                                        sub
-                                                    )
-                                                    " title="Edit Subcategory">
+                                <!-- Data Rows -->
+                                <template v-else>
+                                    <tr v-for="(row, i) in filtered" :key="row.id">
+                                        <td>{{ pagination.from + i }}</td>
+                                        <td class="fw-semibold">{{ row.name }}</td>
+                                        <td class="text-truncate" style="max-width: 260px">
+                                            <div v-if="row.subcategories && row.subcategories.length">
+                                                <div v-for="sub in row.subcategories" :key="sub.id"
+                                                    class="d-flex justify-content-between align-items-center"
+                                                    style="gap: 5px">
+                                                    <span>{{ sub.name }}</span>
+                                                    <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100"
+                                                        @click="editSubCategory(row, sub)" title="Edit Subcategory">
+                                                        <Pencil class="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <span v-else>–</span>
+                                        </td>
+                                        <td>
+                                            <div
+                                                class="rounded d-inline-flex align-items-center justify-content-center img-chip">
+                                                <img v-if="row.image_url" :src="row.image_url" :alt="row.name"
+                                                    class="rounded"
+                                                    style="width: 32px; height: 32px; object-fit: cover;" />
+                                                <span v-else class="fs-5">📦</span>
+                                            </div>
+                                        </td>
+                                        <td>{{ formatCurrencySymbol(row.total_value) }}</td>
+                                        <td>{{ row.primary_inventory_items_count }}</td>
+                                        <td>{{ row.out_of_stock }}</td>
+                                        <td>{{ row.low_stock }}</td>
+                                        <td>{{ row.in_stock }}</td>
+                                        <td class="text-center">
+                                            <span
+                                                :class="row.active
+                                                    ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20'
+                                                    : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'">
+                                                {{ row.active ? "Active" : "Inactive" }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="d-inline-flex align-items-center gap-3">
+                                                <button data-bs-toggle="modal" data-bs-target="#modalUnitForm"
+                                                    @click="() => { editRow(row); }" title="Edit"
+                                                    class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
                                                     <Pencil class="w-4 h-4" />
                                                 </button>
+                                                <ConfirmModal :title="'Confirm Delete'"
+                                                    :message="`Are you sure you want to delete ${row.name}?`"
+                                                    :showDeleteButton="true" @confirm="() => { deleteCategory(row); }"
+                                                    @cancel="() => { }" />
                                             </div>
-                                        </div>
-                                        <span v-else>–</span>
-                                    </td>
+                                        </td>
+                                    </tr>
 
-                                    <td>
-                                        <div
-                                            class="rounded d-inline-flex align-items-center justify-content-center img-chip">
-                                            <img v-if="row.image_url" :src="row.image_url" :alt="row.name"
-                                                class="rounded" style="width: 32px; height: 32px; object-fit: cover;" />
-                                            <span v-else class="fs-5">📦</span>
-                                        </div>
-                                    </td>
-
-                                    <td>{{ formatCurrencySymbol(row.total_value) }}</td>
-                                    <td>{{ row.primary_inventory_items_count }}</td>
-                                    <td>{{ row.out_of_stock }}</td>
-                                    <td>{{ row.low_stock }}</td>
-                                    <td>{{ row.in_stock }}</td>
-                                    <td class="text-center">
-                                        <span :class="row.active
-                                            ? 'inline-block px-3 py-1 text-xs font-semibold text-white bg-success rounded-full text-center w-20'
-                                            : 'inline-block px-3 py-1 text-xs font-semibold text-white bg-danger rounded-full text-center w-20'
-                                            ">
-                                            {{
-                                                row.active
-                                                    ? "Active"
-                                                    : "Inactive"
-                                            }}
-                                        </span>
-                                    </td>
-
-                                    <td class="text-center">
-                                        <div class="d-inline-flex align-items-center gap-3">
-                                            <button data-bs-toggle="modal" data-bs-target="#modalUnitForm" @click="
-                                                () => {
-                                                    editRow(row);
-                                                }
-                                            " title="Edit" class="p-2 rounded-full text-blue-600 hover:bg-blue-100">
-                                                <Pencil class="w-4 h-4" />
-                                            </button>
-
-                                            <ConfirmModal :title="'Confirm Delete'"
-                                                :message="`Are you sure you want to delete ${row.name}?`"
-                                                :showDeleteButton="true" @confirm="
-                                                    () => {
-                                                        deleteCategory(row);
-                                                    }
-                                                " @cancel="() => { }" />
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <tr v-if="filtered.length === 0">
-                                    <td colspan="10" class="text-center text-muted py-4">
-                                        No categories found.
-                                    </td>
-                                </tr>
+                                    <tr v-if="filtered.length === 0">
+                                        <td colspan="11" class="text-center text-muted py-4">
+                                            {{ q.trim() ? "No categories found matching your search." : "No categories found." }}
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
+
+                        
+                    </div>
+                     <div v-if="pagination.last_page > 1"
+                        class="mt-4 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+                        </div>
+
+                        <Pagination 
+                            :pagination="pagination.links" 
+                            :isApiDriven="true" 
+                            @page-changed="handlePageChange" />
                     </div>
                 </div>
             </div>
@@ -1142,7 +1211,7 @@ const handleImport = (data) => {
                                 <strong>Icon:</strong>
                                 <span class="fs-4">{{
                                     viewingCategory.icon
-                                    }}</span>
+                                }}</span>
                             </p>
                             <p>
                                 <strong>Status:</strong>
@@ -1430,7 +1499,7 @@ const handleImport = (data) => {
                                     v-model="editingSubCategory.name" :disabled="submittingSub" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                    }}</small>
+                                }}</small>
                             </div>
                             <button type="button"
                                 class="px-4 py-2 rounded-pill btn btn-primary text-white text-center d-flex align-items-center justify-content-center gap-2"

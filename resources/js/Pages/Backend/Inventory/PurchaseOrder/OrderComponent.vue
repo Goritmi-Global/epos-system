@@ -106,7 +106,7 @@ function updateSubtotal(it) {
     const price = Number(it.unitPrice) || 0;
     if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
         const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
-        qty = qty * conversionFactor;
+        qty = qty;
     }
 
     it.subtotal = qty * price;
@@ -132,7 +132,7 @@ function updateMultipleSubtotal(it) {
 
     if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
         const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
-        qty = qty * conversionFactor;
+        qty = qty;
     }
 
     it.subtotal = qty * price;
