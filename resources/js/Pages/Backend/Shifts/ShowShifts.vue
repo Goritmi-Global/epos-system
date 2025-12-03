@@ -220,6 +220,9 @@ const retryCheck = async () => {
     background-color: #181818 !important;
 }
 
+.dark .bg-white{
+    background: #212121 !important;
+}
 .border-gray-100 {
     background-color: #212121 !important;
 }
