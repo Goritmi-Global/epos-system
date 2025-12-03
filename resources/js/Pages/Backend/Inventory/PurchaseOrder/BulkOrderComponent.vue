@@ -537,7 +537,7 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" />
+                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -554,7 +554,7 @@ async function multipleSubmit() {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" />
+                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid': formErrors[idx]?.unitPrice}" />
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
@@ -642,7 +642,7 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" />
+                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -660,14 +660,14 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" />
+                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid':formErrors[idx]?.unitPrice}"/>
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
                                         </td>
                                         <td>
-                                            <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="false" placeholder="Select date"
+                                            <VueDatePicker v-model="it.expiry" :position="bottom" :format="dateFmt" :min-date="new Date()"
+                                                :enableTimePicker="false" :teleport="body"  placeholder="Select date"
                                                 :class="{
                                                     'is-invalid': m_formErrors[idx]?.expiry
                                                 }" />

@@ -689,25 +689,41 @@ const downloadInvoice = async (order) => {
                         <div class="d-flex align-items-center gap-2">
                             <h3 class="fw-semibold mb-0">Purchase Order</h3>
 
-                            <div class="position-relative">
-                                <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
-                                    <i class="bi bi-question-circle fs-5"></i>
-                                </button>
-                                <div v-if="showHelp" class="help-popover shadow rounded-4 p-3">
-                                    <p class="mb-2">
-                                        This screen allows you to view, manage,
-                                        and update all purchase orders.
-                                    </p>
-                                    <p class="mb-2">
-                                        <strong>Add Purchase</strong>: create a
-                                        purchase and stock-in immediately.
-                                    </p>
-                                    <p class="mb-0">
-                                        <strong>Add Order</strong>: create a
-                                        purchase order for later delivery.
-                                    </p>
-                                </div>
-                            </div>
+                          <div class="position-relative">
+    <button class="btn btn-link p-0 ms-2" @click="showHelp = !showHelp" title="Help">
+        <i class="bi bi-question-circle fs-5"></i>
+    </button>
+
+    <div 
+        v-if="showHelp" 
+        class="help-popover shadow-lg rounded-3 p-3 bg-white border position-absolute"
+        style="width: 300px; right: 0; z-index: 999;"
+    >
+        <!-- Close Button -->
+        <button 
+            @click="showHelp = false"
+            class="btn btn-sm btn-light border-0 position-absolute top-0 end-0 mt-1 me-1 text-secondary"
+            title="Close"
+        >
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <h6 class="fw-semibold mb-3">Purchase Order Help</h6>
+
+        <p class="mb-2 small text-muted">
+            This screen allows you to view, manage, and update all purchase orders.
+        </p>
+
+        <p class="mb-1 small">
+            <strong>Add Purchase:</strong> Create a purchase and stock-in immediately.
+        </p>
+
+        <p class="small mb-0">
+            <strong>Add Order:</strong> Create a purchase order for later delivery.
+        </p>
+    </div>
+</div>
+
                         </div>
 
                         <div class="d-flex gap-2 align-items-center">
@@ -1106,6 +1122,23 @@ const downloadInvoice = async (order) => {
     color: #f9fafb !important;
 }
 
+.dark .bg-white{
+    border-bottom: 1px solid #fff !important;
+}
+
+.help-popover {
+    animation: fadeIn 0.15s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dark .btn-light{
+    background: #212121 !important;
+    color: #fff !important;
+}
 /* Search pill */
 .search-wrap {
     position: relative;
