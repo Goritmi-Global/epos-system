@@ -80,14 +80,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // POS Orders
     Route::prefix('pos')->name('api.pos.')->group(function () {
-        Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu.categories');
-        Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu.items');
-        Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('profile.tables');
-        Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders'])->name('orders.today');
-        Route::put('/kot-item/{item}/status', [PosOrderController::class, 'updateKotItemStatus'])->name('kot.item.status');
-        Route::post('/broadcast-cart', [PosOrderController::class, 'broadcastCart'])->name('broadcast.cart');
-        Route::post('/broadcast-ui', [PosOrderController::class, 'broadcastUI'])->name('broadcast.ui');
-    });
+    Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu.categories');
+    Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu.items');
+    Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('profile.tables');
+    Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders'])->name('orders.today');
+    Route::put('/kot-item/{item}/status', [PosOrderController::class, 'updateKotItemStatus'])->name('kot.item.status');
+
+    // ✅ Terminal State Management Routes
+    // Version check endpoint (lightweight - should be first for priority)
+    Route::get('/terminal/{terminalId}/version', [PosOrderController::class, 'getTerminalVersion'])->name('terminal.version');
+    
+    // Full state endpoint
+    Route::get('/terminal/{terminalId}/state', [PosOrderController::class, 'getTerminalState'])->name('terminal.state');
+    
+    // Update endpoints
+    Route::post('/terminal/update-cart', [PosOrderController::class, 'updateTerminalCart'])->name('terminal.cart');
+    Route::post('/terminal/update-ui', [PosOrderController::class, 'updateTerminalUI'])->name('terminal.ui');
+    Route::post('/terminal/update-both', [PosOrderController::class, 'updateTerminalBoth'])->name('terminal.both');
+    
+    // ✅ Optional: Add cache clear endpoint (for debugging)
+    Route::delete('/terminal/{terminalId}/cache', [PosOrderController::class, 'clearTerminalCache'])->name('terminal.cache.clear');
+});
 
     // Menu Categories
     Route::prefix('menu-categories')->name('api.menu-categories.')->group(function () {
@@ -139,7 +152,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{shift}/x-report/pdf', [ShiftManagementController::class, 'downloadXReportPdf'])->name('shift.x-report.pdf');
         Route::get('/{shift}/z-report', [ShiftManagementController::class, 'generateZReport'])->name('shift.z-report');
         Route::get('/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])->name('shift.z-report.pdf');
-        
     });
 
     Route::prefix('meals')->name('api.meals.')->group(function () {
@@ -202,7 +214,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Toggle status (active/inactive)
         Route::patch('/{id}/toggle-status', [AddonGroupController::class, 'toggleStatus']);
-
     });
 
     Route::prefix('discounts')->name('api.discounts.')->group(function () {
@@ -251,6 +262,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/discount-approvals/pending', [DiscountApprovalController::class, 'getPendingRequests']);
     Route::post('/discount-approvals/{id}/respond', [DiscountApprovalController::class, 'respondToRequest']);
     Route::get('/discount-approvals/history', [DiscountApprovalController::class, 'getApprovalHistory']);
-
 });
-
