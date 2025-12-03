@@ -145,7 +145,7 @@ class AnalyticsController extends Controller
             }
         })->distinct('order_id')->count('order_id');
 
-        // Chart data - daily or monthly based on timeRange
+        // Chart data - daily or monthly
         if ($timeRange === 'yearly') {
             $chartData = (clone $ordersQ)
                 ->selectRaw('DATE_FORMAT(order_date, "%Y-%m") as date, SUM(total_amount) as total')
@@ -180,19 +180,19 @@ class AnalyticsController extends Controller
             ['label' => 'Delivery', 'value' => $deliveryCount, 'percentage' => round($deliveryCount * 100 / $total), 'color' => '#3b82f6'],
         ];
 
-        // Table data - Get PosOrders with their related items count, totals, and promo info
+        // ✅ FIXED TABLE QUERY (ONLY_FULL_GROUP_BY SAFE)
         $tableData = (clone $ordersQ)
             ->selectRaw('
             pos_orders.id,
-            pos_orders.customer_name,
-            pos_orders.sub_total,
-            pos_orders.total_amount,
-            pos_orders.tax,
-            pos_orders.service_charges,
-            pos_orders.delivery_charges,
-            pos_orders.sales_discount,
-            pos_orders.approved_discounts,
-            pos_orders.order_date,
+            ANY_VALUE(pos_orders.customer_name) as customer_name,
+            ANY_VALUE(pos_orders.sub_total) as sub_total,
+            ANY_VALUE(pos_orders.total_amount) as total_amount,
+            ANY_VALUE(pos_orders.tax) as tax,
+            ANY_VALUE(pos_orders.service_charges) as service_charges,
+            ANY_VALUE(pos_orders.delivery_charges) as delivery_charges,
+            ANY_VALUE(pos_orders.sales_discount) as sales_discount,
+            ANY_VALUE(pos_orders.approved_discounts) as approved_discounts,
+            ANY_VALUE(pos_orders.order_date) as order_date,
             COUNT(pos_order_items.id) as item_count,
             COALESCE(SUM(pos_order_items.quantity), 0) as total_qty,
             COALESCE(SUM(order_promos.discount_amount), 0) as promo_discount,
@@ -224,7 +224,7 @@ class AnalyticsController extends Controller
             ])
             ->toArray();
 
-        // Calculate totals for the totals row
+        // Totals summary row
         $totalsSummary = [
             'id' => 'TOTAL',
             'customer_name' => 'TOTAL',
@@ -241,7 +241,7 @@ class AnalyticsController extends Controller
             'order_date' => null,
         ];
 
-        // Promo breakdown distribution data
+        // Promo breakdown distribution
         $promoDistribution = OrderPromo::whereHas('order', function ($q) use ($from, $to, $orderType) {
             $q->whereBetween('order_date', [$from, $to])
                 ->where('status', 'paid');
@@ -379,7 +379,7 @@ class AnalyticsController extends Controller
         $totalsSummary = [
             'product_name' => 'TOTAL',
             'quantity' => array_sum(array_column($tableData, 'quantity')),
-            'total_unit_price' =>array_sum(array_column($tableData, 'unit_price')), 
+            'total_unit_price' => array_sum(array_column($tableData, 'unit_price')),
             'sub_total' => array_sum(array_column($tableData, 'sub_total')),
         ];
 
