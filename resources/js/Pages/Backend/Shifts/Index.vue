@@ -2093,6 +2093,8 @@ const printZReport = async (shiftId) => {
     padding: 0.25rem 0.5rem !important;
 }
 
+
+
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }

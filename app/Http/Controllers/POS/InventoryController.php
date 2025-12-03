@@ -39,7 +39,7 @@ class InventoryController extends Controller
             'suppliers' => Supplier::select('id', 'name')->orderBy('name')->get(),
 
             // if you have parent/child categories, keep parent_id; otherwise just id/name
-            'categories' => InventoryCategory::select('id', 'name', 'parent_id')->orderBy('name')->get(),
+            'categories' => InventoryCategory::select('id', 'name', 'parent_id')->where('active',1)->orderBy('name')->get(),
         ]);
     }
 

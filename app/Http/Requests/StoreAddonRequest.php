@@ -20,8 +20,8 @@ class StoreAddonRequest extends FormRequest
      */
     public function rules(): array
     {
-        $addonId = $this->route('addon'); // For update requests
-        
+        $addonId = $this->route('id'); // For update requests
+
         return [
             // Name must be unique within the same addon group
             'name' => [
@@ -30,19 +30,19 @@ class StoreAddonRequest extends FormRequest
                 'max:255',
                 Rule::unique('addons', 'name')
                     ->where('addon_group_id', $this->addon_group_id)
-                    ->ignore($addonId)
+                    ->ignore($addonId),
             ],
-            
+
             // Must belong to an existing addon group
             'addon_group_id' => 'required|exists:addon_groups,id',
-            
+
             // Price must be >= 0
-            'price' => 'required|numeric|min:0',
-            
+            'price' => 'required|numeric|min:1',
+
             'description' => 'nullable|string',
-            
+
             'status' => 'required|in:active,inactive',
-            
+
             'sort_order' => 'nullable|integer|min:0',
         ];
     }
@@ -58,7 +58,7 @@ class StoreAddonRequest extends FormRequest
             'addon_group_id.required' => 'Please select an addon group.',
             'addon_group_id.exists' => 'Selected addon group does not exist.',
             'price.required' => 'Price is required.',
-            'price.min' => 'Price cannot be negative.',
+            'price.min' => 'Price cannot be less than 1.',
         ];
     }
 }

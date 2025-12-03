@@ -330,6 +330,13 @@ const submitAddonGroup = async () => {
     } finally {
         submitting.value = false;
     }
+     setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
 };
 
 /* ============================================
@@ -750,6 +757,13 @@ const handleImport = (data) => {
             const message = error.response?.data?.message || "Import failed";
             toast.error(message);
             console.error("Import error:", error);
+             setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 </script>
@@ -803,7 +817,7 @@ const handleImport = (data) => {
                                     { value: 'addons_desc', label: 'Addons Count: High to Low' },
                                     { value: 'newest', label: 'Newest First' },
                                     { value: 'oldest', label: 'Oldest First' },
-                                ]" :showPriceRange="true" :showDateRange="false" :showCategory="false"
+                                ]" :showPriceRange="false" :showStockStatus="false" :showDateRange="false" :showCategory="false"
                                 statusLabel="Group Status" priceLabel="Addons Count Range"
                                 priceMinPlaceholder="Min Count" priceMaxPlaceholder="Max Count"
                                 @apply="handleFilterApply" @clear="handleFilterClear" />
@@ -942,7 +956,8 @@ const handleImport = (data) => {
                                                         :class="row.status === 'active'
                                                             ? 'bg-green-500 hover:bg-green-600'
                                                             : 'bg-red-400 hover:bg-red-500'
-                                                            " :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'">
+                                                            "
+                                                        :title="row.status === 'active' ? 'Set Inactive' : 'Set Active'">
                                                         <span
                                                             class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-300"
                                                             :class="row.status === 'active'

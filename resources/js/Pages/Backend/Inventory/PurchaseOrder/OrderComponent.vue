@@ -106,7 +106,7 @@ function updateSubtotal(it) {
     const price = Number(it.unitPrice) || 0;
     if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
         const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
-        qty = qty * conversionFactor;
+        qty = qty;
     }
 
     it.subtotal = qty * price;
@@ -132,7 +132,7 @@ function updateMultipleSubtotal(it) {
 
     if (it.selected_derived_unit_id && it.selectedDerivedUnitInfo) {
         const conversionFactor = Number(it.selectedDerivedUnitInfo.conversion_factor) || 1;
-        qty = qty * conversionFactor;
+        qty = qty;
     }
 
     it.subtotal = qty * price;
@@ -650,7 +650,7 @@ const formatDate = (date) => {
                                         <td>{{ it.stock }}</td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" />
+                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -667,7 +667,7 @@ const formatDate = (date) => {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" />
+                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid': formErrors[idx]?.unitPrice}"/>
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
@@ -741,7 +741,7 @@ const formatDate = (date) => {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" />
+                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -758,7 +758,7 @@ const formatDate = (date) => {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" />
+                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid': formErrors[idx]?.unitPrice}"/>
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>

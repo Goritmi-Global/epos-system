@@ -2328,11 +2328,12 @@ const getSelectedAddonsCount = () => {
 };
 
 // ================================================
-//              Customer View Screen
+//              Customer View Screen - FIXED
 // ================================================
 import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
+
 const user = computed(() => page.props.current_user);
 
 const categoriesWithMenus = computed(() => {
@@ -2350,75 +2351,118 @@ const isCashier = computed(() => {
 const terminalId = ref(`terminal-${user.value?.id}`);
 const { broadcastCartUpdate, broadcastUIUpdate } = usePOSBroadcast(terminalId.value);
 
-// Debounce functions
-const debouncedBroadcast = debounce((data) => {
+// ✅ FIXED: Faster debounce timing
+const debouncedBroadcastCart = debounce((data) => {
+    console.log('📤 Broadcasting cart:', data.items.length, 'items');
     broadcastCartUpdate(data);
-}, 500);
+}, 300); // Reduced from 500ms to 300ms
 
-const debouncedUIBroadcast = debounce((data) => {
+const debouncedBroadcastUI = debounce((data) => {
+    console.log('📤 Broadcasting UI');
     broadcastUIUpdate(data);
-}, 10);
+}, 100); // Increased from 10ms to 100ms for stability
 
-// Watch for cart changes and broadcast
+// ✅ FIXED: Watch for cart changes with proper item mapping
 watch(
     () => ({
-        items: orderItems.value,
-        customer: customer.value,
-        phone_number: phoneNumber.value,
-        delivery_location: deliveryLocation.value,
-        orderType: orderType.value,
-        table: selectedTable.value,
-        subtotal: subTotal.value,
-        tax: totalTax.value,
-        serviceCharges: serviceCharges.value,
-        deliveryCharges: deliveryCharges.value,
-        promoDiscount: promoDiscount.value,
-        total: grandTotal.value,
-        note: note.value,
-        appliedPromos: selectedPromos.value,
-        saleDiscount: totalResaleSavings.value,
+        items: orderItems.value.map(item => ({
+            id: item.id,
+            title: item.name || item.title,
+            img: item.image_url || item.img || '/assets/img/default.png',
+            price: parseFloat(item.total || item.price || 0),
+            qty: parseInt(item.qty || 1),
+            variant_name: item.variant?.name || null,
+            addons: (item.addons || []).map(addon => ({
+                id: addon.id,
+                name: addon.name,
+                price: parseFloat(addon.price || 0)
+            })),
+            resale_discount_per_item: parseFloat(item.resale_discount_per_item || 0)
+        })),
+        customer: customer.value || 'Walk In',
+        phone_number: phoneNumber.value || '',
+        delivery_location: deliveryLocation.value || '',
+        orderType: orderType.value || 'Dine In',
+        table: selectedTable.value ? {
+            id: selectedTable.value.id,
+            name: selectedTable.value.name
+        } : null,
+        subtotal: parseFloat(subTotal.value || 0),
+        tax: parseFloat(totalTax.value || 0),
+        serviceCharges: parseFloat(serviceCharges.value || 0),
+        deliveryCharges: parseFloat(deliveryCharges.value || 0),
+        saleDiscount: parseFloat(totalResaleSavings.value || 0),
+        promoDiscount: parseFloat(promoDiscount.value || 0),
+        total: parseFloat(grandTotal.value || 0),
+        note: note.value || '',
+        appliedPromos: (selectedPromos.value || []).map(promo => ({
+            id: promo.id,
+            name: promo.name,
+            discount: parseFloat(promo.discount || 0),
+            applied_to_items: promo.applied_to_items || []
+        }))
     }),
     (newCart) => {
-        debouncedBroadcast(newCart);
+        console.log('🔔 Cart changed:', newCart.items.length, 'items, Total:', newCart.total);
+        debouncedBroadcastCart(newCart);
     },
-    { deep: true, immediate: false }
+    { deep: true, immediate: true } // ✅ Changed immediate to true
 );
 
-// Watch for UI state changes (including variants and addons)
+// ✅ FIXED: Watch for UI state changes
 watch(
     () => ({
-        showCategories: showCategories.value,
-        activeCat: activeCat.value,
-        menuCategories: menuCategories.value,
-        menuItems: menuItems.value,
-        searchQuery: searchQuery.value,
-        selectedCardVariant: selectedCardVariant.value,
-        selectedCardAddons: selectedCardAddons.value,
+        showCategories: showCategories.value ?? true,
+        activeCat: activeCat.value || null,
+        menuCategories: (menuCategories.value || []).map(cat => ({
+            id: cat.id,
+            name: cat.name,
+            menu_items_count: cat.menu_items_count || 0
+        })),
+        menuItems: (menuItems.value || []).map(item => ({
+            id: item.id,
+            name: item.name,
+            price: parseFloat(item.price || 0),
+            image_url: item.image_url || null,
+            description: item.description || '',
+            label_color: item.label_color || '#1B1670',
+            category: item.category ? {
+                id: item.category.id,
+                name: item.category.name
+            } : null,
+            variants: (item.variants || []).map(v => ({
+                id: v.id,
+                name: v.name,
+                price: parseFloat(v.price || 0),
+                is_saleable: v.is_saleable ?? false,
+                resale_type: v.resale_type || null,
+                resale_value: parseFloat(v.resale_value || 0)
+            })),
+            addon_groups: (item.addon_groups || []).map(g => ({
+                id: g.id,
+                name: g.name,
+                addons: (g.addons || []).map(a => ({
+                    id: a.id,
+                    name: a.name,
+                    price: parseFloat(a.price || 0)
+                }))
+            })),
+            is_saleable: item.is_saleable ?? false,
+            resale_type: item.resale_type || null,
+            resale_value: parseFloat(item.resale_value || 0)
+        })),
+        searchQuery: searchQuery.value || '',
+        selectedCardVariant: selectedCardVariant.value || {},
+        selectedCardAddons: selectedCardAddons.value || {}
     }),
     (newUI) => {
-        debouncedUIBroadcast(newUI);
+        console.log('🔔 UI changed - Categories:', newUI.menuCategories.length, 'Items:', newUI.menuItems.length);
+        debouncedBroadcastUI(newUI);
     },
     { deep: true, immediate: true }
 );
 
-// Watch specifically for variant/addon changes to broadcast immediately
-watch(
-    [selectedCardVariant, selectedCardAddons],
-    () => {
-        broadcastUIUpdate({
-            showCategories: showCategories.value,
-            activeCat: activeCat.value,
-            menuCategories: menuCategories.value,
-            menuItems: menuItems.value,
-            searchQuery: searchQuery.value,
-            selectedCardVariant: selectedCardVariant.value,
-            selectedCardAddons: selectedCardAddons.value,
-        });
-    },
-    { deep: true }
-);
-
-// Customer Display function
+// ✅ Customer Display function
 const openCustomerDisplay = () => {
     if (!isCashier.value) {
         toast.error('Only cashiers can access customer display');
@@ -2429,6 +2473,48 @@ const openCustomerDisplay = () => {
     window.open(url, '_blank', 'width=1920,height=1080');
 };
 
+// ✅ OPTIONAL: Add manual refresh function for debugging
+const forceRefreshCustomerDisplay = async () => {
+    console.log('🔄 Force refreshing customer display...');
+    
+    // Broadcast both cart and UI immediately (no debounce)
+    await broadcastCartUpdate({
+        items: orderItems.value.map(item => ({
+            id: item.id,
+            title: item.name || item.title,
+            img: item.image_url || item.img || '/assets/img/default.png',
+            price: parseFloat(item.total || item.price || 0),
+            qty: parseInt(item.qty || 1),
+            variant_name: item.variant?.name || null,
+            addons: item.addons || [],
+            resale_discount_per_item: parseFloat(item.resale_discount_per_item || 0)
+        })),
+        customer: customer.value || 'Walk In',
+        orderType: orderType.value || 'Dine In',
+        table: selectedTable.value,
+        subtotal: parseFloat(subTotal.value || 0),
+        tax: parseFloat(totalTax.value || 0),
+        serviceCharges: parseFloat(serviceCharges.value || 0),
+        deliveryCharges: parseFloat(deliveryCharges.value || 0),
+        saleDiscount: parseFloat(totalResaleSavings.value || 0),
+        promoDiscount: parseFloat(promoDiscount.value || 0),
+        total: parseFloat(grandTotal.value || 0),
+        note: note.value || '',
+        appliedPromos: selectedPromos.value || []
+    });
+    
+    await broadcastUIUpdate({
+        showCategories: showCategories.value ?? true,
+        activeCat: activeCat.value,
+        menuCategories: menuCategories.value || [],
+        menuItems: menuItems.value || [],
+        searchQuery: searchQuery.value || '',
+        selectedCardVariant: selectedCardVariant.value || {},
+        selectedCardAddons: selectedCardAddons.value || {}
+    });
+    
+    console.log('✅ Force refresh completed');
+};
 // ============================================
 // RESALE PRICE CALCULATION HELPERS
 // ============================================

@@ -114,6 +114,7 @@ onMounted(async () => {
 
     // Fetch initial data
     await Promise.all([fetchAddons(), fetchAddonGroups()]);
+    
 });
 
 /* ============================================
@@ -403,6 +404,13 @@ const submitAddon = async () => {
     } finally {
         submitting.value = false;
     }
+     setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
 };
 
 /* ============================================
@@ -796,12 +804,41 @@ const handleImport = (data) => {
     axios.post("/api/addons/import", { addons: addonsToImport })
         .then((response) => {
             toast.success(response.data.message || "Import successful!");
+            
+            // Close the import modal properly
+            const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+            
+            // Remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 300);
+            
+            // Refresh data
             fetchAddons();
         })
         .catch((error) => {
             const message = error.response?.data?.message || "Import failed";
             toast.error(message);
             console.error("Import error:", error);
+            
+            // Also clean up modal on error
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 </script>
@@ -853,9 +890,9 @@ const handleImport = (data) => {
                                     { value: 'price_desc', label: 'Price: High to Low' },
                                     { value: 'newest', label: 'Newest First' },
                                     { value: 'oldest', label: 'Oldest First' },
-                                ]" :categories="addonGroupsForFilter" categoryLabel="Addon Group"
-                                statusLabel="Addon Status" :showPriceRange="true" :showDateRange="false"
-                                @apply="handleFilterApply" @clear="handleFilterClear" />
+                                ]" :showStockStatus="false" :categories="addonGroupsForFilter"
+                                categoryLabel="Addon Group" statusLabel="Addon Status" :showPriceRange="true"
+                                :showDateRange="false" @apply="handleFilterApply" @clear="handleFilterClear" />
                             <!-- Search Input -->
                             <div class="search-wrap">
                                 <i class="bi bi-search"></i>
@@ -1078,7 +1115,7 @@ const handleImport = (data) => {
                                     <input v-model.number="addonForm.price" type="number" step="0.01" min="0"
                                         class="form-control" :class="{ 'is-invalid': formErrors.price }"
                                         placeholder="0.00" />
-                                    <small class="text-muted"> Additional price for this addon </small>
+
                                     <small v-if="formErrors.price" class="text-danger d-block">
                                         {{ formErrors.price[0] }}
                                     </small>
