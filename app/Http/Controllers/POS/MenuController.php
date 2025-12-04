@@ -93,7 +93,8 @@ class MenuController extends Controller
     {
         $perPage = $request->get('per_page', 10); // Default 10 items per page
 
-        $menus = MenuItem::with([
+        // Start building the query
+        $query = MenuItem::with([
             'category',
             'ingredients',
             'variants.ingredients',
@@ -102,8 +103,73 @@ class MenuController extends Controller
             'nutrition',
             'addonGroupRelations.addonGroup',
             'meals',
-        ])
-            ->paginate($perPage)
+        ]);
+
+        // ✅ Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('description', 'LIKE', "%{$search}%")
+                    ->orWhereHas('category', function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('tags', function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%");
+                    });
+            });
+        }
+
+        // ✅ Category filter
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        // ✅ Status filter
+        if ($request->has('status') && $request->status !== null && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        // ✅ Price range filters
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', $request->price_max);
+        }
+
+        // ✅ Date range filters
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // ✅ Sorting
+        if ($request->filled('sort_by')) {
+            switch ($request->sort_by) {
+                case 'price_desc':
+                    $query->orderBy('price', 'desc');
+                    break;
+                case 'price_asc':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                default:
+                    $query->latest();
+            }
+        } else {
+            $query->latest();
+        }
+
+        // Execute the query with pagination
+        $menus = $query->paginate($perPage)
             ->through(function ($item) {
                 return [
                     'id' => $item->id,
@@ -149,6 +215,7 @@ class MenuController extends Controller
                 ];
             });
 
+        // ✅ Get counts (these remain the same for KPIs)
         $totalCount = MenuItem::count();
         $activeCount = MenuItem::where('status', 1)->count();
         $inactiveCount = MenuItem::where('status', 0)->count();
@@ -166,13 +233,12 @@ class MenuController extends Controller
                 'links' => $menus->linkCollection()->toArray(),
             ],
             'counts' => [
-            'total' => $totalCount,
-            'active' => $activeCount,
-            'inactive' => $inactiveCount,
-        ],
+                'total' => $totalCount,
+                'active' => $activeCount,
+                'inactive' => $inactiveCount,
+            ],
         ]);
     }
-
     private function calculateResalePrice($item)
     {
         if (! $item->is_saleable || ! $item->resale_type || ! $item->resale_value) {

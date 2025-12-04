@@ -362,7 +362,11 @@ class PosOrderService
     public function getMenuCategories(bool $onlyActive = true)
     {
         $query = MenuCategory::with('children')
-            ->withCount('menuItems') // now works because relation exists
+            ->withCount([
+                'menuItems as menu_items_count' => function ($q) {
+                    $q->where('status', 1);
+                }
+            ])
             ->whereNull('parent_id');
 
         if ($onlyActive) {
@@ -377,11 +381,12 @@ class PosOrderService
                 'name' => $cat->name,
                 'image_url' => $cat->image_url,
                 'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
-                'menu_items_count' => $cat->menu_items_count,
+                'menu_items_count' => $cat->menu_items_count, 
                 'children' => $cat->children,
             ];
         });
     }
+
 
     public function getAllMenus()
     {
@@ -395,7 +400,7 @@ class PosOrderService
             'tags',
             'upload',
             'addonGroupRelations.addonGroup.addons',
-        ])->get();
+        ])->where('status', 1)->get();
 
 
         return $menus->map(function ($item) {
