@@ -1139,6 +1139,7 @@ const submitEdit = async () => {
     }
 };
 const toggleStatus = async (item) => {
+    console.log(item);
     try {
         const newStatus = item.status === 1 ? 0 : 1;
         await axios.patch(`/menu/${item.id}/status`, { status: newStatus });
@@ -2330,6 +2331,7 @@ const format = (val) => {
                                                         </button>
                                                     </template>
                                                 </ConfirmModal>
+                                                <p>{{ item.status }}</p>
                                             </div>
                                         </td>
                                     </tr>
