@@ -353,73 +353,168 @@ const downloadPDF = () => {
         let tableColumns = [];
         let tableRows = [];
         if (filters.value.type === 'sales') {
-            tableColumns = ["S.#", "Order ID", "Customer", "Items", "Qty", "Sub Total", "Tax",
-                "Service", "Delivery", "Sales Disc.", "Approved Disc.", "Promo Disc.",
-                "Promos", "Promo Type", "Total", "Date"];
+            if (filters.value.timeRange === 'monthly') {
+                // Monthly view - aggregated by day
+                tableColumns = ["S.#", "Day", "Orders", "Items", "Qty", "Sub Total", "Tax",
+                    "Service", "Delivery", "Sales Disc.", "Approved Disc.", "Promo Disc.", "Total"];
 
-            tableRows = tableDataFiltered.value.map((r, i) => [
-                i + 1,
-                r.id,
-                r.customer_name || "-",
-                r.item_count,
-                r.total_qty,
-                formatCurrencySymbol(r.sub_total),
-                formatCurrencySymbol(r.tax),
-                formatCurrencySymbol(r.service_charges),
-                formatCurrencySymbol(r.delivery_charges),
-                formatCurrencySymbol(r.sales_discount),
-                formatCurrencySymbol(r.approved_discounts),
-                formatCurrencySymbol(r.promo_discount),
-                r.promo_names || "-",
-                r.promo_types || "-",
-                formatCurrencySymbol(r.total_amount),
-                dateFmt(r.order_date)
-            ]);
+                tableRows = tableDataFiltered.value.map((r, i) => [
+                    i + 1,
+                    'Day ' + new Date(r.order_date).getDate(),
+                    r.order_count,
+                    r.item_count,
+                    r.total_qty,
+                    formatCurrencySymbol(r.sub_total),
+                    formatCurrencySymbol(r.tax),
+                    formatCurrencySymbol(r.service_charges),
+                    formatCurrencySymbol(r.delivery_charges),
+                    formatCurrencySymbol(r.sales_discount),
+                    formatCurrencySymbol(r.approved_discounts),
+                    formatCurrencySymbol(r.promo_discount),
+                    formatCurrencySymbol(r.total_amount)
+                ]);
+            } else if (filters.value.timeRange === 'yearly') {
+                // Yearly view - aggregated by month
+                tableColumns = ["S.#", "Month", "Orders", "Items", "Qty", "Sub Total", "Tax",
+                    "Service", "Delivery", "Sales Disc.", "Approved Disc.", "Promo Disc.", "Total"];
+
+                tableRows = tableDataFiltered.value.map((r, i) => [
+                    i + 1,
+                    new Date(r.order_month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                    r.order_count,
+                    r.item_count,
+                    r.total_qty,
+                    formatCurrencySymbol(r.sub_total),
+                    formatCurrencySymbol(r.tax),
+                    formatCurrencySymbol(r.service_charges),
+                    formatCurrencySymbol(r.delivery_charges),
+                    formatCurrencySymbol(r.sales_discount),
+                    formatCurrencySymbol(r.approved_discounts),
+                    formatCurrencySymbol(r.promo_discount),
+                    formatCurrencySymbol(r.total_amount)
+                ]);
+            } else {
+                // Other views - individual orders
+                tableColumns = ["S.#", "Order ID", "Customer", "Items", "Qty", "Sub Total", "Tax",
+                    "Service", "Delivery", "Sales Disc.", "Approved Disc.", "Promo Disc.",
+                    "Promos", "Promo Type", "Total", "Date"];
+
+                tableRows = tableDataFiltered.value.map((r, i) => [
+                    i + 1,
+                    r.id,
+                    r.customer_name || "-",
+                    r.item_count,
+                    r.total_qty,
+                    formatCurrencySymbol(r.sub_total),
+                    formatCurrencySymbol(r.tax),
+                    formatCurrencySymbol(r.service_charges),
+                    formatCurrencySymbol(r.delivery_charges),
+                    formatCurrencySymbol(r.sales_discount),
+                    formatCurrencySymbol(r.approved_discounts),
+                    formatCurrencySymbol(r.promo_discount),
+                    r.promo_names || "-",
+                    r.promo_types || "-",
+                    formatCurrencySymbol(r.total_amount),
+                    dateFmt(r.order_date)
+                ]);
+            }
 
             // Add totals row
             if (totalsSummary.value && tableDataFiltered.value.length > 0) {
-                tableRows.push([
-                    "TOTAL", "-", "-",
-                    totalsSummary.value.item_count,
-                    totalsSummary.value.total_qty,
-                    formatCurrencySymbol(totalsSummary.value.sub_total),
-                    formatCurrencySymbol(totalsSummary.value.tax),
-                    formatCurrencySymbol(totalsSummary.value.service_charges),
-                    formatCurrencySymbol(totalsSummary.value.delivery_charges),
-                    formatCurrencySymbol(totalsSummary.value.sales_discount),
-                    formatCurrencySymbol(totalsSummary.value.approved_discounts),
-                    formatCurrencySymbol(totalsSummary.value.promo_discount),
-                    "-", "-",
-                    formatCurrencySymbol(totalsSummary.value.total_amount),
-                    "-"
-                ]);
+                const totalsRow = (filters.value.timeRange === 'monthly' || filters.value.timeRange === 'yearly')
+                    ? ["TOTAL", "-", "-",
+                        totalsSummary.value.item_count,
+                        totalsSummary.value.total_qty,
+                        formatCurrencySymbol(totalsSummary.value.sub_total),
+                        formatCurrencySymbol(totalsSummary.value.tax),
+                        formatCurrencySymbol(totalsSummary.value.service_charges),
+                        formatCurrencySymbol(totalsSummary.value.delivery_charges),
+                        formatCurrencySymbol(totalsSummary.value.sales_discount),
+                        formatCurrencySymbol(totalsSummary.value.approved_discounts),
+                        formatCurrencySymbol(totalsSummary.value.promo_discount),
+                        formatCurrencySymbol(totalsSummary.value.total_amount)]
+                    : ["TOTAL", "-", "-",
+                        totalsSummary.value.item_count,
+                        totalsSummary.value.total_qty,
+                        formatCurrencySymbol(totalsSummary.value.sub_total),
+                        formatCurrencySymbol(totalsSummary.value.tax),
+                        formatCurrencySymbol(totalsSummary.value.service_charges),
+                        formatCurrencySymbol(totalsSummary.value.delivery_charges),
+                        formatCurrencySymbol(totalsSummary.value.sales_discount),
+                        formatCurrencySymbol(totalsSummary.value.approved_discounts),
+                        formatCurrencySymbol(totalsSummary.value.promo_discount),
+                        "-", "-",
+                        formatCurrencySymbol(totalsSummary.value.total_amount),
+                        "-"];
+
+                tableRows.push(totalsRow);
             }
         }
         else if (filters.value.type === 'purchase') {
-            tableColumns = ["S.#", "Purchase ID", "Supplier", "Product", "Quantity",
-                "Unit Price", "Sub Total", "Expiry", "Purchase Date", "Status"];
+            if (filters.value.timeRange === 'monthly') {
+                // Monthly view - aggregated by day
+                tableColumns = ["S.#", "Day", "Purchases", "Quantity", "Unit Price",
+                    "Sub Total", "Suppliers", "Total Amount"];
 
-            tableRows = tableDataFiltered.value.map((r, i) => [
-                i + 1,
-                r.purchase_id,
-                r.supplier_name || "-",
-                r.product_name || "-",
-                r.quantity,
-                formatCurrencySymbol(r.unit_price),
-                formatCurrencySymbol(r.sub_total),
-                r.expiry_date ? dateFmt(r.expiry_date) : "N/A",
-                dateFmt(r.purchase_date),
-                r.status || "-"
-            ]);
+                tableRows = tableDataFiltered.value.map((r, i) => [
+                    i + 1,
+                    'Day ' + new Date(r.purchase_date).getDate(),
+                    r.purchase_count,
+                    r.quantity,
+                    formatCurrencySymbol(r.total_unit_price),
+                    formatCurrencySymbol(r.sub_total),
+                    r.supplier_names || "-",
+                    formatCurrencySymbol(r.total_amount)
+                ]);
+            } else if (filters.value.timeRange === 'yearly') {
+                // Yearly view - aggregated by month
+                tableColumns = ["S.#", "Month", "Purchases", "Quantity", "Unit Price",
+                    "Sub Total", "Suppliers", "Total Amount"];
+
+                tableRows = tableDataFiltered.value.map((r, i) => [
+                    i + 1,
+                    new Date(r.purchase_month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                    r.purchase_count,
+                    r.quantity,
+                    formatCurrencySymbol(r.total_unit_price),
+                    formatCurrencySymbol(r.sub_total),
+                    r.supplier_names || "-",
+                    formatCurrencySymbol(r.total_amount)
+                ]);
+            } else {
+                // Individual purchase items view
+                tableColumns = ["S.#", "Purchase ID", "Supplier", "Product", "Quantity",
+                    "Unit Price", "Sub Total", "Expiry", "Purchase Date", "Status"];
+
+                tableRows = tableDataFiltered.value.map((r, i) => [
+                    i + 1,
+                    r.purchase_id,
+                    r.supplier_name || "-",
+                    r.product_name || "-",
+                    r.quantity,
+                    formatCurrencySymbol(r.unit_price),
+                    formatCurrencySymbol(r.sub_total),
+                    r.expiry_date ? dateFmt(r.expiry_date) : "N/A",
+                    dateFmt(r.purchase_date),
+                    r.status || "-"
+                ]);
+            }
 
             if (totalsSummary.value && tableDataFiltered.value.length > 0) {
-                tableRows.push([
-                    "TOTAL", "-", "-", "-",
-                    totalsSummary.value.quantity,
-                    formatCurrencySymbol(totalsSummary.value.total_unit_price),
-                    formatCurrencySymbol(totalsSummary.value.sub_total),
-                    "-", "-", "-"
-                ]);
+                const totalsRow = (filters.value.timeRange === 'monthly' || filters.value.timeRange === 'yearly')
+                    ? ["TOTAL", "-", "-",
+                        totalsSummary.value.quantity,
+                        formatCurrencySymbol(totalsSummary.value.total_unit_price),
+                        formatCurrencySymbol(totalsSummary.value.sub_total),
+                        "-",
+                        formatCurrencySymbol(totalsSummary.value.total_amount)]
+                    : ["TOTAL", "-", "-", "-",
+                        totalsSummary.value.quantity,
+                        formatCurrencySymbol(totalsSummary.value.total_unit_price),
+                        formatCurrencySymbol(totalsSummary.value.sub_total),
+                        "-", "-", "-"];
+
+                tableRows.push(totalsRow);
             }
         }
 
@@ -506,78 +601,175 @@ const downloadPDF = () => {
         errorMsg.value = `PDF generation failed: ${error.message}`;
     }
 };
+
 const downloadExcel = () => {
     let data = [];
 
     if (filters.value.type === 'sales') {
-        data = tableDataFiltered.value.map((r, i) => ({
-            'S.#': i + 1,
-            'Order ID': r.id,
-            'Customer Name': r.customer_name,
-            'Item Count': r.item_count,
-            'Total Qty': r.total_qty,
-            'Sub Total': r.sub_total,
-            'Tax': r.tax,
-            'Service Charge': r.service_charges,
-            'Delivery Charge': r.delivery_charges,
-            'Sales Discount': r.sales_discount,
-            'Approved Discount': r.approved_discounts,
-            'Promo Discount': r.promo_discount,
-            'Applied Promos': r.promo_names,
-            'Promo Type': r.promo_types,
-            'Total Amount': r.total_amount,
-            'Date': dateFmt(r.order_date)
-        }));
+        if (filters.value.timeRange === 'monthly') {
+            // Monthly aggregated view
+            data = tableDataFiltered.value.map((r, i) => ({
+                'S.#': i + 1,
+                'Day': 'Day ' + new Date(r.order_date).getDate(),
+                'Orders': r.order_count,
+                'Item Count': r.item_count,
+                'Total Qty': r.total_qty,
+                'Sub Total': r.sub_total,
+                'Tax': r.tax,
+                'Service Charge': r.service_charges,
+                'Delivery Charge': r.delivery_charges,
+                'Sales Discount': r.sales_discount,
+                'Approved Discount': r.approved_discounts,
+                'Promo Discount': r.promo_discount,
+                'Total Amount': r.total_amount
+            }));
+        } else if (filters.value.timeRange === 'yearly') {
+            // Yearly aggregated view
+            data = tableDataFiltered.value.map((r, i) => ({
+                'S.#': i + 1,
+                'Month': new Date(r.order_month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                'Orders': r.order_count,
+                'Item Count': r.item_count,
+                'Total Qty': r.total_qty,
+                'Sub Total': r.sub_total,
+                'Tax': r.tax,
+                'Service Charge': r.service_charges,
+                'Delivery Charge': r.delivery_charges,
+                'Sales Discount': r.sales_discount,
+                'Approved Discount': r.approved_discounts,
+                'Promo Discount': r.promo_discount,
+                'Total Amount': r.total_amount
+            }));
+        } else {
+            // Individual order view
+            data = tableDataFiltered.value.map((r, i) => ({
+                'S.#': i + 1,
+                'Order ID': r.id,
+                'Customer Name': r.customer_name,
+                'Item Count': r.item_count,
+                'Total Qty': r.total_qty,
+                'Sub Total': r.sub_total,
+                'Tax': r.tax,
+                'Service Charge': r.service_charges,
+                'Delivery Charge': r.delivery_charges,
+                'Sales Discount': r.sales_discount,
+                'Approved Discount': r.approved_discounts,
+                'Promo Discount': r.promo_discount,
+                'Applied Promos': r.promo_names,
+                'Promo Type': r.promo_types,
+                'Total Amount': r.total_amount,
+                'Date': dateFmt(r.order_date)
+            }));
+        }
 
+        // Add totals
         if (totalsSummary.value) {
-            data.push({
-                'S.#': 'TOTAL',
-                'Order ID': '-',
-                'Customer Name': '-',
-                'Item Count': totalsSummary.value.item_count,
-                'Total Qty': totalsSummary.value.total_qty,
-                'Sub Total': totalsSummary.value.sub_total,
-                'Tax': totalsSummary.value.tax,
-                'Service Charge': totalsSummary.value.service_charges,
-                'Delivery Charge': totalsSummary.value.delivery_charges,
-                'Sales Discount': totalsSummary.value.sales_discount,
-                'Approved Discount': totalsSummary.value.approved_discounts,
-                'Promo Discount': totalsSummary.value.promo_discount,
-                'Applied Promos': '-',
-                'Promo Type': '-',
-                'Total Amount': totalsSummary.value.total_amount,
-                'Date': '-'
-            });
+            const totalsRow = (filters.value.timeRange === 'monthly' || filters.value.timeRange === 'yearly')
+                ? {
+                    'S.#': 'TOTAL',
+                    [filters.value.timeRange === 'monthly' ? 'Day' : 'Month']: '-',
+                    'Orders': '-',
+                    'Item Count': totalsSummary.value.item_count,
+                    'Total Qty': totalsSummary.value.total_qty,
+                    'Sub Total': totalsSummary.value.sub_total,
+                    'Tax': totalsSummary.value.tax,
+                    'Service Charge': totalsSummary.value.service_charges,
+                    'Delivery Charge': totalsSummary.value.delivery_charges,
+                    'Sales Discount': totalsSummary.value.sales_discount,
+                    'Approved Discount': totalsSummary.value.approved_discounts,
+                    'Promo Discount': totalsSummary.value.promo_discount,
+                    'Total Amount': totalsSummary.value.total_amount
+                }
+                : {
+                    'S.#': 'TOTAL',
+                    'Order ID': '-',
+                    'Customer Name': '-',
+                    'Item Count': totalsSummary.value.item_count,
+                    'Total Qty': totalsSummary.value.total_qty,
+                    'Sub Total': totalsSummary.value.sub_total,
+                    'Tax': totalsSummary.value.tax,
+                    'Service Charge': totalsSummary.value.service_charges,
+                    'Delivery Charge': totalsSummary.value.delivery_charges,
+                    'Sales Discount': totalsSummary.value.sales_discount,
+                    'Approved Discount': totalsSummary.value.approved_discounts,
+                    'Promo Discount': totalsSummary.value.promo_discount,
+                    'Applied Promos': '-',
+                    'Promo Type': '-',
+                    'Total Amount': totalsSummary.value.total_amount,
+                    'Date': '-'
+                };
+
+            data.push(totalsRow);
         }
     }
 
     else if (filters.value.type === 'purchase') {
-        data = tableDataFiltered.value.map((r, i) => ({
-            'S.#': i + 1,
-            'Purchase ID': r.purchase_id,
-            'Supplier Name': r.supplier_name,
-            'Product Name': r.product_name,
-            'Quantity': r.quantity,
-            'Unit Price': r.unit_price,
-            'Sub Total': r.sub_total,
-            'Expiry Date': r.expiry_date ? dateFmt(r.expiry_date) : 'N/A',
-            'Purchase Date': dateFmt(r.purchase_date),
-            'Status': r.status
-        }));
+        if (filters.value.timeRange === 'monthly') {
+            // Monthly aggregated view
+            data = tableDataFiltered.value.map((r, i) => ({
+                'S.#': i + 1,
+                'Day': 'Day ' + new Date(r.purchase_date).getDate(),
+                'Purchases': r.purchase_count,
+                'Quantity': r.quantity,
+                'Unit Price': r.total_unit_price,
+                'Sub Total': r.sub_total,
+                'Suppliers': r.supplier_names,
+                'Total Amount': r.total_amount
+            }));
+        } else if (filters.value.timeRange === 'yearly') {
+            // Yearly aggregated view
+            data = tableDataFiltered.value.map((r, i) => ({
+                'S.#': i + 1,
+                'Month': new Date(r.purchase_month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                'Purchases': r.purchase_count,
+                'Quantity': r.quantity,
+                'Unit Price': r.total_unit_price,
+                'Sub Total': r.sub_total,
+                'Suppliers': r.supplier_names,
+                'Total Amount': r.total_amount
+            }));
+        } else {
+            // Individual purchase items view
+            data = tableDataFiltered.value.map((r, i) => ({
+                'S.#': i + 1,
+                'Purchase ID': r.purchase_id,
+                'Supplier Name': r.supplier_name,
+                'Product Name': r.product_name,
+                'Quantity': r.quantity,
+                'Unit Price': r.unit_price,
+                'Sub Total': r.sub_total,
+                'Expiry Date': r.expiry_date ? dateFmt(r.expiry_date) : 'N/A',
+                'Purchase Date': dateFmt(r.purchase_date),
+                'Status': r.status
+            }));
+        }
 
         if (totalsSummary.value) {
-            data.push({
-                'S.#': 'TOTAL',
-                'Purchase ID': '-',
-                'Supplier Name': '-',
-                'Product Name': '-',
-                'Quantity': totalsSummary.value.quantity,
-                'Unit Price': totalsSummary.value.total_unit_price,
-                'Sub Total': totalsSummary.value.sub_total,
-                'Expiry Date': '-',
-                'Purchase Date': '-',
-                'Status': '-'
-            });
+            const totalsRow = (filters.value.timeRange === 'monthly' || filters.value.timeRange === 'yearly')
+                ? {
+                    'S.#': 'TOTAL',
+                    [filters.value.timeRange === 'monthly' ? 'Day' : 'Month']: '-',
+                    'Purchases': '-',
+                    'Quantity': totalsSummary.value.quantity,
+                    'Unit Price': totalsSummary.value.total_unit_price,
+                    'Sub Total': totalsSummary.value.sub_total,
+                    'Suppliers': '-',
+                    'Total Amount': totalsSummary.value.total_amount
+                }
+                : {
+                    'S.#': 'TOTAL',
+                    'Purchase ID': '-',
+                    'Supplier Name': '-',
+                    'Product Name': '-',
+                    'Quantity': totalsSummary.value.quantity,
+                    'Unit Price': totalsSummary.value.total_unit_price,
+                    'Sub Total': totalsSummary.value.sub_total,
+                    'Expiry Date': '-',
+                    'Purchase Date': '-',
+                    'Status': '-'
+                };
+
+            data.push(totalsRow);
         }
     }
 
@@ -1114,10 +1306,14 @@ const downloadExcel = () => {
                                     <th style="width: 60px">S.#</th>
 
                                     <template v-if="filters.type === 'sales'">
-                                        <th>Order ID</th>
-                                        <th>Customer Name</th>
-                                        <th style="width: 100px">Item Count</th>
-                                        <th style="width: 100px">Total Qty</th>
+                                        <th v-if="filters.timeRange === 'monthly'">Day</th>
+                                        <th v-else-if="filters.timeRange === 'yearly'">Month</th>
+                                        <th v-else>Order ID</th>
+
+                                        <th v-if="filters.timeRange === 'monthly' || filters.timeRange === 'yearly'">
+                                            Orders</th>
+                                        <th v-else>Customer Name</th>
+
                                         <th style="width: 120px">Sub Total</th>
                                         <th style="width: 120px">Tax</th>
                                         <th style="width: 120px">Service Charge</th>
@@ -1125,22 +1321,43 @@ const downloadExcel = () => {
                                         <th style="width: 120px">Sale Discount</th>
                                         <th style="width: 120px">Approved Discount</th>
                                         <th style="width: 140px">Promo Discount</th>
-                                        <th style="width: 150px">Applied Promos</th>
-                                        <th style="width: 100px">Promo Type</th>
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 150px">Applied Promos</th>
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 100px">Promo Type</th>
                                         <th style="width: 140px">Total Amount</th>
-                                        <th style="width: 100px">Date</th>
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 100px">Date</th>
                                     </template>
 
                                     <template v-if="filters.type === 'purchase'">
-                                        <th style="width: 100px">Purchase ID</th>
-                                        <th style="width: 150px">Supplier Name</th>
-                                        <th style="width: 150px">Product Name</th>
+                                        <th v-if="filters.timeRange === 'monthly'">Day</th>
+                                        <th v-else-if="filters.timeRange === 'yearly'">Month</th>
+                                        <th v-else style="width: 100px">Purchase ID</th>
+
+                                        <th v-if="filters.timeRange === 'monthly' || filters.timeRange === 'yearly'">
+                                            Purchases</th>
+                                        <th v-else style="width: 150px">Supplier Name</th>
+
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 150px">Product Name</th>
+
                                         <th style="width: 100px">Quantity</th>
                                         <th style="width: 120px">Unit Price</th>
                                         <th style="width: 140px">Sub Total</th>
-                                        <th style="width: 130px">Expiry Date</th>
-                                        <th style="width: 120px">Purchase Date</th>
-                                        <th style="width: 100px">Status</th>
+
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 130px">Expiry Date</th>
+
+                                        <th v-if="filters.timeRange === 'monthly' || filters.timeRange === 'yearly'"
+                                            style="width: 150px">Suppliers</th>
+
+                                        <th style="width: 140px">Total Amount</th>
+
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 120px">Purchase Date</th>
+                                        <th v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            style="width: 100px">Status</th>
                                     </template>
 
                                     <template v-if="filters.type === 'comparison'">
@@ -1177,10 +1394,37 @@ const downloadExcel = () => {
                                     <td>{{ i + 1 }}</td>
                                     <!-- Sales Row -->
                                     <template v-if="filters.type === 'sales'">
-                                        <td class="fw-semibold">{{ r.id }}</td>
-                                        <td>{{ r.customer_name }}</td>
-                                        <td>{{ formatNumber(r.item_count) }}</td>
-                                        <td>{{ formatNumber(r.total_qty) }}</td>
+                                        <!-- First column: Day/Month/Order ID -->
+                                        <td class="fw-semibold">
+                                            <template v-if="filters.timeRange === 'monthly'">
+                                                {{
+                                                    new Date(r.order_date).toLocaleString('en-US', { month: 'short' })
+                                                    + ' ' +
+                                                    String(new Date(r.order_date).getDate()).padStart(2, '0')
+                                                }}
+                                            </template>
+
+                                            <template v-else-if="filters.timeRange === 'yearly'">
+                                                {{ new Date(r.order_month + '-01').toLocaleDateString('en-US', {
+                                                    month:
+                                                        'long', year: 'numeric'
+                                                }) }}
+                                            </template>
+                                            <template v-else>
+                                                {{ r.id }}
+                                            </template>
+                                        </td>
+
+                                        <!-- Second column: Order count or Customer name -->
+                                        <td>
+                                            <template
+                                                v-if="filters.timeRange === 'monthly' || filters.timeRange === 'yearly'">
+                                                {{ r.order_count }} Orders
+                                            </template>
+                                            <template v-else>
+                                                {{ r.customer_name }}
+                                            </template>
+                                        </td>
                                         <td>{{ formatCurrencySymbol(r.sub_total) }}</td>
                                         <td>{{ formatCurrencySymbol(r.tax) }}</td>
                                         <td>{{ formatCurrencySymbol(r.service_charges) }}</td>
@@ -1188,27 +1432,87 @@ const downloadExcel = () => {
                                         <td>{{ formatCurrencySymbol(r.sales_discount) }}</td>
                                         <td>{{ formatCurrencySymbol(r.approved_discounts) }}</td>
                                         <td>{{ formatCurrencySymbol(r.promo_discount) }}</td>
-                                        <td class="small">{{ r.promo_names }}</td>
-                                        <td class="small">{{ r.promo_types }}</td>
+
+                                        <!-- Only show promo details for individual order views -->
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            class="small">{{
+                                                r.promo_names }}</td>
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            class="small">{{
+                                                r.promo_types }}</td>
+
                                         <td class="fw-bold text-success">{{ formatCurrencySymbol(r.total_amount) }}</td>
-                                        <td class="small">{{ dateFmt(r.order_date) }}</td>
+
+                                        <!-- Only show date column for individual order views -->
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            class="small">{{
+                                                dateFmt(r.order_date) }}</td>
                                     </template>
                                     <!-- Purchase Row -->
                                     <template v-if="filters.type === 'purchase'">
-                                        <td class="fw-semibold">{{ r.purchase_id }}</td>
-                                        <td>{{ r.supplier_name }}</td>
-                                        <td class="fw-semibold">{{ r.product_name }}</td>
+                                        <!-- First column: Day/Month/Purchase ID -->
+                                        <td class="fw-semibold">
+                                            <template v-if="filters.timeRange === 'monthly'">
+                                                {{
+                                                    new Date(r.purchase_date).toLocaleString('en-US', { month: 'short' })
+                                                    + ' ' +
+                                                    String(new Date(r.purchase_date).getDate()).padStart(2, '0')
+                                                }}
+                                            </template>
+
+                                            <template v-else-if="filters.timeRange === 'yearly'">
+                                                {{ new Date(r.purchase_month + '-01').toLocaleDateString('en-US', {
+                                                    month: 'long', year: 'numeric'
+                                                }) }}
+                                            </template>
+                                            <template v-else>
+                                                {{ r.purchase_id }}
+                                            </template>
+                                        </td>
+
+                                        <!-- Second column: Purchase count or Supplier name -->
+                                        <td>
+                                            <template
+                                                v-if="filters.timeRange === 'monthly' || filters.timeRange === 'yearly'">
+                                                {{ r.purchase_count }} Purchases
+                                            </template>
+                                            <template v-else>
+                                                {{ r.supplier_name }}
+                                            </template>
+                                        </td>
+
+                                        <!-- Product name - only for individual views -->
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            class="fw-semibold">
+                                            {{ r.product_name }}
+                                        </td>
+
                                         <td>{{ formatNumber(r.quantity) }}</td>
-                                        <td>{{ formatCurrencySymbol(r.unit_price) }}</td>
+                                        <td>{{ formatCurrencySymbol(r.total_unit_price) }}</td>
                                         <td>{{ formatCurrencySymbol(r.sub_total) }}</td>
-                                        <td class="small">
+
+                                        <!-- Expiry date - only for individual views -->
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            class="small">
                                             <span v-if="r.expiry_date" class="text-muted">
                                                 {{ dateFmt(r.expiry_date) }}
                                             </span>
                                             <span v-else class="text-secondary">N/A</span>
                                         </td>
-                                        <td class="small">{{ dateFmt(r.purchase_date) }}</td>
-                                        <td>
+
+                                        <!-- Suppliers - only for aggregated views -->
+                                        <td v-if="filters.timeRange === 'monthly' || filters.timeRange === 'yearly'"
+                                            class="small">
+                                            {{ r.supplier_names }}
+                                        </td>
+                                        <td class="fw-bold text-success">{{ formatCurrencySymbol(r.total_amount) }}</td>
+
+                                        <!-- Purchase date and status - only for individual views -->
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'"
+                                            class="small">
+                                            {{ dateFmt(r.purchase_date) }}
+                                        </td>
+                                        <td v-if="filters.timeRange !== 'monthly' && filters.timeRange !== 'yearly'">
                                             <span v-if="r.status === 'completed'"
                                                 class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
                                                 Completed
@@ -1224,7 +1528,6 @@ const downloadExcel = () => {
                                                 {{ r.status }}
                                             </span>
                                         </td>
-
                                     </template>
                                     <!-- Comparison Row -->
                                     <template v-if="filters.type === 'comparison'">
@@ -1275,8 +1578,6 @@ const downloadExcel = () => {
                                     <td colspan="0" class="text-end">TOTALS</td>
                                     <td colspan="0">-</td>
                                     <td colspan="0">-</td>
-                                    <td>{{ formatNumber(totalsSummary.item_count) }}</td>
-                                    <td>{{ formatNumber(totalsSummary.total_qty) }}</td>
                                     <td>{{ formatCurrencySymbol(totalsSummary.sub_total) }}</td>
                                     <td>{{ formatCurrencySymbol(totalsSummary.tax) }}</td>
                                     <td>{{ formatCurrencySymbol(totalsSummary.service_charges) }}</td>
@@ -1286,9 +1587,6 @@ const downloadExcel = () => {
                                     </td>
                                     <td>{{ formatCurrencySymbol(totalsSummary.approved_discounts) }}</td>
                                     <td>{{ formatCurrencySymbol(totalsSummary.promo_discount) }}</td>
-
-                                    <td>-</td>
-                                    <td>-</td>
                                     <td class="text-success">{{ formatCurrencySymbol(totalsSummary.total_amount) }}</td>
                                     <td></td>
 
@@ -1297,7 +1595,6 @@ const downloadExcel = () => {
                                 <tr v-if="filters.type === 'purchase' && tableDataFiltered.length > 0"
                                     class="table-active fw-bold border-top border-3">
                                     <td colspan="0">TOTALS</td>
-                                    <td>-</td>
                                     <td>-</td>
                                     <td>-</td>
                                     <td>{{ formatNumber(totalsSummary.quantity) }}</td>
@@ -1438,64 +1735,81 @@ const downloadExcel = () => {
 .dark h4 {
     color: white;
 }
+
 .dark .card {
     background-color: #181818 !important;
     color: #ffffff !important;
 }
+
 .chart svg text {
     fill: #9ca3af;
 }
+
 .dark .chart svg text {
     fill: #ffffff;
 }
+
 .dark .chart svg line {
     stroke: #6b7280;
 }
+
 .dark .chart svg line.grid {
     stroke: #4b5563;
 }
+
 .dark .table {
     background-color: #181818 !important;
     color: #f9fafb !important;
 }
+
 .dark .table thead {
     background-color: #181818 !important;
     color: #ffffff;
 }
+
 .dark .form-label {
     color: #fff !important;
 }
+
 .dark .form-select {
     background-color: #212121 !important;
     color: #fff !important;
 }
+
 :root {
     --brand: #1c0d82;
 }
+
 .chart {
     width: 100%;
 }
+
 .axis {
     stroke: #0f172a;
     stroke-width: 1.5;
 }
+
 .grid {
     stroke: #e5e7eb;
     stroke-width: 1;
 }
+
 .line {
     fill: none;
     stroke: #1c0d82;
     stroke-width: 2.5;
 }
+
 .muted {
     fill: #6b7280;
     font-size: 12px;
 }
+
 .progress.thin {
     height: 8px;
     background: #eef2ff;
 }
+
 .stack-row {
     display: flex;
     align-items: center;
@@ -1503,13 +1817,16 @@ const downloadExcel = () => {
     font-size: 0.875rem;
     margin-bottom: 0.25rem;
 }
+
 .stack-val {
     color: #6b7280;
 }
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 30vw, 360px);
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 12px;
@@ -1517,46 +1834,56 @@ const downloadExcel = () => {
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 36px;
     border-radius: 9999px;
 }
+
 .table thead th {
     font-weight: 600;
 }
+
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 /* ========================  MultiSelect Styling   ============================= */
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
+
 :deep(.p-select .p-component .p-inputwrapper) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 /* Options list container */
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
+
 /* Each option */
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
+
 /* Hover/selected option */
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect),
 :deep(.p-multiselect-panel),
 :deep(.p-multiselect-token) {
@@ -1564,12 +1891,14 @@ const downloadExcel = () => {
     color: #000 !important;
     border-color: #a4a7aa;
 }
+
 /* Checkbox box in dropdown */
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
     color: #fff !important;
 }
+
 /* .dark svg{
     color: #fff !important;
 } */
@@ -1581,10 +1910,12 @@ const downloadExcel = () => {
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
+
 /* Optional: adjust filter container */
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 /* Selected chip inside the multiselect */
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
@@ -1593,49 +1924,59 @@ const downloadExcel = () => {
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 /* Chip remove (x) icon */
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
     /* red on hover */
 }
+
 /* keep PrimeVue overlays above Bootstrap modal/backdrop */
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
+
 /* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 /* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
     /* instead of 'none' */
     color: black !important;
 }
+
 /* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-label) {
     color: #000 !important;
 }
+
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
@@ -1645,29 +1986,35 @@ const downloadExcel = () => {
     background-color: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-label) {
     color: #fff !important;
 }
+
 :global(.dark .p-select .p-component .p-inputwrapper) {
     background: #000 !important;
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 /* Options list container */
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 /* Each option */
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 /* Hover/selected option */
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -1675,21 +2022,25 @@ const downloadExcel = () => {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 /* Checkbox box in dropdown */
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 /* Search filter input */
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 /* Optional: adjust filter container */
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 /* Selected chip inside the multiselect */
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
@@ -1698,47 +2049,57 @@ const downloadExcel = () => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 /* Chip remove (x) icon */
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
     /* lighter red */
 }
+
 /* ==================== Dark Mode Select Styling ====================== */
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c
 }
+
 /* Options container */
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 /* Each option */
 :deep(.p-select-option) {
     background-color: transparent !important;
     /* instead of 'none' */
     color: black !important;
 }
+
 /* Hovered option */
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 /* Focused option (when using arrow keys) */
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-label) {
     color: #000 !important;
 }
+
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 /* ======================== Dark Mode MultiSelect ============================= */
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
@@ -1823,31 +2184,39 @@ const downloadExcel = () => {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-label) {
     color: #fff !important;
 }
+
 :global(.dark .p-placeholder) {
     color: #aaa !important;
 }
+
 .dark .logo-card {
     background-color: #181818 !important;
 }
+
 .dark .logo-frame {
     background-color: #181818 !important;
 }
+
 @media (max-width: 576px) {
     .search-wrap {
         width: 100%;
