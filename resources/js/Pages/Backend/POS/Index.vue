@@ -768,6 +768,9 @@ const deliveryCharges = computed(() => {
 
 
 const serviceCharges = computed(() => {
+    if (orderItems.value.length === 0) {
+        return 0;
+    }
     const config = page.props.onboarding.tax_and_vat;
     if (!config.has_service_charges) return 0;
     if (config.service_charge_flat) {
@@ -2750,11 +2753,11 @@ const getModalTotalPriceWithResale = () => {
                                                     : getResaleBadgeInfo(p, false).display }}
                                             </span>
 
-
+                                            <!-- {{ p.title.length > 17 ? p.title.slice(0, 15) + '...' : p.title }} -->
                                             <div>
                                                 <div class="h5 fw-bold mb-2 menu-name"
                                                     :style="{ color: p.label_color || '#1B1670' }">
-                                                    {{ p.title.length > 17 ? p.title.slice(0, 15) + '...' : p.title }}
+                                                    {{ p.title }}
 
                                                 </div>
                                                 <!-- Variant Dropdown -->
@@ -2957,11 +2960,12 @@ const getModalTotalPriceWithResale = () => {
 
                                     <div v-for="(it, i) in orderItems" :key="it.title" class="line">
                                         <!-- Left: Image + Meta -->
+                                         <!-- {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }} -->
                                         <div class="line-left">
                                             <img :src="it.img" alt="" />
                                             <div class="meta">
                                                 <div class="name" :title="it.title">
-                                                    {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }}
+                                                    {{ it.title }}
                                                 </div>
                                                 <div v-if="it.resale_discount_per_item > 0">
                                                     <span class="badge bg-success" style="font-size: 0.65rem;">

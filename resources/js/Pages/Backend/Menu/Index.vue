@@ -342,7 +342,15 @@ const fetchMenus = async (page = 1) => {
         const res = await axios.get("/api/menu/items", {
             params: {
                 page: page,
-                per_page: perPage.value
+                per_page: perPage.value,
+                search: q.value.trim() || null, 
+                category: filters.value.category || null,
+                status: filters.value.status !== "" ? filters.value.status : null,
+                sort_by: filters.value.sortBy || null,
+                price_min: filters.value.priceMin || null,
+                price_max: filters.value.priceMax || null,
+                date_from: filters.value.dateFrom || null,
+                date_to: filters.value.dateTo || null,
             }
         });
 
@@ -401,80 +409,18 @@ const defaultMenuFilters = {
 
 const filters = ref({ ...defaultMenuFilters });
 
+// ✅ REPLACE THIS
 const filteredItems = computed(() => {
-    let filtered = [...menuItems.value];
-    const term = q.value.trim().toLowerCase();
-
-    if (term) {
-        filtered = filtered.filter((i) =>
-            [i.name, i.category?.name, i.description]
-                .some((v) => (v || "").toLowerCase().includes(term))
-        );
-    }
-
-    if (filters.value.category) {
-        filtered = filtered.filter((item) => {
-            const categoryId = typeof item.category === "object"
-                ? item.category.id
-                : item.category_id;
-            return categoryId == filters.value.category;
-        });
-    }
-
-    if (filters.value.status !== "") {
-        filtered = filtered.filter((item) => {
-            return item.status == filters.value.status;
-        });
-    }
-
-    if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
-        filtered = filtered.filter((item) => {
-            const price = item.price || 0;
-            const min = filters.value.priceMin || 0;
-            const max = filters.value.priceMax || Infinity;
-            return price >= min && price <= max;
-        });
-    }
-
-    if (filters.value.dateFrom) {
-        filtered = filtered.filter((item) => {
-            const itemDate = new Date(item.created_at);
-            const filterDate = new Date(filters.value.dateFrom);
-            return itemDate >= filterDate;
-        });
-    }
-
-    if (filters.value.dateTo) {
-        filtered = filtered.filter((item) => {
-            const itemDate = new Date(item.created_at);
-            const filterDate = new Date(filters.value.dateTo);
-            return itemDate <= filterDate;
-        });
-    }
-
-    return filtered;
+    // Backend already handles filtering, just return the data
+    return menuItems.value;
 });
 
 watch([filters, q], () => {
-    fetchMenus(1);
+    fetchMenus(1); 
 }, { deep: true });
 
 const sortedItems = computed(() => {
-    const arr = [...filteredItems.value];
-    const sortBy = filters.value.sortBy;
-
-    switch (sortBy) {
-        case "price_desc":
-            return arr.sort((a, b) => (b.price || 0) - (a.price || 0));
-        case "price_asc":
-            return arr.sort((a, b) => (a.price || 0) - (b.price || 0));
-        case "name_asc":
-            return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        case "name_desc":
-            return arr.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        default:
-            return arr;
-    }
+    return filteredItems.value; // Backend handles sorting
 });
 
 const filterOptions = computed(() => ({
@@ -3253,9 +3199,9 @@ const format = (val) => {
                                                     class="rounded"
                                                     style="width: 56px; height: 56px; object-fit: cover;" />
                                                 <div class="flex-grow-1">
-                                                    <div class="fw-semibold">{{ it.name }}</div>
-                                                    <div class="text-muted small">Category: {{ it.category.name }}</div>
-                                                    <div class="text-muted small">Unit: {{ it.unit_name }}</div>
+                                                    <div class="fw-semibold">{{ it?.name }}</div>
+                                                    <div class="text-muted small">Category: {{ it.category?.name }}</div>
+                                                    <div class="text-muted small">Unit: {{ it?.unit_name }}</div>
                                                     <div class="small mt-2 text-muted">
                                                         Calories: {{ it.nutrition?.calories || 0 }},
                                                         Protein: {{ it.nutrition?.protein || 0 }},
