@@ -153,11 +153,11 @@ const filteredItems = computed(() => {
             console.log("data filter: ", i);
             const name = (i?.name || "").toLowerCase();
             const categoryName =
-                typeof i.category === "object"
-                    ? (i?.category.name || "").toLowerCase()
+                (i.category && typeof i.category === "object")
+                    ? (i.category.name || "").toLowerCase()
                     : (i?.category || "").toString().toLowerCase();
             const unitName =
-                typeof i.unit === "object"
+                (i.unit && typeof i.unit === "object")
                     ? (i?.unit?.name || "").toLowerCase()
                     : (i?.unit || "").toString().toLowerCase();
 
@@ -173,8 +173,8 @@ const filteredItems = computed(() => {
     if (filters.value.category) {
         filtered = filtered.filter((item) => {
             const categoryId =
-                typeof item?.category === "object"
-                    ? item?.category?.id
+                (item?.category && typeof item.category === "object")
+                    ? item.category.id
                     : item?.category_id;
             return categoryId == filters.value.category;
         });
@@ -183,9 +183,9 @@ const filteredItems = computed(() => {
     // Supplier filter
     if (filters.value.supplier) {
         filtered = filtered.filter((item) => {
-            const supplierId =
-                typeof item?.supplier === "object"
-                    ? item?.supplier?.id
+             const supplierId =
+                (item?.supplier && typeof item.supplier === "object")
+                    ? item.supplier.id
                     : item?.supplier_id;
             return supplierId == filters.value.supplier;
         });
