@@ -150,7 +150,6 @@ const filteredItems = computed(() => {
     // Text search
     if (term) {
         filtered = filtered.filter((i) => {
-            console.log("data filter: ", i);
             const name = (i?.name || "").toLowerCase();
             const categoryName =
                 (i.category && typeof i.category === "object")
@@ -1204,7 +1203,6 @@ async function loadStockins(itemId) {
         nearExpireQty.value = expiredQty.value = 0;
     }
 }
-console.log("stockedInItems", stockedInItems.value);
 // helpers for badges
 function stockStatusLabel(s) {
     return s === "expired"
