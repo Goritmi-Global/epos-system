@@ -180,9 +180,90 @@ class AnalyticsController extends Controller
             ['label' => 'Delivery', 'value' => $deliveryCount, 'percentage' => round($deliveryCount * 100 / $total), 'color' => '#3b82f6'],
         ];
 
-        // Table data - Get PosOrders with their related items count, totals, and promo info
-        $tableData = (clone $ordersQ)
-            ->selectRaw('
+        // ✅ FIXED TABLE QUERY - Daily aggregation for monthly view
+        // ✅ FIXED TABLE QUERY - Daily aggregation for monthly, Monthly aggregation for yearly
+        if ($timeRange === 'monthly') {
+            // For monthly view, aggregate by day
+            $tableData = (clone $ordersQ)
+                ->selectRaw('
+            DATE(pos_orders.order_date) as order_date,
+            COUNT(DISTINCT pos_orders.id) as order_count,
+            SUM(pos_orders.sub_total) as sub_total,
+            SUM(pos_orders.total_amount) as total_amount,
+            SUM(pos_orders.tax) as tax,
+            SUM(pos_orders.service_charges) as service_charges,
+            SUM(pos_orders.delivery_charges) as delivery_charges,
+            SUM(pos_orders.sales_discount) as sales_discount,
+            SUM(pos_orders.approved_discounts) as approved_discounts,
+            COUNT(pos_order_items.id) as item_count,
+            COALESCE(SUM(pos_order_items.quantity), 0) as total_qty,
+            COALESCE(SUM(order_promos.discount_amount), 0) as promo_discount
+        ')
+                ->leftJoin('pos_order_items', 'pos_orders.id', '=', 'pos_order_items.pos_order_id')
+                ->leftJoin('order_promos', 'pos_orders.id', '=', 'order_promos.order_id')
+                ->groupByRaw('DATE(pos_orders.order_date)')
+                ->orderBy('order_date', 'desc')
+                ->get()
+                ->map(fn ($row) => [
+                    'order_date' => $row->order_date,
+                    'order_count' => (int) $row->order_count,
+                    'sub_total' => (float) $row->sub_total,
+                    'total_amount' => (float) $row->total_amount,
+                    'tax' => (float) $row->tax,
+                    'service_charges' => (float) $row->service_charges,
+                    'delivery_charges' => (float) $row->delivery_charges,
+                    'sales_discount' => (float) $row->sales_discount,
+                    'approved_discounts' => (float) $row->approved_discounts,
+                    'item_count' => (int) $row->item_count,
+                    'total_qty' => (int) $row->total_qty,
+                    'promo_discount' => (float) $row->promo_discount,
+                    'promo_names' => '-',
+                    'promo_types' => '-',
+                ])
+                ->toArray();
+        } elseif ($timeRange === 'yearly') {
+            // For yearly view, aggregate by month
+            $tableData = (clone $ordersQ)
+                ->selectRaw('
+            DATE_FORMAT(pos_orders.order_date, "%Y-%m") as order_month,
+            COUNT(DISTINCT pos_orders.id) as order_count,
+            SUM(pos_orders.sub_total) as sub_total,
+            SUM(pos_orders.total_amount) as total_amount,
+            SUM(pos_orders.tax) as tax,
+            SUM(pos_orders.service_charges) as service_charges,
+            SUM(pos_orders.delivery_charges) as delivery_charges,
+            SUM(pos_orders.sales_discount) as sales_discount,
+            SUM(pos_orders.approved_discounts) as approved_discounts,
+            COUNT(pos_order_items.id) as item_count,
+            COALESCE(SUM(pos_order_items.quantity), 0) as total_qty,
+            COALESCE(SUM(order_promos.discount_amount), 0) as promo_discount
+        ')
+                ->leftJoin('pos_order_items', 'pos_orders.id', '=', 'pos_order_items.pos_order_id')
+                ->leftJoin('order_promos', 'pos_orders.id', '=', 'order_promos.order_id')
+                ->groupByRaw('DATE_FORMAT(pos_orders.order_date, "%Y-%m")')
+                ->orderBy('order_month', 'desc')
+                ->get()
+                ->map(fn ($row) => [
+                    'order_month' => $row->order_month,
+                    'order_count' => (int) $row->order_count,
+                    'sub_total' => (float) $row->sub_total,
+                    'total_amount' => (float) $row->total_amount,
+                    'tax' => (float) $row->tax,
+                    'service_charges' => (float) $row->service_charges,
+                    'delivery_charges' => (float) $row->delivery_charges,
+                    'sales_discount' => (float) $row->sales_discount,
+                    'approved_discounts' => (float) $row->approved_discounts,
+                    'item_count' => (int) $row->item_count,
+                    'total_qty' => (int) $row->total_qty,
+                    'promo_discount' => (float) $row->promo_discount,
+                    'promo_names' => '-',
+                    'promo_types' => '-',
+                ])
+                ->toArray();
+        } else {
+            // For other views (daily/custom), show individual orders
+            $tableData = (clone $ordersQ)
+                ->selectRaw('
             pos_orders.id,
             pos_orders.customer_name,
             pos_orders.sub_total,
@@ -282,10 +363,12 @@ class AnalyticsController extends Controller
             'promoDistribution' => $promoDistribution,
         ]);
     }
+}
 
     /**
      * Purchase Analytics
      */
+
     protected function getPurchaseAnalytics($from, $to, $validated)
     {
         $timeRange = $validated['timeRange'];
@@ -345,53 +428,121 @@ class AnalyticsController extends Controller
             ];
         })->toArray();
 
-        // Detailed Table data - Get all purchase items with supplier and product details
-        $tableData = PurchaseItem::whereHas('purchase', function ($q) use ($from, $to) {
-            $q->whereBetween('purchase_date', [$from, $to])
-                ->where('status', 'completed');
-        })
-            ->selectRaw('
-            purchase_items.id,
-            purchase_items.purchase_id,
-            purchase_items.product_id,
-            purchase_items.quantity,
-            purchase_items.unit_price,
-            purchase_items.sub_total,
-            purchase_items.expiry_date,
-            purchase_orders.purchase_date,
-            purchase_orders.status,
-            purchase_orders.total_amount,
-            suppliers.name as supplier_name,
-            inventory_items.name as product_name
-        ')
-            ->leftJoin('purchase_orders', 'purchase_items.purchase_id', '=', 'purchase_orders.id')
-            ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
-            ->leftJoin('inventory_items', 'purchase_items.product_id', '=', 'inventory_items.id')
-            ->orderByDesc('purchase_items.created_at')
-            ->limit(100)
-            ->get()
-            ->map(fn ($row) => [
-                'id' => $row->id,
-                'purchase_id' => $row->purchase_id,
-                'product_id' => $row->product_id,
-                'product_name' => $row->product_name ?? 'Unknown Item',
-                'supplier_name' => $row->supplier_name ?? 'Unknown Supplier',
-                'quantity' => (int) $row->quantity,
-                'unit_price' => (float) $row->unit_price,
-                'sub_total' => (float) $row->sub_total,
-                'expiry_date' => $row->expiry_date,
-                'purchase_date' => $row->purchase_date,
-                'status' => $row->status,
-                'total_amount' => (float) $row->total_amount,
-            ])
-            ->toArray();
+        // ✅ FIXED TABLE QUERY - Daily aggregation for monthly, Monthly aggregation for yearly
+        if ($timeRange === 'monthly') {
+            // For monthly view, aggregate by day
+            $tableData = PurchaseItem::whereHas('purchase', function ($q) use ($from, $to) {
+                $q->whereBetween('purchase_date', [$from, $to])
+                    ->where('status', 'completed');
+            })
+                ->selectRaw('
+        DATE(purchase_orders.purchase_date) as purchase_date,
+        COUNT(DISTINCT purchase_orders.id) as purchase_count,
+        COALESCE(SUM(purchase_items.quantity), 0) as quantity,
+        COALESCE(SUM(purchase_items.unit_price), 0) as total_unit_price,
+        COALESCE(SUM(purchase_items.sub_total), 0) as sub_total,
+
+        
+        COALESCE(SUM(DISTINCT purchase_orders.total_amount), 0) as total_amount,
+
+        GROUP_CONCAT(DISTINCT suppliers.name SEPARATOR ", ") as supplier_names
+    ')
+                ->leftJoin('purchase_orders', 'purchase_items.purchase_id', '=', 'purchase_orders.id')
+                ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
+                ->groupByRaw('DATE(purchase_orders.purchase_date)')
+                ->orderBy('purchase_date', 'desc')
+                ->get()
+                ->map(fn ($row) => [
+                    'purchase_date' => $row->purchase_date,
+                    'purchase_count' => (int) $row->purchase_count,
+                    'quantity' => (int) $row->quantity,
+                    'total_unit_price' => (float) $row->total_unit_price,
+                    'sub_total' => (float) $row->sub_total,
+                    'total_amount' => (float) $row->total_amount,
+                    'supplier_names' => $row->supplier_names ?? '-',
+                ])
+                ->toArray();
+
+        } elseif ($timeRange === 'yearly') {
+            // For yearly view, aggregate by month
+            $tableData = PurchaseItem::whereHas('purchase', function ($q) use ($from, $to) {
+                $q->whereBetween('purchase_date', [$from, $to])
+                    ->where('status', 'completed');
+            })
+                ->selectRaw('
+                DATE_FORMAT(purchase_orders.purchase_date, "%Y-%m") as purchase_month,
+                COUNT(DISTINCT purchase_orders.id) as purchase_count,
+                COALESCE(SUM(purchase_items.quantity), 0) as quantity,
+                COALESCE(SUM(purchase_items.unit_price), 0) as total_unit_price,
+                COALESCE(SUM(purchase_items.sub_total), 0) as sub_total,   
+                COALESCE(SUM(DISTINCT purchase_orders.total_amount), 0) as total_amount,
+                GROUP_CONCAT(DISTINCT suppliers.name SEPARATOR ", ") as supplier_names
+            ')
+                ->leftJoin('purchase_orders', 'purchase_items.purchase_id', '=', 'purchase_orders.id')
+                ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
+                ->groupByRaw('DATE_FORMAT(purchase_orders.purchase_date, "%Y-%m")')
+                ->orderBy('purchase_month', 'desc')
+                ->get()
+                ->map(fn ($row) => [
+                    'purchase_month' => $row->purchase_month,
+                    'purchase_count' => (int) $row->purchase_count,
+                    'quantity' => (int) $row->quantity,
+                    'total_unit_price' => (float) $row->total_unit_price,
+                    'sub_total' => (float) $row->sub_total,
+                    'total_amount' => (float) $row->total_amount,
+                    'supplier_names' => $row->supplier_names ?? '-',
+                ])
+                ->toArray();
+        } else {
+            // For other views (daily/custom), show individual purchase items
+            $tableData = PurchaseItem::whereHas('purchase', function ($q) use ($from, $to) {
+                $q->whereBetween('purchase_date', [$from, $to])
+                    ->where('status', 'completed');
+            })
+                ->selectRaw('
+                purchase_items.id,
+                purchase_items.purchase_id,
+                purchase_items.product_id,
+                purchase_items.quantity,
+                purchase_items.unit_price,
+                purchase_items.sub_total,
+                purchase_items.expiry_date,
+                purchase_orders.purchase_date,
+                purchase_orders.status,
+                purchase_orders.total_amount,
+                suppliers.name as supplier_name,
+                inventory_items.name as product_name
+            ')
+                ->leftJoin('purchase_orders', 'purchase_items.purchase_id', '=', 'purchase_orders.id')
+                ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
+                ->leftJoin('inventory_items', 'purchase_items.product_id', '=', 'inventory_items.id')
+                ->orderByDesc('purchase_items.created_at')
+                ->limit(100)
+                ->get()
+                ->map(fn ($row) => [
+                    'id' => $row->id,
+                    'purchase_id' => $row->purchase_id,
+                    'product_id' => $row->product_id,
+                    'product_name' => $row->product_name ?? 'Unknown Item',
+                    'supplier_name' => $row->supplier_name ?? 'Unknown Supplier',
+                    'quantity' => (int) $row->quantity,
+                    'unit_price' => (float) $row->unit_price,
+                    'sub_total' => (float) $row->sub_total,
+                    'expiry_date' => $row->expiry_date,
+                    'purchase_date' => $row->purchase_date,
+                    'status' => $row->status,
+                    'total_amount' => (float) $row->total_amount,
+                ])
+                ->toArray();
+        }
 
         // Calculate totals for the totals row
         $totalsSummary = [
             'product_name' => 'TOTAL',
             'quantity' => array_sum(array_column($tableData, 'quantity')),
-            'total_unit_price' =>array_sum(array_column($tableData, 'unit_price')), 
+            'total_unit_price' => array_sum(array_column($tableData, 'total_unit_price')),
             'sub_total' => array_sum(array_column($tableData, 'sub_total')),
+            'total_amount' => array_sum(array_column($tableData, 'total_amount')),
         ];
 
         return response()->json([
