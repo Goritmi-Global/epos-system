@@ -2277,7 +2277,6 @@ const format = (val) => {
                                                         </button>
                                                     </template>
                                                 </ConfirmModal>
-                                                <p>{{ item.status }}</p>
                                             </div>
                                         </td>
                                     </tr>
