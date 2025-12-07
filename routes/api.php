@@ -28,6 +28,15 @@ use App\Http\Controllers\Shifts\ShiftManagementController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SumUpController;
+
+Route::prefix('sumup')->group(function () {
+    Route::get('/readers', [SumUpController::class, 'getReaders']);
+    Route::post('/pair-reader', [SumUpController::class, 'pairReader']);
+    Route::post('/process-payment', [SumUpController::class, 'processPayment']);
+    Route::get('/status/{checkoutId}', [SumUpController::class, 'checkStatus']);
+    Route::get('/wait/{checkoutId}', [SumUpController::class, 'waitForPayment']);
+});
 
 Route::get('/countries', [IndexController::class, 'countries']);
 Route::get('/country/{code}', [IndexController::class, 'countryDetails']);

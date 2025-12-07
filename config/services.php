@@ -39,4 +39,11 @@ return [
         'secret' => env('STRIPE_SECRET'),
     ],
 
+    'sumup' => [
+        'api_key' => env('SUMUP_API_KEY'),
+        'merchant_code' => env('SUMUP_MERCHANT_CODE'),
+        'affiliate_key' => env('SUMUP_AFFILIATE_KEY'),
+        'reader_id' => env('SUMUP_READER_ID'),
+    ],
+
 ];

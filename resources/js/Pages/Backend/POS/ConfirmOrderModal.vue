@@ -73,7 +73,7 @@ const subTotal = computed(() =>
 const isLoading = ref(false);
 
 const printConfirm = async () => {
- await this.$refs.printer.printReceipt(this.orderData);
+    await this.$refs.printer.printReceipt(this.orderData);
 }
 
 
@@ -159,7 +159,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="text-muted small">Customer</span>
                                                     <span class="fw-semibold">{{
                                                         customer || "Walk In"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -184,7 +184,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         selectedTable?.name ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -195,7 +195,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         deliveryLocation ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
 
                                             </div>
@@ -205,7 +205,7 @@ const formattedOrderType = computed(() => {
                                                     <span class="fw-semibold">{{
                                                         phone ||
                                                         "N/A"
-                                                        }}</span>
+                                                    }}</span>
                                                 </div>
                                             </div>
 
@@ -396,7 +396,7 @@ const formattedOrderType = computed(() => {
                                                     <span>{{ isLoading ? 'Processing...' : 'Confirm & Place' }}</span>
                                                 </button>
 
-                                               
+
 
 
                                             </div>
