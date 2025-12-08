@@ -378,5 +378,8 @@ Route::get('/api/shift/{shift}/z-report', [ShiftManagementController::class, 'ge
 
 Route::get('/api/shift/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
     ->name('shift.z-report.pdf');
+    
+
+
 
 require __DIR__.'/auth.php';

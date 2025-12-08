@@ -757,14 +757,22 @@ const deleteCategory = async (row) => {
     if (!row?.id) return;
 
     try {
-        await axios.delete(`/menu-categories/${row.id}`);
-        toast.success("Category deleted successfully");
+        const res = await axios.delete(`/menu-categories/${row.id}`);
+
+        toast.success(res.data.message || "Category deleted successfully");
         await fetchCategories(); // refresh the table
+
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
-        toast.error("Failed to delete category ❌");
+
+        // ✔ Show backend message, if available
+        const backendMessage = err.response?.data?.message 
+            || "Failed to delete category ❌";
+
+        toast.error(backendMessage);
     }
 };
+
 
 const options = ref([]); // all subcategory options
 const currentFilterValue = ref("");
