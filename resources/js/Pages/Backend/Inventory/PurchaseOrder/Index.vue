@@ -1216,6 +1216,7 @@ const downloadInvoice = async (order) => {
     }
 }
 
+
 /* card scrollig */
 .purchase-scroll {
     max-height: 65vh;
