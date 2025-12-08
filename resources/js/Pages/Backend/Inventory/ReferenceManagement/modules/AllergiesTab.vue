@@ -642,6 +642,11 @@ const handleImport = (data) => {
     border-color: var(--brand);
 }
 
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);

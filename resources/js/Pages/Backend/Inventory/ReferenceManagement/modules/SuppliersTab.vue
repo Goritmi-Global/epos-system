@@ -929,6 +929,9 @@ const handleImport = (data) => {
     background-color: white !important;
     color: black !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
 
 
 .dropdown-menu {
