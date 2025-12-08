@@ -1167,6 +1167,7 @@ const getBusinessData = () => ({
 
 // NEW printReceipt function
 const printReceipt = async (order) => {
+    const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
     const business = getBusinessData()
     const res = await axios.post(
     `http://192.168.224.1:8085/print`,
@@ -1177,7 +1178,7 @@ const printReceipt = async (order) => {
     },
   );
   
-//   console.info("The request send back: "+res.data);
+   console.info("The Customer request send back: "+res.data);
 //     await thermalPrintReceipt({
 //         order_date: order.order_date,
 //         order_time: order.order_time,
@@ -1197,6 +1198,7 @@ const printReceipt = async (order) => {
 
 // NEW printKot function  
 const printKot = async (order) => {
+    const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
     const business = getBusinessData()
     const res = await axios.post(
     `http://192.168.224.1:8085/print`,
@@ -1206,6 +1208,8 @@ const printKot = async (order) => {
       timeout: 5000,
     },
   );
+console.info("The KOT request send back: "+res.data);
+
     // await thermalPrintKOT({
     //     order_date: order.order_date,
     //     order_time: order.order_time,
