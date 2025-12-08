@@ -41,7 +41,7 @@ class ResetPasswordMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.reset-password', // your Blade template
+            markdown: 'Emails.reset-password', // your Blade template
             with: [
                 'notifiable' => $this->user, 
                 'url'  => $this->url,
