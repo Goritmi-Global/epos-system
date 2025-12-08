@@ -25,8 +25,6 @@ use App\Http\Controllers\Reference\CategoryController;
 use App\Http\Controllers\Reference\SupplierController;
 use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
-
-use App\Http\Controllers\Auth\ApiKeyController;
 use App\Http\Controllers\Shifts\ShiftManagementController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
