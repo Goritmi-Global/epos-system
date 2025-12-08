@@ -269,9 +269,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
 
-    Route::post('/verify-super-admin', [ApiKeyController::class, 'verifyCredentials']);
-Route::post('/store-api-key', [ApiKeyController::class, 'storeApiKey']);
-Route::post('/get-api-key', [ApiKeyController::class, 'getApiKey']);
+    
 
 
     Route::post('/discount-approvals/request', [DiscountApprovalController::class, 'requestApproval']);
@@ -280,3 +278,7 @@ Route::post('/get-api-key', [ApiKeyController::class, 'getApiKey']);
     Route::post('/discount-approvals/{id}/respond', [DiscountApprovalController::class, 'respondToRequest']);
     Route::get('/discount-approvals/history', [DiscountApprovalController::class, 'getApprovalHistory']);
 });
+
+Route::post('/verify-super-admin', [ApiKeyController::class, 'verifyCredentials']);
+Route::post('/store-api-key', [ApiKeyController::class, 'storeApiKey']);
+Route::post('/get-api-key', [ApiKeyController::class, 'getApiKey']);

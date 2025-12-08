@@ -1168,38 +1168,56 @@ const getBusinessData = () => ({
 // NEW printReceipt function
 const printReceipt = async (order) => {
     const business = getBusinessData()
-    await thermalPrintReceipt({
-        order_date: order.order_date,
-        order_time: order.order_time,
-        customer_name: order.customer_name || 'Walk In',
-        order_type: order.order_type,
-        payment_type: order.payment_type,
-        cash_received: order.cash_received || 0,
-        sub_total: order.sub_total,
-        total_amount: order.total_amount,
-        items: order.items.map(item => ({
-            title: item.title,
-            quantity: item.quantity || item.qty,
-            unit_price: item.unit_price
-        }))
-    }, business)
+    const res = await axios.post(
+    `http://192.168.224.1:8085/print`,
+    { order, type: 'customer' },
+    {
+      headers: { 'X-Print-Token': TOKEN },
+      timeout: 5000,
+    },
+  );
+  
+//   console.info("The request send back: "+res.data);
+//     await thermalPrintReceipt({
+//         order_date: order.order_date,
+//         order_time: order.order_time,
+//         customer_name: order.customer_name || 'Walk In',
+//         order_type: order.order_type,
+//         payment_type: order.payment_type,
+//         cash_received: order.cash_received || 0,
+//         sub_total: order.sub_total,
+//         total_amount: order.total_amount,
+//         items: order.items.map(item => ({
+//             title: item.title,
+//             quantity: item.quantity || item.qty,
+//             unit_price: item.unit_price
+//         }))
+//     }, business)
 }
 
 // NEW printKot function  
 const printKot = async (order) => {
     const business = getBusinessData()
-    await thermalPrintKOT({
-        order_date: order.order_date,
-        order_time: order.order_time,
-        customer_name: order.customer_name || order.table_number,
-        order_type: order.order_type,
-        kitchen_note: order.kitchen_note,
-        items: order.items.map(item => ({
-            title: item.title,
-            quantity: item.quantity || item.qty,
-            item_kitchen_note: item.item_kitchen_note
-        }))
-    }, business)
+    const res = await axios.post(
+    `http://192.168.224.1:8085/print`,
+    { order, type: 'KOT' },
+    {
+      headers: { 'X-Print-Token': TOKEN },
+      timeout: 5000,
+    },
+  );
+    // await thermalPrintKOT({
+    //     order_date: order.order_date,
+    //     order_time: order.order_time,
+    //     customer_name: order.customer_name || order.table_number,
+    //     order_type: order.order_type,
+    //     kitchen_note: order.kitchen_note,
+    //     items: order.items.map(item => ({
+    //         title: item.title,
+    //         quantity: item.quantity || item.qty,
+    //         item_kitchen_note: item.item_kitchen_note
+    //     }))
+    // }, business)
 }
 
 
