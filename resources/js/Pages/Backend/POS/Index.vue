@@ -1170,10 +1170,10 @@ const printReceipt = async (order) => {
     const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
     const business = getBusinessData()
     const res = await axios.post(
-    `http://192.168.224.1:8085/print`,
+    `http://localhost:8085/print`,
     { order, type: 'customer' },
     {
-      headers: { 'X-Print-Token': TOKEN },
+      headers: { 'X-Print-Token': TOKEN, "Content-Type": "application/json" },
       timeout: 5000,
     },
   );
@@ -1201,10 +1201,10 @@ const printKot = async (order) => {
     const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
     const business = getBusinessData()
     const res = await axios.post(
-    `http://192.168.224.1:8085/print`,
+    `http://localhost:8085/print`,
     { order, type: 'KOT' },
     {
-      headers: { 'X-Print-Token': TOKEN },
+      headers: { 'X-Print-Token': TOKEN, "Content-Type": "application/json" },
       timeout: 5000,
     },
   );
