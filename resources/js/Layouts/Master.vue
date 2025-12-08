@@ -36,7 +36,6 @@ const isCashierRole = computed(() => {
     return user.value?.roles?.includes('Cashier');
 });
 
-console.log('isCashierRole:', page.props.current_user?.roles);
 
 // Only activate auto-logout for cashiers
 if (isCashierRole.value) {
@@ -714,7 +713,6 @@ const unreadCount = ref(0);
 const fetchNotifications = async () => {
     const response = await axios.get("/api/notifications");
     notifications.value = response.data;
-    console.log("notifications.value", notifications.value);
     unreadCount.value = notifications.value.filter(n => !n.is_read).length;
 };
 
