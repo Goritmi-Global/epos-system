@@ -776,14 +776,14 @@ const confirmCancelOrder = async (reason) => {
                                     <th>Time</th>
                                     <th>Customer</th>
                                     <th>Payment Type</th>
-                                    <th>Actual Price</th>
+                                    <!-- <th>Actual Price</th>
                                     <th>Promo Discount</th>
                                     <th>Sales Discount</th>
                                     <th>Approved Discount</th>
                                     <th>Tax</th>
                                     <th>Service Charges</th>
                                     <th>Delivery Charges</th>
-                                    <th>Promo Name</th>
+                                    <th>Promo Name</th> -->
                                     <th>Total</th>
                                     <th>Status</th>
                                     <th class="text-center">Actions</th>
@@ -805,9 +805,7 @@ const confirmCancelOrder = async (reason) => {
                                     </td>
 
                                     <!-- Actual price before promo -->
-                                    <td>{{ formatCurrencySymbol(o.sub_total ?? 0) }}</td>
-
-                                    <!-- Promo discount -->
+                                    <!-- <td>{{ formatCurrencySymbol(o.sub_total ?? 0) }}</td>
                                     <td class="text-success">
                                         -{{ formatCurrencySymbol(o?.promo?.[0]?.discount_amount ?? 0) }}
                                     </td>
@@ -822,13 +820,13 @@ const confirmCancelOrder = async (reason) => {
                                     <td>{{ o.delivery_charges ?? "-" }}</td>
                                     <td>
                                         {{ o.promo?.[0]?.promo_name || '-' }}
-                                    </td>
+                                    </td> -->
 
 
                                     <!-- Total after discount -->
                                     <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
-                                    <td>
-                                        <span class="badge px-2 py-2 rounded-pill" :class="{
+                                    <td style="font-size: 14px;">
+                                        <span class="badge px-4 py-2 rounded-pill" :class="{
                                             'bg-danger': o?.status === 'cancelled',
                                             'bg-warning text-dark': o?.status === 'refunded',
                                             'bg-success': o?.status === 'paid'
