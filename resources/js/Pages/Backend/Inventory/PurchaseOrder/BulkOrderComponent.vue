@@ -582,7 +582,7 @@ async function multipleSubmit() {
                                         </td>
                                         <td>
                                             <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="false" placeholder="Select date"
+                                                :enableTimePicker="false" :teleport="false"  placeholder="Select date"
                                                 :class="{
                                                     'is-invalid': formErrors[idx]?.expiry
                                                 }" />

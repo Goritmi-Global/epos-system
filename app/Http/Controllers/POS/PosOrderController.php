@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Exceptions\MissingIngredientsException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PosOrderController extends Controller
@@ -338,7 +339,10 @@ class PosOrderController extends Controller
     public function cancel(Request $request, $orderId)
     {
         try {
-            $order = \App\Models\PosOrder::with(['items.menuItem.ingredients.inventoryItem.category'])
+            $order = \App\Models\PosOrder::with([
+                'items.menuItem.ingredients.inventoryItem.category',
+                'type'
+            ])
                 ->findOrFail($orderId);
 
             if ($order->status === 'cancelled') {
@@ -349,6 +353,42 @@ class PosOrderController extends Controller
             }
 
             \DB::beginTransaction();
+
+            // ✅ Find kitchen orders - with aggressive logging
+            if ($order->type) {
+
+                // Get kitchen orders
+                $kitchenOrders = \App\Models\KitchenOrder::where('pos_order_type_id', $order->type->id)->get();
+
+                foreach ($kitchenOrders as $kitchenOrder) {
+
+                    // Get kitchen order items BEFORE update
+                    $itemsBefore = \App\Models\KitchenOrderItem::where('kitchen_order_id', $kitchenOrder->id)->get();
+
+                    foreach ($itemsBefore as $item) {
+                    }
+
+                    // Update items
+                    $affected = \App\Models\KitchenOrderItem::where('kitchen_order_id', $kitchenOrder->id)
+                        ->update(['status' => 'Cancelled']);
+
+                    // Get items AFTER update to verify
+                    $itemsAfter = \App\Models\KitchenOrderItem::where('kitchen_order_id', $kitchenOrder->id)->get();
+                    foreach ($itemsAfter as $item) {
+                    }
+                }
+            }
+            $posOrderTypes = \App\Models\PosOrderType::where('pos_order_id', $order->id)->get();
+
+            foreach ($posOrderTypes as $pot) {
+
+                $koIds = \App\Models\KitchenOrder::where('pos_order_type_id', $pot->id)->pluck('id');
+
+                if ($koIds->isNotEmpty()) {
+                    $updated = \App\Models\KitchenOrderItem::whereIn('kitchen_order_id', $koIds)
+                        ->update(['status' => 'Cancelled']);
+                }
+            }
 
             // Restore inventory stock WITH expiry dates
             foreach ($order->items as $item) {
@@ -395,16 +435,12 @@ class PosOrderController extends Controller
                                 'value' => $allocation->quantity * ($allocation->unit_price ?? $ingredient->cost ?? 0),
                                 'operation_type' => 'pos_cancel_return',
                                 'stock_type' => 'stockin',
-                                'expiry_date' => $allocation->expiry_date, // ✅ RESTORE ORIGINAL EXPIRY DATE
+                                'expiry_date' => $allocation->expiry_date,
                                 'description' => "Stock restored from cancelled order #{$order->id} (Original batch expiry: {$allocation->expiry_date})",
                                 'user_id' => auth()->id(),
                             ]);
-
-                            \Log::info("✅ Restored {$allocation->quantity} units of {$inventoryItem->name} with expiry: {$allocation->expiry_date}");
                         }
                     } else {
-                        // ✅ Fallback: If no stockout entry found, restore without expiry date
-                        \Log::warning("⚠️ No stockout entry found for Order #{$order->id}, Product ID: {$inventoryItem->id}. Restoring without expiry date.");
 
                         \App\Models\StockEntry::create([
                             'product_id' => $inventoryItem->id,
@@ -416,7 +452,7 @@ class PosOrderController extends Controller
                             'value' => ($ingredient->cost ?? 0) * $requiredQty,
                             'operation_type' => 'pos_cancel_return',
                             'stock_type' => 'stockin',
-                            'expiry_date' => null, // No expiry date available
+                            'expiry_date' => null,
                             'description' => "Stock restored from cancelled order #{$order->id} (Expiry date unknown)",
                             'user_id' => auth()->id(),
                         ]);
@@ -424,6 +460,7 @@ class PosOrderController extends Controller
                 }
             }
 
+            // Update POS order status
             $order->update([
                 'status' => 'cancelled',
                 'cancelled_at' => now(),
@@ -435,12 +472,11 @@ class PosOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order cancelled and inventory restored with original expiry dates',
-                'order' => $order->fresh(['payment', 'items'])
+                'message' => 'Order cancelled, kitchen order items updated, and inventory restored',
+                'order' => $order->fresh(['payment', 'items', 'type'])
             ]);
         } catch (\Exception $e) {
             \DB::rollBack();
-            \Log::error('Order cancellation failed: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,

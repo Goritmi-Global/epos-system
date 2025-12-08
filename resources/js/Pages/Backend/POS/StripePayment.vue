@@ -187,8 +187,8 @@ async function pay() {
     order_date: props.orderDate ?? new Date().toISOString().split("T")[0],
     order_time: props.orderTime ?? new Date().toTimeString().split(" ")[0],
     order_type:
-      props.orderType === "Dine_in"
-        ? "Dine In"
+      props.orderType === "Eat_in"
+        ? "Eat In"
         : props.orderType === "Delivery"
           ? "Delivery"
           : props.orderType === "Takeaway"
