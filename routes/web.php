@@ -235,8 +235,8 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
-        Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
-            ->name('place-stripe-order');
+        Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])->name('place-stripe-order');
+        Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
     });
 
     Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])

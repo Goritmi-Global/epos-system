@@ -2,6 +2,7 @@
 
 namespace App\Services\POS;
 
+use App\Exceptions\MissingIngredientsException;
 use App\Helpers\UploadHelper;
 use App\Models\InventoryItem;
 use App\Models\KitchenOrder;
@@ -9,12 +10,14 @@ use App\Models\KitchenOrderItem;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Payment;
+use App\Models\PendingIngredientDeduction;
 use App\Models\PosOrder;
 use App\Models\PosOrderType;
 use App\Models\RestaurantProfile;
 use App\Models\Shift;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class PosOrderService
@@ -32,17 +35,39 @@ class PosOrderService
 
     public function create(array $data): PosOrder|array
     {
+
         return DB::transaction(function () use ($data) {
+
+            // Use strict comparison instead of empty()
+            $confirmMissing = $data['confirm_missing_ingredients'] ?? false;
+
+            // 1. Check for missing ingredients (if not already confirmed)
+            if ($confirmMissing !== true) {
+
+                $missingIngredients = $this->checkStockAvailability($data['items'] ?? []);
+
+                if (!empty($missingIngredients)) {
+                    // Throw custom exception instead of generic exception
+                    throw new MissingIngredientsException($missingIngredients);
+                }
+            } else {
+                Log::info('⏭️ Skipping ingredient check', [
+                    'reason' => 'User confirmed to proceed with missing ingredients',
+                    'confirm_flag_value' => $confirmMissing,
+                ]);
+            }
+
+            // 2. Check for active shift
             $activeShift = Shift::where('status', 'open')->latest()->first();
 
-            if (! $activeShift) {
+            if (!$activeShift) {
                 throw new \Exception('No active shift found. Please start a shift before creating an order.');
             }
 
-            // Create the main order
+            // 3. Create the main order
             $order = PosOrder::create([
                 'user_id' => Auth::id(),
-                'shift_id' => $activeShift?->id,
+                'shift_id' => $activeShift->id,
                 'customer_name' => $data['customer_name'] ?? null,
                 'sub_total' => $data['sub_total'],
                 'total_amount' => $data['total_amount'],
@@ -58,6 +83,7 @@ class PosOrderService
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
             ]);
 
+            // 4. Handle delivery details
             if (($data['order_type'] ?? '') === 'Delivery') {
                 $order->deliveryDetail()->create([
                     'phone_number' => $data['phone_number'] ?? null,
@@ -65,17 +91,15 @@ class PosOrderService
                 ]);
             }
 
-
-            // Create order type
+            // 5. Create order type
             $orderType = PosOrderType::create([
                 'pos_order_id' => $order->id,
                 'order_type' => $data['order_type'],
                 'table_number' => $data['table_number'] ?? null,
             ]);
 
-            // Create Order details
+            // 6. Process order items and inventory
             foreach ($data['items'] as $item) {
-                // Save order item
                 $orderItem = $order->items()->create([
                     'menu_item_id' => $item['product_id'],
                     'title' => $item['title'],
@@ -88,7 +112,7 @@ class PosOrderService
                     'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
                 ]);
 
-                // Store addons in order_item_addons table
+                // Store addons
                 if (!empty($item['addons']) && is_array($item['addons'])) {
                     foreach ($item['addons'] as $addon) {
                         $orderItem->addons()->create([
@@ -100,43 +124,81 @@ class PosOrderService
                     }
                 }
 
-                // ✅ NEW: Get removed ingredients from request
+                // Get removed ingredients from request
                 $removedIngredients = $item['removed_ingredients'] ?? [];
 
-                // Get ingredients based on variant or base menu item
+                // Get ingredients for this item
                 $ingredients = $this->getIngredientsForItem($item);
 
-                // ✅ UPDATED: Process stockout ONLY for ingredients that are NOT removed
-                if (! empty($ingredients)) {
+                // Process ingredient stockout with missing ingredient handling
+                if (!empty($ingredients)) {
                     foreach ($ingredients as $ingredient) {
-                        // ✅ CRITICAL: Skip stockout if this ingredient was removed by customer
+                        // Skip if ingredient was removed by customer
                         if (
                             in_array($ingredient->id, $removedIngredients) ||
                             in_array($ingredient->inventory_item_id, $removedIngredients)
                         ) {
-
-                            \Log::info("Skipping stockout for removed ingredient: {$ingredient->product_name} in Order #{$order->id}");
-                            continue; // Skip this ingredient
+                            Log::info("Skipping stockout for removed ingredient: {$ingredient->product_name} in Order #{$order->id}");
+                            continue;
                         }
 
                         $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
 
                         if ($inventoryItem) {
                             $requiredQty = $ingredient->quantity * $item['quantity'];
+                            $availableStock = (float)$inventoryItem->stock;
 
-                            $this->stockEntryService->create([
-                                'product_id' => $inventoryItem->id,
-                                'name' => $inventoryItem->name,
-                                'category_id' => $inventoryItem->category_id,
-                                'supplier_id' => $inventoryItem->supplier_id,
-                                'quantity' => $requiredQty,
-                                'value' => 0,
-                                'operation_type' => 'pos_stockout',
-                                'stock_type' => 'stockout',
-                                'description' => "Auto stockout from POS Order #{$order->id}" .
-                                    (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
-                                'user_id' => Auth::id(),
-                            ]);
+                            if ($availableStock >= $requiredQty) {
+                                $this->stockEntryService->create([
+                                    'product_id' => $inventoryItem->id,
+                                    'name' => $inventoryItem->name,
+                                    'category_id' => $inventoryItem->category_id,
+                                    'supplier_id' => $inventoryItem->supplier_id,
+                                    'quantity' => $requiredQty,
+                                    'value' => 0,
+                                    'operation_type' => 'pos_stockout',
+                                    'stock_type' => 'stockout',
+                                    'description' => "Auto stockout from POS Order #{$order->id}" .
+                                        (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
+                                    'user_id' => Auth::id(),
+                                ]);
+                            } else {
+                                // Partial/No stock - Create pending deduction
+                                $deductedQty = min($availableStock, $requiredQty);
+                                $pendingQty = $requiredQty - $deductedQty;
+
+                                // Deduct whatever is available
+                                if ($deductedQty > 0) {
+                                    $this->stockEntryService->create([
+                                        'product_id' => $inventoryItem->id,
+                                        'name' => $inventoryItem->name,
+                                        'category_id' => $inventoryItem->category_id,
+                                        'supplier_id' => $inventoryItem->supplier_id,
+                                        'quantity' => $deductedQty,
+                                        'value' => 0,
+                                        'operation_type' => 'pos_stockout',
+                                        'stock_type' => 'stockout',
+                                        'description' => "Partial stockout from POS Order #{$order->id} ({$deductedQty} of {$requiredQty})" .
+                                            (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
+                                        'user_id' => Auth::id(),
+                                    ]);
+                                }
+
+                                // Record pending deduction
+                                $unit = $ingredient->unit ?? 'units';
+
+                                PendingIngredientDeduction::create([
+                                    'order_id' => $order->id,
+                                    'order_item_id' => $orderItem->id,
+                                    'inventory_item_id' => $inventoryItem->id,
+                                    'inventory_item_name' => $ingredient->product_name ?? $inventoryItem->name,
+                                    'required_quantity' => $requiredQty,
+                                    'available_quantity' => $availableStock,
+                                    'pending_quantity' => $pendingQty,
+                                    'status' => 'pending',
+                                    'notes' => "Order #{$order->id} - {$item['title']} ({$item['quantity']} qty) - Missing {$pendingQty} {$unit}",
+                                ]);
+                            }
                         }
                     }
                 }
@@ -144,7 +206,7 @@ class PosOrderService
 
             $order->load('items');
 
-            // Create KOT
+            // 7. Create KOT
             $kot = KitchenOrder::create([
                 'pos_order_type_id' => $orderType->id,
                 'order_time' => now()->toTimeString(),
@@ -153,13 +215,11 @@ class PosOrderService
                 'kitchen_note' => $data['kitchen_note'] ?? null,
             ]);
 
-            // ✅ Create KOT items with removed ingredients handled
+            // 8. Create KOT items with removed ingredients filtered
             foreach ($order->items as $orderItem) {
                 $itemData = collect($data['items'])->firstWhere('product_id', $orderItem->menu_item_id);
 
                 if (!$itemData) {
-                    \Log::warning("Item data not found for menu_item_id: {$orderItem->menu_item_id} in order #{$order->id}");
-
                     $kot->items()->create([
                         'item_name' => $orderItem->title,
                         'quantity' => $orderItem->quantity,
@@ -168,20 +228,19 @@ class PosOrderService
                         'item_kitchen_note' => $orderItem->item_kitchen_note ?? null,
                         'status' => KitchenOrderItem::STATUS_WAITING,
                     ]);
-
                     continue;
                 }
 
                 // Get ingredients for this item
                 $ingredients = $this->getIngredientsForItem($itemData);
 
-                // ✅ NEW: Filter out removed ingredients from KOT display
+                // Filter out removed ingredients from KOT display
                 $removedIngredients = $itemData['removed_ingredients'] ?? [];
 
                 $ingredientsArray = [];
-                if (! empty($ingredients)) {
+                if (!empty($ingredients)) {
                     foreach ($ingredients as $ingredient) {
-                        // ✅ Only show ingredients that were NOT removed
+                        // Only show ingredients that were NOT removed
                         if (
                             !in_array($ingredient->id, $removedIngredients) &&
                             !in_array($ingredient->inventory_item_id, $removedIngredients)
@@ -203,7 +262,7 @@ class PosOrderService
 
             $kot->load('items');
 
-            // Payment handling
+            // 9. Payment handling
             $cashAmount = null;
             $cardAmount = null;
 
@@ -239,7 +298,7 @@ class PosOrderService
                 'exp_year' => $data['exp_year'] ?? null,
             ]);
 
-            // Store multiple promo details
+            // 10. Store promo details
             if (!empty($data['applied_promos']) && is_array($data['applied_promos'])) {
                 foreach ($data['applied_promos'] as $promoData) {
                     \App\Models\OrderPromo::create([
@@ -262,7 +321,7 @@ class PosOrderService
 
             $order->load(['items', 'kot.items', 'promo']);
 
-            // Handle Auto Logout for Cashier Role
+            // 11. Handle Auto Logout for Cashier Role
             $currentUser = Auth::user();
 
             if ($currentUser && $currentUser->hasRole('Cashier')) {
@@ -290,14 +349,13 @@ class PosOrderService
     }
 
     /**
-     * ✅ FIXED: Get ingredients for a menu item (variant-aware) with null handling
+     * Get ingredients for a menu item (variant-aware) with null handling
      *
      * @param  array|null  $item  The item data from the request
      * @return \Illuminate\Support\Collection
      */
     private function getIngredientsForItem(?array $item)
     {
-        // ✅ Handle null case
         if (!$item) {
             return collect();
         }
@@ -324,7 +382,7 @@ class PosOrderService
         return PosOrder::create([
             'order_no' => $payload['order_no'] ?? Str::upper(Str::random(8)),
             'customer_name' => $payload['customer_name'] ?? null,
-            'service_type' => $payload['service_type'] ?? 'dine_in', // dine_in | takeaway | delivery
+            'service_type' => $payload['service_type'] ?? 'dine_in',
             'table_no' => $payload['table_no'] ?? null,
             'status' => 'draft',
             'total' => 0,
@@ -356,7 +414,6 @@ class PosOrderService
     {
         $order->status = 'canceled';
         $order->save();
-        // TODO: rollback stock/movements if you manage inventory reservations here
     }
 
     public function getMenuCategories(bool $onlyActive = true)
@@ -381,16 +438,14 @@ class PosOrderService
                 'name' => $cat->name,
                 'image_url' => $cat->image_url,
                 'box_bg_color' => $cat->box_bg_color ?? '#1b1670',
-                'menu_items_count' => $cat->menu_items_count, 
+                'menu_items_count' => $cat->menu_items_count,
                 'children' => $cat->children,
             ];
         });
     }
 
-
     public function getAllMenus()
     {
-
         $menus = MenuItem::with([
             'category',
             'ingredients.inventoryItem',
@@ -402,13 +457,9 @@ class PosOrderService
             'addonGroupRelations.addonGroup.addons',
         ])->where('status', 1)->get();
 
-
         return $menus->map(function ($item) {
-
-
             $item->image_url = $item->upload_id ? UploadHelper::url($item->upload_id) : null;
 
-            // --- Map simple ingredients ---
             $item->ingredients = $item->ingredients->map(function ($ingredient) {
                 return [
                     'id' => $ingredient->id,
@@ -423,15 +474,12 @@ class PosOrderService
                 ];
             })->values()->toArray();
 
-            // --- Map and log variants ---
             $item->variants = $item->variants->map(function ($variant) use ($item) {
-
-
                 if ($variant->ingredients->isEmpty()) {
-                    \Log::warning("    ⚠️ No ingredients found for Variant ID: {$variant->id}");
+                    \Log::warning("⚠️ No ingredients found for Variant ID: {$variant->id}");
                 } else {
                     foreach ($variant->ingredients as $ing) {
-                        \Log::info("    ✅ Ingredient: {$ing->product_name} (Inventory ID: {$ing->inventory_item_id}) Quantity: {$ing->quantity}");
+                        \Log::info("✅ Ingredient: {$ing->product_name} (Inventory ID: {$ing->inventory_item_id}) Quantity: {$ing->quantity}");
                     }
                 }
 
@@ -452,16 +500,15 @@ class PosOrderService
                 ];
             })->values()->toArray();
 
-            // --- Addons mapping ---
             $addonsGrouped = [];
             foreach ($item->addonGroupRelations ?? [] as $relation) {
                 $group = $relation->addonGroup;
-                if (! $group || $group->status !== 'active') {
+                if (!$group || $group->status !== 'active') {
                     continue;
                 }
 
                 $groupId = $group->id;
-                if (! isset($addonsGrouped[$groupId])) {
+                if (!isset($addonsGrouped[$groupId])) {
                     $addonsGrouped[$groupId] = [
                         'group_id' => $group->id,
                         'group_name' => $group->name,
@@ -507,7 +554,83 @@ class PosOrderService
         return KitchenOrder::with([
             'items',
             'posOrderType.order.payment',
-            'posOrderType.order.items', // PosOrderItems with prices
+            'posOrderType.order.items',
         ])->whereDate('order_date', $today)->get();
+    }
+
+    /**
+     * Check stock availability for all items in order
+     */
+    public function checkStockAvailability(array $items): array
+    {
+        $missingIngredients = [];
+
+        foreach ($items as $item) {
+            $menuItem = \App\Models\MenuItem::with(['ingredients.inventoryItem', 'variants.ingredients.inventoryItem'])
+                ->find($item['product_id']);
+
+            if (!$menuItem) continue;
+
+            $ingredients = [];
+            if (!empty($item['variant_id']) && $menuItem->variants) {
+                $variant = $menuItem->variants->find($item['variant_id']);
+                if ($variant && $variant->ingredients) {
+                    $ingredients = $variant->ingredients;
+                }
+            } else {
+                $ingredients = $menuItem->ingredients ?? [];
+            }
+
+            foreach ($ingredients as $ingredient) {
+                $inventoryItem = $ingredient->inventoryItem;
+                if (!$inventoryItem) continue;
+
+                $requiredQty = ($ingredient->quantity ?? 1) * $item['quantity'];
+                $availableStock = (float)$inventoryItem->stock;
+
+                $removedIngredients = $item['removed_ingredients'] ?? [];
+                $ingredientId = $ingredient->id ?? $ingredient->inventory_item_id;
+
+                if (in_array($ingredientId, $removedIngredients)) {
+                    continue;
+                }
+
+                if ($availableStock < $requiredQty) {
+                    $missingIngredients[] = [
+                        'item_id' => $item['product_id'],
+                        'item_title' => $item['title'],
+                        'variant_id' => $item['variant_id'] ?? null,
+                        'variant_name' => $item['variant_name'] ?? null,
+                        'inventory_item_id' => $inventoryItem->id,
+                        'inventory_item_name' => $ingredient->product_name ?? $inventoryItem->name,
+                        'required_quantity' => $requiredQty,
+                        'available_quantity' => $availableStock,
+                        'shortage_quantity' => $requiredQty - $availableStock,
+                        'unit' => $ingredient->unit ?? 'unit',
+                        'order_quantity' => $item['quantity']
+                    ];
+                }
+            }
+        }
+
+        return $missingIngredients;
+    }
+
+    /**
+     * Deduct stock with proper tracking
+     */
+    private function deductStock($inventoryItem, $quantity, $order, $ingredient)
+    {
+        \App\Models\StockEntry::create([
+            'product_id' => $inventoryItem->id,
+            'name' => $ingredient->product_name ?? $inventoryItem->name,
+            'category_id' => $inventoryItem->category_id,
+            'quantity' => $quantity,
+            'value' => 0,
+            'operation_type' => 'pos_stockout',
+            'stock_type' => 'stockout',
+            'description' => "Deducted for Order #{$order->id}",
+            'user_id' => auth()->id(),
+        ]);
     }
 }

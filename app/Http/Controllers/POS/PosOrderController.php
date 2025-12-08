@@ -10,6 +10,8 @@ use App\Models\TerminalState;
 use App\Services\POS\PosOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Exceptions\MissingIngredientsException;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class PosOrderController extends Controller
@@ -23,26 +25,56 @@ class PosOrderController extends Controller
 
     public function store(StorePosOrderRequest $request)
     {
-        $result = $this->service->create($request->validated());
+        try {
+            $validated = $request->validated();
+            $result = $this->service->create($validated);
 
-        // ✅ Check if this is an array with logout flag (cashier auto-logout)
-        if (is_array($result) && isset($result['logout']) && $result['logout'] === true) {
-            $order = $result['order'];
+            // Check if this is an array with logout flag (cashier auto-logout)
+            if (is_array($result) && isset($result['logout']) && $result['logout'] === true) {
+                $order = $result['order'];
 
+                return response()->json([
+                    'message' => 'Order created successfully. You have been logged out.',
+                    'order' => $order,
+                    'kot' => $order->kot ? $order->kot->load('items') : null,
+                    'redirect' => route('login'),
+                    'logout' => true,
+                ]);
+            }
+            // Normal response (non-cashier or auto-logout disabled)
             return response()->json([
-                'message' => 'Order created successfully. You have been logged out.',
-                'order' => $order,
-                'kot' => $order->kot ? $order->kot->load('items') : null,
-                'redirect' => route('login'),
-                'logout' => true,
+                'message' => 'Order created successfully',
+                'order' => $result,
+                'kot' => $result->kot ? $result->kot->load('items') : null,
             ]);
+        } catch (MissingIngredientsException $e) {
+            return response()->json([
+                'success' => false,
+                'type' => 'missing_ingredients',
+                'message' => 'Some ingredients are not available in sufficient quantity',
+                'data' => $e->getMissingIngredients()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
+    }
 
-        // ✅ Normal response (non-cashier or auto-logout disabled)
+    /**
+     * Check ingredient availability for items (used for increment validation)
+     */
+    public function checkIngredients(Request $request)
+    {
+        $items = $request->input('items', []);
+
+        // Reuse your existing checkStockAvailability method
+        $missingIngredients = $this->service->checkStockAvailability($items);
+
         return response()->json([
-            'message' => 'Order created successfully',
-            'order' => $result,
-            'kot' => $result->kot ? $result->kot->load('items') : null,
+            'success' => true,
+            'missing_ingredients' => $missingIngredients
         ]);
     }
 
@@ -564,7 +596,6 @@ class PosOrderController extends Controller
                 'version' => $version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-            
         } catch (\Exception $e) {
             Log::error('Failed to get terminal version', [
                 'terminal_id' => $terminalId,
@@ -621,7 +652,6 @@ class PosOrderController extends Controller
                 'version' => $terminal->version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache');
-            
         } catch (\Exception $e) {
             Log::error('Failed to update terminal cart', [
                 'terminal_id' => $validated['terminal_id'],
@@ -676,7 +706,6 @@ class PosOrderController extends Controller
                 'version' => $terminal->version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache');
-            
         } catch (\Exception $e) {
             Log::error('Failed to update terminal UI', [
                 'terminal_id' => $validated['terminal_id'],
@@ -733,7 +762,6 @@ class PosOrderController extends Controller
                 'version' => $terminal->version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache');
-            
         } catch (\Exception $e) {
             Log::error('Failed to update terminal state', [
                 'terminal_id' => $validated['terminal_id'],
@@ -763,7 +791,6 @@ class PosOrderController extends Controller
                 'version' => $state['version'],
                 'timestamp' => $state['timestamp']
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-            
         } catch (\Exception $e) {
             Log::error('Failed to get terminal state', [
                 'terminal_id' => $terminalId,
