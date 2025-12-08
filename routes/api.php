@@ -24,6 +24,8 @@ use App\Http\Controllers\Reference\CategoryController;
 use App\Http\Controllers\Reference\SupplierController;
 use App\Http\Controllers\Reference\TagController;
 use App\Http\Controllers\Reference\UnitController;
+
+use App\Http\Controllers\Auth\ApiKeyController;
 use App\Http\Controllers\Shifts\ShiftManagementController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\VariantGroupController;
@@ -266,6 +268,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Update sort order (drag & drop functionality)
         Route::post('/sort-order', [AddonController::class, 'updateSortOrder']);
     });
+
+    Route::post('/verify-super-admin', [ApiKeyController::class, 'verifyCredentials']);
+Route::post('/store-api-key', [ApiKeyController::class, 'storeApiKey']);
+Route::post('/get-api-key', [ApiKeyController::class, 'getApiKey']);
 
 
     Route::post('/discount-approvals/request', [DiscountApprovalController::class, 'requestApproval']);
