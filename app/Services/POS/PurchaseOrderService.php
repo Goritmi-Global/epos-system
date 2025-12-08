@@ -9,6 +9,7 @@ use App\Models\PurchaseOrder;
 use App\Models\StockEntry;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseOrderService
 {
@@ -48,7 +49,7 @@ class PurchaseOrderService
             $order = PurchaseOrder::create([
                 'supplier_id' => $data['supplier_id'],
                 'purchase_date' => $data['purchase_date'] ?? now(),
-                'status' => $data['status'] ?? 'pending', // <-- pending for orders
+                'status' => $data['status'] ?? 'pending',
                 'total_amount' => 0,
             ]);
 
@@ -72,8 +73,8 @@ class PurchaseOrderService
                     $inventory = InventoryItem::find($item['product_id']);
 
                     $categoryId = InventoryCategory::where('id', $inventory->category_id)->first()->id;
-                    // dd($categoryId);
-                    StockEntry::create([
+
+                    $stockEntry = StockEntry::create([
                         'product_id' => $item['product_id'],
                         'category_id' => $categoryId,
                         'supplier_id' => $data['supplier_id'],
@@ -86,6 +87,14 @@ class PurchaseOrderService
                         'expiry_date' => $item['expiry'] ?? null,
                         'purchase_date' => $data['purchase_date'] ?? now(),
                     ]);
+
+                    // 🔥 Fire the event here!
+                    Log::info('🔥 Firing StockEntryCreated event from PurchaseOrder', [
+                        'stock_entry_id' => $stockEntry->id,
+                        'product_id' => $stockEntry->product_id,
+                    ]);
+
+                    event(new \App\Events\StockEntryCreated($stockEntry));
                 }
             }
 
