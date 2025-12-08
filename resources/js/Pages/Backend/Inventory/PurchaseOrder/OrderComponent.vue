@@ -43,7 +43,7 @@ watch(
             unitPrice: 0,
             expiry: null,
             subtotal: 0,
-            supplier_id: null,
+            supplier_id: it.preferred_supplier_id || it.supplier_id || null,
             selected_derived_unit_id: null,
             derived_units: [],
         }));

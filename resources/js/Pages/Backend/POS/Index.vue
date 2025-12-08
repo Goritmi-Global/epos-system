@@ -683,32 +683,193 @@ const orderItems = ref([]);
 // ========================================
 // Fixed: Increment cart item (in cart sidebar)
 // ========================================
+// const incCart = async (i) => {
+//     const it = orderItems.value[i];
+//     if (!it) return;
+
+//     if ((it.stock ?? 0) <= 0) {
+//         toast.error("Item out of stock.");
+//         return;
+//     }
+
+//     if (!canIncCartItem(it)) {
+//         const variantText = it.variant_name ? ` (${it.variant_name})` : '';
+//         toast.error(`Not enough ingredients for "${it.title}${variantText}".`);
+//         it.outOfStock = true;
+//         return;
+//     }
+
+//     it.outOfStock = false;
+//     it.qty++;
+//     it.price = it.unit_price * it.qty;
+
+//     // Update total discount
+//     if (it.resale_discount_per_item) {
+//         it.total_resale_discount = it.resale_discount_per_item * it.qty;
+//     }
+// };
+
 const incCart = async (i) => {
     const it = orderItems.value[i];
     if (!it) return;
 
-    if ((it.stock ?? 0) <= 0) {
-        toast.error("Item out of stock.");
+    // Check ingredients client-side
+    const stockCheck = calculateClientSideStock(it, it.qty + 1);
+    
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients detected (client-side)');
+        
+        pendingIncrementData.value = {
+            itemIndex: i,
+            item: it,
+            newQty: it.qty + 1
+        };
+        
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+        
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
 
-    if (!canIncCartItem(it)) {
-        const variantText = it.variant_name ? ` (${it.variant_name})` : '';
-        toast.error(`Not enough ingredients for "${it.title}${variantText}".`);
-        it.outOfStock = true;
-        return;
-    }
-
+    // Normal increment
     it.outOfStock = false;
     it.qty++;
     it.price = it.unit_price * it.qty;
 
-    // Update total discount
     if (it.resale_discount_per_item) {
         it.total_resale_discount = it.resale_discount_per_item * it.qty;
     }
 };
 
+const calculateClientSideStock = (item, requestedQty) => {
+    const ingredients = item.ingredients || [];
+    
+    // If no ingredients, unlimited stock
+    if (ingredients.length === 0) {
+        return { canAdd: true, missing: [] };
+    }
+
+    const missingIngredients = [];
+    
+    // Build ingredient usage map from current cart
+    const ingredientUsage = {};
+    
+    orderItems.value.forEach(cartItem => {
+        const itemIngredients = cartItem.ingredients || [];
+        
+        // Filter out removed ingredients
+        const activeIngredients = itemIngredients.filter(ing => {
+            if (!cartItem.removed_ingredients || cartItem.removed_ingredients.length === 0) {
+                return true;
+            }
+            return !cartItem.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+        });
+        
+        activeIngredients.forEach(ing => {
+            const id = ing.inventory_item_id;
+            const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+            
+            if (!ingredientUsage[id]) {
+                ingredientUsage[id] = { 
+                    totalStock: stock, 
+                    used: 0,
+                    name: ing.product_name || ing.name,
+                    unit: ing.unit || 'unit'
+                };
+            }
+            
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
+            ingredientUsage[id].used += required;
+        });
+    });
+    
+    // Check if new quantity would exceed stock
+    // Filter out removed ingredients for this item too
+    const activeIngredients = ingredients.filter(ing => {
+        if (!item.removed_ingredients || item.removed_ingredients.length === 0) {
+            return true;
+        }
+        return !item.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+    });
+    
+    activeIngredients.forEach(ing => {
+        const id = ing.inventory_item_id;
+        const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
+        const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+        
+        if (!ingredientUsage[id]) {
+            // This ingredient isn't used by other cart items yet
+            if (stock < required) {
+                missingIngredients.push({
+                    item_id: item.id,
+                    item_title: item.title,
+                    variant_id: item.variant_id || null,
+                    variant_name: item.variant_name || null,
+                    inventory_item_id: id,
+                    inventory_item_name: ing.product_name || ing.name,
+                    required_quantity: required,
+                    available_quantity: stock,
+                    shortage_quantity: required - stock,
+                    unit: ing.unit || 'unit',
+                    order_quantity: requestedQty
+                });
+            }
+        } else {
+            // Ingredient is already used by other cart items
+            const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+            
+            // If this exact item is already in cart, add back its current usage
+            const existingItem = orderItems.value.find(ci => 
+                ci.id === item.id && 
+                ci.variant_id === item.variant_id &&
+                JSON.stringify(ci.addons?.map(a => a.id).sort()) === JSON.stringify(item.addons?.map(a => a.id).sort())
+            );
+            
+            if (existingItem) {
+                const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingItem.qty;
+                const availableForThisItem = available + currentUsage;
+                
+                if (availableForThisItem < required) {
+                    missingIngredients.push({
+                        item_id: item.id,
+                        item_title: item.title,
+                        variant_id: item.variant_id || null,
+                        variant_name: item.variant_name || null,
+                        inventory_item_id: id,
+                        inventory_item_name: ing.product_name || ing.name,
+                        required_quantity: required,
+                        available_quantity: availableForThisItem,
+                        shortage_quantity: required - availableForThisItem,
+                        unit: ing.unit || 'unit',
+                        order_quantity: requestedQty
+                    });
+                }
+            } else {
+                if (available < required) {
+                    missingIngredients.push({
+                        item_id: item.id,
+                        item_title: item.title,
+                        variant_id: item.variant_id || null,
+                        variant_name: item.variant_name || null,
+                        inventory_item_id: id,
+                        inventory_item_name: ing.product_name || ing.name,
+                        required_quantity: required,
+                        available_quantity: available,
+                        shortage_quantity: required - available,
+                        unit: ing.unit || 'unit',
+                        order_quantity: requestedQty
+                    });
+                }
+            }
+        }
+    });
+    
+    return {
+        canAdd: missingIngredients.length === 0,
+        missing: missingIngredients
+    };
+};
 // ========================================
 // Fixed: Decrement cart item (in cart sidebar)
 // ========================================
@@ -828,17 +989,160 @@ const openItem = (p) => {
 //  Add this reactive variable at the top with your other modal variables
 const modalItemKitchenNote = ref('');
 
+// const confirmAdd = async () => {
+//     if (!selectedItem.value) return;
+
+//     const variant = getModalSelectedVariant();
+//     const variantId = variant ? variant.id : null;
+//     const variantText = variant ? ` (${variant.name})` : '';
+
+//     if (modalQty.value <= 0) {
+//         toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+//         return;
+//     }
+
+//     const variantName = variant ? variant.name : null;
+//     const variantPrice = variant
+//         ? parseFloat(variant.price)  
+//         : parseFloat(selectedItem.value.price); 
+
+//     const selectedAddons = getModalSelectedAddons();
+//     const addonsPrice = getModalAddonsPrice();
+//     const totalItemPrice = variantPrice + addonsPrice;
+//     const resaleDiscountPerItem = variant
+//         ? calculateResalePrice(variant, true)
+//         : calculateResalePrice(selectedItem.value, false);
+
+//     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+//     const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+//     if (modalQty.value > availableToAdd) {
+//         if (availableToAdd <= 0) {
+//             toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+//         } else {
+//             toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
+//             modalQty.value = availableToAdd;
+//         }
+//         return;
+//     }
+//     const removedIngredientsText = getRemovedIngredientsText();
+//     const ingredientStock = {};
+//     for (const item of orderItems.value) {
+//         const itemIngredients = getVariantIngredients(item, item.variant_id);
+//         itemIngredients.forEach(ing => {
+//             const ingredientId = ing.inventory_item_id;
+//             if (!ingredientStock[ingredientId]) {
+//                 ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
+//             }
+//             ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
+//         });
+//     }
+
+//     if (variantIngredients.length > 0) {
+//         for (const ing of variantIngredients) {
+//             const ingredientId = ing.inventory_item_id;
+//             const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
+//             const requiredQty = parseFloat(ing.quantity) * modalQty.value;
+
+//             if (availableStock < requiredQty) {
+//                 toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
+//                 return;
+//             }
+//         }
+//     }
+
+//     try {
+//         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
+//         const menuStock = variantIngredients.length > 0
+//             ? calculateStockForIngredients(variantIngredients)
+//             : 999999;
+
+//         const idx = orderItems.value.findIndex((i) => {
+//             if (i.variant_id !== variantId) return false;
+//             const itemAddonIds = (i.addons || [])
+//                 .map(a => a.id)
+//                 .sort((a, b) => a - b)
+//                 .join('-');
+//             return i.id === selectedItem.value.id && itemAddonIds === addonIds;
+//         });
+
+//         if (idx >= 0) {
+//             orderItems.value[idx].qty += modalQty.value;
+//             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
+//             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
+//             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
+//                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
+//                 const newNote = modalItemKitchenNote.value.trim();
+//                 const noteParts = [existingNote, newNote, removedIngredientsText]
+//                     .filter(Boolean)
+//                     .filter((v, i, a) => a.indexOf(v) === i);
+
+//                 orderItems.value[idx].item_kitchen_note = noteParts.join('; ');
+//             } else if (removedIngredientsText) {
+//                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
+//                 orderItems.value[idx].item_kitchen_note = [existingNote, removedIngredientsText]
+//                     .filter(Boolean)
+//                     .join('; ');
+//             }
+//             if (modalRemovedIngredients.value.length > 0) {
+//                 orderItems.value[idx].removed_ingredients = [...modalRemovedIngredients.value];
+//             }
+
+//             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
+//         } else {
+//             const finalKitchenNote = [modalItemKitchenNote.value.trim(), removedIngredientsText]
+//                 .filter(Boolean)
+//                 .join('. ');
+
+//             orderItems.value.push({
+//                 id: selectedItem.value.id,
+//                 title: selectedItem.value.title,
+//                 img: selectedItem.value.img,
+//                 price: totalItemPrice * modalQty.value, 
+//                 unit_price: Number(totalItemPrice),
+//                 qty: modalQty.value,
+//                 note: modalNote.value || "",
+//                 item_kitchen_note: finalKitchenNote, 
+//                 stock: menuStock,
+//                 ingredients: variantIngredients,
+//                 variant_id: variantId,
+//                 variant_name: variantName,
+//                 addons: selectedAddons,
+//                 removed_ingredients: [...modalRemovedIngredients.value], 
+//                 resale_discount_per_item: resaleDiscountPerItem,
+//                 total_resale_discount: resaleDiscountPerItem * modalQty.value,
+//             });
+
+//             toast.success(`${selectedItem.value.title} added to cart`);
+//         }
+
+//         await openPromoModal(selectedItem.value);
+
+//         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
+//         modal.hide();
+//         modalQty.value = 0;
+//         modalNote.value = "";
+//         modalItemKitchenNote.value = "";
+//         modalSelectedVariant.value = null;
+//         modalSelectedAddons.value = {};
+//         modalRemovedIngredients.value = [];
+
+//     } catch (err) {
+//         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
+//     }
+// };
+
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
+
+    if (modalQty.value <= 0) {
+        toast.error('Please select at least 1 item to add to cart');
+        return;
+    }
 
     const variant = getModalSelectedVariant();
     const variantId = variant ? variant.id : null;
     const variantText = variant ? ` (${variant.name})` : '';
-
-    if (modalQty.value <= 0) {
-        toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
-        return;
-    }
 
     const variantName = variant ? variant.name : null;
     const variantPrice = variant
@@ -853,42 +1157,8 @@ const confirmAdd = async () => {
         : calculateResalePrice(selectedItem.value, false);
 
     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
-    const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
 
-    if (modalQty.value > availableToAdd) {
-        if (availableToAdd <= 0) {
-            toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
-        } else {
-            toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
-            modalQty.value = availableToAdd;
-        }
-        return;
-    }
     const removedIngredientsText = getRemovedIngredientsText();
-    const ingredientStock = {};
-    for (const item of orderItems.value) {
-        const itemIngredients = getVariantIngredients(item, item.variant_id);
-        itemIngredients.forEach(ing => {
-            const ingredientId = ing.inventory_item_id;
-            if (!ingredientStock[ingredientId]) {
-                ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
-            }
-            ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
-        });
-    }
-
-    if (variantIngredients.length > 0) {
-        for (const ing of variantIngredients) {
-            const ingredientId = ing.inventory_item_id;
-            const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
-            const requiredQty = parseFloat(ing.quantity) * modalQty.value;
-
-            if (availableStock < requiredQty) {
-                toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
-                return;
-            }
-        }
-    }
 
     try {
         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
@@ -909,6 +1179,7 @@ const confirmAdd = async () => {
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
+
             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
                 const newNote = modalItemKitchenNote.value.trim();
@@ -923,6 +1194,7 @@ const confirmAdd = async () => {
                     .filter(Boolean)
                     .join('; ');
             }
+
             if (modalRemovedIngredients.value.length > 0) {
                 orderItems.value[idx].removed_ingredients = [...modalRemovedIngredients.value];
             }
@@ -955,7 +1227,7 @@ const confirmAdd = async () => {
             toast.success(`${selectedItem.value.title} added to cart`);
         }
 
-        await openPromoModal(selectedItem.value);
+        // await openPromoModal(selectedItem.value);
 
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
@@ -970,6 +1242,8 @@ const confirmAdd = async () => {
         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
     }
 };
+
+
 const calculateStockForIngredients = (ingredients) => {
     if (!ingredients || ingredients.length === 0) return 999999;
 
@@ -1035,20 +1309,56 @@ const canIncModalQty = () => {
     return (modalQty.value + 1) <= availableToAdd;
 };
 
-const incQty = () => {
-    if (!canIncModalQty()) {
-        const variant = getModalSelectedVariant();
-        const variantText = variant ? ` (${variant.name})` : '';
-        const variantId = variant ? variant.id : null;
-        const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
-        const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
-        if (availableToAdd <= 0) {
-            toast.error(`No more stock available for "${selectedItem.value?.title}${variantText}". Please remove some from cart first.`);
-        } else {
-            toast.error(`Not enough ingredients for "${selectedItem.value?.title}${variantText}".`);
-        }
+// const incQty = () => {
+//     if (!canIncModalQty()) {
+//         const variant = getModalSelectedVariant();
+//         const variantText = variant ? ` (${variant.name})` : '';
+//         const variantId = variant ? variant.id : null;
+//         const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+//         const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+//         if (availableToAdd <= 0) {
+//             toast.error(`No more stock available for "${selectedItem.value?.title}${variantText}". Please remove some from cart first.`);
+//         } else {
+//             toast.error(`Not enough ingredients for "${selectedItem.value?.title}${variantText}".`);
+//         }
+//         return;
+//     }
+//     modalQty.value++;
+// };
+
+
+const incQty = async () => {
+    if (!selectedItem.value) return;
+
+    const variant = getModalSelectedVariant();
+    const variantId = variant ? variant.id : null;
+    const variantIngredients = getModalIngredients();
+
+    // Check ingredients client-side
+    const stockCheck = calculateClientSideStock({
+        id: selectedItem.value.id,
+        title: selectedItem.value.title,
+        variant_id: variantId,
+        variant_name: variant ? variant.name : null,
+        ingredients: variantIngredients,
+        removed_ingredients: modalRemovedIngredients.value || []
+    }, modalQty.value + 1);
+    
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients for modal increment (client-side)');
+        
+        pendingModalIncrementData.value = {
+            currentQty: modalQty.value
+        };
+
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+        
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
+
+    // Normal increment
     modalQty.value++;
 };
 
@@ -1129,6 +1439,47 @@ const hasEnoughStockForOrder = () => {
     return true;
 };
 
+// const openConfirmModal = () => {
+//     if (orderItems.value.length === 0) {
+//         toast.error("Please add at least one item to the cart.");
+//         return;
+//     }
+//     if (orderType.value === "Dine_in" && !selectedTable.value) {
+//         formErrors.value.table_number = [
+//             "Table number is required for dine-in orders.",
+//         ];
+//         toast.error("Please select a table number for Dine In orders.");
+//         return;
+//     }
+//     if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
+//         formErrors.value.customer = [
+//             "Customer name is required.",
+//         ];
+//         toast.error("Customer name is required.");
+//         return;
+//     }
+//     if (orderType.value === "Delivery" && !phoneNumber.value) {
+//         formErrors.value.phoneNumber = [
+//             "Phone number is required for delivery.",
+//         ];
+//         toast.error("Phone number is required for delivery.");
+//         return;
+//     }
+//     if (orderType.value === "Delivery" && !deliveryLocation.value) {
+//         formErrors.value.deliveryLocation = [
+//             "Delivery location is required.",
+//         ];
+//         toast.error("Delivery location is required.");
+//         return;
+//     }
+//     if (!hasEnoughStockForOrder()) {
+//         return;
+//     }
+
+//     cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
+//     showConfirmModal.value = true;
+// };
+
 const openConfirmModal = () => {
     if (orderItems.value.length === 0) {
         toast.error("Please add at least one item to the cart.");
@@ -1162,12 +1513,35 @@ const openConfirmModal = () => {
         toast.error("Delivery location is required.");
         return;
     }
-    if (!hasEnoughStockForOrder()) {
-        return;
-    }
+
+    // ❌ REMOVED: Stock check
+    // if (!hasEnoughStockForOrder()) {
+    //     return;
+    // }
 
     cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
     showConfirmModal.value = true;
+};
+
+const incCartWithWarning = async (i) => {
+    const it = orderItems.value[i];
+    if (!it) return;
+
+    // Check stock but only show warning
+    if (!canIncCartItem(it)) {
+        const variantText = it.variant_name ? ` (${it.variant_name})` : '';
+        toast.warning(`Low stock for "${it.title}${variantText}". Missing items will be pending.`, {
+            autoClose: 2000
+        });
+    }
+
+    it.outOfStock = false;
+    it.qty++;
+    it.price = it.unit_price * it.qty;
+
+    if (it.resale_discount_per_item) {
+        it.total_resale_discount = it.resale_discount_per_item * it.qty;
+    }
 };
 
 
@@ -1402,7 +1776,48 @@ const clearDiscounts = () => {
     stopApprovalPolling();
 };
 
-// Confirm Order - Updated to use percentage-based discounts
+
+
+// ===============================================
+// MISSING INGREDIENTS HANDLING
+// ===============================================
+const showMissingIngredientsModal = ref(false);
+const missingIngredients = ref([]);
+const pendingIncrementData = ref(null);
+const pendingCardIncrementData = ref(null);
+const pendingModalIncrementData = ref(null);
+
+const checkMissingIngredientsForItem = async (item, requestedQty = 1) => {
+    try {
+        const itemsToCheck = [{
+            product_id: item.id,
+            title: item.title || 'Item',
+            quantity: requestedQty,
+            variant_id: item.variant_id || null,
+            variant_name: item.variant_name || null,
+            removed_ingredients: item.removed_ingredients || []
+        }];
+
+        const response = await axios.post('/pos/check-ingredients', {
+            items: itemsToCheck
+        });
+
+        if (response.data.success && response.data.missing_ingredients?.length > 0) {
+            return {
+                hasMissing: true,
+                missingData: response.data.missing_ingredients
+            };
+        }
+        
+        return { hasMissing: false };
+    } catch (error) {
+        console.error('Error checking ingredients:', error);
+        return { hasMissing: false };
+    }
+};
+
+const pendingOrderData = ref(null);
+
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
@@ -1413,6 +1828,7 @@ const confirmOrder = async ({
     done
 }) => {
     formErrors.value = {};
+
     try {
         const payload = {
             customer_name: customer.value,
@@ -1424,17 +1840,15 @@ const confirmOrder = async ({
             delivery_charges: deliveryCharges.value,
             sales_discount: totalResaleSavings.value,
 
-            // Send approved discounts with percentage and calculated amount
             approved_discounts: approvedDiscountTotal.value,
             approved_discount_details: selectedDiscounts.value.map(discount => ({
                 discount_id: discount.id,
                 discount_name: discount.name,
                 discount_percentage: discount.percentage,
-                discount_amount: getDiscountAmount(discount.percentage), // Calculated at order time
+                discount_amount: getDiscountAmount(discount.percentage),
                 approval_id: discount.approval_id
             })),
 
-            // Promo Details
             promo_discount: promoDiscount.value,
             applied_promos: selectedPromos.value.map(promo => ({
                 promo_id: promo.id,
@@ -1449,18 +1863,16 @@ const confirmOrder = async ({
             kitchen_note: kitchenNote.value,
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
-            order_type:
-                orderType.value === "Dine_in"
-                    ? "Dine In"
-                    : orderType.value === "Delivery"
-                        ? "Delivery"
-                        : orderType.value === "Takeaway"
-                            ? "Takeaway"
-                            : "Collection",
+            order_type: orderType.value === "Dine_in"
+                ? "Dine In"
+                : orderType.value === "Delivery"
+                    ? "Delivery"
+                    : orderType.value === "Takeaway"
+                        ? "Takeaway"
+                        : "Collection",
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
             auto_print_kot: autoPrintKot,
-
             cash_received: cashReceived,
             change: changeAmount,
 
@@ -1480,7 +1892,6 @@ const confirmOrder = async ({
                 }
 
                 const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
-                const originalPrice = parseFloat(sourceItem?.price || it.unit_price);
 
                 return {
                     product_id: it.id,
@@ -1500,9 +1911,15 @@ const confirmOrder = async ({
                     removed_ingredients: it.removed_ingredients || [],
                 };
             }),
+
+            // ✅ Since we check on increment, always confirm missing ingredients
+            confirm_missing_ingredients: true
         };
 
+        console.log('📤 Sending order');
+
         const res = await axios.post("/pos/order", payload);
+        console.log('✅ Order created successfully:', res.data);
 
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
@@ -1515,7 +1932,7 @@ const confirmOrder = async ({
 
         resetCart();
         showConfirmModal.value = false;
-        toast.success(res.data.message);
+        toast.success(res.data.message || "Order placed successfully!");
 
         lastOrder.value = {
             ...res.data.order,
@@ -1533,20 +1950,118 @@ const confirmOrder = async ({
 
         printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
 
-        // Clear discounts after successful order
         selectedPromos.value = [];
         selectedDiscounts.value = [];
         pendingDiscountApprovals.value = [];
         stopApprovalPolling();
 
     } catch (err) {
-        console.error("Order submission error:", err);
+        console.error("❌ Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
     } finally {
-        if (done) done();
+        if (done) {
+            done();
+        }
     }
 };
 
+const handleConfirmMissingIngredients = async () => {
+    console.log('✅ User confirmed missing ingredients');
+    showMissingIngredientsModal.value = false;
+
+    // Handle cart increment
+    if (pendingIncrementData.value) {
+        const { item, newQty } = pendingIncrementData.value;
+        
+        item.outOfStock = false;
+        item.qty = newQty;
+        item.price = item.unit_price * item.qty;
+
+        if (item.resale_discount_per_item) {
+            item.total_resale_discount = item.resale_discount_per_item * item.qty;
+        }
+
+        toast.success('Quantity updated');
+        pendingIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+
+    // Handle card increment
+    if (pendingCardIncrementData.value) {
+        const {
+            product,
+            variantId,
+            variantName,
+            variantPrice,
+            selectedAddons,
+            addonsPrice,
+            resaleDiscountPerItem,
+            existingIndex,
+            newQty
+        } = pendingCardIncrementData.value;
+
+        const totalItemPrice = variantPrice + addonsPrice;
+
+        if (existingIndex >= 0) {
+            orderItems.value[existingIndex].qty = newQty;
+            orderItems.value[existingIndex].price =
+                orderItems.value[existingIndex].unit_price * newQty;
+            orderItems.value[existingIndex].total_resale_discount =
+                resaleDiscountPerItem * newQty;
+            orderItems.value[existingIndex].outOfStock = false;
+            toast.success('Quantity updated');
+        } else {
+            const variantIngredients = getVariantIngredients(product, variantId);
+            const menuStock = calculateMenuStock(product);
+            
+            orderItems.value.push({
+                id: product.id,
+                title: product.title,
+                img: product.img,
+                price: totalItemPrice,
+                unit_price: Number(totalItemPrice),
+                qty: 1,
+                note: "",
+                stock: menuStock,
+                ingredients: variantIngredients,
+                variant_id: variantId,
+                variant_name: variantName,
+                addons: selectedAddons,
+                outOfStock: false,
+                resale_discount_per_item: resaleDiscountPerItem,
+                total_resale_discount: resaleDiscountPerItem,
+            });
+            toast.success('Item added to cart');
+        }
+
+        pendingCardIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+
+    // Handle modal increment
+    if (pendingModalIncrementData.value) {
+        modalQty.value = pendingModalIncrementData.value.currentQty + 1;
+        toast.success('Quantity increased');
+        pendingModalIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+};
+
+const handleCancelMissingIngredients = () => {
+    console.log('❌ User cancelled due to missing ingredients');
+    showMissingIngredientsModal.value = false;
+    missingIngredients.value = [];
+
+    // Clear all pending increment data
+    pendingIncrementData.value = null;
+    pendingCardIncrementData.value = null;
+    pendingModalIncrementData.value = null;
+
+    toast.info("Action cancelled");
+};
 /* ----------------------------
    Lifecycle
 -----------------------------*/
@@ -1997,41 +2512,89 @@ const canAddMore = (product) => {
 // ========================================
 // Fixed: Increment quantity from card with proper validation
 // ========================================
-const incrementCardQty = (product) => {
-    if (getProductStock(product) <= 0) {
-        return;
-    }
+// const incrementCardQty = (product) => {
+//     if (getProductStock(product) <= 0) {
+//         return;
+//     }
 
+//     const variant = getSelectedVariant(product);
+
+//     // CHANGED: Use ORIGINAL prices
+//     const variantPrice = variant
+//         ? parseFloat(variant.price)  
+//         : parseFloat(product.price); 
+
+//     const variantId = variant ? variant.id : null;
+//     const variantName = variant ? variant.name : null;
+
+//     const selectedAddons = getSelectedAddons(product);
+//     const addonsPrice = getAddonsPrice(product);
+//     const totalItemPrice = variantPrice + addonsPrice;
+//     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+
+//     // NEW: Calculate resale discount
+//     const resaleDiscountPerItem = variant
+//         ? calculateResalePrice(variant, true)
+//         : calculateResalePrice(product, false);
+
+//     const variantIngredients = getVariantIngredients(product, variantId);
+
+//     if (!canAddMore(product)) {
+//         if (variantIngredients.length > 0) {
+//             const variantText = variantName ? ` (${variantName})` : '';
+//             toast.error(`Not enough ingredients for "${product.title}${variantText}".`);
+//         }
+//         return;
+//     }
+
+//     const existingIndex = orderItems.value.findIndex(item => {
+//         const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
+//         return item.id === product.id &&
+//             item.variant_id === variantId &&
+//             itemAddonIds === addonIds;
+//     });
+
+//     if (existingIndex >= 0) {
+//         orderItems.value[existingIndex].qty++;
+//         orderItems.value[existingIndex].price =
+//             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
+
+//         // Update total discount
+//         orderItems.value[existingIndex].total_resale_discount =
+//             resaleDiscountPerItem * orderItems.value[existingIndex].qty;
+
+//         orderItems.value[existingIndex].outOfStock = false;
+//     } else {
+//         const menuStock = calculateMenuStock(product);
+//         orderItems.value.push({
+//             id: product.id,
+//             title: product.title,
+//             img: product.img,
+//             price: totalItemPrice, // Original price
+//             unit_price: Number(totalItemPrice), // Original price
+//             qty: 1,
+//             note: "",
+//             stock: menuStock,
+//             ingredients: variantIngredients,
+//             variant_id: variantId,
+//             variant_name: variantName,
+//             addons: selectedAddons,
+//             outOfStock: false,
+
+//             // NEW: Store resale discount info
+//             resale_discount_per_item: resaleDiscountPerItem,
+//             total_resale_discount: resaleDiscountPerItem,
+//         });
+//     }
+// };
+
+const incrementCardQty = async (product) => {
     const variant = getSelectedVariant(product);
-
-    // CHANGED: Use ORIGINAL prices
-    const variantPrice = variant
-        ? parseFloat(variant.price)  // Original price
-        : parseFloat(product.price); // Original price
-
     const variantId = variant ? variant.id : null;
-    const variantName = variant ? variant.name : null;
-
     const selectedAddons = getSelectedAddons(product);
-    const addonsPrice = getAddonsPrice(product);
-    const totalItemPrice = variantPrice + addonsPrice;
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
-    // NEW: Calculate resale discount
-    const resaleDiscountPerItem = variant
-        ? calculateResalePrice(variant, true)
-        : calculateResalePrice(product, false);
-
-    const variantIngredients = getVariantIngredients(product, variantId);
-
-    if (!canAddMore(product)) {
-        if (variantIngredients.length > 0) {
-            const variantText = variantName ? ` (${variantName})` : '';
-            toast.error(`Not enough ingredients for "${product.title}${variantText}".`);
-        }
-        return;
-    }
-
+    // Find existing item in cart
     const existingIndex = orderItems.value.findIndex(item => {
         const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
         return item.id === product.id &&
@@ -2039,40 +2602,92 @@ const incrementCardQty = (product) => {
             itemAddonIds === addonIds;
     });
 
+    let newQty = 1;
+    let existingItem = null;
+    const variantIngredients = getVariantIngredients(product, variantId);
+
+    if (existingIndex >= 0) {
+        existingItem = orderItems.value[existingIndex];
+        newQty = existingItem.qty + 1;
+    }
+
+    // Check ingredients client-side
+    const stockCheck = calculateClientSideStock({
+        id: product.id,
+        title: product.title,
+        variant_id: variantId,
+        variant_name: variant ? variant.name : null,
+        ingredients: variantIngredients,
+        removed_ingredients: existingItem?.removed_ingredients || [],
+        addons: selectedAddons
+    }, newQty);
+    
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients for card increment (client-side)');
+        
+        const variantPrice = variant ? parseFloat(variant.price) : parseFloat(product.price);
+        const addonsPrice = getAddonsPrice(product);
+        const resaleDiscountPerItem = variant
+            ? calculateResalePrice(variant, true)
+            : calculateResalePrice(product, false);
+
+        pendingCardIncrementData.value = {
+            product,
+            variant,
+            variantId,
+            variantName: variant ? variant.name : null,
+            variantPrice,
+            selectedAddons,
+            addonsPrice,
+            resaleDiscountPerItem,
+            existingIndex,
+            newQty
+        };
+
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+        
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
+        return;
+    }
+
+    // Normal increment
+    const variantPrice = variant ? parseFloat(variant.price) : parseFloat(product.price);
+    const addonsPrice = getAddonsPrice(product);
+    const totalItemPrice = variantPrice + addonsPrice;
+    const resaleDiscountPerItem = variant
+        ? calculateResalePrice(variant, true)
+        : calculateResalePrice(product, false);
+
     if (existingIndex >= 0) {
         orderItems.value[existingIndex].qty++;
         orderItems.value[existingIndex].price =
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
-
-        // Update total discount
         orderItems.value[existingIndex].total_resale_discount =
             resaleDiscountPerItem * orderItems.value[existingIndex].qty;
-
         orderItems.value[existingIndex].outOfStock = false;
     } else {
         const menuStock = calculateMenuStock(product);
+        
         orderItems.value.push({
             id: product.id,
             title: product.title,
             img: product.img,
-            price: totalItemPrice, // Original price
-            unit_price: Number(totalItemPrice), // Original price
+            price: totalItemPrice,
+            unit_price: Number(totalItemPrice),
             qty: 1,
             note: "",
             stock: menuStock,
             ingredients: variantIngredients,
             variant_id: variantId,
-            variant_name: variantName,
+            variant_name: variant ? variant.name : null,
             addons: selectedAddons,
             outOfStock: false,
-
-            // NEW: Store resale discount info
             resale_discount_per_item: resaleDiscountPerItem,
             total_resale_discount: resaleDiscountPerItem,
         });
     }
 };
-
 
 // ========================================
 // Fixed: Decrement quantity from card
@@ -2305,6 +2920,7 @@ const getSelectedAddonsCount = () => {
 import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
+import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
 
 const user = computed(() => page.props.current_user);
 
@@ -2872,9 +3488,8 @@ const getModalTotalPriceWithResale = () => {
                                                 </div>
                                                 <button
                                                     class="qty-btn btn btn-outline-secondary rounded-circle px-2 py-2"
-                                                    style="width: 55px; height: 36px;" @click.stop="incrementCardQty(p)"
-                                                    :disabled="!canAddMore(p) || getProductStock(p) <= 0"
-                                                    :class="{ 'opacity-50': getProductStock(p) <= 0 }">
+                                                    style="width: 55px; height: 36px;"
+                                                    @click.stop="incrementCardQty(p)">
                                                     <strong>+</strong>
                                                 </button>
                                             </div>
@@ -3033,11 +3648,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="qty-controls">
                                                 <button class="qty-btn" @click="decCart(i)">−</button>
                                                 <div class="qty">{{ it.qty }}</div>
-                                                <button class="qty-btn" @click="incCart(i)"
-                                                    :disabled="it.outOfStock || !canIncCartItem(it)"
-                                                    :class="{ 'bg-secondary text-white cursor-not-allowed opacity-70': it.outOfStock || !canIncCartItem(it) }">
-                                                    +
-                                                </button>
+                                                <button class="qty-btn" @click="incCart(i)">+</button>
                                             </div>
 
                                             <!-- Price and Delete Below -->
@@ -3357,15 +3968,11 @@ const getModalTotalPriceWithResale = () => {
 
                                     <!-- Quantity Controls -->
                                     <div class="qty-group gap-1">
-                                        <button class="qty-btn" @click="decQty">
-                                            −
-                                        </button>
+                                        <button class="qty-btn" @click="decQty">−</button>
                                         <div class="qty-box rounded-pill">
                                             {{ modalQty }}
                                         </div>
-                                        <button class="qty-btn" @click="incQty" :disabled="!canIncModalQty()">
-                                            +
-                                        </button>
+                                        <button class="qty-btn" @click="incQty">+</button>
                                     </div>
 
                                     <!-- Kitchen Note Field  -->
@@ -3576,6 +4183,12 @@ const getModalTotalPriceWithResale = () => {
                 :loading="loadingDiscounts" :applied-discounts="selectedDiscounts"
                 :rejected-discounts="rejectedDiscounts" @close="showDiscountModal = false"
                 @apply-discount="handleApplyDiscount" @clear-discount="clearDiscounts" />
+
+            <ConfirmMissingIngredientsModal :show="showMissingIngredientsModal"
+                :missing-ingredients="missingIngredients"
+                @close="showMissingIngredientsModal = false; pendingOrderData = null"
+                @confirm="handleConfirmMissingIngredients" />
+            
         </div>
     </Master>
 </template>
