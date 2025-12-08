@@ -98,79 +98,79 @@ class MenuCategoryService
     // }
 
     public function createCategories(array $data): array
-{
-    try {
-        DB::beginTransaction();
+    {
+        try {
+            DB::beginTransaction();
 
-        $createdCategories = [];
-        $isSubCategory = $data['isSubCategory'] ?? false;
+            $createdCategories = [];
+            $isSubCategory = $data['isSubCategory'] ?? false;
 
-        // Handle icon upload once for all categories in this batch
-        $uploadId = null;
-        if (!empty($data['icon'])) {
-            $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
-            $uploadId = $upload->id;
-        }
+            // Handle icon upload once for all categories in this batch
+            $uploadId = null;
+            if (!empty($data['icon'])) {
+                $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
+                $uploadId = $upload->id;
+            }
 
-        if (!empty($data['categories'])) {
-            foreach ($data['categories'] as $cat) {
-                // Validation based on subcategory flag
-                if ($isSubCategory) {
-                    if (empty($cat['parent_id'])) {
-                        throw new Exception('Subcategory must have a parent_id');
+            if (!empty($data['categories'])) {
+                foreach ($data['categories'] as $cat) {
+                    // Validation based on subcategory flag
+                    if ($isSubCategory) {
+                        if (empty($cat['parent_id'])) {
+                            throw new Exception('Subcategory must have a parent_id');
+                        }
+
+                        $parent = MenuCategory::where('id', $cat['parent_id'])
+                            ->whereNull('parent_id')
+                            ->first();
+
+                        if (!$parent) {
+                            throw new Exception('Invalid parent category');
+                        }
+                    } else {
+                        if (!empty($cat['parent_id'])) {
+                            throw new Exception('Parent category cannot have parent_id');
+                        }
                     }
 
-                    $parent = MenuCategory::where('id', $cat['parent_id'])
-                        ->whereNull('parent_id')
+                    // Skip duplicates
+                    $existing = MenuCategory::where('name', $cat['name'])
+                        ->where('parent_id', $cat['parent_id'] ?? null)
                         ->first();
 
-                    if (!$parent) {
-                        throw new Exception('Invalid parent category');
+                    if ($existing) {
+                        continue;
                     }
-                } else {
-                    if (!empty($cat['parent_id'])) {
-                        throw new Exception('Parent category cannot have parent_id');
-                    }
+
+                    // Create category
+                    $category = $this->createSingleCategory([
+                        'name'      => $cat['name'],
+                        'upload_id' => $uploadId,
+                        'active'    => $cat['active'] ?? true,
+                        'parent_id' => $cat['parent_id'] ?? null,
+                    ]);
+
+                    $createdCategories[] = $category;
                 }
-
-                // Skip duplicates
-                $existing = MenuCategory::where('name', $cat['name'])
-                    ->where('parent_id', $cat['parent_id'] ?? null)
-                    ->first();
-
-                if ($existing) {
-                    continue;
-                }
-
-                // Create category
-                $category = $this->createSingleCategory([
-                    'name'      => $cat['name'],
-                    'upload_id' => $uploadId,
-                    'active'    => $cat['active'] ?? true,
-                    'parent_id' => $cat['parent_id'] ?? null,
-                ]);
-
-                $createdCategories[] = $category;
             }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'Categories created successfully',
+                'data' => $createdCategories,
+                'count' => count($createdCategories),
+            ];
+        } catch (Exception $e) {
+            DB::rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to create categories: ' . $e->getMessage(),
+                'data' => null,
+            ];
         }
-
-        DB::commit();
-
-        return [
-            'success' => true,
-            'message' => 'Categories created successfully',
-            'data' => $createdCategories,
-            'count' => count($createdCategories),
-        ];
-    } catch (Exception $e) {
-        DB::rollback();
-        return [
-            'success' => false,
-            'message' => 'Failed to create categories: ' . $e->getMessage(),
-            'data' => null,
-        ];
     }
-}
 
 
     /**
@@ -198,19 +198,19 @@ class MenuCategoryService
     // }
 
     private function createSingleCategory(array $categoryData): MenuCategory
-{
-    return MenuCategory::create([
-        'name'       => $categoryData['name'],
-        'upload_id'  => $categoryData['upload_id'] ?? null,
-        'active'     => $categoryData['active'] ?? true,
-        'parent_id'  => $categoryData['parent_id'] ?? null,
-        'total_value' => 0,
-        'total_items' => 0,
-        'out_of_stock' => 0,
-        'low_stock' => 0,
-        'in_stock' => 0,
-    ]);
-}
+    {
+        return MenuCategory::create([
+            'name'       => $categoryData['name'],
+            'upload_id'  => $categoryData['upload_id'] ?? null,
+            'active'     => $categoryData['active'] ?? true,
+            'parent_id'  => $categoryData['parent_id'] ?? null,
+            'total_value' => 0,
+            'total_items' => 0,
+            'out_of_stock' => 0,
+            'low_stock' => 0,
+            'in_stock' => 0,
+        ]);
+    }
 
 
     /**
@@ -223,19 +223,19 @@ class MenuCategoryService
     //     return MenuCategory::with(['subcategories', 'parent'])->get();
     // }
     public function getAllCategories()
-{
-    return MenuCategory::with(['subcategories'])
-        ->get()
-        ->map(function ($cat) {
-            $cat->image_url = UploadHelper::url($cat->upload_id);
-            if ($cat->subcategories) {
-                $cat->subcategories->each(function ($sub) {
-                    $sub->image_url = UploadHelper::url($sub->upload_id);
-                });
-            }
-            return $cat;
-        });
-}
+    {
+        return MenuCategory::with(['subcategories'])
+            ->get()
+            ->map(function ($cat) {
+                $cat->image_url = UploadHelper::url($cat->upload_id);
+                if ($cat->subcategories) {
+                    $cat->subcategories->each(function ($sub) {
+                        $sub->image_url = UploadHelper::url($sub->upload_id);
+                    });
+                }
+                return $cat;
+            });
+    }
 
 
     /**
@@ -367,56 +367,56 @@ class MenuCategoryService
     // }
 
     public function updateCategory(int $id, array $data): array
-{
-    try {
-        DB::beginTransaction();
+    {
+        try {
+            DB::beginTransaction();
 
-        $category = MenuCategory::find($id);
-        if (!$category) {
+            $category = MenuCategory::find($id);
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'message' => 'Category not found',
+                    'data' => null,
+                ];
+            }
+
+            // Handle new image upload if provided
+            $uploadId = $category->upload_id;
+            if (!empty($data['icon'])) {
+                $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
+                $uploadId = $upload->id;
+
+                // Delete old file if exists
+                if ($category->upload_id) {
+                    UploadHelper::delete($category->upload_id);
+                }
+            }
+
+            $category->update([
+                'name' => $data['name'] ?? $category->name,
+                'upload_id' => $uploadId,
+                'active' => $data['active'] ?? $category->active,
+                'parent_id' => $data['parent_id'] ?? $category->parent_id,
+            ]);
+
+            DB::commit();
+
+            $updated = MenuCategory::with(['subcategories', 'parent'])->find($id);
+
+            return [
+                'success' => true,
+                'message' => 'Category updated successfully',
+                'data' => $updated,
+            ];
+        } catch (Exception $e) {
+            DB::rollback();
             return [
                 'success' => false,
-                'message' => 'Category not found',
+                'message' => $e->getMessage(),
                 'data' => null,
             ];
         }
-
-        // Handle new image upload if provided
-        $uploadId = $category->upload_id;
-        if (!empty($data['icon'])) {
-            $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
-            $uploadId = $upload->id;
-
-            // Delete old file if exists
-            if ($category->upload_id) {
-                UploadHelper::delete($category->upload_id);
-            }
-        }
-
-        $category->update([
-            'name' => $data['name'] ?? $category->name,
-            'upload_id' => $uploadId,
-            'active' => $data['active'] ?? $category->active,
-            'parent_id' => $data['parent_id'] ?? $category->parent_id,
-        ]);
-
-        DB::commit();
-
-        $updated = MenuCategory::with(['subcategories', 'parent'])->find($id);
-
-        return [
-            'success' => true,
-            'message' => 'Category updated successfully',
-            'data' => $updated,
-        ];
-    } catch (Exception $e) {
-        DB::rollback();
-        return [
-            'success' => false,
-            'message' => $e->getMessage(),
-            'data' => null,
-        ];
     }
-}
 
     /**
      * Delete category
@@ -439,10 +439,32 @@ class MenuCategoryService
                 ];
             }
 
-            // Delete all subcategories of this category
+            // ❗ Check if category is in use by menu items
+            if ($category->menuItems()->count() > 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Cannot delete. Category is already used in menu items.',
+                    'data' => null
+                ];
+            }
+
+            // ❗ Check if any subcategory is also used
+            $subCategoryIds = MenuCategory::where('parent_id', $id)->pluck('id');
+
+            $usedSubCategories = MenuItem::whereIn('category_id', $subCategoryIds)->count();
+
+            if ($usedSubCategories > 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Cannot delete. One or more subcategories are used in menu items.',
+                    'data' => null
+                ];
+            }
+
+            // Delete subcategories
             MenuCategory::where('parent_id', $id)->delete();
 
-            // Delete the parent category
+            // Delete main category
             $category->delete();
 
             DB::commit();
@@ -463,6 +485,7 @@ class MenuCategoryService
             ];
         }
     }
+
 
 
     /**
