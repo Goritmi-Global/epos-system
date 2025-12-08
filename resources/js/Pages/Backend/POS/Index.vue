@@ -1173,7 +1173,7 @@ const printReceipt = async (order) => {
     `http://localhost:8085/print`,
     { order, type: 'customer' },
     {
-      headers: { 'X-Print-Token': TOKEN, "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json" },
       timeout: 5000,
     },
   );
@@ -1204,7 +1204,7 @@ const printKot = async (order) => {
     `http://localhost:8085/print`,
     { order, type: 'KOT' },
     {
-      headers: { 'X-Print-Token': TOKEN, "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json" },
       timeout: 5000,
     },
   );
