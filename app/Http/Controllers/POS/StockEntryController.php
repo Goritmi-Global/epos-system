@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
-use App\Services\POS\StockEntryService;
 use App\Http\Requests\Inventory\StoreStockEntryRequest;
 use App\Http\Requests\Inventory\UpdateStockEntryRequest;
-use App\Models\StockEntry;
 use App\Models\InventoryItem;
+use App\Models\StockEntry;
 use App\Models\StockOutAllocation;
-use Illuminate\Http\Request;
+use App\Services\POS\StockEntryService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class StockEntryController extends Controller
 {
@@ -29,9 +29,10 @@ class StockEntryController extends Controller
     public function store(StoreStockEntryRequest $request)
     {
         $entry = $this->service->create($request->validated());
+
         return response()->json([
             'message' => 'Stock Entry created successfully',
-            'data' => $entry
+            'data' => $entry,
         ], 201);
     }
 
@@ -39,12 +40,14 @@ class StockEntryController extends Controller
     public function show($id)
     {
         $entry = $this->service->list([])->find($id);
+
         return response()->json($entry);
     }
 
     public function totalStock($productId)
     {
         $total = $this->service->totalStock($productId);
+
         return response()->json($total);
     }
 
@@ -64,6 +67,7 @@ class StockEntryController extends Controller
     public function stockLogs()
     {
         $logs = $this->service->getStockLogs();
+
         return response()->json($logs);
     }
 
@@ -84,13 +88,14 @@ class StockEntryController extends Controller
         if ($deleted) {
             return response()->json(['message' => 'Stock log deleted successfully']);
         }
+
         return response()->json(['message' => 'Failed to delete log'], 500);
     }
 
     public function byItem(InventoryItem $inventory)
     {
-        $today   = Carbon::today();
-        $cutoff  = Carbon::today()->addDays(15);
+        $today = Carbon::today();
+        $cutoff = Carbon::today()->addDays(15);
 
         $rows = StockEntry::query()
             ->forItem($inventory->id)
@@ -116,28 +121,28 @@ class StockEntryController extends Controller
             }
 
             return [
-                'id'                 => $r->id,
-                'quantity'           => (float) $r->quantity,
+                'id' => $r->id,
+                'quantity' => (float) $r->quantity,
                 'allocated_quantity' => $allocated,              // ✅ NEW
                 'available_quantity' => $available,              // ✅ NEW
-                'price'              => (float) $r->price,
-                'value'              => (float) $r->value,
-                'description'        => $r->description,
-                'purchase_date'      => optional($r->purchase_date)->format('Y-m-d'),
-                'expiry_date'        => optional($r->expiry_date)->format('Y-m-d'),
-                'created_at'         => optional($r->created_at)->format('Y-m-d H:i'),
-                'status'             => $status, // active | near | expired
+                'price' => (float) $r->price,
+                'value' => (float) $r->value,
+                'description' => $r->description,
+                'purchase_date' => optional($r->purchase_date)->format('Y-m-d'),
+                'expiry_date' => optional($r->expiry_date)->format('Y-m-d'),
+                'created_at' => optional($r->created_at)->format('Y-m-d H:i'),
+                'status' => $status, // active | near | expired
             ];
         });
 
         return response()->json([
             'success' => true,
             'data' => [
-                'records'        => $mapped,
-                'near_count'     => $mapped->where('status', 'near')->count(),
-                'near_qty'       => $mapped->where('status', 'near')->sum('available_quantity'),
-                'expired_count'  => $mapped->where('status', 'expired')->count(),
-                'expired_qty'    => $mapped->where('status', 'expired')->sum('available_quantity'),
+                'records' => $mapped,
+                'near_count' => $mapped->where('status', 'near')->count(),
+                'near_qty' => $mapped->where('status', 'near')->sum('available_quantity'),
+                'expired_count' => $mapped->where('status', 'expired')->count(),
+                'expired_qty' => $mapped->where('status', 'expired')->sum('available_quantity'),
             ],
         ]);
     }
@@ -148,5 +153,85 @@ class StockEntryController extends Controller
         $allocations = $this->service->getAllocations((int) $id);
 
         return response()->json($allocations);
+    }
+
+    // Add this method in StockEntryController
+    public function apiStockInLogs(Request $request)
+    {
+        $logs = StockEntry::query()
+            ->where('stock_type', 'stockin')
+            ->with(['product', 'category', 'supplier'])
+            ->when($request->q, function ($q, $search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->whereHas('product', function ($query) use ($search) {
+                        $query->where('name', 'like', "%{$search}%");
+                    })
+                        ->orWhere('quantity', 'like', "%{$search}%")
+                        ->orWhere('operation_type', 'like', "%{$search}%")
+                        ->orWhereHas('category', function ($query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->latest()
+            ->paginate($request->per_page ?? 10);
+
+        // Transform the data to match your component structure
+        $logs->getCollection()->transform(function ($entry) {
+            return [
+                'id' => $entry->id,
+                'itemName' => $entry->product->name ?? 'N/A',
+                'quantity' => $entry->quantity,
+                'unitPrice' => $entry->price,
+                'totalPrice' => $entry->quantity * $entry->price,
+                'category' => $entry->category ?? $entry->product->category ?? '',
+                'dateTime' => $entry->created_at->toIso8601String(),
+                'expiryDate' => $entry->expiry_date,
+                'operationType' => $entry->operation_type,
+                'type' => $entry->stock_type,
+                'supplier' => $entry->supplier->name ?? '',
+            ];
+        });
+
+        return response()->json($logs);
+    }
+
+    // Similarly, add this for Stock Out logs
+    public function apiStockOutLogs(Request $request)
+    {
+        $logs = StockEntry::query()
+            ->where('stock_type', 'stockout')
+            ->with(['product', 'category'])
+            ->when($request->q, function ($q, $search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->whereHas('product', function ($query) use ($search) {
+                        $query->where('name', 'like', "%{$search}%");
+                    })
+                        ->orWhere('quantity', 'like', "%{$search}%")
+                        ->orWhere('operation_type', 'like', "%{$search}%")
+                        ->orWhereHas('category', function ($query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->latest()
+            ->paginate($request->per_page ?? 10);
+
+        $logs->getCollection()->transform(function ($entry) {
+            return [
+                'id' => $entry->id,
+                'itemName' => $entry->product->name ?? 'N/A',
+                'quantity' => $entry->quantity,
+                'unitPrice' => $entry->price ?? 0,
+                'totalPrice' => $entry->value ?? 0,
+                'category' => $entry->category ?? $entry->product->category ?? '',
+                'dateTime' => $entry->created_at->toIso8601String(),
+                'operationType' => $entry->operation_type,
+                'type' => $entry->stock_type,
+                'description' => $entry->description ?? '',
+            ];
+        });
+
+        return response()->json($logs);
     }
 }

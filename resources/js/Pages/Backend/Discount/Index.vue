@@ -1291,6 +1291,10 @@ const downloadExcel = (data) => {
 .list-group {
     color: #121212 !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 .search-wrap i {
     position: absolute;

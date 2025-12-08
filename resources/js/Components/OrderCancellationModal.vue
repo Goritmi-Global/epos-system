@@ -3,15 +3,28 @@
         <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-drop-in relative">
                 <!-- Close Button -->
-                <button
-                    class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
-                    @click="handleCancel" 
-                    title="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                  <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                         @click="handleCancel" 
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        title="Close"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
 
                 <!-- Icon -->
                 <div class="flex justify-center mb-4">
@@ -67,9 +80,7 @@
                         :disabled="loading"
                         class="btn btn-danger d-flex align-items-center gap-2 px-4 py-2 rounded-pill text-white">
                         <span v-if="loading" class="spinner-border spinner-border-sm" role="status"></span>
-                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                      
                         {{ loading ? 'Cancelling...' : 'Cancel Order' }}
                     </button>
                     <button 
@@ -78,9 +89,7 @@
                         class="btn btn-secondary d-flex align-items-center gap-2 px-4 py-2 rounded-pill text-white">
                         
                         Keep Order
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        
                     </button>
                 </div>
             </div>
@@ -167,8 +176,16 @@ const formatCurrency = (amount) => {
     color: #f9fafb;
 }
 
+.dark .text-gray-700{
+    color: #fff !important;
+}
+
 .dark .text-gray-600 {
     color: #d1d5db;
+}
+
+.dark .text-gray-500{
+    color: #fff !important;
 }
 
 .dark .bg-gray-50 {

@@ -663,6 +663,10 @@ onMounted(fetchPrinters);
 .dark .icon-wrap {
     color: #fff !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 .kpi-label {
     font-size: 0.875rem;

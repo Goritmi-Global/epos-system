@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('pos_order_types', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pos_order_id')->constrained('pos_orders')->onDelete('cascade');
-            $table->enum('order_type', ['Dine In', 'Delivery', 'Collection', 'Takeaway']);
+            $table->enum('order_type', ['Eat In', 'Delivery', 'Collection', 'Takeaway']);
             $table->string('table_number')->nullable();
             $table->timestamps();
         });

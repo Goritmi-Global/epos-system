@@ -56,11 +56,11 @@ watch(
       },
     };
 
-    if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
+    if (form.order_types.includes("eat_in") && form.table_management_enabled === 1) {
       payload.data.tables = form.tables;
       payload.data.table_details = form.table_details;
     }
-    if (!(form.order_types.includes("dine_in") && form.table_management_enabled === 1)) {
+    if (!(form.order_types.includes("eat_in") && form.table_management_enabled === 1)) {
       delete payload.data.tables;
       delete payload.data.table_details;
     }
@@ -82,7 +82,7 @@ watch(
       },
     }
 
-    if (form.order_types.includes("dine_in") && form.table_management_enabled === 1) {
+    if (form.order_types.includes("eat_in") && form.table_management_enabled === 1) {
       payload.data.table_management_enabled = 1
       payload.data.tables = form.tables
       payload.data.table_details = form.table_details
@@ -105,7 +105,7 @@ function toggle(type) {
 watch(
   () => form.order_types,
   (orderTypes) => {
-    if (!orderTypes.includes("dine_in")) {
+    if (!orderTypes.includes("eat_in")) {
       form.table_management_enabled = 0
       form.tables = 0
       form.table_details = []
@@ -116,7 +116,7 @@ watch(
 
 
 const types = [
-  { key: 'dine_in', label: 'Dine-in', variant: 'default' },
+  { key: 'eat_in', label: 'Eat In', variant: 'default' },
   { key: 'takeaway', label: 'Takeaway', variant: 'primary' },
   { key: 'delivery', label: 'Delivery', variant: 'success' },
   // { key: 'collection', label: 'Collection', variant: 'warning' }
@@ -157,7 +157,7 @@ const hasTableDetailsError = computed(() => {
     </div>
 
     <!-- Table management -->
-    <div v-if="form.order_types.includes('dine_in')" class="mb-3">
+    <div v-if="form.order_types.includes('eat_in')" class="mb-3">
       <label class="form-label d-block mb-2">Enable Table Management?</label>
       <div class="segmented">
         <!-- YES option -->
@@ -179,11 +179,11 @@ const hasTableDetailsError = computed(() => {
       </small>
     </div>
 
-    <div v-if="form.table_management_enabled === 1 && form.order_types.includes('dine_in')" class="mb-3"
+    <div v-if="form.table_management_enabled === 1 && form.order_types.includes('eat_in')" class="mb-3"
       style="max-width:420px">
       <label class="form-label">Number of Tables</label>
 
-      <div v-if="form.order_types.includes('dine_in')" class="d-flex align-items-center gap-2">
+      <div v-if="form.order_types.includes('eat_in')" class="d-flex align-items-center gap-2">
         <input type="number" min="1" class="form-control" :class="{ 'is-invalid': formErrors?.tables }"
           v-model.number="form.tables" @input="emitSave" />
 

@@ -538,6 +538,10 @@ onUpdated(() => window.feather?.replace());
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
