@@ -937,7 +937,7 @@ const downloadCSV = (data) => {
             return [
                 `"${category.name || ""}"`,
                 `"${subcategoryNames}"`,
-                `${category.active ? 1 : 0}`,
+                `${category.active ? 'Yes' : 'No'}`,
             ];
         });
 
@@ -1001,7 +1001,7 @@ const downloadPDF = (data) => {
             return [
                 category.name || "",
                 subcategoryNames,
-                category.active ? "1" : "0",
+                category.active ? "Yes" : "No",
             ];
         });
 
@@ -1066,7 +1066,7 @@ const downloadExcel = (data) => {
             return {
                 Category: category.name || "",
                 Subcategory: subcategoryNames,
-                Active: category.active ? "1" : "0",
+                Active: category.active ? "Yes" : "No",
             }
         });
 
@@ -1296,11 +1296,11 @@ const handleImport = (data) => {
                                     <th>Category</th>
                                     <th>Sub Category</th>
                                     <th>Icon</th>
-                                    <th>Total value</th>
+                                    <!-- <th>Total value</th> -->
                                     <th>Total Item</th>
-                                    <th>Out of Stock</th>
-                                    <th>Low Stock</th>
-                                    <th>In Stock</th>
+                                    <!-- <th>Out of Stock</th> -->
+                                    <!-- <th>Low Stock</th> -->
+                                    <!-- <th>In Stock</th> -->
                                     <th>Status</th>
                                     <th class="text-center">Action</th>
                                 </tr>
@@ -1346,11 +1346,11 @@ const handleImport = (data) => {
                                             <span v-else class="fs-5">📦</span>
                                         </div>
                                     </td>
-                                    <td>{{ formatCurrencySymbol(row.total_value) }}</td>
+                                    <!-- <td>{{ formatCurrencySymbol(row.total_value) }}</td> -->
                                     <td>{{ row.total_menu_items }}</td>
-                                    <td>{{ row.out_of_stock }}</td>
-                                    <td>{{ row.low_stock }}</td>
-                                    <td>{{ row.in_stock }}</td>
+                                    <!-- <td>{{ row.out_of_stock }}</td> -->
+                                    <!-- <td>{{ row.low_stock }}</td> -->
+                                    <!-- <td>{{ row.in_stock }}</td> -->
                                     <td>
                                         <span :class="[
                                             'badge',
@@ -1694,6 +1694,10 @@ const handleImport = (data) => {
     border-radius: 55%;
     background-color: #fff !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 .dark .side-link {
     border-radius: 55%;

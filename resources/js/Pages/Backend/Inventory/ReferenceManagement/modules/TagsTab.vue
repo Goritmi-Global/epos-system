@@ -609,6 +609,11 @@ const handleImport = (data) => {
     --brand: #1c0d82;
 }
 
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
+
 .btn-primary {
     background: var(--brand);
     border-color: var(--brand);

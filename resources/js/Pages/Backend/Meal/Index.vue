@@ -634,6 +634,10 @@ const handleImport = (data) => {
     background: #f8f9fa;
 }
 
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 .dark .p-select {
     background-color: #121212 !important;

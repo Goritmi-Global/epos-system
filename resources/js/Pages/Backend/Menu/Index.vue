@@ -3297,6 +3297,10 @@ const format = (val) => {
 .custom-card-header {
     padding: 5px 20px !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 .dark .bg-light {
     background-color: #212121 !important;

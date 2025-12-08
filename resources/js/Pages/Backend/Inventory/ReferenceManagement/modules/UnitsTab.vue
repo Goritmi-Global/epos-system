@@ -817,6 +817,11 @@ const handleImport = (data) => {
     z-index: 1050 !important;
 }
 
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
+
 .table-container {
     overflow: visible !important;
 }

@@ -4,6 +4,7 @@ import { toast } from "vue3-toastify";
 import axios from "axios";
 import { Pencil, Eye } from "lucide-vue-next";
 import { nextTick } from "vue";
+import Pagination from "@/Components/Pagination.vue";
 
 
 import { useFormatters } from '@/composables/useFormatters'
@@ -17,27 +18,61 @@ const props = defineProps({
 const emit = defineEmits(["updated"]);
 
 /* --------- Filters (keep logic) --------- */
-const filtered = computed(() => {
-    const t = (props.q || "").trim().toLowerCase();
-    const base = props.logs.filter((r) => r.type === "stockin");
-    if (!t) return base;
-    return base.filter((r) =>
-        [
-            r.itemName,
-            r.category?.name || r.category || "",
-            r.operationType,
-            r.type,
-            String(r.quantity),
-            String(r.unitPrice),
-            String(r.totalPrice),
-            r.expiryDate ?? "",
-            r.dateTime ?? "",
-        ]
-            .join(" ")
-            .toLowerCase()
-            .includes(t)
-    );
+// ===================== Pagination & Data =====================
+const loading = ref(false);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    links: []
 });
+const stockInLogs = ref([]);
+
+const fetchStockInLogs = async (page = null) => {
+    loading.value = true;
+    try {
+        const res = await axios.get("stock_entries/api-stock-in-logs", {
+            params: {
+                q: props.q,
+                page: page || pagination.value.current_page,
+                per_page: pagination.value.per_page
+            }
+        });
+
+        stockInLogs.value = res.data.data || [];
+
+        pagination.value = {
+            current_page: res.data.current_page,
+            last_page: res.data.last_page,
+            per_page: res.data.per_page,
+            total: res.data.total,
+            from: res.data.from,
+            to: res.data.to,
+            links: res.data.links
+        };
+
+        loading.value = false;
+    } catch (err) {
+        console.error('❌ Fetch stock in logs error:', err);
+        toast.error("Failed to load stock in logs");
+        loading.value = false;
+    }
+};
+
+const handlePageChange = (url) => {
+    if (!url) return;
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page');
+    if (page) {
+        fetchStockInLogs(parseInt(page));
+    }
+};
+
+// Use stockInLogs instead of filtered
+const filtered = computed(() => stockInLogs.value);
 
 /* --------- Helpers (unchanged) --------- */
 const money = (n, currency = "GBP") =>
@@ -170,6 +205,15 @@ watch(
     { immediate: true }
 );
 
+let searchTimeout = null;
+watch(() => props.q, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        pagination.value.current_page = 1;
+        fetchStockInLogs(1);
+    }, 500);
+});
+
 async function updateLog() {
     if (isUpdating.value) return;
     isUpdating.value = true;
@@ -180,6 +224,7 @@ async function updateLog() {
             editForm.value
         );
         toast.success("Stock log updated successfully");
+        await fetchStockInLogs();
         emit("updated");
         const modal = bootstrap.Modal.getInstance(
             document.getElementById("editLogModal_in")
@@ -202,6 +247,7 @@ async function Delete(row) {
     try {
         await axios.delete(`stock_entries/stock-logs/${row.id}`);
         toast.success("Stock log deleted successfully");
+        await fetchStockInLogs();
         emit("updated");
     } catch (error) {
         console.error(error);
@@ -209,7 +255,10 @@ async function Delete(row) {
     }
 }
 
-onMounted(() => window.feather?.replace());
+onMounted(() => {
+    window.feather?.replace();
+    fetchStockInLogs(); // Add this line
+});
 onUpdated(() => window.feather?.replace());
 </script>
 
@@ -248,17 +297,17 @@ onUpdated(() => window.feather?.replace());
                                         'rounded-pill',
                                         expiryBadgeClass(row.expiryDate),
                                     ]" :title="daysUntil(row.expiryDate) !== null
-                                                ? daysUntil(row.expiryDate) < 0
-                                                    ? Math.abs(
-                                                        daysUntil(
-                                                            row.expiryDate
-                                                        )
-                                                    ) + ' day(s) ago'
-                                                    : daysUntil(
-                                                        row.expiryDate
-                                                    ) + ' day(s) left'
-                                                : ''
-                                            ">
+                                        ? daysUntil(row.expiryDate) < 0
+                                            ? Math.abs(
+                                                daysUntil(
+                                                    row.expiryDate
+                                                )
+                                            ) + ' day(s) ago'
+                                            : daysUntil(
+                                                row.expiryDate
+                                            ) + ' day(s) left'
+                                        : ''
+                                        ">
                                         {{ dateFmt(row.expiryDate) }}
                                     </span>
                                     <small class="text-muted ms-2">
@@ -281,7 +330,7 @@ onUpdated(() => window.feather?.replace());
                                 </template>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            
+
                             <td class="text-end">
                                 <button class="p-2 rounded-full text-blue-600 hover:bg-blue-100" @click="Edit(row)"
                                     title="Adjustment">
@@ -302,6 +351,13 @@ onUpdated(() => window.feather?.replace());
                     </tr>
                 </tbody>
             </table>
+        </div>
+        <div v-if="!loading && pagination.last_page > 1" class="mt-4 d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
+            </div>
+
+            <Pagination :pagination="pagination.links" :isApiDriven="true" @page-changed="handlePageChange" />
         </div>
 
         <!-- View Modal (Stock In) -->
@@ -372,7 +428,7 @@ onUpdated(() => window.feather?.replace());
                                                     }}
                                                 </div>
                                             </div>
-                                        
+
                                         </div>
 
                                         <hr class="my-4" />
@@ -484,12 +540,13 @@ onUpdated(() => window.feather?.replace());
                                 <input type="number" readonly class="form-control" v-model="editForm.totalPrice" />
                             </div>
                             <label>Expiry Date</label>
-                            <VueDatePicker v-model="expiryDateModel" :format="dateFmt" :enableTimePicker="false" :min-date="new Date()"
-                                placeholder="Select date" />
+                            <VueDatePicker v-model="expiryDateModel" :format="dateFmt" :enableTimePicker="false"
+                                :min-date="new Date()" placeholder="Select date" />
 
 
                             <div class="mt-4">
-                                <button class="btn btn-primary rounded-pill btn-sm px-4 d-inline-flex align-items-center gap-2"
+                                <button
+                                    class="btn btn-primary rounded-pill btn-sm px-4 d-inline-flex align-items-center gap-2"
                                     :disabled="isUpdating" :aria-busy="isUpdating ? 'true' : 'false'"
                                     @click="updateLog">
                                     <span v-if="isUpdating" class="spinner-border spinner-border-sm" role="status"
@@ -509,32 +566,40 @@ onUpdated(() => window.feather?.replace());
 </template>
 
 <style setup>
-.dark .modal-body{
-    background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
+.dark .modal-body {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
-.dark .modal-header{
-      background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
-}
-.dark input{
-       background-color: #181818 !important; /* gray-800 */
-  color: #f9fafb !important;  
-}
-.dark .table thead th{
-  background-color:#181818 !important; ;
-  color: #ffffff;
+.dark .modal-header {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
-.dark .card-body{
-     background-color:#181818 !important; ;
-  color: #ffffff;
+.dark input {
+    background-color: #181818 !important;
+    /* gray-800 */
+    color: #f9fafb !important;
 }
 
-.dark .card{
-     background-color:#181818 !important; ;
-  color: #ffffff;
+.dark .table thead th {
+    background-color: #181818 !important;
+    ;
+    color: #ffffff;
+}
+
+.dark .card-body {
+    background-color: #181818 !important;
+    ;
+    color: #ffffff;
+}
+
+.dark .card {
+    background-color: #181818 !important;
+    ;
+    color: #ffffff;
 }
 
 :global(.dark .p-select-dropdown) {

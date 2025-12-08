@@ -641,6 +641,30 @@ const filteredProducts = computed(() => {
 const handleApplyFilters = (appliedFilters) => {
     filters.value = { ...appliedFilters };
 };
+const counter = ref('');
+const initializeWalkInCounter = () => {
+    // Try to get counter from local storage
+    const storedCounter = localStorage.getItem('pos_walkin_counter');
+
+    if (storedCounter) {
+        counter.value = parseInt(storedCounter);
+    } else {
+        // Initialize to 1 if first time
+        counter.value = 1;
+        localStorage.setItem('pos_walkin_counter', '1');
+    }
+};
+
+const generateCustomerName = () => {
+    const number = String(counter.value).padStart(3, '0'); // 001, 002, 003
+    const name = `Walk In-${number}`;
+
+    // Increment and save to local storage
+    counter.value++;
+    localStorage.setItem('pos_walkin_counter', counter.value.toString());
+
+    return name;
+};
 
 const handleClearFilters = () => {
     filters.value = {
@@ -1350,7 +1374,7 @@ const decQty = () => {
 const formErrors = ref({});
 const resetCart = () => {
     orderItems.value = [];
-    customer.value = "Walk In";
+    customer.value = generateCustomerName(); // Generate new Walk In number
     deliveryLocation.value = "";
     phoneNumber.value = "";
     selectedTable.value = null;
@@ -2042,6 +2066,10 @@ const handleCancelMissingIngredients = () => {
    Lifecycle
 -----------------------------*/
 onMounted(async () => {
+    initializeWalkInCounter();
+ const number = String(counter.value).padStart(3, '0');
+    customer.value = `Walk In-${number}`;
+    // ... rest of your onMounted code
     if (window.bootstrap) {
         document
             .querySelectorAll('[data-bs-toggle="tooltip"]')
@@ -2056,10 +2084,8 @@ onMounted(async () => {
     categorySearchQuery.value = "";
     categorySearchKey.value = Date.now();
     await nextTick();
-    // Delay to prevent autofill
     setTimeout(() => {
         isCategorySearchReady.value = true;
-        // Force clear any autofill that happened
         const input = document.getElementById(categoryInputId);
         if (input) {
             input.value = '';
@@ -2071,7 +2097,6 @@ onMounted(async () => {
     fetchMenuItems();
     fetchProfileTables();
 });
-
 const page = usePage();
 function bumpToasts() {
     const s = page.props.flash?.success;
@@ -3214,7 +3239,7 @@ const getModalTotalPriceWithResale = () => {
                                         v-model="categorySearchQuery" :key="categorySearchKey" type="search"
                                         class="form-control form-control-sm" placeholder="Search categories..."
                                         autocomplete="new-password" :name="categoryInputId" role="presentation"
-                                        style="border-radius: 8px; padding: 8px 12px;"/>
+                                        style="border-radius: 8px; padding: 8px 12px;" />
                                     <input v-else type="text" class="form-control form-control-sm"
                                         placeholder="Search categories..." disabled
                                         style="border-radius: 8px; padding: 8px 12px;" />
@@ -3229,7 +3254,8 @@ const getModalTotalPriceWithResale = () => {
                             </div>
                             <!-- Categories List -->
                             <template v-else>
-                                <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-4 category-cards">
+                                <div v-for="c in filteredCategories" :key="c.id"
+                                    class="col-6 col-md-4 col-lg-4 category-cards">
                                     <div class="cat-card" @click="openCategory(c)">
                                         <div class="cat-icon-wrap">
                                             <span class="cat-icon">
@@ -3290,8 +3316,8 @@ const getModalTotalPriceWithResale = () => {
                             </div>
 
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex" v-for="p in filteredProducts"
-                                    :key="p.id">
+                                <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
+                                    v-for="p in filteredProducts" :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
                                         <!-- Left Side (Image + Price Badge) - 40% -->
@@ -3682,7 +3708,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">Promo Discount:</span>
                                                 <b class="text-success fs-6">-{{ formatCurrencySymbol(promoDiscount)
-                                                }}</b>
+                                                    }}</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3728,7 +3754,7 @@ const getModalTotalPriceWithResale = () => {
                                                 </i>
                                             </div>
                                             <b class="text-success">-{{ formatCurrencySymbol(approvedDiscountTotal)
-                                                }}</b>
+                                            }}</b>
                                         </div>
                                     </div>
                                     <!-- Total After All Discounts -->
@@ -3860,11 +3886,6 @@ const getModalTotalPriceWithResale = () => {
                                                         {{ ingredient.product_name || ingredient.name || 'Ingredient' }}
                                                     </label>
                                                 </div>
-
-                                                <span class="badge ms-2"
-                                                    :class="isIngredientRemoved(ingredient.id || ingredient.inventory_item_id) ? 'bg-secondary' : 'bg-primary'">
-                                                    {{ ingredient.quantity || 1 }} {{ ingredient.unit || 'unit' }}
-                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -4380,6 +4401,11 @@ const getModalTotalPriceWithResale = () => {
     color: #fff !important;
 }
 
+:global(.dark .form-control:focus) {
+    border-color: #fff !important;
+}
+
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
@@ -4413,7 +4439,7 @@ const getModalTotalPriceWithResale = () => {
         margin-top: 35px !important;
     } */
 
-    .justify{
+    .justify {
         padding-right: 110px;
     }
 
