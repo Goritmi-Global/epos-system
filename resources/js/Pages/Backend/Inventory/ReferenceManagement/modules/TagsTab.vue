@@ -412,6 +412,22 @@ const handleImport = (data) => {
         .post("/api/tags/import", { tags: tagsToImport })
         .then(() => {
             toast.success("Tags imported successfully");
+            const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
             fetchTags();
         })
         .catch((err) => {
@@ -423,6 +439,14 @@ const handleImport = (data) => {
             } else {
                 toast.error("Import failed. Please try again.", { autoClose: 3000 });
             }
+
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 300);
         });
 };
 
@@ -573,7 +597,7 @@ const handleImport = (data) => {
                             :class="{ 'is-invalid': formErrors.customTag }" />
                         <span class="text-danger" v-if="formErrors.customTag">{{
                             formErrors.customTag[0]
-                        }}</span>
+                            }}</span>
                     </div>
 
                     <div v-else>
@@ -609,7 +633,7 @@ const handleImport = (data) => {
     --brand: #1c0d82;
 }
 
-:global(.dark .form-control:focus){
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 

@@ -608,6 +608,22 @@ const handleImport = (data) => {
         .post("/api/suppliers/import", { suppliers: suppliersToImport })
         .then(() => {
             toast.success("Suppliers imported successfully");
+               const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+            
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
             fetchSuppliers();
         })
         .catch((err) => {
@@ -617,6 +633,14 @@ const handleImport = (data) => {
                     autoClose: 3000,
                 });
             }
+
+             setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 
