@@ -4,6 +4,7 @@ namespace App\Services\POS;
 
 use App\Helpers\UploadHelper;
 use App\Models\MenuCategory;
+use App\Models\MenuItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -443,7 +444,7 @@ class MenuCategoryService
             if ($category->menuItems()->count() > 0) {
                 return [
                     'success' => false,
-                    'message' => 'Cannot delete. Category is already used in menu items.',
+                    'message' => 'Cannot delete. Category is already used in menu(s).',
                     'data' => null
                 ];
             }
