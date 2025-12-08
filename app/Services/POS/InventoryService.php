@@ -14,77 +14,113 @@ class InventoryService
      *  Read / List
      *  ---------------------------------------------------------------- */
     public function list(array $filters = [])
-    {
-        $paginator = InventoryItem::query()
-            ->with([
-                'user:id,name',
-                'supplier:id,name',
-                'unit:id,name',
-                'allergies:id,name',
-                'tags:id,name',
-                'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
-            ])
-            ->when($filters['q'] ?? null, function ($q, $v) {
-                $q->where(function ($qq) use ($v) {
-                    $qq->where('name', 'like', "%{$v}%")
-                        ->orWhere('sku', 'like', "%{$v}%");
-                });
-            })
-            ->orderByDesc('id')
-            ->paginate($filters['per_page'] ?? 200);
+{
+    $query = InventoryItem::query()
+        ->with([
+            'user:id,name',
+            'supplier:id,name',
+            'unit:id,name',
+            'allergies:id,name',
+            'tags:id,name',
+            'nutrition:id,inventory_item_id,calories,protein,fat,carbs',
+        ])
+        ->when($filters['q'] ?? null, function ($q, $v) {
+            $q->where(function ($qq) use ($v) {
+                $qq->where('name', 'like', "%{$v}%")
+                    ->orWhere('sku', 'like', "%{$v}%");
+            });
+        })
+        ->orderByDesc('id');
 
-        // ✅ Get all product IDs from current page
-        $productIds = $paginator->pluck('id')->toArray();
-
-        // ✅ Calculate stock for ALL products in ONE bulk operation
-        $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
-
-        return $paginator->through(function (InventoryItem $item) use ($stockData) {
-            $stock = $stockData[$item->id] ?? [
-                'available' => 0,
-                'stockValue' => '0.00',
-                'minAlert' => 0,
-                'expiry_date' => null,
-                'status' => null,
-            ];
-
-            return [
-                'id'            => $item->id,
-                'name'          => $item->name,
-                'sku'           => $item->sku,
-                'description'   => $item->description,
-                'category'      => $item->category ?? null,
-                'subcategory'   => $item->subcategory ?? null,
-                'minAlert'      => $stock['minAlert'],
-                'supplier_id'   => $item->supplier_id,
-                'supplier_name' => $item->supplier?->name,
-                'unit_id'       => $item->unit_id,
-                'unit_name'     => $item->unit?->name,
-                'stock'         => $item->stock,
-
-                // ✅ Stock data from bulk calculation
-                'availableStock' => $stock['available'],
-                'stockValue'     => $stock['stockValue'],
-                'expiry_date'    => $stock['expiry_date'],
-                'status'         => $stock['status'],
-
-                'allergies'     => $item->allergies->pluck('name')->values(),
-                'allergy_ids'   => $item->allergies->pluck('id')->values(),
-                'tags'          => $item->tags->pluck('name')->values(),
-                'tag_ids'       => $item->tags->pluck('id')->values(),
-                'nutrition'     => [
-                    'calories' => (float) ($item->nutrition->calories ?? 0),
-                    'protein'  => (float) ($item->nutrition->protein  ?? 0),
-                    'fat'      => (float) ($item->nutrition->fat      ?? 0),
-                    'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
-                ],
-                'user'          => $item->user?->name,
-                'image_url'     => UploadHelper::url($item->upload_id),
-                'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
-            ];
-        });
+    // ✅ Check if there's a search query
+    $searchQuery = trim($filters['q'] ?? '');
+    $hasSearch = !empty($searchQuery);
+    
+    // 🔍 Debug logging
+    \Log::info('Inventory List Debug', [
+        'raw_q' => $filters['q'] ?? null,
+        'trimmed_q' => $searchQuery,
+        'hasSearch' => $hasSearch,
+        'per_page' => $filters['per_page'] ?? 200
+    ]);
+    
+    if ($hasSearch) {
+        // ✅ When searching: Get ALL matching results (no pagination)
+        $items = $query->get();
+        $total = $items->count();
+        
+        \Log::info('Search Mode', [
+            'total_found' => $total
+        ]);
+        
+        // Create a single-page paginator
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $total > 0 ? $total : 1, // per_page = total
+            1, // always page 1
+            [
+                'path' => request()->url(),
+                'query' => request()->query()
+            ]
+        );
+    } else {
+        // ✅ No search: Normal pagination
+        \Log::info('Pagination Mode');
+        $paginator = $query->paginate($filters['per_page'] ?? 200);
     }
 
+    // Get all product IDs from current page/results
+    $productIds = $paginator->pluck('id')->toArray();
+
+    // Calculate stock for ALL products in ONE bulk operation
+    $stockData = app(StockEntryService::class)->bulkTotalStock($productIds);
+
+    return $paginator->through(function (InventoryItem $item) use ($stockData) {
+        $stock = $stockData[$item->id] ?? [
+            'available' => 0,
+            'stockValue' => '0.00',
+            'minAlert' => 0,
+            'expiry_date' => null,
+            'status' => null,
+        ];
+
+        return [
+            'id'            => $item->id,
+            'name'          => $item->name,
+            'sku'           => $item->sku,
+            'description'   => $item->description,
+            'category'      => $item->category ?? null,
+            'subcategory'   => $item->subcategory ?? null,
+            'minAlert'      => $stock['minAlert'],
+            'supplier_id'   => $item->supplier_id,
+            'supplier_name' => $item->supplier?->name,
+            'unit_id'       => $item->unit_id,
+            'unit_name'     => $item->unit?->name,
+            'stock'         => $item->stock,
+
+            // Stock data from bulk calculation
+            'availableStock' => $stock['available'],
+            'stockValue'     => $stock['stockValue'],
+            'expiry_date'    => $stock['expiry_date'],
+            'status'         => $stock['status'],
+
+            'allergies'     => $item->allergies->pluck('name')->values(),
+            'allergy_ids'   => $item->allergies->pluck('id')->values(),
+            'tags'          => $item->tags->pluck('name')->values(),
+            'tag_ids'       => $item->tags->pluck('id')->values(),
+            'nutrition'     => [
+                'calories' => (float) ($item->nutrition->calories ?? 0),
+                'protein'  => (float) ($item->nutrition->protein  ?? 0),
+                'fat'      => (float) ($item->nutrition->fat      ?? 0),
+                'carbs'    => (float) ($item->nutrition->carbs    ?? 0),
+            ],
+            'user'          => $item->user?->name,
+            'image_url'     => UploadHelper::url($item->upload_id),
+            'created_at'    => optional($item->created_at)->format('Y-m-d H:i'),
+        ];
+    });
+}
     /** ----------------------------------------------------------------
      *  Create
      *  ---------------------------------------------------------------- */

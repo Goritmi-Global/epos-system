@@ -56,6 +56,8 @@ const showLogoutModal = ref(false);
 const showRestoreModal = ref(false);
 const showBackupModal = ref(false);
 const isFullscreen = ref(false);
+const showQuickOrderModal = ref(false);
+const quickOrderType = ref(null);
 
 
 const isCashier = computed(() => {
@@ -73,6 +75,55 @@ const toggleFullscreen = () => {
             isFullscreen.value = false;
         }
     }
+};
+const handleQuickOrder = () => {
+    quickOrderType.value = null;
+    showQuickOrderModal.value = true;
+};
+
+const proceedToQuickOrder = () => {
+    if (!quickOrderType.value) {
+        toast.error("Please select an order type");
+        return;
+    }
+    showQuickOrderModal.value = false;
+    router.visit(route('pos.order', { type: quickOrderType.value }));
+};
+
+const orderTypes = computed(() => {
+    return page.props.onboarding?.service_options?.order_types || [];
+});
+
+const getOrderTypeIcon = (type) => {
+    const icons = {
+        'eat_in': 'home',
+        'dine_in': 'home',
+        'take_away': 'shopping-bag',
+        'takeaway': 'shopping-bag',
+        'delivery': 'truck',
+    };
+    return icons[type] || 'package';
+};
+
+const formatOrderTypeName = (type) => {
+    const names = {
+        'eat_in': 'Eat In',
+        'dine_in': 'Dine In',
+        'take_away': 'Take Away',
+        'takeaway': 'Take Away',
+        'delivery': 'Delivery',
+    };
+    return names[type] || type.replace(/_/g, ' ').toUpperCase();
+};
+
+const getOrderTypeDescription = (type) => {
+    const descriptions = {
+        'eat_in': 'Customer dines here',
+        'dine_in': 'Customer dines here',
+        'takeaway': 'Customer take order',
+        'delivery': 'Deliver to customer',
+    };
+    return descriptions[type] || '';
 };
 
 const handleFullscreenChange = () => {
@@ -126,6 +177,15 @@ watch(drawerVisible, (newVal) => {
         nextTick(() => {
             window.feather?.replace();
         });
+    }
+});
+watch(showQuickOrderModal, (newVal) => {
+    if (newVal) {
+        const modal = new bootstrap.Modal(document.getElementById('quickOrderModal'));
+        modal.show();
+    } else {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('quickOrderModal'));
+        modal?.hide();
     }
 });
 
@@ -429,7 +489,37 @@ const sidebarMenus = ref([
                         icon: "layers",
                         route: "menu-categories.index",
                     },
-                    { label: "Menus", icon: "box", route: "menu.index" },
+                    { 
+                        label: "Menus", 
+                        icon: "box", 
+                        route: "menu.index" 
+                    },
+                
+                    {
+                        label: "Addon Groups",
+                        icon: "layers",
+                        route: "addon-groups.index",
+                    },
+                    {
+                        label: "Addons",
+                        icon: "plus-circle",
+                        route: "addons.index",
+                    },
+                    {
+                        label: "Promo",
+                        icon: "tag",
+                        route: "promos.index",
+                    },
+                    {
+                        label: "Discount",
+                        icon: "percent",
+                        route: "discounts.index",
+                    },
+                    {
+                        label: "Meals",
+                        icon: "coffee",
+                        route: "meals.index",
+                    },
                 ],
             },
             { label: "Sale", icon: "shopping-bag", route: "pos.order" },
@@ -441,57 +531,6 @@ const sidebarMenus = ref([
                 icon: "bar-chart-2",
                 route: "analytics.index",
             },
-
-            {
-                label: "Promo",
-                icon: "tag",
-                route: "promos.index",
-            },
-            {
-                label: "Meals",
-                icon: "coffee",
-                route: "meals.index",
-            },
-
-            {
-                label: "Discount",
-                icon: "percent",
-                route: "discounts.index",
-            },
-
-            // {
-            //     label: "Variants",
-            //     icon: "sliders",
-            //     children: [
-            //         {
-            //             label: "Variant Groups",
-            //             icon: "layers",
-            //             route: "variant-groups.index",
-            //         },
-            //         {
-            //             label: "Variants",
-            //             icon: "list",
-            //             route: "variants.index",
-            //         },
-            //     ],
-            // },
-
-            {
-                label: "Addons",
-                icon: "plus-square", // or "puzzle" or "package"
-                children: [
-                    {
-                        label: "Addon Groups",
-                        icon: "layers",
-                        route: "addon-groups.index",
-                    },
-                    {
-                        label: "Addons",
-                        icon: "plus-circle",
-                        route: "addons.index",
-                    },
-                ],
-            },
             {
                 label: "Shift Management",
                 icon: "users",
@@ -499,26 +538,11 @@ const sidebarMenus = ref([
             },
             { label: "Settings", icon: "settings", route: "settings.index" },
             { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
-            { label: "Backup Database", icon: "database", action: "databaseBackup" },
-
+            { label: "Backup", icon: "database", action: "databaseBackup" },
         ],
     },
-
-    // {
-    //     section: "Other Menu",
-    //     children: [
-    //         { label: "Settings", icon: "settings", route: "settings.index" },
-    //         { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
-    //         { label: "Backup Database", icon: "database", action: "databaseBackup" },
-    //         // {
-    //         //     label: "Log Out",
-    //         //     icon: "log-out",
-    //         //     route: "logout",
-    //         //     method: "post",
-    //         // },
-    //     ],
-    // },
 ]);
+
 
 /* =========================
    Helpers
@@ -790,7 +814,7 @@ onMounted(fetchNotifications);
             </div>
 
             <ul class="nav user-menu">
-                <button class="btn btn-primary rounded-pill py-2 px-3" @click="router.visit('/pos/order')">
+                <button class="btn btn-primary rounded-pill py-2 px-3" @click="handleQuickOrder">
                     Quick Order
                 </button>
 
@@ -1330,6 +1354,55 @@ onMounted(fetchNotifications);
         </div>
     </div>
 
+
+    <!-- Quick Order Type Modal -->
+    <div class="modal fade" id="quickOrderModal" tabindex="-1" aria-hidden="true" ref="quickOrderModalRef">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Select Order Type</h5>
+                    <button
+                        class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                        data-bs-dismiss="modal" aria-label="Close" title="Close" @click="showQuickOrderModal = false">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted mb-4">Please select how the customer will receive their order:</p>
+                    <div class="row g-3">
+                        <!-- Dynamic Order Types -->
+                        <div v-for="orderType in orderTypes" :key="orderType" class="col-md-6">
+                            <button
+                                class="card-option w-100 p-4 border rounded-3 cursor-pointer transition d-flex align-items-center justify-content-center gap-3"
+                                :class="{ 'border-primary bg-light': !isDark && quickOrderType === orderType, 'border-primary dark-selected': isDark && quickOrderType === orderType }"
+                                @click="quickOrderType = orderType">
+                                <i :data-feather="getOrderTypeIcon(orderType)" class="flex-shrink-0"
+                                    style="width: 28px; height: 28px;"></i>
+                                <div class="text-start">
+                                    <div class="fw-bold">{{ formatOrderTypeName(orderType) }}</div>
+                                    <small class="text-muted">{{ getOrderTypeDescription(orderType) }}</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal"
+                        @click="showQuickOrderModal = false">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 py-2" @click="proceedToQuickOrder">
+                        Quick Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <style>
@@ -1449,8 +1522,46 @@ html.dark li.active .drawer-link {
     text-decoration: none;
 }
 
-.sidebar-collapsed .submenu-dropdown a:hover {
-    background-color: #f5f5f5;
+
+.card-option {
+    background: white;
+    border: 1px solid #e0e0e0 !important;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.card-option:hover {
+    border-color: #0d6efd !important;
+    background-color: #f8f9fa;
+}
+
+.card-option.border-primary {
+    background-color: #e7f1ff !important;
+    border-color: #0d6efd !important;
+}
+
+.dark .card-option.border-primary {
+    background-color: #318d25 !important;
+    border-color: #0d6efd !important;
+}
+
+.dark .card-option{
+    background-color: #212121 !important;
+    color: #fff !important;
+}
+
+:global(.dark) .card-option:hover {
+    border-color: #0d6efd !important;
+    background-color: #333333;
+}
+
+:global(.dark) .card-option.dark-selected {
+    background-color: #1a3a5c !important;
+    border-color: #0d6efd !important;
+}
+
+:global(.dark) .card-option small {
+    color: #999999 !important;
 }
 
 
@@ -1895,6 +2006,9 @@ html.dark .main {
     color: #fff;
 }
 
+:global(.dark .form-control:focus) {
+    border-color: #fff !important;
+}
 
 .dark .form-check-input {
     outline: 1px solid #fff !important;

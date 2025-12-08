@@ -1216,6 +1216,7 @@ const downloadInvoice = async (order) => {
     }
 }
 
+
 /* card scrollig */
 .purchase-scroll {
     max-height: 65vh;
@@ -1239,6 +1240,10 @@ const downloadInvoice = async (order) => {
 .purchase-scroll::-webkit-scrollbar-track {
     background: transparent;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 /* 🎯 iPad Pro 12.9" Portrait (1024 x 1366) */
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) and (orientation: portrait) {

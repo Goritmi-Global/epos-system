@@ -29,9 +29,10 @@ class StorePosOrderRequest extends FormRequest
             'order_time'       => 'nullable',
             'sales_discount'   => 'nullable|numeric|min:0',
             'approved_discounts' => 'nullable|numeric|min:0',
+            'confirm_missing_ingredients' => 'sometimes|boolean',
 
             // Order type
-            'order_type'   => 'required|in:Dine In,Delivery,Collection,Takeaway',
+            'order_type'   => 'required|in:Eat In,Delivery,Collection,Takeaway',
             'table_number' => 'required_if:order_type,Dine In|string|nullable',
 
             // Payment fields

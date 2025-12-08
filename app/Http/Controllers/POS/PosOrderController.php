@@ -10,6 +10,9 @@ use App\Models\TerminalState;
 use App\Services\POS\PosOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Exceptions\MissingIngredientsException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PosOrderController extends Controller
@@ -23,26 +26,56 @@ class PosOrderController extends Controller
 
     public function store(StorePosOrderRequest $request)
     {
-        $result = $this->service->create($request->validated());
+        try {
+            $validated = $request->validated();
+            $result = $this->service->create($validated);
 
-        // ✅ Check if this is an array with logout flag (cashier auto-logout)
-        if (is_array($result) && isset($result['logout']) && $result['logout'] === true) {
-            $order = $result['order'];
+            // Check if this is an array with logout flag (cashier auto-logout)
+            if (is_array($result) && isset($result['logout']) && $result['logout'] === true) {
+                $order = $result['order'];
 
+                return response()->json([
+                    'message' => 'Order created successfully. You have been logged out.',
+                    'order' => $order,
+                    'kot' => $order->kot ? $order->kot->load('items') : null,
+                    'redirect' => route('login'),
+                    'logout' => true,
+                ]);
+            }
+            // Normal response (non-cashier or auto-logout disabled)
             return response()->json([
-                'message' => 'Order created successfully. You have been logged out.',
-                'order' => $order,
-                'kot' => $order->kot ? $order->kot->load('items') : null,
-                'redirect' => route('login'),
-                'logout' => true,
+                'message' => 'Order created successfully',
+                'order' => $result,
+                'kot' => $result->kot ? $result->kot->load('items') : null,
             ]);
+        } catch (MissingIngredientsException $e) {
+            return response()->json([
+                'success' => false,
+                'type' => 'missing_ingredients',
+                'message' => 'Some ingredients are not available in sufficient quantity',
+                'data' => $e->getMissingIngredients()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
+    }
 
-        // ✅ Normal response (non-cashier or auto-logout disabled)
+    /**
+     * Check ingredient availability for items (used for increment validation)
+     */
+    public function checkIngredients(Request $request)
+    {
+        $items = $request->input('items', []);
+
+        // Reuse your existing checkStockAvailability method
+        $missingIngredients = $this->service->checkStockAvailability($items);
+
         return response()->json([
-            'message' => 'Order created successfully',
-            'order' => $result,
-            'kot' => $result->kot ? $result->kot->load('items') : null,
+            'success' => true,
+            'missing_ingredients' => $missingIngredients
         ]);
     }
 
@@ -306,7 +339,10 @@ class PosOrderController extends Controller
     public function cancel(Request $request, $orderId)
     {
         try {
-            $order = \App\Models\PosOrder::with(['items.menuItem.ingredients.inventoryItem.category'])
+            $order = \App\Models\PosOrder::with([
+                'items.menuItem.ingredients.inventoryItem.category',
+                'type'
+            ])
                 ->findOrFail($orderId);
 
             if ($order->status === 'cancelled') {
@@ -317,6 +353,42 @@ class PosOrderController extends Controller
             }
 
             \DB::beginTransaction();
+
+            // ✅ Find kitchen orders - with aggressive logging
+            if ($order->type) {
+
+                // Get kitchen orders
+                $kitchenOrders = \App\Models\KitchenOrder::where('pos_order_type_id', $order->type->id)->get();
+
+                foreach ($kitchenOrders as $kitchenOrder) {
+
+                    // Get kitchen order items BEFORE update
+                    $itemsBefore = \App\Models\KitchenOrderItem::where('kitchen_order_id', $kitchenOrder->id)->get();
+
+                    foreach ($itemsBefore as $item) {
+                    }
+
+                    // Update items
+                    $affected = \App\Models\KitchenOrderItem::where('kitchen_order_id', $kitchenOrder->id)
+                        ->update(['status' => 'Cancelled']);
+
+                    // Get items AFTER update to verify
+                    $itemsAfter = \App\Models\KitchenOrderItem::where('kitchen_order_id', $kitchenOrder->id)->get();
+                    foreach ($itemsAfter as $item) {
+                    }
+                }
+            }
+            $posOrderTypes = \App\Models\PosOrderType::where('pos_order_id', $order->id)->get();
+
+            foreach ($posOrderTypes as $pot) {
+
+                $koIds = \App\Models\KitchenOrder::where('pos_order_type_id', $pot->id)->pluck('id');
+
+                if ($koIds->isNotEmpty()) {
+                    $updated = \App\Models\KitchenOrderItem::whereIn('kitchen_order_id', $koIds)
+                        ->update(['status' => 'Cancelled']);
+                }
+            }
 
             // Restore inventory stock WITH expiry dates
             foreach ($order->items as $item) {
@@ -363,16 +435,12 @@ class PosOrderController extends Controller
                                 'value' => $allocation->quantity * ($allocation->unit_price ?? $ingredient->cost ?? 0),
                                 'operation_type' => 'pos_cancel_return',
                                 'stock_type' => 'stockin',
-                                'expiry_date' => $allocation->expiry_date, // ✅ RESTORE ORIGINAL EXPIRY DATE
+                                'expiry_date' => $allocation->expiry_date,
                                 'description' => "Stock restored from cancelled order #{$order->id} (Original batch expiry: {$allocation->expiry_date})",
                                 'user_id' => auth()->id(),
                             ]);
-
-                            \Log::info("✅ Restored {$allocation->quantity} units of {$inventoryItem->name} with expiry: {$allocation->expiry_date}");
                         }
                     } else {
-                        // ✅ Fallback: If no stockout entry found, restore without expiry date
-                        \Log::warning("⚠️ No stockout entry found for Order #{$order->id}, Product ID: {$inventoryItem->id}. Restoring without expiry date.");
 
                         \App\Models\StockEntry::create([
                             'product_id' => $inventoryItem->id,
@@ -384,7 +452,7 @@ class PosOrderController extends Controller
                             'value' => ($ingredient->cost ?? 0) * $requiredQty,
                             'operation_type' => 'pos_cancel_return',
                             'stock_type' => 'stockin',
-                            'expiry_date' => null, // No expiry date available
+                            'expiry_date' => null,
                             'description' => "Stock restored from cancelled order #{$order->id} (Expiry date unknown)",
                             'user_id' => auth()->id(),
                         ]);
@@ -392,6 +460,7 @@ class PosOrderController extends Controller
                 }
             }
 
+            // Update POS order status
             $order->update([
                 'status' => 'cancelled',
                 'cancelled_at' => now(),
@@ -403,12 +472,11 @@ class PosOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order cancelled and inventory restored with original expiry dates',
-                'order' => $order->fresh(['payment', 'items'])
+                'message' => 'Order cancelled, kitchen order items updated, and inventory restored',
+                'order' => $order->fresh(['payment', 'items', 'type'])
             ]);
         } catch (\Exception $e) {
             \DB::rollBack();
-            \Log::error('Order cancellation failed: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -564,7 +632,6 @@ class PosOrderController extends Controller
                 'version' => $version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-            
         } catch (\Exception $e) {
             Log::error('Failed to get terminal version', [
                 'terminal_id' => $terminalId,
@@ -621,7 +688,6 @@ class PosOrderController extends Controller
                 'version' => $terminal->version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache');
-            
         } catch (\Exception $e) {
             Log::error('Failed to update terminal cart', [
                 'terminal_id' => $validated['terminal_id'],
@@ -676,7 +742,6 @@ class PosOrderController extends Controller
                 'version' => $terminal->version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache');
-            
         } catch (\Exception $e) {
             Log::error('Failed to update terminal UI', [
                 'terminal_id' => $validated['terminal_id'],
@@ -733,7 +798,6 @@ class PosOrderController extends Controller
                 'version' => $terminal->version,
                 'timestamp' => now()->toIso8601String()
             ])->header('Cache-Control', 'no-cache');
-            
         } catch (\Exception $e) {
             Log::error('Failed to update terminal state', [
                 'terminal_id' => $validated['terminal_id'],
@@ -763,7 +827,6 @@ class PosOrderController extends Controller
                 'version' => $state['version'],
                 'timestamp' => $state['timestamp']
             ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
-            
         } catch (\Exception $e) {
             Log::error('Failed to get terminal state', [
                 'terminal_id' => $terminalId,

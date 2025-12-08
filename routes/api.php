@@ -4,6 +4,7 @@ use App\Http\Controllers\AddonController;
 use App\Http\Controllers\AddonGroupController;
 use App\Http\Controllers\DiscountApprovalController;
 use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\Auth\ApiKeyController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -91,27 +92,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // POS Orders
     Route::prefix('pos')->name('api.pos.')->group(function () {
-    Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu.categories');
-    Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu.items');
-    Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('profile.tables');
-    Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders'])->name('orders.today');
-    Route::put('/kot-item/{item}/status', [PosOrderController::class, 'updateKotItemStatus'])->name('kot.item.status');
+        Route::get('/fetch-menu-categories', [PosOrderController::class, 'fetchMenuCategories'])->name('menu.categories');
+        Route::get('/fetch-menu-items', [PosOrderController::class, 'fetchMenuItems'])->name('menu.items');
+        Route::get('/fetch-profile-tables', [PosOrderController::class, 'fetchProfileTables'])->name('profile.tables');
+        Route::get('/orders/today', [PosOrderController::class, 'getTodaysOrders'])->name('orders.today');
+        Route::put('/kot-item/{item}/status', [PosOrderController::class, 'updateKotItemStatus'])->name('kot.item.status');
 
-    // ✅ Terminal State Management Routes
-    // Version check endpoint (lightweight - should be first for priority)
-    Route::get('/terminal/{terminalId}/version', [PosOrderController::class, 'getTerminalVersion'])->name('terminal.version');
-    
-    // Full state endpoint
-    Route::get('/terminal/{terminalId}/state', [PosOrderController::class, 'getTerminalState'])->name('terminal.state');
-    
-    // Update endpoints
-    Route::post('/terminal/update-cart', [PosOrderController::class, 'updateTerminalCart'])->name('terminal.cart');
-    Route::post('/terminal/update-ui', [PosOrderController::class, 'updateTerminalUI'])->name('terminal.ui');
-    Route::post('/terminal/update-both', [PosOrderController::class, 'updateTerminalBoth'])->name('terminal.both');
-    
-    // ✅ Optional: Add cache clear endpoint (for debugging)
-    Route::delete('/terminal/{terminalId}/cache', [PosOrderController::class, 'clearTerminalCache'])->name('terminal.cache.clear');
-});
+        // ✅ Terminal State Management Routes
+        // Version check endpoint (lightweight - should be first for priority)
+        Route::get('/terminal/{terminalId}/version', [PosOrderController::class, 'getTerminalVersion'])->name('terminal.version');
+
+        // Full state endpoint
+        Route::get('/terminal/{terminalId}/state', [PosOrderController::class, 'getTerminalState'])->name('terminal.state');
+
+        // Update endpoints
+        Route::post('/terminal/update-cart', [PosOrderController::class, 'updateTerminalCart'])->name('terminal.cart');
+        Route::post('/terminal/update-ui', [PosOrderController::class, 'updateTerminalUI'])->name('terminal.ui');
+        Route::post('/terminal/update-both', [PosOrderController::class, 'updateTerminalBoth'])->name('terminal.both');
+
+        // ✅ Optional: Add cache clear endpoint (for debugging)
+        Route::delete('/terminal/{terminalId}/cache', [PosOrderController::class, 'clearTerminalCache'])->name('terminal.cache.clear');
+    });
 
     // Menu Categories
     Route::prefix('menu-categories')->name('api.menu-categories.')->group(function () {
@@ -278,7 +279,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/discount-approvals/{id}/respond', [DiscountApprovalController::class, 'respondToRequest']);
     Route::get('/discount-approvals/history', [DiscountApprovalController::class, 'getApprovalHistory']);
 });
-
 Route::post('/verify-super-admin', [ApiKeyController::class, 'verifyCredentials']);
 Route::post('/store-api-key', [ApiKeyController::class, 'storeApiKey']);
 Route::post('/get-api-key', [ApiKeyController::class, 'getApiKey']);

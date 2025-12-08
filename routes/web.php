@@ -118,6 +118,9 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/', [StockEntryController::class, 'store'])->name('store');
         Route::get('/by-item/{inventory}', [StockEntryController::class, 'byItem'])->name('byItem');
         Route::get('/stock-logs', [StockEntryController::class, 'stockLogs'])->name('stock.logs');
+           // ✅ Add these two new routes for pagination
+    Route::get('/api-stock-in-logs', [StockEntryController::class, 'apiStockInLogs'])->name('api.stock.in.logs');
+    Route::get('/api-stock-out-logs', [StockEntryController::class, 'apiStockOutLogs'])->name('api.stock.out.logs');
         Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
         Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
@@ -126,6 +129,7 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
+        
     });
 
     /* -------- Inventory Categories -------- */
@@ -235,8 +239,8 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/order', [PosOrderController::class, 'index'])->name('order');
         Route::post('/order', [PosOrderController::class, 'store'])->name('pos-order.store');
-        Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])
-            ->name('place-stripe-order');
+        Route::get('/place-stripe-order', [PosOrderController::class, 'placeStripeOrder'])->name('place-stripe-order');
+        Route::post('/check-ingredients', [PosOrderController::class, 'checkIngredients']);
     });
 
     Route::post('/stripe/pi/create', [PosOrderController::class, 'createIntent'])
@@ -374,5 +378,8 @@ Route::get('/api/shift/{shift}/z-report', [ShiftManagementController::class, 'ge
 
 Route::get('/api/shift/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
     ->name('shift.z-report.pdf');
+    
+
+
 
 require __DIR__.'/auth.php';

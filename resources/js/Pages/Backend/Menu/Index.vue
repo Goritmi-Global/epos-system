@@ -343,7 +343,7 @@ const fetchMenus = async (page = 1) => {
             params: {
                 page: page,
                 per_page: perPage.value,
-                search: q.value.trim() || null, 
+                search: q.value.trim() || null,
                 category: filters.value.category || null,
                 status: filters.value.status !== "" ? filters.value.status : null,
                 sort_by: filters.value.sortBy || null,
@@ -416,7 +416,7 @@ const filteredItems = computed(() => {
 });
 
 watch([filters, q], () => {
-    fetchMenus(1); 
+    fetchMenus(1);
 }, { deep: true });
 
 const sortedItems = computed(() => {
@@ -1829,12 +1829,36 @@ const handleImport = (data) => {
         .post("/api/menu/menu_items/import", { items: itemsToImport })
         .then(() => {
             toast.success("Items imported successfully");
+            const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
+
             fetchInventories();
             fetchMenus();
         })
         .catch((err) => {
             console.error(err);
             toast.error(err.response?.data?.message || "Import failed");
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 
@@ -3201,7 +3225,8 @@ const format = (val) => {
                                                     style="width: 56px; height: 56px; object-fit: cover;" />
                                                 <div class="flex-grow-1">
                                                     <div class="fw-semibold">{{ it?.name }}</div>
-                                                    <div class="text-muted small">Category: {{ it.category?.name }}</div>
+                                                    <div class="text-muted small">Category: {{ it.category?.name }}
+                                                    </div>
                                                     <div class="text-muted small">Unit: {{ it?.unit_name }}</div>
                                                     <div class="small mt-2 text-muted">
                                                         Calories: {{ it.nutrition?.calories || 0 }},
@@ -3298,6 +3323,11 @@ const format = (val) => {
 .custom-card-header {
     padding: 5px 20px !important;
 }
+
+:global(.dark .form-control:focus) {
+    border-color: #fff !important;
+}
+
 
 .dark .bg-light {
     background-color: #212121 !important;

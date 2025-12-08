@@ -1736,6 +1736,10 @@ const downloadExcel = () => {
     color: white;
 }
 
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 .dark .card {
     background-color: #181818 !important;
     color: #ffffff !important;

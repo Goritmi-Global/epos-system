@@ -454,6 +454,22 @@ const handleImport = (data) => {
         .post("/api/allergies/import", { allergies: allergiesToImport })
         .then(() => {
             toast.success("Allergies imported successfully");
+            const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
             fetchAllergies();
         })
         .catch((err) => {
@@ -467,6 +483,14 @@ const handleImport = (data) => {
                 toast.error("Import failed. Please try again.", { autoClose: 3000 });
                 console.error(err);
             }
+
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 </script>
@@ -641,6 +665,11 @@ const handleImport = (data) => {
     background: var(--brand);
     border-color: var(--brand);
 }
+
+:global(.dark .form-control:focus) {
+    border-color: #fff !important;
+}
+
 
 .search-wrap {
     position: relative;

@@ -538,6 +538,22 @@ const handleImport = (data) => {
         .post("/api/units/import", { units: unitsToImport })
         .then(() => {
             toast.success("Units imported successfully");
+            const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
             fetchUnits();
         })
         .catch((err) => {
@@ -547,6 +563,13 @@ const handleImport = (data) => {
                     autoClose: 3000,
                 });
             }
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 </script>
@@ -816,6 +839,11 @@ const handleImport = (data) => {
     position: absolute !important;
     z-index: 1050 !important;
 }
+
+:global(.dark .form-control:focus) {
+    border-color: #fff !important;
+}
+
 
 .table-container {
     overflow: visible !important;

@@ -958,6 +958,9 @@ const changeYear = (year) => {
 .dark .count-low-stock {
   color: #181818 !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
 
 .dark .bg-red-50 {
   background-color: #fdd8d8;

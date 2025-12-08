@@ -64,6 +64,12 @@ const items = computed(() => inventories.value);
 const fetchInventories = async (page = null) => {
     loading.value = true;
     try {
+        console.log('🔍 Fetching with params:', {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page
+        });
+
         const res = await axios.get("inventory/api-inventories", {
             params: {
                 q: q.value,
@@ -72,8 +78,15 @@ const fetchInventories = async (page = null) => {
             }
         });
 
-        // ✅ Everything is already calculated on the backend!
         inventories.value = res.data.data || [];
+        
+        console.log('📊 Response pagination:', {
+            current_page: res.data.current_page,
+            last_page: res.data.last_page,
+            per_page: res.data.per_page,
+            total: res.data.total,
+            data_length: inventories.value.length
+        });
         
         pagination.value = {
             current_page: res.data.current_page,
@@ -252,11 +265,16 @@ const sortedItems = computed(() => {
     }
 });
 
+// watch function for search
 let searchTimeout = null;
-watch(q, () => {
+watch(q, (newVal, oldVal) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         pagination.value.current_page = 1;
+        if (!newVal || newVal.trim() === '') {
+            pagination.value.per_page = 10; 
+        }
+        
         fetchInventories(1);
     }, 500);
 });
@@ -1325,12 +1343,36 @@ const handleImport = (data) => {
         .post("/api/inventory/import", { items: itemsToImport })
         .then(() => {
             toast.success("Items imported successfully");
+             const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+            
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
+
             fetchInventories();
             fetchKpiStats();
         })
         .catch((err) => {
             console.error(err);
             toast.error("Import failed");
+             setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 </script>

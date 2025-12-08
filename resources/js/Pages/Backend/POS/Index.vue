@@ -618,7 +618,7 @@ const filteredProducts = computed(() => {
 
     // 3. Sorting
     if (filters.value.sortBy) {
-        products = [...products]; 
+        products = [...products];
 
         switch (filters.value.sortBy) {
             case 'name_asc':
@@ -650,6 +650,30 @@ const filteredProducts = computed(() => {
 const handleApplyFilters = (appliedFilters) => {
     filters.value = { ...appliedFilters };
 };
+const counter = ref('');
+const initializeWalkInCounter = () => {
+    // Try to get counter from local storage
+    const storedCounter = localStorage.getItem('pos_walkin_counter');
+
+    if (storedCounter) {
+        counter.value = parseInt(storedCounter);
+    } else {
+        // Initialize to 1 if first time
+        counter.value = 1;
+        localStorage.setItem('pos_walkin_counter', '1');
+    }
+};
+
+const generateCustomerName = () => {
+    const number = String(counter.value).padStart(3, '0'); // 001, 002, 003
+    const name = `Walk In-${number}`;
+
+    // Increment and save to local storage
+    counter.value++;
+    localStorage.setItem('pos_walkin_counter', counter.value.toString());
+
+    return name;
+};
 
 const handleClearFilters = () => {
     filters.value = {
@@ -668,32 +692,193 @@ const orderItems = ref([]);
 // ========================================
 // Fixed: Increment cart item (in cart sidebar)
 // ========================================
+// const incCart = async (i) => {
+//     const it = orderItems.value[i];
+//     if (!it) return;
+
+//     if ((it.stock ?? 0) <= 0) {
+//         toast.error("Item out of stock.");
+//         return;
+//     }
+
+//     if (!canIncCartItem(it)) {
+//         const variantText = it.variant_name ? ` (${it.variant_name})` : '';
+//         toast.error(`Not enough ingredients for "${it.title}${variantText}".`);
+//         it.outOfStock = true;
+//         return;
+//     }
+
+//     it.outOfStock = false;
+//     it.qty++;
+//     it.price = it.unit_price * it.qty;
+
+//     // Update total discount
+//     if (it.resale_discount_per_item) {
+//         it.total_resale_discount = it.resale_discount_per_item * it.qty;
+//     }
+// };
+
 const incCart = async (i) => {
     const it = orderItems.value[i];
     if (!it) return;
 
-    if ((it.stock ?? 0) <= 0) {
-        toast.error("Item out of stock.");
+    // Check ingredients client-side
+    const stockCheck = calculateClientSideStock(it, it.qty + 1);
+    
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients detected (client-side)');
+        
+        pendingIncrementData.value = {
+            itemIndex: i,
+            item: it,
+            newQty: it.qty + 1
+        };
+        
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+        
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
 
-    if (!canIncCartItem(it)) {
-        const variantText = it.variant_name ? ` (${it.variant_name})` : '';
-        toast.error(`Not enough ingredients for "${it.title}${variantText}".`);
-        it.outOfStock = true;
-        return;
-    }
-
+    // Normal increment
     it.outOfStock = false;
     it.qty++;
     it.price = it.unit_price * it.qty;
 
-    // Update total discount
     if (it.resale_discount_per_item) {
         it.total_resale_discount = it.resale_discount_per_item * it.qty;
     }
 };
 
+const calculateClientSideStock = (item, requestedQty) => {
+    const ingredients = item.ingredients || [];
+    
+    // If no ingredients, unlimited stock
+    if (ingredients.length === 0) {
+        return { canAdd: true, missing: [] };
+    }
+
+    const missingIngredients = [];
+    
+    // Build ingredient usage map from current cart
+    const ingredientUsage = {};
+    
+    orderItems.value.forEach(cartItem => {
+        const itemIngredients = cartItem.ingredients || [];
+        
+        // Filter out removed ingredients
+        const activeIngredients = itemIngredients.filter(ing => {
+            if (!cartItem.removed_ingredients || cartItem.removed_ingredients.length === 0) {
+                return true;
+            }
+            return !cartItem.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+        });
+        
+        activeIngredients.forEach(ing => {
+            const id = ing.inventory_item_id;
+            const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+            
+            if (!ingredientUsage[id]) {
+                ingredientUsage[id] = { 
+                    totalStock: stock, 
+                    used: 0,
+                    name: ing.product_name || ing.name,
+                    unit: ing.unit || 'unit'
+                };
+            }
+            
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
+            ingredientUsage[id].used += required;
+        });
+    });
+    
+    // Check if new quantity would exceed stock
+    // Filter out removed ingredients for this item too
+    const activeIngredients = ingredients.filter(ing => {
+        if (!item.removed_ingredients || item.removed_ingredients.length === 0) {
+            return true;
+        }
+        return !item.removed_ingredients.includes(ing.id || ing.inventory_item_id);
+    });
+    
+    activeIngredients.forEach(ing => {
+        const id = ing.inventory_item_id;
+        const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
+        const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
+        
+        if (!ingredientUsage[id]) {
+            // This ingredient isn't used by other cart items yet
+            if (stock < required) {
+                missingIngredients.push({
+                    item_id: item.id,
+                    item_title: item.title,
+                    variant_id: item.variant_id || null,
+                    variant_name: item.variant_name || null,
+                    inventory_item_id: id,
+                    inventory_item_name: ing.product_name || ing.name,
+                    required_quantity: required,
+                    available_quantity: stock,
+                    shortage_quantity: required - stock,
+                    unit: ing.unit || 'unit',
+                    order_quantity: requestedQty
+                });
+            }
+        } else {
+            // Ingredient is already used by other cart items
+            const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+            
+            // If this exact item is already in cart, add back its current usage
+            const existingItem = orderItems.value.find(ci => 
+                ci.id === item.id && 
+                ci.variant_id === item.variant_id &&
+                JSON.stringify(ci.addons?.map(a => a.id).sort()) === JSON.stringify(item.addons?.map(a => a.id).sort())
+            );
+            
+            if (existingItem) {
+                const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingItem.qty;
+                const availableForThisItem = available + currentUsage;
+                
+                if (availableForThisItem < required) {
+                    missingIngredients.push({
+                        item_id: item.id,
+                        item_title: item.title,
+                        variant_id: item.variant_id || null,
+                        variant_name: item.variant_name || null,
+                        inventory_item_id: id,
+                        inventory_item_name: ing.product_name || ing.name,
+                        required_quantity: required,
+                        available_quantity: availableForThisItem,
+                        shortage_quantity: required - availableForThisItem,
+                        unit: ing.unit || 'unit',
+                        order_quantity: requestedQty
+                    });
+                }
+            } else {
+                if (available < required) {
+                    missingIngredients.push({
+                        item_id: item.id,
+                        item_title: item.title,
+                        variant_id: item.variant_id || null,
+                        variant_name: item.variant_name || null,
+                        inventory_item_id: id,
+                        inventory_item_name: ing.product_name || ing.name,
+                        required_quantity: required,
+                        available_quantity: available,
+                        shortage_quantity: required - available,
+                        unit: ing.unit || 'unit',
+                        order_quantity: requestedQty
+                    });
+                }
+            }
+        }
+    });
+    
+    return {
+        canAdd: missingIngredients.length === 0,
+        missing: missingIngredients
+    };
+};
 // ========================================
 // Fixed: Decrement cart item (in cart sidebar)
 // ========================================
@@ -813,22 +998,165 @@ const openItem = (p) => {
 //  Add this reactive variable at the top with your other modal variables
 const modalItemKitchenNote = ref('');
 
+// const confirmAdd = async () => {
+//     if (!selectedItem.value) return;
+
+//     const variant = getModalSelectedVariant();
+//     const variantId = variant ? variant.id : null;
+//     const variantText = variant ? ` (${variant.name})` : '';
+
+//     if (modalQty.value <= 0) {
+//         toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+//         return;
+//     }
+
+//     const variantName = variant ? variant.name : null;
+//     const variantPrice = variant
+//         ? parseFloat(variant.price)  
+//         : parseFloat(selectedItem.value.price); 
+
+//     const selectedAddons = getModalSelectedAddons();
+//     const addonsPrice = getModalAddonsPrice();
+//     const totalItemPrice = variantPrice + addonsPrice;
+//     const resaleDiscountPerItem = variant
+//         ? calculateResalePrice(variant, true)
+//         : calculateResalePrice(selectedItem.value, false);
+
+//     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+//     const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+
+//     if (modalQty.value > availableToAdd) {
+//         if (availableToAdd <= 0) {
+//             toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
+//         } else {
+//             toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
+//             modalQty.value = availableToAdd;
+//         }
+//         return;
+//     }
+//     const removedIngredientsText = getRemovedIngredientsText();
+//     const ingredientStock = {};
+//     for (const item of orderItems.value) {
+//         const itemIngredients = getVariantIngredients(item, item.variant_id);
+//         itemIngredients.forEach(ing => {
+//             const ingredientId = ing.inventory_item_id;
+//             if (!ingredientStock[ingredientId]) {
+//                 ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
+//             }
+//             ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
+//         });
+//     }
+
+//     if (variantIngredients.length > 0) {
+//         for (const ing of variantIngredients) {
+//             const ingredientId = ing.inventory_item_id;
+//             const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
+//             const requiredQty = parseFloat(ing.quantity) * modalQty.value;
+
+//             if (availableStock < requiredQty) {
+//                 toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
+//                 return;
+//             }
+//         }
+//     }
+
+//     try {
+//         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
+//         const menuStock = variantIngredients.length > 0
+//             ? calculateStockForIngredients(variantIngredients)
+//             : 999999;
+
+//         const idx = orderItems.value.findIndex((i) => {
+//             if (i.variant_id !== variantId) return false;
+//             const itemAddonIds = (i.addons || [])
+//                 .map(a => a.id)
+//                 .sort((a, b) => a - b)
+//                 .join('-');
+//             return i.id === selectedItem.value.id && itemAddonIds === addonIds;
+//         });
+
+//         if (idx >= 0) {
+//             orderItems.value[idx].qty += modalQty.value;
+//             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
+//             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
+//             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
+//                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
+//                 const newNote = modalItemKitchenNote.value.trim();
+//                 const noteParts = [existingNote, newNote, removedIngredientsText]
+//                     .filter(Boolean)
+//                     .filter((v, i, a) => a.indexOf(v) === i);
+
+//                 orderItems.value[idx].item_kitchen_note = noteParts.join('; ');
+//             } else if (removedIngredientsText) {
+//                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
+//                 orderItems.value[idx].item_kitchen_note = [existingNote, removedIngredientsText]
+//                     .filter(Boolean)
+//                     .join('; ');
+//             }
+//             if (modalRemovedIngredients.value.length > 0) {
+//                 orderItems.value[idx].removed_ingredients = [...modalRemovedIngredients.value];
+//             }
+
+//             toast.success(`Quantity updated to ${orderItems.value[idx].qty}`);
+//         } else {
+//             const finalKitchenNote = [modalItemKitchenNote.value.trim(), removedIngredientsText]
+//                 .filter(Boolean)
+//                 .join('. ');
+
+//             orderItems.value.push({
+//                 id: selectedItem.value.id,
+//                 title: selectedItem.value.title,
+//                 img: selectedItem.value.img,
+//                 price: totalItemPrice * modalQty.value, 
+//                 unit_price: Number(totalItemPrice),
+//                 qty: modalQty.value,
+//                 note: modalNote.value || "",
+//                 item_kitchen_note: finalKitchenNote, 
+//                 stock: menuStock,
+//                 ingredients: variantIngredients,
+//                 variant_id: variantId,
+//                 variant_name: variantName,
+//                 addons: selectedAddons,
+//                 removed_ingredients: [...modalRemovedIngredients.value], 
+//                 resale_discount_per_item: resaleDiscountPerItem,
+//                 total_resale_discount: resaleDiscountPerItem * modalQty.value,
+//             });
+
+//             toast.success(`${selectedItem.value.title} added to cart`);
+//         }
+
+//         await openPromoModal(selectedItem.value);
+
+//         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
+//         modal.hide();
+//         modalQty.value = 0;
+//         modalNote.value = "";
+//         modalItemKitchenNote.value = "";
+//         modalSelectedVariant.value = null;
+//         modalSelectedAddons.value = {};
+//         modalRemovedIngredients.value = [];
+
+//     } catch (err) {
+//         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
+//     }
+// };
+
 const confirmAdd = async () => {
     if (!selectedItem.value) return;
+
+    if (modalQty.value <= 0) {
+        toast.error('Please select at least 1 item to add to cart');
+        return;
+    }
 
     const variant = getModalSelectedVariant();
     const variantId = variant ? variant.id : null;
     const variantText = variant ? ` (${variant.name})` : '';
 
-    if (modalQty.value <= 0) {
-        toast.error(`No stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
-        return;
-    }
-
     const variantName = variant ? variant.name : null;
     const variantPrice = variant
-        ? parseFloat(variant.price)  
-        : parseFloat(selectedItem.value.price); 
+        ? parseFloat(variant.price)
+        : parseFloat(selectedItem.value.price);
 
     const selectedAddons = getModalSelectedAddons();
     const addonsPrice = getModalAddonsPrice();
@@ -838,42 +1166,8 @@ const confirmAdd = async () => {
         : calculateResalePrice(selectedItem.value, false);
 
     const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
-    const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
 
-    if (modalQty.value > availableToAdd) {
-        if (availableToAdd <= 0) {
-            toast.error(`No more stock available for "${selectedItem.value.title}${variantText}". Please remove some from cart first.`);
-        } else {
-            toast.error(`Only ${availableToAdd} item(s) available. Please reduce quantity or remove items from cart.`);
-            modalQty.value = availableToAdd;
-        }
-        return;
-    }
     const removedIngredientsText = getRemovedIngredientsText();
-    const ingredientStock = {};
-    for (const item of orderItems.value) {
-        const itemIngredients = getVariantIngredients(item, item.variant_id);
-        itemIngredients.forEach(ing => {
-            const ingredientId = ing.inventory_item_id;
-            if (!ingredientStock[ingredientId]) {
-                ingredientStock[ingredientId] = parseFloat(ing.inventory_stock);
-            }
-            ingredientStock[ingredientId] -= parseFloat(ing.quantity) * item.qty;
-        });
-    }
-
-    if (variantIngredients.length > 0) {
-        for (const ing of variantIngredients) {
-            const ingredientId = ing.inventory_item_id;
-            const availableStock = ingredientStock[ingredientId] ?? parseFloat(ing.inventory_stock);
-            const requiredQty = parseFloat(ing.quantity) * modalQty.value;
-
-            if (availableStock < requiredQty) {
-                toast.error(`Not enough stock for "${selectedItem.value.title}${variantText}".`);
-                return;
-            }
-        }
-    }
 
     try {
         const addonIds = selectedAddons.map(a => a.id).sort((a, b) => a - b).join('-');
@@ -894,6 +1188,7 @@ const confirmAdd = async () => {
             orderItems.value[idx].qty += modalQty.value;
             orderItems.value[idx].price = orderItems.value[idx].unit_price * orderItems.value[idx].qty;
             orderItems.value[idx].total_resale_discount = resaleDiscountPerItem * orderItems.value[idx].qty;
+
             if (modalItemKitchenNote.value && modalItemKitchenNote.value.trim()) {
                 const existingNote = orderItems.value[idx].item_kitchen_note || '';
                 const newNote = modalItemKitchenNote.value.trim();
@@ -908,6 +1203,7 @@ const confirmAdd = async () => {
                     .filter(Boolean)
                     .join('; ');
             }
+
             if (modalRemovedIngredients.value.length > 0) {
                 orderItems.value[idx].removed_ingredients = [...modalRemovedIngredients.value];
             }
@@ -922,17 +1218,17 @@ const confirmAdd = async () => {
                 id: selectedItem.value.id,
                 title: selectedItem.value.title,
                 img: selectedItem.value.img,
-                price: totalItemPrice * modalQty.value, 
+                price: totalItemPrice * modalQty.value,
                 unit_price: Number(totalItemPrice),
                 qty: modalQty.value,
                 note: modalNote.value || "",
-                item_kitchen_note: finalKitchenNote, 
+                item_kitchen_note: finalKitchenNote,
                 stock: menuStock,
                 ingredients: variantIngredients,
                 variant_id: variantId,
                 variant_name: variantName,
                 addons: selectedAddons,
-                removed_ingredients: [...modalRemovedIngredients.value], 
+                removed_ingredients: [...modalRemovedIngredients.value],
                 resale_discount_per_item: resaleDiscountPerItem,
                 total_resale_discount: resaleDiscountPerItem * modalQty.value,
             });
@@ -940,7 +1236,7 @@ const confirmAdd = async () => {
             toast.success(`${selectedItem.value.title} added to cart`);
         }
 
-        await openPromoModal(selectedItem.value);
+        // await openPromoModal(selectedItem.value);
 
         const modal = bootstrap.Modal.getInstance(document.getElementById('chooseItem'));
         modal.hide();
@@ -955,6 +1251,8 @@ const confirmAdd = async () => {
         toast.error("Failed to add item: " + (err.response?.data?.message || err.message));
     }
 };
+
+
 const calculateStockForIngredients = (ingredients) => {
     if (!ingredients || ingredients.length === 0) return 999999;
 
@@ -1020,20 +1318,56 @@ const canIncModalQty = () => {
     return (modalQty.value + 1) <= availableToAdd;
 };
 
-const incQty = () => {
-    if (!canIncModalQty()) {
-        const variant = getModalSelectedVariant();
-        const variantText = variant ? ` (${variant.name})` : '';
-        const variantId = variant ? variant.id : null;
-        const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
-        const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
-        if (availableToAdd <= 0) {
-            toast.error(`No more stock available for "${selectedItem.value?.title}${variantText}". Please remove some from cart first.`);
-        } else {
-            toast.error(`Not enough ingredients for "${selectedItem.value?.title}${variantText}".`);
-        }
+// const incQty = () => {
+//     if (!canIncModalQty()) {
+//         const variant = getModalSelectedVariant();
+//         const variantText = variant ? ` (${variant.name})` : '';
+//         const variantId = variant ? variant.id : null;
+//         const variantIngredients = getVariantIngredients(selectedItem.value, variantId);
+//         const availableToAdd = calculateAvailableStock(selectedItem.value, variantId, variantIngredients);
+//         if (availableToAdd <= 0) {
+//             toast.error(`No more stock available for "${selectedItem.value?.title}${variantText}". Please remove some from cart first.`);
+//         } else {
+//             toast.error(`Not enough ingredients for "${selectedItem.value?.title}${variantText}".`);
+//         }
+//         return;
+//     }
+//     modalQty.value++;
+// };
+
+
+const incQty = async () => {
+    if (!selectedItem.value) return;
+
+    const variant = getModalSelectedVariant();
+    const variantId = variant ? variant.id : null;
+    const variantIngredients = getModalIngredients();
+
+    // Check ingredients client-side
+    const stockCheck = calculateClientSideStock({
+        id: selectedItem.value.id,
+        title: selectedItem.value.title,
+        variant_id: variantId,
+        variant_name: variant ? variant.name : null,
+        ingredients: variantIngredients,
+        removed_ingredients: modalRemovedIngredients.value || []
+    }, modalQty.value + 1);
+    
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients for modal increment (client-side)');
+        
+        pendingModalIncrementData.value = {
+            currentQty: modalQty.value
+        };
+
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+        
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
+
+    // Normal increment
     modalQty.value++;
 };
 
@@ -1049,11 +1383,11 @@ const decQty = () => {
 const formErrors = ref({});
 const resetCart = () => {
     orderItems.value = [];
-    customer.value = "Walk In";
+    customer.value = generateCustomerName(); // Generate new Walk In number
     deliveryLocation.value = "";
     phoneNumber.value = "";
     selectedTable.value = null;
-    orderType.value = orderTypes.value[0] || "dine_in";
+    orderType.value = orderTypes.value[0] || "eat_in";
     note.value = "";
     kitchenNote.value = "";
     deliveryPercent.value = 0;
@@ -1114,12 +1448,53 @@ const hasEnoughStockForOrder = () => {
     return true;
 };
 
+// const openConfirmModal = () => {
+//     if (orderItems.value.length === 0) {
+//         toast.error("Please add at least one item to the cart.");
+//         return;
+//     }
+//     if (orderType.value === "Dine_in" && !selectedTable.value) {
+//         formErrors.value.table_number = [
+//             "Table number is required for dine-in orders.",
+//         ];
+//         toast.error("Please select a table number for Dine In orders.");
+//         return;
+//     }
+//     if ((orderType.value === "Delivery" || orderType.value === "Takeaway") && !customer.value) {
+//         formErrors.value.customer = [
+//             "Customer name is required.",
+//         ];
+//         toast.error("Customer name is required.");
+//         return;
+//     }
+//     if (orderType.value === "Delivery" && !phoneNumber.value) {
+//         formErrors.value.phoneNumber = [
+//             "Phone number is required for delivery.",
+//         ];
+//         toast.error("Phone number is required for delivery.");
+//         return;
+//     }
+//     if (orderType.value === "Delivery" && !deliveryLocation.value) {
+//         formErrors.value.deliveryLocation = [
+//             "Delivery location is required.",
+//         ];
+//         toast.error("Delivery location is required.");
+//         return;
+//     }
+//     if (!hasEnoughStockForOrder()) {
+//         return;
+//     }
+
+//     cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
+//     showConfirmModal.value = true;
+// };
+
 const openConfirmModal = () => {
     if (orderItems.value.length === 0) {
         toast.error("Please add at least one item to the cart.");
         return;
     }
-    if (orderType.value === "Dine_in" && !selectedTable.value) {
+    if (orderType.value === "Eat_in" && !selectedTable.value) {
         formErrors.value.table_number = [
             "Table number is required for dine-in orders.",
         ];
@@ -1147,23 +1522,37 @@ const openConfirmModal = () => {
         toast.error("Delivery location is required.");
         return;
     }
-    if (!hasEnoughStockForOrder()) {
-        return;
-    }
+
+    // ❌ REMOVED: Stock check
+    // if (!hasEnoughStockForOrder()) {
+    //     return;
+    // }
 
     cashReceived.value = parseFloat(grandTotal.value).toFixed(2);
     showConfirmModal.value = true;
 };
 
-// Get your business data (adjust to match your app)
-const getBusinessData = () => ({
-    name:  'Business Name',
-    phone: '',
-    address: '',
-    footer:  'Thank you!',
-    currency: '£',
-    logo_url: null
-})
+const incCartWithWarning = async (i) => {
+    const it = orderItems.value[i];
+    if (!it) return;
+
+    // Check stock but only show warning
+    if (!canIncCartItem(it)) {
+        const variantText = it.variant_name ? ` (${it.variant_name})` : '';
+        toast.warning(`Low stock for "${it.title}${variantText}". Missing items will be pending.`, {
+            autoClose: 2000
+        });
+    }
+
+    it.outOfStock = false;
+    it.qty++;
+    it.price = it.unit_price * it.qty;
+
+    if (it.resale_discount_per_item) {
+        it.total_resale_discount = it.resale_discount_per_item * it.qty;
+    }
+};
+
 
 // NEW printReceipt function
 const printReceipt = async (order) => {
@@ -1456,7 +1845,48 @@ const clearDiscounts = () => {
     stopApprovalPolling();
 };
 
-// Confirm Order - Updated to use percentage-based discounts
+
+
+// ===============================================
+// MISSING INGREDIENTS HANDLING
+// ===============================================
+const showMissingIngredientsModal = ref(false);
+const missingIngredients = ref([]);
+const pendingIncrementData = ref(null);
+const pendingCardIncrementData = ref(null);
+const pendingModalIncrementData = ref(null);
+
+const checkMissingIngredientsForItem = async (item, requestedQty = 1) => {
+    try {
+        const itemsToCheck = [{
+            product_id: item.id,
+            title: item.title || 'Item',
+            quantity: requestedQty,
+            variant_id: item.variant_id || null,
+            variant_name: item.variant_name || null,
+            removed_ingredients: item.removed_ingredients || []
+        }];
+
+        const response = await axios.post('/pos/check-ingredients', {
+            items: itemsToCheck
+        });
+
+        if (response.data.success && response.data.missing_ingredients?.length > 0) {
+            return {
+                hasMissing: true,
+                missingData: response.data.missing_ingredients
+            };
+        }
+        
+        return { hasMissing: false };
+    } catch (error) {
+        console.error('Error checking ingredients:', error);
+        return { hasMissing: false };
+    }
+};
+
+const pendingOrderData = ref(null);
+
 const confirmOrder = async ({
     paymentMethod,
     cashReceived,
@@ -1467,6 +1897,7 @@ const confirmOrder = async ({
     done
 }) => {
     formErrors.value = {};
+
     try {
         const payload = {
             customer_name: customer.value,
@@ -1478,17 +1909,15 @@ const confirmOrder = async ({
             delivery_charges: deliveryCharges.value,
             sales_discount: totalResaleSavings.value,
 
-            // Send approved discounts with percentage and calculated amount
             approved_discounts: approvedDiscountTotal.value,
             approved_discount_details: selectedDiscounts.value.map(discount => ({
                 discount_id: discount.id,
                 discount_name: discount.name,
                 discount_percentage: discount.percentage,
-                discount_amount: getDiscountAmount(discount.percentage), // Calculated at order time
+                discount_amount: getDiscountAmount(discount.percentage),
                 approval_id: discount.approval_id
             })),
 
-            // Promo Details
             promo_discount: promoDiscount.value,
             applied_promos: selectedPromos.value.map(promo => ({
                 promo_id: promo.id,
@@ -1503,18 +1932,16 @@ const confirmOrder = async ({
             kitchen_note: kitchenNote.value,
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
-            order_type:
-                orderType.value === "Dine_in"
-                    ? "Dine In"
-                    : orderType.value === "Delivery"
-                        ? "Delivery"
-                        : orderType.value === "Takeaway"
-                            ? "Takeaway"
-                            : "Collection",
+            order_type: orderType.value === "Eat_in"
+                ? "Eat In"
+                : orderType.value === "Delivery"
+                    ? "Delivery"
+                    : orderType.value === "Takeaway"
+                        ? "Takeaway"
+                        : "Collection",
             table_number: selectedTable.value?.name || null,
             payment_method: paymentMethod,
             auto_print_kot: autoPrintKot,
-
             cash_received: cashReceived,
             change: changeAmount,
 
@@ -1534,7 +1961,6 @@ const confirmOrder = async ({
                 }
 
                 const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
-                const originalPrice = parseFloat(sourceItem?.price || it.unit_price);
 
                 return {
                     product_id: it.id,
@@ -1554,9 +1980,15 @@ const confirmOrder = async ({
                     removed_ingredients: it.removed_ingredients || [],
                 };
             }),
+
+            // ✅ Since we check on increment, always confirm missing ingredients
+            confirm_missing_ingredients: true
         };
 
+        console.log('📤 Sending order');
+
         const res = await axios.post("/pos/order", payload);
+        console.log('✅ Order created successfully:', res.data);
 
         if (res.data.logout === true) {
             toast.success(res.data.message || "Order created successfully. Logging out...");
@@ -1569,7 +2001,7 @@ const confirmOrder = async ({
 
         resetCart();
         showConfirmModal.value = false;
-        toast.success(res.data.message);
+        toast.success(res.data.message || "Order placed successfully!");
 
         lastOrder.value = {
             ...res.data.order,
@@ -1587,24 +2019,126 @@ const confirmOrder = async ({
 
         printReceipt(JSON.parse(JSON.stringify(lastOrder.value)));
 
-        // Clear discounts after successful order
         selectedPromos.value = [];
         selectedDiscounts.value = [];
         pendingDiscountApprovals.value = [];
         stopApprovalPolling();
 
     } catch (err) {
-        console.error("Order submission error:", err);
+        console.error("❌ Order submission error:", err);
         toast.error(err.response?.data?.message || "Failed to place order");
     } finally {
-        if (done) done();
+        if (done) {
+            done();
+        }
     }
 };
 
+const handleConfirmMissingIngredients = async () => {
+    console.log('✅ User confirmed missing ingredients');
+    showMissingIngredientsModal.value = false;
+
+    // Handle cart increment
+    if (pendingIncrementData.value) {
+        const { item, newQty } = pendingIncrementData.value;
+        
+        item.outOfStock = false;
+        item.qty = newQty;
+        item.price = item.unit_price * item.qty;
+
+        if (item.resale_discount_per_item) {
+            item.total_resale_discount = item.resale_discount_per_item * item.qty;
+        }
+
+        toast.success('Quantity updated');
+        pendingIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+
+    // Handle card increment
+    if (pendingCardIncrementData.value) {
+        const {
+            product,
+            variantId,
+            variantName,
+            variantPrice,
+            selectedAddons,
+            addonsPrice,
+            resaleDiscountPerItem,
+            existingIndex,
+            newQty
+        } = pendingCardIncrementData.value;
+
+        const totalItemPrice = variantPrice + addonsPrice;
+
+        if (existingIndex >= 0) {
+            orderItems.value[existingIndex].qty = newQty;
+            orderItems.value[existingIndex].price =
+                orderItems.value[existingIndex].unit_price * newQty;
+            orderItems.value[existingIndex].total_resale_discount =
+                resaleDiscountPerItem * newQty;
+            orderItems.value[existingIndex].outOfStock = false;
+            toast.success('Quantity updated');
+        } else {
+            const variantIngredients = getVariantIngredients(product, variantId);
+            const menuStock = calculateMenuStock(product);
+            
+            orderItems.value.push({
+                id: product.id,
+                title: product.title,
+                img: product.img,
+                price: totalItemPrice,
+                unit_price: Number(totalItemPrice),
+                qty: 1,
+                note: "",
+                stock: menuStock,
+                ingredients: variantIngredients,
+                variant_id: variantId,
+                variant_name: variantName,
+                addons: selectedAddons,
+                outOfStock: false,
+                resale_discount_per_item: resaleDiscountPerItem,
+                total_resale_discount: resaleDiscountPerItem,
+            });
+            toast.success('Item added to cart');
+        }
+
+        pendingCardIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+
+    // Handle modal increment
+    if (pendingModalIncrementData.value) {
+        modalQty.value = pendingModalIncrementData.value.currentQty + 1;
+        toast.success('Quantity increased');
+        pendingModalIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+};
+
+const handleCancelMissingIngredients = () => {
+    console.log('❌ User cancelled due to missing ingredients');
+    showMissingIngredientsModal.value = false;
+    missingIngredients.value = [];
+
+    // Clear all pending increment data
+    pendingIncrementData.value = null;
+    pendingCardIncrementData.value = null;
+    pendingModalIncrementData.value = null;
+
+    toast.info("Action cancelled");
+};
 /* ----------------------------
    Lifecycle
 -----------------------------*/
 onMounted(async () => {
+    initializeWalkInCounter();
+ const number = String(counter.value).padStart(3, '0');
+    customer.value = `Walk In-${number}`;
+    // ... rest of your onMounted code
     if (window.bootstrap) {
         document
             .querySelectorAll('[data-bs-toggle="tooltip"]')
@@ -1619,10 +2153,8 @@ onMounted(async () => {
     categorySearchQuery.value = "";
     categorySearchKey.value = Date.now();
     await nextTick();
-    // Delay to prevent autofill
     setTimeout(() => {
         isCategorySearchReady.value = true;
-        // Force clear any autofill that happened
         const input = document.getElementById(categoryInputId);
         if (input) {
             input.value = '';
@@ -1634,7 +2166,6 @@ onMounted(async () => {
     fetchMenuItems();
     fetchProfileTables();
 });
-
 const page = usePage();
 function bumpToasts() {
     const s = page.props.flash?.success;
@@ -1677,9 +2208,9 @@ const kotData = ref([]);
 const kotLoading = ref(false);
 
 const openOrderModal = async () => {
-    showKotModal.value = true;  
-    kotData.value = [];           
-    kotLoading.value = true;      
+    showKotModal.value = true;
+    kotData.value = [];
+    kotLoading.value = true;
     try {
         const res = await axios.get(`/api/pos/orders/today`);
         kotData.value = res.data.orders;
@@ -1690,7 +2221,7 @@ const openOrderModal = async () => {
         );
         kotData.value = [];
     } finally {
-        kotLoading.value = false; 
+        kotLoading.value = false;
     }
 };
 const showPosOrdersModal = ref(false);
@@ -2050,41 +2581,89 @@ const canAddMore = (product) => {
 // ========================================
 // Fixed: Increment quantity from card with proper validation
 // ========================================
-const incrementCardQty = (product) => {
-    if (getProductStock(product) <= 0) {
-        return;
-    }
+// const incrementCardQty = (product) => {
+//     if (getProductStock(product) <= 0) {
+//         return;
+//     }
 
+//     const variant = getSelectedVariant(product);
+
+//     // CHANGED: Use ORIGINAL prices
+//     const variantPrice = variant
+//         ? parseFloat(variant.price)  
+//         : parseFloat(product.price); 
+
+//     const variantId = variant ? variant.id : null;
+//     const variantName = variant ? variant.name : null;
+
+//     const selectedAddons = getSelectedAddons(product);
+//     const addonsPrice = getAddonsPrice(product);
+//     const totalItemPrice = variantPrice + addonsPrice;
+//     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
+
+//     // NEW: Calculate resale discount
+//     const resaleDiscountPerItem = variant
+//         ? calculateResalePrice(variant, true)
+//         : calculateResalePrice(product, false);
+
+//     const variantIngredients = getVariantIngredients(product, variantId);
+
+//     if (!canAddMore(product)) {
+//         if (variantIngredients.length > 0) {
+//             const variantText = variantName ? ` (${variantName})` : '';
+//             toast.error(`Not enough ingredients for "${product.title}${variantText}".`);
+//         }
+//         return;
+//     }
+
+//     const existingIndex = orderItems.value.findIndex(item => {
+//         const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
+//         return item.id === product.id &&
+//             item.variant_id === variantId &&
+//             itemAddonIds === addonIds;
+//     });
+
+//     if (existingIndex >= 0) {
+//         orderItems.value[existingIndex].qty++;
+//         orderItems.value[existingIndex].price =
+//             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
+
+//         // Update total discount
+//         orderItems.value[existingIndex].total_resale_discount =
+//             resaleDiscountPerItem * orderItems.value[existingIndex].qty;
+
+//         orderItems.value[existingIndex].outOfStock = false;
+//     } else {
+//         const menuStock = calculateMenuStock(product);
+//         orderItems.value.push({
+//             id: product.id,
+//             title: product.title,
+//             img: product.img,
+//             price: totalItemPrice, // Original price
+//             unit_price: Number(totalItemPrice), // Original price
+//             qty: 1,
+//             note: "",
+//             stock: menuStock,
+//             ingredients: variantIngredients,
+//             variant_id: variantId,
+//             variant_name: variantName,
+//             addons: selectedAddons,
+//             outOfStock: false,
+
+//             // NEW: Store resale discount info
+//             resale_discount_per_item: resaleDiscountPerItem,
+//             total_resale_discount: resaleDiscountPerItem,
+//         });
+//     }
+// };
+
+const incrementCardQty = async (product) => {
     const variant = getSelectedVariant(product);
-
-    // CHANGED: Use ORIGINAL prices
-    const variantPrice = variant
-        ? parseFloat(variant.price)  // Original price
-        : parseFloat(product.price); // Original price
-
     const variantId = variant ? variant.id : null;
-    const variantName = variant ? variant.name : null;
-
     const selectedAddons = getSelectedAddons(product);
-    const addonsPrice = getAddonsPrice(product);
-    const totalItemPrice = variantPrice + addonsPrice;
     const addonIds = selectedAddons.map(a => a.id).sort().join('-');
 
-    // NEW: Calculate resale discount
-    const resaleDiscountPerItem = variant
-        ? calculateResalePrice(variant, true)
-        : calculateResalePrice(product, false);
-
-    const variantIngredients = getVariantIngredients(product, variantId);
-
-    if (!canAddMore(product)) {
-        if (variantIngredients.length > 0) {
-            const variantText = variantName ? ` (${variantName})` : '';
-            toast.error(`Not enough ingredients for "${product.title}${variantText}".`);
-        }
-        return;
-    }
-
+    // Find existing item in cart
     const existingIndex = orderItems.value.findIndex(item => {
         const itemAddonIds = (item.addons || []).map(a => a.id).sort().join('-');
         return item.id === product.id &&
@@ -2092,40 +2671,92 @@ const incrementCardQty = (product) => {
             itemAddonIds === addonIds;
     });
 
+    let newQty = 1;
+    let existingItem = null;
+    const variantIngredients = getVariantIngredients(product, variantId);
+
+    if (existingIndex >= 0) {
+        existingItem = orderItems.value[existingIndex];
+        newQty = existingItem.qty + 1;
+    }
+
+    // Check ingredients client-side
+    const stockCheck = calculateClientSideStock({
+        id: product.id,
+        title: product.title,
+        variant_id: variantId,
+        variant_name: variant ? variant.name : null,
+        ingredients: variantIngredients,
+        removed_ingredients: existingItem?.removed_ingredients || [],
+        addons: selectedAddons
+    }, newQty);
+    
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients for card increment (client-side)');
+        
+        const variantPrice = variant ? parseFloat(variant.price) : parseFloat(product.price);
+        const addonsPrice = getAddonsPrice(product);
+        const resaleDiscountPerItem = variant
+            ? calculateResalePrice(variant, true)
+            : calculateResalePrice(product, false);
+
+        pendingCardIncrementData.value = {
+            product,
+            variant,
+            variantId,
+            variantName: variant ? variant.name : null,
+            variantPrice,
+            selectedAddons,
+            addonsPrice,
+            resaleDiscountPerItem,
+            existingIndex,
+            newQty
+        };
+
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+        
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
+        return;
+    }
+
+    // Normal increment
+    const variantPrice = variant ? parseFloat(variant.price) : parseFloat(product.price);
+    const addonsPrice = getAddonsPrice(product);
+    const totalItemPrice = variantPrice + addonsPrice;
+    const resaleDiscountPerItem = variant
+        ? calculateResalePrice(variant, true)
+        : calculateResalePrice(product, false);
+
     if (existingIndex >= 0) {
         orderItems.value[existingIndex].qty++;
         orderItems.value[existingIndex].price =
             orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
-
-        // Update total discount
         orderItems.value[existingIndex].total_resale_discount =
             resaleDiscountPerItem * orderItems.value[existingIndex].qty;
-
         orderItems.value[existingIndex].outOfStock = false;
     } else {
         const menuStock = calculateMenuStock(product);
+        
         orderItems.value.push({
             id: product.id,
             title: product.title,
             img: product.img,
-            price: totalItemPrice, // Original price
-            unit_price: Number(totalItemPrice), // Original price
+            price: totalItemPrice,
+            unit_price: Number(totalItemPrice),
             qty: 1,
             note: "",
             stock: menuStock,
             ingredients: variantIngredients,
             variant_id: variantId,
-            variant_name: variantName,
+            variant_name: variant ? variant.name : null,
             addons: selectedAddons,
             outOfStock: false,
-
-            // NEW: Store resale discount info
             resale_discount_per_item: resaleDiscountPerItem,
             total_resale_discount: resaleDiscountPerItem,
         });
     }
 };
-
 
 // ========================================
 // Fixed: Decrement quantity from card
@@ -2358,6 +2989,7 @@ const getSelectedAddonsCount = () => {
 import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
+import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
 
 const user = computed(() => page.props.current_user);
 
@@ -2501,7 +3133,7 @@ const openCustomerDisplay = () => {
 // ✅ OPTIONAL: Add manual refresh function for debugging
 const forceRefreshCustomerDisplay = async () => {
     console.log('🔄 Force refreshing customer display...');
-    
+
     // Broadcast both cart and UI immediately (no debounce)
     await broadcastCartUpdate({
         items: orderItems.value.map(item => ({
@@ -2527,7 +3159,7 @@ const forceRefreshCustomerDisplay = async () => {
         note: note.value || '',
         appliedPromos: selectedPromos.value || []
     });
-    
+
     await broadcastUIUpdate({
         showCategories: showCategories.value ?? true,
         activeCat: activeCat.value,
@@ -2537,7 +3169,7 @@ const forceRefreshCustomerDisplay = async () => {
         selectedCardVariant: selectedCardVariant.value || {},
         selectedCardAddons: selectedCardAddons.value || {}
     });
-    
+
     console.log('✅ Force refresh completed');
 };
 // ============================================
@@ -2659,7 +3291,7 @@ const getModalTotalPriceWithResale = () => {
                     <div :class="showCategories ? 'col-md-12' : 'col-lg-8'">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3 tablet-screen">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between justify align-items-center mb-3">
                                 <h4 class="mb-0">Menu Categories</h4>
 
                                 <button v-if="isCashier" @click="openCustomerDisplay"
@@ -2691,7 +3323,8 @@ const getModalTotalPriceWithResale = () => {
                             </div>
                             <!-- Categories List -->
                             <template v-else>
-                                <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-4">
+                                <div v-for="c in filteredCategories" :key="c.id"
+                                    class="col-6 col-md-4 col-lg-4 category-cards">
                                     <div class="cat-card" @click="openCategory(c)">
                                         <div class="cat-icon-wrap">
                                             <span class="cat-icon">
@@ -2716,7 +3349,7 @@ const getModalTotalPriceWithResale = () => {
                         </div>
                         <!-- Items in selected category -->
                         <div v-else>
-                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
                                 <button class="btn btn-primary rounded-pill shadow-sm px-3" @click="backToCategories">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
@@ -2752,8 +3385,8 @@ const getModalTotalPriceWithResale = () => {
                             </div>
 
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 cat-cards col-xl-6 d-flex" v-for="p in filteredProducts"
-                                    :key="p.id">
+                                <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
+                                    v-for="p in filteredProducts" :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
                                         <!-- Left Side (Image + Price Badge) - 40% -->
@@ -2924,9 +3557,8 @@ const getModalTotalPriceWithResale = () => {
                                                 </div>
                                                 <button
                                                     class="qty-btn btn btn-outline-secondary rounded-circle px-2 py-2"
-                                                    style="width: 55px; height: 36px;" @click.stop="incrementCardQty(p)"
-                                                    :disabled="!canAddMore(p) || getProductStock(p) <= 0"
-                                                    :class="{ 'opacity-50': getProductStock(p) <= 0 }">
+                                                    style="width: 55px; height: 36px;"
+                                                    @click.stop="incrementCardQty(p)">
                                                     <strong>+</strong>
                                                 </button>
                                             </div>
@@ -2938,7 +3570,7 @@ const getModalTotalPriceWithResale = () => {
                     </div>
 
                     <!-- RIGHT: Cart -->
-                    <div class="col-lg-4" v-if="!showCategories">
+                    <div class="col-lg-4 right-cart" v-if="!showCategories">
 
                         <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
                             <!-- KOT Orders button -->
@@ -2983,7 +3615,7 @@ const getModalTotalPriceWithResale = () => {
                                 <!-- Dine-in table / customer -->
                                 <div class="mb-3">
 
-                                    <div v-if="orderType === 'Dine_in'" class="row g-2 ">
+                                    <div v-if="orderType === 'Eat_in'" class="row g-2 ">
                                         <div class="col-6 table-dropdown">
                                             <label class="form-label small">Table</label>
                                             <select v-model="selectedTable" class="form-select form-select-sm">
@@ -3038,7 +3670,7 @@ const getModalTotalPriceWithResale = () => {
 
                                     <div v-for="(it, i) in orderItems" :key="it.title" class="line">
                                         <!-- Left: Image + Meta -->
-                                         <!-- {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }} -->
+                                        <!-- {{ it.title.length > 4 ? it.title.slice(0, 10) + '...' : it.title }} -->
                                         <div class="line-left">
                                             <img :src="it.img" alt="" />
                                             <div class="meta">
@@ -3085,11 +3717,7 @@ const getModalTotalPriceWithResale = () => {
                                             <div class="qty-controls">
                                                 <button class="qty-btn" @click="decCart(i)">−</button>
                                                 <div class="qty">{{ it.qty }}</div>
-                                                <button class="qty-btn" @click="incCart(i)"
-                                                    :disabled="it.outOfStock || !canIncCartItem(it)"
-                                                    :class="{ 'bg-secondary text-white cursor-not-allowed opacity-70': it.outOfStock || !canIncCartItem(it) }">
-                                                    +
-                                                </button>
+                                                <button class="qty-btn" @click="incCart(i)">+</button>
                                             </div>
 
                                             <!-- Price and Delete Below -->
@@ -3327,11 +3955,6 @@ const getModalTotalPriceWithResale = () => {
                                                         {{ ingredient.product_name || ingredient.name || 'Ingredient' }}
                                                     </label>
                                                 </div>
-
-                                                <span class="badge ms-2"
-                                                    :class="isIngredientRemoved(ingredient.id || ingredient.inventory_item_id) ? 'bg-secondary' : 'bg-primary'">
-                                                    {{ ingredient.quantity || 1 }} {{ ingredient.unit || 'unit' }}
-                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -3414,15 +4037,11 @@ const getModalTotalPriceWithResale = () => {
 
                                     <!-- Quantity Controls -->
                                     <div class="qty-group gap-1">
-                                        <button class="qty-btn" @click="decQty">
-                                            −
-                                        </button>
+                                        <button class="qty-btn" @click="decQty">−</button>
                                         <div class="qty-box rounded-pill">
                                             {{ modalQty }}
                                         </div>
-                                        <button class="qty-btn" @click="incQty" :disabled="!canIncModalQty()">
-                                            +
-                                        </button>
+                                        <button class="qty-btn" @click="incQty">+</button>
                                     </div>
 
                                     <!-- Kitchen Note Field  -->
@@ -3633,6 +4252,12 @@ const getModalTotalPriceWithResale = () => {
                 :loading="loadingDiscounts" :applied-discounts="selectedDiscounts"
                 :rejected-discounts="rejectedDiscounts" @close="showDiscountModal = false"
                 @apply-discount="handleApplyDiscount" @clear-discount="clearDiscounts" />
+
+            <ConfirmMissingIngredientsModal :show="showMissingIngredientsModal"
+                :missing-ingredients="missingIngredients"
+                @close="showMissingIngredientsModal = false; pendingOrderData = null"
+                @confirm="handleConfirmMissingIngredients" />
+            
         </div>
     </Master>
 </template>
@@ -3642,51 +4267,63 @@ const getModalTotalPriceWithResale = () => {
     background-color: #181818;
     color: #fff;
 }
+
 .bg-light {
     font-size: 1.2rem !important;
 }
+
 :deep(.p-multiselect-overlay) {
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect),
 :deep(.p-multiselect-panel),
 :deep(.p-multiselect-token) {
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
 }
+
 :deep(.p-multiselect-overlay .p-checkbox-box.p-highlight) {
     background: #007bff !important;
     border-color: #007bff !important;
 }
+
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
+
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -3694,47 +4331,59 @@ const getModalTotalPriceWithResale = () => {
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-label) {
     color: #000 !important;
 }
+
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -3749,13 +4398,16 @@ const getModalTotalPriceWithResale = () => {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -3769,18 +4421,22 @@ const getModalTotalPriceWithResale = () => {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -3788,34 +4444,47 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
 }
+
 /* ==================== Dark Mode Select Styling ====================== */
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
+
+:global(.dark .form-control:focus) {
+    border-color: #fff !important;
+}
+
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-label) {
     color: #fff !important;
 }
+
 .col-lg-4:has(.cart) {
     position: fixed;
     right: 0;
@@ -3827,32 +4496,57 @@ const getModalTotalPriceWithResale = () => {
     overflow: auto;
     z-index: 100;
 }
+
 @media only screen and (max-width: 1024px) {
     .col-md-6 {
         width: 51% !important;
         flex: 0 0 100% !important;
         max-width: 51% !important;
     }
-    .col-lg-4 {
-        margin-top: 35px;
-        width: 40% !important;
-        max-width: 40% !important;
+
+    /* .left-card{
+        margin-top: 35px !important;
+    } */
+
+    .justify {
+        padding-right: 110px;
     }
+
+    .col-lg-4 {
+        margin-top: 36px;
+        width: 50% !important;
+        max-width: 48% !important;
+    }
+
+    .category-cards {
+        margin-top: 36px;
+        width: 43% !important;
+        max-width: 43% !important;
+    }
+
+    .right-cart {
+        margin-top: 100px;
+    }
+
     .tablet-screen {
         margin: 0px -131px 0px -14px !important;
     }
 }
+
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.3s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
 }
+
 .dark .fw-bold {
     color: #fff !important;
 }
+
 .col-lg-8:not(:has(+ .col-lg-4:has(.cart))) {
     margin-right: 0;
 }
@@ -3860,16 +4554,19 @@ const getModalTotalPriceWithResale = () => {
 .row:has(.col-lg-4:has(.cart)) .col-lg-8 {
     padding-right: 15px;
 }
+
 .cart {
     max-height: calc(85vh);
     display: flex;
     flex-direction: column;
 }
+
 .cart-body {
     overflow-y: auto;
     flex: 1;
     min-height: 0;
 }
+
 .cart-header {
     flex-shrink: 0;
 }
@@ -3877,76 +4574,98 @@ const getModalTotalPriceWithResale = () => {
 .cart-footer {
     flex-shrink: 0;
 }
+
 .cart-body::-webkit-scrollbar {
     width: 6px;
 }
+
 .cart-body::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 10px;
 }
+
 .cart-body::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 10px;
 }
+
 .cart-body::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
 .dark .cart-body {
     background-color: #181818;
 }
+
 .dark .item-title {
     color: #fff !important;
 }
+
 .dark .bg-light {
     background-color: #181818 !important;
 }
+
 .dark b {
     color: #fff !important;
 }
+
 .dark .item-sub {
     color: #fff !important;
 }
+
 .dark .cart-footer {
     background-color: #181818;
 }
+
 .dark .sub-total {
     color: #fff !important;
 }
+
 .dark .form-control {
     background-color: #181818;
     color: white;
 }
+
 .dark .item-card {
     background-color: #181818 !important;
     color: white !important;
 }
+
 .dark .cart-lines {
     background-color: #181818;
 }
+
 .dark .chip-orange {
     color: #0000;
 }
+
 .dark .modal-footer {
     background-color: #121212 !important;
 }
+
 .dark .alert {
     background-color: #181818;
 }
+
 .dark .table {
     background-color: #181818 !important;
     color: #f9fafb !important;
 }
+
 .dark .table thead {
     background-color: #181818 !important;
     color: #ffffff;
 }
+
 .dark .table thead th {
     background-color: #212121 !important;
     color: #ffffff;
 }
+
 .page-wrapper {
     background: #f5f7fb;
 }
+
 .cat-card {
     display: flex;
     flex-direction: column;
@@ -3961,10 +4680,12 @@ const getModalTotalPriceWithResale = () => {
     box-shadow: 0 6px 16px rgba(17, 23, 31, 0.06);
     transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
+
 .cat-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 10px 24px rgba(17, 23, 31, 0.1);
 }
+
 .cat-icon-wrap {
     width: 80px;
     height: 80px;
@@ -3974,15 +4695,18 @@ const getModalTotalPriceWithResale = () => {
     place-items: center;
     margin-bottom: 0.25rem;
 }
+
 .cat-icon {
     font-size: 1.35rem;
     line-height: 1;
 }
+
 .cat-name {
     font-weight: 700;
     font-size: 1rem;
     color: #141414;
 }
+
 .cat-pill {
     display: inline-block;
     font-size: 0.72rem;
@@ -3993,10 +4717,12 @@ const getModalTotalPriceWithResale = () => {
     background: #1b1670;
     box-shadow: 0 2px 6px rgba(75, 43, 183, 0.25);
 }
+
 .search-wrap {
     position: relative;
     min-width: 220px;
 }
+
 .search-wrap .bi-search {
     position: absolute;
     left: 10px;
@@ -4004,11 +4730,13 @@ const getModalTotalPriceWithResale = () => {
     transform: translateY(-50%);
     color: #6b7280;
 }
+
 .search-input {
     padding-left: 34px;
     border-radius: 999px;
     background: #fff;
 }
+
 .item-card {
     background: #fff;
     border-radius: 16px;
@@ -4021,27 +4749,32 @@ const getModalTotalPriceWithResale = () => {
     flex-direction: column;
     border: 2px solid #1b1670;
 }
+
 .item-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 22px rgba(17, 23, 31, 0.1);
 }
+
 .item-img {
     position: relative;
     aspect-ratio: 1/1;
     overflow: hidden;
 }
+
 .item-img img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
+
 .item-card.out-of-stock {
     cursor: not-allowed;
     opacity: 0.9;
     position: relative;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }
+
 .item-card.out-of-stock::after {
     content: "";
     position: absolute;
@@ -4050,10 +4783,12 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 16px;
     z-index: 2;
 }
+
 .dark .form-select {
     background-color: #212121;
     color: #fff;
 }
+
 .item-price {
     position: absolute;
     top: 10px;
@@ -4068,6 +4803,7 @@ const getModalTotalPriceWithResale = () => {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     z-index: 2;
 }
+
 .item-badge {
     position: absolute;
     left: 10px;
@@ -4079,9 +4815,11 @@ const getModalTotalPriceWithResale = () => {
     font-weight: 700;
     font-size: 0.75rem;
 }
+
 .item-body {
     padding: 0.6rem 0.75rem 0.8rem;
 }
+
 .item-title {
     font-weight: 700;
     font-size: 0.98rem;
@@ -4090,16 +4828,19 @@ const getModalTotalPriceWithResale = () => {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .item-sub {
     color: #8a8fa7;
     font-size: 0.8rem;
 }
+
 .cart {
     display: flex;
     flex-direction: column;
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
 }
+
 .cart-header {
     background: #1b1670;
     color: #fff;
@@ -4110,14 +4851,17 @@ const getModalTotalPriceWithResale = () => {
     align-items: center;
     justify-content: space-between;
 }
+
 .cart-title {
     font-weight: 800;
     letter-spacing: 0.3px;
 }
+
 .order-type {
     display: flex;
     gap: 0.4rem;
 }
+
 .ot-pill {
     background: rgba(255, 255, 255, 0.18);
     color: #fff;
@@ -4126,6 +4870,7 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.25rem 0.65rem;
     font-size: 0.8rem;
 }
+
 .dark .ot-pill {
     background: rgba(255, 255, 255, 0.18);
     color: #fff;
@@ -4134,20 +4879,24 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.25rem 0.65rem;
     font-size: 0.8rem;
 }
+
 .ot-pill.active {
     background: #fff;
     color: #1b1670;
     font-weight: 700;
 }
+
 .dark .ot-pill.active {
     background-color: #181818;
     color: #fff;
     font-weight: 700;
 }
+
 .cart-body {
     padding: 1rem;
     background: #fff;
 }
+
 .cart-lines {
     background: #fff;
     border: 1px dashed #e8e9ef;
@@ -4156,11 +4905,13 @@ const getModalTotalPriceWithResale = () => {
     max-height: 360px;
     overflow: auto;
 }
+
 .empty {
     color: #9aa0b6;
     text-align: center;
     padding: 1.25rem 0;
 }
+
 .line {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -4169,15 +4920,18 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem 0.35rem;
     border-bottom: 1px solid #f1f2f6;
 }
+
 .line:last-child {
     border-bottom: 0;
 }
+
 .line-left {
     display: flex;
     gap: 0.6rem;
     align-items: flex-start;
     min-width: 0;
 }
+
 .line-left img {
     width: 42px;
     height: 42px;
@@ -4185,12 +4939,14 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 8px;
     flex-shrink: 0;
 }
+
 .meta {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
     min-width: 0;
 }
+
 .meta .name {
     font-weight: 700;
     font-size: 0.92rem;
@@ -4198,16 +4954,19 @@ const getModalTotalPriceWithResale = () => {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .meta .note {
     font-size: 0.75rem;
     color: #8a8fa7;
 }
+
 .line-right {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-end;
 }
+
 .qty-controls {
     display: flex;
     align-items: center;
@@ -4216,6 +4975,7 @@ const getModalTotalPriceWithResale = () => {
     border-radius: 8px;
     padding: 0.2rem;
 }
+
 .qty-btn {
     width: 26px;
     height: 26px;
@@ -4229,30 +4989,36 @@ const getModalTotalPriceWithResale = () => {
     cursor: pointer;
     transition: all 0.2s ease;
 }
+
 .qty-btn:hover {
     background: #0f0d4d;
 }
+
 .qty-btn:disabled {
     background: #b9bdd4;
     cursor: not-allowed;
 }
+
 .qty {
     min-width: 28px;
     text-align: center;
     font-weight: 700;
     font-size: 0.9rem;
 }
+
 .price-delete {
     display: flex;
     align-items: center;
     gap: 0.4rem;
 }
+
 .price {
     font-weight: 700;
     font-size: 0.95rem;
     min-width: 64px;
     text-align: right;
 }
+
 .del {
     border: 0;
     background: #ffeded;
@@ -4271,58 +5037,72 @@ const getModalTotalPriceWithResale = () => {
     background: #ff6b6b;
     color: #fff;
 }
+
 .dark .qty-controls {
     background: #212121;
 }
+
 .dark .qty {
     color: #fff;
 }
+
 .dark .price {
     color: #fff;
 }
+
 .dark .del {
     background: #3a3a3a;
     color: #ff6b6b;
 }
+
 .dark .del:hover {
     background: #c0392b;
     color: #fff;
 }
+
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
     .line {
         gap: 0.6rem;
         padding: 0.5rem 0.3rem;
     }
+
     .line-left img {
         width: 40px;
         height: 40px;
     }
+
     .meta .name {
         font-size: 0.88rem;
     }
+
     .qty-btn {
         width: 24px;
         height: 24px;
         font-size: 0.85rem;
     }
+
     .qty {
         min-width: 26px;
         font-size: 0.85rem;
     }
+
     .price {
         font-size: 0.9rem;
     }
+
     .del {
         width: 26px;
         height: 26px;
     }
 }
+
 /* Mobile adjustments */
 @media only screen and (max-width: 768px) {
     .line {
         grid-template-columns: 1fr;
         gap: 0.5rem;
     }
+
     .line-right {
         flex-direction: row;
         justify-content: space-between;
@@ -4330,11 +5110,13 @@ const getModalTotalPriceWithResale = () => {
         width: 100%;
     }
 }
+
 .price {
     font-weight: 700;
     min-width: 64px;
     text-align: right;
 }
+
 .del {
     border: 0;
     background: #ffeded;
@@ -4343,15 +5125,18 @@ const getModalTotalPriceWithResale = () => {
     height: 30px;
     border-radius: 8px;
 }
+
 .totals {
     padding: 0.75rem 0 0.25rem;
 }
+
 .trow {
     display: flex;
     justify-content: space-between;
     padding: 0.25rem 0;
     color: #4b5563;
 }
+
 .trow.total {
     border-top: 1px solid #eef0f6;
     margin-top: 0.25rem;
@@ -4360,6 +5145,7 @@ const getModalTotalPriceWithResale = () => {
     font-size: 16px;
     font-weight: 800;
 }
+
 .cart-footer {
     background: #f7f8ff;
     padding: 0.75rem;
@@ -4368,6 +5154,7 @@ const getModalTotalPriceWithResale = () => {
     border-bottom-left-radius: 1rem;
     border-bottom-right-radius: 1rem;
 }
+
 .btn-clear {
     flex: 1;
     border: 0;
@@ -4377,6 +5164,7 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem;
     border-radius: 999px;
 }
+
 .dark .btn-clear {
     flex: 1;
     border: 0;
@@ -4386,6 +5174,7 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem;
     border-radius: 999px;
 }
+
 .btn-place {
     flex: 1;
     border: 0;
@@ -4395,11 +5184,13 @@ const getModalTotalPriceWithResale = () => {
     padding: 0.6rem;
     border-radius: 999px;
 }
+
 .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
 }
+
 .chip {
     font-size: 0.75rem;
     padding: 0.25rem 0.55rem;
@@ -4407,6 +5198,7 @@ const getModalTotalPriceWithResale = () => {
     background: #f5f6fb;
     border: 1px solid #eceef7;
 }
+
 .dark .chip {
     font-size: 0.75rem;
     padding: 0.25rem 0.55rem;
@@ -4414,35 +5206,43 @@ const getModalTotalPriceWithResale = () => {
     background: #181818;
     border: 1px solid #eceef7;
 }
+
 .chip-green {
     background: #e9f8ef;
     border-color: #d2f1de;
 }
+
 .chip-blue {
     background: #e8f3ff;
     border-color: #d2e6ff;
 }
+
 .chip-purple {
     background: #f1e9ff;
     border-color: #e1d2ff;
 }
+
 .chip-orange {
     background: #fff3e6;
     border-color: #ffe1bf;
 }
+
 .chip-red {
     background: #ffe9ea;
     border-color: #ffd3d6;
 }
+
 .chip-teal {
     background: #e8fffb;
     border-color: #c9f4ee;
 }
+
 .qty-group {
     display: inline-flex;
     border-radius: 12px;
     overflow: hidden;
 }
+
 .qty-box {
     min-width: 60px;
     display: flex;
@@ -4452,10 +5252,12 @@ const getModalTotalPriceWithResale = () => {
     color: #fff;
     font-weight: 800;
 }
+
 .qty-group .qty-btn {
     width: 38px;
     height: 38px;
 }
+
 .variant-select {
     border: 2px solid #e5e7eb;
     border-radius: 8px;
@@ -4465,114 +5267,141 @@ const getModalTotalPriceWithResale = () => {
     transition: all 0.2s ease;
     cursor: pointer;
 }
+
 .variant-select:hover {
     border-color: #1B1670;
 }
+
 .variant-select:focus {
     border-color: #1B1670;
     box-shadow: 0 0 0 3px rgba(27, 22, 112, 0.1);
 }
+
 .dark .variant-select {
     background-color: #212121;
     color: #fff;
     border-color: #4b5563;
 }
+
 .addon-multiselect {
     font-size: 0.875rem;
 }
+
 .addon-multiselect :deep(.p-multiselect) {
     border: 2px solid #e5e7eb;
     border-radius: 8px;
     transition: all 0.2s ease;
 }
+
 .addon-multiselect :deep(.p-multiselect:hover) {
     border-color: #1B1670;
 }
+
 .addon-multiselect :deep(.p-multiselect.p-focus) {
     border-color: #1B1670;
     box-shadow: 0 0 0 3px rgba(27, 22, 112, 0.1);
 }
+
 .addon-multiselect :deep(.p-multiselect-label) {
     padding: 0.5rem 0.75rem;
 }
+
 .addon-multiselect :deep(.p-multiselect-panel) {
     border-radius: 8px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
+
 .addon-multiselect :deep(.p-multiselect-item) {
     padding: 0.5rem 0.75rem;
     transition: background-color 0.2s ease;
 }
+
 .addon-multiselect :deep(.p-multiselect-item:hover) {
     background-color: #f3f4f6;
 }
+
 .addon-multiselect :deep(.p-multiselect-item.p-highlight) {
     background-color: #1B1670;
     color: white;
 }
+
 .dark .addon-multiselect :deep(.p-multiselect) {
     background-color: #212121;
     border-color: #4b5563;
     color: #fff;
 }
+
 .dark .addon-multiselect :deep(.p-multiselect-panel) {
     background-color: #212121;
     border-color: #4b5563;
 }
+
 .dark .addon-multiselect :deep(.p-multiselect-item) {
     color: #fff;
 }
+
 .dark .addon-multiselect :deep(.p-multiselect-item:hover) {
     background-color: #374151;
 }
+
 .dark .addon-multiselect :deep(.p-multiselect-item.p-highlight) {
     background-color: #1B1670;
     color: white;
 }
+
 .addons-list {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
     margin-top: 0.25rem;
 }
+
 .addons-list .badge {
     font-weight: 500;
     padding: 0.2rem 0.4rem;
     line-height: 1.2;
 }
+
 @media only screen and (min-device-width: 1024px) and (max-device-width: 1366px) {
     .cart-header {
         padding: 0.7rem;
     }
+
     .cart-header-buttons {
         font-size: 14px !important;
         height: 30px !important;
     }
+
     .promos-btn,
     .discount-btn {
         height: 30px !important;
         padding-top: 0.19rem !important;
 
     }
+
     .table-dropdown {
         margin-top: 0px !important;
     }
+
     .view-details-btn {
         height: 30px !important;
         font-size: 14px !important;
     }
+
     .left-card-cntrl-btn {
         height: 30px !important;
     }
+
     .menu-name {
         margin-top: 15px !important;
         font-size: 16px !important;
     }
+
     .cart {
-    max-height: calc(70vh);
-    display: flex;
-    flex-direction: column;
-}
+        max-height: calc(70vh);
+        display: flex;
+        flex-direction: column;
+    }
 
 }
 </style>

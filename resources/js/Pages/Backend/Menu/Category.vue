@@ -757,14 +757,22 @@ const deleteCategory = async (row) => {
     if (!row?.id) return;
 
     try {
-        await axios.delete(`/menu-categories/${row.id}`);
-        toast.success("Category deleted successfully");
+        const res = await axios.delete(`/menu-categories/${row.id}`);
+
+        toast.success(res.data.message || "Category deleted successfully");
         await fetchCategories(); // refresh the table
+
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
-        toast.error("Failed to delete category ❌");
+
+        // ✔ Show backend message, if available
+        const backendMessage = err.response?.data?.message 
+            || "Failed to delete category ❌";
+
+        toast.error(backendMessage);
     }
 };
+
 
 const options = ref([]); // all subcategory options
 const currentFilterValue = ref("");
@@ -929,7 +937,7 @@ const downloadCSV = (data) => {
             return [
                 `"${category.name || ""}"`,
                 `"${subcategoryNames}"`,
-                `${category.active ? 1 : 0}`,
+                `${category.active ? 'Yes' : 'No'}`,
             ];
         });
 
@@ -993,7 +1001,7 @@ const downloadPDF = (data) => {
             return [
                 category.name || "",
                 subcategoryNames,
-                category.active ? "1" : "0",
+                category.active ? "Yes" : "No",
             ];
         });
 
@@ -1058,7 +1066,7 @@ const downloadExcel = (data) => {
             return {
                 Category: category.name || "",
                 Subcategory: subcategoryNames,
-                Active: category.active ? "1" : "0",
+                Active: category.active ? "Yes" : "No",
             }
         });
 
@@ -1150,11 +1158,34 @@ const handleImport = (data) => {
         .post("/api/menu-categories/import", { categories: categoriesToImport })
         .then(() => {
             toast.success("Categories imported successfully");
+            const importModal = document.querySelector('.modal.show');
+            if (importModal) {
+                const bsModal = bootstrap.Modal.getInstance(importModal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+            
+            // ✅ Force remove any lingering backdrops
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
             fetchCategories();
         })
         .catch((err) => {
             console.error(err);
             toast.error("Import failed");
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }, 100);
         });
 };
 </script>
@@ -1288,11 +1319,11 @@ const handleImport = (data) => {
                                     <th>Category</th>
                                     <th>Sub Category</th>
                                     <th>Icon</th>
-                                    <th>Total value</th>
+                                    <!-- <th>Total value</th> -->
                                     <th>Total Item</th>
-                                    <th>Out of Stock</th>
-                                    <th>Low Stock</th>
-                                    <th>In Stock</th>
+                                    <!-- <th>Out of Stock</th> -->
+                                    <!-- <th>Low Stock</th> -->
+                                    <!-- <th>In Stock</th> -->
                                     <th>Status</th>
                                     <th class="text-center">Action</th>
                                 </tr>
@@ -1338,11 +1369,11 @@ const handleImport = (data) => {
                                             <span v-else class="fs-5">📦</span>
                                         </div>
                                     </td>
-                                    <td>{{ formatCurrencySymbol(row.total_value) }}</td>
+                                    <!-- <td>{{ formatCurrencySymbol(row.total_value) }}</td> -->
                                     <td>{{ row.total_menu_items }}</td>
-                                    <td>{{ row.out_of_stock }}</td>
-                                    <td>{{ row.low_stock }}</td>
-                                    <td>{{ row.in_stock }}</td>
+                                    <!-- <td>{{ row.out_of_stock }}</td> -->
+                                    <!-- <td>{{ row.low_stock }}</td> -->
+                                    <!-- <td>{{ row.in_stock }}</td> -->
                                     <td>
                                         <span :class="[
                                             'badge',
@@ -1686,6 +1717,10 @@ const handleImport = (data) => {
     border-radius: 55%;
     background-color: #fff !important;
 }
+:global(.dark .form-control:focus){
+    border-color: #fff !important;
+}
+
 
 .dark .side-link {
     border-radius: 55%;

@@ -57,7 +57,7 @@ watch(
             unitPrice: 0,
             expiry: null,
             subtotal: 0,
-            supplier_id: null,
+            supplier_id: it.preferred_supplier_id || it.supplier_id || null,
             selected_derived_unit_id: null,
             selectedDerivedUnitInfo: null,
             derived_units: [],
@@ -505,14 +505,33 @@ async function multipleSubmit() {
                     <div v-if="activeTab === 'single'">
                         <div class="mb-3">
                             <label class="form-label">Preferred Supplier</label>
-                            <Select v-model="b_supplier" :options="suppliers" optionLabel="name" optionValue="id"
+
+                            <Select v-model="b_supplier" :options="suppliers" filter optionLabel="name" optionValue="id"
                                 placeholder="Select Supplier" class="w-100" appendTo="self" :autoZIndex="true"
-                                :class="{ 'is-invalid': formErrors.supplier }" :baseZIndex="2000" />
+                                :baseZIndex="2000" :class="{ 'is-invalid': formErrors.supplier }">
+                                <!-- Selected Value Template -->
+                                <template #value="slotProps">
+                                    <div v-if="slotProps.value">
+                                        {{ slotProps.value.name }}
+                                    </div>
+                                    <span v-else>
+                                        {{ slotProps.placeholder }}
+                                    </span>
+                                </template>
+
+                                <!-- Dropdown Option Template -->
+                                <template #option="slotProps">
+                                    <div>
+                                        {{ slotProps.option.name }}
+                                    </div>
+                                </template>
+                            </Select>
 
                             <small v-if="formErrors.supplier" class="text-danger">
                                 {{ formErrors.supplier }}
                             </small>
                         </div>
+
 
                         <div class="table-responsive">
                             <table class="table align-middle">
@@ -537,7 +556,8 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
+                                                @input="handleQtyInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.qty }" />
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -554,14 +574,15 @@ async function multipleSubmit() {
                                         </td>
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid': formErrors[idx]?.unitPrice}" />
+                                                class="form-control" @input="handlePriceInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.unitPrice }" />
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
                                         </td>
                                         <td>
                                             <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="false" placeholder="Select date"
+                                                :enableTimePicker="false" :teleport="false"  placeholder="Select date"
                                                 :class="{
                                                     'is-invalid': formErrors[idx]?.expiry
                                                 }" />
@@ -642,7 +663,8 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.qty" class="form-control"
-                                                @input="handleQtyInput(it)" :class="{'is-invalid': formErrors[idx]?.qty}"/>
+                                                @input="handleQtyInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.qty }" />
                                             <small v-if="formErrors[idx]?.qty" class="text-danger">
                                                 {{ formErrors[idx].qty }}
                                             </small>
@@ -660,15 +682,16 @@ async function multipleSubmit() {
 
                                         <td>
                                             <input type="number" min="0" v-model.number="it.unitPrice"
-                                                class="form-control" @input="handlePriceInput(it)" :class="{'is-invalid':formErrors[idx]?.unitPrice}"/>
+                                                class="form-control" @input="handlePriceInput(it)"
+                                                :class="{ 'is-invalid': formErrors[idx]?.unitPrice }" />
                                             <small v-if="formErrors[idx]?.unitPrice" class="text-danger">
                                                 {{ formErrors[idx].unitPrice }}
                                             </small>
                                         </td>
                                         <td>
-                                            <VueDatePicker v-model="it.expiry" :position="bottom" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="body"  placeholder="Select date"
-                                                :class="{
+                                            <VueDatePicker v-model="it.expiry" :position="bottom" :format="dateFmt"
+                                                :min-date="new Date()" :enableTimePicker="false" :teleport="body"
+                                                placeholder="Select date" :class="{
                                                     'is-invalid': m_formErrors[idx]?.expiry
                                                 }" />
 
