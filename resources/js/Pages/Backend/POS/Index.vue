@@ -3197,7 +3197,7 @@ const getModalTotalPriceWithResale = () => {
                     <div :class="showCategories ? 'col-md-12' : 'col-lg-8'">
                         <!-- Categories Grid -->
                         <div v-if="showCategories" class="row g-3 tablet-screen">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between justify align-items-center mb-3">
                                 <h4 class="mb-0">Menu Categories</h4>
 
                                 <button v-if="isCashier" @click="openCustomerDisplay"
@@ -3214,7 +3214,7 @@ const getModalTotalPriceWithResale = () => {
                                         v-model="categorySearchQuery" :key="categorySearchKey" type="search"
                                         class="form-control form-control-sm" placeholder="Search categories..."
                                         autocomplete="new-password" :name="categoryInputId" role="presentation"
-                                        style="border-radius: 8px; padding: 8px 12px;" />
+                                        style="border-radius: 8px; padding: 8px 12px;"/>
                                     <input v-else type="text" class="form-control form-control-sm"
                                         placeholder="Search categories..." disabled
                                         style="border-radius: 8px; padding: 8px 12px;" />
@@ -3229,7 +3229,7 @@ const getModalTotalPriceWithResale = () => {
                             </div>
                             <!-- Categories List -->
                             <template v-else>
-                                <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-4">
+                                <div v-for="c in filteredCategories" :key="c.id" class="col-6 col-md-4 col-lg-4 category-cards">
                                     <div class="cat-card" @click="openCategory(c)">
                                         <div class="cat-icon-wrap">
                                             <span class="cat-icon">
@@ -3254,7 +3254,7 @@ const getModalTotalPriceWithResale = () => {
                         </div>
                         <!-- Items in selected category -->
                         <div v-else>
-                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
                                 <button class="btn btn-primary rounded-pill shadow-sm px-3" @click="backToCategories">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
@@ -3290,7 +3290,7 @@ const getModalTotalPriceWithResale = () => {
                             </div>
 
                             <div class="row g-3">
-                                <div class="col-12 col-md-6 cat-cards col-xl-6 d-flex" v-for="p in filteredProducts"
+                                <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex" v-for="p in filteredProducts"
                                     :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
                                         :style="{ borderColor: p.label_color || '#1B1670' }">
@@ -3475,7 +3475,7 @@ const getModalTotalPriceWithResale = () => {
                     </div>
 
                     <!-- RIGHT: Cart -->
-                    <div class="col-lg-4" v-if="!showCategories">
+                    <div class="col-lg-4 right-cart" v-if="!showCategories">
 
                         <div class="col-12 d-flex align-items-center justify-content-end gap-2 mb-2">
                             <!-- KOT Orders button -->
@@ -4409,10 +4409,28 @@ const getModalTotalPriceWithResale = () => {
         max-width: 51% !important;
     }
 
+    /* .left-card{
+        margin-top: 35px !important;
+    } */
+
+    .justify{
+        padding-right: 110px;
+    }
+
     .col-lg-4 {
-        margin-top: 35px;
-        width: 40% !important;
-        max-width: 40% !important;
+        margin-top: 36px;
+        width: 50% !important;
+        max-width: 48% !important;
+    }
+
+    .category-cards {
+        margin-top: 36px;
+        width: 43% !important;
+        max-width: 43% !important;
+    }
+
+    .right-cart {
+        margin-top: 100px;
     }
 
     .tablet-screen {
