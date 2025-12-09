@@ -31,14 +31,12 @@ const manualSubcategories = ref([]);
 
 const defaultCategoryFilters = {
     sortBy: "",
+    category: "",
     status: "",
     hasSubcategories: "",
-    stockStatus: "",
-    valueMin: null,
-    valueMax: null,
 };
-
 const filters = ref({ ...defaultCategoryFilters });
+const appliedFilters = ref({ ...defaultCategoryFilters });
 
 const fetchCategories = async () => {
     try {
@@ -66,6 +64,12 @@ onMounted(async () => {
         }
     }, 100);
     fetchCategories();
+    const filterModal = document.getElementById('categoryFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            filters.value = { ...appliedFilters.value };
+        });
+    }
 });
 
 // Get only parent categories (main categories) for dropdown
@@ -106,20 +110,23 @@ const isReady = ref(false);
 
 const filtered = computed(() => {
     const t = q.value.trim().toLowerCase();
-    // First, get only parent categories
     let parents = categories.value.filter((c) => c.parent_id === null);
 
-    // Text search
+    // Search filter
     if (t) {
         parents = parents.filter((c) => c.name.toLowerCase().includes(t));
+    }
+
+    // Category filter - filter by category ID
+    if (filters.value.category !== "") {
+        parents = parents.filter((cat) => cat.id === filters.value.category);
     }
 
     // Status filter
     if (filters.value.status !== "") {
         parents = parents.filter((cat) => {
-            return filters.value.status === "active"
-                ? cat.active === 1 || cat.active === true
-                : cat.active === 0 || cat.active === false;
+            const isActive = cat.active === 1 || cat.active === true || cat.active === "1";
+            return filters.value.status === "active" ? isActive : !isActive;
         });
     }
 
@@ -131,43 +138,16 @@ const filtered = computed(() => {
         });
     }
 
-    // Stock Status filter
-    if (filters.value.stockStatus) {
-        parents = parents.filter((cat) => {
-            const outOfStock = cat.out_of_stock || 0;
-            const lowStock = cat.low_stock || 0;
-            const inStock = cat.in_stock || 0;
-            const totalItems = cat.total_items || 0;
-
-            switch (filters.value.stockStatus) {
-                case "in_stock":
-                    return inStock > 0;
-                case "low_stock":
-                    return lowStock > 0;
-                case "out_of_stock":
-                    return outOfStock > 0;
-                case "has_items":
-                    return totalItems > 0;
-                case "no_items":
-                    return totalItems === 0;
-                default:
-                    return true;
-            }
-        });
-    }
-
-    // Value range filter
-    if (filters.value.valueMin !== null || filters.value.valueMax !== null) {
-        parents = parents.filter((cat) => {
-            const value = cat.total_value || 0;
-            const min = filters.value.valueMin || 0;
-            const max = filters.value.valueMax || Infinity;
-            return value >= min && value <= max;
-        });
-    }
-
     return parents;
 });
+
+const handleFilterApply = () => {
+    appliedFilters.value = { ...filters.value };
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById("categoryFilterModal")
+    );
+    modal?.hide();
+};
 
 const sortedCategories = computed(() => {
     const arr = [...filtered.value];
@@ -195,10 +175,6 @@ const filterOptions = computed(() => ({
     sortOptions: [
         { value: "name_asc", label: "Name: A to Z" },
         { value: "name_desc", label: "Name: Z to A" },
-        { value: "value_desc", label: "Value: High to Low" },
-        { value: "value_asc", label: "Value: Low to High" },
-        { value: "items_desc", label: "Items: High to Low" },
-        { value: "items_asc", label: "Items: Low to High" },
     ],
     statusOptions: [
         { value: "active", label: "Active" },
@@ -208,17 +184,11 @@ const filterOptions = computed(() => ({
         { value: "yes", label: "Has Subcategories" },
         { value: "no", label: "No Subcategories" },
     ],
-    stockStatusOptions: [
-        { value: "in_stock", label: "In Stock" },
-        { value: "low_stock", label: "Low Stock" },
-        { value: "out_of_stock", label: "Out of Stock" },
-        { value: "has_items", label: "Has Items" },
-        { value: "no_items", label: "No Items" },
-    ],
 }));
 
 const handleFilterClear = () => {
     filters.value = { ...defaultCategoryFilters };
+    appliedFilters.value = { ...defaultCategoryFilters }; 
 };
 
 /* ---------------- Helpers ---------------- */
@@ -453,7 +423,7 @@ const submitCategory = async () => {
                 .toLowerCase()
                 .replace(/[^a-z0-9]/g, "-") + ".jpg";
             const file = await urlToFile(manualIcon.value.icon, filename);
-            
+
             if (file) {
                 manualIcon.value.file = file;
             } else {
@@ -530,10 +500,10 @@ const submitCategory = async () => {
             await axios.post(
                 `/menu-categories/${editingCategory.value.id}`,
                 formData,
-                { 
-                    headers: { 
-                        "Content-Type": "multipart/form-data" 
-                    } 
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data"
+                    }
                 }
             );
 
@@ -620,10 +590,10 @@ const submitCategory = async () => {
         resetModal();
         editingCategory.value = null;
         await fetchCategories();
-        
+
     } catch (err) {
         console.error("❌ Submit error:", err);
-        
+
         if (err.response?.status === 422 && err.response?.data?.errors) {
             const errors = err.response.data.errors;
             let errorMessages = [];
@@ -766,7 +736,7 @@ const deleteCategory = async (row) => {
         console.error("❌ Delete error:", err.response?.data || err.message);
 
         // ✔ Show backend message, if available
-        const backendMessage = err.response?.data?.message 
+        const backendMessage = err.response?.data?.message
             || "Failed to delete category ❌";
 
         toast.error(backendMessage);
@@ -1165,7 +1135,7 @@ const handleImport = (data) => {
                     bsModal.hide();
                 }
             }
-            
+
             // ✅ Force remove any lingering backdrops
             setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
@@ -1192,7 +1162,8 @@ const handleImport = (data) => {
 
 <template>
     <Master>
-          <Head title="Menu Category" />
+
+        <Head title="Menu Category" />
         <div class="page-wrapper">
 
             <h4 class="mb-3">Categories</h4>
@@ -1247,21 +1218,43 @@ const handleImport = (data) => {
 
                             <FilterModal v-model="filters" title="Menu Categories" modal-id="categoryFilterModal"
                                 modal-size="modal-lg" :sort-options="filterOptions.sortOptions"
-                                :status-options="filterOptions.statusOptions"
-                                :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="true"
-                                price-label="Total Value Range" @apply="handleFilterApply" @clear="handleFilterClear">
+                                :status-options="filterOptions.statusOptions" :show-stock-status="false"
+                                :show-price-range="false" :show-date-range="false" :show-category="false"
+                                :suppliers="[]" @apply="handleFilterApply" @clear="handleFilterClear">
+
                                 <!-- Custom filters slot -->
                                 <template #customFilters="{ filters }">
-                                    <div class="col-12">
+                                    <div class="col-md-6">
                                         <label class="form-label fw-semibold text-dark">
-                                            <i class="fas fa-sitemap me-2 text-muted"></i>Subcategories
+                                            <i class="fas fa-tags me-2 text-muted"></i>Category
+                                        </label>
+                                        <select v-model="filters.category" class="form-select">
+                                            <option value="">All Categories</option>
+                                            <option v-for="cat in parentCategories" :key="cat.id" :value="cat.id">
+                                                {{ cat.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6 mt-3">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-toggle-on me-2 text-muted"></i>Status
+                                        </label>
+                                        <select v-model="filters.status" class="form-select">
+                                            <option value="">All Status</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-12 mt-3">
+                                        <label class="form-label fw-semibold text-dark">
+                                            <i class="fas fa-sitemap me-2 text-muted"></i>Has Subcategories
                                         </label>
                                         <select v-model="filters.hasSubcategories" class="form-select">
                                             <option value="">All</option>
-                                            <option v-for="opt in filterOptions.hasSubcategoriesOptions"
-                                                :key="opt.value" :value="opt.value">
-                                                {{ opt.label }}
-                                            </option>
+                                            <option value="yes">Has Subcategories</option>
+                                            <option value="no">No Subcategories</option>
                                         </select>
                                     </div>
                                 </template>
@@ -1689,7 +1682,7 @@ const handleImport = (data) => {
                                     }" />
                                 <small class="text-danger">{{
                                     subCatErrors
-                                    }}</small>
+                                }}</small>
                             </div>
                             <button type="button" class="btn btn-primary rounded-pill px-4" @click="submitSubCategory"
                                 :disabled="submittingSub">
@@ -1717,7 +1710,8 @@ const handleImport = (data) => {
     border-radius: 55%;
     background-color: #fff !important;
 }
-:global(.dark .form-control:focus){
+
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 

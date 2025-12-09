@@ -332,42 +332,83 @@ watch(q, () => {
     }, 500);
 });
 
-const onDownload = (type) => {
-    if (!units.value || units.value.length === 0) {
-        toast.error("No Units data to download");
-        return;
-    }
-
-    const dataToExport = q.value.trim() ? filteredUnits.value : units.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No Units found to download");
-        return;
-    }
-
+const fetchAllUnitsForExport = async () => {
     try {
-        if (type === "pdf") {
-            downloadPDF(dataToExport);
-        } else if (type === "excel") {
-            downloadExcel(dataToExport);
-        } else if (type === "csv") {
-            downloadCSV(dataToExport);
-        } else {
-            toast.error("Invalid download type");
-        }
-    } catch (error) {
-        console.error("Download failed:", error);
-        toast.error(`Download failed: ${error.message}`);
+        loading.value = true;
+        
+        const res = await axios.get("/units", {
+            params: {
+                q: q.value.trim(),
+                per_page: 10000, // Fetch all at once
+                page: 1
+            }
+        });
+        
+        console.log('📦 Export data received:', {
+            total: res.data.total,
+            items: res.data.data.length
+        });
+        
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
     }
 };
 
+// ✅ UPDATED: Main download function
+const onDownload = async (type) => {
+    try {
+        loading.value = true;
+        toast.info("Preparing export data...", { autoClose: 1500 });
+        
+        // ✅ Fetch ALL data (not just current page)
+        const allData = await fetchAllUnitsForExport();
+
+        if (!allData || allData.length === 0) {
+            toast.error("No units found to download");
+            loading.value = false;
+            return;
+        }
+
+        console.log(`📥 Exporting ${allData.length} units as ${type.toUpperCase()}`);
+
+        // Export based on type
+        if (type === "pdf") {
+            downloadPDF(allData);
+        } else if (type === "excel") {
+            downloadExcel(allData);
+        } else if (type === "csv") {
+            downloadCSV(allData);
+        } else {
+            toast.error("Invalid download type");
+        }
+        
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ✅ UPDATED CSV Download
 const downloadCSV = (data) => {
     try {
         const headers = ["Name"];
 
-        const rows = data.map((s) => [
-            `"${s.name || ""}"`,
-        ]);
+        const rows = data.map((unit) => {
+            const escapeCSV = (str) => {
+                if (str === null || str === undefined) return '""';
+                str = String(str).replace(/"/g, '""');
+                return `"${str}"`;
+            };
+            
+            return [escapeCSV(unit.name)];
+        });
 
         const csvContent = [
             headers.join(","),
@@ -388,8 +429,9 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        toast.success("CSV downloaded successfully");
+        toast.success(`CSV downloaded successfully (${data.length} units)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -398,6 +440,7 @@ const downloadCSV = (data) => {
     }
 };
 
+// ✅ UPDATED PDF Download
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
@@ -416,7 +459,7 @@ const downloadPDF = (data) => {
 
         // Table setup — only "Name" column
         const tableColumns = ["Name"];
-        const tableRows = data.map((s) => [s.name || ""]);
+        const tableRows = data.map((unit) => [unit.name || ""]);
 
         autoTable(doc, {
             head: [tableColumns],
@@ -452,7 +495,7 @@ const downloadPDF = (data) => {
         const fileName = `units_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully");
+        toast.success(`PDF downloaded successfully (${data.length} units)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -461,7 +504,7 @@ const downloadPDF = (data) => {
     }
 };
 
-
+// ✅ UPDATED Excel Download
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
@@ -494,7 +537,7 @@ const downloadExcel = (data) => {
         const fileName = `units_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", {
+        toast.success(`Excel file downloaded successfully (${data.length} units)`, {
             autoClose: 2500,
         });
     } catch (error) {
@@ -504,7 +547,6 @@ const downloadExcel = (data) => {
         });
     }
 };
-
 
 onMounted(async () => {
     await fetchUnits();
