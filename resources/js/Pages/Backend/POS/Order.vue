@@ -62,7 +62,7 @@ const filters = ref({
 });
 
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway"]);
-const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]); 
+const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]);
 
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
@@ -627,6 +627,281 @@ const confirmCancelOrder = async (reason) => {
     }
 };
 
+// Add these imports at the top of your script (if not already present)
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+
+// Add this export handler function
+const onDownload = (type) => {
+    if (!orders.value || orders.value.length === 0) {
+        toast.error("No orders data to download");
+        return;
+    }
+
+    const dataToExport = q.value.trim() ? filtered.value : orders.value;
+
+    if (dataToExport.length === 0) {
+        toast.error("No orders found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+// CSV Download Function
+const downloadCSV = (data) => {
+    try {
+        // Define headers
+        const headers = [
+            "Order ID",
+            "Table No.",
+            "Order Type",
+            "Date",
+            "Customer",
+            "Payment Type",
+            "Sub Total",
+            "Promo Discount",
+            "Sales Discount",
+            "Approved Discount",
+            "Tax",
+            "Service Charges",
+            "Delivery Charges",
+            "Total Amount",
+            "Status",
+            "Promo Name"
+        ];
+
+        const rows = data.map((order) => {
+            return [
+                `"${order.id || ""}"`,
+                `"${order.type?.table_number || "-"}"`,
+                `"${order.type?.order_type || "-"}"`,
+                `"${formatDate(order.created_at)}"`,
+                `"${order.customer_name || "-"}"`,
+                `"${order.payment?.payment_type || "-"}"`,
+                `"${order.sub_total || 0}"`,
+                `"${order.promo?.[0]?.discount_amount || 0}"`,
+                `"${order.sales_discount || 0}"`,
+                `"${order.approved_discounts || 0}"`,
+                `"${order.tax || 0}"`,
+                `"${order.service_charges || 0}"`,
+                `"${order.delivery_charges || 0}"`,
+                `"${order.total_amount || 0}"`,
+                `"${order.status || ""}"`,
+                `"${order.promo?.[0]?.promo_name || "-"}"`
+            ];
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(","))
+        ].join("\n");
+
+        // Create blob
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Orders_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+// PDF Download Function
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4"); // Landscape mode for more columns
+
+        // Title
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Orders Report", 14, 20);
+
+        // Metadata
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Orders: ${data.length}`, 14, 34);
+
+        // Table Columns
+        const tableColumns = [
+            "Order ID",
+            "Table",
+            "Type",
+            "Date",
+            "Customer",
+            "Payment",
+            "Sub Total",
+            "Promo Disc.",
+            "Sales Disc.",
+            "Total",
+            "Status"
+        ];
+
+        // Table Rows
+        const tableRows = data.map((order) => {
+            return [
+                order.id || "",
+                order.type?.table_number || "-",
+                order.type?.order_type || "-",
+                formatDate(order.created_at),
+                order.customer_name || "-",
+                order.payment?.payment_type || "-",
+                `£${Number(order.sub_total || 0).toFixed(2)}`,
+                `£${Number(order.promo?.[0]?.discount_amount || 0).toFixed(2)}`,
+                `£${Number(order.sales_discount || 0).toFixed(2)}`,
+                `£${Number(order.total_amount || 0).toFixed(2)}`,
+                order.status || ""
+            ];
+        });
+
+        // Create Styled Table
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        // Save File
+        const fileName = `Orders_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
+// Excel Download Function
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        // Prepare data
+        const worksheetData = data.map((order) => {
+            return {
+                "Order ID": order.id || "",
+                "Table No.": order.type?.table_number || "-",
+                "Order Type": order.type?.order_type || "-",
+                "Date": formatDate(order.created_at),
+                "Customer": order.customer_name || "-",
+                "Payment Type": order.payment?.payment_type || "-",
+                "Sub Total": Number(order.sub_total || 0).toFixed(2),
+                "Promo Discount": Number(order.promo?.[0]?.discount_amount || 0).toFixed(2),
+                "Sales Discount": Number(order.sales_discount || 0).toFixed(2),
+                "Approved Discount": Number(order.approved_discounts || 0).toFixed(2),
+                "Tax": Number(order.tax || 0).toFixed(2),
+                "Service Charges": Number(order.service_charges || 0).toFixed(2),
+                "Delivery Charges": Number(order.delivery_charges || 0).toFixed(2),
+                "Total Amount": Number(order.total_amount || 0).toFixed(2),
+                "Status": order.status || "",
+                "Promo Name": order.promo?.[0]?.promo_name || "-"
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Set column widths
+        worksheet["!cols"] = [
+            { wch: 10 },
+            { wch: 10 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 20 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 17 },
+            { wch: 10 },
+            { wch: 15 },
+            { wch: 16 },
+            { wch: 13 },
+            { wch: 10 },
+            { wch: 20 }
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+        // Add metadata sheet
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Total Revenue", Value: `£${data.reduce((sum, o) => sum + Number(o.total_amount || 0), 0).toFixed(2)}` },
+            { Info: "Exported By", Value: "Restaurant Management System" }
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        const fileName = `Orders_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
+    }
+};
+
 </script>
 
 <template>
@@ -714,9 +989,9 @@ const confirmCancelOrder = async (reason) => {
 
                             <FilterModal v-model="filters" title="Orders" modal-id="orderFilterModal"
                                 modal-size="modal-lg" :sort-options="filterOptions.sortOptions"
-                                :status-options="filterOptions.statusOptions" :show-price-range="true"
-                                :show-date-range="true" price-label="Total Amount Range" @apply="handleFilterApply"
-                                @clear="handleFilterClear">
+                                :status-options="filterOptions.statusOptions" :show-stock-status="false"
+                                :show-price-range="true" :show-date-range="true" price-label="Total Amount Range"
+                                @apply="handleFilterApply" @clear="handleFilterClear">
                                 <!-- Custom filters slot for Order Type and Payment Type -->
                                 <template #customFilters="{ filters }">
                                     <div class="col-md-6">
@@ -747,6 +1022,7 @@ const confirmCancelOrder = async (reason) => {
                                 </template>
                             </FilterModal>
                             <!-- Download -->
+                            <!-- Replace the existing Export dropdown in your template -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                                     data-bs-toggle="dropdown">
@@ -754,10 +1030,19 @@ const confirmCancelOrder = async (reason) => {
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
-                                        <a class="dropdown-item py-2" href="javascript:void(0)">Export as PDF</a>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
+                                            Export as PDF
+                                        </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item py-2" href="javascript:void(0)">Export as Excel</a>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
+                                            Export as Excel
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
                                     </li>
                                 </ul>
                             </div>
@@ -831,7 +1116,7 @@ const confirmCancelOrder = async (reason) => {
                                             'bg-warning text-dark': o?.status === 'refunded',
                                             'bg-success': o?.status === 'paid'
                                         }">
-                                             {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
+                                            {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
                                         </span>
                                     </td>
 
@@ -906,7 +1191,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -969,7 +1254,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -990,7 +1275,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                                }}/{{
+                                            }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -1002,7 +1287,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1263,19 +1548,19 @@ const confirmCancelOrder = async (reason) => {
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Customer:</span>
                                     <span class="fw-semibold">{{ selectedOrderForRefund?.customer_name || 'Walk In'
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Total Amount:</span>
                                     <span class="fw-semibold">{{
                                         formatCurrencySymbol(selectedOrderForRefund?.total_amount)
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Payment Type:</span>
                                     <span class="fw-semibold text-capitalize">{{
                                         selectedOrderForRefund?.payment?.payment_type
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div v-if="selectedOrderForRefund?.payment?.payment_type?.toLowerCase() === 'split'"
                                     class="d-flex justify-content-between mb-2">
@@ -1341,13 +1626,9 @@ const confirmCancelOrder = async (reason) => {
         </div>
 
 
-        <OrderCancellationModal
-        :show="showCancelModal"
-        :order="selectedOrderForCancel"
-        :loading="cancellingOrderId === selectedOrderForCancel?.id"
-        @confirm="confirmCancelOrder"
-        @cancel="closeCancelModal"
-    />
+        <OrderCancellationModal :show="showCancelModal" :order="selectedOrderForCancel"
+            :loading="cancellingOrderId === selectedOrderForCancel?.id" @confirm="confirmCancelOrder"
+            @cancel="closeCancelModal" />
     </Master>
 </template>
 
@@ -1408,6 +1689,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :root {
     --brand: #1c0d82;
 }
+
 .icon-wrap {
     font-size: 2rem;
     color: var(--brand);
@@ -1426,6 +1708,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .kpi-value {
     color: #fff !important;
 }
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
@@ -1445,6 +1728,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     border-radius: 9999px;
     background: #fff;
 }
+
 .btn-primary {
     background-color: var(--brand);
     border-color: var(--brand);
@@ -1458,6 +1742,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .form-label {
     color: #fff !important;
 }
+
 .table thead th {
     font-weight: 600;
     border: 0 !important;
@@ -1467,6 +1752,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     vertical-align: middle;
     border-color: #eee;
 }
+
 .info-card {
     background: #f9fafb;
     border-radius: 10px;
@@ -1499,11 +1785,13 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .paid-text {
     font-size: 12px;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
@@ -1518,13 +1806,16 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -1537,19 +1828,23 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #000 !important;
     border-color: #a4a7aa;
 }
+
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
     color: #fff !important;
 }
+
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
+
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -1557,6 +1852,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
@@ -1564,28 +1860,34 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -1598,6 +1900,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -1612,18 +1915,22 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -1631,18 +1938,22 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
     color: #fff !important;
@@ -1667,6 +1978,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .p-component {
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }

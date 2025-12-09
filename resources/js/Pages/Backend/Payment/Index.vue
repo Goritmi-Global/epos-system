@@ -6,6 +6,11 @@ import Select from "primevue/select";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
+import { toast } from "vue3-toastify";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+
 
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const orders = ref([]);
@@ -43,8 +48,8 @@ const filters = ref({
     paymentType: "",
     dateFrom: "",
     dateTo: "",
-    priceMin: null, 
-    priceMax: null, 
+    priceMin: null,
+    priceMax: null,
 })
 const payments = computed(() =>
     orders.value.map((o) => {
@@ -82,7 +87,7 @@ const filtered = computed(() => {
                 p.customer || "",
                 p.user || "",
                 p.type || "",
-                String(p.amount),
+                String(p.grandTotal),
                 formatDateTime(p.paidAt),
             ]
                 .join(" ")
@@ -91,6 +96,7 @@ const filtered = computed(() => {
         );
     }
 
+    // Filter by payment type
     if (filters.value.paymentType) {
         result = result.filter(
             (p) =>
@@ -98,26 +104,35 @@ const filtered = computed(() => {
                 filters.value.paymentType.toLowerCase()
         );
     }
-    if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
+
+    // Filter by price range (grand total)
+    if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
         result = result.filter((p) => {
-            const amount = Number(p.amount) || 0;  // Ensure it's a number
-            const min = Number(filters.value.priceMin) || 0;
-            const max = filters.value.priceMax ? Number(filters.value.priceMax) : Infinity;
-            return amount >= min && amount <= max;
+            const amount = Number(p.grandTotal) || 0;
+            return amount >= Number(filters.value.priceMin);
+        });
+    }
+    if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
+        result = result.filter((p) => {
+            const amount = Number(p.grandTotal) || 0;
+            return amount <= Number(filters.value.priceMax);
         });
     }
 
     // Date range filter
     if (filters.value.dateFrom) {
         result = result.filter((p) => {
+            if (!p.paidAt) return false;
             const paymentDate = new Date(p.paidAt);
             const filterDate = new Date(filters.value.dateFrom);
+            filterDate.setHours(0, 0, 0, 0);
             return paymentDate >= filterDate;
         });
     }
 
     if (filters.value.dateTo) {
         result = result.filter((p) => {
+            if (!p.paidAt) return false;
             const paymentDate = new Date(p.paidAt);
             const filterDate = new Date(filters.value.dateTo);
             filterDate.setHours(23, 59, 59, 999);
@@ -125,8 +140,49 @@ const filtered = computed(() => {
         });
     }
 
+    // Apply sorting
+    if (filters.value.sortBy) {
+        result = [...result]; // Create new array for sorting
+        switch (filters.value.sortBy) {
+            case "date_desc":
+                result.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
+                break;
+            case "date_asc":
+                result.sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
+                break;
+            case "amount_desc":
+                result.sort((a, b) => Number(b.grandTotal) - Number(a.grandTotal));
+                break;
+            case "amount_asc":
+                result.sort((a, b) => Number(a.grandTotal) - Number(b.grandTotal));
+                break;
+            case "order_asc":
+                result.sort((a, b) => Number(a.orderId) - Number(b.orderId));
+                break;
+            case "order_desc":
+                result.sort((a, b) => Number(b.orderId) - Number(a.orderId));
+                break;
+        }
+    }
+
     return result;
 });
+
+const handleFilterApply = (appliedFilters) => {
+    filters.value = { ...filters.value, ...appliedFilters };
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        paymentType: "",
+        dateFrom: "",
+        dateTo: "",
+        priceMin: null,
+        priceMax: null,
+    };
+};
+
 const filterOptions = computed(() => ({
     sortOptions: [
         { value: "date_desc", label: "Date: Newest First" },
@@ -177,6 +233,282 @@ function formatDateTime(d) {
 }
 onMounted(() => window.feather?.replace());
 onUpdated(() => window.feather?.replace());
+
+const onDownload = (type) => {
+    if (!orders.value || orders.value.length === 0) {
+        toast.error("No payment data to download");
+        return;
+    }
+
+    // Filter only orders with payment information
+    const paymentsData = orders.value.filter(o => o.payment);
+
+    if (paymentsData.length === 0) {
+        toast.error("No payments found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPaymentsPDF(paymentsData);
+        } else if (type === "excel") {
+            downloadPaymentsExcel(paymentsData);
+        } else if (type === "csv") {
+            downloadPaymentsCSV(paymentsData);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+// CSV Download for Payments
+const downloadPaymentsCSV = (data) => {
+    try {
+        const headers = [
+            "Order ID",
+            "Date",
+            "Customer",
+            "Order Type",
+            "Payment Type",
+            "Amount Received",
+            "Cash Amount",
+            "Card Amount",
+            "Card Brand",
+            "Last 4 Digits",
+            "Currency",
+            "Order Total",
+            "Status"
+        ];
+
+        const rows = data.map((order) => {
+            const payment = order.payment || {};
+            return [
+                `"${order.id || ""}"`,
+                `"${dateFmt(order.created_at)}"`,
+                `"${order.customer_name || "Walk In"}"`,
+                `"${order.type?.order_type || "-"}"`,
+                `"${payment.payment_type || "-"}"`,
+                `"${Number(payment.amount_received || 0).toFixed(2)}"`,
+                `"${Number(payment.cash_amount || 0).toFixed(2)}"`,
+                `"${Number(payment.card_amount || 0).toFixed(2)}"`,
+                `"${payment.brand || "-"}"`,
+                `"${payment.last_digits || "-"}"`,
+                `"${payment.currency_code || "GBP"}"`,
+                `"${Number(order.total_amount || 0).toFixed(2)}"`,
+                `"${order.status || ""}"`
+            ];
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Payments_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("Payments CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+// PDF Download for Payments
+const downloadPaymentsPDF = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4");
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Payments Report", 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Payments: ${data.length}`, 14, 34);
+
+        // Calculate totals
+        const totalAmount = data.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+        const totalCash = data.reduce((sum, o) => sum + Number(o.payment?.cash_amount || 0), 0);
+        const totalCard = data.reduce((sum, o) => sum + Number(o.payment?.card_amount || 0), 0);
+
+        doc.text(`Total Revenue: £${totalAmount.toFixed(2)}`, 14, 40);
+        doc.text(`Cash: £${totalCash.toFixed(2)} | Card: £${totalCard.toFixed(2)}`, 14, 46);
+
+        const tableColumns = [
+            "Order ID",
+            "Date",
+            "Customer",
+            "Order Type",
+            "Payment Type",
+            "Amount",
+            "Cash",
+            "Card",
+            "Brand",
+            "Status"
+        ];
+
+        const tableRows = data.map((order) => {
+            const payment = order.payment || {};
+            return [
+                order.id || "",
+                dateFmt(order.created_at),
+                order.customer_name || "Walk In",
+                order.type?.order_type || "-",
+                payment.payment_type || "-",
+                `£${Number(payment.amount_received || 0).toFixed(2)}`,
+                `£${Number(payment.cash_amount || 0).toFixed(2)}`,
+                `£${Number(payment.card_amount || 0).toFixed(2)}`,
+                payment.brand || "-",
+                order.status || ""
+            ];
+        });
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 52,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `Payments_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("Payments PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+// Excel Download for Payments
+const downloadPaymentsExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        const worksheetData = data.map((order) => {
+            const payment = order.payment || {};
+            return {
+                "Order ID": order.id || "",
+                "Date": dateFmt(order.created_at),
+                "Time": (order.created_at),
+                "Customer": order.customer_name || "Walk In",
+                "Order Type": order.type?.order_type || "-",
+                "Table Number": order.type?.table_number || "-",
+                "Payment Type": payment.payment_type || "-",
+                "Amount Received": Number(payment.amount_received || 0).toFixed(2),
+                "Cash Amount": Number(payment.cash_amount || 0).toFixed(2),
+                "Card Amount": Number(payment.card_amount || 0).toFixed(2),
+                "Card Brand": payment.brand || "-",
+                "Last 4 Digits": payment.last_digits || "-",
+                "Exp Month": payment.exp_month || "-",
+                "Exp Year": payment.exp_year || "-",
+                "Currency": payment.currency_code || "GBP",
+                "Order Total": Number(order.total_amount || 0).toFixed(2),
+                "Status": order.status || "",
+                "Refund Status": payment.refund_status || "None"
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        worksheet["!cols"] = [
+            { wch: 10 },  // Order ID
+            { wch: 12 },  // Date
+            { wch: 15 },  // Time
+            { wch: 20 },  // Customer
+            { wch: 12 },  // Order Type
+            { wch: 12 },  // Table Number
+            { wch: 12 },  // Payment Type
+            { wch: 15 },  // Amount Received
+            { wch: 12 },  // Cash Amount
+            { wch: 12 },  // Card Amount
+            { wch: 12 },  // Card Brand
+            { wch: 12 },  // Last 4 Digits
+            { wch: 10 },  // Exp Month
+            { wch: 10 },  // Exp Year
+            { wch: 10 },  // Currency
+            { wch: 12 },  // Order Total
+            { wch: 10 },  // Status
+            { wch: 15 }   // Refund Status
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Payments");
+
+        // Add summary sheet
+        const totalRevenue = data.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+        const totalCash = data.reduce((sum, o) => sum + Number(o.payment?.cash_amount || 0), 0);
+        const totalCard = data.reduce((sum, o) => sum + Number(o.payment?.card_amount || 0), 0);
+        const cashPayments = data.filter(o => o.payment?.payment_type?.toLowerCase() === 'cash').length;
+        const cardPayments = data.filter(o => o.payment?.payment_type?.toLowerCase() === 'card').length;
+        const splitPayments = data.filter(o => o.payment?.payment_type?.toLowerCase() === 'split').length;
+
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Payments", Value: data.length },
+            { Info: "Total Revenue", Value: `£${totalRevenue.toFixed(2)}` },
+            { Info: "Total Cash", Value: `£${totalCash.toFixed(2)}` },
+            { Info: "Total Card", Value: `£${totalCard.toFixed(2)}` },
+            { Info: "Cash Payments Count", Value: cashPayments },
+            { Info: "Card Payments Count", Value: cardPayments },
+            { Info: "Split Payments Count", Value: splitPayments },
+            { Info: "Exported By", Value: "Payment Management System" }
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Summary");
+
+        const fileName = `Payments_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Payments Excel file downloaded successfully");
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
 </script>
 
 <template>
@@ -256,17 +588,16 @@ onUpdated(() => window.feather?.replace());
                                     aria-hidden="true" />
 
                                 <input v-if="isReady" :id="inputId" v-model="q" :key="searchKey"
-                                    class="form-control search-input" placeholder="Search" type="search"
+                                    class="form-control search-input" placeholder="Search by Order ID" type="search"
                                     autocomplete="new-password" :name="inputId" role="presentation"
                                     @focus="handleFocus" />
-                                <input v-else class="form-control search-input" placeholder="Search" disabled
-                                    type="text" />
-
+                                <input v-else class="form-control search-input" placeholder="Search by Order ID"
+                                    disabled type="text" />
                             </div>
                             <FilterModal v-model="filters" title="Payments" modal-id="paymentFilterModal"
                                 modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-price-range="true"
-                                :show-date-range="true" price-label="Amount Range" @apply="handleFilterApply"
-                                @clear="handleFilterClear">
+                                :show-date-range="true" :show-stock-status="false" price-label="Amount Range"
+                                @apply="handleFilterApply" @clear="handleFilterClear">
                                 <!-- Custom filters slot for Payment Type -->
                                 <template #customFilters="{ filters }">
                                     <div class="col-md-6">
@@ -291,12 +622,19 @@ onUpdated(() => window.feather?.replace());
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                                     <li>
-                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                            @click="onDownload('pdf')">Export as PDF</a>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
+                                            Export as PDF
+                                        </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item py-2" href="javascript:void(0)"
-                                            @click="onDownload('excel')">Export as Excel</a>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
+                                            Export as Excel
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
                                     </li>
                                 </ul>
                             </div>
@@ -341,7 +679,7 @@ onUpdated(() => window.feather?.replace());
                                     </td>
                                     <td>{{ formatCurrencySymbol(p.tax) }}</td>
                                     <td>{{ formatCurrencySymbol(p.serviceCharges) }}</td>
-                                       <td>{{ formatCurrencySymbol(p.deliveryCharges) }}</td>
+                                    <td>{{ formatCurrencySymbol(p.deliveryCharges) }}</td>
                                     <td>{{ formatCurrencySymbol(p.grandTotal) }}</td>
 
                                     <td>{{ dateFmt(p.paidAt) }}</td>
@@ -458,18 +796,22 @@ onUpdated(() => window.feather?.replace());
     background-color: #212121 !important;
     color: #fff !important;
 }
+
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -481,6 +823,7 @@ onUpdated(() => window.feather?.replace());
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
@@ -490,14 +833,17 @@ onUpdated(() => window.feather?.replace());
     background: #007bff !important;
     border-color: #007bff !important;
 }
+
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
+
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -505,6 +851,7 @@ onUpdated(() => window.feather?.replace());
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
@@ -512,6 +859,7 @@ onUpdated(() => window.feather?.replace());
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
@@ -521,24 +869,29 @@ onUpdated(() => window.feather?.replace());
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
-:global(.dark .form-control:focus){
+
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 
@@ -554,6 +907,7 @@ onUpdated(() => window.feather?.replace());
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -568,13 +922,16 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
@@ -588,18 +945,22 @@ onUpdated(() => window.feather?.replace());
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -607,6 +968,7 @@ onUpdated(() => window.feather?.replace());
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
@@ -630,6 +992,7 @@ onUpdated(() => window.feather?.replace());
     background-color: transparent !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

@@ -509,10 +509,13 @@ async function multipleSubmit() {
                             <Select v-model="b_supplier" :options="suppliers" filter optionLabel="name" optionValue="id"
                                 placeholder="Select Supplier" class="w-100" appendTo="self" :autoZIndex="true"
                                 :baseZIndex="2000" :class="{ 'is-invalid': formErrors.supplier }">
-                                <!-- Selected Value Template -->
+
+                                <!-- ✅ FIXED: Selected Value Template -->
                                 <template #value="slotProps">
                                     <div v-if="slotProps.value">
-                                        {{ slotProps.value.name }}
+                                        {{
+                                            suppliers.find(s => s.id === slotProps.value)?.name || 'Select Supplier'
+                                        }}
                                     </div>
                                     <span v-else>
                                         {{ slotProps.placeholder }}
@@ -582,7 +585,7 @@ async function multipleSubmit() {
                                         </td>
                                         <td>
                                             <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="false"  placeholder="Select date"
+                                                :enableTimePicker="false" :teleport="false" placeholder="Select date"
                                                 :class="{
                                                     'is-invalid': formErrors[idx]?.expiry
                                                 }" />
