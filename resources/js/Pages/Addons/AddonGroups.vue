@@ -36,6 +36,8 @@ const filters = ref({
     priceMax: null,
 });
 
+
+
 // Track if we're editing (null = create mode, object = edit mode)
 const editingGroup = ref(null);
 
@@ -180,8 +182,9 @@ const filteredGroups = computed(() => {
         filtered = filtered.filter((group) => (group.addons_count || 0) <= parseInt(filters.value.priceMax));
     }
 
-    // Apply sorting
+    // Apply sorting - CREATE NEW ARRAY BEFORE SORTING
     if (filters.value.sortBy) {
+        filtered = [...filtered]; // ← ADD THIS LINE
         switch (filters.value.sortBy) {
             case "name_asc":
                 filtered.sort((a, b) => a.name.localeCompare(b.name));

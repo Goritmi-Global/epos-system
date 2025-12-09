@@ -215,47 +215,90 @@ const handlePageChange = (url) => {
     }
 };
 
-const onDownload = (type) => {
-    if (!tags.value || tags.value.length === 0) {
-        toast.error("No Tags data to download");
-        return;
-    }
-    const dataToExport = q.value.trim() ? filtered.value : tags.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No Tags found to download");
-        return;
-    }
-
+const fetchAllTagsForExport = async () => {
     try {
-        if (type === "pdf") {
-            downloadPDF(dataToExport);
-        } else if (type === "excel") {
-            downloadExcel(dataToExport);
-        } else if (type === "csv") {
-            downloadCSV(dataToExport);
-        } else {
-            toast.error("Invalid download type");
-        }
-    } catch (error) {
-        console.error("Download failed:", error);
-        toast.error(`Download failed: ${error.message}`);
+        loading.value = true;
+        
+        const res = await axios.get("/tags", {
+            params: {
+                q: q.value.trim(),
+                per_page: 10000, // Fetch all at once
+                page: 1
+            }
+        });
+        
+        console.log('📦 Export data received:', {
+            total: res.data.total,
+            items: res.data.data.length
+        });
+        
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
     }
 };
 
+// ✅ UPDATED: Main download function
+const onDownload = async (type) => {
+    try {
+        loading.value = true;
+        toast.info("Preparing export data...", { autoClose: 1500 });
+        
+        // ✅ Fetch ALL data (not just current page)
+        const allData = await fetchAllTagsForExport();
+
+        if (!allData || allData.length === 0) {
+            toast.error("No tags found to download");
+            loading.value = false;
+            return;
+        }
+
+        console.log(`📥 Exporting ${allData.length} tags as ${type.toUpperCase()}`);
+
+        // Export based on type
+        if (type === "pdf") {
+            downloadPDF(allData);
+        } else if (type === "excel") {
+            downloadExcel(allData);
+        } else if (type === "csv") {
+            downloadCSV(allData);
+        } else {
+            toast.error("Invalid download type");
+        }
+        
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ✅ UPDATED CSV Download
 const downloadCSV = (data) => {
     try {
         const headers = ["Name"];
-        const rows = data.map((s) => [
-            `"${s.name || ""}"`,
-        ]);
+        
+        const rows = data.map((tag) => {
+            const escapeCSV = (str) => {
+                if (str === null || str === undefined) return '""';
+                str = String(str).replace(/"/g, '""');
+                return `"${str}"`;
+            };
+            
+            return [escapeCSV(tag.name)];
+        });
+
         const csvContent = [
             headers.join(","),
             ...rows.map((r) => r.join(",")),
         ].join("\n");
-        const blob = new Blob([csvContent], {
-            type: "text/csv;charset=utf-8;",
-        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
@@ -266,8 +309,9 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+        toast.success(`CSV downloaded successfully (${data.length} tags)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -276,20 +320,30 @@ const downloadCSV = (data) => {
     }
 };
 
+// ✅ UPDATED PDF Download
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
+        
+        // Title
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.text("Tags Report", 80, 20);
 
+        // Metadata
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 30);
         doc.text(`Total Tags: ${data.length}`, 14, 36);
+
+        // Table Columns
         const headers = ["Name"];
+        
+        // Table Rows
         const rows = data.map((tag) => [tag.name || ""]);
+
+        // Create Styled Table
         autoTable(doc, {
             head: [headers],
             body: rows,
@@ -320,10 +374,11 @@ const downloadPDF = (data) => {
                 );
             },
         });
+
         const fileName = `tags_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+        toast.success(`PDF downloaded successfully (${data.length} tags)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -332,19 +387,25 @@ const downloadPDF = (data) => {
     }
 };
 
-
+// ✅ UPDATED Excel Download
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
+
         const worksheetData = data.map((tag) => ({
             Name: tag.name || "",
         }));
+
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
         worksheet["!cols"] = [{ wch: 25 }];
+
         XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
+
+        // Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -353,11 +414,11 @@ const downloadExcel = (data) => {
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
 
-        // 💾 Save file
+        // Save file
         const fileName = `tags_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+        toast.success(`Excel file downloaded successfully (${data.length} tags)`, { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, {

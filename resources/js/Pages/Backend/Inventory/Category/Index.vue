@@ -2,6 +2,7 @@
 import Master from "@/Layouts/Master.vue";
 import { ref, computed, onMounted, onUpdated, onBeforeUnmount, watch } from "vue";
 import MultiSelect from "primevue/multiselect";
+import FilterModal from "@/Components/FilterModal.vue";
 import {
     Shapes,
     Package,
@@ -29,6 +30,99 @@ const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatte
 const manualCategories = ref([]);
 const categories = ref([]);
 const allCategories = ref([]);
+
+// ========================================
+// SECTION 1: Add this after line with "const allCategories = ref([])"
+// ========================================
+
+const defaultCategoryFilters = {
+    sortBy: "",
+    status: "",
+    hasSubcategories: "",
+    stockStatus: "",
+    valueMin: null,
+    valueMax: null,
+};
+
+const filters = ref({ ...defaultCategoryFilters });
+
+const appliedFilters = ref({ ...defaultCategoryFilters });
+
+// ========================================
+// SECTION 2: Add this AFTER the "filtered" computed property
+// ========================================
+
+const sortedCategories = computed(() => {
+    const arr = [...filtered.value];
+    const sortBy = filters.value.sortBy;
+
+    switch (sortBy) {
+        case "name_asc":
+            return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        case "name_desc":
+            return arr.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        case "value_desc":
+            return arr.sort((a, b) => (b.total_value || 0) - (a.total_value || 0));
+        case "value_asc":
+            return arr.sort((a, b) => (a.total_value || 0) - (b.total_value || 0));
+        case "items_desc":
+            return arr.sort((a, b) => (b.primary_inventory_items_count || 0) - (a.primary_inventory_items_count || 0));
+        case "items_asc":
+            return arr.sort((a, b) => (a.primary_inventory_items_count || 0) - (b.primary_inventory_items_count || 0));
+        default:
+            return arr;
+    }
+});
+
+const filterOptions = computed(() => ({
+    sortOptions: [
+        { value: "name_asc", label: "Name: A to Z" },
+        { value: "name_desc", label: "Name: Z to A" },
+        { value: "value_desc", label: "Value: High to Low" },
+        { value: "value_asc", label: "Value: Low to High" },
+    ],
+    statusOptions: [
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+    ],
+    hasSubcategoriesOptions: [
+        { value: "yes", label: "Has Subcategories" },
+        { value: "no", label: "No Subcategories" },
+    ],
+    stockStatusOptions: [
+        { value: "in_stock", label: "In Stock" },
+        { value: "low_stock", label: "Low Stock" },
+        { value: "out_of_stock", label: "Out of Stock" },
+        { value: "has_items", label: "Has Items" },
+        { value: "no_items", label: "No Items" },
+    ],
+}));
+
+const handleFilterClear = () => {
+    filters.value = { ...defaultCategoryFilters };
+    appliedFilters.value = { ...defaultCategoryFilters }; // ✅ ADDED
+};
+
+// ========================================
+// SECTION 3: Update the filtered computed property
+// ========================================
+// REPLACE the existing "filtered" computed property with this:
+
+const filtered = computed(() => {
+    // Return categories directly from API (no client-side filtering)
+    return categories.value;
+});
+
+// ========================================
+// SECTION 4: Add this function after "handlePageChange"
+// ========================================
+
+const handleFilterApply = () => {
+    appliedFilters.value = { ...filters.value };
+    pagination.value.current_page = 1;
+    fetchCategories(1);
+};
+
 const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -56,13 +150,24 @@ const fetchAllCategories = async () => {
 
 const fetchCategories = async (page = null) => {
     try {
-        const { data } = await axios.get("/categories", {
-            params: {
-                q: q.value,
-                page: page || pagination.value.current_page,
-                per_page: pagination.value.per_page
-            },
-        });
+        loading.value = true;
+        
+        // Build query params including filters
+        const params = {
+            q: q.value,
+            page: page || pagination.value.current_page,
+            per_page: pagination.value.per_page,
+            // Add all filter parameters
+            sort_by: filters.value.sortBy || '',
+            status: filters.value.status || '',
+            has_subcategories: filters.value.hasSubcategories || '',
+            stock_status: filters.value.stockStatus || '',
+            value_min: filters.value.valueMin || '',
+            value_max: filters.value.valueMax || '',
+        };
+
+        const { data } = await axios.get("/categories", { params });
+        
         categories.value = data.data || [];
         pagination.value = {
             current_page: data.current_page,
@@ -76,9 +181,10 @@ const fetchCategories = async (page = null) => {
     } catch (err) {
         console.error("Failed to fetch categories:", err);
         toast.error("Failed to load categories");
+    } finally {
+        loading.value = false;
     }
 };
-
 const handlePageChange = (url) => {
     if (!url) return;
     const urlParams = new URLSearchParams(url.split('?')[1]);
@@ -103,6 +209,14 @@ onMounted(async () => {
     }, 100);
     fetchAllCategories();
     fetchCategories();
+     const filterModal = document.getElementById('categoryFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = { ...appliedFilters.value };
+        });
+    }
+    
 });
 
 // Get only parent categories (main categories) for dropdown
@@ -150,15 +264,8 @@ const q = ref("");
 const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
+const loading = ref(false);
 
-const filtered = computed(() => {
-    const t = q.value.trim().toLowerCase();
-    if (!t) return categories.value;
-
-    return categories.value.filter((c) =>
-        c.name.toLowerCase().includes(t)
-    );
-});
 
 /* ---------------- Helpers ---------------- */
 const money = (n, currency = "GBP") =>
@@ -728,67 +835,114 @@ watch(q, () => {
     }, 500);
 });
 
-const onDownload = (type) => {
-    if (!parentCategories.value || parentCategories.value.length === 0) {
-        toast.error("No Units data to download");
-        return;
-    }
-    const dataToExport = q.value.trim()
-        ? filtered.value
-        : parentCategories.value;
+watch(() => filters.value, () => {
+    pagination.value.current_page = 1;
+    fetchCategories(1);
+}, { deep: true });
 
-    if (dataToExport.length === 0) {
-        toast.error("No Units found to download");
-        return;
-    }
+// ===================== EXPORT FUNCTIONS (FIXED FOR CATEGORIES) =====================
 
+// ✅ NEW: Fetch ALL categories for export (no pagination)
+const fetchAllCategoriesForExport = async () => {
     try {
-        if (type === "pdf") {
-            downloadPDF(dataToExport);
-        } else if (type === "excel") {
-            downloadExcel(dataToExport);
-        } else if (type === "csv") {
-            downloadCSV(dataToExport);
-        } else {
-            toast.error("Invalid download type");
-        }
-    } catch (error) {
-        console.error("Download failed:", error);
-        toast.error(`Download failed: ${error.message}`);
+        loading.value = true;
+        
+        const params = {
+            q: q.value.trim(),
+            per_page: 10000, // Fetch all at once
+            page: 1,
+            // Include all filter parameters
+            sort_by: filters.value.sortBy || '',
+            status: filters.value.status || '',
+            has_subcategories: filters.value.hasSubcategories || '',
+            stock_status: filters.value.stockStatus || '',
+            value_min: filters.value.valueMin || '',
+            value_max: filters.value.valueMax || '',
+        };
+
+        const res = await axios.get("/categories", { params });
+        
+        console.log('📦 Export data received:', {
+            total: res.data.total,
+            items: res.data.data.length
+        });
+        
+        // Return only parent categories (filter out subcategories)
+        return res.data.data.filter(cat => cat.parent_id === null) || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
     }
 };
 
+// ✅ UPDATED: Main download function
+const onDownload = async (type) => {
+    try {
+        loading.value = true;
+        // ✅ Fetch ALL data (not just current page)
+        const allData = await fetchAllCategoriesForExport();
+
+        if (!allData || allData.length === 0) {
+            toast.error("No categories found to download");
+            loading.value = false;
+            return;
+        }
+
+        console.log(`📥 Exporting ${allData.length} categories as ${type.toUpperCase()}`);
+
+        // Export based on type
+        if (type === "pdf") {
+            downloadPDF(allData);
+        } else if (type === "excel") {
+            downloadExcel(allData);
+        } else if (type === "csv") {
+            downloadCSV(allData);
+        } else {
+            toast.error("Invalid download type");
+        }
+        
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ✅ UPDATED CSV Download
 const downloadCSV = (data) => {
     try {
-        // Define headers
         const headers = ["category", "subcategory", "active"];
 
         const rows = data.map((category) => {
+            const escapeCSV = (str) => {
+                if (str === null || str === undefined) return '""';
+                str = String(str).replace(/"/g, '""');
+                return `"${str}"`;
+            };
 
-            const subcategoryNames = category.subcategories && category.subcategories.length > 0
-                ? category.subcategories.map(sub => sub.name).join(", ")
-                : "";
+            const subcategoryNames = 
+                category.subcategories && category.subcategories.length > 0
+                    ? category.subcategories.map(sub => sub.name).join(", ")
+                    : "";
 
             return [
-                `"${category.name || ""}"`,
-                `"${subcategoryNames}"`,
-                `${category.active ? 'Yes' : 'No'}`,
+                escapeCSV(category.name),
+                escapeCSV(subcategoryNames),
+                category.active ? 'Yes' : 'No',
             ];
         });
 
-
         const csvContent = [
-            headers.join(","), // header row
-            ...rows.map((r) => r.join(",")), // data rows
+            headers.join(","),
+            ...rows.map((r) => r.join(",")),
         ].join("\n");
 
-        // Create blob
-        const blob = new Blob([csvContent], {
-            type: "text/csv;charset=utf-8;",
-        });
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-
-        // Create download link
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute(
@@ -798,8 +952,9 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        toast.success("CSV downloaded successfully");
+        toast.success(`CSV downloaded successfully (${data.length} categories)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -807,26 +962,28 @@ const downloadCSV = (data) => {
         });
     }
 };
+
+// ✅ UPDATED PDF Download
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4"); // Portrait, millimeters, A4 size
+        const doc = new jsPDF("p", "mm", "a4");
 
-        // 🏷️ Title
+        // Title
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("Inventory Categories Report", 14, 20);
 
-        // 🕒 Metadata
+        // Metadata
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const currentDate = new Date().toLocaleString();
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Categories: ${data.length}`, 14, 34);
 
-        // 🧾 Table Columns (Match CSV)
+        // Table Columns
         const tableColumns = ["Category", "Subcategory", "Active"];
 
-        // 🧮 Table Rows
+        // Table Rows
         const tableRows = data.map((category) => {
             const subcategoryNames =
                 category.subcategories && category.subcategories.length > 0
@@ -839,7 +996,7 @@ const downloadPDF = (data) => {
             ];
         });
 
-        // 🪶 Create Styled Table
+        // Create Styled Table
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
@@ -870,17 +1027,15 @@ const downloadPDF = (data) => {
             },
         });
 
-        // 💾 Save File
         const fileName = `Categories_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully");
+        toast.success(`PDF downloaded successfully (${data.length} categories)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
-
 
 const downloadExcel = (data) => {
     try {
@@ -888,7 +1043,6 @@ const downloadExcel = (data) => {
             throw new Error("XLSX library is not loaded");
         }
 
-        // 🧾 Prepare data matching CSV fields
         const worksheetData = data.map((category) => {
             const subcategoryNames =
                 category.subcategories && category.subcategories.length > 0
@@ -901,7 +1055,6 @@ const downloadExcel = (data) => {
                 Active: category.active ? 'Yes' : 'No',
             };
         });
-
 
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
@@ -921,10 +1074,11 @@ const downloadExcel = (data) => {
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
         const fileName = `Categories_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+        toast.success(`Excel file downloaded successfully (${data.length} categories)`, { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
@@ -932,7 +1086,6 @@ const downloadExcel = (data) => {
 };
 
 
-// handle import function for categories
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
@@ -1062,6 +1215,28 @@ const handleImport = (data) => {
                                     type="text" />
                             </div>
 
+                             <FilterModal v-model="filters" title="Inventory Categories" modal-id="categoryFilterModal"
+        modal-size="modal-lg" :sort-options="filterOptions.sortOptions"
+        :status-options="filterOptions.statusOptions" :show-stock-status="false"
+        :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="true"
+        price-label="Total Value Range" @apply="handleFilterApply" @clear="handleFilterClear">
+        <!-- Custom filters slot -->
+        <template #customFilters="{ filters }">
+            <div class="col-12">
+                <label class="form-label fw-semibold text-dark">
+                    <i class="fas fa-sitemap me-2 text-muted"></i>Subcategories
+                </label>
+                <select v-model="filters.hasSubcategories" class="form-select">
+                    <option value="">All</option>
+                    <option v-for="opt in filterOptions.hasSubcategoriesOptions"
+                        :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                    </option>
+                </select>
+            </div>
+        </template>
+    </FilterModal>
+
                             <button data-bs-toggle="modal" data-bs-target="#addCatModal" @click="
                                 () => {
                                     resetErrors?.();
@@ -1125,14 +1300,21 @@ const handleImport = (data) => {
                             </thead>
                             <tbody>
                                 <!-- Loading State -->
-                                <tr v-if="!categories.length && pagination.total === 0">
-                                    <td colspan="11" class="text-center py-5">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <p class="text-muted mt-2 mb-0">Loading categories...</p>
-                                    </td>
-                                </tr>
+                                <tr v-if="loading">
+        <td colspan="11" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2 mb-0">Loading categories...</p>
+        </td>
+    </tr>
+
+    <!-- No Results State -->
+    <tr v-else-if="!loading && categories.length === 0">
+        <td colspan="11" class="text-center text-muted py-4">
+            {{ q.trim() ? "No categories found matching your search." : "No categories available." }}
+        </td>
+    </tr>
 
                                 <!-- Data Rows -->
                                 <template v-else>

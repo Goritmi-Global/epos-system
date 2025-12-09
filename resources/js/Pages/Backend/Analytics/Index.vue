@@ -838,17 +838,17 @@ const downloadExcel = () => {
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary rounded-pill px-4 dropdown-toggle"
                         data-bs-toggle="dropdown">
-                        <i class="fas fa-download me-2"></i>Download
+                        <i class="fas fa-download me-2"></i>Export
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
                         <li>
                             <a class="dropdown-item py-2" href="javascript:void(0)" @click="downloadPDF">
-                                <i class="fas fa-file-pdf me-2 text-danger"></i>Download as PDF
+                               Export as PDF
                             </a>
                         </li>
                         <li>
                             <a class="dropdown-item py-2" href="javascript:void(0)" @click="downloadExcel">
-                                <i class="fas fa-file-excel me-2 text-success"></i>Download as Excel
+                               Export as Excel
                             </a>
                         </li>
                     </ul>
@@ -1290,13 +1290,13 @@ const downloadExcel = () => {
                 <div class="card-body">
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                         <h6 class="fw-semibold mb-0">Detailed Data</h6>
-                        <div class="search-wrap">
+                        <!-- <div class="search-wrap">
                             <i class="bi bi-search"></i>
                             <input v-if="isReady" :id="inputId" v-model="searchQuery" :key="searchKey"
                                 class="form-control search-input" placeholder="Search" type="search"
                                 autocomplete="new-password" :name="inputId" role="presentation" />
                             <input v-else class="form-control search-input" placeholder="Search" disabled type="text" />
-                        </div>
+                        </div> -->
                     </div>
 
                     <div class="table-responsive">

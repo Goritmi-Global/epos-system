@@ -23,28 +23,30 @@ class CategoryController extends Controller
      * Display a listing of the categories
      */
    public function index(Request $request): JsonResponse
-{
-    try {
-        if ($request->has('search')) {
-            $categories = $this->categoryService->searchCategories(
-                $request->search,
-                $request->only(['per_page'])
-            );
-        } else {
-            $categories = $this->categoryService->getAllCategories(
-                $request->only(['q', 'per_page'])
-            );
-        }
+    {
+        try {
+            $filters = [
+                'q' => $request->query('q', ''),
+                'sort_by' => $request->query('sort_by', ''),
+                'status' => $request->query('status', ''),
+                'has_subcategories' => $request->query('has_subcategories', ''),
+                'stock_status' => $request->query('stock_status', ''),
+                'value_min' => $request->query('value_min', null),
+                'value_max' => $request->query('value_max', null),
+                'per_page' => $request->query('per_page', 15),
+            ];
 
-        return response()->json($categories);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to retrieve categories',
-            'error' => $e->getMessage(),
-        ], 500);
+            $categories = $this->categoryService->getAllCategoriesWithFilters($filters);
+
+            return response()->json($categories);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve categories',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     /**
      * Get parent categories for dropdown

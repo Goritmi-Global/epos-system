@@ -348,10 +348,10 @@ const filtered = computed(() => {
 
     // Filter by discount amount range (using price fields)
     if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
-        result = result.filter((p) => parseFloat(p.discount_amount) >= parseFloat(filters.value.priceMin));
+        result = result.filter((p) => parseFloat(p.max_discount) >= parseFloat(filters.value.priceMin));
     }
     if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
-        result = result.filter((p) => parseFloat(p.discount_amount) <= parseFloat(filters.value.priceMax));
+        result = result.filter((p) => parseFloat(p.max_discount) <= parseFloat(filters.value.priceMax));
     }
 
     // Filter by date range (start_date)
@@ -365,7 +365,9 @@ const filtered = computed(() => {
     }
 
     // Apply sorting
+    // Apply sorting
     if (filters.value.sortBy) {
+        result = [...result]; // Create a new array before sorting
         switch (filters.value.sortBy) {
             case "discount_asc":
                 result.sort((a, b) => parseFloat(a.discount_amount) - parseFloat(b.discount_amount));
@@ -387,7 +389,6 @@ const filtered = computed(() => {
                 break;
         }
     }
-
     return result;
 });
 
@@ -608,11 +609,11 @@ const onDownload = (type) => {
 
 const downloadCSV = (data) => {
     try {
-        const headers = ["ID", "Promo Name", "Type", "Discount Amount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status", "Description"];
+        const headers = ["S.#", "Promo Name", "Type", "Discount Amount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status", "Description"];
 
-        const rows = data.map((promo) => {
+        const rows = data.map((promo, index) => {
             return [
-                `${promo.id || ""}`,
+                `${index + 1}`, // Serial number instead of promo.id
                 `"${promo.name || ""}"`,
                 `"${promo.type || ""}"`,
                 `${promo.discount_amount || ""}`,
@@ -667,11 +668,11 @@ const downloadPDF = (data) => {
         doc.text(`Generated on: ${currentDate}`, 14, 28);
         doc.text(`Total Promos: ${data.length}`, 14, 34);
 
-        const tableColumns = ["ID", "Name", "Type", "Discount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status"];
+        const tableColumns = ["S.#", "Name", "Type", "Discount", "Start Date", "End Date", "Min Purchase", "Max Discount", "Status"];
 
-        const tableRows = data.map((promo) => {
+        const tableRows = data.map((promo, index) => {
             return [
-                promo.id || "",
+                index + 1, // Serial number instead of promo.id
                 promo.name || "",
                 promo.type === "flat" ? "Flat" : "Percent",
                 promo.discount_amount || "",
@@ -731,9 +732,9 @@ const downloadExcel = (data) => {
             throw new Error("XLSX library is not loaded");
         }
 
-        const worksheetData = data.map((promo) => {
+        const worksheetData = data.map((promo, index) => {
             return {
-                "ID": promo.id || "",
+                "S.#": index + 1, // Serial number instead of ID
                 "Promo Name": promo.name || "",
                 "Type": promo.type === "flat" ? "Flat" : "Percent",
                 "Discount Amount": promo.discount_amount || "",
@@ -750,16 +751,16 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         worksheet["!cols"] = [
-            { wch: 8 },
-            { wch: 25 },
-            { wch: 12 },
-            { wch: 15 },
-            { wch: 15 },
-            { wch: 15 },
-            { wch: 15 },
-            { wch: 15 },
-            { wch: 12 },
-            { wch: 30 },
+            { wch: 8 },  // S.#
+            { wch: 25 }, // Promo Name
+            { wch: 12 }, // Type
+            { wch: 15 }, // Discount Amount
+            { wch: 15 }, // Start Date
+            { wch: 15 }, // End Date
+            { wch: 15 }, // Min Purchase
+            { wch: 15 }, // Max Discount
+            { wch: 12 }, // Status
+            { wch: 30 }, // Description
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Promos");
@@ -840,12 +841,11 @@ const downloadExcel = (data) => {
                                                         { value: 'name_desc', label: 'Name: Z to A' },
                                                         { value: 'discount_asc', label: 'Discount: Low to High' },
                                                         { value: 'discount_desc', label: 'Discount: High to Low' },
-                                                        { value: 'date_asc', label: 'Start Date: Oldest First' },
-                                                        { value: 'date_desc', label: 'Start Date: Newest First' },
                                                     ]" :categories="promoTypesForFilter" categoryLabel="Promo Type"
                                                     statusLabel="Promo Status" :showPriceRange="true"
-                                                    priceRangeLabel="Discount Amount Range" :showDateRange="true"
-                                                    @apply="handleFilterApply" @clear="handleFilterClear" />
+                                                    :show-stock-status="false" priceRangeLabel="Discount Amount Range"
+                                                    :showDateRange="true" @apply="handleFilterApply"
+                                                    @clear="handleFilterClear" />
 
                                                 <div class="search-wrap">
                                                     <i class="bi bi-search"></i>

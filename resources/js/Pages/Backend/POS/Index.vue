@@ -271,6 +271,13 @@ const toggleIngredient = (ingredientId) => {
     }
 };
 
+const getRemainingIngredientsCount = () => {
+    return getModalIngredients().filter(
+        ing => !modalRemovedIngredients.value.includes(ing.id || ing.inventory_item_id)
+    ).length;
+};
+
+
 // Get formatted text for removed ingredients
 const getRemovedIngredientsText = () => {
     if (modalRemovedIngredients.value.length === 0) return null;
@@ -289,11 +296,142 @@ const getRemovedIngredientsText = () => {
     return `No ${removedNames.join(', ')}`;
 };
 
+const currentStep = ref(1);
+// Stepper computed properties
+const hasVariants = computed(() => {
+    return selectedItem.value?.variants && selectedItem.value.variants.length > 0;
+});
+
+const hasIngredients = computed(() => {
+    return getModalIngredients().length > 0;
+});
+
+const hasAddons = computed(() => {
+    return selectedItem.value?.addon_groups && selectedItem.value.addon_groups.length > 0;
+});
+
+const visibleSteps = computed(() => {
+    const steps = [];
+    if (hasVariants.value) {
+        steps.push({ id: 'variants', name: 'Variant' });
+    }
+    if (hasIngredients.value) {
+        steps.push({ id: 'ingredients', name: 'Ingredients' });
+    }
+    if (hasAddons.value) {
+        steps.push({ id: 'addons', name: 'Add-ons' });
+    }
+    steps.push({ id: 'review', name: 'Review' });
+    return steps;
+});
+
+const finalStep = computed(() => visibleSteps.value.length);
+
+const stepProgressWidth = computed(() => {
+    if (currentStep.value === 1) return '0%';
+
+    const totalSteps = visibleSteps.value.length;
+    const circleWidth = 28;
+    const progressRatio = (currentStep.value - 1) / (totalSteps - 1);
+    const widthPercentage = progressRatio * 100;
+
+    return `calc(${widthPercentage}% - ${14 - (progressRatio * 28)}px)`;
+});
+// Step navigation methods
+const getStepCircleClass = (step) => {
+    if (step < currentStep.value) {
+        return 'bg-success text-white';
+    } else if (step === currentStep.value) {
+        return 'bg-primary text-white';
+    } else {
+        return 'bg-light text-muted border';
+    }
+};
+
+const nextStep = () => {
+    let nextStepNum = currentStep.value + 1;
+
+    while (nextStepNum <= finalStep.value) {
+        const stepInfo = visibleSteps.value[nextStepNum - 1];
+
+        if (stepInfo.id === 'variants' && !hasVariants.value) {
+            nextStepNum++;
+            continue;
+        }
+        if (stepInfo.id === 'ingredients' && !hasIngredients.value) {
+            nextStepNum++;
+            continue;
+        }
+        if (stepInfo.id === 'addons' && !hasAddons.value) {
+            nextStepNum++;
+            continue;
+        }
+
+        break;
+    }
+
+    if (nextStepNum <= finalStep.value) {
+        currentStep.value = nextStepNum;
+    }
+};
+
+const previousStep = () => {
+    let prevStepNum = currentStep.value - 1;
+
+    while (prevStepNum >= 1) {
+        const stepInfo = visibleSteps.value[prevStepNum - 1];
+
+        if (stepInfo.id === 'variants' && !hasVariants.value) {
+            prevStepNum--;
+            continue;
+        }
+        if (stepInfo.id === 'ingredients' && !hasIngredients.value) {
+            prevStepNum--;
+            continue;
+        }
+        if (stepInfo.id === 'addons' && !hasAddons.value) {
+            prevStepNum--;
+            continue;
+        }
+
+        break;
+    }
+
+    if (prevStepNum >= 1) {
+        currentStep.value = prevStepNum;
+    }
+};
+
+const selectVariant = (variantId) => {
+    modalSelectedVariant.value = variantId;
+    onModalVariantChange();
+};
+
+// Helper methods for review step
+const getSelectedVariantName = () => {
+    if (!hasVariants.value) return '';
+    const variant = selectedItem.value?.variants?.find(v => v.id === modalSelectedVariant.value);
+    return variant?.name || '';
+};
+
+const getSelectedAddonsText = () => {
+    const allAddons = [];
+    Object.values(modalSelectedAddons.value).forEach(addons => {
+        addons.forEach(addon => {
+            allAddons.push(`${addon.name} (+${formatCurrencySymbol(addon.price)})`);
+        });
+    });
+    return allAddons.join(', ');
+};
 const openDetailsModal = async (item) => {
     selectedItem.value = item;
     modalNote.value = "";
+    modalItemKitchenNote.value = "";
     modalSelectedVariant.value = null;
     modalSelectedAddons.value = {};
+    modalRemovedIngredients.value = [];
+
+    currentStep.value = 1;
 
     // Set default variant if exists
     if (item.variants && item.variants.length > 0) {
@@ -569,7 +707,21 @@ const fetchProfileTables = async () => {
                 type.charAt(0).toUpperCase() + type.slice(1)
             );
 
-            orderType.value = orderTypes.value[0];
+            // ✅ Check for saved order type from localStorage
+            const savedOrderType = localStorage.getItem("quickOrderType");
+            if (savedOrderType) {
+                const matchingType = orderTypes.value.find(
+                    type => type.toLowerCase().replace(/_/g, ' ') === savedOrderType.toLowerCase().replace(/_/g, ' ')
+                );
+                
+                if (matchingType) {
+                    orderType.value = matchingType;
+                } else {
+                    orderType.value = orderTypes.value[0]; // fallback to first type
+                }
+            } else {
+                orderType.value = orderTypes.value[0];
+            }
         }
     } catch (error) {
         console.error("Error fetching profile tables:", error);
@@ -724,19 +876,19 @@ const incCart = async (i) => {
 
     // Check ingredients client-side
     const stockCheck = calculateClientSideStock(it, it.qty + 1);
-    
+
     if (!stockCheck.canAdd) {
         console.log('🚨 Missing ingredients detected (client-side)');
-        
+
         pendingIncrementData.value = {
             itemIndex: i,
             item: it,
             newQty: it.qty + 1
         };
-        
+
         missingIngredients.value = stockCheck.missing;
         showMissingIngredientsModal.value = true;
-        
+
         toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
@@ -753,20 +905,20 @@ const incCart = async (i) => {
 
 const calculateClientSideStock = (item, requestedQty) => {
     const ingredients = item.ingredients || [];
-    
+
     // If no ingredients, unlimited stock
     if (ingredients.length === 0) {
         return { canAdd: true, missing: [] };
     }
 
     const missingIngredients = [];
-    
+
     // Build ingredient usage map from current cart
     const ingredientUsage = {};
-    
+
     orderItems.value.forEach(cartItem => {
         const itemIngredients = cartItem.ingredients || [];
-        
+
         // Filter out removed ingredients
         const activeIngredients = itemIngredients.filter(ing => {
             if (!cartItem.removed_ingredients || cartItem.removed_ingredients.length === 0) {
@@ -774,25 +926,25 @@ const calculateClientSideStock = (item, requestedQty) => {
             }
             return !cartItem.removed_ingredients.includes(ing.id || ing.inventory_item_id);
         });
-        
+
         activeIngredients.forEach(ing => {
             const id = ing.inventory_item_id;
             const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
-            
+
             if (!ingredientUsage[id]) {
-                ingredientUsage[id] = { 
-                    totalStock: stock, 
+                ingredientUsage[id] = {
+                    totalStock: stock,
                     used: 0,
                     name: ing.product_name || ing.name,
                     unit: ing.unit || 'unit'
                 };
             }
-            
+
             const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
             ingredientUsage[id].used += required;
         });
     });
-    
+
     // Check if new quantity would exceed stock
     // Filter out removed ingredients for this item too
     const activeIngredients = ingredients.filter(ing => {
@@ -801,12 +953,12 @@ const calculateClientSideStock = (item, requestedQty) => {
         }
         return !item.removed_ingredients.includes(ing.id || ing.inventory_item_id);
     });
-    
+
     activeIngredients.forEach(ing => {
         const id = ing.inventory_item_id;
         const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
         const stock = Number(ing.inventory_stock ?? ing.inventory_item?.stock ?? 0);
-        
+
         if (!ingredientUsage[id]) {
             // This ingredient isn't used by other cart items yet
             if (stock < required) {
@@ -827,18 +979,18 @@ const calculateClientSideStock = (item, requestedQty) => {
         } else {
             // Ingredient is already used by other cart items
             const available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
-            
+
             // If this exact item is already in cart, add back its current usage
-            const existingItem = orderItems.value.find(ci => 
-                ci.id === item.id && 
+            const existingItem = orderItems.value.find(ci =>
+                ci.id === item.id &&
                 ci.variant_id === item.variant_id &&
                 JSON.stringify(ci.addons?.map(a => a.id).sort()) === JSON.stringify(item.addons?.map(a => a.id).sort())
             );
-            
+
             if (existingItem) {
                 const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingItem.qty;
                 const availableForThisItem = available + currentUsage;
-                
+
                 if (availableForThisItem < required) {
                     missingIngredients.push({
                         item_id: item.id,
@@ -873,7 +1025,7 @@ const calculateClientSideStock = (item, requestedQty) => {
             }
         }
     });
-    
+
     return {
         canAdd: missingIngredients.length === 0,
         missing: missingIngredients
@@ -1352,17 +1504,17 @@ const incQty = async () => {
         ingredients: variantIngredients,
         removed_ingredients: modalRemovedIngredients.value || []
     }, modalQty.value + 1);
-    
+
     if (!stockCheck.canAdd) {
         console.log('🚨 Missing ingredients for modal increment (client-side)');
-        
+
         pendingModalIncrementData.value = {
             currentQty: modalQty.value
         };
 
         missingIngredients.value = stockCheck.missing;
         showMissingIngredientsModal.value = true;
-        
+
         toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
@@ -1877,7 +2029,7 @@ const checkMissingIngredientsForItem = async (item, requestedQty = 1) => {
                 missingData: response.data.missing_ingredients
             };
         }
-        
+
         return { hasMissing: false };
     } catch (error) {
         console.error('Error checking ingredients:', error);
@@ -2041,7 +2193,7 @@ const handleConfirmMissingIngredients = async () => {
     // Handle cart increment
     if (pendingIncrementData.value) {
         const { item, newQty } = pendingIncrementData.value;
-        
+
         item.outOfStock = false;
         item.qty = newQty;
         item.price = item.unit_price * item.qty;
@@ -2083,7 +2235,7 @@ const handleConfirmMissingIngredients = async () => {
         } else {
             const variantIngredients = getVariantIngredients(product, variantId);
             const menuStock = calculateMenuStock(product);
-            
+
             orderItems.value.push({
                 id: product.id,
                 title: product.title,
@@ -2136,7 +2288,7 @@ const handleCancelMissingIngredients = () => {
 -----------------------------*/
 onMounted(async () => {
     initializeWalkInCounter();
- const number = String(counter.value).padStart(3, '0');
+    const number = String(counter.value).padStart(3, '0');
     customer.value = `Walk In-${number}`;
     // ... rest of your onMounted code
     if (window.bootstrap) {
@@ -2690,10 +2842,10 @@ const incrementCardQty = async (product) => {
         removed_ingredients: existingItem?.removed_ingredients || [],
         addons: selectedAddons
     }, newQty);
-    
+
     if (!stockCheck.canAdd) {
         console.log('🚨 Missing ingredients for card increment (client-side)');
-        
+
         const variantPrice = variant ? parseFloat(variant.price) : parseFloat(product.price);
         const addonsPrice = getAddonsPrice(product);
         const resaleDiscountPerItem = variant
@@ -2715,7 +2867,7 @@ const incrementCardQty = async (product) => {
 
         missingIngredients.value = stockCheck.missing;
         showMissingIngredientsModal.value = true;
-        
+
         toast.warning('Some ingredients are missing. Confirm to proceed.');
         return;
     }
@@ -2737,7 +2889,7 @@ const incrementCardQty = async (product) => {
         orderItems.value[existingIndex].outOfStock = false;
     } else {
         const menuStock = calculateMenuStock(product);
-        
+
         orderItems.value.push({
             id: product.id,
             title: product.title,
@@ -2979,8 +3131,17 @@ const getAddonTooltip = (cartItem) => {
 };
 
 const getSelectedAddonsCount = () => {
-    if (!selectedCartItem.value || !selectedCartItem.value.addons) return 0;
-    return selectedCartItem.value.addons.filter(addon => addon.selected !== false).length;
+    let count = 0;
+
+    if (modalSelectedAddons.value && typeof modalSelectedAddons.value === 'object') {
+        Object.values(modalSelectedAddons.value).forEach(addons => {
+            if (Array.isArray(addons)) {
+                count += addons.length;
+            }
+        });
+    }
+
+    return count;
 };
 
 // ================================================
@@ -3276,6 +3437,8 @@ const getModalVariantPriceWithResale = () => {
 const getModalTotalPriceWithResale = () => {
     return getModalVariantPriceWithResale() + getModalAddonsPrice();
 };
+
+
 
 </script>
 
@@ -3586,10 +3749,10 @@ const getModalTotalPriceWithResale = () => {
                                 <ShoppingCart class="lucide-icon" width="16" height="16" />
                                 Orders
                             < </button> -->
-                            <button class="btn btn-warning rounded-pill px-3 py-2 promos-btn" @click="openPromoModal">
+                            <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
-                            <button class="btn btn-warning rounded-pill px-3 py-2 discount-btn"
+                            <button class="btn btn-warning px-3 py-2 discount-btn"
                                 @click="openDiscountModal">
                                 Discounts
                             </button>
@@ -3685,6 +3848,8 @@ const getModalTotalPriceWithResale = () => {
                                                     </span>
                                                 </div>
                                                 <!-- Addon Icons (clickable) -->
+
+
                                                 <div v-if="it.addons && it.addons.length > 0" class="addon-icons mt-1">
                                                     <button class="btn-link p-0 py-0 text-decoration-none"
                                                         @click="openAddonModal(it, i)" :title="getAddonTooltip(it)">
@@ -3693,15 +3858,18 @@ const getModalTotalPriceWithResale = () => {
                                                         <span class="text-muted small">{{ it.addons.length }}
                                                             addon(s)</span>
                                                     </button>
-                                                    <!-- Show variant name badge -->
-                                                    <span v-if="it.variant_name" class="badge ms-1"
+                                                </div>
+
+                                                <span v-if="isItemEligibleForPromo(it)"
+                                                    class="badge bg-success mt-1 ms-1" style="font-size: 0.65rem;">
+                                                    <i class="bi bi-tag-fill"></i>
+                                                </span>
+
+                                                <!-- Show variant name badge (always show if exists) -->
+                                                <div v-if="it.variant_name" class="mt-1">
+                                                    <span class="badge"
                                                         style="font-size: 0.65rem; background: #1B1670; color: white;">
                                                         {{ it.variant_name }}
-                                                    </span>
-                                                    <!-- Show if promo applies to this item -->
-                                                    <span v-if="isItemEligibleForPromo(it)"
-                                                        class="badge bg-success ms-1" style="font-size: 0.65rem;">
-                                                        <i class="bi bi-tag-fill"></i>
                                                     </span>
                                                 </div>
 
@@ -3859,7 +4027,7 @@ const getModalTotalPriceWithResale = () => {
             </div>
 
             <!-- Choose Item Modal -->
-            <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
+            <!-- <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content rounded-4 border-0 shadow">
                         <div class="modal-header border-0">
@@ -3885,11 +4053,9 @@ const getModalTotalPriceWithResale = () => {
                                         " class="img-fluid rounded-3 w-100" alt="" />
                                 </div>
                                 <div class="col-md-7">
-                                    <!-- Dynamic Price (variant + addons) -->
                                     <div class="h4 mb-3">
                                         <div class="h4 d-flex align-items-center gap-2 flex-wrap">
                                             <span>{{ formatCurrencySymbol(getModalTotalPriceWithResale()) }}</span>
-                                            <!-- Show original price if there's resale discount (for variants) -->
                                             <template
                                                 v-if="getModalSelectedVariant() && getResaleBadgeInfo(getModalSelectedVariant(), true)">
                                                 <span class="text-decoration-line-through text-muted small">
@@ -3900,7 +4066,6 @@ const getModalTotalPriceWithResale = () => {
                                                     {{ getResaleBadgeInfo(getModalSelectedVariant(), true).display }}
                                                 </span>
                                             </template>
-                                            <!-- Show original price if there's resale discount (for simple items) -->
                                             <template
                                                 v-else-if="selectedItem && (!selectedItem.variants || selectedItem.variants.length === 0) && getResaleBadgeInfo(selectedItem, false)">
                                                 <span class="text-decoration-line-through text-muted small">
@@ -3913,7 +4078,6 @@ const getModalTotalPriceWithResale = () => {
                                             </template>
                                         </div>
                                     </div>
-                                    <!-- Variant Dropdown -->
                                     <div v-if="selectedItem?.variants && selectedItem.variants.length > 0" class="mb-3">
                                         <label class="form-label small fw-semibold mb-1">
                                             Variants:
@@ -3926,7 +4090,6 @@ const getModalTotalPriceWithResale = () => {
                                             </option>
                                         </select>
                                     </div>
-                                    <!-- Ingredients Customization -->
                                     <div v-if="getModalIngredients().length > 0" class="mb-3">
                                         <label class="form-label small fw-semibold mb-2 d-flex align-items-center">
                                             <i class="bi bi-egg-fried me-2 text-warning"></i>
@@ -3958,8 +4121,6 @@ const getModalTotalPriceWithResale = () => {
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- Addons Selection -->
                                     <div v-if="selectedItem?.addon_groups && selectedItem.addon_groups.length > 0">
                                         <div v-for="group in selectedItem.addon_groups" :key="group.group_id"
                                             class="mb-3">
@@ -4002,7 +4163,6 @@ const getModalTotalPriceWithResale = () => {
                                         </div>
                                     </div>
 
-                                    <!-- Nutrition, Allergies, Tags (Dynamic based on variant) -->
                                     <div class="chips mb-3">
                                         <div class="mb-1">
                                             <strong>Nutrition:</strong>
@@ -4035,7 +4195,6 @@ const getModalTotalPriceWithResale = () => {
                                             t.name }}</span>
                                     </div>
 
-                                    <!-- Quantity Controls -->
                                     <div class="qty-group gap-1">
                                         <button class="qty-btn" @click="decQty">−</button>
                                         <div class="qty-box rounded-pill">
@@ -4044,7 +4203,6 @@ const getModalTotalPriceWithResale = () => {
                                         <button class="qty-btn" @click="incQty">+</button>
                                     </div>
 
-                                    <!-- Kitchen Note Field  -->
                                     <div class="mt-3">
                                         <label class="form-label small fw-semibold mb-1">
                                             Kitchen Note (Optional)
@@ -4064,7 +4222,310 @@ const getModalTotalPriceWithResale = () => {
                         </div>
                     </div>
                 </div>
+            </div> -->
+
+
+            <!-- Replace your entire modal with id="chooseItem" with this beautiful stepper modal -->
+            <div class="modal fade" id="chooseItem" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content rounded-3 shadow border-0" style="max-height: 90vh;">
+
+                        <!-- HEADER -->
+                        <div class="modal-header border-0 bg-light py-2 px-3 rounded-top">
+                            <div>
+                                <h5 class="fw-bold mb-0">
+                                    {{ selectedItem?.title || "Choose Item" }}
+                                </h5>
+                                <p class="text-muted small mb-0" style="font-size: 0.8rem;">Customize your order</p>
+                            </div>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- STEP INDICATOR -->
+                        <div class="px-3 pt-2 progress-bar">
+                            <div class="stepper-container position-relative" style="min-height: 60px;">
+                                <!-- Background line -->
+                                <div class="stepper-progress-bg"></div>
+                                <!-- Filled line -->
+                                <div class="stepper-progress-fill" :style="{ width: stepProgressWidth }"></div>
+
+                                <!-- Steps -->
+                                <div v-for="(step, index) in visibleSteps" :key="step.id"
+                                    class="stepper-step text-center">
+                                    <div class="stepper-circle stepper-circle-sm"
+                                        :class="getStepCircleClass(index + 1)">
+                                        <i v-if="index + 1 < currentStep" class="bi bi-check-lg"
+                                            style="font-size: 0.7rem;"></i>
+                                        <span v-else style="font-size: 0.75rem;">{{ index + 1 }}</span>
+                                    </div>
+                                    <small class="stepper-label"
+                                        :class="{ 'stepper-label-active': index + 1 === currentStep }"
+                                        style="font-size: 0.7rem; margin-top: 4px; display: block;">
+                                        {{ step.name }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BODY -->
+                        <div class="modal-body px-3 py-2">
+                            <div class="row g-3 mb-3">
+
+                                <!-- LEFT COLUMN : IMAGE + PRICE -->
+                                <div class="col-lg-5">
+                                    <!-- Image -->
+                                    <div class="position-relative mb-3">
+                                        <img :src="selectedItem?.image_url || selectedItem?.img || '/assets/img/product/product29.jpg'"
+                                            class="img-fluid rounded-3 w-100 object-fit-cover"
+                                            style="height: 200px; object-fit: cover;" alt="Product">
+
+                                        <span
+                                            v-if="getModalSelectedVariant() && getResaleBadgeInfo(getModalSelectedVariant(), true)"
+                                            class="badge bg-danger px-2 py-1 position-absolute top-0 end-0 rounded-end-0 rounded-bottom-0 shadow-sm"
+                                            style="font-size: 0.7rem;">
+                                            <i class="bi bi-tag-fill me-1"></i>
+                                            {{ getResaleBadgeInfo(getModalSelectedVariant(), true).display }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Price Summary -->
+                                    <div class="rounded-3 border shadow-sm p-3 bg-white">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-receipt me-2 text-primary" style="font-size: 1rem;"></i>
+                                            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Price Breakdown</h6>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem;">
+                                            <span class="text-muted">Base Price</span>
+                                            <strong>{{ formatCurrencySymbol(getModalVariantPrice()) }}</strong>
+                                        </div>
+
+                                        <div v-if="getModalAddonsPrice() > 0"
+                                            class="d-flex justify-content-between mb-1" style="font-size: 0.85rem;">
+                                            <span class="text-muted">Add-ons</span>
+                                            <strong class="text-success">+ {{
+                                                formatCurrencySymbol(getModalAddonsPrice())
+                                            }}</strong>
+                                        </div>
+
+                                        <hr class="my-2">
+
+                                        <div class="d-flex justify-content-between" style="font-size: 1rem;">
+                                            <span class="fw-bold">Total</span>
+                                            <span class="fw-bold text-primary">{{
+                                                formatCurrencySymbol(getModalTotalPriceWithResale()) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RIGHT COLUMN : STEPS -->
+                                <div class="col-lg-7">
+                                    <div class="px-1">
+
+                                        <!-- STEP 1 : VARIANTS -->
+                                        <div v-show="currentStep === 1 && hasVariants" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-grid-3x3-gap me-2 text-primary"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Choose Variant
+                                                    </h6>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-2">
+                                                <div v-for="variant in selectedItem?.variants" :key="variant.id"
+                                                    class="col-12">
+                                                    <div :class="['border rounded-3 p-2 shadow-sm variant-card',
+                                                        modalSelectedVariant === variant.id ? 'border-primary bg-light' : '']"
+                                                        @click="selectVariant(variant.id)" style="cursor: pointer;">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <h6 class="fw-bold mb-0" style="font-size: 0.85rem;">{{
+                                                                    variant.name
+                                                                }}</h6>
+                                                            </div>
+                                                            <div
+                                                                class="d-flex justify-content-between align-items-center gap-2">
+                                                                <div v-if="modalSelectedVariant === variant.id"
+                                                                    class="text-primary">
+                                                                    <i class="bi bi-check-circle-fill"
+                                                                        style="font-size: 1rem;"></i>
+                                                                </div>
+                                                                <strong style="font-size: 0.9rem;">{{
+                                                                    formatCurrencySymbol(variant.price) }}</strong>
+
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- STEP 2 : INGREDIENTS -->
+                                        <div v-show="currentStep === 2 && hasIngredients" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Remove
+                                                        Ingredients</h6>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-2">
+                                                <div v-for="ingredient in getModalIngredients()"
+                                                    :key="ingredient.id || ingredient.inventory_item_id"
+                                                    class="col-md-6">
+                                                    <div class="d-flex align-items-center p-2 border rounded-2 shadow-sm"
+                                                        :class="{ 'bg-light text-muted': isIngredientRemoved(ingredient.id || ingredient.inventory_item_id) }">
+
+                                                        <input type="checkbox" class="form-check-input me-2"
+                                                            style="width: 16px; height: 16px;"
+                                                            :id="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
+                                                            :checked="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id)"
+                                                            :disabled="!isIngredientRemoved(ingredient.id || ingredient.inventory_item_id) && getRemainingIngredientsCount() === 1"
+                                                            @change="toggleIngredient(ingredient.id || ingredient.inventory_item_id)">
+
+                                                        <label
+                                                            :for="'ingredient-' + (ingredient.id || ingredient.inventory_item_id)"
+                                                            class="form-check-label" style="font-size: 0.8rem;">
+                                                            {{ ingredient.product_name || ingredient.name }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+
+                                        <!-- STEP 3 : ADD-ONS -->
+                                        <div v-show="currentStep === 3 && hasAddons" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-plus-circle me-2 text-success"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons
+                                                    </h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your
+                                                        meal</p>
+                                                </div>
+                                            </div>
+
+                                            <div v-for="group in selectedItem?.addon_groups" :key="group.group_id"
+                                                class="mb-3">
+                                                <label class="fw-semibold mb-1 d-flex justify-content-between"
+                                                    style="font-size: 0.85rem;">
+                                                    <span>{{ group.group_name }}</span>
+                                                    <span v-if="group.max_select > 0"
+                                                        class="badge rounded-pill bg-primary"
+                                                        style="font-size: 0.7rem;">
+                                                        Max {{ group.max_select }}
+                                                    </span>
+                                                </label>
+
+                                                <MultiSelect :modelValue="modalSelectedAddons[group.group_id] || []"
+                                                    @update:modelValue="(val) => handleModalAddonChange(group.group_id, val)"
+                                                    :options="group.addons" optionLabel="name" dataKey="id"
+                                                    placeholder="Select add-ons" :maxSelectedLabels="2" class="w-100"
+                                                    appendTo="self">
+                                                </MultiSelect>
+                                            </div>
+                                        </div>
+
+                                        <!-- STEP 4 : REVIEW -->
+                                        <div v-show="currentStep === finalStep" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-cart-check me-2 text-success"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Review Your
+                                                        Order</h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">Confirm
+                                                        selections</p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Summary -->
+                                            <div class="summary-card p-3 rounded-3 shadow-sm mb-3">
+                                                <h6 class="fw-bold mb-2 text-secondary">Order Summary</h6>
+
+                                                <div class="summary-item" v-if="hasVariants">
+                                                    <span class="summary-label">Variant:</span>
+                                                    <span class="summary-value">{{ getSelectedVariantName() }}</span>
+                                                </div>
+
+                                                <div class="summary-item" v-if="modalRemovedIngredients.length > 0">
+                                                    <span class="summary-label">Removed:</span>
+                                                    <span class="summary-value">{{ getRemovedIngredientsText() }}</span>
+                                                </div>
+
+                                                <div class="summary-item" v-if="getSelectedAddonsCount() > 0">
+                                                    <span class="summary-label">Add-ons:</span>
+                                                    <span class="summary-value">{{ getSelectedAddonsText() }}</span>
+                                                </div>
+                                            </div>
+
+
+                                            <!-- Quantity -->
+                                            <div class="d-flex align-items-center mb-3">
+                                                <label class="me-3 fw-semibold"
+                                                    style="font-size: 0.85rem;">Quantity:</label>
+                                                <div class="qty-group gap-1">
+                                                    <button class="qty-btn" @click="decQty"
+                                                        :disabled="modalQty <= 1">−</button>
+                                                    <div class="qty-box rounded-pill">{{ modalQty }}</div>
+                                                    <button class="qty-btn" @click="incQty">+</button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Kitchen Notes -->
+                                            <div class="mb-2">
+                                                <label class="fw-semibold mb-1" style="font-size: 0.85rem;">
+                                                    <i class="bi bi-chat-left-text me-1"></i>
+                                                    Kitchen Note (Optional)
+                                                </label>
+                                                <textarea v-model="modalItemKitchenNote"
+                                                    class="form-control form-control-sm rounded-2 shadow-sm" rows="2"
+                                                    maxlength="200" placeholder="Special instructions..."
+                                                    style="font-size: 0.8rem;"></textarea>
+                                                <div class="text-end small text-muted mt-1" style="font-size: 0.7rem;">
+                                                    {{ modalItemKitchenNote?.length || 0 }}/200
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FOOTER -->
+                        <div class="modal-footer border-0 px-3 py-2 d-flex justify-content-end gap-2">
+                            <button v-if="currentStep > 1" class="btn btn-light btn-sm px-4 py-2 shadow-sm"
+                                @click="previousStep">
+                                <i class="bi bi-arrow-left me-1"></i>Back
+                            </button>
+
+                            <button v-if="currentStep < finalStep" class="btn btn-primary btn-sm px-4 py-2 shadow-sm"
+                                @click="nextStep">
+                                Next <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+
+                            <button v-else class="btn btn-primary btn-sm px-4 py-2 shadow-sm" @click="confirmAdd">
+                                <i class="bi bi-cart-plus me-1"></i>Add to Cart
+                            </button>
+                        </div>
+
+
+                    </div>
+                </div>
             </div>
+
 
             <!--  Addon Management Modal -->
             <div class="modal fade" id="addonManagementModal" tabindex="-1" aria-hidden="true">
@@ -4257,12 +4718,208 @@ const getModalTotalPriceWithResale = () => {
                 :missing-ingredients="missingIngredients"
                 @close="showMissingIngredientsModal = false; pendingOrderData = null"
                 @confirm="handleConfirmMissingIngredients" />
-            
+
         </div>
     </Master>
 </template>
 
 <style scoped>
+.summary-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+.dark .summary-card {
+    background-color: #181818;
+}
+
+.summary-item {
+    padding: 6px 0;
+    display: flex;
+    font-size: 0.82rem;
+    border-bottom: 1px dashed #e3e3e3;
+}
+
+.summary-item:last-child {
+    border-bottom: 0;
+}
+
+.summary-label {
+    font-weight: 600;
+    color: #6c757d;
+    min-width: 70px;
+}
+
+.summary-value {
+    color: #444;
+}
+
+.stepper-circle-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #dee2e6;
+    background: white;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.dark .bg-white {
+    border-bottom: 1px solid #fff !important;
+}
+
+.dark .stepper-circle {
+    background-color: #1B1670 !important;
+}
+
+.stepper-progress-bg {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    height: 2px;
+    background: #dee2e6;
+    z-index: 0;
+}
+
+.stepper-progress-fill {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    height: 2px;
+    background: #1B1670;
+    transition: width 0.3s;
+    z-index: 1;
+    max-width: calc(100% - 28px);
+}
+
+.stepper-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    padding: 0 8px;
+}
+
+.stepper-step {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.stepper-label {
+    display: block;
+    margin-top: 4px;
+    color: #6c757d;
+    font-weight: 500;
+    text-align: left;
+}
+
+.stepper-label-active {
+    color: #fff;
+    font-weight: 600;
+}
+
+.progress-bar {
+    background-color: #141414;
+}
+
+.variant-card {
+    transition: all 0.2s;
+}
+
+.variant-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Compact modal scrollbar */
+.modal-dialog-scrollable .modal-body {
+    overflow-y: auto;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #ced4da;
+    border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
+}
+
+/* Smooth transitions */
+.variant-card,
+.stepper-circle-sm,
+.btn {
+    transition: all 0.2s ease;
+}
+
+/* Image styling */
+.object-fit-cover {
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Quantity Controls */
+.qty-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.qty-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #dee2e6;
+    background: white;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #495057;
+}
+
+
+.qty-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.qty-box {
+    min-width: 50px;
+    padding: 0.25rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    font-size: 0.9rem;
+}
+
+/* Rounded pill buttons */
+.btn.rounded-pill {
+    border-radius: 50rem !important;
+}
+
+
 .dark .ot-pill {
     background-color: #181818;
     color: #fff;

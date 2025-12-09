@@ -61,6 +61,7 @@ const pagination = ref({
 const inventories = ref(props.inventories?.data || []);
 const items = computed(() => inventories.value);
 
+
 const fetchInventories = async (page = null) => {
     loading.value = true;
     try {
@@ -79,7 +80,7 @@ const fetchInventories = async (page = null) => {
         });
 
         inventories.value = res.data.data || [];
-        
+
         console.log('📊 Response pagination:', {
             current_page: res.data.current_page,
             last_page: res.data.last_page,
@@ -87,7 +88,7 @@ const fetchInventories = async (page = null) => {
             total: res.data.total,
             data_length: inventories.value.length
         });
-        
+
         pagination.value = {
             current_page: res.data.current_page,
             last_page: res.data.last_page,
@@ -102,6 +103,26 @@ const fetchInventories = async (page = null) => {
     } catch (err) {
         console.error('❌ Fetch inventories error:', err);
         toast.error("Failed to load inventories");
+        loading.value = false;
+    }
+};
+
+const fetchAllDataForExport = async () => {
+    try {
+        loading.value = true;
+        const res = await axios.get("inventory/api-inventories", {
+            params: {
+                q: q.value,
+                per_page: 10000, // Fetch up to 10,000 items at once
+                page: 1
+            }
+        });
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
         loading.value = false;
     }
 };
@@ -130,7 +151,14 @@ onMounted(async () => {
         }
     }, 100);
     fetchInventories();
-    fetchKpiStats(); 
+    fetchKpiStats();
+     const filterModal = document.getElementById('inventoryFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = { ...appliedFilters.value };
+        });
+    }
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -156,6 +184,7 @@ const filters = ref({
     dateFrom: "",
     dateTo: "",
 });
+const appliedFilters = ref({ ...filters.value });
 const filteredItems = computed(() => {
     let filtered = [...items.value];
     const term = q.value.trim().toLowerCase();
@@ -195,7 +224,7 @@ const filteredItems = computed(() => {
     // Supplier filter
     if (filters.value.supplier) {
         filtered = filtered.filter((item) => {
-             const supplierId =
+            const supplierId =
                 (item?.supplier && typeof item.supplier === "object")
                     ? item.supplier.id
                     : item?.supplier_id;
@@ -239,6 +268,26 @@ const filteredItems = computed(() => {
     return filtered;
 });
 
+const handleFilterApply = () => {
+    // Save the current filters as applied
+    appliedFilters.value = { ...filters.value };
+};
+
+const handleFilterClear = () => {
+    // Reset both filters and applied filters
+    filters.value = {
+        sortBy: "",
+        category: "",
+        supplier: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: "",
+        dateTo: "",
+    };
+    appliedFilters.value = { ...filters.value };
+};
+
 const sortedItems = computed(() => {
     const arr = [...filteredItems.value];
     const sortBy = filters.value.sortBy;
@@ -246,11 +295,11 @@ const sortedItems = computed(() => {
     switch (sortBy) {
         case "stock_desc":
             return arr.sort(
-                (a, b) => (b.stockValue || 0) - (a.stockValue || 0)
+                (a, b) => (b.availableStock || 0) - (a.availableStock || 0)
             );
         case "stock_asc":
             return arr.sort(
-                (a, b) => (a.stockValue || 0) - (b.stockValue || 0)
+                (a, b) => (a.availableStock || 0) - (b.availableStock || 0)
             );
         case "name_asc":
             return arr.sort((a, b) =>
@@ -272,9 +321,9 @@ watch(q, (newVal, oldVal) => {
     searchTimeout = setTimeout(() => {
         pagination.value.current_page = 1;
         if (!newVal || newVal.trim() === '') {
-            pagination.value.per_page = 10; 
+            pagination.value.per_page = 10;
         }
-        
+
         fetchInventories(1);
     }, 500);
 });
@@ -924,29 +973,39 @@ async function submitStockOut() {
 }
 
 // ===================== Downloads (PDF, Excel, CSV) =====================
-const onDownload = (type) => {
+const onDownload = async (type) => {
     if (!inventories.value || inventories.value.length === 0) {
-        toast.error("No Allergies data to download");
+        toast.error("No inventory data to download");
         return;
     }
-    const dataToExport = q.value.trim()
-        ? filteredItems.value
-        : inventories.value;
-    if (!dataToExport.length) {
-        toast.error("No Inventory Item found to download");
-        return;
-    }
+
     try {
-        if (type === "pdf") downloadPDF(dataToExport);
-        else if (type === "excel") downloadExcel(dataToExport);
-        else if (type === "csv") downloadCSV(dataToExport);
+        loading.value = true;
+        
+        // ✅ FETCH ALL DATA FOR EXPORT (not just current page)
+        const allData = await fetchAllDataForExport();
+
+        if (!allData.length) {
+            toast.error("No inventory items found to download");
+            loading.value = false;
+            return;
+        }
+
+        // Now export all data
+        if (type === "pdf") downloadPDF(allData);
+        else if (type === "excel") downloadExcel(allData);
+        else if (type === "csv") downloadCSV(allData);
         else toast.error("Invalid download type");
+        
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
 
+// ✅ UPDATED downloadCSV function
 const downloadCSV = (data) => {
     try {
         const headers = [
@@ -965,9 +1024,8 @@ const downloadCSV = (data) => {
             "allergies",
             "tags"
         ];
+
         const rows = data.map((s) => {
-            console.log(data);
-            console.log("data", data);
             let nutritionStr = "";
             if (s.nutrition && typeof s.nutrition === "object") {
                 nutritionStr = Object.entries(s.nutrition)
@@ -976,19 +1034,20 @@ const downloadCSV = (data) => {
             } else if (typeof s.nutrition === "string") {
                 nutritionStr = s.nutrition;
             }
+
             return [
-                `"${s.name || ""}"`,
-                `"${s.sku || ""}"`,
-                `"${s.category.name || ""}"`,
+                `"${(s.name || "").replace(/"/g, '""')}"`,
+                `"${(s.sku || "").replace(/"/g, '""')}"`,
+                `"${(s.category?.name || "").replace(/"/g, '""')}"`,
                 `"${s.minAlert || ""}"`,
-                `"${s.unit_name || ""}"`,
-                `"${s.supplier_name || ""}"`,
+                `"${(s.unit_name || "").replace(/"/g, '""')}"`,
+                `"${(s.supplier_name || "").replace(/"/g, '""')}"`,
                 `"${s.minAlert || ""}"`,
                 `"${s.availableStock || ""}"`,
-                `"${s.nutrition.calories}"`,
-                `"${s.nutrition.protein}"`,
-                `"${s.nutrition.fat}"`,
-                `"${s.nutrition.carbs}"`,
+                `"${s.nutrition?.calories || 0}"`,
+                `"${s.nutrition?.protein || 0}"`,
+                `"${s.nutrition?.fat || 0}"`,
+                `"${s.nutrition?.carbs || 0}"`,
                 `"${Array.isArray(s.allergies)
                     ? s.allergies.join(", ")
                     : s.allergies || ""
@@ -996,10 +1055,12 @@ const downloadCSV = (data) => {
                 `"${Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || ""}"`,
             ];
         });
+
         const csvContent = [
             headers.join(","),
             ...rows.map((r) => r.join(",")),
         ].join("\n");
+
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
         });
@@ -1013,7 +1074,9 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.success("CSV downloaded successfully ", { autoClose: 2500 });
+        URL.revokeObjectURL(url);
+        
+        toast.success(`CSV downloaded successfully (${data.length} items)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -1022,9 +1085,10 @@ const downloadCSV = (data) => {
     }
 };
 
+// ✅ UPDATED downloadPDF function
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("l", "mm", "a4"); // landscape mode for many columns
+        const doc = new jsPDF("l", "mm", "a4");
 
         // Title & Metadata
         doc.setFontSize(18);
@@ -1037,7 +1101,7 @@ const downloadPDF = (data) => {
         doc.text(`Generated on: ${currentDate}`, 14, 22);
         doc.text(`Total Items: ${data.length}`, 14, 28);
 
-        // Table Columns (match CSV)
+        // Table Columns
         const tableColumns = [
             "Name",
             "SKU",
@@ -1073,7 +1137,7 @@ const downloadPDF = (data) => {
             Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
         ]);
 
-        // 🪶 Table Styling
+        // Table Styling
         autoTable(doc, {
             head: [tableColumns],
             body: tableRows,
@@ -1107,13 +1171,14 @@ const downloadPDF = (data) => {
         // Save PDF
         const fileName = `inventory_items_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+        toast.success(`PDF downloaded successfully (${data.length} items)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, { autoClose: 5000 });
     }
 };
 
+// ✅ UPDATED downloadExcel function
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") throw new Error("XLSX library is not loaded");
@@ -1138,11 +1203,11 @@ const downloadExcel = (data) => {
             Tags: Array.isArray(s.tags) ? s.tags.join(", ") : s.tags || "",
         }));
 
-        // 📘 Create workbook and worksheet
+        // Create workbook and worksheet
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
-        // 📏 Column widths for readability
+        // Column widths
         worksheet["!cols"] = [
             { wch: 25 },
             { wch: 15 },
@@ -1161,6 +1226,8 @@ const downloadExcel = (data) => {
         ];
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Items");
+
+        // Add metadata sheet
         const metaData = [
             { Info: "Generated On", Value: new Date().toLocaleString() },
             { Info: "Total Records", Value: data.length },
@@ -1168,10 +1235,11 @@ const downloadExcel = (data) => {
         ];
         const metaSheet = XLSX.utils.json_to_sheet(metaData);
         XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
         const fileName = `inventory_items_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+        toast.success(`Excel file downloaded successfully (${data.length} items)`, { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, { autoClose: 5000 });
@@ -1281,7 +1349,7 @@ const totals = computed(() => {
         totalPrice: Number(totalPrice.toFixed(2)),
         totalValue: Number(totalValue.toFixed(2)),
         notExpiredQty: Number(notExpiredQty.toFixed(2)),
-        availableQty: Number(availableQty.toFixed(2)) 
+        availableQty: Number(availableQty.toFixed(2))
     };
 });
 
@@ -1343,14 +1411,14 @@ const handleImport = (data) => {
         .post("/api/inventory/import", { items: itemsToImport })
         .then(() => {
             toast.success("Items imported successfully");
-             const importModal = document.querySelector('.modal.show');
+            const importModal = document.querySelector('.modal.show');
             if (importModal) {
                 const bsModal = bootstrap.Modal.getInstance(importModal);
                 if (bsModal) {
                     bsModal.hide();
                 }
             }
-            
+
             // ✅ Force remove any lingering backdrops
             setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
@@ -1366,7 +1434,7 @@ const handleImport = (data) => {
         .catch((err) => {
             console.error(err);
             toast.error("Import failed");
-             setTimeout(() => {
+            setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
                 backdrops.forEach(backdrop => backdrop.remove());
                 document.body.classList.remove('modal-open');
@@ -1433,11 +1501,9 @@ const handleImport = (data) => {
                             <FilterModal v-model="filters" title="Inventory Items" modal-id="inventoryFilterModal"
                                 modal-size="modal-lg" :categories="filterOptions.categories"
                                 :suppliers="filterOptions.suppliers" :sort-options="filterOptions.sortOptions"
-                                :stock-status-options="filterOptions.stockStatusOptions
-                                    " :show-price-range="true" :show-date-range="false" @apply="handleFilterApply"
+                                :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="true"
+                                :show-date-range="false" priceRangeLabel="Stock Value Range" @apply="handleFilterApply"
                                 @clear="handleFilterClear">
-                                <template #customFilters="{ filters }">
-                                </template>
                             </FilterModal>
 
                             <!-- Add Item -->
@@ -1567,7 +1633,7 @@ const handleImport = (data) => {
                                         {{ item.name }}
                                     </td>
                                     <td>
-                                        <ImageZoomModal v-if="item.image_url" :file="item.image_url" :alt="item.name"
+                                        <ImageZoomModal :file="item.image_url || '/assets/img/default.png'" :alt="item.name"
                                             :width="50" :height="50" :custom_class="'cursor-pointer'" />
                                     </td>
 
@@ -1717,7 +1783,7 @@ const handleImport = (data) => {
                                         'is-invalid': formErrors.minAlert,
                                     }" placeholder="e.g., 5" />
                                     <small v-if="formErrors.minAlert" class="text-danger">{{ formErrors.minAlert[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1728,7 +1794,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.unit_id,
                                         }" />
                                     <small v-if="formErrors.unit_id" class="text-danger">{{ formErrors.unit_id[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <div class="col-md-6">
@@ -1830,7 +1896,7 @@ const handleImport = (data) => {
                                             'is-invalid': formErrors.allergies,
                                         }" />
                                     <small v-if="formErrors.allergies" class="text-danger">{{ formErrors.allergies[0]
-                                        }}</small>
+                                    }}</small>
                                 </div>
 
                                 <!-- Tags -->
@@ -2059,20 +2125,20 @@ const handleImport = (data) => {
                                             <span class="text-muted">Stocked In</span>
                                             <span class="badge bg-gray-500 rounded-pill text-white p-2">{{
                                                 totals.availableQty
-                                            }}</span>
+                                                }}</span>
                                         </div>
 
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Updated On</span>
                                             <span class="fw-semibold">{{
                                                 dateFmt(viewItemRef.updated_at)
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                         <div class="card-footer bg-transparent small d-flex justify-content-between">
                                             <span class="text-muted">Added By</span>
                                             <span class="fw-semibold">{{
                                                 viewItemRef.user
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
