@@ -1530,7 +1530,7 @@ const resetCart = () => {
     deliveryLocation.value = "";
     phoneNumber.value = "";
     selectedTable.value = null;
-    orderType.value = orderTypes.value[0] || "dine_in";
+    orderType.value = orderTypes.value[0] || "eat_in";
     note.value = "";
     kitchenNote.value = "";
     deliveryPercent.value = 0;
@@ -1637,7 +1637,7 @@ const openConfirmModal = () => {
         toast.error("Please add at least one item to the cart.");
         return;
     }
-    if (orderType.value === "Dine_in" && !selectedTable.value) {
+    if (orderType.value === "Eat_in" && !selectedTable.value) {
         formErrors.value.table_number = [
             "Table number is required for dine-in orders.",
         ];
@@ -2015,8 +2015,8 @@ const confirmOrder = async ({
             kitchen_note: kitchenNote.value,
             order_date: new Date().toISOString().split("T")[0],
             order_time: new Date().toTimeString().split(" ")[0],
-            order_type: orderType.value === "Dine_in"
-                ? "Dine In"
+            order_type: orderType.value === "Eat_in"
+                ? "Eat In"
                 : orderType.value === "Delivery"
                     ? "Delivery"
                     : orderType.value === "Takeaway"
@@ -3709,7 +3709,7 @@ const getModalTotalPriceWithResale = () => {
                                 <!-- Dine-in table / customer -->
                                 <div class="mb-3">
 
-                                    <div v-if="orderType === 'Dine_in'" class="row g-2 ">
+                                    <div v-if="orderType === 'Eat_in'" class="row g-2 ">
                                         <div class="col-6 table-dropdown">
                                             <label class="form-label small">Table</label>
                                             <select v-model="selectedTable" class="form-select form-select-sm">

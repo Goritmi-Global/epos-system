@@ -25,16 +25,16 @@ class CategoryService
 
             // Handle icon upload ONCE for all categories in this batch
             $uploadId = null;
-            if (!empty($data['icon'])) {
+            if (! empty($data['icon'])) {
                 $upload = UploadHelper::store($data['icon'], 'category-icons', 'public');
                 $uploadId = $upload->id;
                 Log::info('Category icon uploaded', [
                     'upload_id' => $uploadId,
-                    'original_name' => $data['icon']->getClientOriginalName()
+                    'original_name' => $data['icon']->getClientOriginalName(),
                 ]);
             }
 
-            if (!empty($data['categories'])) {
+            if (! empty($data['categories'])) {
                 foreach ($data['categories'] as $cat) {
                     // Validate based on isSubCategory flag
                     if ($isSubCategory) {
@@ -49,13 +49,13 @@ class CategoryService
                             ->whereNull('parent_id')
                             ->first();
 
-                        if (!$parent) {
+                        if (! $parent) {
                             Log::error('Invalid parent category:', $cat['parent_id']);
                             throw new Exception('Invalid parent category');
                         }
                     } else {
                         // Creating parent category - must NOT have parent_id
-                        if (!empty($cat['parent_id'])) {
+                        if (! empty($cat['parent_id'])) {
                             Log::error('Parent category has parent_id:', $cat);
                             throw new Exception('Parent category cannot have parent_id');
                         }
@@ -68,6 +68,7 @@ class CategoryService
 
                     if ($existingCategory) {
                         Log::info('Category already exists, skipping:', $cat['name']);
+
                         continue;
                     }
 
@@ -94,12 +95,12 @@ class CategoryService
             ];
         } catch (Exception $e) {
             DB::rollback();
-            Log::error('Category creation failed: ' . $e->getMessage());
+            Log::error('Category creation failed: '.$e->getMessage());
             Log::error('Stack trace:', [$e->getTraceAsString()]);
 
             return [
                 'success' => false,
-                'message' => 'Failed to create categories: ' . $e->getMessage(),
+                'message' => 'Failed to create categories: '.$e->getMessage(),
                 'data' => null,
             ];
         }
@@ -132,47 +133,45 @@ class CategoryService
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-   public function getAllCategories(array $filters = [])
-{
-    $query = InventoryCategory::with([
-        'subcategories' => function ($query) {
-            $query->withCount('primaryInventoryItems');
-        },
-    ])
-        ->withCount('primaryInventoryItems')
-        ->whereNull('parent_id');
+    public function getAllCategories(array $filters = [])
+    {
+        $query = InventoryCategory::with([
+            'subcategories' => function ($query) {
+                $query->withCount('primaryInventoryItems');
+            },
+        ])
+            ->withCount('primaryInventoryItems')
+            ->whereNull('parent_id');
 
-    // Apply search filter if provided
-    if (!empty($filters['q'])) {
-        $s = $filters['q'];
-        $query->where('name', 'like', "%{$s}%");
-    }
-
-    // Get paginated results
-    $paginatedResults = $query->latest()->paginate($filters['per_page'] ?? 15);
-
-    // Transform the data
-    $paginatedResults->getCollection()->transform(function ($category) {
-        // Add total count for parent
-        $category->total_inventory_items = $category->primary_inventory_items_count;
-
-        // Add image URL
-        $category->image_url = UploadHelper::url($category->upload_id);
-
-        // Add image URL for subcategories too
-        if ($category->subcategories) {
-            $category->subcategories->each(function ($sub) {
-                $sub->image_url = UploadHelper::url($sub->upload_id);
-            });
+        // Apply search filter if provided
+        if (! empty($filters['q'])) {
+            $s = $filters['q'];
+            $query->where('name', 'like', "%{$s}%");
         }
 
-        return $category;
-    });
+        // Get paginated results
+        $paginatedResults = $query->latest()->paginate($filters['per_page'] ?? 15);
 
-    return $paginatedResults;
-}
+        // Transform the data
+        $paginatedResults->getCollection()->transform(function ($category) {
+            // Add total count for parent
+            $category->total_inventory_items = $category->primary_inventory_items_count;
 
+            // Add image URL
+            $category->image_url = UploadHelper::url($category->upload_id);
 
+            // Add image URL for subcategories too
+            if ($category->subcategories) {
+                $category->subcategories->each(function ($sub) {
+                    $sub->image_url = UploadHelper::url($sub->upload_id);
+                });
+            }
+
+            return $category;
+        });
+
+        return $paginatedResults;
+    }
 
     /**
      * Get only parent categories (for dropdown)
@@ -186,6 +185,7 @@ class CategoryService
             ->get()
             ->map(function ($category) {
                 $category->image_url = UploadHelper::url($category->upload_id);
+
                 return $category;
             });
     }
@@ -215,6 +215,7 @@ class CategoryService
 
         return $category;
     }
+
     /**
      * Update category
      */
@@ -225,8 +226,9 @@ class CategoryService
 
             $category = InventoryCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 DB::rollBack();
+
                 return [
                     'success' => false,
                     'message' => 'Category not found',
@@ -237,7 +239,7 @@ class CategoryService
             // Validate parent category if updating to subcategory
             if (isset($data['parent_id']) && $data['parent_id']) {
                 $parentCategory = InventoryCategory::find($data['parent_id']);
-                if (!$parentCategory) {
+                if (! $parentCategory) {
                     throw new Exception('Parent category not found');
                 }
 
@@ -249,7 +251,7 @@ class CategoryService
 
             // Handle icon upload if provided
             $uploadId = $category->upload_id; // Keep existing by default
-            if (!empty($data['icon'])) {
+            if (! empty($data['icon'])) {
                 $upload = UploadHelper::store($data['icon'], 'category-icons', 'public');
                 $uploadId = $upload->id;
 
@@ -299,7 +301,7 @@ class CategoryService
 
                 // DELETE subcategories that were removed from the list
                 $subcategoriesToDelete = array_diff($currentSubcategoryIds, $updatedSubcategoryIds);
-                if (!empty($subcategoriesToDelete)) {
+                if (! empty($subcategoriesToDelete)) {
                     InventoryCategory::whereIn('id', $subcategoriesToDelete)
                         ->where('parent_id', $category->id)
                         ->delete();
@@ -318,6 +320,7 @@ class CategoryService
             ];
         } catch (\Exception $e) {
             DB::rollBack();
+
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -336,7 +339,7 @@ class CategoryService
 
             $category = InventoryCategory::find($id);
 
-            if (!$category) {
+            if (! $category) {
                 return [
                     'success' => false,
                     'message' => 'Category not found',
@@ -364,11 +367,11 @@ class CategoryService
             ];
         } catch (Exception $e) {
             DB::rollback();
-            Log::error('Category deletion failed: ' . $e->getMessage());
+            Log::error('Category deletion failed: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Failed to delete category: ' . $e->getMessage(),
+                'message' => 'Failed to delete category: '.$e->getMessage(),
                 'data' => null,
             ];
         }
@@ -379,14 +382,14 @@ class CategoryService
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-  public function searchCategories(string $query, array $filters = [])
-{
-    $queryBuilder = InventoryCategory::with(['subcategories', 'parent'])
-        ->where('name', 'like', '%' . $query . '%')
-        ->orderBy('name');
+    public function searchCategories(string $query, array $filters = [])
+    {
+        $queryBuilder = InventoryCategory::with(['subcategories', 'parent'])
+            ->where('name', 'like', '%'.$query.'%')
+            ->orderBy('name');
 
-    return $queryBuilder->paginate($filters['per_page'] ?? 15);
-}
+        return $queryBuilder->paginate($filters['per_page'] ?? 15);
+    }
 
     /**
      * Get category statistics
@@ -433,11 +436,11 @@ class CategoryService
                 'data' => $category,
             ];
         } catch (Exception $e) {
-            Log::error('Category status toggle failed: ' . $e->getMessage());
+            Log::error('Category status toggle failed: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Failed to update category status: ' . $e->getMessage(),
+                'message' => 'Failed to update category status: '.$e->getMessage(),
                 'data' => null,
             ];
         }
@@ -500,5 +503,118 @@ class CategoryService
                 'data' => null,
             ];
         }
+    }
+
+    public function getAllCategoriesWithFilters(array $filters = [])
+    {
+        $query = InventoryCategory::with([
+            'subcategories' => function ($query) {
+                $query->withCount('primaryInventoryItems');
+            },
+        ])
+            ->withCount('primaryInventoryItems')
+            ->whereNull('parent_id');
+
+        // Search filter
+        if (! empty($filters['q'])) {
+            $query->where('name', 'like', "%{$filters['q']}%");
+        }
+
+        // Status filter (active/inactive)
+        if (! empty($filters['status'])) {
+            if ($filters['status'] === 'active') {
+                $query->where('active', 1);
+            } elseif ($filters['status'] === 'inactive') {
+                $query->where('active', 0);
+            }
+        }
+
+        // Has Subcategories filter
+        if (! empty($filters['has_subcategories'])) {
+            if ($filters['has_subcategories'] === 'yes') {
+                $query->whereHas('subcategories');
+            } elseif ($filters['has_subcategories'] === 'no') {
+                $query->doesntHave('subcategories');
+            }
+        }
+
+        // Stock Status filter
+        if (! empty($filters['stock_status'])) {
+            switch ($filters['stock_status']) {
+                case 'in_stock':
+                    $query->where('in_stock', '>', 0);
+                    break;
+                case 'low_stock':
+                    $query->where('low_stock', '>', 0);
+                    break;
+                case 'out_of_stock':
+                    $query->where('out_of_stock', '>', 0);
+                    break;
+                case 'has_items':
+                    $query->where('total_items', '>', 0);
+                    break;
+                case 'no_items':
+                    $query->where('total_items', 0);
+                    break;
+            }
+        }
+
+        // Value range filter
+        if (! empty($filters['value_min']) && $filters['value_min'] !== '') {
+            $query->where('total_value', '>=', $filters['value_min']);
+        }
+
+        if (! empty($filters['value_max']) && $filters['value_max'] !== '') {
+            $query->where('total_value', '<=', $filters['value_max']);
+        }
+
+        // Sorting
+        if (! empty($filters['sort_by'])) {
+            switch ($filters['sort_by']) {
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                case 'value_desc':
+                    $query->orderBy('total_value', 'desc');
+                    break;
+                case 'value_asc':
+                    $query->orderBy('total_value', 'asc');
+                    break;
+                case 'items_desc':
+                    $query->orderByRaw('primary_inventory_items_count DESC');
+                    break;
+                case 'items_asc':
+                    $query->orderByRaw('primary_inventory_items_count ASC');
+                    break;
+                default:
+                    $query->orderBy('name', 'asc');
+                    break;
+            }
+        } else {
+            $query->orderBy('name', 'asc');
+        }
+
+        // Pagination
+        $perPage = $filters['per_page'] ?? 15;
+        $paginatedResults = $query->paginate($perPage);
+
+        // Transform data
+        $paginatedResults->getCollection()->transform(function ($category) {
+            $category->total_inventory_items = $category->primary_inventory_items_count;
+            $category->image_url = UploadHelper::url($category->upload_id);
+
+            if ($category->subcategories) {
+                $category->subcategories->each(function ($sub) {
+                    $sub->image_url = UploadHelper::url($sub->upload_id);
+                });
+            }
+
+            return $category;
+        });
+
+        return $paginatedResults;
     }
 }

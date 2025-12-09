@@ -15,8 +15,9 @@ class InventoryService
      *  ---------------------------------------------------------------- */
     public function list(array $filters = [])
 {
-    $query = InventoryItem::query()
+   $query = InventoryItem::query()
         ->with([
+            'category', // ✅ Make sure category is loaded
             'user:id,name',
             'supplier:id,name',
             'unit:id,name',
@@ -27,7 +28,19 @@ class InventoryService
         ->when($filters['q'] ?? null, function ($q, $v) {
             $q->where(function ($qq) use ($v) {
                 $qq->where('name', 'like', "%{$v}%")
-                    ->orWhere('sku', 'like', "%{$v}%");
+                    ->orWhere('sku', 'like', "%{$v}%")
+                    // ✅ ADD CATEGORY SEARCH
+                    ->orWhereHas('category', function ($query) use ($v) {
+                        $query->where('name', 'like', "%{$v}%");
+                    })
+                    // ✅ ADD UNIT SEARCH (optional)
+                    ->orWhereHas('unit', function ($query) use ($v) {
+                        $query->where('name', 'like', "%{$v}%");
+                    })
+                    // ✅ ADD SUPPLIER SEARCH (optional)
+                    ->orWhereHas('supplier', function ($query) use ($v) {
+                        $query->where('name', 'like', "%{$v}%");
+                    });
             });
         })
         ->orderByDesc('id');
@@ -36,7 +49,6 @@ class InventoryService
     $searchQuery = trim($filters['q'] ?? '');
     $hasSearch = !empty($searchQuery);
     
-    // 🔍 Debug logging
     \Log::info('Inventory List Debug', [
         'raw_q' => $filters['q'] ?? null,
         'trimmed_q' => $searchQuery,

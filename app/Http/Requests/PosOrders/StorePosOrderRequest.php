@@ -33,7 +33,7 @@ class StorePosOrderRequest extends FormRequest
             'source'           => 'nullable|string|max:255',
 
             // Order type
-            'order_type'   => 'required|in:Dine In,Delivery,Collection,Takeaway',
+            'order_type'   => 'required|in:Eat In,Delivery,Collection,Takeaway',
             'table_number' => 'required_if:order_type,Dine In|string|nullable',
 
             // Payment fields

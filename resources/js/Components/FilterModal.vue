@@ -89,10 +89,10 @@
                 </select>
               </div>
 
-              <!-- Price Range -->
+              <!-- Price/Stock Value Range -->
               <div v-if="showPriceRange" class="col-md-6">
                 <label class="form-label fw-semibold text-dark">
-                  <i class="fas fa-dollar-sign me-2 text-muted"></i>Price Range
+                  <i class="fas fa-dollar-sign me-2 text-muted"></i>{{ priceRangeLabel }}
                 </label>
                 <div class="row g-2">
                   <div class="col-6">
@@ -223,7 +223,10 @@ const props = defineProps({
     type: Boolean,
     default: true
   },
-
+  priceRangeLabel: {
+    type: String,
+    default: 'Price Range'
+  }
 })
 
 // Emits
@@ -308,7 +311,7 @@ const activeFiltersDisplay = computed(() => {
   if (localFilters.value.priceMin || localFilters.value.priceMax) {
     filters.push({
       key: 'priceRange',
-      label: 'Price',
+      label: props.priceRangeLabel,
       value: `${localFilters.value.priceMin || 0} - ${localFilters.value.priceMax || '∞'}`
     })
   }

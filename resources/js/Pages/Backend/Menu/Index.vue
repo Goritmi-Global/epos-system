@@ -283,6 +283,13 @@ onMounted(async () => {
         }
     }, 100);
     fetchInventory();
+      const filterModal = document.getElementById('menuFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = { ...appliedFilters.value };
+        });
+    }
 });
 
 const inventories = ref(props.inventories?.data || []);
@@ -408,6 +415,7 @@ const defaultMenuFilters = {
 };
 
 const filters = ref({ ...defaultMenuFilters });
+const appliedFilters = ref({ ...defaultMenuFilters });
 
 // ✅ REPLACE THIS
 const filteredItems = computed(() => {
@@ -440,6 +448,11 @@ const filterOptions = computed(() => ({
 
 const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
+    appliedFilters.value = { ...defaultMenuFilters }; 
+};
+
+const handleFilterApply = () => {
+    appliedFilters.value = { ...filters.value };
 };
 
 /* ===================== KPIs ===================== */
@@ -2182,7 +2195,7 @@ const format = (val) => {
                                     modal-size="modal-lg" :categories="filterOptions.categories"
                                     :sort-options="filterOptions.sortOptions"
                                     :status-options="filterOptions.statusOptions" :show-price-range="true"
-                                    :show-date-range="true" :show-category="false" :show-stock-status="false"
+                                    :show-date-range="false" :show-category="false" :show-stock-status="false"
                                     @apply="handleFilterApply" @clear="handleFilterClear" />
                             </div>
 

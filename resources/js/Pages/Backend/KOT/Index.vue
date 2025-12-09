@@ -8,6 +8,9 @@ import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
 import { toast } from 'vue3-toastify';
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
@@ -91,8 +94,8 @@ const filters = ref({
 const orderTypeFilter = ref("All");
 const statusFilter = ref("All");
 
-const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway", "Collection"]);
-const statusOptions = ref(["All", "Waiting", "In Progress", "Done", "Cancelled"]);
+const orderTypeOptions = ref(["All", "Eat In", "Delivery", "Takeaway", "Collection"]);
+const statusOptions = ref(["All", "Waiting", "Done", "Cancelled"]);
 
 // ✅ STEP 1: Fix allItems computed to use item.status instead of order.status
 const allItems = computed(() => {
@@ -230,15 +233,13 @@ const sortedItems = computed(() => {
 
 const filterOptions = computed(() => ({
     sortOptions: [
-        { value: "date_desc", label: "Date: Newest First" },
-        { value: "date_asc", label: "Date: Oldest First" },
         { value: "item_asc", label: "Item: A to Z" },
         { value: "item_desc", label: "Item: Z to A" },
         { value: "order_asc", label: "Order ID: Low to High" },
         { value: "order_desc", label: "Order ID: High to Low" },
     ],
     orderTypeOptions: [
-        { value: "Dine In", label: "Dine In" },
+        { value: "Eat In", label: "Eat In" },
         { value: "Delivery", label: "Delivery" },
         { value: "Takeaway", label: "Takeaway" },
         { value: "Collection", label: "Collection" },
@@ -305,7 +306,7 @@ const updateKotStatus = async (item, status) => {
 const printOrder = (order) => {
     const plainOrder = JSON.parse(JSON.stringify(order));
     const customerName = plainOrder?.customer_name || 'Walk-in Customer';
-    const orderType = plainOrder?.type?.order_type || 'Dine In';
+    const orderType = plainOrder?.type?.order_type || 'Eat In';
     const tableNumber = plainOrder?.type?.table_number;
     const payment = plainOrder?.payment;
     const posOrderItems = plainOrder?.items || [];
@@ -449,6 +450,235 @@ const fetchPrinters = async () => {
     }
 };
 onMounted(fetchPrinters);
+
+const onDownload = (type) => {
+    if (!allItems.value || allItems.value.length === 0) {
+        toast.error("No kitchen orders data to download");
+        return;
+    }
+
+    const dataToExport = q.value.trim() ? sortedItems.value : allItems.value;
+
+    if (dataToExport.length === 0) {
+        toast.error("No kitchen orders found to download");
+        return;
+    }
+
+    try {
+        if (type === "pdf") {
+            downloadPDF(dataToExport);
+        } else if (type === "excel") {
+            downloadExcel(dataToExport);
+        } else if (type === "csv") {
+            downloadCSV(dataToExport);
+        } else {
+            toast.error("Invalid download type");
+        }
+    } catch (error) {
+        console.error("Download failed:", error);
+        toast.error(`Download failed: ${error.message}`);
+    }
+};
+
+// CSV Download
+const downloadCSV = (data) => {
+    try {
+        const headers = [
+            "Order ID",
+            "Item Name",
+            "Variant",
+            "Quantity",
+            "Order Type",
+            "Table Number",
+            "Ingredients",
+            "Status",
+            "Customer",
+            "Price",
+            "Date"
+        ];
+
+        const rows = data.map((item) => {
+            return [
+                `"${item.order?.id || ""}"`,
+                `"${item.item_name || ""}"`,
+                `"${item.variant_name || "-"}"`,
+                `"${item.quantity || 1}"`,
+                `"${item.order?.type?.order_type || "-"}"`,
+                `"${item.order?.type?.table_number || "-"}"`,
+                `"${item.ingredients?.join(', ') || "-"}"`,
+                `"${item.status || ""}"`,
+                `"${item.order?.customer_name || "Walk In"}"`,
+                `"${Number(item.price || 0).toFixed(2)}"`,
+                `"${item.order?.created_at || ""}"`
+            ];
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map((r) => r.join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute(
+            "download",
+            `Kitchen_Orders_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("CSV downloaded successfully");
+    } catch (error) {
+        console.error("CSV generation error:", error);
+        toast.error(`CSV generation failed: ${error.message}`);
+    }
+};
+
+// PDF Download
+const downloadPDF = (data) => {
+    try {
+        const doc = new jsPDF("l", "mm", "a4");
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Kitchen Orders Report", 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const currentDate = new Date().toLocaleString();
+        doc.text(`Generated on: ${currentDate}`, 14, 28);
+        doc.text(`Total Items: ${data.length}`, 14, 34);
+
+        const tableColumns = [
+            "Order ID",
+            "Item",
+            "Variant",
+            "Qty",
+            "Type",
+            "Table",
+            "Status",
+            "Customer"
+        ];
+
+        const tableRows = data.map((item) => {
+            return [
+                item.order?.id || "",
+                item.item_name || "",
+                item.variant_name || "-",
+                item.quantity || 1,
+                item.order?.type?.order_type || "-",
+                item.order?.type?.table_number || "-",
+                item.status || "",
+                item.order?.customer_name || "Walk In"
+            ];
+        });
+
+        autoTable(doc, {
+            head: [tableColumns],
+            body: tableRows,
+            startY: 40,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: "left",
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (tableData) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageHeight = doc.internal.pageSize.height;
+                doc.setFontSize(8);
+                doc.text(
+                    `Page ${tableData.pageNumber} of ${pageCount}`,
+                    tableData.settings.margin.left,
+                    pageHeight - 10
+                );
+            },
+        });
+
+        const fileName = `Kitchen_Orders_${new Date().toISOString().split("T")[0]}.pdf`;
+        doc.save(fileName);
+
+        toast.success("PDF downloaded successfully");
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        toast.error(`PDF generation failed: ${error.message}`);
+    }
+};
+
+// Excel Download
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+
+        const worksheetData = data.map((item) => {
+            return {
+                "Order ID": item.order?.id || "",
+                "Item Name": item.item_name || "",
+                "Variant": item.variant_name || "-",
+                "Quantity": item.quantity || 1,
+                "Order Type": item.order?.type?.order_type || "-",
+                "Table Number": item.order?.type?.table_number || "-",
+                "Ingredients": item.ingredients?.join(', ') || "-",
+                "Status": item.status || "",
+                "Customer": item.order?.customer_name || "Walk In",
+                "Price": Number(item.price || 0).toFixed(2),
+                "Date": item.order?.created_at || ""
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+        worksheet["!cols"] = [
+            { wch: 10 },
+            { wch: 25 },
+            { wch: 15 },
+            { wch: 8 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 30 },
+            { wch: 10 },
+            { wch: 20 },
+            { wch: 10 },
+            { wch: 18 }
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Kitchen Orders");
+
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Items", Value: data.length },
+            { Info: "Exported By", Value: "Kitchen Management System" }
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+
+        const fileName = `Kitchen_Orders_${new Date().toISOString().split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success("Excel file downloaded successfully");
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`);
+    }
+};
+
 </script>
 
 <template>
@@ -559,7 +789,7 @@ onMounted(fetchPrinters);
 
                             <FilterModal v-model="filters" title="Kitchen Orders" modal-id="kotFilterModal"
                                 modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-date-range="true"
-                                @apply="handleFilterApply" @clear="handleFilterClear">
+                                @apply="handleFilterApply" :showDateRange="false" :show-stock-status="false" @clear="handleFilterClear">
                                 <!-- Custom filters slot for Order Type and Status -->
                                 <template #customFilters="{ filters }">
                                     <div class="col-md-6">
@@ -595,9 +825,20 @@ onMounted(fetchPrinters);
                                     Export
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow rounded-4 py-2">
-                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Export as PDF</a>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('pdf')">
+                                            Export as PDF
+                                        </a>
                                     </li>
-                                    <li><a class="dropdown-item py-2" href="javascript:void(0)">Export as Excel</a>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('excel')">
+                                            Export as Excel
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" href="javascript:;" @click="onDownload('csv')">
+                                            Export as CSV
+                                        </a>
                                     </li>
                                 </ul>
                             </div>
@@ -620,7 +861,7 @@ onMounted(fetchPrinters);
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(item, index) in filtered" :key="item.uniqueId || index">
+                                <tr v-for="(item, index) in sortedItems" :key="item.uniqueId || index">
                                     <td>{{ index + 1 }}</td>
                                     <td>{{ item.order?.id }}</td>
                                     <td>{{ item.item_name }}</td>
