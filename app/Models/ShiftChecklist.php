@@ -11,7 +11,7 @@ class ShiftChecklist extends Model
 
     protected $fillable = [
         'shift_id',
-          'type',
+        'type',
         'checklist_item_ids',
     ];
 
@@ -23,9 +23,8 @@ class ShiftChecklist extends Model
     {
         return $this->belongsTo(Shift::class);
     }
-
-    public function checklistItem()
+    public function checklistItems()
     {
-        return $this->belongsTo(ShiftChecklistItem::class, 'checklist_item_id');
+        return ShiftChecklistItem::whereIn('id', $this->checklist_item_ids ?? [])->get();
     }
 }

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->integer('quantity')->default(1);
             $table->json('ingredients')->nullable();
             $table->text('item_kitchen_note')->nullable();
-            $table->enum('status', ['Waiting', 'Done', 'Cancelled'])->default('Waiting');   
+            $table->enum('status', ['Waiting', 'In Progress', 'Done', 'Cancelled'])->default('Waiting');   
             $table->timestamps();
         });
     }

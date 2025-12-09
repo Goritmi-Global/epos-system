@@ -106,7 +106,7 @@ class PosOrderController extends Controller
     public function updateKotItemStatus(Request $request, KitchenOrderItem $item)
     {
         $request->validate([
-            'status' => 'required|in:Waiting,Done,Cancelled',
+            'status' => 'required|in:Waiting,Done,Cancelled,In Progress',
         ]);
 
         $item->update(['status' => $request->status]);
