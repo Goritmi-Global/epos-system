@@ -95,7 +95,7 @@ const orderTypeFilter = ref("All");
 const statusFilter = ref("All");
 
 const orderTypeOptions = ref(["All", "Eat In", "Delivery", "Takeaway", "Collection"]);
-const statusOptions = ref(["All", "Waiting", "Done", "Cancelled"]);
+const statusOptions = ref(["All", "Waiting","In Progress", "Done", "Cancelled"]);
 
 // ✅ STEP 1: Fix allItems computed to use item.status instead of order.status
 const allItems = computed(() => {
