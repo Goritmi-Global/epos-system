@@ -1633,7 +1633,7 @@ const handleImport = (data) => {
                                         {{ item.name }}
                                     </td>
                                     <td>
-                                        <ImageZoomModal v-if="item.image_url" :file="item.image_url" :alt="item.name"
+                                        <ImageZoomModal :file="item.image_url || '/assets/img/default.png'" :alt="item.name"
                                             :width="50" :height="50" :custom_class="'cursor-pointer'" />
                                     </td>
 
