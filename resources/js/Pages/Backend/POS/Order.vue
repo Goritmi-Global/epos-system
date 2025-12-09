@@ -62,7 +62,7 @@ const filters = ref({
 });
 
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway"]);
-const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]); 
+const paymentTypeOptions = ref(["All", "Cash", "Card", "Split"]);
 
 const filtered = computed(() => {
     const term = q.value.trim().toLowerCase();
@@ -611,13 +611,13 @@ const confirmCancelOrder = async (reason) => {
             closeCancelModal();
 
             // If payment can be refunded, ask user
-            if (canRefund(response.data.order)) {
-                setTimeout(() => {
-                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
-                        handleRefundPayment(response.data.order);
-                    }
-                }, 500);
-            }
+            // if (canRefund(response.data.order)) {
+            //     setTimeout(() => {
+            //         if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+            //             handleRefundPayment(response.data.order);
+            //         }
+            //     }, 500);
+            // }
         }
     } catch (error) {
         console.error('Error cancelling order:', error);
@@ -786,6 +786,7 @@ const confirmCancelOrder = async (reason) => {
                                     <th>Promo Name</th> -->
                                     <th>Total</th>
                                     <th>Status</th>
+                                    <th>Source</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -831,7 +832,12 @@ const confirmCancelOrder = async (reason) => {
                                             'bg-warning text-dark': o?.status === 'refunded',
                                             'bg-success': o?.status === 'paid'
                                         }">
-                                             {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
+                                            {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">
+                                            {{o.source === 'Pos System' ? 'POS System' : o.source === 'website' ? 'Website' : '-'}}
                                         </span>
                                     </td>
 
@@ -906,7 +912,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -969,7 +975,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -990,7 +996,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                                }}/{{
+                                            }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -1002,7 +1008,7 @@ const confirmCancelOrder = async (reason) => {
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1263,19 +1269,19 @@ const confirmCancelOrder = async (reason) => {
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Customer:</span>
                                     <span class="fw-semibold">{{ selectedOrderForRefund?.customer_name || 'Walk In'
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Total Amount:</span>
                                     <span class="fw-semibold">{{
                                         formatCurrencySymbol(selectedOrderForRefund?.total_amount)
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Payment Type:</span>
                                     <span class="fw-semibold text-capitalize">{{
                                         selectedOrderForRefund?.payment?.payment_type
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div v-if="selectedOrderForRefund?.payment?.payment_type?.toLowerCase() === 'split'"
                                     class="d-flex justify-content-between mb-2">
@@ -1341,13 +1347,9 @@ const confirmCancelOrder = async (reason) => {
         </div>
 
 
-        <OrderCancellationModal
-        :show="showCancelModal"
-        :order="selectedOrderForCancel"
-        :loading="cancellingOrderId === selectedOrderForCancel?.id"
-        @confirm="confirmCancelOrder"
-        @cancel="closeCancelModal"
-    />
+        <OrderCancellationModal :show="showCancelModal" :order="selectedOrderForCancel"
+            :loading="cancellingOrderId === selectedOrderForCancel?.id" @confirm="confirmCancelOrder"
+            @cancel="closeCancelModal" />
     </Master>
 </template>
 
@@ -1408,6 +1410,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :root {
     --brand: #1c0d82;
 }
+
 .icon-wrap {
     font-size: 2rem;
     color: var(--brand);
@@ -1426,6 +1429,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .kpi-value {
     color: #fff !important;
 }
+
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);
@@ -1445,6 +1449,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     border-radius: 9999px;
     background: #fff;
 }
+
 .btn-primary {
     background-color: var(--brand);
     border-color: var(--brand);
@@ -1458,6 +1463,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .form-label {
     color: #fff !important;
 }
+
 .table thead th {
     font-weight: 600;
     border: 0 !important;
@@ -1467,6 +1473,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     vertical-align: middle;
     border-color: #eee;
 }
+
 .info-card {
     background: #f9fafb;
     border-radius: 10px;
@@ -1499,11 +1506,13 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .paid-text {
     font-size: 12px;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-multiselect-header) {
     background-color: white !important;
     color: black !important;
@@ -1518,13 +1527,16 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-option.p-highlight) {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -1537,19 +1549,23 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #000 !important;
     border-color: #a4a7aa;
 }
+
 :deep(.p-multiselect-overlay .p-checkbox-box) {
     background: #fff !important;
     border: 1px solid #ccc !important;
     color: #fff !important;
 }
+
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
     border: 1px solid #ccc !important;
 }
+
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -1557,6 +1573,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
@@ -1564,28 +1581,34 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -1598,6 +1621,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -1612,18 +1636,22 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -1631,18 +1659,22 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-chip) {
     background: #181818 !important;
     color: #fff !important;
@@ -1667,6 +1699,7 @@ tbody tr:not(.no-border):not(.border-top-thick):nth-child(odd) {
 .dark .p-component {
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #fff !important;
 }

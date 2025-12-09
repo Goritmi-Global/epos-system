@@ -3,7 +3,7 @@ import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
-import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
+import { Clock, CheckCircle, XCircle, Printer, Loader } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
@@ -92,7 +92,7 @@ const orderTypeFilter = ref("All");
 const statusFilter = ref("All");
 
 const orderTypeOptions = ref(["All", "Dine In", "Delivery", "Takeaway", "Collection"]);
-const statusOptions = ref(["All", "Waiting", "Done", "Cancelled"]);
+const statusOptions = ref(["All", "Waiting", "In Progress", "Done", "Cancelled"]);
 
 // ✅ STEP 1: Fix allItems computed to use item.status instead of order.status
 const allItems = computed(() => {
@@ -245,6 +245,7 @@ const filterOptions = computed(() => ({
     ],
     statusOptions: [
         { value: "Waiting", label: "Waiting" },
+        { value: "In Progress", label: "In Progress" },
         { value: "Done", label: "Done" },
         { value: "Cancelled", label: "Cancelled" },
     ],
@@ -266,6 +267,9 @@ const pendingOrders = computed(
 const cancelledOrders = computed(
     () => orders.value.filter((o) => o.status === "Cancelled").length
 );
+const inProgressOrders = computed(
+    () => orders.value.filter((o) => o.status === "In Progress").length
+);
 const getStatusBadge = (status) => {
     switch (status) {
         case 'Done':
@@ -274,13 +278,14 @@ const getStatusBadge = (status) => {
             return 'bg-danger';
         case 'Waiting':
             return 'bg-warning text-dark';
+        case 'In Progress':
+            return 'bg-info text-white';
         default:
             return 'bg-secondary';
     }
 };
 const updateKotStatus = async (item, status) => {
     try {
-        console.log(`Updating KOT item ID ${item.id} -> ${status}`);
         const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
         const order = orders.value.find(o => o.id === item.order.id);
         if (order && order.items) {
@@ -501,6 +506,21 @@ onMounted(fetchPrinters);
                         </div>
                     </div>
                 </div>
+
+                <div class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ inProgressOrders }}</h3>
+                                <p class="text-muted mb-0 small">In Progress</p>
+                            </div>
+                            <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-hourglass-split fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
@@ -620,6 +640,11 @@ onMounted(fetchPrinters);
                                                 <Clock class="w-5 h-5" />
                                             </button>
 
+                                            <button @click="updateKotStatus(item, 'In Progress')" title="In Progress"
+                                                class="p-2 rounded-full text-info hover:bg-gray-100">
+                                                <Loader class="w-5 h-5" />
+                                            </button>
+
                                             <button @click="updateKotStatus(item, 'Done')" title="Done"
                                                 class="p-2 rounded-full text-success hover:bg-gray-100">
                                                 <CheckCircle class="w-5 h-5" />
@@ -636,12 +661,11 @@ onMounted(fetchPrinters);
                                                 <Printer class="w-5 h-5" />
                                             </button>
                                         </div>
-
                                     </td>
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="7" class="text-center text-muted py-4">
+                                    <td colspan="8" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>
@@ -663,7 +687,8 @@ onMounted(fetchPrinters);
 .dark .icon-wrap {
     color: #fff !important;
 }
-:global(.dark .form-control:focus){
+
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 
@@ -710,14 +735,17 @@ onMounted(fetchPrinters);
     background: #fff !important;
     color: #000 !important;
 }
+
 :deep(.p-multiselect-header) {
     background: #fff !important;
     color: #000 !important;
     border-bottom: 1px solid #ddd;
 }
+
 :deep(.p-multiselect-list) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-option) {
     background: #fff !important;
     color: #000 !important;
@@ -748,6 +776,7 @@ onMounted(fetchPrinters);
     background: #007bff !important;
     border-color: #007bff !important;
 }
+
 :deep(.p-multiselect-filter) {
     background: #fff !important;
     color: #000 !important;
@@ -758,9 +787,11 @@ onMounted(fetchPrinters);
     background-color: #212121 !important;
     color: #fff !important;
 }
+
 :deep(.p-multiselect-filter-container) {
     background: #fff !important;
 }
+
 :deep(.p-multiselect-chip) {
     background: #e9ecef !important;
     color: #000 !important;
@@ -768,6 +799,7 @@ onMounted(fetchPrinters);
     border: 1px solid #ccc !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :deep(.p-multiselect-chip .p-chip-remove-icon) {
     color: #555 !important;
 }
@@ -775,31 +807,38 @@ onMounted(fetchPrinters);
 :deep(.p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #dc3545 !important;
 }
+
 :deep(.p-multiselect-panel),
 :deep(.p-select-panel),
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
 :deep(.p-multiselect-label) {
     color: #000 !important;
 }
+
 :deep(.p-select) {
     background-color: white !important;
     color: black !important;
     border-color: #9b9c9c;
 }
+
 :deep(.p-select-list-container) {
     background-color: white !important;
     color: black !important;
 }
+
 :deep(.p-select-option) {
     background-color: transparent !important;
     color: black !important;
 }
+
 :deep(.p-select-option:hover) {
     background-color: #f0f0f0 !important;
     color: black !important;
 }
+
 :deep(.p-select-option.p-focus) {
     background-color: #f0f0f0 !important;
     color: black !important;
@@ -812,6 +851,7 @@ onMounted(fetchPrinters);
 :deep(.p-placeholder) {
     color: #80878e !important;
 }
+
 :global(.dark .p-multiselect-header) {
     background-color: #181818 !important;
     color: #fff !important;
@@ -826,18 +866,22 @@ onMounted(fetchPrinters);
     color: #fff !important;
     border-bottom: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-list) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-option) {
     background: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect-option.p-highlight),
 :global(.dark .p-multiselect-option:hover) {
     background: #222 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-multiselect),
 :global(.dark .p-multiselect-panel),
 :global(.dark .p-multiselect-token) {
@@ -845,18 +889,22 @@ onMounted(fetchPrinters);
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-multiselect-overlay .p-checkbox-box) {
     background: #181818 !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter) {
     background: #181818 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
 }
+
 :global(.dark .p-multiselect-filter-container) {
     background: #181818 !important;
 }
+
 :global(.dark .p-multiselect-chip) {
     background: #111 !important;
     color: #fff !important;
@@ -864,6 +912,7 @@ onMounted(fetchPrinters);
     border-radius: 12px !important;
     padding: 0.25rem 0.5rem !important;
 }
+
 :global(.dark .p-multiselect-chip .p-chip-remove-icon) {
     color: #ccc !important;
 }
@@ -871,19 +920,23 @@ onMounted(fetchPrinters);
 :global(.dark .p-multiselect-chip .p-chip-remove-icon:hover) {
     color: #f87171 !important;
 }
+
 :global(.dark .p-select) {
     background-color: #181818 !important;
     color: #fff !important;
     border-color: #555 !important;
 }
+
 :global(.dark .p-select-list-container) {
     background-color: #181818 !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option) {
     background-color: transparent !important;
     color: #fff !important;
 }
+
 :global(.dark .p-select-option:hover),
 :global(.dark .p-select-option.p-focus) {
     background-color: #222 !important;

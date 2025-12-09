@@ -27,6 +27,7 @@ return new class extends Migration
             $table->decimal('approved_discounts', 10, 2)->default(0);
 
             $table->string('status')->default('paid');
+            $table->string('source')->nullable();
             $table->text('note')->nullable();
             $table->text('kitchen_note')->nullable();
 

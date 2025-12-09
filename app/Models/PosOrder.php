@@ -23,6 +23,7 @@ class PosOrder extends Model
         'kitchen_note',
         'order_date',
         'order_time',
+        'source',
 
         'cancelled_at',
         'cancelled_by',
