@@ -2272,7 +2272,7 @@ const format = (val) => {
                                             {{ (currentPage - 1) * perPage + idx + 1 }}
                                         </td>
                                         <td>
-                                            <ImageZoomModal v-if="item.image_url" :file="item.image_url"
+                                            <ImageZoomModal :file="item.image_url || '/assets/img/default.png'"
                                                 :alt="item.name" :width="50" :height="50"
                                                 :custom_class="'cursor-pointer'" />
                                         </td>
