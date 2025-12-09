@@ -81,6 +81,7 @@ class PosOrderService
                 'kitchen_note' => $data['kitchen_note'] ?? null,
                 'order_date' => $data['order_date'] ?? now()->toDateString(),
                 'order_time' => $data['order_time'] ?? now()->toTimeString(),
+                'source' => $data['source'] ?? 'Pos System',
             ]);
 
             // 4. Handle delivery details

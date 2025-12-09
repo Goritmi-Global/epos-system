@@ -3,7 +3,7 @@ import Master from "@/Layouts/Master.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import Select from "primevue/select";
-import { Clock, CheckCircle, XCircle, Printer } from "lucide-vue-next";
+import { Clock, CheckCircle, XCircle, Printer, Loader } from "lucide-vue-next";
 import { useFormatters } from '@/composables/useFormatters'
 import FilterModal from "@/Components/FilterModal.vue";
 import { nextTick } from "vue";
@@ -246,6 +246,7 @@ const filterOptions = computed(() => ({
     ],
     statusOptions: [
         { value: "Waiting", label: "Waiting" },
+        { value: "In Progress", label: "In Progress" },
         { value: "Done", label: "Done" },
         { value: "Cancelled", label: "Cancelled" },
     ],
@@ -267,6 +268,9 @@ const pendingOrders = computed(
 const cancelledOrders = computed(
     () => orders.value.filter((o) => o.status === "Cancelled").length
 );
+const inProgressOrders = computed(
+    () => orders.value.filter((o) => o.status === "In Progress").length
+);
 const getStatusBadge = (status) => {
     switch (status) {
         case 'Done':
@@ -275,13 +279,14 @@ const getStatusBadge = (status) => {
             return 'bg-danger';
         case 'Waiting':
             return 'bg-warning text-dark';
+        case 'In Progress':
+            return 'bg-info text-white';
         default:
             return 'bg-secondary';
     }
 };
 const updateKotStatus = async (item, status) => {
     try {
-        console.log(`Updating KOT item ID ${item.id} -> ${status}`);
         const response = await axios.put(`/api/pos/kot-item/${item.id}/status`, { status });
         const order = orders.value.find(o => o.id === item.order.id);
         if (order && order.items) {
@@ -731,6 +736,21 @@ const downloadExcel = (data) => {
                         </div>
                     </div>
                 </div>
+
+                <div class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ inProgressOrders }}</h3>
+                                <p class="text-muted mb-0 small">In Progress</p>
+                            </div>
+                            <div class="rounded-circle p-3 bg-info-subtle text-info d-flex align-items-center justify-content-center"
+                                style="width: 56px; height: 56px">
+                                <i class="bi bi-hourglass-split fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body d-flex align-items-center justify-content-between">
@@ -861,6 +881,11 @@ const downloadExcel = (data) => {
                                                 <Clock class="w-5 h-5" />
                                             </button>
 
+                                            <button @click="updateKotStatus(item, 'In Progress')" title="In Progress"
+                                                class="p-2 rounded-full text-info hover:bg-gray-100">
+                                                <Loader class="w-5 h-5" />
+                                            </button>
+
                                             <button @click="updateKotStatus(item, 'Done')" title="Done"
                                                 class="p-2 rounded-full text-success hover:bg-gray-100">
                                                 <CheckCircle class="w-5 h-5" />
@@ -877,12 +902,11 @@ const downloadExcel = (data) => {
                                                 <Printer class="w-5 h-5" />
                                             </button>
                                         </div>
-
                                     </td>
                                 </tr>
 
                                 <tr v-if="filtered.length === 0">
-                                    <td colspan="7" class="text-center text-muted py-4">
+                                    <td colspan="8" class="text-center text-muted py-4">
                                         No orders found.
                                     </td>
                                 </tr>

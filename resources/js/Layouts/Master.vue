@@ -86,9 +86,14 @@ const proceedToQuickOrder = () => {
         toast.error("Please select an order type");
         return;
     }
+
+    // Save to localStorage
+    localStorage.setItem("quickOrderType", quickOrderType.value);
+
     showQuickOrderModal.value = false;
     router.visit(route('pos.order', { type: quickOrderType.value }));
 };
+
 
 const orderTypes = computed(() => {
     return page.props.onboarding?.service_options?.order_types || [];

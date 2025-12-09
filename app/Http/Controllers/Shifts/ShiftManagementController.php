@@ -294,7 +294,20 @@ class ShiftManagementController extends Controller
 
     public function details($id)
     {
-        $shift = \App\Models\Shift::with('details', 'checklists.checklistItem')->findOrFail($id);
+        // REMOVE 'checklists.checklistItem' - it doesn't exist!
+        $shift = \App\Models\Shift::with('details', 'checklists')->findOrFail($id);
+
+        // Get ALL checklist items at once (avoid multiple queries)
+        $allItemIds = $shift->checklists
+            ->pluck('checklist_item_ids')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        $checklistItems = \App\Models\ShiftChecklistItem::whereIn('id', $allItemIds)
+            ->get()
+            ->keyBy('id');
 
         return response()->json([
             'success' => true,
@@ -305,10 +318,23 @@ class ShiftManagementController extends Controller
                     'sales_amount' => $detail->sales_amount,
                 ];
             }),
-            'checklists' => $shift->checklists->map(function ($checklist) {
+            'checklists' => $shift->checklists->map(function ($checklist) use ($checklistItems) {
+                $itemIds = $checklist->checklist_item_ids ?? [];
+
                 return [
-                    'name' => $checklist->checklistItem->name,
-                    'is_completed' => $checklist->is_completed,
+                    'type' => $checklist->type,
+                    'items' => collect($itemIds)->map(function ($itemId) use ($checklistItems) {
+                        if (!isset($checklistItems[$itemId])) {
+                            return null;
+                        }
+
+                        $item = $checklistItems[$itemId];
+                        return [
+                            'id' => $item->id,
+                            'name' => $item->name,
+                            'description' => $item->description,
+                        ];
+                    })->filter()->values(),
                 ];
             }),
         ]);

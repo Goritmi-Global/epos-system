@@ -611,13 +611,13 @@ const confirmCancelOrder = async (reason) => {
             closeCancelModal();
 
             // If payment can be refunded, ask user
-            if (canRefund(response.data.order)) {
-                setTimeout(() => {
-                    if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
-                        handleRefundPayment(response.data.order);
-                    }
-                }, 500);
-            }
+            // if (canRefund(response.data.order)) {
+            //     setTimeout(() => {
+            //         if (confirm('Order cancelled successfully!\n\nWould you like to refund the payment as well?')) {
+            //             handleRefundPayment(response.data.order);
+            //         }
+            //     }, 500);
+            // }
         }
     } catch (error) {
         console.error('Error cancelling order:', error);
@@ -1071,6 +1071,7 @@ const downloadExcel = (data) => {
                                     <th>Promo Name</th> -->
                                     <th>Total</th>
                                     <th>Status</th>
+                                    <th>Source</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -1117,6 +1118,11 @@ const downloadExcel = (data) => {
                                             'bg-success': o?.status === 'paid'
                                         }">
                                             {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">
+                                            {{o.source === 'Pos System' ? 'POS System' : o.source === 'website' ? 'Website' : '-'}}
                                         </span>
                                     </td>
 
