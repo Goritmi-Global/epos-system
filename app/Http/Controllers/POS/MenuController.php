@@ -91,7 +91,7 @@ class MenuController extends Controller
 
     public function apiIndex(Request $request)
     {
-        $perPage = $request->get('per_page', 10); // Default 10 items per page
+        $perPage = $request->get('per_page', 10); 
 
         // Start building the query
         $query = MenuItem::with([

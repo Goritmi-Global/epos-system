@@ -1289,7 +1289,7 @@ const handleImport = (data) => {
                                     <th>Category</th>
                                     <th>Sub Category</th>
                                     <th>Icon</th>
-                                    <th>Total value</th>
+                                    <!-- <th>Total value</th> -->
                                     <th>Total Item</th>
                                     <th>Out of Stock</th>
                                     <th>Low Stock</th>
@@ -1344,7 +1344,7 @@ const handleImport = (data) => {
                                                 <span v-else class="fs-5">📦</span>
                                             </div>
                                         </td>
-                                        <td>{{ formatCurrencySymbol(row.total_value) }}</td>
+                                        <!-- <td>{{ formatCurrencySymbol(row.total_value) }}</td> -->
                                         <td>{{ row.primary_inventory_items_count }}</td>
                                         <td>{{ row.out_of_stock }}</td>
                                         <td>{{ row.low_stock }}</td>

@@ -2316,8 +2316,6 @@ const format = (val) => {
                                             </div>
                                         </td>
                                     </tr>
-
-                                    <!-- ✅ Empty State (show only when not loading) -->
                                     <tr v-if="sortedItems.length === 0">
                                         <td colspan="7" class="text-center text-muted py-4">
                                             No Menu items found.
@@ -2327,18 +2325,17 @@ const format = (val) => {
                             </tbody>
                         </table>
                     </div>
-
-                    <!-- ✅ Pagination with Loading State -->
-                    <div v-if="paginationLinks.length > 0 && !isLoading" class="mt-4">
-                        <Pagination :pagination="paginationLinks" :isApiDriven="true"
-                            @page-changed="handlePageChange" />
-
-                        <!-- Optional: Show results count -->
+                    <div v-if="paginationLinks.length > 0 && !isLoading" class="mt-4 d-flex justify-between">
                         <div class="text-center mt-3 text-sm text-gray-600">
                             Showing {{ (currentPage - 1) * perPage + 1 }} to
                             {{ Math.min(currentPage * perPage, totalItems) }} of
                             {{ totalItems }} results
                         </div>
+
+                        <Pagination :pagination="paginationLinks" :isApiDriven="true"
+                            @page-changed="handlePageChange" />
+
+                        
                     </div>
 
                 </div>

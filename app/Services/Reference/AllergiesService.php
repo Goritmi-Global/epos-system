@@ -16,7 +16,7 @@ class AllergiesService
             $q->where('name', 'like', "%{$s}%");
         }
 
-        return $q->latest()->paginate($filters['per_page'] ?? 15);
+        return $q->latest()->paginate($filters['per_page'] ?? 10);
     }
 
     public function create(array $data)
