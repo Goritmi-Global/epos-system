@@ -34,6 +34,14 @@ const addonForm = ref({
     sort_order: 0,
 });
 
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+});
+
 // Track if we're editing (null = create mode, object = edit mode)
 const editingAddon = ref(null);
 
@@ -114,6 +122,18 @@ onMounted(async () => {
 
     // Fetch initial data
     await Promise.all([fetchAddons(), fetchAddonGroups()]);
+     const filterModal = document.getElementById('addonsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                stockStatus: appliedFilters.value.stockStatus || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+            };
+        });
+    }
     
 });
 
@@ -266,6 +286,7 @@ const filteredAddons = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    appliedFilters.value = { ...filters.value };
     console.log("Filters applied:", filters.value);
 };
 
@@ -279,6 +300,12 @@ const handleFilterClear = () => {
         priceMin: null,
         priceMax: null,
 
+    };
+     appliedFilters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
     };
     console.log("Filters cleared");
 };

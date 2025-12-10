@@ -165,7 +165,7 @@ const tags = ref([]);
 const pagination = ref({
     current_page: 1,
     last_page: 1,
-    per_page: 15,
+    per_page: 10,
     total: 0,
     from: 0,
     to: 0,

@@ -11,93 +11,6 @@ use Exception;
 
 class MenuCategoryService
 {
-    /**
-     * Create categories (both parent and subcategories)
-     *
-     * @param array $data
-     * @return array
-     * @throws Exception
-     */
-    // public function createCategories(array $data): array
-    // {
-    //     try {
-    //         DB::beginTransaction();
-
-    //         $createdCategories = [];
-    //         $isSubCategory = $data['isSubCategory'] ?? false;
-
-    //         if (!empty($data['categories'])) {
-    //             foreach ($data['categories'] as $cat) {
-    //                 // Validate based on isSubCategory flag
-    //                 if ($isSubCategory) {
-    //                     // Creating subcategory - must have parent_id
-    //                     if (empty($cat['parent_id'])) {
-    //                         throw new Exception('Subcategory must have a parent_id');
-    //                     }
-
-    //                     // Verify parent exists and is a main category
-    //                     $parent = MenuCategory::where('id', $cat['parent_id'])
-    //                         ->whereNull('parent_id')
-    //                         ->first();
-
-    //                     if (!$parent) {
-    //                         Log::error('Invalid parent category:', $cat['parent_id']);
-    //                         throw new Exception('Invalid parent category');
-    //                     }
-    //                 } else {
-    //                     // Creating parent category - must NOT have parent_id
-    //                     if (!empty($cat['parent_id'])) {
-    //                         Log::error('Parent category has parent_id:', $cat);
-    //                         throw new Exception('Parent category cannot have parent_id');
-    //                     }
-    //                 }
-
-    //                 // Check for duplicates
-    //                 $existingCategory = MenuCategory::where('name', $cat['name'])
-    //                     ->where('parent_id', $cat['parent_id'] ?? null)
-    //                     ->first();
-
-    //                 if ($existingCategory) {
-    //                     Log::info('Category already exists, skipping:', $cat['name']);
-    //                     continue;
-    //                 }
-
-    //                 // Create the category
-    //                 $category = $this->createSingleCategory([
-    //                     'name'      => $cat['name'],
-    //                     'icon'      => $cat['icon'] ?? '🧰',
-    //                     'active'    => $cat['active'] ?? true,
-    //                     'parent_id' => $cat['parent_id'] ?? null,
-
-    //                 ]);
-    //                 // dd($cat['color']);
-
-    //                 Log::info('Created category:', $category->toArray());
-    //                 $createdCategories[] = $category;
-    //             }
-    //         }
-
-    //         DB::commit();
-
-    //         return [
-    //             'success' => true,
-    //             'message' => 'Categories created successfully',
-    //             'data' => $createdCategories,
-    //             'count' => count($createdCategories),
-    //         ];
-    //     } catch (Exception $e) {
-    //         DB::rollback();
-    //         Log::error('Category creation failed: ' . $e->getMessage());
-    //         Log::error('Stack trace:', [$e->getTraceAsString()]);
-
-    //         return [
-    //             'success' => false,
-    //             'message' => 'Failed to create categories: ' . $e->getMessage(),
-    //             'data' => null,
-    //         ];
-    //     }
-    // }
-
     public function createCategories(array $data): array
     {
         try {
@@ -105,8 +18,6 @@ class MenuCategoryService
 
             $createdCategories = [];
             $isSubCategory = $data['isSubCategory'] ?? false;
-
-            // Handle icon upload once for all categories in this batch
             $uploadId = null;
             if (!empty($data['icon'])) {
                 $upload = UploadHelper::store($data['icon'], 'menu-category-icons', 'public');
@@ -115,7 +26,6 @@ class MenuCategoryService
 
             if (!empty($data['categories'])) {
                 foreach ($data['categories'] as $cat) {
-                    // Validation based on subcategory flag
                     if ($isSubCategory) {
                         if (empty($cat['parent_id'])) {
                             throw new Exception('Subcategory must have a parent_id');
@@ -133,8 +43,6 @@ class MenuCategoryService
                             throw new Exception('Parent category cannot have parent_id');
                         }
                     }
-
-                    // Skip duplicates
                     $existing = MenuCategory::where('name', $cat['name'])
                         ->where('parent_id', $cat['parent_id'] ?? null)
                         ->first();
@@ -142,8 +50,6 @@ class MenuCategoryService
                     if ($existing) {
                         continue;
                     }
-
-                    // Create category
                     $category = $this->createSingleCategory([
                         'name'      => $cat['name'],
                         'upload_id' => $uploadId,
@@ -173,31 +79,6 @@ class MenuCategoryService
         }
     }
 
-
-    /**
-     * Create a single category
-     *
-     * @param array $categoryData
-     * @return MenuCategory
-     */
-    // private function createSingleCategory(array $categoryData): MenuCategory
-    // {
-    //     $category = MenuCategory::create([
-    //         'name' => $categoryData['name'],
-    //         'icon' => $categoryData['icon'] ?? '🧰',
-    //         'active' => $categoryData['active'] ?? true,
-    //         'parent_id' => $categoryData['parent_id'],
-    //         'total_value' => 0,
-    //         'total_items' => 0,
-    //         'out_of_stock' => 0,
-    //         'low_stock' => 0,
-    //         'in_stock' => 0,
-    //     ]);
-
-    //     Log::info('Successfully created category:', $category->toArray());
-    //     return $category;
-    // }
-
     private function createSingleCategory(array $categoryData): MenuCategory
     {
         return MenuCategory::create([
@@ -219,10 +100,7 @@ class MenuCategoryService
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    // public function getAllCategories()
-    // {
-    //     return MenuCategory::with(['subcategories', 'parent'])->get();
-    // }
+  
     public function getAllCategories()
     {
         return MenuCategory::with(['subcategories'])
@@ -249,6 +127,7 @@ class MenuCategoryService
         return MenuCategory::with(['subcategories', 'parent'])
             ->withCount('menuItems')
             ->whereNull('parent_id')
+           ->orderBy('id', 'DESC')
             ->get()
             ->map(function ($category) {
                 $category->total_menu_items = $category->menu_items_count;

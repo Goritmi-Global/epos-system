@@ -78,6 +78,18 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
+     const filterModal = document.getElementById('kotFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                orderType: appliedFilters.value.orderType || "",
+                status: appliedFilters.value.status || "",
+                dateFrom: appliedFilters.value.dateFrom || "",
+                dateTo: appliedFilters.value.dateTo || "",
+            };
+        });
+    }
 });
 
 const q = ref("");
@@ -85,6 +97,14 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 const filters = ref({
+    sortBy: "",
+    orderType: "",
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+});
+
+const appliedFilters = ref({
     sortBy: "",
     orderType: "",
     status: "",
@@ -203,6 +223,31 @@ const filtered = computed(() => {
 
     return result;
 });
+
+const handleFilterApply = (appliedFiltersData) => {
+    filters.value = { ...filters.value, ...appliedFiltersData };
+    // Save the applied filters
+    appliedFilters.value = { ...filters.value };
+    console.log("Filters applied:", filters.value);
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        orderType: "",
+        status: "",
+        dateFrom: "",
+        dateTo: "",
+    };
+    appliedFilters.value = {
+        sortBy: "",
+        orderType: "",
+        status: "",
+        dateFrom: "",
+        dateTo: "",
+    };
+    console.log("Filters cleared");
+};
 
 
 const sortedItems = computed(() => {

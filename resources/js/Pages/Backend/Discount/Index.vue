@@ -42,6 +42,17 @@ const showOrderItems = reactive({});
 const refreshInterval = ref(null);
 const confirmModalKey = ref(0);
 
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    category: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
+});
+
 // Discount type and status options for dropdowns
 const discountOptions = [
     // { label: "Flat Amount", value: "flat" },
@@ -162,11 +173,21 @@ const filtered = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+     appliedFilters.value = { ...filters.value };
 };
 
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+     appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         category: "",
@@ -596,6 +617,21 @@ onMounted(async () => {
                 fetchPendingRequests(true);
                 toast.info('New discount approval request received!');
             });
+    }
+     const filterModal = document.getElementById('discountsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                stockStatus: appliedFilters.value.stockStatus || "",
+                category: appliedFilters.value.category || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+                dateFrom: appliedFilters.value.dateFrom || null,
+                dateTo: appliedFilters.value.dateTo || null
+            };
+        });
     }
 });
 
