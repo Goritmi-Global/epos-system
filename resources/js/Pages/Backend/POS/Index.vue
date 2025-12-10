@@ -1778,9 +1778,10 @@ const printKot = async (order) => {
   console.info('Data  :', res.data);
 } catch (error) {
   console.error('❌ Print request failed');
-
+toast.error(error);
   if (error.response) {
     // Server answered with error code (4xx, 5xx)
+    toast.error(error);
     console.error('Status:', error.response.status);
     console.error('Data  :', error.response.data);
   } else if (error.request) {
