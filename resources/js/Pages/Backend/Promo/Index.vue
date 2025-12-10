@@ -71,16 +71,6 @@ const editingPromoScope = ref(null);
 const promoScopeFormErrors = ref({});
 
 
-const appliedFilters = ref({
-    sortBy: "",
-    stockStatus: "",
-    category: "",
-    priceMin: null,
-    priceMax: null,
-    dateFrom: null,
-    dateTo: null
-});
-
 const discountOptions = [
     { label: "Flat Amount", value: "flat" },
     { label: "Percentage", value: "percent" },

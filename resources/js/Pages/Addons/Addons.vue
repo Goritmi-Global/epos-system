@@ -256,9 +256,10 @@ const filteredAddons = computed(() => {
         filtered = filtered.filter((addon) => addon.status === filters.value.stockStatus);
     }
 
-    // Apply sorting - CREATE NEW ARRAY BEFORE SORTING
+    // Remove date filtering section completely
+
+    // Apply sorting
     if (filters.value.sortBy) {
-        filtered = [...filtered]; // ← ADD THIS LINE
         switch (filters.value.sortBy) {
             case "price_asc":
                 filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));

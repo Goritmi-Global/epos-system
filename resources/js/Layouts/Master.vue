@@ -622,7 +622,7 @@ const evaluateBreakpoint = () => {
         isMobile.value = false;
         isTablet.value = false;
         isDesktop.value = true;
-        sidebarExpanded.value = true; // expanded on desktop
+        sidebarExpanded.value = !isCashierRole.value; // expanded on desktop
         overlayOpen.value = false;
     }
 };
@@ -667,6 +667,11 @@ onMounted(() => {
 
     // Initialize fullscreen for Cashier
     initializeFullscreen();
+
+     if (isDesktop.value) {
+        sidebarExpanded.value = !isCashierRole.value;
+    }
+    
     evaluateBreakpoint();
     window.addEventListener("resize", evaluateBreakpoint, { passive: true });
     // feather icons setup and open active groups (same as before)
