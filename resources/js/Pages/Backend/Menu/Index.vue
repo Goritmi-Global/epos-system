@@ -283,7 +283,7 @@ onMounted(async () => {
         }
     }, 100);
     fetchInventory();
-      const filterModal = document.getElementById('menuFilterModal');
+    const filterModal = document.getElementById('menuFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
             // Reset filters to last applied state when modal closes
@@ -423,9 +423,9 @@ const filteredItems = computed(() => {
     return menuItems.value;
 });
 
-watch([filters, q], () => {
-    fetchMenus(1);
-}, { deep: true });
+// watch([filters, q], () => {
+//     fetchMenus(1);
+// }, { deep: true });
 
 const sortedItems = computed(() => {
     return filteredItems.value; // Backend handles sorting
@@ -448,7 +448,7 @@ const filterOptions = computed(() => ({
 
 const handleFilterClear = () => {
     filters.value = { ...defaultMenuFilters };
-    appliedFilters.value = { ...defaultMenuFilters }; 
+    appliedFilters.value = { ...defaultMenuFilters };
 };
 
 const handleFilterApply = () => {
@@ -1116,7 +1116,6 @@ function resetForm() {
     if (form.value.imageUrl && form.value.imageUrl.startsWith("blob:")) {
         URL.revokeObjectURL(form.value.imageUrl);
     }
-
     form.value = {
         name: "",
         category_id: null,
@@ -1139,24 +1138,18 @@ function resetForm() {
         addon_group_id: '',
         addon_ids: [],
         addon_group_constraints: null,
-
         is_saleable: false,
         resale_type: null,
         resale_value: null,
     };
-
     showCropper.value = false;
     showImageModal.value = false;
     previewImage.value = null;
     formErrors.value = {};
     isEditMode.value = false;
-
     selectedAllergies.value = [];
     selectedTypes.value = {};
-
     i_cart.value = [];
-
-    // Reset variant-specific data
     activeTab.value = 'simple';
     isVariantMode.value = false;
     selectedVariantForIngredients.value = null;
@@ -1174,38 +1167,75 @@ const openAddMenuModal = () => {
 
 
 
-const onDownload = (type) => {
-    if (!menuItems.value || menuItems.value.length === 0) {
-        toast.error("No Allergies data to download");
-        return;
+const fetchAllMenusForExport = async () => {
+    try {
+        isLoading.value = true;
+
+        console.log('🔄 Fetching all menu items for export...');
+
+        const res = await axios.get("/api/menu/items", {
+            params: {
+                export: 'all',
+                search: q.value.trim() || null,
+                category: filters.value.category || null,
+                status: filters.value.status !== "" ? filters.value.status : null,
+                sort_by: filters.value.sortBy || null,
+                price_min: filters.value.priceMin || null,
+                price_max: filters.value.priceMax || null,
+                date_from: filters.value.dateFrom || null,
+                date_to: filters.value.dateTo || null,
+            }
+        });
+        const allData = res.data.data || [];
+        console.log(`✅ Fetched ${allData.length} menu items for export`);
+        return allData;
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        isLoading.value = false;
     }
+};
+const onDownload = async (type) => {
+    console.log('🔍 Starting download process...');
+    console.log('🔍 Current menuItems.value length:', menuItems.value?.length);
+    console.log('🔍 Total items in system:', totalItems.value);
 
-    const dataToExport = q.value.trim() ? filtered.value : menuItems.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No Inventory Item found to download");
+    if (!menuItems.value || menuItems.value.length === 0) {
+        toast.error("No menu data to download");
         return;
     }
 
     try {
-
+        isLoading.value = true;
+        toast.info("Fetching all menu items for export...", { autoClose: 2000 });
+        const allData = await fetchAllMenusForExport();
+        console.log('✅ Data ready for export:', allData.length, 'items');
+        if (!allData.length) {
+            toast.error("No menu items found to download");
+            isLoading.value = false;
+            return;
+        }
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allData);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allData);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allData);
         } else if (type === "allergens") {
-            downloadAllergen(dataToExport);
+            downloadAllergen(allData);
         } else {
             toast.error("Invalid download type");
         }
+
     } catch (error) {
-        console.error("Download failed:", error);
+        console.error("❌ Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        isLoading.value = false;
     }
 };
-
 const downloadCSV = (data) => {
     try {
         const headers = [
@@ -1258,13 +1288,13 @@ const downloadCSV = (data) => {
                 : s.tags || "";
 
             return [
-                `"${s.name || ""}"`,
-                `"${category}"`,
-                `"${s.description || ""}"`,
+                `"${(s.name || "").replace(/"/g, '""')}"`,
+                `"${category.replace(/"/g, '""')}"`,
+                `"${(s.description || "").replace(/"/g, '""')}"`,
                 `"${s.price || ""}"`,
-                `"${nutritionStr}"`,
-                `"${allergies}"`,
-                `"${tags}"`,
+                `"${nutritionStr.replace(/"/g, '""')}"`,
+                `"${allergies.replace(/"/g, '""')}"`,
+                `"${tags.replace(/"/g, '""')}"`,
             ];
         });
         const csvContent = [
@@ -1284,8 +1314,9 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        toast.success("CSV downloaded successfully ", { autoClose: 2500 });
+        toast.success(`CSV downloaded successfully (${data.length} items)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -1293,7 +1324,6 @@ const downloadCSV = (data) => {
         });
     }
 };
-
 const downloadPDF = (data) => {
     try {
         const doc = new jsPDF("p", "mm", "a4");
@@ -1346,7 +1376,6 @@ const downloadPDF = (data) => {
                         const name = a.name || a;
                         const type = a.pivot?.type ?? a.type ?? null;
 
-                        // handle type display: 1 = Contain, 0 = Trace
                         if (type !== null && type !== undefined) {
                             const typeLabel =
                                 String(type) === "1" || type === 1
@@ -1358,7 +1387,6 @@ const downloadPDF = (data) => {
                     })
                     .join(", ")
                 : s.allergies || "";
-
 
             const tags = Array.isArray(s.tags)
                 ? s.tags.map((t) => t.name || t).join(", ")
@@ -1409,7 +1437,7 @@ const downloadPDF = (data) => {
             .toISOString()
             .split("T")[0]}.pdf`;
         doc.save(fileName);
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+        toast.success(`PDF downloaded successfully (${data.length} items)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -1417,6 +1445,98 @@ const downloadPDF = (data) => {
         });
     }
 };
+const downloadExcel = (data) => {
+    try {
+        if (typeof XLSX === "undefined") {
+            throw new Error("XLSX library is not loaded");
+        }
+        const worksheetData = data.map((s) => {
+            let nutritionStr = "";
+            if (s.nutrition && typeof s.nutrition === "object") {
+                const wantedKeys = ["calories", "protein", "fat", "carbs"];
+                nutritionStr = wantedKeys
+                    .map((key) =>
+                        s.nutrition[key] !== undefined
+                            ? `${key}: ${s.nutrition[key]}`
+                            : null
+                    )
+                    .filter(Boolean)
+                    .join("; ");
+            } else if (typeof s.nutrition === "string") {
+                nutritionStr = s.nutrition;
+            }
+
+            const category =
+                typeof s.category === "object"
+                    ? s.category?.name || ""
+                    : s.category || "";
+
+            const allergies = Array.isArray(s.allergies)
+                ? s.allergies
+                    .map((a) => {
+                        const name = a.name || a;
+                        const type = a.pivot?.type ?? a.type ?? null;
+
+                        if (type !== null && type !== undefined) {
+                            const typeLabel =
+                                String(type) === "1" || type === 1
+                                    ? "Contain"
+                                    : "Trace";
+                            return `${name} (${typeLabel})`;
+                        }
+                        return name;
+                    })
+                    .join(", ")
+                : s.allergies || "";
+
+            const tags = Array.isArray(s.tags)
+                ? s.tags.map((t) => t.name || t).join(", ")
+                : s.tags || "";
+
+            return {
+                "Item Name": s.name || "",
+                Category: category,
+                Description: s.description || "",
+                Price: s.price || "",
+                Nutrition: nutritionStr,
+                Allergies: allergies,
+                Tags: tags,
+            };
+        });
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+        worksheet["!cols"] = [
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 30 },
+            { wch: 10 },
+            { wch: 30 },
+            { wch: 25 },
+            { wch: 25 },
+        ];
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Items");
+        const metaData = [
+            { Info: "Generated On", Value: new Date().toLocaleString() },
+            { Info: "Total Records", Value: data.length },
+            { Info: "Exported By", Value: "Menu Management System" },
+        ];
+        const metaSheet = XLSX.utils.json_to_sheet(metaData);
+        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
+        const fileName = `menu_items_${new Date()
+            .toISOString()
+            .split("T")[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success(`Excel file downloaded successfully (${data.length} items)`, { autoClose: 2500 });
+    } catch (error) {
+        console.error("Excel generation error:", error);
+        toast.error(`Excel generation failed: ${error.message}`, {
+            autoClose: 5000,
+        });
+    }
+};
+
+
 const downloadAllergen = (data) => {
     try {
         const doc = new jsPDF("l", "mm", "a4");
@@ -1674,97 +1794,7 @@ const downloadAllergen = (data) => {
         });
     }
 };
-const downloadExcel = (data) => {
-    try {
-        if (typeof XLSX === "undefined") {
-            throw new Error("XLSX library is not loaded");
-        }
-        const worksheetData = data.map((s) => {
-            let nutritionStr = "";
-            if (s.nutrition && typeof s.nutrition === "object") {
-                const wantedKeys = ["calories", "protein", "fat", "carbs"];
-                nutritionStr = wantedKeys
-                    .map((key) =>
-                        s.nutrition[key] !== undefined
-                            ? `${key}: ${s.nutrition[key]}`
-                            : null
-                    )
-                    .filter(Boolean)
-                    .join("; ");
-            } else if (typeof s.nutrition === "string") {
-                nutritionStr = s.nutrition;
-            }
 
-            const category =
-                typeof s.category === "object"
-                    ? s.category?.name || ""
-                    : s.category || "";
-
-            const allergies = Array.isArray(s.allergies)
-                ? s.allergies
-                    .map((a) => {
-                        const name = a.name || a;
-                        const type = a.pivot?.type ?? a.type ?? null;
-
-                        if (type !== null && type !== undefined) {
-                            const typeLabel =
-                                String(type) === "1" || type === 1
-                                    ? "Contain"
-                                    : "Trace";
-                            return `${name} (${typeLabel})`;
-                        }
-                        return name;
-                    })
-                    .join(", ")
-                : s.allergies || "";
-
-
-            const tags = Array.isArray(s.tags)
-                ? s.tags.map((t) => t.name || t).join(", ")
-                : s.tags || "";
-
-            return {
-                "Item Name": s.name || "",
-                Category: category,
-                Description: s.description || "",
-                Price: s.price || "",
-                Nutrition: nutritionStr,
-                Allergies: allergies,
-                Tags: tags,
-            };
-        });
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        worksheet["!cols"] = [
-            { wch: 20 },
-            { wch: 20 },
-            { wch: 30 },
-            { wch: 10 },
-            { wch: 30 },
-            { wch: 25 },
-            { wch: 25 },
-        ];
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Items");
-        const metaData = [
-            { Info: "Generated On", Value: new Date().toLocaleString() },
-            { Info: "Total Menu Items", Value: data.length },
-            { Info: "Exported By", Value: "Menu Management System" },
-        ];
-        const metaSheet = XLSX.utils.json_to_sheet(metaData);
-        XLSX.utils.book_append_sheet(workbook, metaSheet, "Report Info");
-        const fileName = `menu_items_${new Date()
-            .toISOString()
-            .split("T")[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-
-        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
-    } catch (error) {
-        console.error("Excel generation error:", error);
-        toast.error(`Excel generation failed: ${error.message}`, {
-            autoClose: 5000,
-        });
-    }
-};
 const handleImport = (data) => {
     if (!data || data.length <= 1) {
         toast.error("The imported file is empty.");
@@ -2335,7 +2365,7 @@ const format = (val) => {
                         <Pagination :pagination="paginationLinks" :isApiDriven="true"
                             @page-changed="handlePageChange" />
 
-                        
+
                     </div>
 
                 </div>
