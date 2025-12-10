@@ -1708,16 +1708,38 @@ const incCartWithWarning = async (i) => {
 
 // NEW printReceipt function
 const printReceipt = async (order) => {
-    const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
-    const business = getBusinessData()
-    const res = await axios.post(
-    `http://localhost:8085/print`,
+    //const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
+   // const business = getBusinessData()
+    try {
+  const res = await axios.post(
+    'http://localhost:8085/print',
     { order, type: 'customer' },
     {
-      headers: {"Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     },
   );
+
+  console.info('✅ Customer print OK');
+  console.info('Status:', res.status);
+  console.info('Data  :', res.data);
+} catch (error) {
+  console.error('❌ Print request failed');
+
+  if (error.response) {
+    // Server answered with error code (4xx, 5xx)
+    console.error('Status:', error.response.status);
+    console.error('Data  :', error.response.data);
+  } else if (error.request) {
+    // Request was sent but **no response** (server down / CORS / timeout)
+    console.error('No response from server');
+    console.error('Request object:', error.request);
+  } else {
+    // Something else (wrong URL etc.)
+    console.error('Error message:', error.message);
+  }
+}
+
   
    console.info("The Customer request send back: "+res.data);
 //     await thermalPrintReceipt({
@@ -1739,16 +1761,38 @@ const printReceipt = async (order) => {
 
 // NEW printKot function  
 const printKot = async (order) => {
-    const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
-    const business = getBusinessData()
-    const res = await axios.post(
-    `http://localhost:8085/print`,
+  //  const TOKEN = 'EPOS_LOCAL_PRINT_TOKEN';
+   // const business = getBusinessData()
+    try {
+  const res = await axios.post(
+    'http://localhost:8085/print',
     { order, type: 'KOT' },
     {
-      headers: {"Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     },
   );
+
+  console.info('✅ Customer print OK');
+  console.info('Status:', res.status);
+  console.info('Data  :', res.data);
+} catch (error) {
+  console.error('❌ Print request failed');
+
+  if (error.response) {
+    // Server answered with error code (4xx, 5xx)
+    console.error('Status:', error.response.status);
+    console.error('Data  :', error.response.data);
+  } else if (error.request) {
+    // Request was sent but **no response** (server down / CORS / timeout)
+    console.error('No response from server');
+    console.error('Request object:', error.request);
+  } else {
+    // Something else (wrong URL etc.)
+    console.error('Error message:', error.message);
+  }
+}
+
 console.info("The KOT request send back: "+res.data);
 
     // await thermalPrintKOT({
