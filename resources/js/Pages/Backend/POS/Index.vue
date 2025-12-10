@@ -1723,20 +1723,16 @@ const printReceipt = async (order) => {
   console.info('✅ Customer print OK');
   console.info('Status:', res.status);
   console.info('Data  :', res.data);
+  alert("✅ Server is up! Response: " + JSON.stringify(res.data));
 } catch (error) {
-  console.error('❌ Print request failed');
+  alert('❌ Print request failed');
 
   if (error.response) {
-    // Server answered with error code (4xx, 5xx)
-    console.error('Status:', error.response.status);
-    console.error('Data  :', error.response.data);
+    alert("❌ Server responded with error: " + error.response.status);
   } else if (error.request) {
-    // Request was sent but **no response** (server down / CORS / timeout)
-    console.error('No response from server');
-    console.error('Request object:', error.request);
+    alert("❌ No response from server (server is DOWN or unreachable)");
   } else {
-    // Something else (wrong URL etc.)
-    console.error('Error message:', error.message);
+    alert("❌ Error: " + error.message);
   }
 }
 
