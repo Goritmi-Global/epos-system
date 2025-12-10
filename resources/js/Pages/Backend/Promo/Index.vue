@@ -272,6 +272,21 @@ onMounted(async () => {
 
     await fetchPromos();
     await fetchPromoScopes();
+     const filterModal = document.getElementById('promosFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                stockStatus: appliedFilters.value.stockStatus || "",
+                category: appliedFilters.value.category || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+                dateFrom: appliedFilters.value.dateFrom || null,
+                dateTo: appliedFilters.value.dateTo || null
+            };
+        });
+    }
 });
 
 /* ---------------- KPI Cards ---------------- */
@@ -395,10 +410,20 @@ const filtered = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    appliedFilters.value = { ...filters.value };
 };
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+    appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         category: "",
@@ -1350,6 +1375,10 @@ const downloadExcel = (data) => {
     width: 40px;
     height: 40px;
     background: #f8f9fa;
+}
+
+ .p-tablist{
+    background-color: #fff !important;
 }
 
 

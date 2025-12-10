@@ -19,6 +19,13 @@ import ImportFile from "@/Components/importFile.vue";
 
 // Main data store for addon groups
 const addonGroups = ref([]);
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+});
 
 // Form state for create/edit modal
 const addonGroupForm = ref({
@@ -99,6 +106,18 @@ onMounted(async () => {
 
     // Fetch initial data
     fetchAddonGroups();
+   const filterModal = document.getElementById('addonGroupsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                stockStatus: appliedFilters.value.stockStatus || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+            };
+        });
+    }
 });
 
 /* ============================================
@@ -210,11 +229,18 @@ const filteredGroups = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+     appliedFilters.value = { ...filters.value };
     console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
+    };
+    appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         priceMin: null,
