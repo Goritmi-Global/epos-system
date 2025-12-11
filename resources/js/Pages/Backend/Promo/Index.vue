@@ -275,16 +275,12 @@ onMounted(async () => {
      const filterModal = document.getElementById('promosFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                stockStatus: appliedFilters.value.stockStatus || "",
-                category: appliedFilters.value.category || "",
-                priceMin: appliedFilters.value.priceMin || null,
-                priceMax: appliedFilters.value.priceMax || null,
-                dateFrom: appliedFilters.value.dateFrom || null,
-                dateTo: appliedFilters.value.dateTo || null
-            };
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
         });
     }
 });
@@ -408,9 +404,11 @@ const filtered = computed(() => {
     return result;
 });
 
+const filtersJustApplied = ref(false);
+
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
-    appliedFilters.value = { ...filters.value };
+     filtersJustApplied.value = true;
 };
 
 const handleFilterClear = () => {
@@ -1128,7 +1126,7 @@ const downloadExcel = (data) => {
 
                                                     <!-- Max Discount -->
                                                     <div class="col-md-6">
-                                                        <label class="form-label">Maximum Discount (Optional)</label>
+                                                        <label class="form-label">Maximum Discount</label>
                                                         <input v-model="promoForm.max_discount" type="number"
                                                             step="0.01" class="form-control" :class="{
                                                                 'is-invalid': promoFormErrors.max_discount,

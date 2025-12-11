@@ -3260,9 +3260,9 @@ const format = (val) => {
                                         class="card shadow-sm border-0 rounded-4 mb-3">
                                         <div class="card-body">
                                             <div class="d-flex align-items-start gap-3">
-                                                <img :src="it.image_url ? `${it.image_url}` : '/default.png'"
+                                                <img :src="it.image_url ? `${it.image_url}` : '/assets/img/default.png'"
                                                     class="rounded"
-                                                    style="width: 56px; height: 56px; object-fit: cover;" />
+                                                    style="width: 56px; height: 56px; object-fit: cover; border: 1px solid white;" />
                                                 <div class="flex-grow-1">
                                                     <div class="fw-semibold">{{ it?.name }}</div>
                                                     <div class="text-muted small">Category: {{ it.category?.name }}

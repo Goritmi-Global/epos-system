@@ -713,7 +713,7 @@ const fetchProfileTables = async () => {
                 const matchingType = orderTypes.value.find(
                     type => type.toLowerCase().replace(/_/g, ' ') === savedOrderType.toLowerCase().replace(/_/g, ' ')
                 );
-                
+
                 if (matchingType) {
                     orderType.value = matchingType;
                 } else {
@@ -799,8 +799,12 @@ const filteredProducts = computed(() => {
 /* ----------------------------
    Filter Handlers
 -----------------------------*/
+
+const filtersJustApplied = ref(false);
+
 const handleApplyFilters = (appliedFilters) => {
     filters.value = { ...appliedFilters };
+    filtersJustApplied.value = true;
 };
 const counter = ref('');
 const initializeWalkInCounter = () => {
@@ -870,7 +874,43 @@ const incCart = async (i) => {
     const it = orderItems.value[i];
     if (!it) return;
 
-    // Check ingredients client-side
+    // ✅ SPECIAL HANDLING FOR DEALS
+    if (it.isDeal) {
+        // Use the same deal stock check logic as incrementDealQty
+        const stockCheck = calculateDealStock(
+            {
+                id: it.dealId,
+                title: it.title,
+                menu_items: it.menu_items
+            },
+            it.qty + 1
+        );
+
+        if (!stockCheck.canAdd) {
+            console.log('🚨 Missing ingredients for deal (cart increment)');
+
+            pendingIncrementData.value = {
+                itemIndex: i,
+                item: it,
+                newQty: it.qty + 1,
+                isDeal: true
+            };
+
+            missingIngredients.value = stockCheck.missing;
+            showMissingIngredientsModal.value = true;
+
+            toast.warning('Some ingredients are missing. Confirm to proceed.');
+            return;
+        }
+
+        // Normal deal increment
+        it.qty++;
+        it.price = it.unit_price * it.qty;
+        toast.success('Deal quantity updated');
+        return;
+    }
+
+    // ✅ REGULAR MENU ITEM HANDLING
     const stockCheck = calculateClientSideStock(it, it.qty + 1);
 
     if (!stockCheck.canAdd) {
@@ -879,7 +919,8 @@ const incCart = async (i) => {
         pendingIncrementData.value = {
             itemIndex: i,
             item: it,
-            newQty: it.qty + 1
+            newQty: it.qty + 1,
+            isDeal: false
         };
 
         missingIngredients.value = stockCheck.missing;
@@ -2043,6 +2084,7 @@ const missingIngredients = ref([]);
 const pendingIncrementData = ref(null);
 const pendingCardIncrementData = ref(null);
 const pendingModalIncrementData = ref(null);
+const pendingDealIncrementData = ref(null);
 
 const checkMissingIngredientsForItem = async (item, requestedQty = 1) => {
     try {
@@ -2139,7 +2181,64 @@ const confirmOrder = async ({
                 card_amount: cardAmount
             }),
 
+            // items: (orderItems.value ?? []).map((it) => {
+            //     const menuItem = menuItems.value.find(m => m.id === it.id);
+            //     let sourceItem = menuItem;
+
+            //     if (it.variant_id && menuItem?.variants) {
+            //         const variant = menuItem.variants.find(v => v.id === it.variant_id);
+            //         if (variant) sourceItem = variant;
+            //     }
+
+            //     const resaleDiscount = sourceItem ? calculateResalePrice(sourceItem, !!it.variant_id) : 0;
+
+            //     return {
+            //         product_id: it.id,
+            //         title: it.title,
+            //         quantity: it.qty,
+            //         price: it.price,
+            //         note: it.note ?? "",
+            //         kitchen_note: kitchenNote.value ?? "",
+            //         unit_price: it.unit_price,
+            //         item_kitchen_note: it.item_kitchen_note ?? "",
+            //         tax_percentage: getItemTaxPercentage(it),
+            //         tax_amount: getItemTax(it),
+            //         variant_id: it.variant_id || null,
+            //         variant_name: it.variant_name || null,
+            //         addons: it.addons || [],
+            //         sale_discount_per_item: resaleDiscount,
+            //         removed_ingredients: it.removed_ingredients || [],
+            //     };
+            // }),
+
             items: (orderItems.value ?? []).map((it) => {
+                // ✅ Check if this is a deal FIRST
+                if (it.isDeal) {
+                    return {
+                        product_id: it.dealId,  // Send the actual deal ID as product_id
+                        title: it.title,
+                        quantity: it.qty,
+                        price: it.price,
+                        note: it.note ?? "",
+                        kitchen_note: kitchenNote.value ?? "",
+                        unit_price: it.unit_price,
+                        item_kitchen_note: it.item_kitchen_note ?? "",
+                        tax_percentage: 0,
+                        tax_amount: 0,
+                        variant_id: null,
+                        variant_name: null,
+                        addons: [],
+                        sale_discount_per_item: 0,
+                        removed_ingredients: [],
+
+                        // ✅ CRITICAL: These fields tell backend this is a deal
+                        is_deal: true,
+                        deal_id: it.dealId,
+                        menu_items: it.menu_items || []  // Include menu items with ingredients
+                    };
+                }
+
+                // ✅ Regular menu item handling
                 const menuItem = menuItems.value.find(m => m.id === it.id);
                 let sourceItem = menuItem;
 
@@ -2166,6 +2265,9 @@ const confirmOrder = async ({
                     addons: it.addons || [],
                     sale_discount_per_item: resaleDiscount,
                     removed_ingredients: it.removed_ingredients || [],
+
+                    // ✅ Explicitly set is_deal to false for regular items
+                    is_deal: false
                 };
             }),
 
@@ -2226,20 +2328,103 @@ const handleConfirmMissingIngredients = async () => {
     console.log('✅ User confirmed missing ingredients');
     showMissingIngredientsModal.value = false;
 
-    // Handle cart increment
-    if (pendingIncrementData.value) {
-        const { item, newQty } = pendingIncrementData.value;
+    // Handle regular cart increment
+    if (pendingIncrementData.value && !pendingIncrementData.value.isDeal) {
+        const { itemIndex, newQty } = pendingIncrementData.value;
+        const it = orderItems.value[itemIndex];
 
-        item.outOfStock = false;
-        item.qty = newQty;
-        item.price = item.unit_price * item.qty;
+        if (it) {
+            it.outOfStock = false;
+            it.qty = newQty;
+            it.price = it.unit_price * it.qty;
 
-        if (item.resale_discount_per_item) {
-            item.total_resale_discount = item.resale_discount_per_item * item.qty;
+            if (it.resale_discount_per_item) {
+                it.total_resale_discount = it.resale_discount_per_item * it.qty;
+            }
+            toast.success('Quantity updated');
         }
 
-        toast.success('Quantity updated');
         pendingIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+
+    // Handle deal cart increment
+    if (pendingIncrementData.value && pendingIncrementData.value.isDeal) {
+        const { itemIndex, newQty } = pendingIncrementData.value;
+        const it = orderItems.value[itemIndex];
+
+        if (it && it.isDeal) {
+            it.qty = newQty;
+            it.price = it.unit_price * it.qty;
+            toast.success('Deal quantity updated');
+        }
+
+        pendingIncrementData.value = null;
+        missingIngredients.value = [];
+        return;
+    }
+
+    // Handle deal increment from deals grid
+    if (pendingDealIncrementData.value) {
+        const { deal, existingIndex, newQty } = pendingDealIncrementData.value;
+
+        if (existingIndex >= 0) {
+            orderItems.value[existingIndex].qty = newQty;
+            orderItems.value[existingIndex].price =
+                orderItems.value[existingIndex].unit_price * newQty;
+            toast.success('Deal quantity updated');
+        } else {
+            // Add new deal to cart
+            const dealStock = 999999;
+            const dealIngredients = [];
+
+            deal.menu_items.forEach(menuItem => {
+                if (menuItem.ingredients && menuItem.ingredients.length > 0) {
+                    dealIngredients.push(...menuItem.ingredients.map(ing => ({
+                        ...ing,
+                        menu_item_id: menuItem.id,
+                        menu_item_name: menuItem.name
+                    })));
+                }
+            });
+
+            const dealItem = {
+                id: `deal-${deal.id}`,
+                title: deal.title,
+                price: totalDealPriceWithAddons.value, 
+                unit_price: parseFloat(deal.price),
+                img: deal.img,
+                qty: 1,
+                stock: dealStock,
+                ingredients: dealIngredients,
+                isDeal: true,
+                dealId: deal.id,
+                menu_items: deal.menu_items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    ingredients: (item.ingredients || []).map(ing => ({
+                        inventory_item_id: ing.id,
+                        inventory_item_id: ing.inventory_item_id,
+                        product_name: ing.product_name || ing.name,
+                        quantity: ing.quantity || ing.qty || '1.00',
+                        inventory_stock: ing.inventory_stock || ing.stock || 0,
+                        unit: ing.unit || 'unit',
+                        category_id: ing.category_id,
+                        supplier_id: ing.supplier_id,
+                    })),
+                    stock: calculateStockForIngredients(item.ingredients || [])
+                })),
+                resale_discount_per_item: 0,
+                total_resale_discount: 0,
+            };
+
+            orderItems.value.push(dealItem);
+            toast.success(`${deal.title} added to cart!`);
+        }
+
+        pendingDealIncrementData.value = null;
         missingIngredients.value = [];
         return;
     }
@@ -2307,6 +2492,8 @@ const handleConfirmMissingIngredients = async () => {
     }
 };
 
+
+
 const handleCancelMissingIngredients = () => {
     console.log('❌ User cancelled due to missing ingredients');
     showMissingIngredientsModal.value = false;
@@ -2316,6 +2503,7 @@ const handleCancelMissingIngredients = () => {
     pendingIncrementData.value = null;
     pendingCardIncrementData.value = null;
     pendingModalIncrementData.value = null;
+    pendingDealIncrementData.value = null;
 
     toast.info("Action cancelled");
 };
@@ -2352,6 +2540,18 @@ onMounted(async () => {
     fetchMenuCategories();
     fetchMenuItems();
     fetchProfileTables();
+    const filterModal = document.getElementById('menuFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleClearFilters();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
+
 });
 const page = usePage();
 function bumpToasts() {
@@ -3186,6 +3386,7 @@ import { usePOSBroadcast } from '@/composables/usePOSBroadcast';
 import { debounce } from 'lodash';
 import DiscountModal from "./DiscountModal.vue";
 import ConfirmMissingIngredientsModal from "@/Components/ConfirmMissingIngredientsModal.vue";
+import { Eye, Pencil } from "lucide-vue-next";
 
 const user = computed(() => page.props.current_user);
 
@@ -3474,6 +3675,701 @@ const getModalTotalPriceWithResale = () => {
 };
 
 
+const deals = ref([]);
+const dealsLoading = ref(false);
+const showDeals = ref(false);
+
+// Fetch deals function
+const fetchDeals = async () => {
+    dealsLoading.value = true;
+    try {
+        const response = await axios.get('/api/deals', {
+            params: {
+                status: 1,
+                per_page: 100
+            }
+        });
+        console.log('Fetched deals:', response.data.data);
+        deals.value = response.data.data.map(deal => ({
+            id: deal.id,
+            title: deal.name,
+            price: deal.price,
+            img: deal.image_url || '/assets/img/product/product29.jpg',
+            description: deal.description,
+            menu_items: deal.menu_items || [],
+            status: deal.status
+        }));
+    } catch (error) {
+        console.error('Error fetching deals:', error);
+        toast.error('Failed to load deals');
+    } finally {
+        dealsLoading.value = false;
+    }
+};
+
+const openDeals = () => {
+    showDeals.value = true;
+    showCategories.value = false;
+};
+
+const backToCategoriesFromDeals = () => {
+    showDeals.value = false;
+    showCategories.value = true;
+};
+
+// Get quantity of a deal in cart
+const getDealQty = (deal) => {
+    const cartItem = orderItems.value.find(item =>
+        item.isDeal && item.dealId === deal.id
+    );
+    return cartItem ? cartItem.qty : 0;
+};
+
+// Check if we can add more of this deal
+const canAddMoreDeal = (deal) => {
+    const dealQty = getDealQty(deal);
+
+    // Check stock for all menu items
+    for (const menuItem of deal.menu_items) {
+        const ingredients = menuItem.ingredients || [];
+        if (ingredients.length === 0) continue;
+
+        const itemStock = calculateStockForIngredients(ingredients);
+        if (itemStock <= dealQty) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+// Calculate client-side stock for deal
+// Calculate client-side stock for deal
+const calculateDealStock = (deal, requestedQty) => {
+    const missingIngredients = [];
+
+    // Build a complete ingredient usage map from ALL cart items
+    const ingredientUsage = {};
+
+    // Track ALL ingredients used in the entire cart
+    orderItems.value.forEach(cartItem => {
+        let itemIngredients = [];
+
+        if (cartItem.isDeal) {
+            // For deals, collect ingredients from all menu items
+            cartItem.menu_items?.forEach(dealMenuItem => {
+                itemIngredients.push(...(dealMenuItem.ingredients || []));
+            });
+        } else {
+            // For regular items, use their ingredients
+            itemIngredients = cartItem.ingredients || [];
+        }
+
+        // Process each ingredient
+        itemIngredients.forEach(ing => {
+            const id = ing.inventory_item_id || ing.id; // Handle both property names
+            const stock = Number(ing.inventory_stock ?? ing.stock ?? 0); // ← FIX: Check both
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * cartItem.qty;
+
+            if (!ingredientUsage[id]) {
+                ingredientUsage[id] = {
+                    totalStock: stock,
+                    used: 0,
+                    name: ing.product_name || ing.name,
+                    unit: ing.unit || 'unit'
+                };
+            }
+
+            ingredientUsage[id].used += required;
+        });
+    });
+
+    // Now check if the requested deal quantity can be fulfilled
+    deal.menu_items.forEach(menuItem => {
+        const ingredients = menuItem.ingredients || [];
+        if (ingredients.length === 0) return;
+
+        ingredients.forEach(ing => {
+            const id = ing.inventory_item_id || ing.id; // Handle both property names
+            const required = Number(ing.quantity ?? ing.qty ?? 1) * requestedQty;
+            const stock = Number(ing.inventory_stock ?? ing.stock ?? 0); // ← FIX: Check both
+
+            // Calculate available stock
+            let available = stock;
+
+            if (ingredientUsage[id]) {
+                available = ingredientUsage[id].totalStock - ingredientUsage[id].used;
+            }
+
+            // If this deal is already in cart, add back its current usage
+            const existingDealItem = orderItems.value.find(ci =>
+                ci.isDeal && ci.dealId === deal.id
+            );
+
+            if (existingDealItem) {
+                const currentUsage = Number(ing.quantity ?? ing.qty ?? 1) * existingDealItem.qty;
+                available += currentUsage;
+            }
+
+            // Check if we have enough stock
+            if (available < required) {
+                missingIngredients.push({
+                    deal_id: deal.id,
+                    deal_title: deal.title,
+                    menu_item_id: menuItem.id,
+                    menu_item_name: menuItem.name,
+                    inventory_item_id: id,
+                    inventory_item_name: ing.product_name || ing.name,
+                    required_quantity: required,
+                    available_quantity: Math.max(0, available),
+                    shortage_quantity: required - available,
+                    unit: ing.unit || 'unit',
+                    order_quantity: requestedQty
+                });
+            }
+        });
+    });
+
+    return {
+        canAdd: missingIngredients.length === 0,
+        missing: missingIngredients
+    };
+};
+
+// Increment deal quantity
+const incrementDealQty = async (deal) => {
+    const existingIndex = orderItems.value.findIndex(item =>
+        item.isDeal && item.dealId === deal.id
+    );
+
+    const newQty = existingIndex >= 0 ? orderItems.value[existingIndex].qty + 1 : 1;
+
+    // Check ingredients client-side
+    const stockCheck = calculateDealStock(deal, newQty);
+
+    if (!stockCheck.canAdd) {
+        console.log('🚨 Missing ingredients for deal (client-side)');
+
+        pendingDealIncrementData.value = {
+            deal: deal,
+            existingIndex: existingIndex,
+            newQty: newQty
+        };
+
+        missingIngredients.value = stockCheck.missing;
+        showMissingIngredientsModal.value = true;
+
+        toast.warning('Some ingredients are missing. Confirm to proceed.');
+        return;
+    }
+
+    // Normal increment
+    if (existingIndex >= 0) {
+        orderItems.value[existingIndex].qty++;
+        orderItems.value[existingIndex].price =
+            orderItems.value[existingIndex].unit_price * orderItems.value[existingIndex].qty;
+        toast.success('Deal quantity updated');
+    } else {
+        // Add new deal to cart
+        const dealStock = 999999; // Calculate if needed
+        const dealIngredients = [];
+
+        deal.menu_items.forEach(menuItem => {
+            if (menuItem.ingredients && menuItem.ingredients.length > 0) {
+                dealIngredients.push(...menuItem.ingredients.map(ing => ({
+                    ...ing,
+                    menu_item_id: menuItem.id,
+                    menu_item_name: menuItem.name
+                })));
+            }
+        });
+
+        const dealItem = {
+            id: `deal-${deal.id}`,
+            title: deal.title,
+            price: parseFloat(deal.price),
+            unit_price: parseFloat(deal.price),
+            img: deal.img,
+            qty: 1,
+            stock: dealStock,
+            ingredients: dealIngredients,
+            isDeal: true,
+            dealId: deal.id,
+            menu_items: deal.menu_items.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                ingredients: item.ingredients || [],
+                stock: calculateStockForIngredients(item.ingredients || [])
+            })),
+            resale_discount_per_item: 0,
+            total_resale_discount: 0,
+        };
+
+        orderItems.value.push(dealItem);
+        toast.success(`${deal.title} added to cart!`);
+    }
+};
+
+// Decrement deal quantity
+const decrementDealQty = (deal) => {
+    const existingIndex = orderItems.value.findIndex(item =>
+        item.isDeal && item.dealId === deal.id
+    );
+
+    if (existingIndex < 0) return;
+
+    const item = orderItems.value[existingIndex];
+
+    if (item.qty <= 1) {
+        orderItems.value.splice(existingIndex, 1);
+        toast.info('Deal removed from cart');
+    } else {
+        item.qty--;
+        item.price = item.unit_price * item.qty;
+        toast.success('Deal quantity decreased');
+    }
+};
+
+
+onMounted(() => {
+    fetchDeals();
+});
+
+
+// ======================================================
+//              Deals Stepper - Customization
+// ======================================================
+const selectedDeal = ref(null);
+const currentDealMenuItemIndex = ref(0);
+const currentDealStep = ref(1);
+const dealRemovedIngredients = ref({}); // { menuItemIndex: [ingredient_ids] }
+const dealSelectedAddons = ref({}); // { menuItemIndex: { groupId: [addons] } }
+const dealItemKitchenNotes = ref({}); // { menuItemIndex: 'note text' }
+const completedDealItems = ref([]); // Array of completed menu item indices
+let customizeDealModal = null;
+
+// Computed properties for deal customization
+const currentDealMenuItem = computed(() => {
+    if (!selectedDeal.value || !selectedDeal.value.menu_items) return null;
+    return selectedDeal.value.menu_items[currentDealMenuItemIndex.value];
+});
+
+const hasDealIngredients = computed(() => {
+    return getCurrentDealIngredients().length > 0;
+});
+
+const hasDealAddons = computed(() => {
+    return currentDealMenuItem.value?.addon_groups &&
+        currentDealMenuItem.value.addon_groups.length > 0;
+});
+
+const dealVisibleSteps = computed(() => {
+    const steps = [];
+    if (hasDealIngredients.value) {
+        steps.push({ id: 'ingredients', name: 'Ingredients' });
+    }
+    if (hasDealAddons.value) {
+        steps.push({ id: 'addons', name: 'Add-ons' });
+    }
+    steps.push({ id: 'review', name: 'Review' });
+    return steps;
+});
+
+const dealFinalStep = computed(() => dealVisibleSteps.value.length);
+
+const dealStepProgressWidth = computed(() => {
+    if (currentDealStep.value === 1) return '0%';
+    const totalSteps = dealVisibleSteps.value.length;
+    const progressRatio = (currentDealStep.value - 1) / (totalSteps - 1);
+    const widthPercentage = progressRatio * 100;
+    return `calc(${widthPercentage}% - ${14 - (progressRatio * 28)}px)`;
+});
+
+const isLastDealItem = computed(() => {
+    return currentDealMenuItemIndex.value === (selectedDeal.value?.menu_items?.length - 1);
+});
+
+const dealProgressPercentage = computed(() => {
+    if (!selectedDeal.value?.menu_items?.length) return 0;
+    return (completedDealItems.value.length / selectedDeal.value.menu_items.length) * 100;
+});
+
+// Get ingredients for current deal menu item
+const getCurrentDealIngredients = () => {
+    if (!currentDealMenuItem.value) return [];
+    return currentDealMenuItem.value.ingredients || [];
+};
+
+// Check if ingredient is removed
+const isDealIngredientRemoved = (ingredientId) => {
+    const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
+    return removed.includes(ingredientId);
+};
+
+// Toggle ingredient removal
+const toggleDealIngredient = (ingredientId) => {
+    const idx = currentDealMenuItemIndex.value;
+    if (!dealRemovedIngredients.value[idx]) {
+        dealRemovedIngredients.value[idx] = [];
+    }
+
+    const removed = dealRemovedIngredients.value[idx];
+    const index = removed.indexOf(ingredientId);
+
+    if (index > -1) {
+        removed.splice(index, 1);
+        toast.info('Ingredient added back');
+    } else {
+        removed.push(ingredientId);
+        toast.info('Ingredient removed');
+    }
+};
+
+// Get remaining ingredients count
+const getRemainingDealIngredientsCount = () => {
+    const ingredients = getCurrentDealIngredients();
+    const removed = dealRemovedIngredients.value[currentDealMenuItemIndex.value] || [];
+    return ingredients.filter(ing => !removed.includes(ing.id)).length;
+};
+
+// Handle addon change
+const handleDealAddonChange = (addonGroupId, selectedAddons) => {
+    const idx = currentDealMenuItemIndex.value;
+
+    if (!dealSelectedAddons.value[idx]) {
+        dealSelectedAddons.value[idx] = {};
+    }
+
+    const menuItem = currentDealMenuItem.value;
+    const addonGroup = menuItem?.addon_groups?.find(g => g.group_id === addonGroupId);
+
+    // Check max_select limit
+    if (addonGroup && addonGroup.max_select > 0 && selectedAddons.length > addonGroup.max_select) {
+        toast.warning(`You can only select up to ${addonGroup.max_select} ${addonGroup.group_name}`);
+        dealSelectedAddons.value[idx][addonGroupId] = selectedAddons.slice(0, addonGroup.max_select);
+        return;
+    }
+
+    dealSelectedAddons.value[idx][addonGroupId] = selectedAddons;
+};
+
+// Get selected addons count for current item
+const getDealSelectedAddonsCount = () => {
+    const idx = currentDealMenuItemIndex.value;
+    const addons = dealSelectedAddons.value[idx];
+    if (!addons) return 0;
+
+    let count = 0;
+    Object.values(addons).forEach(addonList => {
+        count += addonList.length;
+    });
+    return count;
+};
+
+// Get selected addons text
+const getDealSelectedAddonsText = () => {
+    const idx = currentDealMenuItemIndex.value;
+    const addons = dealSelectedAddons.value[idx];
+    if (!addons) return '';
+
+    const allAddons = [];
+    Object.values(addons).forEach(addonList => {
+        addonList.forEach(addon => {
+            allAddons.push(`${addon.name} (+${formatCurrencySymbol(addon.price)})`);
+        });
+    });
+    return allAddons.join(', ');
+};
+
+// Get removed ingredients text
+const getDealRemovedIngredientsText = () => {
+    const idx = currentDealMenuItemIndex.value;
+    const removed = dealRemovedIngredients.value[idx] || [];
+    if (removed.length === 0) return '';
+
+    const ingredients = getCurrentDealIngredients();
+    const removedNames = removed
+        .map(id => {
+            const ing = ingredients.find(i => i.id === id);
+            return ing ? (ing.product_name || ing.name) : null;
+        })
+        .filter(Boolean);
+
+    if (removedNames.length === 0) return '';
+    return `No ${removedNames.join(', ')}`;
+};
+
+// Step navigation
+const getDealStepCircleClass = (step) => {
+    if (step < currentDealStep.value) {
+        return 'bg-success text-white';
+    } else if (step === currentDealStep.value) {
+        return 'bg-primary text-white';
+    } else {
+        return 'bg-light text-muted border';
+    }
+};
+
+const nextDealStep = () => {
+    let nextStepNum = currentDealStep.value + 1;
+
+    while (nextStepNum <= dealFinalStep.value) {
+        const stepInfo = dealVisibleSteps.value[nextStepNum - 1];
+
+        if (stepInfo.id === 'ingredients' && !hasDealIngredients.value) {
+            nextStepNum++;
+            continue;
+        }
+        if (stepInfo.id === 'addons' && !hasDealAddons.value) {
+            nextStepNum++;
+            continue;
+        }
+
+        break;
+    }
+
+    if (nextStepNum <= dealFinalStep.value) {
+        currentDealStep.value = nextStepNum;
+    }
+};
+
+const previousDealStep = () => {
+    let prevStepNum = currentDealStep.value - 1;
+
+    while (prevStepNum >= 1) {
+        const stepInfo = dealVisibleSteps.value[prevStepNum - 1];
+
+        if (stepInfo.id === 'ingredients' && !hasDealIngredients.value) {
+            prevStepNum--;
+            continue;
+        }
+        if (stepInfo.id === 'addons' && !hasDealAddons.value) {
+            prevStepNum--;
+            continue;
+        }
+
+        break;
+    }
+
+    if (prevStepNum >= 1) {
+        currentDealStep.value = prevStepNum;
+    }
+};
+
+// Confirm current item and move to next
+const confirmCurrentDealItem = () => {
+    // Mark current item as completed
+    if (!completedDealItems.value.includes(currentDealMenuItemIndex.value)) {
+        completedDealItems.value.push(currentDealMenuItemIndex.value);
+    }
+
+    // Move to next item
+    currentDealMenuItemIndex.value++;
+    currentDealStep.value = 1; // Reset to first step
+
+    toast.success('Item customized! Configure next item.');
+};
+
+// Final confirmation - add deal to cart
+const confirmDealAndAddToCart = async () => {
+    if (!selectedDeal.value) return;
+
+    // Mark last item as completed
+    if (!completedDealItems.value.includes(currentDealMenuItemIndex.value)) {
+        completedDealItems.value.push(currentDealMenuItemIndex.value);
+    }
+
+    // Build customized deal data
+    const customizedMenuItems = selectedDeal.value.menu_items.map((menuItem, idx) => {
+        const removedIngredients = dealRemovedIngredients.value[idx] || [];
+        const selectedAddons = dealSelectedAddons.value[idx] || {};
+        const kitchenNote = dealItemKitchenNotes.value[idx] || '';
+
+        // Flatten addons
+        const allAddons = [];
+        Object.values(selectedAddons).forEach(addonList => {
+            addonList.forEach(addon => {
+                allAddons.push({
+                    id: addon.id,
+                    name: addon.name,
+                    price: parseFloat(addon.price || 0)
+                });
+            });
+        });
+
+        // Filter ingredients (remove the ones user doesn't want)
+        const activeIngredients = (menuItem.ingredients || [])
+            .filter(ing => !removedIngredients.includes(ing.id))
+            .map(ing => ({
+                id: ing.id,
+                inventory_item_id: ing.inventory_item_id || ing.id,
+                product_name: ing.product_name || ing.name,
+                quantity: ing.quantity || ing.qty || '1.00',
+                stock: ing.stock || 0,
+                unit: ing.unit || 'unit'
+            }));
+
+        return {
+            id: menuItem.id,
+            name: menuItem.name,
+            price: menuItem.price,
+            ingredients: activeIngredients,
+            addons: allAddons,
+            kitchen_note: kitchenNote,
+            removed_ingredients: removedIngredients,
+            stock: calculateStockForIngredients(activeIngredients)
+        };
+    });
+
+    // Check if deal already exists in cart
+    const existingDealIndex = orderItems.value.findIndex(item =>
+        item.isDeal && item.dealId === selectedDeal.value.id
+    );
+
+    const dealStock = 999999;
+    const allDealIngredients = [];
+
+    customizedMenuItems.forEach(menuItem => {
+        if (menuItem.ingredients && menuItem.ingredients.length > 0) {
+            allDealIngredients.push(...menuItem.ingredients.map(ing => ({
+                ...ing,
+                menu_item_id: menuItem.id,
+                menu_item_name: menuItem.name
+            })));
+        }
+    });
+
+    if (existingDealIndex >= 0) {
+        // Increment existing deal
+        orderItems.value[existingDealIndex].qty++;
+        orderItems.value[existingDealIndex].price =
+            orderItems.value[existingDealIndex].unit_price *
+            orderItems.value[existingDealIndex].qty;
+        toast.success('Deal quantity updated!');
+    } else {
+        // Add new customized deal
+        const dealItem = {
+            id: `deal-${selectedDeal.value.id}`,
+            title: selectedDeal.value.title,
+            price: totalDealPriceWithAddons.value, 
+            unit_price: parseFloat(selectedDeal.value.price),
+            img: selectedDeal.value.img,
+            qty: 1,
+            stock: dealStock,
+            ingredients: allDealIngredients,
+            isDeal: true,
+            dealId: selectedDeal.value.id,
+            menu_items: customizedMenuItems,
+            resale_discount_per_item: 0,
+            total_resale_discount: 0,
+        };
+
+        orderItems.value.push(dealItem);
+        toast.success(`${selectedDeal.value.title} added to cart!`);
+    }
+
+    // Close modal and reset
+    const modal = bootstrap.Modal.getInstance(document.getElementById('customizeDealModal'));
+    if (modal) {
+        modal.hide();
+    }
+
+    resetDealCustomization();
+};
+
+// Add these computed properties after your existing ones
+
+// Calculate total price for current item with addons
+const currentItemTotalPrice = computed(() => {
+    if (!currentDealMenuItem.value) return 0;
+
+    const basePrice = parseFloat(currentDealMenuItem.value.price || 0);
+    const idx = currentDealMenuItemIndex.value;
+    const addons = dealSelectedAddons.value[idx];
+
+    if (!addons) return basePrice;
+
+    let addonTotal = 0;
+    Object.values(addons).forEach(addonList => {
+        addonList.forEach(addon => {
+            addonTotal += parseFloat(addon.price || 0);
+        });
+    });
+
+    return basePrice + addonTotal;
+});
+
+// Calculate total deal price with all customizations
+const totalDealPriceWithAddons = computed(() => {
+    if (!selectedDeal.value) return 0;
+
+    const baseDealPrice = parseFloat(selectedDeal.value.price || 0);
+    let totalAddonsPrice = 0;
+
+    // Sum up all addons from all items
+    Object.values(dealSelectedAddons.value).forEach(itemAddons => {
+        Object.values(itemAddons).forEach(addonList => {
+            addonList.forEach(addon => {
+                totalAddonsPrice += parseFloat(addon.price || 0);
+            });
+        });
+    });
+
+    return baseDealPrice + totalAddonsPrice;
+});
+
+// Get addons total for current item
+const currentItemAddonsTotal = computed(() => {
+    const idx = currentDealMenuItemIndex.value;
+    const addons = dealSelectedAddons.value[idx];
+
+    if (!addons) return 0;
+
+    let total = 0;
+    Object.values(addons).forEach(addonList => {
+        addonList.forEach(addon => {
+            total += parseFloat(addon.price || 0);
+        });
+    });
+
+    return total;
+});
+
+// Open customization modal for a deal
+const openDealCustomization = (deal) => {
+    selectedDeal.value = deal;
+    currentDealMenuItemIndex.value = 0;
+    currentDealStep.value = 1;
+    dealRemovedIngredients.value = {};
+    dealSelectedAddons.value = {};
+    dealItemKitchenNotes.value = {};
+    completedDealItems.value = [];
+
+    if (!customizeDealModal) {
+        const modalEl = document.getElementById('customizeDealModal');
+        if (modalEl) {
+            customizeDealModal = new bootstrap.Modal(modalEl, {
+                backdrop: 'static'
+            });
+        }
+    }
+
+    if (customizeDealModal) {
+        customizeDealModal.show();
+    }
+};
+
+// Reset deal customization state
+const resetDealCustomization = () => {
+    selectedDeal.value = null;
+    currentDealMenuItemIndex.value = 0;
+    currentDealStep.value = 1;
+    dealRemovedIngredients.value = {};
+    dealSelectedAddons.value = {};
+    dealItemKitchenNotes.value = {};
+    completedDealItems.value = [];
+};
 
 </script>
 
@@ -3521,6 +4417,19 @@ const getModalTotalPriceWithResale = () => {
                             </div>
                             <!-- Categories List -->
                             <template v-else>
+                                <div class="col-6 col-md-4 col-lg-4 category-cards">
+                                    <div class="cat-card" @click="openDeals" style="cursor: pointer;">
+                                        <div class="cat-icon-wrap">
+                                            <span class="cat-icon">
+                                                <i class="bi bi-gift-fill text-danger" style="font-size: 2rem;"></i>
+                                            </span>
+                                        </div>
+                                        <div class="cat-name">Deals</div>
+                                        <div class="cat-pill">
+                                            {{ deals.length }} Deal{{ deals.length !== 1 ? 's' : '' }}
+                                        </div>
+                                    </div>
+                                </div>
                                 <div v-for="c in filteredCategories" :key="c.id"
                                     class="col-6 col-md-4 col-lg-4 category-cards">
                                     <div class="cat-card" @click="openCategory(c)">
@@ -3547,20 +4456,21 @@ const getModalTotalPriceWithResale = () => {
                         </div>
                         <!-- Items in selected category -->
                         <div v-else>
-                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
-                                <button class="btn btn-primary rounded-pill shadow-sm px-3" @click="backToCategories">
+                            <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
+                                <!-- Back Button -->
+                                <button class="btn btn-primary rounded-pill shadow-sm px-3"
+                                    @click="showDeals ? backToCategoriesFromDeals() : backToCategories()">
                                     <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
 
+                                <!-- Title -->
                                 <h5 class="fw-bold mb-0">
-                                    {{
-                                        menuCategories.find(
-                                            (c) => c.id === activeCat
-                                        )?.name || "Items"
-                                    }}
+                                    {{showDeals ? 'Deals' : (menuCategories.find((c) => c.id === activeCat)?.name ||
+                                        "Items")}}
                                 </h5>
-                                <!-- Search & Filter Section -->
-                                <div class="d-flex gap-2 ms-auto align-items-center">
+
+                                <!-- Search & Filter Section (only show for menu items, not deals) -->
+                                <div v-if="!showDeals" class="d-flex gap-2 ms-auto align-items-center">
                                     <!-- Filter Button -->
                                     <FilterModal v-model="filters" title="Menu Items" modal-id="menuFilterModal"
                                         :sort-options="[
@@ -3582,7 +4492,145 @@ const getModalTotalPriceWithResale = () => {
                                 </div>
                             </div>
 
-                            <div class="row g-3">
+                              <div v-if="filteredProducts.length === 0" class="col-12">
+                                <div class="alert alert-warning border-0 rounded-4 text-center py-5">
+                                    <i class="bi bi-search me-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                                    <h5 class="mt-2 mb-2 text-dark fw-semibold">No Menu Found</h5>
+                                    <p class="text-muted mb-3">
+                                        <template
+                                            v-if="searchQuery && (filters.priceRange && filters.priceRange.length > 0)">
+                                            No items match your search and filter criteria.
+                                        </template>
+                                        <template v-else-if="searchQuery">
+                                            No items found matching "<strong>{{ searchQuery }}</strong>"
+                                        </template>
+                                        <template v-else-if="filters.priceRange && filters.priceRange.length > 0">
+                                            No items match the selected price range.
+                                        </template>
+                                        <template v-else>
+                                            No Menu available in this category.
+                                        </template>
+                                    </p>
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        @click="handleClearFilters">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- ✅ DEALS GRID (Show when showDeals is true) -->
+                            <div v-if="showDeals" class="row g-3">
+                                <!-- Loading State -->
+                                <div v-if="dealsLoading" class="col-12 text-center py-5">
+                                    <div class="spinner-border" role="status"
+                                        style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;"></div>
+                                    <div class="mt-2 fw-semibold text-muted">Loading deals...</div>
+                                </div>
+
+                                <!-- Deals Cards -->
+                                <template v-else>
+                                    <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
+                                        v-for="deal in deals" :key="deal.id">
+                                        <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
+                                            style="border-color: #dc3545;">
+
+                                            <!-- Left Side (Image + Price Badge) - 40% -->
+                                            <div class="position-relative" style="flex: 0 0 40%; max-width: 40%;">
+                                                <img :src="deal.img" alt="" class="w-100 h-100"
+                                                    style="object-fit: cover;" />
+
+                                                <!-- Deal Price Badge -->
+                                                <span
+                                                    class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded-pill text-white fw-semibold bg-danger"
+                                                    style="font-size: 0.58rem; letter-spacing: 0.3px;">
+                                                    <i class="bi bi-gift-fill me-1"></i>
+                                                    {{ formatCurrencySymbol(deal.price) }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Right Side (Details + Buttons) -->
+                                            <div class="p-3 d-flex flex-column justify-content-between"
+                                                style="flex: 1 1 60%; min-width: 0; position: relative;">
+
+                                                <div>
+                                                    <!-- Deal Title -->
+                                                    <div class="h5 fw-bold mb-2 menu-name text-danger">
+                                                        {{ deal.title }}
+                                                    </div>
+
+                                                    <!-- Included Items -->
+                                                    <div class="mb-3">
+                                                        <small class="text-muted fw-semibold d-block mb-1"
+                                                            style="font-size: 0.75rem;">
+                                                            <i class="bi bi-box-seam me-1"></i>Includes:
+                                                        </small>
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                            <span v-for="item in deal.menu_items" :key="item.id"
+                                                                class="badge bg-light text-dark border"
+                                                                style="font-size: 1rem !important; font-weight: 500;">
+                                                                {{ item.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Action Buttons -->
+                                                <div class="mt-2">
+                                                    <!-- Customize Button -->
+                                                    <button class="btn btn-primary btn-sm w-75 mb-2"
+                                                        @click.stop="openDealCustomization(deal)">
+                                                        <i class="bi bi-sliders me-1"></i>
+                                                        Customize Deal
+                                                    </button>
+
+                                                    <!-- Quick Add Controls -->
+                                                    <div class="d-flex align-items-center justify-content-start gap-2"
+                                                        @click.stop>
+
+                                                        <!-- Minus Button -->
+                                                        <button
+                                                            class="qty-btn btn btn-outline-danger rounded-circle px-2 py-2"
+                                                            style="width: 55px; height: 36px;"
+                                                            @click.stop="decrementDealQty(deal)"
+                                                            :disabled="getDealQty(deal) <= 0">
+                                                            <strong>−</strong>
+                                                        </button>
+
+                                                        <!-- Quantity Box -->
+                                                        <div class="qty-box border rounded-pill px-2 py-2 text-center fw-semibold left-card-cntrl-btn"
+                                                            style="min-width: 55px;">
+                                                            {{ getDealQty(deal) }}
+                                                        </div>
+
+                                                        <!-- Plus Button -->
+                                                        <button
+                                                            class="qty-btn btn btn-outline-danger rounded-circle px-2 py-2"
+                                                            style="width: 55px; height: 36px;"
+                                                            @click.stop="incrementDealQty(deal)">
+                                                            <strong>+</strong>
+                                                        </button>
+
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- No Deals Found -->
+                                    <div v-if="!dealsLoading && deals.length === 0" class="col-12">
+                                        <div class="alert alert-light border text-center rounded-4 py-5">
+                                            <i class="bi bi-gift"
+                                                style="font-size: 3rem; opacity: 0.3; color: #dc3545;"></i>
+                                            <h6 class="mt-3 mb-1 fw-bold">No Deals Available</h6>
+                                            <p class="text-muted mb-0 small">Check back later for exciting deals!</p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- ✅ MENU ITEMS GRID (Show when showDeals is false - your existing code) -->
+                            <div v-else class="row g-3">
                                 <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
                                     v-for="p in filteredProducts" :key="p.id">
                                     <div class="card rounded-4 shadow-sm overflow-hidden border-3 w-100 d-flex flex-row align-items-stretch"
@@ -3654,20 +4702,18 @@ const getModalTotalPriceWithResale = () => {
                                                 class="position-absolute px-2 py-1 rounded-pill bg-success text-white small fw-bold"
                                                 :style="{
                                                     fontSize: '0.7rem',
-                                                    top: '7px',        // move slightly up
-                                                    right: '7px'       // move slightly right
+                                                    top: '7px',
+                                                    right: '7px'
                                                 }">
                                                 {{ p.variants && p.variants.length > 0
                                                     ? getResaleBadgeInfo(getSelectedVariant(p), true).display
                                                     : getResaleBadgeInfo(p, false).display }}
                                             </span>
 
-                                            <!-- {{ p.title.length > 17 ? p.title.slice(0, 15) + '...' : p.title }} -->
                                             <div>
                                                 <div class="h5 fw-bold mb-2 menu-name"
                                                     :style="{ color: p.label_color || '#1B1670' }">
                                                     {{ p.title }}
-
                                                 </div>
                                                 <!-- Variant Dropdown -->
                                                 <div v-if="p.variants && p.variants.length > 0" class="mb-3">
@@ -3787,8 +4833,7 @@ const getModalTotalPriceWithResale = () => {
                             <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
-                            <button class="btn btn-warning px-3 py-2 discount-btn"
-                                @click="openDiscountModal">
+                            <button class="btn btn-warning px-3 py-2 discount-btn" @click="openDiscountModal">
                                 Discounts
                             </button>
                         </div>
@@ -4562,6 +5607,329 @@ const getModalTotalPriceWithResale = () => {
             </div>
 
 
+            <!-- Deals customization modal -->
+            <!-- Add this modal to your template after the existing chooseItem modal -->
+            <div class="modal fade" id="customizeDealModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content rounded-3 shadow border-0" style="max-height: 90vh;">
+
+                        <!-- HEADER -->
+                        <div class="modal-header border-0 bg-light py-2 px-3 rounded-top">
+                            <div>
+                                <h5 class="fw-bold mb-0">
+                                    {{ selectedDeal?.title || "Customize Deal" }}
+                                </h5>
+                                <p class="text-muted small mb-0" style="font-size: 0.8rem;">
+                                    Customizing {{ currentDealMenuItem?.name || 'item' }}
+                                    ({{ currentDealMenuItemIndex + 1 }} of {{ selectedDeal?.menu_items?.length || 0 }})
+                                </p>
+                            </div>
+                            <button
+                                class="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition transform hover:scale-110"
+                                data-bs-dismiss="modal" aria-label="Close" title="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                
+                     
+
+                        <!-- STEP INDICATOR for Current Item -->
+                        <div class="px-3 pt-2 progress-bar">
+                            <div class="stepper-container position-relative" style="min-height: 60px;">
+                                <!-- Background line -->
+                                <div class="stepper-progress-bg"></div>
+                                <!-- Filled line -->
+                                <div class="stepper-progress-fill" :style="{ width: dealStepProgressWidth }"></div>
+
+                                <!-- Steps -->
+                                <div v-for="(step, index) in dealVisibleSteps" :key="step.id"
+                                    class="stepper-step text-center">
+                                    <div class="stepper-circle stepper-circle-sm"
+                                        :class="getDealStepCircleClass(index + 1)">
+                                        <i v-if="index + 1 < currentDealStep" class="bi bi-check-lg"
+                                            style="font-size: 0.7rem;"></i>
+                                        <span v-else style="font-size: 0.75rem;">{{ index + 1 }}</span>
+                                    </div>
+                                    <small class="stepper-label"
+                                        :class="{ 'stepper-label-active': index + 1 === currentDealStep }"
+                                        style="font-size: 0.7rem; margin-top: 4px; display: block;">
+                                        {{ step.name }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BODY -->
+                        <div class="modal-body px-3 py-2">
+                            <div class="row g-3 mb-3">
+
+                                <!-- LEFT COLUMN : Deal Image + Price -->
+                                <div class="col-lg-4">
+                                    <!-- Deal Image -->
+                                    <div class="position-relative mb-3">
+                                        <img :src="selectedDeal?.img || '/assets/img/product/product29.jpg'"
+                                            class="img-fluid rounded-3 w-100 object-fit-cover"
+                                            style="height: 200px; object-fit: cover;" alt="Deal">
+                                        <span class="badge bg-danger position-absolute top-0 end-0 m-2">
+                                            <span
+                                                v-if="totalDealPriceWithAddons > parseFloat(selectedDeal?.price || 0)">
+                                                Deal: <del>{{ formatCurrencySymbol(selectedDeal?.price || 0) }}</del>
+                                                {{ formatCurrencySymbol(totalDealPriceWithAddons) }}
+                                            </span>
+                                            <span v-else>
+                                                Deal: {{ formatCurrencySymbol(selectedDeal?.price || 0) }}
+                                            </span>
+                                        </span>
+                                    </div>
+
+                                    <!-- Current Item Being Customized -->
+                                    <div class="rounded-3 border shadow-sm p-3 bg-white mb-3">
+                                        <h6 class="fw-bold mb-2 d-flex align-content-center" style="font-size: 0.9rem;">
+                                            <Pencil class="me-2 text-primary w-4" />
+                                            Currently Customizing
+                                        </h6>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-grow-1">
+                                                <strong>{{ currentDealMenuItem?.name }}</strong>
+                                                <div class="text-muted small">
+                                                    Base Price: {{ formatCurrencySymbol(currentDealMenuItem?.price || 0)
+                                                    }}
+                                                </div>
+                                                <!-- ADD THIS -->
+                                                <div v-if="currentItemAddonsTotal > 0"
+                                                    class="text-success small fw-semibold">
+                                                    + {{ formatCurrencySymbol(currentItemAddonsTotal) }} (Add-ons)
+                                                </div>
+                                                <div class="fw-bold text-primary">
+                                                    Total: {{ formatCurrencySymbol(currentItemTotalPrice) }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Items in Deal Checklist -->
+                                    <div class="rounded-3 border shadow-sm p-3 bg-white">
+                                        <h6 class="fw-bold mb-2" style="font-size: 0.9rem;">
+                                            <i class="bi bi-list-check me-2 text-success"></i>
+                                            Items in Deal
+                                        </h6>
+                                        <div class="list-group list-group-flush">
+                                            <div v-for="(item, idx) in selectedDeal?.menu_items" :key="idx"
+                                                class="list-group-item px-0 py-2 border-0">
+                                                <div class="d-flex align-items-center">
+                                                    <i v-if="completedDealItems.includes(idx)"
+                                                        class="bi bi-check-circle-fill text-success me-2"></i>
+                                                    <Pencil v-else-if="idx === currentDealMenuItemIndex"
+                                                        class="text-primary me-2 w-4" />
+                                                    <i v-else class="bi bi-circle text-muted me-2"></i>
+                                                    <small :class="{ 'fw-bold': idx === currentDealMenuItemIndex }">
+                                                        {{ item.name }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RIGHT COLUMN : STEPS -->
+                                <div class="col-lg-8">
+                                    <div class="px-1">
+
+                                        <!-- STEP 1 : REMOVE INGREDIENTS -->
+                                        <div v-show="currentDealStep === 1 && hasDealIngredients" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-dash-circle me-2 text-warning"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">
+                                                        Remove Ingredients from {{ currentDealMenuItem?.name }}
+                                                    </h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">
+                                                        Uncheck ingredients you don't want
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-2">
+                                                <div v-for="ingredient in getCurrentDealIngredients()"
+                                                    :key="ingredient.id" class="col-md-6">
+                                                    <div class="d-flex align-items-center p-2 border rounded-2 shadow-sm"
+                                                        :class="{ 'bg-light text-muted': isDealIngredientRemoved(ingredient.id) }">
+
+                                                        <input type="checkbox" class="form-check-input me-2"
+                                                            style="width: 16px; height: 16px;"
+                                                            :id="'deal-ingredient-' + ingredient.id"
+                                                            :checked="!isDealIngredientRemoved(ingredient.id)"
+                                                            :disabled="!isDealIngredientRemoved(ingredient.id) && getRemainingDealIngredientsCount() === 1"
+                                                            @change="toggleDealIngredient(ingredient.id)">
+
+                                                        <label :for="'deal-ingredient-' + ingredient.id"
+                                                            class="form-check-label" style="font-size: 0.8rem;">
+                                                            {{ ingredient.product_name || ingredient.name }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                        <!-- STEP 2 : ADD-ONS (if available) -->
+                                        <div v-show="currentDealStep === 2 && hasDealAddons" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <i class="bi bi-plus-circle me-2 text-success"
+                                                    style="font-size: 1.1rem;"></i>
+                                                <div>
+
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">
+                                                        Add Add-ons to {{ currentDealMenuItem?.name }}
+                                                    </h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">
+                                                        Enhance this item (charges may apply)
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div v-for="group in currentDealMenuItem?.addon_groups"
+                                                :key="group.group_id" class="mb-3">
+                                                <label class="fw-semibold mb-1 d-flex justify-content-between"
+                                                    style="font-size: 0.85rem;">
+                                                    <span>{{ group.group_name }}</span>
+                                                    <span v-if="group.max_select > 0"
+                                                        class="badge rounded-pill bg-primary"
+                                                        style="font-size: 0.7rem;">
+                                                        Max {{ group.max_select }}
+                                                    </span>
+                                                </label>
+
+                                                <MultiSelect
+                                                    :modelValue="dealSelectedAddons[currentDealMenuItemIndex]?.[group.group_id] || []"
+                                                    @update:modelValue="(val) => handleDealAddonChange(group.group_id, val)"
+                                                    :options="group.addons" optionLabel="name" dataKey="id"
+                                                    placeholder="Select add-ons" :maxSelectedLabels="2" class="w-100"
+                                                    appendTo="self">
+                                                </MultiSelect>
+                                            </div>
+                                        </div>
+
+                                        <!-- STEP 3 : REVIEW CURRENT ITEM -->
+                                        <div v-show="currentDealStep === dealFinalStep" class="step-content">
+                                            <div class="d-flex align-items-start mb-2">
+                                                <Eye class="me-2 text-primary w-5" style="font-size: 1.1rem;" />
+                                                <div>
+                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">
+                                                        Review {{ currentDealMenuItem?.name }}
+                                                    </h6>
+                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">
+                                                        Confirm your customizations
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Summary -->
+                                            <div class="summary-card p-3 rounded-3 shadow-sm mb-3">
+                                                <h6 class="fw-bold mb-2 text-secondary">Customization Summary</h6>
+
+                                                <div class="summary-item">
+                                                    <span class="summary-label">Item:</span>
+                                                    <span class="summary-value">{{ currentDealMenuItem?.name }}</span>
+                                                </div>
+
+                                                <!-- ADD PRICE BREAKDOWN -->
+                                                <div class="summary-item">
+                                                    <span class="summary-label">Base Price:</span>
+                                                    <span class="summary-value">{{
+                                                        formatCurrencySymbol(currentDealMenuItem?.price
+                                                        || 0) }}</span>
+                                                </div>
+
+                                                <div class="summary-item" v-if="getDealRemovedIngredientsText()">
+                                                    <span class="summary-label">Removed:</span>
+                                                    <span class="summary-value text-danger">
+                                                        {{ getDealRemovedIngredientsText() }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="summary-item" v-if="getDealSelectedAddonsCount() > 0">
+                                                    <span class="summary-label">Add-ons:</span>
+                                                    <span class="summary-value text-success">
+                                                        {{ getDealSelectedAddonsText() }}
+                                                    </span>
+                                                </div>
+
+                                                <!-- ADD ADDONS PRICE -->
+                                                <div class="summary-item" v-if="currentItemAddonsTotal > 0">
+                                                    <span class="summary-label">Add-ons Cost:</span>
+                                                    <span class="summary-value text-success fw-bold">
+                                                        + {{ formatCurrencySymbol(currentItemAddonsTotal) }}
+                                                    </span>
+                                                </div>
+
+                                                <!-- ADD ITEM TOTAL -->
+                                                <div class="summary-item border-top pt-2 mt-2">
+                                                    <span class="summary-label fw-bold">Item Total:</span>
+                                                    <span class="summary-value fw-bold text-primary">
+                                                        {{ formatCurrencySymbol(currentItemTotalPrice) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Kitchen Note for this item -->
+                                            <div class="mb-2">
+                                                <label class="fw-semibold mb-1" style="font-size: 0.85rem;">
+                                                    <i class="bi bi-chat-left-text me-1"></i>
+                                                    Kitchen Note for {{ currentDealMenuItem?.name }} (Optional)
+                                                </label>
+                                                <textarea v-model="dealItemKitchenNotes[currentDealMenuItemIndex]"
+                                                    class="form-control form-control-sm rounded-2 shadow-sm" rows="2"
+                                                    maxlength="200" placeholder="Special instructions for this item..."
+                                                    style="font-size: 0.8rem;">
+                                    </textarea>
+                                                <div class="text-end small text-muted mt-1" style="font-size: 0.7rem;">
+                                                    {{ (dealItemKitchenNotes[currentDealMenuItemIndex] || '').length
+                                                    }}/200
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FOOTER -->
+                        <div class="modal-footer border-0 px-3 py-2 d-flex justify-content-end">
+                          
+                            <div class="d-flex gap-2">
+                                <button v-if="currentDealStep > 1" class="btn btn-secondary btn-sm px-4 py-2 shadow-sm"
+                                    @click="previousDealStep">
+                                    <i class="bi bi-arrow-left me-1"></i>Back
+                                </button>
+
+                                <button v-if="currentDealStep < dealFinalStep"
+                                    class="btn btn-primary btn-sm px-4 py-2 shadow-sm" @click="nextDealStep">
+                                    Next <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+
+                                <button v-else-if="!isLastDealItem" class="btn btn-success btn-sm px-4 py-2 shadow-sm"
+                                    @click="confirmCurrentDealItem">
+                                    <i class="bi bi-check2 me-1"></i>Next Item
+                                </button>
+
+                                <button v-else class="btn btn-primary btn-sm px-4 py-2 shadow-sm"
+                                    @click="confirmDealAndAddToCart">
+                                    <i class="bi bi-cart-plus me-1"></i>Add Deal to Cart
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
             <!--  Addon Management Modal -->
             <div class="modal fade" id="addonManagementModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -4768,6 +6136,11 @@ const getModalTotalPriceWithResale = () => {
     background-color: #181818;
 }
 
+.dark .list-group-item{
+    background-color: #181818 !important;
+    color: #fff !important;
+}
+
 .summary-item {
     padding: 6px 0;
     display: flex;
@@ -4862,8 +6235,15 @@ const getModalTotalPriceWithResale = () => {
 }
 
 .progress-bar {
-    background-color: #141414;
+    background-color: #fff !important;
 }
+
+.dark .progress-bar {
+    background-color: #141414 !important;
+}
+
+
+
 
 .variant-card {
     transition: all 0.2s;

@@ -122,16 +122,16 @@ onMounted(async () => {
 
     // Fetch initial data
     await Promise.all([fetchAddons(), fetchAddonGroups()]);
-     const filterModal = document.getElementById('addonsFilterModal');
+
+    const filterModal = document.getElementById('addonsFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                stockStatus: appliedFilters.value.stockStatus || "",
-                priceMin: appliedFilters.value.priceMin || null,
-                priceMax: appliedFilters.value.priceMax || null,
-            };
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
         });
     }
     
@@ -284,10 +284,11 @@ const filteredAddons = computed(() => {
 
     return filtered;
 });
+const filtersJustApplied = ref(false);
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
-    appliedFilters.value = { ...filters.value };
+    filtersJustApplied.value = true;
     console.log("Filters applied:", filters.value);
 };
 

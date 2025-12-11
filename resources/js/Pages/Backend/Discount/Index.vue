@@ -154,10 +154,11 @@ const filtered = computed(() => {
     return result;
 });
 
+const filtersJustApplied = ref(false);
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
-     appliedFilters.value = { ...filters.value };
+    filtersJustApplied.value = true;
 };
 
 
@@ -602,19 +603,16 @@ onMounted(async () => {
                 toast.info('New discount approval request received!');
             });
     }
-     const filterModal = document.getElementById('discountsFilterModal');
+
+    const filterModal = document.getElementById('discountsFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
-            // Reset filters to last applied state when modal closes
-            filters.value = {
-                sortBy: appliedFilters.value.sortBy || "",
-                stockStatus: appliedFilters.value.stockStatus || "",
-                category: appliedFilters.value.category || "",
-                priceMin: appliedFilters.value.priceMin || null,
-                priceMax: appliedFilters.value.priceMax || null,
-                dateFrom: appliedFilters.value.dateFrom || null,
-                dateTo: appliedFilters.value.dateTo || null
-            };
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
         });
     }
 });

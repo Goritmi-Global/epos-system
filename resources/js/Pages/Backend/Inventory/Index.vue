@@ -266,12 +266,10 @@ const filteredItems = computed(() => {
 });
 
 const handleFilterApply = () => {
-    // Save the current filters as applied
     appliedFilters.value = { ...filters.value };
 };
 
 const handleFilterClear = () => {
-    // Reset both filters and applied filters
     filters.value = {
         sortBy: "",
         category: "",

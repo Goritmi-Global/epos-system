@@ -499,6 +499,11 @@ const sidebarMenus = ref([
                         icon: "box", 
                         route: "menu.index" 
                     },
+                    { 
+                        label: "Deals", 
+                        icon: "gift", 
+                        route: "deals.index" 
+                    },
                 
                     {
                         label: "Addon Groups",
@@ -542,7 +547,7 @@ const sidebarMenus = ref([
                 route: "shift.index",
             },
             { label: "Settings", icon: "settings", route: "settings.index" },
-            { label: "Restore System", icon: "refresh-cw", action: "systemRestore" },
+            { label: "Restore", icon: "refresh-cw", action: "systemRestore" },
             { label: "Backup", icon: "database", action: "databaseBackup" },
         ],
     },
