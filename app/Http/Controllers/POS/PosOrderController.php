@@ -620,8 +620,7 @@ class PosOrderController extends Controller
 
 
     /**
-     * ✅ OPTIMIZED: Lightweight version check endpoint
-     * Returns minimal JSON (~50 bytes)
+     * OPTIMIZED: Lightweight version check endpoint
      */
     public function getTerminalVersion(string $terminalId)
     {
@@ -647,7 +646,7 @@ class PosOrderController extends Controller
     }
 
     /**
-     * ✅ IMPROVED: Update terminal cart state
+     * IMPROVED: Update terminal cart state
      */
     public function updateTerminalCart(Request $request)
     {
@@ -703,7 +702,7 @@ class PosOrderController extends Controller
     }
 
     /**
-     * ✅ IMPROVED: Update terminal UI state
+     * IMPROVED: Update terminal UI state
      */
     public function updateTerminalUI(Request $request)
     {
@@ -757,7 +756,7 @@ class PosOrderController extends Controller
     }
 
     /**
-     * ✅ NEW: Batch update both cart and UI (more efficient)
+     * Batch update both cart and UI (more efficient)
      */
     public function updateTerminalBoth(Request $request)
     {
@@ -813,7 +812,7 @@ class PosOrderController extends Controller
     }
 
     /**
-     * ✅ IMPROVED: Get terminal state (for customer display polling)
+     * Get terminal state (for customer display polling)
      */
     public function getTerminalState(string $terminalId)
     {
@@ -845,7 +844,7 @@ class PosOrderController extends Controller
     }
 
     /**
-     * ✅ NEW: Clear terminal cache (useful for debugging)
+     * Clear terminal cache (useful for debugging)
      */
     public function clearTerminalCache(string $terminalId)
     {

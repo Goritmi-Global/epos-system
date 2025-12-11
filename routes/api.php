@@ -5,6 +5,7 @@ use App\Http\Controllers\AddonGroupController;
 use App\Http\Controllers\DiscountApprovalController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\Auth\ApiKeyController;
+use App\Http\Controllers\DealsController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -123,6 +124,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('menu')->name('api.menu.')->group(function () {
         Route::get('/items', [MenuController::class, 'apiIndex'])->name('items');
         Route::post('/menu_items/import', [MenuController::class, 'import'])->name('items.import');
+    });
+    Route::prefix('deals')->name('api.deals.')->group(function () {
+        Route::get('/', [DealsController::class, 'apiIndex']);
     });
 
     // PURCHASE ORDER

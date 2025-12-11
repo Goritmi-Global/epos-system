@@ -158,4 +158,13 @@ class MenuItem extends Model
 
         return 0;
     }
+
+    /**
+     * Get the deals that include this menu item
+     */
+    public function deals()
+    {
+        return $this->belongsToMany(Deal::class, 'deal_menu_item')
+            ->withTimestamps();
+    }
 }

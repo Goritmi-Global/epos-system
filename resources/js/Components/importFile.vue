@@ -136,8 +136,7 @@ const downloadSample = () => {
               <button
                 class="btn btn-primary w-100 rounded-pill d-flex align-items-center justify-content-center gap-2 py-2"
                
-                @click="downloadSample" @mouseover="$event.target.style.transform = 'translateY(-2px)'"
-                @mouseout="$event.target.style.transform = 'translateY(0)'">
+                @click="downloadSample">
                 <i class="bi bi-download" style="font-size: 1rem;"></i>
                 <span>Download Sample</span>
               </button>
@@ -146,9 +145,7 @@ const downloadSample = () => {
             <div class="col-6">
               <button class="btn btn-primary rounded-pill w-100 d-flex align-items-center justify-content-center gap-2 py-2 text-white"
                
-                @click="triggerFile"
-                @mouseover="$event.target.style.transform = 'translateY(-2px)'; $event.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)'"
-                @mouseout="$event.target.style.transform = 'translateY(0)'; $event.target.style.boxShadow = 'none'">
+                @click="triggerFile">
                 <span style="font-size: 1rem;">📁</span>
                 <span>Import File</span>
               </button>

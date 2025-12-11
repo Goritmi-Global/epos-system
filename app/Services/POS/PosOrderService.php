@@ -35,7 +35,6 @@ class PosOrderService
 
     public function create(array $data): PosOrder|array
     {
-
         return DB::transaction(function () use ($data) {
 
             // Use strict comparison instead of empty()
@@ -100,105 +99,218 @@ class PosOrderService
             ]);
 
             // 6. Process order items and inventory
+            // 6. Process order items and inventory
             foreach ($data['items'] as $item) {
-                $orderItem = $order->items()->create([
-                    'menu_item_id' => $item['product_id'],
-                    'title' => $item['title'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'sale_discount_per_item' => $item['sale_discount_per_item'] ?? 0,
-                    'note' => $item['note'] ?? null,
-                    'variant_name' => $item['variant_name'] ?? null,
-                    'kitchen_note' => $item['kitchen_note'] ?? null,
-                    'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
-                ]);
 
-                // Store addons
-                if (!empty($item['addons']) && is_array($item['addons'])) {
-                    foreach ($item['addons'] as $addon) {
-                        $orderItem->addons()->create([
-                            'addon_id' => $addon['id'],
-                            'addon_name' => $addon['name'],
-                            'price' => $addon['price'],
-                            'quantity' => $addon['quantity'] ?? 1,
-                        ]);
-                    }
-                }
+                // ✅ Check if this is a deal
+                $isDeal = $item['is_deal'] ?? false;
 
-                // Get removed ingredients from request
-                $removedIngredients = $item['removed_ingredients'] ?? [];
+                // In your create() method, replace the deal ingredient processing section:
 
-                // Get ingredients for this item
-                $ingredients = $this->getIngredientsForItem($item);
+                if ($isDeal) {
+                    // ✅ Handle Deal Order Item
+                    $orderItem = $order->items()->create([
+                        'menu_item_id' => null,
+                        'deal_id' => $item['deal_id'],
+                        'is_deal' => true,
+                        'title' => $item['title'],
+                        'quantity' => $item['quantity'],
+                        'price' => $item['price'],
+                        'sale_discount_per_item' => 0,
+                        'note' => $item['note'] ?? null,
+                        'variant_name' => null,
+                        'kitchen_note' => $item['kitchen_note'] ?? null,
+                        'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
+                    ]);
 
-                // Process ingredient stockout with missing ingredient handling
-                if (!empty($ingredients)) {
-                    foreach ($ingredients as $ingredient) {
-                        // Skip if ingredient was removed by customer
-                        if (
-                            in_array($ingredient->id, $removedIngredients) ||
-                            in_array($ingredient->inventory_item_id, $removedIngredients)
-                        ) {
-                            Log::info("Skipping stockout for removed ingredient: {$ingredient->product_name} in Order #{$order->id}");
-                            continue;
+                    // ✅ Process ingredients for each menu item in the deal
+                    if (!empty($item['menu_items']) && is_array($item['menu_items'])) {
+                        foreach ($item['menu_items'] as $dealMenuItem) {
+                            $ingredients = $dealMenuItem['ingredients'] ?? [];
+
+                            if (!empty($ingredients)) {
+                                foreach ($ingredients as $ingredient) {
+                                    // FIX: Handle both 'id' and 'inventory_item_id' keys
+                                    $inventoryItemId = $ingredient['inventory_item_id'] ?? $ingredient['id'] ?? null;
+
+                                    if (!$inventoryItemId) {
+                                        Log::warning("Missing inventory_item_id for ingredient in deal", [
+                                            'ingredient' => $ingredient,
+                                            'deal_menu_item' => $dealMenuItem['name'],
+                                        ]);
+                                        continue;
+                                    }
+
+                                    $inventoryItem = InventoryItem::find($inventoryItemId);
+
+                                    if ($inventoryItem) {
+                                        $requiredQty = ($ingredient['quantity'] ?? 1) * $item['quantity'];
+                                        $availableStock = (float)$inventoryItem->stock;
+
+                                        if ($availableStock >= $requiredQty) {
+                                            // Full stock available
+                                            $this->stockEntryService->create([
+                                                'product_id' => $inventoryItem->id,
+                                                'name' => $inventoryItem->name,
+                                                'category_id' => $inventoryItem->category_id,
+                                                'supplier_id' => $inventoryItem->supplier_id,
+                                                'quantity' => $requiredQty,
+                                                'value' => 0,
+                                                'operation_type' => 'pos_stockout',
+                                                'stock_type' => 'stockout',
+                                                'description' => "Auto stockout from POS Order #{$order->id} - Deal: {$item['title']} - Item: {$dealMenuItem['name']}",
+                                                'user_id' => Auth::id(),
+                                            ]);
+                                        } else {
+                                            // Partial/No stock - Handle missing ingredients
+                                            $deductedQty = min($availableStock, $requiredQty);
+                                            $pendingQty = $requiredQty - $deductedQty;
+
+                                            // Deduct whatever is available
+                                            if ($deductedQty > 0) {
+                                                $this->stockEntryService->create([
+                                                    'product_id' => $inventoryItem->id,
+                                                    'name' => $inventoryItem->name,
+                                                    'category_id' => $inventoryItem->category_id,
+                                                    'supplier_id' => $inventoryItem->supplier_id,
+                                                    'quantity' => $deductedQty,
+                                                    'value' => 0,
+                                                    'operation_type' => 'pos_stockout',
+                                                    'stock_type' => 'stockout',
+                                                    'description' => "Partial stockout from POS Order #{$order->id} - Deal: {$item['title']} ({$deductedQty} of {$requiredQty})",
+                                                    'user_id' => Auth::id(),
+                                                ]);
+                                            }
+
+                                            // Record pending deduction
+                                            $unit = $ingredient['unit'] ?? 'units';
+
+                                            PendingIngredientDeduction::create([
+                                                'order_id' => $order->id,
+                                                'order_item_id' => $orderItem->id,
+                                                'inventory_item_id' => $inventoryItem->id,
+                                                'inventory_item_name' => $ingredient['product_name'] ?? $inventoryItem->name,
+                                                'required_quantity' => $requiredQty,
+                                                'available_quantity' => $availableStock,
+                                                'pending_quantity' => $pendingQty,
+                                                'status' => 'pending',
+                                                'notes' => "Order #{$order->id} - Deal: {$item['title']} - Item: {$dealMenuItem['name']} - Missing {$pendingQty} {$unit}",
+                                            ]);
+                                        }
+                                    } else {
+                                        Log::warning("Inventory item not found", [
+                                            'inventory_item_id' => $inventoryItemId,
+                                            'ingredient' => $ingredient,
+                                            'deal_menu_item' => $dealMenuItem['name'],
+                                        ]);
+                                    }
+                                }
+                            }
                         }
+                    }
+                } else {
+                    // ✅ Handle Regular Menu Item
+                    $orderItem = $order->items()->create([
+                        'menu_item_id' => $item['product_id'],
+                        'deal_id' => null,
+                        'is_deal' => false,
+                        'title' => $item['title'],
+                        'quantity' => $item['quantity'],
+                        'price' => $item['price'],
+                        'sale_discount_per_item' => $item['sale_discount_per_item'] ?? 0,
+                        'note' => $item['note'] ?? null,
+                        'variant_name' => $item['variant_name'] ?? null,
+                        'kitchen_note' => $item['kitchen_note'] ?? null,
+                        'item_kitchen_note' => $item['item_kitchen_note'] ?? null,
+                    ]);
 
-                        $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
+                    // Store addons
+                    if (!empty($item['addons']) && is_array($item['addons'])) {
+                        foreach ($item['addons'] as $addon) {
+                            $orderItem->addons()->create([
+                                'addon_id' => $addon['id'],
+                                'addon_name' => $addon['name'],
+                                'price' => $addon['price'],
+                                'quantity' => $addon['quantity'] ?? 1,
+                            ]);
+                        }
+                    }
 
-                        if ($inventoryItem) {
-                            $requiredQty = $ingredient->quantity * $item['quantity'];
-                            $availableStock = (float)$inventoryItem->stock;
+                    // Get removed ingredients from request
+                    $removedIngredients = $item['removed_ingredients'] ?? [];
 
-                            if ($availableStock >= $requiredQty) {
-                                $this->stockEntryService->create([
-                                    'product_id' => $inventoryItem->id,
-                                    'name' => $inventoryItem->name,
-                                    'category_id' => $inventoryItem->category_id,
-                                    'supplier_id' => $inventoryItem->supplier_id,
-                                    'quantity' => $requiredQty,
-                                    'value' => 0,
-                                    'operation_type' => 'pos_stockout',
-                                    'stock_type' => 'stockout',
-                                    'description' => "Auto stockout from POS Order #{$order->id}" .
-                                        (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
-                                    'user_id' => Auth::id(),
-                                ]);
-                            } else {
-                                // Partial/No stock - Create pending deduction
-                                $deductedQty = min($availableStock, $requiredQty);
-                                $pendingQty = $requiredQty - $deductedQty;
+                    // Get ingredients for this item
+                    $ingredients = $this->getIngredientsForItem($item);
 
-                                // Deduct whatever is available
-                                if ($deductedQty > 0) {
+                    // Process ingredient stockout with missing ingredient handling
+                    if (!empty($ingredients)) {
+                        foreach ($ingredients as $ingredient) {
+                            // Skip if ingredient was removed by customer
+                            if (
+                                in_array($ingredient->id, $removedIngredients) ||
+                                in_array($ingredient->inventory_item_id, $removedIngredients)
+                            ) {
+                                Log::info("Skipping stockout for removed ingredient: {$ingredient->product_name} in Order #{$order->id}");
+                                continue;
+                            }
+
+                            $inventoryItem = InventoryItem::find($ingredient->inventory_item_id);
+
+                            if ($inventoryItem) {
+                                $requiredQty = $ingredient->quantity * $item['quantity'];
+                                $availableStock = (float)$inventoryItem->stock;
+
+                                if ($availableStock >= $requiredQty) {
                                     $this->stockEntryService->create([
                                         'product_id' => $inventoryItem->id,
                                         'name' => $inventoryItem->name,
                                         'category_id' => $inventoryItem->category_id,
                                         'supplier_id' => $inventoryItem->supplier_id,
-                                        'quantity' => $deductedQty,
+                                        'quantity' => $requiredQty,
                                         'value' => 0,
                                         'operation_type' => 'pos_stockout',
                                         'stock_type' => 'stockout',
-                                        'description' => "Partial stockout from POS Order #{$order->id} ({$deductedQty} of {$requiredQty})" .
+                                        'description' => "Auto stockout from POS Order #{$order->id}" .
                                             (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
                                         'user_id' => Auth::id(),
                                     ]);
+                                } else {
+                                    // Partial/No stock - Create pending deduction
+                                    $deductedQty = min($availableStock, $requiredQty);
+                                    $pendingQty = $requiredQty - $deductedQty;
+
+                                    // Deduct whatever is available
+                                    if ($deductedQty > 0) {
+                                        $this->stockEntryService->create([
+                                            'product_id' => $inventoryItem->id,
+                                            'name' => $inventoryItem->name,
+                                            'category_id' => $inventoryItem->category_id,
+                                            'supplier_id' => $inventoryItem->supplier_id,
+                                            'quantity' => $deductedQty,
+                                            'value' => 0,
+                                            'operation_type' => 'pos_stockout',
+                                            'stock_type' => 'stockout',
+                                            'description' => "Partial stockout from POS Order #{$order->id} ({$deductedQty} of {$requiredQty})" .
+                                                (isset($item['variant_name']) && $item['variant_name'] ? " - Variant: {$item['variant_name']}" : ''),
+                                            'user_id' => Auth::id(),
+                                        ]);
+                                    }
+
+                                    // Record pending deduction
+                                    $unit = $ingredient->unit ?? 'units';
+
+                                    PendingIngredientDeduction::create([
+                                        'order_id' => $order->id,
+                                        'order_item_id' => $orderItem->id,
+                                        'inventory_item_id' => $inventoryItem->id,
+                                        'inventory_item_name' => $ingredient->product_name ?? $inventoryItem->name,
+                                        'required_quantity' => $requiredQty,
+                                        'available_quantity' => $availableStock,
+                                        'pending_quantity' => $pendingQty,
+                                        'status' => 'pending',
+                                        'notes' => "Order #{$order->id} - {$item['title']} ({$item['quantity']} qty) - Missing {$pendingQty} {$unit}",
+                                    ]);
                                 }
-
-                                // Record pending deduction
-                                $unit = $ingredient->unit ?? 'units';
-
-                                PendingIngredientDeduction::create([
-                                    'order_id' => $order->id,
-                                    'order_item_id' => $orderItem->id,
-                                    'inventory_item_id' => $inventoryItem->id,
-                                    'inventory_item_name' => $ingredient->product_name ?? $inventoryItem->name,
-                                    'required_quantity' => $requiredQty,
-                                    'available_quantity' => $availableStock,
-                                    'pending_quantity' => $pendingQty,
-                                    'status' => 'pending',
-                                    'notes' => "Order #{$order->id} - {$item['title']} ({$item['quantity']} qty) - Missing {$pendingQty} {$unit}",
-                                ]);
                             }
                         }
                     }
