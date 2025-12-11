@@ -8,6 +8,7 @@ use App\Models\MenuItem;
 use App\Models\MenuItemAddonGroup;
 use App\Models\MenuVariant;
 use App\Models\MenuVariantIngredient;
+use App\Models\Upload;
 use Illuminate\Http\Request;
 
 class MenuService
