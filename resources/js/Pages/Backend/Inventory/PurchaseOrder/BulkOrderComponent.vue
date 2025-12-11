@@ -81,7 +81,7 @@ watch(
 
 
 onMounted(() => {
-     console.log('Props items:', toRaw(props.items));
+    console.log('Props items:', toRaw(props.items));
     console.log('First item structure:', toRaw(props.items[0]));
     feather.replace();
     const bulkOrderModal = document.getElementById("bulkOrderModal");
@@ -151,14 +151,16 @@ const filteredBulkItems = computed(() => {
     if (!b_supplier.value) {
         return bulkItems.value;
     }
-    
+
     return bulkItems.value.filter(item => {
-        // Check multiple possible field names
-        const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
-        const supplierIds = item.supplier_id || item.supplierId;
-        
-        return preferredSupplierId === b_supplier.value || 
-               supplierIds === b_supplier.value;
+        const normalize = (v) => v == null ? "" : String(v).trim();
+
+        const preferredSupplierId = normalize(item.preferred_supplier_id ?? item.preferredSupplierId);
+        const supplierIds = normalize(item.supplier_id ?? item.supplierId);
+        const selectedSupplierId = normalize(b_supplier.value);
+
+        return preferredSupplierId === selectedSupplierId ||
+            supplierIds === selectedSupplierId;
     });
 });
 
@@ -613,15 +615,9 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>
-                                        <VueDatePicker
-    v-model="it.expiry"
-    :format="dateFmt"
-    :min-date="new Date()"
-    :enableTimePicker="false"
-    teleport="body"
-    placeholder="Select date"
-    :class="{ 'is-invalid': formErrors[idx]?.expiry }"
-/>
+                                            <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
+                                                :enableTimePicker="false" teleport="body" placeholder="Select date"
+                                                :class="{ 'is-invalid': formErrors[idx]?.expiry }" />
 
 
                                             <small v-if="formErrors[idx]?.expiry" class="text-danger">
@@ -789,7 +785,7 @@ async function multipleSubmit() {
 }
 
 .dp__menu {
-  z-index: 999999 !important;
+    z-index: 999999 !important;
 }
 
 
