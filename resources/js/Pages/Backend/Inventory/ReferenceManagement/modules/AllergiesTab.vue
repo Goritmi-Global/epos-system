@@ -160,7 +160,7 @@ const allergies = ref([]);
 const pagination = ref({
     current_page: 1,
     last_page: 1,
-    per_page: 15,
+    per_page: 10,
     total: 0,
     from: 0,
     to: 0,
@@ -214,32 +214,67 @@ const handlePageChange = (url) => {
     }
 };
 
-const onDownload = (type) => {
-    if (!allergies.value || allergies.value.length === 0) {
-        toast.error("No Allergies data to download");
-        return;
-    }
-
-    const dataToExport = q.value.trim() ? filteredAllergys.value : allergies.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No Allergies found to download");
-        return;
-    }
-
+// Add this function to fetch all allergies for export
+const fetchAllAllergiesForExport = async () => {
     try {
+        loading.value = true;
+        
+        const res = await axios.get("/allergies", {
+            params: {
+                q: q.value.trim(),
+                per_page: 10000, // Fetch all at once
+                page: 1
+            }
+        });
+        
+        console.log('📦 Export data received:', {
+            total: res.data.total,
+            items: res.data.data.length
+        });
+        
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ✅ UPDATED: Main download function
+const onDownload = async (type) => {
+    try {
+        loading.value = true;
+        toast.info("Preparing export data...", { autoClose: 1500 });
+        
+        // ✅ Fetch ALL data (not just current page)
+        const allData = await fetchAllAllergiesForExport();
+
+        if (!allData || allData.length === 0) {
+            toast.error("No allergies found to download");
+            loading.value = false;
+            return;
+        }
+
+        console.log(`📥 Exporting ${allData.length} allergies as ${type.toUpperCase()}`);
+
+        // Export based on type
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allData);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allData);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allData);
         } else {
             toast.error("Invalid download type");
         }
+        
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -265,8 +300,9 @@ const downloadCSV = (data) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        toast.success("CSV downloaded successfully", { autoClose: 2500 });
+        toast.success(`CSV downloaded successfully (${data.length} allergies)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
         toast.error(`CSV generation failed: ${error.message}`, {
@@ -277,7 +313,7 @@ const downloadCSV = (data) => {
 
 const downloadPDF = (data) => {
     try {
-        const doc = new jsPDF("p", "mm", "a4"); // portrait mode, mm units, A4 size
+        const doc = new jsPDF("p", "mm", "a4");
 
         // 🧾 Header section
         doc.setFont("helvetica", "bold");
@@ -290,7 +326,7 @@ const downloadPDF = (data) => {
         doc.text(`Generated on: ${currentDate}`, 14, 30);
         doc.text(`Total Allergies: ${data.length}`, 14, 36);
 
-        // 🧱 Table header (same as CSV)
+        // 🧱 Table header
         const headers = ["Name"];
         const rows = data.map((s) => [s.name || ""]);
 
@@ -330,7 +366,7 @@ const downloadPDF = (data) => {
         const fileName = `allergies_${new Date().toISOString().split("T")[0]}.pdf`;
         doc.save(fileName);
 
-        toast.success("PDF downloaded successfully", { autoClose: 2500 });
+        toast.success(`PDF downloaded successfully (${data.length} allergies)`, { autoClose: 2500 });
     } catch (error) {
         console.error("PDF generation error:", error);
         toast.error(`PDF generation failed: ${error.message}`, {
@@ -339,14 +375,13 @@ const downloadPDF = (data) => {
     }
 };
 
-
 const downloadExcel = (data) => {
     try {
         if (typeof XLSX === "undefined") {
             throw new Error("XLSX library is not loaded");
         }
 
-        // 🧱 Prepare worksheet data (same as CSV)
+        // 🧱 Prepare worksheet data
         const worksheetData = data.map((allergy) => ({
             Name: allergy.name || "",
         }));
@@ -356,7 +391,7 @@ const downloadExcel = (data) => {
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
 
         // ✨ Set column widths
-        worksheet["!cols"] = [{ wch: 25 }]; // Name column width
+        worksheet["!cols"] = [{ wch: 25 }];
 
         // Add worksheet
         XLSX.utils.book_append_sheet(workbook, worksheet, "Allergies");
@@ -374,7 +409,7 @@ const downloadExcel = (data) => {
         const fileName = `allergies_${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
 
-        toast.success("Excel file downloaded successfully", { autoClose: 2500 });
+        toast.success(`Excel file downloaded successfully (${data.length} allergies)`, { autoClose: 2500 });
     } catch (error) {
         console.error("Excel generation error:", error);
         toast.error(`Excel generation failed: ${error.message}`, {

@@ -804,27 +804,23 @@ const handleApplyFilters = (appliedFilters) => {
 };
 const counter = ref('');
 const initializeWalkInCounter = () => {
-    // Try to get counter from local storage
     const storedCounter = localStorage.getItem('pos_walkin_counter');
-
     if (storedCounter) {
         counter.value = parseInt(storedCounter);
     } else {
-        // Initialize to 1 if first time
         counter.value = 1;
         localStorage.setItem('pos_walkin_counter', '1');
     }
 };
 
 const generateCustomerName = () => {
-    const number = String(counter.value).padStart(3, '0'); // 001, 002, 003
-    const name = `Walk In-${number}`;
+    const number = String(counter.value).padStart(3, '0');
+    return `Walk In-${number}`;
+};
 
-    // Increment and save to local storage
+const incrementWalkInCounter = () => {
     counter.value++;
     localStorage.setItem('pos_walkin_counter', counter.value.toString());
-
-    return name;
 };
 
 const handleClearFilters = () => {
@@ -1535,7 +1531,7 @@ const decQty = () => {
 const formErrors = ref({});
 const resetCart = () => {
     orderItems.value = [];
-    customer.value = generateCustomerName(); // Generate new Walk In number
+    customer.value = generateCustomerName();
     deliveryLocation.value = "";
     phoneNumber.value = "";
     selectedTable.value = null;
@@ -2190,7 +2186,7 @@ const confirmOrder = async ({
             if (done) done();
             return;
         }
-
+        incrementWalkInCounter();
         resetCart();
         showConfirmModal.value = false;
         toast.success(res.data.message || "Order placed successfully!");
@@ -2330,7 +2326,6 @@ onMounted(async () => {
     initializeWalkInCounter();
     const number = String(counter.value).padStart(3, '0');
     customer.value = `Walk In-${number}`;
-    // ... rest of your onMounted code
     if (window.bootstrap) {
         document
             .querySelectorAll('[data-bs-toggle="tooltip"]')
@@ -3742,7 +3737,7 @@ const getModalTotalPriceWithResale = () => {
                                                 <!-- View Details Button -->
                                                 <button class="btn btn-primary btn-sm mb-2 view-details-btn"
                                                     @click="openDetailsModal(p)">
-                                                    View Details
+                                                    Customization
                                                 </button>
                                             </div>
                                             <!--  Quantity Controls (ALWAYS SHOW, but disable when out of stock) -->

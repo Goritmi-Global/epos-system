@@ -47,6 +47,18 @@ watch(
     },
     { immediate: true }
 );
+watch(b_supplier, (newSupplier) => {
+    bulkItems.value.forEach(it => {
+        if (it.preferred_supplier_id !== newSupplier && it.supplier_id !== newSupplier) {
+            it.qty = 0;
+            it.unitPrice = 0;
+            it.expiry = null;
+            it.subtotal = 0;
+            it.selected_derived_unit_id = null;
+            it.selectedDerivedUnitInfo = null;
+        }
+    });
+});
 
 watch(
     () => props.items,
@@ -132,6 +144,18 @@ function handlePriceInput(it) {
 
     updateSubtotal(it);
 }
+
+const filteredBulkItems = computed(() => {
+    if (!b_supplier.value) {
+        return bulkItems.value; // Show all items if no supplier selected
+    }
+    
+    return bulkItems.value.filter(item => {
+        // Match items where preferred_supplier_id equals selected supplier
+        return item.preferred_supplier_id === b_supplier.value || 
+               item.supplier_id === b_supplier.value;
+    });
+});
 
 function delRow(idx) {
     bulkItems.value[idx].qty = 0;
@@ -506,7 +530,7 @@ async function multipleSubmit() {
                         <div class="mb-3">
                             <label class="form-label">Preferred Supplier</label>
 
-                            <Select v-model="b_supplier" :options="suppliers" filter optionLabel="name" optionValue="id"
+                            <Select v-model="b_supplier" :options="suppliers" optionLabel="name" optionValue="id"
                                 placeholder="Select Supplier" class="w-100" appendTo="self" :autoZIndex="true"
                                 :baseZIndex="2000" :class="{ 'is-invalid': formErrors.supplier }">
 
@@ -552,7 +576,7 @@ async function multipleSubmit() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(it, idx) in bulkItems" :key="it.id">
+                                    <tr v-for="(it, idx) in filteredBulkItems" :key="it.id">
                                         <td>{{ it.name }}</td>
                                         <td>{{ it.category?.name || "-" }}</td>
                                         <td>{{ it.unit_name }}</td>
@@ -584,11 +608,16 @@ async function multipleSubmit() {
                                             </small>
                                         </td>
                                         <td>
-                                            <VueDatePicker v-model="it.expiry" :format="dateFmt" :min-date="new Date()"
-                                                :enableTimePicker="false" :teleport="false" placeholder="Select date"
-                                                :class="{
-                                                    'is-invalid': formErrors[idx]?.expiry
-                                                }" />
+                                        <VueDatePicker
+    v-model="it.expiry"
+    :format="dateFmt"
+    :min-date="new Date()"
+    :enableTimePicker="false"
+    teleport="body"
+    placeholder="Select date"
+    :class="{ 'is-invalid': formErrors[idx]?.expiry }"
+/>
+
 
                                             <small v-if="formErrors[idx]?.expiry" class="text-danger">
                                                 {{ formErrors[idx].expiry }}
@@ -753,6 +782,11 @@ async function multipleSubmit() {
 :deep(.p-dropdown-panel) {
     z-index: 2000 !important;
 }
+
+.dp__menu {
+  z-index: 999999 !important;
+}
+
 
 :global(.dark .nav-tabs .nav-link) {
     background-color: #212121 !important;

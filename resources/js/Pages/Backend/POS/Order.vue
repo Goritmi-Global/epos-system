@@ -44,6 +44,23 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
+     // Reset filters to last applied state when modal closes
+    const filterModal = document.getElementById('orderFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                orderType: appliedFilters.value.orderType || "",
+                paymentType: appliedFilters.value.paymentType || "",
+                status: appliedFilters.value.status || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+                dateFrom: appliedFilters.value.dateFrom || "",
+                dateTo: appliedFilters.value.dateTo || "",
+            };
+        });
+    }
 });
 
 const q = ref("");
@@ -51,6 +68,18 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 const filters = ref({
+    sortBy: "",
+    orderType: "",
+    paymentType: "",
+    status: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: "",
+    dateTo: "",
+});
+
+// Store the last applied filters
+const appliedFilters = ref({
     sortBy: "",
     orderType: "",
     paymentType: "",
@@ -184,6 +213,37 @@ const filterOptions = computed(() => ({
         { value: "cancelled", label: "Cancelled" },
     ],
 }));
+
+const handleFilterApply = (appliedFiltersData) => {
+    filters.value = { ...filters.value, ...appliedFiltersData };
+    // Save the applied filters
+    appliedFilters.value = { ...filters.value };
+    console.log("Filters applied:", filters.value);
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        orderType: "",
+        paymentType: "",
+        status: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: "",
+        dateTo: "",
+    };
+    appliedFilters.value = {
+        sortBy: "",
+        orderType: "",
+        paymentType: "",
+        status: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: "",
+        dateTo: "",
+    };
+    console.log("Filters cleared");
+};
 
 /* ===================== KPIs ===================== */
 const totalOrders = computed(() => orders.value.length);

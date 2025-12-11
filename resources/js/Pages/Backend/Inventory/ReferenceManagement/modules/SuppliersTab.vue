@@ -128,32 +128,67 @@ const filtered = computed(() => {
 
 
 
-const onDownload = (type) => {
-    if (!suppliers.value || suppliers.value.length === 0) {
-        toast.error("No suppliers data to download");
-        return;
-    }
-
-    const dataToExport = q.value.trim() ? filtered.value : suppliers.value;
-
-    if (dataToExport.length === 0) {
-        toast.error("No suppliers found to download");
-        return;
-    }
-
+// Add this function to fetch all suppliers for export
+const fetchAllSuppliersForExport = async () => {
     try {
+        loading.value = true;
+
+        const res = await axios.get("/suppliers", {
+            params: {
+                q: q.value.trim(),
+                per_page: 10000, // Fetch all at once
+                page: 1
+            }
+        });
+
+        console.log('📦 Export data received:', {
+            total: res.data.total,
+            items: res.data.data.length
+        });
+
+        return res.data.data || [];
+    } catch (err) {
+        console.error('❌ Error fetching export data:', err);
+        toast.error("Failed to load data for export");
+        return [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ✅ UPDATED: Main download function
+const onDownload = async (type) => {
+    try {
+        loading.value = true;
+        toast.info("Preparing export data...", { autoClose: 1500 });
+
+        // ✅ Fetch ALL data (not just current page)
+        const allData = await fetchAllSuppliersForExport();
+
+        if (!allData || allData.length === 0) {
+            toast.error("No suppliers found to download");
+            loading.value = false;
+            return;
+        }
+
+        console.log(`📥 Exporting ${allData.length} suppliers as ${type.toUpperCase()}`);
+
+        // Export based on type
         if (type === "pdf") {
-            downloadPDF(dataToExport);
+            downloadPDF(allData);
         } else if (type === "excel") {
-            downloadExcel(dataToExport);
+            downloadExcel(allData);
         } else if (type === "csv") {
-            downloadCSV(dataToExport);
+            downloadCSV(allData);
         } else {
             toast.error("Invalid download type");
         }
+
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -608,14 +643,14 @@ const handleImport = (data) => {
         .post("/api/suppliers/import", { suppliers: suppliersToImport })
         .then(() => {
             toast.success("Suppliers imported successfully");
-               const importModal = document.querySelector('.modal.show');
+            const importModal = document.querySelector('.modal.show');
             if (importModal) {
                 const bsModal = bootstrap.Modal.getInstance(importModal);
                 if (bsModal) {
                     bsModal.hide();
                 }
             }
-            
+
             // ✅ Force remove any lingering backdrops
             setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
@@ -634,7 +669,7 @@ const handleImport = (data) => {
                 });
             }
 
-             setTimeout(() => {
+            setTimeout(() => {
                 const backdrops = document.querySelectorAll('.modal-backdrop');
                 backdrops.forEach(backdrop => backdrop.remove());
                 document.body.classList.remove('modal-open');
@@ -778,10 +813,7 @@ const handleImport = (data) => {
                     Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} entries
                 </div>
 
-                <Pagination 
-                    :pagination="pagination.links" 
-                    :isApiDriven="true" 
-                    @page-changed="handlePageChange" />
+                <Pagination :pagination="pagination.links" :isApiDriven="true" @page-changed="handlePageChange" />
             </div>
 
         </div>
@@ -953,7 +985,8 @@ const handleImport = (data) => {
     background-color: white !important;
     color: black !important;
 }
-:global(.dark .form-control:focus){
+
+:global(.dark .form-control:focus) {
     border-color: #fff !important;
 }
 

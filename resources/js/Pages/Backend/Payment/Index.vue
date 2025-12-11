@@ -36,6 +36,19 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrdersWithPayment();
+    const filterModal = document.getElementById('paymentFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                paymentType: appliedFilters.value.paymentType || "",
+                dateFrom: appliedFilters.value.dateFrom || "",
+                dateTo: appliedFilters.value.dateTo || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+            };
+        });
+    }
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -51,6 +64,16 @@ const filters = ref({
     priceMin: null,
     priceMax: null,
 })
+
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    paymentType: "",
+    dateFrom: "",
+    dateTo: "",
+    priceMin: null,
+    priceMax: null,
+});
 const payments = computed(() =>
     orders.value.map((o) => {
         const promo = Array.isArray(o.promo) && o.promo.length > 0 ? o.promo[0] : null;
@@ -170,10 +193,19 @@ const filtered = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    appliedFilters.value = { ...filters.value };
 };
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        paymentType: "",
+        dateFrom: "",
+        dateTo: "",
+        priceMin: null,
+        priceMax: null,
+    };
+    appliedFilters.value = {
         sortBy: "",
         paymentType: "",
         dateFrom: "",
