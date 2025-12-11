@@ -81,6 +81,8 @@ watch(
 
 
 onMounted(() => {
+     console.log('Props items:', toRaw(props.items));
+    console.log('First item structure:', toRaw(props.items[0]));
     feather.replace();
     const bulkOrderModal = document.getElementById("bulkOrderModal");
     if (bulkOrderModal) {
@@ -147,13 +149,16 @@ function handlePriceInput(it) {
 
 const filteredBulkItems = computed(() => {
     if (!b_supplier.value) {
-        return bulkItems.value; // Show all items if no supplier selected
+        return bulkItems.value;
     }
     
     return bulkItems.value.filter(item => {
-        // Match items where preferred_supplier_id equals selected supplier
-        return item.preferred_supplier_id === b_supplier.value || 
-               item.supplier_id === b_supplier.value;
+        // Check multiple possible field names
+        const preferredSupplierId = item.preferred_supplier_id || item.preferredSupplierId;
+        const supplierIds = item.supplier_id || item.supplierId;
+        
+        return preferredSupplierId === b_supplier.value || 
+               supplierIds === b_supplier.value;
     });
 });
 
