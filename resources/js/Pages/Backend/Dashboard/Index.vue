@@ -631,15 +631,6 @@ const changeYear = (year) => {
           <div class="card flex-fill">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center">
               <h4 class="card-title mb-0">Top Selling Items</h4>
-              <div class="dropdown">
-                <a href="javascript:void(0);" data-bs-toggle="dropdown" aria-expanded="false" class="dropset">
-                  <i class="fa fa-ellipsis-v"></i>
-                </a>
-                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                  <li><a href="/productlist" class="dropdown-item">Product List</a></li>
-                  <li><a href="/addproduct" class="dropdown-item">Add Product</a></li>
-                </ul>
-              </div>
             </div>
 
             <div class="card-body">

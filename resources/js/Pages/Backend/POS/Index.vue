@@ -704,7 +704,7 @@ const fetchProfileTables = async () => {
                 const matchingType = orderTypes.value.find(
                     type => type.toLowerCase().replace(/_/g, ' ') === savedOrderType.toLowerCase().replace(/_/g, ' ')
                 );
-                
+
                 if (matchingType) {
                     orderType.value = matchingType;
                 } else {
@@ -790,8 +790,12 @@ const filteredProducts = computed(() => {
 /* ----------------------------
    Filter Handlers
 -----------------------------*/
+
+const filtersJustApplied = ref(false);
+
 const handleApplyFilters = (appliedFilters) => {
     filters.value = { ...appliedFilters };
+    filtersJustApplied.value = true;
 };
 const counter = ref('');
 const initializeWalkInCounter = () => {
@@ -2198,6 +2202,8 @@ const handleConfirmMissingIngredients = async () => {
     }
 };
 
+
+
 const handleCancelMissingIngredients = () => {
     console.log('❌ User cancelled due to missing ingredients');
     showMissingIngredientsModal.value = false;
@@ -2243,6 +2249,18 @@ onMounted(async () => {
     fetchMenuCategories();
     fetchMenuItems();
     fetchProfileTables();
+    const filterModal = document.getElementById('menuFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleClearFilters();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
+
 });
 const page = usePage();
 function bumpToasts() {
@@ -3472,7 +3490,31 @@ const getModalTotalPriceWithResale = () => {
                                     </div>
                                 </div>
                             </div>
-
+                            <div v-if="filteredProducts.length === 0" class="col-12">
+                                <div class="alert alert-warning border-0 rounded-4 text-center py-5">
+                                    <i class="bi bi-search me-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                                    <h5 class="mt-2 mb-2 text-dark fw-semibold">No Menu Found</h5>
+                                    <p class="text-muted mb-3">
+                                        <template
+                                            v-if="searchQuery && (filters.priceRange && filters.priceRange.length > 0)">
+                                            No items match your search and filter criteria.
+                                        </template>
+                                        <template v-else-if="searchQuery">
+                                            No items found matching "<strong>{{ searchQuery }}</strong>"
+                                        </template>
+                                        <template v-else-if="filters.priceRange && filters.priceRange.length > 0">
+                                            No items match the selected price range.
+                                        </template>
+                                        <template v-else>
+                                            No Menu available in this category.
+                                        </template>
+                                    </p>
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        @click="handleClearFilters">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
+                                    </button>
+                                </div>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-12 col-md-6 left-card cat-cards col-xl-6 d-flex"
                                     v-for="p in filteredProducts" :key="p.id">
@@ -3678,8 +3720,7 @@ const getModalTotalPriceWithResale = () => {
                             <button class="btn btn-warning px-3 py-2 promos-btn" @click="openPromoModal">
                                 Promos
                             </button>
-                            <button class="btn btn-warning px-3 py-2 discount-btn"
-                                @click="openDiscountModal">
+                            <button class="btn btn-warning px-3 py-2 discount-btn" @click="openDiscountModal">
                                 Discounts
                             </button>
                         </div>

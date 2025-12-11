@@ -114,6 +114,18 @@ onMounted(async () => {
 
     // Fetch initial data
     await Promise.all([fetchAddons(), fetchAddonGroups()]);
+
+    const filterModal = document.getElementById('addonsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
     
 });
 
@@ -264,9 +276,11 @@ const filteredAddons = computed(() => {
 
     return filtered;
 });
+const filtersJustApplied = ref(false);
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    filtersJustApplied.value = true;
     console.log("Filters applied:", filters.value);
 };
 

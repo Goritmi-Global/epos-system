@@ -702,13 +702,19 @@ const deleteCategory = async (row) => {
     if (!row?.id) return;
 
     try {
-        await axios.delete(`/categories/${row.id}`);
-        toast.success("Category deleted successfully");
-        await fetchCategories();
-        await fetchAllCategories();
+        const response = await axios.delete(`/categories/${row.id}`);
+        
+        if (response.data.success) {
+            toast.success(response.data.message);
+            await fetchCategories();
+            await fetchAllCategories();
+        } else {
+            toast.error(response.data.message);
+        }
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
-        toast.error("Failed to delete category ❌");
+        const errorMessage = err.response?.data?.message || "Failed to delete category";
+        toast.error(errorMessage);
     }
 };
 

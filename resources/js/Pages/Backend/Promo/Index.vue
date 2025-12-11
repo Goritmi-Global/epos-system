@@ -272,6 +272,17 @@ onMounted(async () => {
 
     await fetchPromos();
     await fetchPromoScopes();
+     const filterModal = document.getElementById('promosFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
 });
 
 /* ---------------- KPI Cards ---------------- */
@@ -393,8 +404,11 @@ const filtered = computed(() => {
     return result;
 });
 
+const filtersJustApplied = ref(false);
+
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+     filtersJustApplied.value = true;
 };
 
 const handleFilterClear = () => {
@@ -1103,7 +1117,7 @@ const downloadExcel = (data) => {
 
                                                     <!-- Max Discount -->
                                                     <div class="col-md-6">
-                                                        <label class="form-label">Maximum Discount (Optional)</label>
+                                                        <label class="form-label">Maximum Discount</label>
                                                         <input v-model="promoForm.max_discount" type="number"
                                                             step="0.01" class="form-control" :class="{
                                                                 'is-invalid': promoFormErrors.max_discount,

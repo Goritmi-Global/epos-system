@@ -143,9 +143,11 @@ const filtered = computed(() => {
     return result;
 });
 
+const filtersJustApplied = ref(false);
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    filtersJustApplied.value = true;
 };
 
 
@@ -580,6 +582,18 @@ onMounted(async () => {
                 fetchPendingRequests(true);
                 toast.info('New discount approval request received!');
             });
+    }
+
+    const filterModal = document.getElementById('discountsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
     }
 });
 

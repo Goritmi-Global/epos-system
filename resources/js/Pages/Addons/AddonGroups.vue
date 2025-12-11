@@ -99,6 +99,17 @@ onMounted(async () => {
 
     // Fetch initial data
     fetchAddonGroups();
+     const filterModal = document.getElementById('addonGroupsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
 });
 
 /* ============================================
@@ -207,9 +218,11 @@ const filteredGroups = computed(() => {
     return filtered;
 });
 
+const filtersJustApplied = ref(false);
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    filtersJustApplied.value = true;
     console.log("Filters applied:", filters.value);
 };
 

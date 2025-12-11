@@ -37,7 +37,7 @@ class StoreAddonRequest extends FormRequest
             'addon_group_id' => 'required|exists:addon_groups,id',
 
             // Price must be >= 0
-            'price' => 'required|numeric|min:1',
+            'price' => 'required|numeric|min:0',
 
             'description' => 'nullable|string',
 
