@@ -19,6 +19,13 @@ import ImportFile from "@/Components/importFile.vue";
 
 // Main data store for addon groups
 const addonGroups = ref([]);
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+});
 
 // Form state for create/edit modal
 const addonGroupForm = ref({
@@ -35,8 +42,6 @@ const filters = ref({
     priceMin: null,
     priceMax: null,
 });
-
-
 
 // Track if we're editing (null = create mode, object = edit mode)
 const editingGroup = ref(null);
@@ -101,6 +106,17 @@ onMounted(async () => {
 
     // Fetch initial data
     fetchAddonGroups();
+     const filterModal = document.getElementById('addonGroupsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
 });
 
 /* ============================================
@@ -182,9 +198,8 @@ const filteredGroups = computed(() => {
         filtered = filtered.filter((group) => (group.addons_count || 0) <= parseInt(filters.value.priceMax));
     }
 
-    // Apply sorting - CREATE NEW ARRAY BEFORE SORTING
+    // Apply sorting
     if (filters.value.sortBy) {
-        filtered = [...filtered]; // ← ADD THIS LINE
         switch (filters.value.sortBy) {
             case "name_asc":
                 filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -210,14 +225,22 @@ const filteredGroups = computed(() => {
     return filtered;
 });
 
+const filtersJustApplied = ref(false);
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    filtersJustApplied.value = true;
     console.log("Filters applied:", filters.value);
 };
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
+    };
+    appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         priceMin: null,

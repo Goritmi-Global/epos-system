@@ -42,6 +42,17 @@ const showOrderItems = reactive({});
 const refreshInterval = ref(null);
 const confirmModalKey = ref(0);
 
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    category: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
+});
+
 // Discount type and status options for dropdowns
 const discountOptions = [
     // { label: "Flat Amount", value: "flat" },
@@ -101,18 +112,11 @@ const filtered = computed(() => {
         result = result.filter((d) => d.type === filters.value.category);
     }
 
-    // Filter by max_discount range (not discount_amount)
     if (filters.value.priceMin !== null && filters.value.priceMin !== "") {
-        result = result.filter((d) => {
-            const maxDiscount = parseFloat(d.max_discount) || 0;
-            return maxDiscount >= parseFloat(filters.value.priceMin);
-        });
+        result = result.filter((d) => parseFloat(d.discount_amount) >= parseFloat(filters.value.priceMin));
     }
     if (filters.value.priceMax !== null && filters.value.priceMax !== "") {
-        result = result.filter((d) => {
-            const maxDiscount = parseFloat(d.max_discount) || 0;
-            return maxDiscount <= parseFloat(filters.value.priceMax);
-        });
+        result = result.filter((d) => parseFloat(d.discount_amount) <= parseFloat(filters.value.priceMax));
     }
 
     if (filters.value.dateFrom) {
@@ -124,23 +128,13 @@ const filtered = computed(() => {
         result = result.filter((d) => new Date(d.start_date) <= toDate);
     }
 
-    // Apply sorting - CREATE NEW ARRAY BEFORE SORTING
     if (filters.value.sortBy) {
-        result = [...result]; // Create new array for sorting
         switch (filters.value.sortBy) {
             case "discount_asc":
-                result.sort((a, b) => {
-                    const aVal = parseFloat(a.max_discount) || 0;
-                    const bVal = parseFloat(b.max_discount) || 0;
-                    return aVal - bVal;
-                });
+                result.sort((a, b) => parseFloat(a.discount_amount) - parseFloat(b.discount_amount));
                 break;
             case "discount_desc":
-                result.sort((a, b) => {
-                    const aVal = parseFloat(a.max_discount) || 0;
-                    const bVal = parseFloat(b.max_discount) || 0;
-                    return bVal - aVal;
-                });
+                result.sort((a, b) => parseFloat(b.discount_amount) - parseFloat(a.discount_amount));
                 break;
             case "name_asc":
                 result.sort((a, b) => a.name.localeCompare(b.name));
@@ -160,13 +154,25 @@ const filtered = computed(() => {
     return result;
 });
 
+const filtersJustApplied = ref(false);
+
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    filtersJustApplied.value = true;
 };
 
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+     appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         category: "",
@@ -597,6 +603,18 @@ onMounted(async () => {
                 toast.info('New discount approval request received!');
             });
     }
+
+    const filterModal = document.getElementById('discountsFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Only clear if filters were NOT just applied
+            if (!filtersJustApplied.value) {
+                handleFilterClear();
+            }
+            // Reset the flag for next time
+            filtersJustApplied.value = false;
+        });
+    }
 });
 
 onUnmounted(() => {
@@ -881,8 +899,10 @@ const downloadExcel = (data) => {
                                                 modalId="discountsFilterModal" modalSize="modal-lg" :sortOptions="[
                                                     { value: 'name_asc', label: 'Name: A to Z' },
                                                     { value: 'name_desc', label: 'Name: Z to A' },
-                                                    { value: 'discount_asc', label: 'Discount: Low to High' },
-                                                    { value: 'discount_desc', label: 'Discount: High to Low' },
+                                                    // { value: 'discount_asc', label: 'Discount: Low to High' },
+                                                    // { value: 'discount_desc', label: 'Discount: High to Low' },
+                                                    // { value: 'date_asc', label: 'Start Date: Oldest First' },
+                                                    // { value: 'date_desc', label: 'Start Date: Newest First' },
                                                 ]" :showStockStatus="false" categoryLabel="Discount Type"
                                                 statusLabel="Discount Status" :showPriceRange="true"
                                                 priceRangeLabel="Discount Amount Range" :showDateRange="true"

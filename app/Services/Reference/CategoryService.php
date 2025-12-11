@@ -347,6 +347,31 @@ class CategoryService
                 ];
             }
 
+            // ✅ Check if category is being used in inventory items
+            $inventoryItemsCount = $category->primaryInventoryItems()->count();
+
+            if ($inventoryItemsCount > 0) {
+                return [
+                    'success' => false,
+                    'message' => "Cannot delete category '{$category->name}' as it is being used in {$inventoryItemsCount} inventory item(s)",
+                    'data' => null,
+                ];
+            }
+
+            // ✅ Check if subcategories are being used
+            if ($category->subcategories && $category->subcategories->count() > 0) {
+                foreach ($category->subcategories as $subcategory) {
+                    $subItemsCount = $subcategory->primaryInventoryItems()->count();
+                    if ($subItemsCount > 0) {
+                        return [
+                            'success' => false,
+                            'message' => "Cannot delete category '{$category->name}' because its subcategory '{$subcategory->name}' is being used in {$subItemsCount} inventory item(s)",
+                            'data' => null,
+                        ];
+                    }
+                }
+            }
+
             // Delete icon upload if exists
             if ($category->upload_id) {
                 UploadHelper::delete($category->upload_id);

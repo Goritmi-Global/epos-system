@@ -18,12 +18,17 @@ const refundReason = ref('');
 const selectedOrderForRefund = ref(null);
 const orders = ref([]);
 
+const loading = ref(false);
+
 const fetchOrders = async () => {
+    loading.value = true;
     try {
         const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
     } catch (error) {
         console.error("Error fetching inventory:", error);
+    } finally {
+        loading.value = false;
     }
 };
 onMounted(async () => {
@@ -44,6 +49,23 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
+    // Reset filters to last applied state when modal closes
+    const filterModal = document.getElementById('orderFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            // Reset filters to last applied state when modal closes
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                orderType: appliedFilters.value.orderType || "",
+                paymentType: appliedFilters.value.paymentType || "",
+                status: appliedFilters.value.status || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+                dateFrom: appliedFilters.value.dateFrom || "",
+                dateTo: appliedFilters.value.dateTo || "",
+            };
+        });
+    }
 });
 
 const q = ref("");
@@ -51,6 +73,18 @@ const searchKey = ref(Date.now());
 const inputId = `search-${Math.random().toString(36).substr(2, 9)}`;
 const isReady = ref(false);
 const filters = ref({
+    sortBy: "",
+    orderType: "",
+    paymentType: "",
+    status: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: "",
+    dateTo: "",
+});
+
+// Store the last applied filters
+const appliedFilters = ref({
     sortBy: "",
     orderType: "",
     paymentType: "",
@@ -185,6 +219,37 @@ const filterOptions = computed(() => ({
     ],
 }));
 
+const handleFilterApply = (appliedFiltersData) => {
+    filters.value = { ...filters.value, ...appliedFiltersData };
+    // Save the applied filters
+    appliedFilters.value = { ...filters.value };
+    console.log("Filters applied:", filters.value);
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        orderType: "",
+        paymentType: "",
+        status: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: "",
+        dateTo: "",
+    };
+    appliedFilters.value = {
+        sortBy: "",
+        orderType: "",
+        paymentType: "",
+        status: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: "",
+        dateTo: "",
+    };
+    console.log("Filters cleared");
+};
+
 /* ===================== KPIs ===================== */
 const totalOrders = computed(() => orders.value.length);
 const completedOrders = computed(
@@ -193,6 +258,12 @@ const completedOrders = computed(
 const pendingOrders = computed(
     () => orders.value.filter((o) => o.status !== "paid").length
 );
+
+const totalOrdersAmount = computed(() => {
+    return orders.value.reduce((sum, order) => {
+        return sum + (Number(order.total_amount) || 0);
+    }, 0);
+});
 
 /* ===================== Helpers ===================== */
 function formatDate(d) {
@@ -962,6 +1033,21 @@ const downloadExcel = (data) => {
                         </div>
                     </div>
                 </div>
+
+                <div class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0 fw-bold">{{ formatCurrencySymbol(totalOrdersAmount) }}</h3>
+                                <p class="text-muted mb-0 small">Total Revenue</p>
+                            </div>
+                            <div class="rounded-circle p-3 d-flex align-items-center justify-content-center text-info"
+                                style="width: 40px; height: 40px">
+                                <i class="bi bi-currency-pound fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Orders Table -->
@@ -1051,7 +1137,7 @@ const downloadExcel = (data) => {
 
                     <!-- Table -->
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" style="min-height: 320px">
+                        <table class="table table-hover align-middle mb-0">
                             <thead class="border-top small text-muted">
                                 <tr>
                                     <th style="width: 70px">S. #</th>
@@ -1076,89 +1162,85 @@ const downloadExcel = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(o, i) in sortedOrders" :key="o.id">
-                                    <!-- {{ o }} -->
-                                    <td>{{ i + 1 }}</td>
-                                    <td>{{ o.type?.table_number ?? "-" }}</td>
-                                    <td>{{ o.type?.order_type ?? "-" }}</td>
-                                    <td>{{ dateFmt(o.created_at) }}</td>
-                                    <td>{{ timeAgo(o.created_at) }}</td>
-                                    <td>{{ o.customer_name ?? "-" }}</td>
-                                    <td>
-                                        <span class="cursor-pointer" @click="openPaymentModal(o.payment)">
-                                            {{ o.payment?.payment_type ?? "-" }}
-                                        </span>
-                                    </td>
-
-                                    <!-- Actual price before promo -->
-                                    <!-- <td>{{ formatCurrencySymbol(o.sub_total ?? 0) }}</td>
-                                    <td class="text-success">
-                                        -{{ formatCurrencySymbol(o?.promo?.[0]?.discount_amount ?? 0) }}
-                                    </td>
-                                    <td class="text-success">
-                                        -{{ formatCurrencySymbol(o.sales_discount ?? 0) }}
-                                    </td>
-                                    <td class="text-success">
-                                        -{{ formatCurrencySymbol(o?.approved_discounts ?? 0) }}
-                                    </td>
-                                    <td>{{ o.tax ?? "-" }}</td>
-                                    <td>{{ o.service_charges ?? "-" }}</td>
-                                    <td>{{ o.delivery_charges ?? "-" }}</td>
-                                    <td>
-                                        {{ o.promo?.[0]?.promo_name || '-' }}
-                                    </td> -->
-
-
-                                    <!-- Total after discount -->
-                                    <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
-                                    <td style="font-size: 14px;">
-                                        <span class="badge px-4 py-2 rounded-pill" :class="{
-                                            'bg-danger': o?.status === 'cancelled',
-                                            'bg-warning text-dark': o?.status === 'refunded',
-                                            'bg-success': o?.status === 'paid'
-                                        }">
-                                            {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="text-muted small">
-                                            {{o.source === 'Pos System' ? 'POS System' : o.source === 'website' ? 'Website' : '-'}}
-                                        </span>
-                                    </td>
-
-
-                                    <!-- In your orders table, replace the actions cell -->
-                                    <td class="text-left">
-                                        <div class="d-flex gap-2 justify-content-center align-items-center">
-                                            <!-- View Button -->
-                                            <button @click="openOrderDetails(o)" title="View Details"
-                                                class="p-2 rounded-full text-primary hover:bg-gray-100">
-                                                <Eye class="w-4 h-4" />
-                                            </button>
-
-                                            <!-- Cancel Button (only if not already cancelled/refunded) -->
-                                            <button v-if="o.status !== 'cancelled' && o.status !== 'refunded'"
-                                                @click="handleCancelOrder(o)" title="Cancel Order"
-                                                :disabled="cancellingOrderId === o.id"
-                                                class="p-2 rounded-full text-danger hover:bg-gray-100">
-                                                <XCircle class="w-4 h-4" />
-                                            </button>
-
-                                            <!-- Refund Button (only for card/split payments that aren't refunded) -->
-                                            <button v-if="canRefund(o)" @click="handleRefundPayment(o)"
-                                                title="Refund Payment" :disabled="refundingOrderId === o.id"
-                                                class="p-2 rounded-full text-warning hover:bg-gray-100">
-                                                <i class="bi bi-arrow-counterclockwise" style="font-size: 1rem;"></i>
-                                            </button>
+                                <!-- Loading Spinner -->
+                                <tr v-if="loading">
+                                    <td colspan="11" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center justify-content-center">
+                                            <div class="spinner-border mb-3" role="status"
+                                                style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <div class="fw-semibold text-muted">Loading orders...</div>
                                         </div>
                                     </td>
                                 </tr>
 
-                                <tr v-if="filtered.length === 0">
-                                    <td colspan="18" class="text-center text-muted py-4">
-                                        No orders found.
-                                    </td>
-                                </tr>
+                                <!-- Orders List (only show when not loading) -->
+                                <template v-else>
+                                    <tr v-for="(o, i) in sortedOrders" :key="o.id">
+                                        <td>{{ i + 1 }}</td>
+                                        <td>{{ o.type?.table_number ?? "-" }}</td>
+                                        <td>{{ o.type?.order_type ?? "-" }}</td>
+                                        <td>{{ dateFmt(o.created_at) }}</td>
+                                        <td>{{ timeAgo(o.created_at) }}</td>
+                                        <td>{{ o.customer_name ?? "-" }}</td>
+                                        <td>
+                                            <span class="cursor-pointer" @click="openPaymentModal(o.payment)">
+                                                {{ o.payment?.payment_type ?? "-" }}
+                                            </span>
+                                        </td>
+                                        <td>{{ formatCurrencySymbol(o.total_amount) }}</td>
+                                        <td style="font-size: 14px;">
+                                            <span class="badge px-4 py-2 rounded-pill" :class="{
+                                                'bg-danger': o?.status === 'cancelled',
+                                                'bg-warning text-dark': o?.status === 'refunded',
+                                                'bg-success': o?.status === 'paid'
+                                            }">
+                                                {{ o?.status.charAt(0).toUpperCase() + o?.status.slice(1) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted small">
+                                                {{ o.source === 'Pos System' ? 'POS System' : o.source === 'website' ?
+                                                    'Website' : '-' }}
+                                            </span>
+                                        </td>
+                                        <td class="text-left">
+                                            <div class="d-flex gap-2 justify-content-center align-items-center">
+                                                <button @click="openOrderDetails(o)" title="View Details"
+                                                    class="p-2 rounded-full text-primary hover:bg-gray-100">
+                                                    <Eye class="w-4 h-4" />
+                                                </button>
+                                                <button v-if="o.status !== 'cancelled' && o.status !== 'refunded'"
+                                                    @click="handleCancelOrder(o)" title="Cancel Order"
+                                                    :disabled="cancellingOrderId === o.id"
+                                                    class="p-2 rounded-full text-danger hover:bg-gray-100">
+                                                    <XCircle class="w-4 h-4" />
+                                                </button>
+                                                <button v-if="canRefund(o)" @click="handleRefundPayment(o)"
+                                                    title="Refund Payment" :disabled="refundingOrderId === o.id"
+                                                    class="p-2 rounded-full text-warning hover:bg-gray-100">
+                                                    <i class="bi bi-arrow-counterclockwise"
+                                                        style="font-size: 1rem;"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- No Data Message -->
+                                    <tr v-if="!loading && filtered.length === 0">
+                                        <td colspan="11" class="text-center text-muted py-4">
+                                            <div
+                                                class="d-flex flex-column align-items-center justify-content-center py-3">
+                                                <i class="bi bi-inbox"
+                                                    style="font-size: 2rem; opacity: 0.5; margin-bottom: 0.5rem;"></i>
+                                                <div class="fw-semibold">No orders found</div>
+                                                <div class="small text-secondary mt-1">Try adjusting your filters or
+                                                    date range</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
@@ -1197,7 +1279,7 @@ const downloadExcel = (data) => {
                                             <span class="value">{{
                                                 selectedPayment?.payment_type ??
                                                 "-"
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
 
@@ -1260,7 +1342,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Card Brand</span>
                                             <span class="value text-capitalize">{{
                                                 selectedPayment.brand
-                                            }}</span>
+                                                }}</span>
                                         </div>
                                     </div>
 
@@ -1281,7 +1363,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Expiry</span>
                                             <span class="value">{{
                                                 selectedPayment.exp_month
-                                            }}/{{
+                                                }}/{{
                                                     selectedPayment.exp_year
                                                 }}</span>
                                         </div>
@@ -1293,7 +1375,7 @@ const downloadExcel = (data) => {
                                             <span class="label">Currency</span>
                                             <span class="value">{{
                                                 selectedPayment.currency_code
-                                                }}</span>
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1554,19 +1636,19 @@ const downloadExcel = (data) => {
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Customer:</span>
                                     <span class="fw-semibold">{{ selectedOrderForRefund?.customer_name || 'Walk In'
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Total Amount:</span>
                                     <span class="fw-semibold">{{
                                         formatCurrencySymbol(selectedOrderForRefund?.total_amount)
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-muted">Payment Type:</span>
                                     <span class="fw-semibold text-capitalize">{{
                                         selectedOrderForRefund?.payment?.payment_type
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div v-if="selectedOrderForRefund?.payment?.payment_type?.toLowerCase() === 'split'"
                                     class="d-flex justify-content-between mb-2">

@@ -702,13 +702,19 @@ const deleteCategory = async (row) => {
     if (!row?.id) return;
 
     try {
-        await axios.delete(`/categories/${row.id}`);
-        toast.success("Category deleted successfully");
-        await fetchCategories();
-        await fetchAllCategories();
+        const response = await axios.delete(`/categories/${row.id}`);
+        
+        if (response.data.success) {
+            toast.success(response.data.message);
+            await fetchCategories();
+            await fetchAllCategories();
+        } else {
+            toast.error(response.data.message);
+        }
     } catch (err) {
         console.error("❌ Delete error:", err.response?.data || err.message);
-        toast.error("Failed to delete category ❌");
+        const errorMessage = err.response?.data?.message || "Failed to delete category";
+        toast.error(errorMessage);
     }
 };
 
@@ -835,10 +841,10 @@ watch(q, () => {
     }, 500);
 });
 
-watch(() => filters.value, () => {
-    pagination.value.current_page = 1;
-    fetchCategories(1);
-}, { deep: true });
+// watch(() => filters.value, () => {
+//     pagination.value.current_page = 1;
+//     fetchCategories(1);
+// }, { deep: true });
 
 // ===================== EXPORT FUNCTIONS (FIXED FOR CATEGORIES) =====================
 
@@ -1218,12 +1224,12 @@ const handleImport = (data) => {
                              <FilterModal v-model="filters" title="Inventory Categories" modal-id="categoryFilterModal"
         modal-size="modal-lg" :sort-options="filterOptions.sortOptions"
         :status-options="filterOptions.statusOptions" :show-stock-status="false"
-        :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="true"
+        :stock-status-options="filterOptions.stockStatusOptions" :show-price-range="false"
         price-label="Total Value Range" @apply="handleFilterApply" @clear="handleFilterClear">
         <!-- Custom filters slot -->
         <template #customFilters="{ filters }">
             <div class="col-12">
-                <label class="form-label fw-semibold text-dark">
+                <label class="form-label fw-semibold text-dark text-muted">
                     <i class="fas fa-sitemap me-2 text-muted"></i>Subcategories
                 </label>
                 <select v-model="filters.hasSubcategories" class="form-select">
@@ -1289,7 +1295,7 @@ const handleImport = (data) => {
                                     <th>Category</th>
                                     <th>Sub Category</th>
                                     <th>Icon</th>
-                                    <th>Total value</th>
+                                    <!-- <th>Total value</th> -->
                                     <th>Total Item</th>
                                     <th>Out of Stock</th>
                                     <th>Low Stock</th>
@@ -1344,7 +1350,7 @@ const handleImport = (data) => {
                                                 <span v-else class="fs-5">📦</span>
                                             </div>
                                         </td>
-                                        <td>{{ formatCurrencySymbol(row.total_value) }}</td>
+                                        <!-- <td>{{ formatCurrencySymbol(row.total_value) }}</td> -->
                                         <td>{{ row.primary_inventory_items_count }}</td>
                                         <td>{{ row.out_of_stock }}</td>
                                         <td>{{ row.low_stock }}</td>
@@ -1759,6 +1765,9 @@ const handleImport = (data) => {
     color: #fff !important;
 }
 
+.dark .text-muted{
+    color: #fff !important;
+}
 .search-wrap {
     position: relative;
     width: clamp(220px, 28vw, 360px);

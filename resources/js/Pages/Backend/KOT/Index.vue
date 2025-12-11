@@ -15,8 +15,10 @@ import * as XLSX from "xlsx";
 const { formatMoney, formatNumber, dateFmt } = useFormatters()
 
 const orders = ref([]);
+const loading = ref(false);
 
 const fetchOrders = async () => {
+    loading.value = true;
     try {
         const response = await axios.get("/api/kots/all-orders");
 
@@ -58,6 +60,8 @@ const fetchOrders = async () => {
     } catch (error) {
         console.error("Error fetching orders:", error);
         orders.value = [];
+    }finally{
+        loading.value = false;
     }
 };
 
@@ -78,6 +82,18 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrders();
+    const filterModal = document.getElementById('kotFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                orderType: appliedFilters.value.orderType || "",
+                status: appliedFilters.value.status || "",
+                dateFrom: appliedFilters.value.dateFrom || "",
+                dateTo: appliedFilters.value.dateTo || "",
+            };
+        });
+    }
 });
 
 const q = ref("");
@@ -91,11 +107,19 @@ const filters = ref({
     dateFrom: "",
     dateTo: "",
 });
+
+const appliedFilters = ref({
+    sortBy: "",
+    orderType: "",
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+});
 const orderTypeFilter = ref("All");
 const statusFilter = ref("All");
 
 const orderTypeOptions = ref(["All", "Eat In", "Delivery", "Takeaway", "Collection"]);
-const statusOptions = ref(["All", "Waiting","In Progress", "Done", "Cancelled"]);
+const statusOptions = ref(["All", "Waiting", "In Progress", "Done", "Cancelled"]);
 
 // ✅ STEP 1: Fix allItems computed to use item.status instead of order.status
 const allItems = computed(() => {
@@ -203,6 +227,31 @@ const filtered = computed(() => {
 
     return result;
 });
+
+const handleFilterApply = (appliedFiltersData) => {
+    filters.value = { ...filters.value, ...appliedFiltersData };
+    // Save the applied filters
+    appliedFilters.value = { ...filters.value };
+    console.log("Filters applied:", filters.value);
+};
+
+const handleFilterClear = () => {
+    filters.value = {
+        sortBy: "",
+        orderType: "",
+        status: "",
+        dateFrom: "",
+        dateTo: "",
+    };
+    appliedFilters.value = {
+        sortBy: "",
+        orderType: "",
+        status: "",
+        dateFrom: "",
+        dateTo: "",
+    };
+    console.log("Filters cleared");
+};
 
 
 const sortedItems = computed(() => {
@@ -493,7 +542,7 @@ const downloadCSV = (data) => {
             "Ingredients",
             "Status",
             "Customer",
-            "Price",
+            // "Price",
             "Date"
         ];
 
@@ -508,8 +557,8 @@ const downloadCSV = (data) => {
                 `"${item.ingredients?.join(', ') || "-"}"`,
                 `"${item.status || ""}"`,
                 `"${item.order?.customer_name || "Walk In"}"`,
-                `"${Number(item.price || 0).toFixed(2)}"`,
-                `"${item.order?.created_at || ""}"`
+                // `"${Number(item.price || 0).toFixed(2)}"`,
+                `"${item.order?.created_at ? dateFmt(item.order.created_at) : ""}"`
             ];
         });
 
@@ -637,7 +686,7 @@ const downloadExcel = (data) => {
                 "Ingredients": item.ingredients?.join(', ') || "-",
                 "Status": item.status || "",
                 "Customer": item.order?.customer_name || "Walk In",
-                "Price": Number(item.price || 0).toFixed(2),
+                // "Price": Number(item.price || 0).toFixed(2),
                 "Date": item.order?.created_at || ""
             };
         });
@@ -789,7 +838,8 @@ const downloadExcel = (data) => {
 
                             <FilterModal v-model="filters" title="Kitchen Orders" modal-id="kotFilterModal"
                                 modal-size="modal-lg" :sort-options="filterOptions.sortOptions" :show-date-range="true"
-                                @apply="handleFilterApply" :showDateRange="false" :show-stock-status="false" @clear="handleFilterClear">
+                                @apply="handleFilterApply" :showDateRange="false" :show-stock-status="false"
+                                @clear="handleFilterClear">
                                 <!-- Custom filters slot for Order Type and Status -->
                                 <template #customFilters="{ filters }">
                                     <div class="col-md-6">
@@ -861,55 +911,68 @@ const downloadExcel = (data) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(item, index) in sortedItems" :key="item.uniqueId || index">
-                                    <td>{{ index + 1 }}</td>
-                                    <td>{{ item.order?.id }}</td>
-                                    <td>{{ item.item_name }}</td>
-                                    <td>{{ item.variant_name }}</td>
-                                    <td>{{ item.order?.type?.order_type || '-' }}</td>
-                                    <td>{{ item.ingredients?.join(', ') || '-' }}</td>
-                                    <td>
-                                        <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
-                                            style="width: 80px; display: inline-flex; justify-content: center; align-items: center; height: 25px;">
-                                            {{ item.status }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex justify-content-center align-items-center gap-2">
-                                            <button @click="updateKotStatus(item, 'Waiting')" title="Waiting"
-                                                class="p-2 rounded-full text-warning hover:bg-gray-100">
-                                                <Clock class="w-5 h-5" />
-                                            </button>
-
-                                            <button @click="updateKotStatus(item, 'In Progress')" title="In Progress"
-                                                class="p-2 rounded-full text-info hover:bg-gray-100">
-                                                <Loader class="w-5 h-5" />
-                                            </button>
-
-                                            <button @click="updateKotStatus(item, 'Done')" title="Done"
-                                                class="p-2 rounded-full text-success hover:bg-gray-100">
-                                                <CheckCircle class="w-5 h-5" />
-                                            </button>
-
-                                            <button @click="updateKotStatus(item, 'Cancelled')" title="Cancelled"
-                                                class="p-2 rounded-full text-danger hover:bg-gray-100">
-                                                <XCircle class="w-5 h-5" />
-                                            </button>
-
-                                            <button v-if="printers.length > 0"
-                                                class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
-                                                @click.prevent="printOrder(item.order)" title="Print">
-                                                <Printer class="w-5 h-5" />
-                                            </button>
+                                <tr v-if="loading">
+                                    <td colspan="11" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center justify-content-center">
+                                            <div class="spinner-border mb-3" role="status"
+                                                style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <div class="fw-semibold text-muted">Loading KOT orders...</div>
                                         </div>
                                     </td>
                                 </tr>
+                                <template v-else>
+                                    <tr v-for="(item, index) in sortedItems" :key="item.uniqueId || index">
+                                        <td>{{ index + 1 }}</td>
+                                        <td>{{ item.order?.id }}</td>
+                                        <td>{{ item.item_name }}</td>
+                                        <td>{{ item.variant_name }}</td>
+                                        <td>{{ item.order?.type?.order_type || '-' }}</td>
+                                        <td>{{ item.ingredients?.join(', ') || '-' }}</td>
+                                        <td>
+                                            <span :class="['badge', 'rounded-pill', getStatusBadge(item.status)]"
+                                                style="width: 80px; display: inline-flex; justify-content: center; align-items: center; height: 25px;">
+                                                {{ item.status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex justify-content-center align-items-center gap-2">
+                                                <button @click="updateKotStatus(item, 'Waiting')" title="Waiting"
+                                                    class="p-2 rounded-full text-warning hover:bg-gray-100">
+                                                    <Clock class="w-5 h-5" />
+                                                </button>
 
-                                <tr v-if="filtered.length === 0">
-                                    <td colspan="8" class="text-center text-muted py-4">
-                                        No orders found.
-                                    </td>
-                                </tr>
+                                                <button @click="updateKotStatus(item, 'In Progress')"
+                                                    title="In Progress"
+                                                    class="p-2 rounded-full text-info hover:bg-gray-100">
+                                                    <Loader class="w-5 h-5" />
+                                                </button>
+
+                                                <button @click="updateKotStatus(item, 'Done')" title="Done"
+                                                    class="p-2 rounded-full text-success hover:bg-gray-100">
+                                                    <CheckCircle class="w-5 h-5" />
+                                                </button>
+
+                                                <button @click="updateKotStatus(item, 'Cancelled')" title="Cancelled"
+                                                    class="p-2 rounded-full text-danger hover:bg-gray-100">
+                                                    <XCircle class="w-5 h-5" />
+                                                </button>
+
+                                                <button v-if="printers.length > 0"
+                                                    class="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                    @click.prevent="printOrder(item.order)" title="Print">
+                                                    <Printer class="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="!loading && filtered.length === 0">
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            No KOT Order found.
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>

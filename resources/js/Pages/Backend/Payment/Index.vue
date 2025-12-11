@@ -15,12 +15,17 @@ import * as XLSX from "xlsx";
 const { formatMoney, formatCurrencySymbol, formatNumber, dateFmt } = useFormatters()
 const orders = ref([]);
 
+const loading = ref(false);
+
 const fetchOrdersWithPayment = async () => {
+    loading.value =  true;
     try {
         const response = await axios.get("/api/orders/all");
         orders.value = response.data.data;
     } catch (error) {
         console.error("Error fetching orders:", error);
+    }finally{
+        loading.value = false;
     }
 };
 onMounted(async () => {
@@ -36,6 +41,19 @@ onMounted(async () => {
         }
     }, 100);
     fetchOrdersWithPayment();
+    const filterModal = document.getElementById('paymentFilterModal');
+    if (filterModal) {
+        filterModal.addEventListener('hidden.bs.modal', () => {
+            filters.value = {
+                sortBy: appliedFilters.value.sortBy || "",
+                paymentType: appliedFilters.value.paymentType || "",
+                dateFrom: appliedFilters.value.dateFrom || "",
+                dateTo: appliedFilters.value.dateTo || "",
+                priceMin: appliedFilters.value.priceMin || null,
+                priceMax: appliedFilters.value.priceMax || null,
+            };
+        });
+    }
 });
 
 /* ===================== Toolbar: Search + Filter ===================== */
@@ -51,6 +69,16 @@ const filters = ref({
     priceMin: null,
     priceMax: null,
 })
+
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    paymentType: "",
+    dateFrom: "",
+    dateTo: "",
+    priceMin: null,
+    priceMax: null,
+});
 const payments = computed(() =>
     orders.value.map((o) => {
         const promo = Array.isArray(o.promo) && o.promo.length > 0 ? o.promo[0] : null;
@@ -170,10 +198,19 @@ const filtered = computed(() => {
 
 const handleFilterApply = (appliedFilters) => {
     filters.value = { ...filters.value, ...appliedFilters };
+    appliedFilters.value = { ...filters.value };
 };
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        paymentType: "",
+        dateFrom: "",
+        dateTo: "",
+        priceMin: null,
+        priceMax: null,
+    };
+    appliedFilters.value = {
         sortBy: "",
         paymentType: "",
         dateFrom: "",
@@ -209,15 +246,15 @@ const todaysPayments = computed(() => {
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    return payments.value.filter((p) => {
-        if (!p.paidAt) return false;
-        const dt = new Date(p.paidAt);
+    return orders.value.filter((o) => {
+        if (!o.created_at || !o.payment) return false;
+        const dt = new Date(o.created_at);
         return dt >= start && dt < end;
     }).length;
 });
 
 const totalAmount = computed(() =>
-    payments.value.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+    payments.value.reduce((sum, p) => sum + Number(p.grandTotal || 0), 0)
 );
 function formatDateTime(d) {
     if (!d) return "—";
@@ -643,7 +680,7 @@ const downloadPaymentsExcel = (data) => {
 
                     <!-- Table -->
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle" style="min-height: 320px">
+                        <table class="table table-hover align-middle" >
                             <thead class="border-top small text-muted">
                                 <tr>
                                     <th>S. #</th>
@@ -663,7 +700,21 @@ const downloadPaymentsExcel = (data) => {
                             </thead>
 
                             <tbody>
-                                <tr v-for="(p, idx) in filtered" :key="p.orderId">
+
+                                 <tr v-if="loading">
+                                    <td colspan="11" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center justify-content-center">
+                                            <div class="spinner-border mb-3" role="status"
+                                                style="color: #1B1670; width: 3rem; height: 3rem; border-width: 0.3em;">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <div class="fw-semibold text-muted">Loading Payments...</div>
+                                        </div>
+                                    </td>
+                                </tr> 
+
+                                <template v-else>
+ <tr v-for="(p, idx) in filtered" :key="p.orderId">
                                     <td>{{ idx + 1 }}</td>
                                     <td>{{ p.orderId }}</td>
                                     <td>{{ formatCurrencySymbol(p.amountReceived) }}</td>
@@ -686,13 +737,13 @@ const downloadPaymentsExcel = (data) => {
                                     <td class="text-capitalize">{{ p.type }}</td>
                                 </tr>
 
-                                <tr v-if="filtered.length === 0">
+                                <tr v-if="!loading && filtered.length === 0">
                                     <td colspan="13" class="text-center text-muted py-4">
                                         No payments found.
                                     </td>
                                 </tr>
+                                </template> 
                             </tbody>
-
                         </table>
                     </div>
                 </div>

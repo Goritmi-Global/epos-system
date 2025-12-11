@@ -211,34 +211,32 @@ const filteredItems = computed(() => {
     }
 
     // Category filter
-    if (filters.value.category) {
+    if (appliedFilters.value.category) {
         filtered = filtered.filter((item) => {
             const categoryId =
                 (item?.category && typeof item.category === "object")
                     ? item.category.id
                     : item?.category_id;
-            return categoryId == filters.value.category;
+            return categoryId == appliedFilters.value.category;
         });
     }
 
-    // Supplier filter
-    if (filters.value.supplier) {
+    if (appliedFilters.value.supplier) {
         filtered = filtered.filter((item) => {
             const supplierId =
                 (item?.supplier && typeof item.supplier === "object")
                     ? item.supplier.id
                     : item?.supplier_id;
-            return supplierId == filters.value.supplier;
+            return supplierId == appliedFilters.value.supplier;
         });
     }
 
-    // Stock status filter
-    if (filters.value.stockStatus) {
+    if (appliedFilters.value.stockStatus) {
         filtered = filtered.filter((item) => {
             const stock = item.availableStock || 0;
             const minAlert = item.minAlert || 5;
 
-            switch (filters.value.stockStatus) {
+            switch (appliedFilters.value.stockStatus) {
                 case "in_stock":
                     return stock >= minAlert;
                 case "low_stock":
@@ -246,21 +244,20 @@ const filteredItems = computed(() => {
                 case "out_of_stock":
                     return stock <= 0;
                 case "expired":
-                    return item.status === "expired"; //  fixed
-
+                    return item.status === "expired";
                 case "near_expiry":
                     return item.status === "near_expiry";
-
                 default:
                     return true;
             }
         });
     }
-    if (filters.value.priceMin !== null || filters.value.priceMax !== null) {
+
+    if (appliedFilters.value.priceMin !== null || appliedFilters.value.priceMax !== null) {
         filtered = filtered.filter((item) => {
             const price = item.price || item.stockValue || 0;
-            const min = filters.value.priceMin || 0;
-            const max = filters.value.priceMax || Infinity;
+            const min = appliedFilters.value.priceMin || 0;
+            const max = appliedFilters.value.priceMax || Infinity;
             return price >= min && price <= max;
         });
     }
@@ -269,12 +266,10 @@ const filteredItems = computed(() => {
 });
 
 const handleFilterApply = () => {
-    // Save the current filters as applied
     appliedFilters.value = { ...filters.value };
 };
 
 const handleFilterClear = () => {
-    // Reset both filters and applied filters
     filters.value = {
         sortBy: "",
         category: "",
@@ -290,7 +285,7 @@ const handleFilterClear = () => {
 
 const sortedItems = computed(() => {
     const arr = [...filteredItems.value];
-    const sortBy = filters.value.sortBy;
+    const sortBy = appliedFilters.value.sortBy;
 
     switch (sortBy) {
         case "stock_desc":
