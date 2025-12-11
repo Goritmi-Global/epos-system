@@ -350,7 +350,7 @@ const formatDate = (date) => {
                                                 </div>
                                                 <div class="text-muted small">
                                                     Category:
-                                                    {{ it.category.name }}
+                                                    {{ it?.category?.name }}
                                                 </div>
                                                 <div class="text-muted small">
                                                     Unit:
