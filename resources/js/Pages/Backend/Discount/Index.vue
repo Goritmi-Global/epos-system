@@ -42,6 +42,17 @@ const showOrderItems = reactive({});
 const refreshInterval = ref(null);
 const confirmModalKey = ref(0);
 
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    category: "",
+    priceMin: null,
+    priceMax: null,
+    dateFrom: null,
+    dateTo: null
+});
+
 // Discount type and status options for dropdowns
 const discountOptions = [
     // { label: "Flat Amount", value: "flat" },
@@ -153,6 +164,15 @@ const handleFilterApply = (appliedFilters) => {
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
+     appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         category: "",

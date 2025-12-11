@@ -421,6 +421,15 @@ const handleFilterClear = () => {
         dateFrom: null,
         dateTo: null
     };
+    appliedFilters.value = {
+        sortBy: "",
+        stockStatus: "",
+        category: "",
+        priceMin: null,
+        priceMax: null,
+        dateFrom: null,
+        dateTo: null
+    };
 };
 /* ---------------- Form State ---------------- */
 const promoForm = ref({
@@ -1364,6 +1373,10 @@ const downloadExcel = (data) => {
     width: 40px;
     height: 40px;
     background: #f8f9fa;
+}
+
+ .p-tablist{
+    background-color: #fff !important;
 }
 
 

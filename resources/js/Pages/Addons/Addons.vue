@@ -34,6 +34,14 @@ const addonForm = ref({
     sort_order: 0,
 });
 
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+});
+
 // Track if we're editing (null = create mode, object = edit mode)
 const editingAddon = ref(null);
 
@@ -294,6 +302,12 @@ const handleFilterClear = () => {
         priceMin: null,
         priceMax: null,
 
+    };
+     appliedFilters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
     };
     console.log("Filters cleared");
 };

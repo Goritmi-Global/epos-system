@@ -19,6 +19,13 @@ import ImportFile from "@/Components/importFile.vue";
 
 // Main data store for addon groups
 const addonGroups = ref([]);
+// Store the last applied filters
+const appliedFilters = ref({
+    sortBy: "",
+    stockStatus: "",
+    priceMin: null,
+    priceMax: null,
+});
 
 // Form state for create/edit modal
 const addonGroupForm = ref({
@@ -228,6 +235,12 @@ const handleFilterApply = (appliedFilters) => {
 
 const handleFilterClear = () => {
     filters.value = {
+        sortBy: "",
+        stockStatus: "",
+        priceMin: null,
+        priceMax: null,
+    };
+    appliedFilters.value = {
         sortBy: "",
         stockStatus: "",
         priceMin: null,
