@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\UsersController;
 use App\Http\Controllers\AutoLogout\CashierAutoLogoutController;
 use App\Http\Controllers\CustomerDisplayController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DealsController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MealController;
@@ -49,9 +50,9 @@ use Inertia\Inertia;
 |  Public / Guest
 |========================================================= */
 
-Route::get('/test-helper', fn () => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
-Route::get('/login', fn () => Inertia::render('Auth/Login'))->name('login');
-Route::get('/', fn () => Inertia::render('Auth/Login'))->name('login');
+Route::get('/test-helper', fn() => class_exists(\App\Helpers\UploadHelper::class) ? 'OK' : 'Missing');
+Route::get('/login', fn() => Inertia::render('Auth/Login'))->name('login');
+Route::get('/', fn() => Inertia::render('Auth/Login'))->name('login');
 // Route::get('/', [ProfileController::class, 'frontPage'])->name('front-page');
 Route::get('/verify-account/{id}', [VerifyAccountController::class, 'verify'])->name('verify.account');
 Route::post('/verify-otp', [RegisteredUserController::class, 'verifyOtp'])->name('verify.otp');
@@ -83,7 +84,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/step/{step}', [OnboardingController::class, 'saveStep'])->name('saveStep');
         Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
     });
-
 });
 
 /* =========================================================
@@ -118,9 +118,9 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::post('/', [StockEntryController::class, 'store'])->name('store');
         Route::get('/by-item/{inventory}', [StockEntryController::class, 'byItem'])->name('byItem');
         Route::get('/stock-logs', [StockEntryController::class, 'stockLogs'])->name('stock.logs');
-           // ✅ Add these two new routes for pagination
-    Route::get('/api-stock-in-logs', [StockEntryController::class, 'apiStockInLogs'])->name('api.stock.in.logs');
-    Route::get('/api-stock-out-logs', [StockEntryController::class, 'apiStockOutLogs'])->name('api.stock.out.logs');
+        // ✅ Add these two new routes for pagination
+        Route::get('/api-stock-in-logs', [StockEntryController::class, 'apiStockInLogs'])->name('api.stock.in.logs');
+        Route::get('/api-stock-out-logs', [StockEntryController::class, 'apiStockOutLogs'])->name('api.stock.out.logs');
         Route::put('/stock-logs/{id}', [StockEntryController::class, 'updateLog'])->name('stock.update');
         Route::delete('/stock-logs/{id}', [StockEntryController::class, 'deleteLog'])->name('stock.delete');
         Route::get('/total/{product}', [StockEntryController::class, 'totalStock'])->name('total');
@@ -129,7 +129,6 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::get('/{stockEntry}', [StockEntryController::class, 'show'])->name('show');
         Route::put('/{stockEntry}', [StockEntryController::class, 'update'])->name('update');
         Route::delete('/{stockEntry}', [StockEntryController::class, 'destroy'])->name('destroy');
-        
     });
 
     /* -------- Inventory Categories -------- */
@@ -222,6 +221,14 @@ Route::middleware(['auth', 'verified', 'check.shift.global', 'permissions'])->gr
         Route::put('/{menu}', [MenuController::class, 'update'])->name('update');
         Route::delete('/{menu}', [MenuController::class, 'destroy'])->name('destroy');
         Route::patch('/{menu}/status', [MenuController::class, 'toggleStatus'])->name('toggleStatus');
+    });
+
+    Route::prefix('deals')->name('deals.')->group(function () {
+        Route::get('/', [DealsController::class, 'index'])->name('index');
+        Route::post('/', [DealsController::class, 'store'])->name('store');
+        Route::put('/{deal}', [DealsController::class, 'update'])->name('update');
+        Route::patch('/{deal}/status', [DealsController::class, 'updateStatus'])->name('updateStatus');
+        Route::delete('/{deal}', [DealsController::class, 'destroy'])->name('destroy');
     });
 
     /* -------- Menu Categories -------- */
@@ -352,18 +359,17 @@ Route::prefix('customer-display')->name('customer-display.')->group(function () 
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+
     /**
      * Discount Management Routes
      * These are the main CRUD routes for the Discount module
      */
     Route::resource('discounts', DiscountController::class);
-    
+
     /**
      * API Discount Routes
      * These are used by the Vue frontend via AJAX/Axios
      */
-    
 });
 
 Route::get('/api/shift/{shift}/x-report', [ShiftManagementController::class, 'generateXReport'])
@@ -378,8 +384,8 @@ Route::get('/api/shift/{shift}/z-report', [ShiftManagementController::class, 'ge
 
 Route::get('/api/shift/{shift}/z-report/pdf', [ShiftManagementController::class, 'downloadZReportPdf'])
     ->name('shift.z-report.pdf');
-    
 
 
 
-require __DIR__.'/auth.php';
+
+require __DIR__ . '/auth.php';

@@ -1,0 +1,244 @@
+[33mcommit 309e61c35e3db4d68d6a4a296d971898ec575f27[m[33m ([m[1;36mHEAD -> [m[1;32mkashif_khan_v1.0.1[m[33m, [m[1;31morigin/kashif_khan_v1.0.1[m[33m)[m
+Merge: 987d600 678c909
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Thu Dec 11 16:18:11 2025 +0500
+
+    Added deals module to system and customization of each items in steppper
+
+[33mcommit 987d600508012800ba1d9065e5016b62fa7f3224[m
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Thu Dec 11 16:15:57 2025 +0500
+
+    Added deals module to system and customization of each items in steppper
+
+[33mcommit 678c9098668a3ac1f6d3ce88c1f5e72ba0f5c63f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Merge: 74af65d 9a2c475
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Thu Dec 11 16:13:11 2025 +0500
+
+    Merge pull request #349 from Goritmi-Global/junaid_v1.0.1
+    
+    Junaid v1.0.1
+
+[33mcommit 9a2c4759df36b409565ebab51de1a0e3babb4b07[m
+Merge: 8ab98ee 74af65d
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Thu Dec 11 16:12:18 2025 +0500
+
+    Analytics udated and aslo filters updated
+
+[33mcommit 8ab98ee9b65817180168f7c2035a3c7af314a4a4[m
+Merge: 1579d62 641a0b2
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Thu Dec 11 16:09:15 2025 +0500
+
+    Analytics udated and aslo filters updated
+
+[33mcommit 74af65dd6b8efe07e66c6984a4bc181c01ba90fd[m
+Merge: 641a0b2 c95aa1e
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Wed Dec 10 17:34:47 2025 +0500
+
+    Merge pull request #348 from Goritmi-Global/junaid_v1.0.1
+    
+    Filter updated, add functionality of items supplier preffered
+
+[33mcommit c95aa1ebdfba743f111fa6060575a8ff4708e8ca[m
+Merge: 1579d62 641a0b2
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Wed Dec 10 17:34:39 2025 +0500
+
+    Merge branch 'main' into junaid_v1.0.1
+
+[33mcommit 1579d62495127ce2acc3cb9b6056657b6dc59aa9[m
+Merge: 98ba481 609b81b
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Wed Dec 10 17:32:12 2025 +0500
+
+    Filter updated, add functionality of items supplier preffered
+
+[33mcommit 641a0b2e656b558e1a08ca9bb291023f2376ebd4[m
+Merge: 609b81b 98ba481
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Wed Dec 10 12:20:36 2025 +0500
+
+    Merge pull request #347 from Goritmi-Global/junaid_v1.0.1
+    
+    Fixed randon Walk In Name, export issues etc
+
+[33mcommit 98ba4817ea930d8ceeb30674fbee5766818bbe1e[m
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Wed Dec 10 12:19:51 2025 +0500
+
+    Fixed randon Walk In Name, export issues etc
+
+[33mcommit 609b81bb2bb175970a3019fb6bd5f9cd3dbfddc1[m
+Merge: ad86c19 bd5ef35
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Tue Dec 9 18:14:31 2025 +0500
+
+    Merge pull request #346 from Goritmi-Global/junaid_v1.0.1
+    
+    Junaid v1.0.1
+
+[33mcommit bd5ef355c53bf6a263b604bab4435d845f638b45[m
+Merge: 474ca95 ad86c19
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Tue Dec 9 18:13:15 2025 +0500
+
+    By default Image is added in M<enu Itenms
+
+[33mcommit ad86c19ea34cf7745f1680e58317715cff7c61bc[m
+Merge: 1483bda 743e5c6
+Author: Kashif Khan <134366902+KashifKhan456@users.noreply.github.com>
+Date:   Tue Dec 9 18:12:48 2025 +0500
+
+    Merge pull request #345 from Goritmi-Global/kashif_khan_v1.0.1
+    
+    Kashif khan v1.0.1
+
+[33mcommit 743e5c6227f090c7d1cc86fea42273d4191cb1e7[m
+Merge: 166ff90 1483bda
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Tue Dec 9 18:12:17 2025 +0500
+
+    Merge branch 'main' of https://github.com/Goritmi-Global/epos-system into kashif_khan_v1.0.1
+
+[33mcommit 166ff90e657a71e367e5d8a44184d48dc88c6fb0[m
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Tue Dec 9 18:12:08 2025 +0500
+
+    add image placeholder when no image
+
+[33mcommit 474ca9544cbc6b683905b6213643f21d7da7cca5[m
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Tue Dec 9 18:12:07 2025 +0500
+
+    By default Image is added in M<enu Itenms
+
+[33mcommit 1483bda38e20920f1decd9be33e248197409b338[m
+Merge: 6fcb0ab fd76754
+Author: Kashif Khan <134366902+KashifKhan456@users.noreply.github.com>
+Date:   Tue Dec 9 17:58:03 2025 +0500
+
+    Merge pull request #344 from Goritmi-Global/kashif_khan_v1.0.1
+    
+    Kashif khan v1.0.1
+
+[33mcommit fd76754a81135e0aa7f21102ee6b8446d955e291[m
+Merge: 244026b 6fcb0ab
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Tue Dec 9 17:57:05 2025 +0500
+
+    Merge branch 'main' of https://github.com/Goritmi-Global/epos-system into kashif_khan_v1.0.1
+
+[33mcommit 244026b4a29eb0b40db2529263eba71937254286[m
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Tue Dec 9 17:56:55 2025 +0500
+
+    add in progress to order.vue
+
+[33mcommit 6fcb0abe4504761657665d6256703c0635738a2d[m
+Merge: adf3057 6a9d491
+Author: Kashif Khan <134366902+KashifKhan456@users.noreply.github.com>
+Date:   Tue Dec 9 17:56:06 2025 +0500
+
+    Merge pull request #343 from Goritmi-Global/kashif_khan_v1.0.1
+    
+    Kashif khan v1.0.1
+
+[33mcommit 6a9d4911f99410506cc7dba548810514ba57743c[m
+Merge: 09d03e1 adf3057
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Tue Dec 9 17:55:09 2025 +0500
+
+    Add in progress status to kot, fixed quick order to go with that status, add source to order and add stepper to pos
+
+[33mcommit 09d03e17c096d4c289301dfbcee0da07ef017658[m
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Tue Dec 9 17:51:57 2025 +0500
+
+    Add in progress status to kot, fixed quick order to go with that status, add source to order and add stepper to pos
+
+[33mcommit adf3057545a639d932418d9d0a2f8aa239884b7b[m
+Merge: bfd350c 60acdd6
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Tue Dec 9 17:42:59 2025 +0500
+
+    Merge pull request #342 from Goritmi-Global/junaid_v1.0.1
+    
+    Junaid v1.0.1
+
+[33mcommit 60acdd69d6872be91b1cf03f7afbfb3b834b8502[m
+Merge: 089f626 bfd350c
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Tue Dec 9 17:41:03 2025 +0500
+
+    Filters and Search issues resolved
+
+[33mcommit 089f62666a1ed5d3da8835f2da0949f7d807ab64[m
+Merge: 1d92fb0 b0c3e64
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Mon Dec 8 21:28:49 2025 +0500
+
+    Code merged
+
+[33mcommit bfd350c844555e3fc176e6b508a8bbd63271b8af[m
+Merge: b0c3e64 1d92fb0
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Mon Dec 8 18:35:06 2025 +0500
+
+    Merge pull request #341 from Goritmi-Global/junaid_v1.0.1
+    
+    Cancell order reflects in KOT
+
+[33mcommit 1d92fb0560b761f1307efa8b45f16f6cff1887c7[m
+Merge: 1ac3b6f 8bd0abb
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Mon Dec 8 18:34:23 2025 +0500
+
+    Cancell order reflects in KOT
+
+[33mcommit b0c3e64a236fa4e5456d65f4f673681522275ec6[m
+Merge: b816400 35b0e27
+Author: Kashif Khan <134366902+KashifKhan456@users.noreply.github.com>
+Date:   Mon Dec 8 18:33:06 2025 +0500
+
+    Merge pull request #340 from Goritmi-Global/kashif_khan_v1.0.1
+    
+    Kashif khan v1.0.1
+
+[33mcommit 35b0e27958d5b377a054969b23b6c63018777536[m
+Merge: 50c6e37 b816400
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Mon Dec 8 18:30:26 2025 +0500
+
+    Merge branch 'main' of https://github.com/Goritmi-Global/epos-system into kashif_khan_v1.0.1
+
+[33mcommit 50c6e378f143b7428e9a23f95958749addc7bbc8[m
+Author: KashifKhan456 <kashifkhan4unoor@gmail.com>
+Date:   Mon Dec 8 18:30:14 2025 +0500
+
+    Rmvoe the extra fields in the order.vue
+
+[33mcommit b816400a68cde4549e5e575f5bb11a2386cbd5ba[m
+Merge: 8bd0abb 1ac3b6f
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Mon Dec 8 16:37:21 2025 +0500
+
+    Merge pull request #339 from Goritmi-Global/junaid_v1.0.1
+    
+    Blur screen issue code added in Rerfrences and Inventory
+
+[33mcommit 1ac3b6f8d8168d60374974823c351f3dfc4fa351[m
+Author: Junaid-Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Mon Dec 8 16:36:39 2025 +0500
+
+    Blur screen issue code added in Rerfrences and Inventory
+
+[33mcommit 8bd0abbb6698c1d460babd8e71d595b088882eaa[m
+Merge: 7b60295 571a4c4
+Author: Junaid Shiekh <junaid.khan.jan143@gmail.com>
+Date:   Mon Dec 8 16:11:01 2025 +0500
+
+    Merge pull request #338 from Goritmi-Global/jun

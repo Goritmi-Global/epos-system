@@ -54,9 +54,36 @@ class StorePosOrderRequest extends FormRequest
             'items.*.item_kitchen_note'          => 'nullable|string',
             'items.*.sale_discount_per_item'     => 'nullable|numeric',
             
-            // ✅ NEW: Validation for removed ingredients
+            // Validation for removed ingredients
             'items.*.removed_ingredients'        => 'nullable|array',
-            'items.*.removed_ingredients.*'      => 'integer', // Each removed ingredient ID must be integer
+            'items.*.removed_ingredients.*'      => 'integer',
+
+            // Deal-specific validations
+            'items.*.is_deal'                    => 'nullable|boolean',
+            'items.*.deal_id'                    => 'nullable|integer|exists:deals,id',
+            'items.*.menu_items'                 => 'nullable|array',
+            'items.*.menu_items.*.id'            => 'required_with:items.*.menu_items|integer',
+            'items.*.menu_items.*.name'          => 'required_with:items.*.menu_items|string',
+            'items.*.menu_items.*.price'         => 'required_with:items.*.menu_items|numeric',
+            'items.*.menu_items.*.ingredients'   => 'nullable|array',
+            'items.*.menu_items.*.ingredients.*.id'           => 'required_with:items.*.menu_items.*.ingredients|integer',
+            'items.*.menu_items.*.ingredients.*.product_name' => 'required_with:items.*.menu_items.*.ingredients|string',
+            'items.*.menu_items.*.ingredients.*.quantity'     => 'required_with:items.*.menu_items.*.ingredients|numeric',
+            'items.*.menu_items.*.ingredients.*.stock'        => 'nullable|numeric',
+            'items.*.menu_items.*.ingredients.*.inventory_item_id' => 'nullable|integer',
+            'items.*.menu_items.*.ingredients.*.unit'         => 'nullable|string',
+
+            // Addon validations
+            'items.*.addons'                     => 'nullable|array',
+            'items.*.addons.*.id'                => 'required_with:items.*.addons|integer',
+            'items.*.addons.*.name'              => 'required_with:items.*.addons|string',
+            'items.*.addons.*.price'             => 'required_with:items.*.addons|numeric',
+            'items.*.addons.*.quantity'          => 'nullable|integer|min:1',
+
+            // Additional fields that might be passed
+            'items.*.unit_price'                 => 'nullable|numeric',
+            'items.*.tax_percentage'             => 'nullable|numeric',
+            'items.*.tax_amount'                 => 'nullable|numeric',
 
             // KOT validations
             'auto_print_kot' => 'nullable|boolean',
@@ -75,6 +102,9 @@ class StorePosOrderRequest extends FormRequest
             'promo_id'       => 'nullable|integer|exists:promos,id',
             'promo_name'     => 'nullable|string|max:255',
             'promo_type'     => 'nullable|in:flat,percent',
+
+            // Additional fields
+            'approved_discount_details' => 'nullable|array',
         ];
     }
 
@@ -86,6 +116,10 @@ class StorePosOrderRequest extends FormRequest
         return [
             'items.*.removed_ingredients.array' => 'Removed ingredients must be an array.',
             'items.*.removed_ingredients.*.integer' => 'Each removed ingredient ID must be a number.',
+            'items.*.deal_id.exists' => 'The selected deal does not exist.',
+            'items.*.menu_items.*.ingredients.*.id.required_with' => 'Ingredient ID is required.',
+            'items.*.menu_items.*.ingredients.*.product_name.required_with' => 'Ingredient name is required.',
+            'items.*.menu_items.*.ingredients.*.quantity.required_with' => 'Ingredient quantity is required.',
         ];
     }
 }
