@@ -409,7 +409,8 @@ const getSelectedAddonsText = () => {
     const allAddons = [];
     Object.values(modalSelectedAddons.value).forEach(addons => {
         addons.forEach(addon => {
-            allAddons.push(`${addon.name} (+${formatCurrencySymbol(addon.price)})`);
+            const qty = addon.quantity > 1 ? ` x${addon.quantity}` : '';
+            allAddons.push(`${addon.name}${qty} (+${formatCurrencySymbol(addon.price * (addon.quantity || 1))})`);
         });
     });
     return allAddons.join(', ');
@@ -556,7 +557,7 @@ const getModalAddonsPrice = () => {
     let total = 0;
     Object.values(modalSelectedAddons.value).forEach(addons => {
         addons.forEach(addon => {
-            total += parseFloat(addon.price || 0);
+            total += parseFloat(addon.price || 0) * (addon.quantity || 1);
         });
     });
     return total;
@@ -4454,6 +4455,65 @@ const rejectPendingOrder = async (pendingOrder) => {
     }
 };
 
+// Check if addon is selected
+const isModalAddonSelected = (groupId, addonId) => {
+    return modalSelectedAddons.value[groupId]?.some(a => a.id === addonId);
+};
+
+// Get addon quantity
+const getModalAddonQuantity = (groupId, addonId) => {
+    const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
+    return addon?.quantity || 1;
+};
+
+// Toggle addon selection
+const toggleModalAddon = (groupId, addon) => {
+    if (!modalSelectedAddons.value[groupId]) {
+        modalSelectedAddons.value[groupId] = [];
+    }
+
+    const index = modalSelectedAddons.value[groupId].findIndex(a => a.id === addon.id);
+
+    if (index > -1) {
+        // Remove addon
+        modalSelectedAddons.value[groupId].splice(index, 1);
+    } else {
+        // Check max_select limit
+        const addonGroup = selectedItem.value.addon_groups.find(g => g.group_id === groupId);
+        if (addonGroup && addonGroup.max_select > 0) {
+            if (modalSelectedAddons.value[groupId].length >= addonGroup.max_select) {
+                toast.warning(`You can only select up to ${addonGroup.max_select} ${addonGroup.group_name}`);
+                return;
+            }
+        }
+
+        // Add addon with quantity 1
+        modalSelectedAddons.value[groupId].push({
+            id: addon.id,
+            name: addon.name,
+            price: parseFloat(addon.price),
+            group_id: groupId,
+            quantity: 1
+        });
+    }
+};
+
+// Increment addon quantity
+const incrementModalAddon = (groupId, addonId) => {
+    const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
+    if (addon) {
+        addon.quantity++;
+    }
+};
+
+// Decrement addon quantity
+const decrementModalAddon = (groupId, addonId) => {
+    const addon = modalSelectedAddons.value[groupId]?.find(a => a.id === addonId);
+    if (addon && addon.quantity > 1) {
+        addon.quantity--;
+    }
+};
+
 </script>
 
 <template>
@@ -5578,38 +5638,75 @@ const rejectPendingOrder = async (pendingOrder) => {
                                         </div>
 
                                         <!-- STEP 3 : ADD-ONS -->
-                                        <div v-show="currentStep === 3 && hasAddons" class="step-content">
-                                            <div class="d-flex align-items-start mb-2">
-                                                <i class="bi bi-plus-circle me-2 text-success"
-                                                    style="font-size: 1.1rem;"></i>
-                                                <div>
-                                                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons
-                                                    </h6>
-                                                    <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your
-                                                        meal</p>
-                                                </div>
-                                            </div>
+                                    <!-- STEP 3 : ADD-ONS -->
+<div v-show="currentStep === 3 && hasAddons" class="step-content">
+    <div class="d-flex align-items-start mb-2">
+        <i class="bi bi-plus-circle me-2 text-success" style="font-size: 1.1rem;"></i>
+        <div>
+            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">Add Add-ons</h6>
+            <p class="text-muted mb-0" style="font-size: 0.75rem;">Enhance your meal</p>
+        </div>
+    </div>
 
-                                            <div v-for="group in selectedItem?.addon_groups" :key="group.group_id"
-                                                class="mb-3">
-                                                <label class="fw-semibold mb-1 d-flex justify-content-between"
-                                                    style="font-size: 0.85rem;">
-                                                    <span>{{ group.group_name }}</span>
-                                                    <span v-if="group.max_select > 0"
-                                                        class="badge rounded-pill bg-primary"
-                                                        style="font-size: 0.7rem;">
-                                                        Max {{ group.max_select }}
-                                                    </span>
-                                                </label>
+    <div v-for="group in selectedItem?.addon_groups" :key="group.group_id" class="mb-3">
+        <label class="fw-semibold mb-2 d-flex justify-content-between" style="font-size: 0.85rem;">
+            <span>{{ group.group_name }}</span>
+            <span v-if="group.max_select > 0" class="badge rounded-pill bg-primary" style="font-size: 0.7rem;">
+                Max {{ group.max_select }}
+            </span>
+        </label>
 
-                                                <MultiSelect :modelValue="modalSelectedAddons[group.group_id] || []"
-                                                    @update:modelValue="(val) => handleModalAddonChange(group.group_id, val)"
-                                                    :options="group.addons" optionLabel="name" dataKey="id"
-                                                    placeholder="Select add-ons" :maxSelectedLabels="2" class="w-100"
-                                                    appendTo="self">
-                                                </MultiSelect>
-                                            </div>
-                                        </div>
+        <div class="row g-2">
+            <div v-for="addon in group.addons" :key="addon.id" class="col-12">
+                <div class="border rounded-2 p-2 shadow-sm d-flex align-items-center justify-content-between"
+                    :class="{ 'bg-light border-success': isModalAddonSelected(group.group_id, addon.id) }">
+                    
+                    <!-- Checkbox & Name -->
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <input 
+                            type="checkbox" 
+                            class="form-check-input me-2" 
+                            style="width: 18px; height: 18px; cursor: pointer;"
+                            :id="'addon-' + addon.id"
+                            :checked="isModalAddonSelected(group.group_id, addon.id)"
+                            @change="toggleModalAddon(group.group_id, addon)">
+                        
+                        <label :for="'addon-' + addon.id" class="form-check-label mb-0" 
+                            style="font-size: 0.85rem; cursor: pointer;">
+                            {{ addon.name }}
+                            <span class="text-success fw-semibold ms-1">
+                                +{{ formatCurrencySymbol(addon.price) }}
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Quantity Controls -->
+                    <div v-if="isModalAddonSelected(group.group_id, addon.id)" 
+                        class="d-flex align-items-center gap-2">
+                        <button 
+                            class="btn btn-sm btn-outline-danger rounded-circle" 
+                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                            @click="decrementModalAddon(group.group_id, addon.id)"
+                            :disabled="getModalAddonQuantity(group.group_id, addon.id) <= 1">
+                            <i class="bi bi-dash" style="font-size: 0.9rem;"></i>
+                        </button>
+                        
+                        <span class="fw-bold" style="min-width: 25px; text-align: center; font-size: 0.9rem;">
+                            {{ getModalAddonQuantity(group.group_id, addon.id) }}
+                        </span>
+                        
+                        <button 
+                            class="btn btn-sm btn-outline-success rounded-circle" 
+                            style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;"
+                            @click="incrementModalAddon(group.group_id, addon.id)">
+                            <i class="bi bi-plus" style="font-size: 0.9rem;"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                                         <!-- STEP 4 : REVIEW -->
                                         <div v-show="currentStep === finalStep" class="step-content">
