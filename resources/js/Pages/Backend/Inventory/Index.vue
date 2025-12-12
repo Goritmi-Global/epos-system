@@ -152,7 +152,7 @@ onMounted(async () => {
     }, 100);
     fetchInventories();
     fetchKpiStats();
-     const filterModal = document.getElementById('inventoryFilterModal');
+    const filterModal = document.getElementById('inventoryFilterModal');
     if (filterModal) {
         filterModal.addEventListener('hidden.bs.modal', () => {
             // Reset filters to last applied state when modal closes
@@ -976,7 +976,7 @@ const onDownload = async (type) => {
 
     try {
         loading.value = true;
-        
+
         // ✅ FETCH ALL DATA FOR EXPORT (not just current page)
         const allData = await fetchAllDataForExport();
 
@@ -991,7 +991,7 @@ const onDownload = async (type) => {
         else if (type === "excel") downloadExcel(allData);
         else if (type === "csv") downloadCSV(allData);
         else toast.error("Invalid download type");
-        
+
     } catch (error) {
         console.error("Download failed:", error);
         toast.error(`Download failed: ${error.message}`);
@@ -1070,7 +1070,7 @@ const downloadCSV = (data) => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         toast.success(`CSV downloaded successfully (${data.length} items)`, { autoClose: 2500 });
     } catch (error) {
         console.error("CSV generation error:", error);
@@ -1123,7 +1123,7 @@ const downloadPDF = (data) => {
             s.unit_name || "",
             s.supplier_name || "",
             s.minAlert || "",
-            s.availableStock || "",
+            s.availableStock !== undefined ? Number(s.availableStock).toFixed(2) : "",
             s.nutrition?.calories || "",
             s.nutrition?.fat || "",
             s.nutrition?.protein || "",
@@ -1628,8 +1628,9 @@ const handleImport = (data) => {
                                         {{ item.name }}
                                     </td>
                                     <td>
-                                        <ImageZoomModal :file="item.image_url || '/assets/img/default.png'" :alt="item.name"
-                                            :width="50" :height="50" :custom_class="'cursor-pointer'" />
+                                        <ImageZoomModal :file="item.image_url || '/assets/img/default.png'"
+                                            :alt="item.name" :width="50" :height="50"
+                                            :custom_class="'cursor-pointer'" />
                                     </td>
 
                                     <td class="text-truncate" style="max-width: 260px">

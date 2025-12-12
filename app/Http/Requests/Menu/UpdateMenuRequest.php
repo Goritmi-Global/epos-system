@@ -17,7 +17,7 @@ class UpdateMenuRequest extends FormRequest
         $isVariantMenu = is_array($this->variant_metadata) && count($this->variant_metadata) > 0;
 
         return [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:menu_items,name',
 
             // Price is required only for simple menus
             'price' => $isVariantMenu ? 'nullable|numeric|min:0' : 'required|numeric|min:0',

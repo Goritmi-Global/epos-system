@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class  UpdatePromoRequests extends FormRequest
 {
@@ -14,7 +15,12 @@ class  UpdatePromoRequests extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('promos', 'name')->ignore($this->id), 
+            ],
             'type' => 'required|in:flat,percent',
             'status' => 'required|in:active,inactive',
             'start_date' => 'required|date',
