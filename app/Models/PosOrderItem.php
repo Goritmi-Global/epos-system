@@ -36,4 +36,8 @@ class PosOrderItem extends Model
     {
         return $this->belongsTo(Deal::class, 'deal_id');
     }
+    public function addons()
+    {
+        return $this->hasMany(PosOrderItemAddon::class, 'pos_order_item_id');
+    }
 }
